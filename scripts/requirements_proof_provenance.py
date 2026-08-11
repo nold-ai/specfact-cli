@@ -153,9 +153,16 @@ def _ancestor_file_paths(path: str, filename: str) -> set[str]:
 
 
 def _pythonpath_entries(value: object) -> list[str]:
-    """Return the individual roots of a pytest ``pythonpath`` setting."""
+    """Return the individual roots of a pytest ``pythonpath`` setting.
+
+    A string form is split with ``shlex`` because pytest parses ``paths`` ini values that
+    way, so a quoted entry containing spaces stays one path.
+    """
     if isinstance(value, str):
-        return value.split()
+        try:
+            return shlex.split(value)
+        except ValueError:
+            return []
     if isinstance(value, list):
         return [entry for entry in cast(list[object], value) if isinstance(entry, str)]
     return []
@@ -676,58 +683,79 @@ def _python_tree_at_ref(repo_root: Path, source_ref: str, path: str) -> ast.AST 
         return None
 
 
-def _discovered_python_paths(module_names: Sequence[Sequence[str]], module_roots: Sequence[str]) -> set[str]:
-    """Return every repository path candidate for discovered module names."""
-    return {path for module_parts in module_names for path in _python_module_paths(module_parts, module_roots)}
+def _discovered_rooted_paths(
+    module_names: Sequence[Sequence[str]], module_roots: Sequence[str]
+) -> set[tuple[str, str]]:
+    """Return every (module root, repository path) candidate for discovered module names."""
+    return {
+        (root, path)
+        for module_parts in module_names
+        for root in module_roots
+        for path in _python_module_paths(module_parts, (root,))
+    }
+
+
+def _module_relative_path(path: str, module_root: str) -> str:
+    """Return a path relative to the module root it was discovered under."""
+    prefix = f"{module_root}/"
+    return path.removeprefix(prefix) if module_root and path.startswith(prefix) else path
+
+
+def _import_roots(module_root: str) -> tuple[str, ...]:
+    """Return the roots an import inside a module discovered under one root may resolve against."""
+    return ("",) if not module_root else ("", module_root)
 
 
 def _imported_python_paths(
     repo_root: Path,
     source_ref: str,
-    source_paths: Sequence[str],
+    seeds: Sequence[tuple[str, bool, str]],
     *,
-    pytest_plugin_source_paths: set[str],
     plugin_module_roots: Sequence[str],
 ) -> set[str]:
     """Return transitive repository-local Python imports used by pytest inputs.
 
-    Configured ``pythonpath`` roots widen plugin resolution only. Ordinary imports stay
-    anchored at the repository root, because resolving them through a root such as ``src``
-    would bind governed production modules that a red-to-green change is expected to edit.
+    Each traversal entry carries the module root it was discovered under, so a plugin loaded
+    from a configured ``pythonpath`` root resolves its own imports against that root as
+    pytest does. An input discovered at the repository root keeps repository-root resolution,
+    because resolving ordinary test imports through a root such as ``src`` would bind
+    governed production modules that a red-to-green change is expected to edit.
     """
-    pending = [(path, path in pytest_plugin_source_paths) for path in source_paths]
-    traversed_paths: set[tuple[str, bool]] = set()
+    pending = list(seeds)
+    traversed_paths: set[tuple[str, bool, str]] = set()
     imported_paths: set[str] = set()
     while pending:
-        current_path, inspect_pytest_plugins = pending.pop()
-        traversal = (current_path, inspect_pytest_plugins)
+        traversal = pending.pop()
         if traversal in traversed_paths:
             continue
         traversed_paths.add(traversal)
+        current_path, inspect_pytest_plugins, module_root = traversal
         tree = _python_tree_at_ref(repo_root, source_ref, current_path)
         if tree is None:
             if _test_path_is_regular_at_ref(repo_root, source_ref, current_path):
                 raise ValueError("stale-red-proof")
             continue
-        ordinary_paths = _discovered_python_paths(
-            _import_module_names(tree, current_path), REPOSITORY_ROOT_MODULE_ROOTS
+        ordinary_rooted = _discovered_rooted_paths(
+            _import_module_names(tree, _module_relative_path(current_path, module_root)),
+            _import_roots(module_root),
         )
         plugin_names = _pytest_plugin_names(tree) if inspect_pytest_plugins else []
-        plugin_paths = _discovered_python_paths(plugin_names, plugin_module_roots)
-        plugin_target_paths = {
-            path
+        plugin_rooted = _discovered_rooted_paths(plugin_names, plugin_module_roots)
+        plugin_targets = {
+            (root, path)
             for module_parts in plugin_names
-            for path in _python_module_target_paths(module_parts, plugin_module_roots)
+            for root in plugin_module_roots
+            for path in _python_module_target_paths(module_parts, (root,))
         }
-        imported_paths.update(ordinary_paths, plugin_paths)
+        imported_paths.update(path for _, path in ordinary_rooted | plugin_rooted)
         pending.extend(
-            (imported_path, False)
-            for imported_path in ordinary_paths
+            (imported_path, False, root)
+            for root, imported_path in ordinary_rooted
             if _test_path_exists_at_ref(repo_root, source_ref, imported_path)
         )
         pending.extend(
-            (plugin_path, plugin_path in plugin_target_paths)
-            for plugin_path in plugin_paths
+            (plugin_path, (root, plugin_path) in plugin_targets, root)
+            for root, plugin_path in plugin_rooted
             if _test_path_exists_at_ref(repo_root, source_ref, plugin_path)
         )
     return imported_paths
@@ -918,21 +946,23 @@ def _proof_inputs(repo_root: Path, source_ref: str, selector_paths: Sequence[str
     traversal_inputs = pytest_inputs | initializer_inputs
     plugin_module_roots = _pythonpath_roots(repo_root, source_ref)
     addopts_names = _addopts_plugin_module_names(repo_root, source_ref)
-    addopts_paths = _discovered_python_paths(addopts_names, plugin_module_roots)
+    addopts_rooted = _discovered_rooted_paths(addopts_names, plugin_module_roots)
     addopts_targets = {
-        path
+        (root, path)
         for module_parts in addopts_names
-        for path in _python_module_target_paths(module_parts, plugin_module_roots)
+        for root in plugin_module_roots
+        for path in _python_module_target_paths(module_parts, (root,))
     }
+    seeds = [(path, path in pytest_inputs, "") for path in sorted(traversal_inputs)]
+    seeds += [(path, (root, path) in addopts_targets, root) for root, path in sorted(addopts_rooted)]
     return {
         *traversal_inputs,
         *PYTEST_CONFIGURATION_FILES,
-        *addopts_paths,
+        *(path for _, path in addopts_rooted),
         *_imported_python_paths(
             repo_root,
             source_ref,
-            sorted(traversal_inputs | addopts_paths),
-            pytest_plugin_source_paths=pytest_inputs | addopts_targets,
+            seeds,
             plugin_module_roots=plugin_module_roots,
         ),
     }

@@ -184,9 +184,11 @@ retain deterministic JUnit results for module-owned reconciliation.
   assignment a later one overwrites never loads, and a name bound only inside a
   function, lambda, or class body does not rebind a module-level guard
 - **AND** a declared plugin is resolved against the repository root and every
-  configured pytest `pythonpath` root, while ordinary imports resolve against
-  the repository root alone so governed production modules that a red-to-green
-  change is expected to edit do not become proof inputs
+  configured pytest `pythonpath` root, parsed as pytest parses a path list, and
+  a plugin loaded from such a root resolves its own imports against that root,
+  while an input discovered at the repository root resolves ordinary imports
+  there alone so governed production modules that a red-to-green change is
+  expected to edit do not become proof inputs
 - **WHEN** pull-request CI validates or executes the Requirements proof
 - **THEN** the proof remains stale or unproven
 - **AND** an active `pytest_plugins` declaration whose value cannot be resolved

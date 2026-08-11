@@ -1625,7 +1625,7 @@
     tests/unit/scripts/test_requirements_proof_provenance.py -q
   ```
 
-- **Passing result:** all 114 provenance tests passed, under both the default
+- **Passing result:** all 116 provenance tests passed, under both the default
   random ordering and `-p no:randomly`.
 - **Reconciliation with `2f893e95`:** that commit landed the last open Codex
   finding by retaining known constant values when a conditional assignment is
@@ -1832,6 +1832,27 @@
   `tests.helpers.doc_frontmatter_fixtures` despite carrying imports above the
   declaration — and proof inputs stay at 83 and 108 paths for two real
   selectors.
+- **Seventh follow-on Codex round:** two findings against `e45eb375`.
+  Each traversal entry now carries the module root it was discovered under, so a
+  plugin loaded from a configured `pythonpath` root resolves its own imports
+  against that root as pytest does; `source/plugin.py` importing `helper` now
+  binds `source/helper.py` rather than only `helper.py`. `_module_relative_path`
+  strips the root before computing the package for relative imports, and
+  `_import_roots` keeps repository-root resolution for anything discovered at
+  the root, so the invariant that ordinary test imports never bind governed
+  production modules is preserved.
+  `_pythonpath_entries` also splits a string form with `shlex` rather than
+  whitespace, because pytest parses `paths` ini values that way — confirmed at
+  `_pytest/config/__init__.py:1792` in the locked 9.1.1, which reads
+  `input_values = shlex.split(value) if isinstance(value, str) else value`. A
+  quoted root such as `pythonpath = "test support"` is now one path instead of
+  two invalid ones.
+- **Failing-before (seventh follow-on):** 2 failed — the rooted plugin's own
+  import and the quoted root. Both pass after the fix, and the remaining 114
+  tests passed before and after the restructure.
+- **Verified on this repository:** roots stay `('', 'src', 'tools')`, proof
+  inputs stay at 83 and 108 paths for two real selectors, the declared plugin
+  stays bound, and no `src/specfact_cli/**` module is bound.
 - **Ruff:**
 
   ```shell

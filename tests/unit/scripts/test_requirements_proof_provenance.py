@@ -1603,3 +1603,58 @@ def test_git_bound_red_proof_binds_plugins_declared_after_an_import(tmp_path: Pa
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
         "stale-red-proof"
     ]
+
+
+def test_git_bound_red_proof_rejects_changed_plugin_import_under_pythonpath_root(tmp_path: Path) -> None:
+    """A plugin loaded from a pythonpath root resolves its own imports against that root."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / "pytest.ini").write_text("[pytest]\npythonpath = source\naddopts = -p plugin\n", encoding="utf-8")
+    source_path = tmp_path / "source"
+    source_path.mkdir()
+    (source_path / "plugin.py").write_text("import helper\n", encoding="utf-8")
+    (source_path / "helper.py").write_text("VALUE = False\n", encoding="utf-8")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    base_ref = _commit(tmp_path, "test: add rooted plugin and its helper")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (source_path / "helper.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change helper imported by the rooted plugin")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_git_bound_red_proof_rejects_changed_plugin_under_quoted_pythonpath_root(tmp_path: Path) -> None:
+    """Pytest splits an ini path list with shlex, so a quoted root containing a space is one path."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / "pytest.ini").write_text(
+        '[pytest]\npythonpath = "test support"\naddopts = -p rooted_plugin\n', encoding="utf-8"
+    )
+    support_path = tmp_path / "test support"
+    support_path.mkdir()
+    (support_path / "rooted_plugin.py").write_text("VALUE = False\n", encoding="utf-8")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    base_ref = _commit(tmp_path, "test: add plugin under a quoted pythonpath root")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (support_path / "rooted_plugin.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change plugin under a quoted root")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
