@@ -118,6 +118,15 @@ behavior before its tests exist and have failed for the expected reason.
   Deliberately scoped to plugin resolution: rooting ordinary imports would bind
   governed production modules under `src`, which a red-to-green change is
   expected to edit, and would reject every valid failing-first flow.
+- [ ] Apply the same undecodable-input guard to product code that reads JSON
+  with `except (OSError, json.JSONDecodeError)`:
+  `src/specfact_cli/registry/module_state.py`,
+  `src/specfact_cli/registry/help_cache.py`,
+  `src/specfact_cli/utils/context_detection.py`, and
+  `src/specfact_cli/importers/speckit_scanner.py`. These are cache and scanner
+  reads whose intended behavior is to fall back, so an undecodable file crashes
+  the CLI instead. Deferred from the provenance change because they are product
+  paths needing their own contract and coverage treatment.
 - [ ] Return to the primary core checkout, fetch `dev`, remove the worktree,
   delete the local feature branch after merge, prune worktrees, and optionally
   delete the merged remote branch.

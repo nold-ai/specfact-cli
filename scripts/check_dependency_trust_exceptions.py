@@ -91,7 +91,7 @@ def _read_exception_records(register_path: Path) -> tuple[list[object], list[str
     """Load the register while preserving fail-closed parse errors."""
     try:
         raw_payload = json.loads(register_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         return [], [f"could not read dependency trust register: {exc}"]
     if not isinstance(raw_payload, dict):
         return [], ["dependency trust register must contain an exceptions list"]
@@ -210,7 +210,7 @@ def _read_security_tool_floors(policy_path: Path = DEFAULT_SECURITY_TOOL_FLOORS)
     """Load normalized, locally verifiable security-tool minimum versions."""
     try:
         raw_payload = json.loads(policy_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         return {}, [f"could not read security tool floor policy: {exc}"]
     if not isinstance(raw_payload, dict):
         return {}, ["security tool floor policy must contain a minimum_versions object"]

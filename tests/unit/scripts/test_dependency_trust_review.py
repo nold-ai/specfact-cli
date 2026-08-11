@@ -247,3 +247,29 @@ def test_semgrep_lock_below_reviewed_security_floor_fails_before_install(tmp_pat
     errors = checker.validate_frozen_dependency_policy(register_path, lock_path, today=date(2026, 7, 24))
 
     assert errors == ["semgrep==1.70.1 is below the reviewed security floor 1.171.0"]
+
+
+def test_read_exception_records_reports_undecodable_register(tmp_path: Path) -> None:
+    """An unreadable trust register must fail closed with an error, not abort the check."""
+    checker = _load_checker()
+    register_path = tmp_path / "register.json"
+    register_path.write_bytes(b'{"exceptions": ["caf\xe9"]}\n')
+
+    records, errors = checker._read_exception_records(register_path)
+
+    assert records == []
+    assert len(errors) == 1
+    assert "could not read dependency trust register" in errors[0]
+
+
+def test_read_security_tool_floors_reports_undecodable_policy(tmp_path: Path) -> None:
+    """An unreadable floor policy must fail closed with an error, not abort the check."""
+    checker = _load_checker()
+    policy_path = tmp_path / "floors.json"
+    policy_path.write_bytes(b'{"pip-audit": "caf\xe9"}\n')
+
+    floors, errors = checker._read_security_tool_floors(policy_path)
+
+    assert floors == {}
+    assert len(errors) == 1
+    assert "could not read security tool floor policy" in errors[0]

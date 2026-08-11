@@ -1881,3 +1881,61 @@
   Result: the change is valid.
 - **Skipped:** 0 tests.
 - **Environment:** Linux, Python 3.11.15, pytest 9.1.1.
+
+## Related-code audit for the same defect classes
+
+- **Recorded:** 2026-08-11 (UTC)
+- **Request:** check whether the defect classes fixed in this change exist in
+  related code, and fix what is found.
+- **Method:** searched for each class rather than reasoning from memory —
+  `configparser` users, `ast.parse`/`ast.walk` users, pytest configuration
+  filename lists, `git show` callers with `text=True`, and JSON reads whose
+  `except` clause omits `UnicodeDecodeError`. Every candidate was then executed
+  against a crafted non-UTF-8 input rather than judged by reading.
+- **Fixed — undecodable input aborts a fail-closed gate (3 sites):**
+  `scripts/security_audit_gate.py` `_read_exception_items` and
+  `scripts/check_dependency_trust_exceptions.py` `_read_exception_records` and
+  `_read_security_tool_floors` caught `(OSError, json.JSONDecodeError)` but not
+  `UnicodeDecodeError`, so a non-UTF-8 register crashed each gate instead of
+  producing the fail-closed error their docstrings promise. Confirmed by
+  execution before the fix, and their `main` functions do not catch it.
+- **Fixed — incomplete pytest configuration candidates (1 site):**
+  `tools/smart_test_coverage.py` listed only `pytest.ini` and `tox.ini`, so a
+  change to `pytest.toml`, `.pytest.toml`, `.pytest.ini`, or `setup.cfg` did not
+  count as configuration drift and could leave coverage scoped from a stale
+  cache. Aligned with pytest's discovery order, the same correction made in this
+  change's own candidate list.
+- **Checked and found correct, no change made:**
+  `scripts/requirements_proof_executor.py` already catches
+  `(OSError, UnicodeDecodeError, json.JSONDecodeError)` and its `main` catches
+  `subprocess.SubprocessError`, which covers `TimeoutExpired`.
+  `scripts/requirements_evidence_delivery_gate.py` omits `UnicodeDecodeError`
+  from one `except`, but its `main` catches `(OSError, ValueError)` and
+  `UnicodeDecodeError` is a `ValueError`, so the error is absorbed and only the
+  diagnostic wording differs — verified by execution, and left unchanged rather
+  than churned. `scripts/verify_safe_project_writes.py` already guards
+  `OSError`, `UnicodeDecodeError`, and `SyntaxError`.
+  `scripts/check_local_version_ahead_of_pypi.py` reads bytes, so the decode
+  class does not apply.
+- **Failing-before command:**
+
+  ```shell
+  uv run --python 3.11 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_security_audit_gate.py \
+    tests/unit/scripts/test_dependency_trust_review.py -p no:randomly \
+    -k undecodable -q
+  ```
+
+  Result: 3 failed, each with the `UnicodeDecodeError` the gate should have
+  converted into an error.
+- **Passing-after:** 28 passed in those two files, and 570 passed / 4 skipped
+  across `tests/unit/scripts`, `tests/unit/tools`, and `tests/unit/workflows`.
+- **Static gates:** Ruff check and format clean across `scripts/`,
+  `tools/smart_test_coverage.py`, and the touched tests. Basedpyright reports
+  0 errors and 0 warnings at the `--level error` threshold CI enforces; at the
+  default threshold the touched files go from 44 to 45 warnings, the added one
+  being the same untyped-fixture pattern as the 44 already present in
+  `test_security_audit_gate.py`.
+- **Deferred:** four product-code reads under `src/` share the undecodable-input
+  class with cache-fallback semantics; recorded as a task rather than changed
+  here, because product paths need their own contract and coverage treatment.

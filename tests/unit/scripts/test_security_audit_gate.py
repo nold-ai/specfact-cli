@@ -171,3 +171,15 @@ def test_main_allows_only_a_matching_unexpired_reviewed_exception(gate_mod, tmp_
     with patch.object(gate_mod.subprocess, "run", return_value=proc):
         assert gate_mod.main(["--exceptions", str(exceptions_path)]) == 0
     assert "WAIVED" in capsys.readouterr().out
+
+
+def test_load_reviewed_exceptions_reports_undecodable_file(gate_mod, tmp_path: Path) -> None:
+    """An unreadable exception list must fail closed with an error, not abort the gate."""
+    exceptions_path = tmp_path / "exceptions.json"
+    exceptions_path.write_bytes(b'{"exceptions": ["caf\xe9"]}\n')
+
+    approved, errors = gate_mod._load_reviewed_exceptions(exceptions_path)
+
+    assert not approved
+    assert len(errors) == 1
+    assert "could not read vulnerability exception register" in errors[0]

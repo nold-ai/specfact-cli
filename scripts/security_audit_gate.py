@@ -165,7 +165,7 @@ def _read_exception_items(path: Path) -> tuple[list[JsonValue] | None, str | Non
     """Read the exception list, returning one fail-closed error on invalid input."""
     try:
         payload = cast(JsonValue, json.loads(path.read_text(encoding="utf-8")))
-    except (OSError, json.JSONDecodeError) as exc:
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         return None, f"could not read vulnerability exception register: {exc}"
     if not isinstance(payload, dict):
         return None, "vulnerability exception register must contain an exceptions list"

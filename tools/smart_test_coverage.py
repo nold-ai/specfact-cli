@@ -119,10 +119,15 @@ class SmartCoverageManager:
         self.config_files = [
             "pyproject.toml",
             "setup.py",
+            "setup.cfg",
             "requirements.txt",
             "requirements-dev.txt",
             ".pre-commit-config.yaml",
+            # Every implicit pytest configuration name, matching pytest's discovery order.
+            "pytest.toml",
+            ".pytest.toml",
             "pytest.ini",
+            ".pytest.ini",
             "tox.ini",
             "conftest.py",
         ]
