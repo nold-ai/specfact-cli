@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import argparse
 import ast
+import configparser
 import functools
 import hashlib
 import json
 import re
 import subprocess
 import sys
+import tomllib
 from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
 from typing import cast
@@ -36,6 +38,8 @@ GOVERNED_PRODUCTION_PREFIXES = (
 )
 GOVERNED_PRODUCTION_FILES = {"pyproject.toml", "setup.py", "uv.lock", "requirements/ci/locked.txt"}
 PYTEST_CONFIGURATION_FILES = ("pyproject.toml", "pytest.ini", "setup.cfg", "tox.ini")
+PYTEST_INI_SECTIONS = {"pytest.ini": "pytest", "setup.cfg": "tool:pytest", "tox.ini": "pytest"}
+REPOSITORY_ROOT_MODULE_ROOTS = ("",)
 GIT_TIMEOUT_SECONDS = 30
 UNRESOLVED_PLUGIN_VALUE = object()
 
@@ -128,20 +132,86 @@ def _ancestor_file_paths(path: str, filename: str) -> set[str]:
     return paths
 
 
-def _python_module_target_paths(module_parts: Sequence[str]) -> set[str]:
-    """Return the file and package targets for a repository-local module name."""
+def _pythonpath_entries(value: object) -> list[str]:
+    """Return the individual roots of a pytest ``pythonpath`` setting."""
+    if isinstance(value, str):
+        return value.split()
+    if isinstance(value, list):
+        return [entry for entry in cast(list[object], value) if isinstance(entry, str)]
+    return []
+
+
+def _toml_pythonpath(text: str) -> list[str]:
+    """Return ``pythonpath`` declared under ``[tool.pytest.ini_options]``."""
+    try:
+        node: object = tomllib.loads(text)
+    except (tomllib.TOMLDecodeError, ValueError):
+        return []
+    for key in ("tool", "pytest", "ini_options", "pythonpath"):
+        if not isinstance(node, dict):
+            return []
+        node = cast(dict[str, object], node).get(key)
+    return _pythonpath_entries(node)
+
+
+def _ini_pythonpath(text: str, section: str) -> list[str]:
+    """Return ``pythonpath`` declared in an ini-style pytest configuration section."""
+    parser = configparser.ConfigParser()
+    try:
+        parser.read_string(text)
+    except configparser.Error:
+        return []
+    return _pythonpath_entries(parser.get(section, "pythonpath", fallback=None))
+
+
+def _safe_module_root(root: str) -> str | None:
+    """Return a repository-relative module root, rejecting absolute or escaping entries."""
+    path = PurePosixPath(root)
+    if path.is_absolute() or ".." in path.parts:
+        return None
+    normalized = path.as_posix()
+    return "" if normalized == "." else normalized
+
+
+@functools.cache
+def _pythonpath_roots(repo_root: Path, source_ref: str) -> tuple[str, ...]:
+    """Return module roots configured through pytest ``pythonpath`` at the red source.
+
+    Every configuration candidate is read rather than replicating pytest's inifile
+    precedence, because binding a root pytest did not use only widens the proof inputs.
+    """
+    roots: set[str] = set()
+    for path in PYTEST_CONFIGURATION_FILES:
+        result = _git_bytes(repo_root, "show", f"{source_ref}:{path}")
+        if result.returncode != 0 or len(result.stdout) > MAX_TEST_BLOB_BYTES:
+            continue
+        text = result.stdout.decode("utf-8", errors="surrogateescape")
+        section = PYTEST_INI_SECTIONS.get(path)
+        entries = _ini_pythonpath(text, section) if section else _toml_pythonpath(text)
+        roots.update(root for entry in entries if (root := _safe_module_root(entry)) is not None)
+    return (*REPOSITORY_ROOT_MODULE_ROOTS, *sorted(roots - set(REPOSITORY_ROOT_MODULE_ROOTS)))
+
+
+def _rooted_path(root: str, relative: str) -> str:
+    """Return a repository-relative path beneath one module root."""
+    return f"{root}/{relative}" if root else relative
+
+
+def _python_module_target_paths(module_parts: Sequence[str], module_roots: Sequence[str]) -> set[str]:
+    """Return the file and package targets for a repository-local module name under each root."""
     if not module_parts:
         return set()
     module_path = PurePosixPath(*module_parts)
-    return {module_path.with_suffix(".py").as_posix(), (module_path / "__init__.py").as_posix()}
+    relatives = (module_path.with_suffix(".py").as_posix(), (module_path / "__init__.py").as_posix())
+    return {_rooted_path(root, relative) for root in module_roots for relative in relatives}
 
 
-def _python_module_paths(module_parts: Sequence[str]) -> set[str]:
+def _python_module_paths(module_parts: Sequence[str], module_roots: Sequence[str]) -> set[str]:
     """Return possible paths for a repository-local module, including its parent packages."""
-    paths = _python_module_target_paths(module_parts)
+    paths = _python_module_target_paths(module_parts, module_roots)
     for parent_depth in range(1, len(module_parts)):
         parent_path = PurePosixPath(*module_parts[:parent_depth])
-        paths.add((parent_path / "__init__.py").as_posix())
+        paths.update(_rooted_path(root, (parent_path / "__init__.py").as_posix()) for root in module_roots)
     return paths
 
 
@@ -401,9 +471,9 @@ def _python_tree_at_ref(repo_root: Path, source_ref: str, path: str) -> ast.AST 
         return None
 
 
-def _discovered_python_paths(module_names: Sequence[Sequence[str]]) -> set[str]:
+def _discovered_python_paths(module_names: Sequence[Sequence[str]], module_roots: Sequence[str]) -> set[str]:
     """Return every repository path candidate for discovered module names."""
-    return {path for module_parts in module_names for path in _python_module_paths(module_parts)}
+    return {path for module_parts in module_names for path in _python_module_paths(module_parts, module_roots)}
 
 
 def _imported_python_paths(
@@ -412,8 +482,14 @@ def _imported_python_paths(
     source_paths: Sequence[str],
     *,
     pytest_plugin_source_paths: set[str],
+    plugin_module_roots: Sequence[str],
 ) -> set[str]:
-    """Return transitive repository-local Python imports used by pytest inputs."""
+    """Return transitive repository-local Python imports used by pytest inputs.
+
+    Configured ``pythonpath`` roots widen plugin resolution only. Ordinary imports stay
+    anchored at the repository root, because resolving them through a root such as ``src``
+    would bind governed production modules that a red-to-green change is expected to edit.
+    """
     pending = [(path, path in pytest_plugin_source_paths) for path in source_paths]
     traversed_paths: set[tuple[str, bool]] = set()
     imported_paths: set[str] = set()
@@ -426,11 +502,15 @@ def _imported_python_paths(
         tree = _python_tree_at_ref(repo_root, source_ref, current_path)
         if tree is None:
             continue
-        ordinary_paths = _discovered_python_paths(_import_module_names(tree, current_path))
+        ordinary_paths = _discovered_python_paths(
+            _import_module_names(tree, current_path), REPOSITORY_ROOT_MODULE_ROOTS
+        )
         plugin_names = _pytest_plugin_names(tree) if inspect_pytest_plugins else []
-        plugin_paths = _discovered_python_paths(plugin_names)
+        plugin_paths = _discovered_python_paths(plugin_names, plugin_module_roots)
         plugin_target_paths = {
-            path for module_parts in plugin_names for path in _python_module_target_paths(module_parts)
+            path
+            for module_parts in plugin_names
+            for path in _python_module_target_paths(module_parts, plugin_module_roots)
         }
         imported_paths.update(ordinary_paths, plugin_paths)
         pending.extend(
@@ -635,6 +715,7 @@ def _proof_inputs(repo_root: Path, source_ref: str, selector_paths: Sequence[str
             source_ref,
             sorted(traversal_inputs),
             pytest_plugin_source_paths=pytest_inputs,
+            plugin_module_roots=_pythonpath_roots(repo_root, source_ref),
         ),
     }
 

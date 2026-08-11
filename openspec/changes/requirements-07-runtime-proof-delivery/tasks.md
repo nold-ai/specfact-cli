@@ -113,11 +113,11 @@ behavior before its tests exist and have failed for the expected reason.
   inputs as an invariant that includes the pytest configuration source, so the
   mirrored scope text is stale. Recorded as a follow-up because the sibling
   internal checkout was unavailable in the session that made the change.
-- [ ] Resolve module names against configured `pythonpath` roots so a pytest
-  plugin or conftest helper reachable only through such a root is bound as a
-  proof input. Latent today: the sole declared plugin resolves at the
-  repository root, and a `pythonpath` change already stales the proof through
-  the pytest configuration input.
+- [x] Resolve declared pytest plugins against configured `pythonpath` roots so
+  a plugin reachable only through such a root is bound as a proof input.
+  Deliberately scoped to plugin resolution: rooting ordinary imports would bind
+  governed production modules under `src`, which a red-to-green change is
+  expected to edit, and would reject every valid failing-first flow.
 - [ ] Return to the primary core checkout, fetch `dev`, remove the worktree,
   delete the local feature branch after merge, prune worktrees, and optionally
   delete the merged remote branch.

@@ -1625,7 +1625,7 @@
     tests/unit/scripts/test_requirements_proof_provenance.py -q
   ```
 
-- **Passing result:** all 65 provenance tests passed, under both the default
+- **Passing result:** all 70 provenance tests passed, under both the default
   random ordering and `-p no:randomly`.
 - **Reconciliation with `2f893e95`:** that commit landed the last open Codex
   finding by retaining known constant values when a conditional assignment is
@@ -1662,12 +1662,39 @@
   lines only. This section appends beyond that boundary, so
   `legacy_tdd_ledger_digest` in `.github/workflows/requirements-evidence.yml`
   remains `sha256:d6e35c93...5e8c3` and was reverified unchanged.
-- **Deferred:** module names are still resolved relative to the repository root
-  only, so a pytest plugin or conftest helper reachable only through a
-  configured `pythonpath` root would not be bound. This is latent in this
-  repository: the sole declared plugin resolves at the root, and any change to
-  the `pythonpath` setting itself now stales the proof through the pytest
-  configuration input. Tracked as a follow-up rather than fixed here.
+- **`pythonpath` root resolution:** declared plugins now resolve against the
+  repository root and every configured `pythonpath` root. `_pythonpath_roots`
+  reads `pythonpath` from all four configuration candidates at the red source
+  (`[tool.pytest.ini_options]` via `tomllib`, and `[pytest]` or `[tool:pytest]`
+  via `configparser`), rejects absolute or escaping entries, and is cached per
+  ref. Reading every candidate instead of replicating pytest's inifile
+  precedence only widens the proof inputs, which is the safe direction.
+- **Scope decision:** roots widen plugin resolution only. Ordinary imports stay
+  anchored at the repository root. Measured against this repository before
+  making the change, rooting ordinary imports would have bound
+  `src/specfact_cli/models/module_package.py`,
+  `src/specfact_cli/modules/module_registry/src/commands.py`, and
+  `src/specfact_cli/registry/module_discovery.py` for a single selector — the
+  governed production modules a red-to-green change is expected to edit — so
+  every valid failing-first flow would have returned `stale-red-proof`.
+  `test_git_bound_red_proof_allows_production_change_under_pythonpath_root`
+  locks that invariant.
+- **Failing-before (`pythonpath`):**
+
+  ```shell
+  uv run --python 3.11 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py \
+    -p no:randomly -k pythonpath_root -q
+  ```
+
+  Result: 4 failed, 1 passed. The four plugin-under-root parameters failed and
+  the production-import invariant guard already passed, as intended for a
+  regression that locks unchanged behavior.
+- **Verified on this repository:** `_pythonpath_roots` returns
+  `('', 'src', 'tools')` from the real `pyproject.toml`, the declared plugin
+  `tests/helpers/doc_frontmatter_fixtures.py` remains bound, and no
+  `src/specfact_cli/**` module appears in the resolved proof inputs for either
+  a script-level or a module-registry selector.
 - **Ruff:**
 
   ```shell

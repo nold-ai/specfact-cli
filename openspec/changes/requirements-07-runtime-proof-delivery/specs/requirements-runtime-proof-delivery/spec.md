@@ -177,6 +177,10 @@ retain deterministic JUnit results for module-owned reconciliation.
   module-level `pytest_plugins` declaration made by a pytest-considered module
   through its active or runtime-conditionally possible static bindings,
   including known values preserved across non-literal conditional assignments
+- **AND** a declared plugin is resolved against the repository root and every
+  configured pytest `pythonpath` root, while ordinary imports resolve against
+  the repository root alone so governed production modules that a red-to-green
+  change is expected to edit do not become proof inputs
 - **WHEN** pull-request CI validates or executes the Requirements proof
 - **THEN** the proof remains stale or unproven
 - **AND** an active `pytest_plugins` declaration whose value cannot be resolved

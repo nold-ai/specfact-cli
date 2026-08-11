@@ -1076,3 +1076,70 @@ def test_git_bound_red_proof_binds_non_utf8_support_module(tmp_path: Path) -> No
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
         "stale-red-proof"
     ]
+
+
+@pytest.mark.parametrize(
+    ("configuration_path", "configuration_body"),
+    [
+        ("pyproject.toml", '[tool.pytest.ini_options]\npythonpath = ["source"]\n'),
+        ("pytest.ini", "[pytest]\npythonpath = source\n"),
+        ("tox.ini", "[pytest]\npythonpath = source\n"),
+        ("setup.cfg", "[tool:pytest]\npythonpath = source\n"),
+    ],
+)
+def test_git_bound_red_proof_rejects_changed_plugin_under_pythonpath_root(
+    tmp_path: Path, configuration_path: str, configuration_body: str
+) -> None:
+    """A plugin resolvable only through a configured pythonpath root stays bound to the red failure."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / configuration_path).write_text(configuration_body, encoding="utf-8")
+    plugin_path = tmp_path / "source" / "rooted_plugin"
+    plugin_path.mkdir(parents=True)
+    (plugin_path / "__init__.py").write_text("", encoding="utf-8")
+    (plugin_path / "fixtures.py").write_text("VALUE = False\n", encoding="utf-8")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "conftest.py").write_text('pytest_plugins = ("rooted_plugin.fixtures",)\n', encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add plugin under a pythonpath root")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (plugin_path / "fixtures.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change plugin under a pythonpath root")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_git_bound_red_proof_allows_production_change_under_pythonpath_root(tmp_path: Path) -> None:
+    """A pythonpath root must not bind ordinary production imports, which red-to-green work edits."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / "pyproject.toml").write_text('[tool.pytest.ini_options]\npythonpath = ["src"]\n', encoding="utf-8")
+    delivery_path = tmp_path / "src" / "delivery"
+    delivery_path.mkdir(parents=True)
+    (delivery_path / "__init__.py").write_text("", encoding="utf-8")
+    (delivery_path / "feature.py").write_text("VALUE = False\n", encoding="utf-8")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    base_ref = _commit(tmp_path, "chore: add production module under a pythonpath root")
+    (tests_path / "test_proof.py").write_text(
+        "from delivery.feature import VALUE\n\ndef test_selected() -> None: assert VALUE\n",
+        encoding="utf-8",
+    )
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (delivery_path / "feature.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "feat: implement delivery behavior")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
