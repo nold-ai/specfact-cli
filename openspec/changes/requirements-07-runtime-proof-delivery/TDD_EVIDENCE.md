@@ -1625,7 +1625,7 @@
     tests/unit/scripts/test_requirements_proof_provenance.py -q
   ```
 
-- **Passing result:** all 116 provenance tests passed, under both the default
+- **Passing result:** all 120 provenance tests passed, under both the default
   random ordering and `-p no:randomly`.
 - **Reconciliation with `2f893e95`:** that commit landed the last open Codex
   finding by retaining known constant values when a conditional assignment is
@@ -1853,6 +1853,26 @@
 - **Verified on this repository:** roots stay `('', 'src', 'tools')`, proof
   inputs stay at 83 and 108 paths for two real selectors, the declared plugin
   stays bound, and no `src/specfact_cli/**` module is bound.
+- **Eighth follow-on Codex round:** three P1 findings against `13b38d39`.
+  `_mutated_name_targets` marks a tracked constant unresolved when a statement
+  calls a method on it, so `pytest_plugins = []` followed by
+  `pytest_plugins.append(...)` fails closed instead of reporting no plugins;
+  only names already tracked are affected, so an unrelated call is inert.
+  `_executable_scope_nodes` gained an `include_class_bodies` option used for
+  guard-mutation detection, because a class body executes during import and
+  `class C: typing.TYPE_CHECKING = True` mutates the module even though the body
+  binds no module name — name bindings still exclude class bodies, so the
+  round-3 fix is intact.
+  The unparseable-input branch now rejects on existence rather than on being a
+  regular blob, so a symlinked `conftest.py` fails closed instead of being
+  skipped; a symlink executes bytes the gate never inspected, and selectors were
+  already rejected for the same reason.
+- **Failing-before (eighth follow-on):** 4 failed — two in-place mutation forms,
+  the class-body guard mutation, and the symlinked conftest. All pass after.
+- **Verified on this repository:** proof inputs stay at 83 and 108 paths for two
+  real selectors, the declared plugin stays bound, and no production module is
+  bound. 574 passed / 4 skipped across `tests/unit/scripts`,
+  `tests/unit/workflows`, and `tests/unit/tools`.
 - **Ruff:**
 
   ```shell

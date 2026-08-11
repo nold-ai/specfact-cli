@@ -451,19 +451,26 @@ def _scope_header_nodes(node: ast.AST) -> list[ast.AST]:
     return [child for child in ast.iter_child_nodes(node) if id(child) not in body_ids]
 
 
-def _executable_scope_nodes(tree: ast.AST) -> list[ast.AST]:
-    """Return nodes that run at module load, without entering deferred or class bodies.
+def _executable_scope_nodes(tree: ast.AST, *, include_class_bodies: bool = False) -> list[ast.AST]:
+    """Return nodes that run at module load, without entering deferred scopes.
 
-    Function, lambda, and class bodies cannot rebind a module-level name, so names bound
-    there must not count as rebinding the typing guard. Their headers still execute in the
-    enclosing scope and are traversed.
+    Function and lambda bodies do not run where they appear, and a class body binds class
+    attributes rather than module names, so neither counts as rebinding the typing guard.
+    Their headers still execute in the enclosing scope and are traversed. A class body is
+    included when the caller looks for module mutations rather than name bindings, because
+    the body does execute during import.
     """
+    deferred = (
+        (ast.AsyncFunctionDef, ast.FunctionDef, ast.Lambda)
+        if include_class_bodies
+        else (ast.AsyncFunctionDef, ast.ClassDef, ast.FunctionDef, ast.Lambda)
+    )
     pending = list(ast.iter_child_nodes(tree))
     nodes: list[ast.AST] = []
     while pending:
         node = pending.pop()
         nodes.append(node)
-        if isinstance(node, (ast.AsyncFunctionDef, ast.ClassDef, ast.FunctionDef, ast.Lambda)):
+        if isinstance(node, deferred):
             pending.extend(_scope_header_nodes(node))
             continue
         pending.extend(ast.iter_child_nodes(node))
@@ -516,7 +523,11 @@ def _verified_type_checking_bindings(tree: ast.AST) -> tuple[set[str], set[str]]
         | {name for node in nodes for name in _compound_binding_names(node)}
         | _global_rebound_names(tree)
     )
-    mutated_guard_names = {name for node in nodes for name in _guard_attribute_targets(node)}
+    mutated_guard_names = {
+        name
+        for node in _executable_scope_nodes(tree, include_class_bodies=True)
+        for name in _guard_attribute_targets(node)
+    }
     return (
         _imported_type_checking_names(body) - rebound_names,
         _imported_typing_module_names(body) - rebound_names - mutated_guard_names,
@@ -614,6 +625,15 @@ def _import_binding_names(node: ast.AST) -> list[str]:
     return []
 
 
+def _mutated_name_targets(node: ast.AST) -> list[str]:
+    """Return names this statement mutates in place, whose resulting value is unknown."""
+    return [
+        node.func.value.id
+        for node in ast.walk(node)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name)
+    ]
+
+
 def _has_star_import(node: ast.AST) -> bool:
     """Return whether one statement imports an unknown set of names."""
     return isinstance(node, ast.ImportFrom) and any(alias.name == "*" for alias in node.names)
@@ -641,6 +661,9 @@ def _pytest_plugin_names(tree: ast.AST) -> list[list[str]]:
             _record_constant(constants, name, UNRESOLVED_PLUGIN_VALUE, extends=True)
         for name in _import_binding_names(node):
             _record_constant(constants, name, UNRESOLVED_PLUGIN_VALUE, extends=False)
+        for name in _mutated_name_targets(node):
+            if name in constants:
+                _record_constant(constants, name, UNRESOLVED_PLUGIN_VALUE, extends=True)
         if _has_star_import(node):
             _record_constant(constants, "pytest_plugins", UNRESOLVED_PLUGIN_VALUE, extends=True)
     plugin_names: list[list[str]] = []
@@ -732,7 +755,9 @@ def _imported_python_paths(
         current_path, inspect_pytest_plugins, module_root = traversal
         tree = _python_tree_at_ref(repo_root, source_ref, current_path)
         if tree is None:
-            if _test_path_is_regular_at_ref(repo_root, source_ref, current_path):
+            # An existing input that is neither parseable nor a plain absent candidate cannot
+            # be verified: a symlink executes bytes this gate never inspected.
+            if _test_path_exists_at_ref(repo_root, source_ref, current_path):
                 raise ValueError("stale-red-proof")
             continue
         ordinary_rooted = _discovered_rooted_paths(

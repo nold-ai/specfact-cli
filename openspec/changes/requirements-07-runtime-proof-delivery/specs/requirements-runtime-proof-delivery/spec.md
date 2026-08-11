@@ -197,8 +197,9 @@ retain deterministic JUnit results for module-owned reconciliation.
   constant it reads, or when the declaration is bound by an import whose value
   lives in another module
 - **AND** a proof input or configuration source that exists at the red source
-  but cannot be read or parsed, because it is oversized or malformed, is treated
-  as stale rather than skipped like an absent candidate
+  but cannot be read or parsed, because it is oversized, malformed, or a symlink
+  whose executed bytes were never inspected, is treated as stale rather than
+  skipped like an absent candidate
 - **AND** a typing guard is trusted only while unmutated, so an attribute write
   to its `TYPE_CHECKING` member or a `global` declaration that rebinds it from a
   nested scope drops the guard, while any literal branch condition is resolved
