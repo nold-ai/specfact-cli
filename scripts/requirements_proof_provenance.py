@@ -209,13 +209,15 @@ def _pytest_configuration_sources(repo_root: Path, source_ref: str) -> tuple[tup
 
     Raises ``ValueError('stale-red-proof')`` when a candidate exists but exceeds the read
     bound, because an unread configuration could declare plugins or roots this gate must bind.
+    A symlinked candidate is rejected on the same terms: pytest reads the target bytes, while
+    the blob at this path holds only the link text.
     """
     sources: list[tuple[str, str]] = []
     for path in PYTEST_CONFIGURATION_FILES:
         result = _git_bytes(repo_root, "show", f"{source_ref}:{path}")
         if result.returncode != 0:
             continue
-        if len(result.stdout) > MAX_TEST_BLOB_BYTES:
+        if len(result.stdout) > MAX_TEST_BLOB_BYTES or not _test_path_is_regular_at_ref(repo_root, source_ref, path):
             raise ValueError("stale-red-proof")
         sources.append((path, result.stdout.decode("utf-8", errors="surrogateescape")))
     return tuple(sources)
@@ -260,12 +262,26 @@ def _addopts_plugin_module_names(repo_root: Path, source_ref: str) -> tuple[tupl
 
 
 def _safe_module_root(root: str) -> str | None:
-    """Return a repository-relative module root, rejecting absolute or escaping entries."""
+    """Return a repository-relative module root, normalizing traversal within the repository.
+
+    Pytest resolves the configured entry against the rootdir, so ``a/../b`` names the root
+    ``b`` and must bind the plugins reachable through it. An absolute or escaping entry names
+    a tree outside the repository whose files no Git ref can bind, so it yields no root.
+    """
     path = PurePosixPath(root)
-    if path.is_absolute() or ".." in path.parts:
+    if path.is_absolute():
         return None
-    normalized = path.as_posix()
-    return "" if normalized == "." else normalized
+    parts: list[str] = []
+    for part in path.parts:
+        if part == ".":
+            continue
+        if part != "..":
+            parts.append(part)
+        elif parts:
+            parts.pop()
+        else:
+            return None
+    return "/".join(parts)
 
 
 @functools.cache
@@ -491,6 +507,26 @@ def _guard_attribute_targets(node: ast.AST) -> list[str]:
     ]
 
 
+def _call_argument_names(node: ast.AST) -> list[str]:
+    """Return module names handed to a call, which can rewrite any attribute they expose.
+
+    ``setattr(typing, "TYPE_CHECKING", True)`` and ``vars(typing)["TYPE_CHECKING"] = True``
+    both rewrite the guard without an attribute-assignment target, and resolving which calls
+    do so would need the callee's body, so passing the module at all drops the guard.
+    """
+    if not isinstance(node, ast.Call):
+        return []
+    arguments = [*node.args, *(keyword.value for keyword in node.keywords)]
+    return [argument.id for argument in arguments if isinstance(argument, ast.Name)]
+
+
+def _rewrites_attributes(nodes: Sequence[ast.AST]) -> bool:
+    """Return whether these nodes rewrite an attribute through the ``setattr`` builtin."""
+    return any(
+        isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "setattr" for node in nodes
+    )
+
+
 def _globally_rebound_in(nodes: Sequence[ast.AST]) -> set[str]:
     """Return names both declared ``global`` and bound among the given nodes."""
     declared = {name for node in nodes if isinstance(node, ast.Global) for name in node.names}
@@ -503,8 +539,9 @@ def _globally_rebound_in(nodes: Sequence[ast.AST]) -> set[str]:
 def _module_state_mutating_functions(tree: ast.AST) -> list[ast.AST]:
     """Return function definitions whose body can change module state this gate depends on.
 
-    A ``global`` rebinding, a ``TYPE_CHECKING`` attribute write, or a ``pytest_plugins``
-    assignment inside a function all alter what pytest sees once that function runs.
+    A ``global`` rebinding, a ``TYPE_CHECKING`` attribute write, a ``setattr`` rewrite, or a
+    ``pytest_plugins`` assignment inside a function all alter what pytest sees once that
+    function runs.
     """
     definitions: list[ast.AST] = []
     for node in ast.walk(tree):
@@ -514,6 +551,7 @@ def _module_state_mutating_functions(tree: ast.AST) -> list[ast.AST]:
         mutates = (
             _globally_rebound_in(body_nodes)
             or any(_guard_attribute_targets(child) for child in body_nodes)
+            or _rewrites_attributes(body_nodes)
             or any(name == "pytest_plugins" for child in body_nodes for name, _ in _name_bindings(child))
         )
         if mutates:
@@ -564,9 +602,10 @@ def _verified_type_checking_bindings(tree: ast.AST, before_line: int | None = No
     context-manager, exception, and match targets, so a nested but reachable rebinding
     replaces the guard while a name bound only inside a function, lambda, or class body
     does not — unless a ``global`` declaration makes that binding module-scoped. A module
-    guard is also dropped when its ``TYPE_CHECKING`` attribute is written directly, and no
-    guard is trusted at all when an invoked function could change module state. A guard is
-    trusted only when imported directly at module scope.
+    guard is also dropped when its ``TYPE_CHECKING`` attribute is written directly or when the
+    module itself is handed to a call that could rewrite it, and no guard is trusted at all
+    when an invoked function could change module state. A guard is trusted only when imported
+    directly at module scope.
     """
     body = tree.body if isinstance(tree, ast.Module) else []
     if _unverifiable_module_state(tree):
@@ -579,7 +618,9 @@ def _verified_type_checking_bindings(tree: ast.AST, before_line: int | None = No
         | {name for node in nodes for name in _compound_binding_names(node)}
         | _globally_rebound_in(executing_nodes)
     )
-    mutated_guard_names = {name for node in executing_nodes for name in _guard_attribute_targets(node)}
+    mutated_guard_names = {name for node in executing_nodes for name in _guard_attribute_targets(node)} | {
+        name for node in executing_nodes for name in _call_argument_names(node)
+    }
     return (
         _imported_type_checking_names(body) - rebound_names,
         _imported_typing_module_names(body) - rebound_names - mutated_guard_names,
@@ -687,6 +728,19 @@ def _mutated_name_targets(node: ast.AST) -> list[str]:
     ]
 
 
+def _aliased_names(constants: dict[str, list[object]], name: str) -> set[str]:
+    """Return every name recorded as the same mutable object as this one.
+
+    Assigning one name to another copies the reference, so mutating either changes both.
+    Only mutable containers are compared by identity, because equal immutable values may be
+    interned and share identity without sharing a binding.
+    """
+    mutated = [value for value in constants.get(name, []) if isinstance(value, (dict, list, set))]
+    return {
+        other for other, values in constants.items() if any(value is target for value in values for target in mutated)
+    }
+
+
 def _has_star_import(node: ast.AST) -> bool:
     """Return whether one statement imports an unknown set of names."""
     return isinstance(node, ast.ImportFrom) and any(alias.name == "*" for alias in node.names)
@@ -717,8 +771,8 @@ def _pytest_plugin_names(tree: ast.AST) -> list[list[str]]:
         for name in _import_binding_names(node):
             _record_constant(constants, name, UNRESOLVED_PLUGIN_VALUE, extends=False)
         for name in _mutated_name_targets(node):
-            if name in constants:
-                _record_constant(constants, name, UNRESOLVED_PLUGIN_VALUE, extends=True)
+            for aliased in _aliased_names(constants, name):
+                _record_constant(constants, aliased, UNRESOLVED_PLUGIN_VALUE, extends=True)
         if _has_star_import(node):
             _record_constant(constants, "pytest_plugins", UNRESOLVED_PLUGIN_VALUE, extends=True)
     plugin_names: list[list[str]] = []

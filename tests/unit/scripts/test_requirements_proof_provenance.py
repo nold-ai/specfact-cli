@@ -1920,3 +1920,141 @@ def test_git_bound_red_proof_tracks_guard_rebound_before_its_branch(tmp_path: Pa
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
         "stale-red-proof"
     ]
+
+
+def test_git_bound_red_proof_normalizes_traversing_pythonpath_root(tmp_path: Path) -> None:
+    """Pytest resolves a `pythonpath` entry, so a root spelled with `..` still binds its plugin."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / "pytest.ini").write_text(
+        "[pytest]\npythonpath = tests/helpers/../plugins\naddopts = -p localplugin\n", encoding="utf-8"
+    )
+    plugins_path = tmp_path / "tests" / "plugins"
+    plugins_path.mkdir(parents=True)
+    (plugins_path / "localplugin.py").write_text("VALUE = False\n", encoding="utf-8")
+    (tmp_path / "tests" / "helpers").mkdir()
+    (tmp_path / "tests" / "helpers" / "keep.py").write_text("VALUE = True\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add plugin under a traversing pythonpath root")
+    (tmp_path / "tests" / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (plugins_path / "localplugin.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change plugin under a traversing root")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_git_bound_red_proof_rejects_symlinked_pytest_configuration(tmp_path: Path) -> None:
+    """Pytest reads a symlinked configuration target whose bytes this gate never inspected."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    config_path = tmp_path / "config"
+    config_path.mkdir()
+    (config_path / "real-pytest.ini").write_text("[pytest]\naddopts = -p tests.localplugin\n", encoding="utf-8")
+    (tmp_path / "pytest.ini").symlink_to(Path("config") / "real-pytest.ini")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "localplugin.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add symlinked pytest configuration")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "delivery.py").write_text("VALUE = 1\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "feat: delivery")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_git_bound_red_proof_tracks_mutation_through_an_earlier_alias(tmp_path: Path) -> None:
+    """Aliasing a list binds the same object, so a later mutation changes the declared plugins."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "conftest.py").write_text(
+        'PLUGINS = []\npytest_plugins = PLUGINS\nPLUGINS.append("tests.localplugin")\n', encoding="utf-8"
+    )
+    (tests_path / "localplugin.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: alias the plugin list before mutating it")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "delivery.py").write_text("VALUE = 1\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "feat: delivery")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_git_bound_red_proof_tracks_setattr_written_typing_guard(tmp_path: Path) -> None:
+    """A guard handed to a call can be rewritten, so its branch is no longer type-only."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "__init__.py").write_text(
+        'import typing\nsetattr(typing, "TYPE_CHECKING", True)\n'
+        "if typing.TYPE_CHECKING:\n    import tests.runtime_support\n",
+        encoding="utf-8",
+    )
+    (tests_path / "runtime_support.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: rewrite the typing guard through setattr")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (tests_path / "runtime_support.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change runtime support")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_git_bound_red_proof_tracks_setattr_guard_write_from_a_function(tmp_path: Path) -> None:
+    """A function that rewrites an attribute makes module state unverifiable once it is called."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "__init__.py").write_text(
+        "import typing\n\n\ndef _enable() -> None:\n"
+        '    setattr(typing, "TYPE_CHECKING", True)\n\n\n_enable()\n'
+        "if typing.TYPE_CHECKING:\n    import tests.runtime_support\n",
+        encoding="utf-8",
+    )
+    (tests_path / "runtime_support.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: rewrite the typing guard from a called function")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (tests_path / "runtime_support.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change runtime support")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]

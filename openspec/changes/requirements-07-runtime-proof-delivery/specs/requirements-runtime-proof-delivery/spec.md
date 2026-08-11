@@ -184,7 +184,9 @@ retain deterministic JUnit results for module-owned reconciliation.
   assignment a later one overwrites never loads, and a name bound only inside a
   function, lambda, or class body does not rebind a module-level guard
 - **AND** a declared plugin is resolved against the repository root and every
-  configured pytest `pythonpath` root, parsed as pytest parses a path list, and
+  configured pytest `pythonpath` root, parsed as pytest parses a path list and
+  normalized as pytest resolves it, so a repository-contained root spelled with
+  traversal segments still binds its plugins rather than being dropped, and
   a plugin loaded from such a root resolves its own imports against that root,
   while an input discovered at the repository root resolves ordinary imports
   there alone so governed production modules that a red-to-green change is
@@ -194,20 +196,23 @@ retain deterministic JUnit results for module-owned reconciliation.
 - **AND** an active `pytest_plugins` declaration whose value cannot be resolved
   statically is treated as stale rather than silently ignored, including when a
   loop, context-manager, exception, match, or walrus target rebinds the
-  constant it reads, or when the declaration is bound by an import whose value
-  lives in another module
+  constant it reads, when a mutation reaches the declaration through another
+  name bound to the same object, or when the declaration is bound by an import
+  whose value lives in another module
 - **AND** a proof input or configuration source that exists at the red source
   but cannot be read or parsed, because it is oversized, malformed, or a symlink
   whose executed bytes were never inspected, is treated as stale rather than
   skipped like an absent candidate
 - **AND** a typing guard is trusted only while unmutated, so an attribute write
-  to its `TYPE_CHECKING` member or a `global` rebinding from a class body drops
-  it, a rebinding invalidates only the branches that follow it, and any literal
+  to its `TYPE_CHECKING` member, handing the guard module to any call that could
+  rewrite that member, or a `global` rebinding from a class body drops it, a
+  rebinding invalidates only the branches that follow it, and any literal
   branch condition is resolved by its truthiness
 - **AND** module state is treated as unverifiable, failing closed for both the
   guard and the plugin declaration, when a module defines a function that can
-  rebind a global, write a `TYPE_CHECKING` attribute, or assign `pytest_plugins`
-  and also calls anything while loading
+  rebind a global, write a `TYPE_CHECKING` attribute, rewrite an attribute
+  through `setattr`, or assign `pytest_plugins` and also calls anything while
+  loading
 - **AND** a malformed report field, undecodable or oversized source, or Git
   timeout yields a deterministic finding rather than an unhandled error
 - **AND** the Requirements evidence gate exits nonzero after retaining its

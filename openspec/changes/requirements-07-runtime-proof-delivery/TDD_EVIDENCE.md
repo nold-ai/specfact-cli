@@ -2013,3 +2013,100 @@
 - **Deferred:** four product-code reads under `src/` share the undecodable-input
   class with cache-fallback semantics; recorded as a task rather than changed
   here, because product paths need their own contract and coverage treatment.
+
+## Codex round-13 remediation: roots, symlinked configuration, aliases, and `setattr`
+
+Four new P1 findings arrived against `130260d0`. Each was reproduced by
+execution before any production edit.
+
+- **Traversing `pythonpath` root.** `_safe_module_root` returned `None` for any
+  entry containing `..`, so `pythonpath = tests/helpers/../plugins` silently
+  contributed no root and `addopts = -p localplugin` was searched only at the
+  repository root. Pytest resolves the entry, so `tests/plugins/localplugin.py`
+  loads and a post-red change to it was accepted. The root is now normalized
+  within the repository; an absolute or escaping entry still yields no root,
+  because a tree outside the repository holds no file any Git ref can bind.
+- **Symlinked pytest configuration.** `git show <ref>:pytest.ini` returns the
+  link text, while pytest reads the target, so an `addopts` or `pythonpath`
+  declaration in the target was invisible. `_pytest_configuration_sources` now
+  applies the same rule the traversal already applied to inputs: a candidate
+  that exists but is not a regular blob yields `stale-red-proof`. The scenario
+  already required this ("a symlink whose executed bytes were never inspected");
+  only the implementation was missing.
+- **Mutation through an earlier alias.** `PLUGINS = []`, `pytest_plugins =
+  PLUGINS`, `PLUGINS.append("tests.localplugin")` binds both names to one list,
+  but the resolver marked only `PLUGINS` unresolved and kept the empty list it
+  had already copied for `pytest_plugins`. Mutation now propagates by object
+  identity to every name sharing that container. Identity comparison is limited
+  to mutable containers, because equal immutable values can be interned and
+  would otherwise link unrelated bindings.
+- **`setattr` rewrites of the typing guard.** `setattr(typing, "TYPE_CHECKING",
+  True)` rewrites the guard without an attribute-assignment target, and
+  `_unverifiable_module_state` did not apply because no separate function was
+  defined. Rather than adding a `setattr` special case that the next equivalent
+  form (`vars(typing)["TYPE_CHECKING"] = True`) would defeat, the module guard
+  is now dropped whenever the module name is handed to any call at module load:
+  a callee that receives the module can rewrite any attribute, and deciding
+  which callees do would need their bodies. The same rewrite performed inside a
+  function now also marks that function state-mutating, so an invoked one makes
+  module state unverifiable.
+
+- **Failing-before command:**
+
+  ```shell
+  uv run --python 3.11 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py -p no:randomly \
+    -k "traversing_pythonpath or symlinked_pytest_configuration or \
+    earlier_alias or setattr" -q
+  ```
+
+  Recorded 2026-08-11T21:52:41Z. Result: 5 failed, each accepting evidence the
+  gate must reject.
+- **Passing-after:** 133 passed in that file.
+- **Real-repository check:** against this worktree's `HEAD`, the configuration
+  sources (`pyproject.toml`), the `pythonpath` roots (`''`, `src`, `tools`), and
+  the resolved proof inputs are byte-identical to the pre-change script — 163
+  inputs for the 31 `tests/unit/scripts` selectors and 2186 for all 333 tracked
+  selectors — so the change alters only the shapes the findings describe.
+
+## Related-code audit: scope-header and class-scope classes
+
+The two defect classes introduced in the preceding rounds — scope headers
+execute where the statement appears, and a class body does not bind names for
+the scopes nested in it — were audited across the repository's other static
+analysis. `scripts/verify_safe_project_writes.py` is the only comparable
+fail-closed gate; the `src/specfact_cli/analyzers/**` modules are best-effort
+extractors whose misses are extraction quality rather than a gate hole, and
+remain out of scope. Six fail-open cases were confirmed by execution in that
+gate, each of which lets real unsafe JSON I/O through:
+
+- A class attribute such as `json = None` suppressed offenders inside the
+  class's methods, because every enclosing frame was unioned. A class body is
+  not visible to scopes nested in it, so frames are now tagged and class frames
+  are skipped when resolving a name from a nested scope.
+- `except OSError as json:` suppressed offenders after the handler, although
+  Python deletes the target when the handler ends. The binding is now removed
+  again unless the name was already shadowed.
+- Decorators, argument defaults, and class bases were never visited at all,
+  because both scope visitors descended only into the body. They execute in the
+  enclosing scope and are now visited there.
+- A bare decorator (`@json.loads`) invokes the name without producing a `Call`
+  node, so it was invisible. Decorator references are now matched directly, and
+  the matching logic is shared with `visit_Call` rather than duplicated.
+
+Two accuracy fixes in the opposite direction accompany them: a lambda parameter
+named after an alias no longer produces a spurious offender, and annotations are
+visited only when the analyzed module lacks `from __future__ import
+annotations`, since PEP 563 leaves them unevaluated.
+
+- **Failing-before command:**
+
+  ```shell
+  uv run --python 3.11 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_verify_safe_project_writes.py -p no:randomly -q
+  ```
+
+  Recorded 2026-08-11T21:47:23Z. Result: 9 failed, 10 passed.
+- **Passing-after:** 23 passed across the unit and integration files, and
+  `python scripts/verify_safe_project_writes.py` still exits 0 against the real
+  `src/specfact_cli/utils/ide_setup.py`.
