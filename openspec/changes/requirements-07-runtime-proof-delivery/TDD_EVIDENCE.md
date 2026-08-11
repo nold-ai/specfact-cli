@@ -1188,6 +1188,38 @@
 - **Skipped:** 0 tests.
 - **Environment:** Linux, Python 3.11.15, pytest 9.1.1.
 
+## Codex dynamic conditional plugin remediation
+
+- **Recorded:** 2026-08-11 (UTC)
+- **Review finding:** PR #671 identified that a non-literal assignment under a
+  runtime-dependent branch discarded a previously known plugin constant even
+  when that branch did not execute.
+- **Failing-before command:**
+
+  ```shell
+  uv run --python 3.12 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py \
+    -k changed_pytest_plugin -q
+  ```
+
+- **Failing result:** a dynamic assignment under a false runtime branch removed
+  the preceding literal plugin binding, so its post-red change returned no
+  finding.
+- **Passing-after command:**
+
+  ```shell
+  uv run --python 3.12 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py -q
+  ```
+
+- **Passing result:** all 48 provenance tests passed after dynamic conditional
+  assignments preserved previously known possible values while unconditional
+  dynamic assignments still cleared stale bindings.
+- **Validation:** Ruff, basedpyright, strict OpenSpec validation, and changed-file
+  SpecFact code review passed.
+- **Skipped:** 0 tests.
+- **Environment:** Linux, Python 3.12.13, pytest 9.1.1.
+
 ## Codex compound-statement plugin remediation
 
 - **Recorded:** 2026-08-10 (UTC)

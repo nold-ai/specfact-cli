@@ -300,7 +300,8 @@ def _pytest_plugin_names(tree: ast.AST) -> list[list[str]]:
             try:
                 value = ast.literal_eval(assigned_node)
             except (ValueError, TypeError):
-                constants.pop(name, None)
+                if id(node) not in conditional_assignment_ids:
+                    constants.pop(name, None)
                 continue
             if id(node) in conditional_assignment_ids:
                 constants.setdefault(name, []).append(value)

@@ -174,7 +174,8 @@ retain deterministic JUnit results for module-owned reconciliation.
   guards, or a module-level pytest plugin declared directly or through the
   active or runtime-conditionally possible values of a static module constant
   across branch, loop, exception, context, or match constructs by a selected
-  test, applicable
+  test—including known values preserved across non-literal conditional
+  assignments—applicable
   `conftest.py`, or the specifically registered plugin module—including each
   module in a supported comma-separated declaration—changes after the red
   source, or an executor run that leaves no non-empty JUnit artifact
