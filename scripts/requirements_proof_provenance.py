@@ -187,12 +187,13 @@ def _pytest_ini_option(text: str, configuration_path: str, option: str) -> objec
     section = PYTEST_INI_SECTIONS.get(configuration_path)
     if section is None:
         return None
-    parser = configparser.ConfigParser()
+    # Interpolation is disabled because pytest accepts literal percent signs in option values.
+    parser = configparser.ConfigParser(interpolation=None)
     try:
         parser.read_string(text)
+        return parser.get(section, option, fallback=None)
     except configparser.Error:
         return None
-    return parser.get(section, option, fallback=None)
 
 
 @functools.cache
@@ -420,11 +421,25 @@ def _other_import_names(nodes: Sequence[ast.AST]) -> set[str]:
     return direct_imports | from_imports
 
 
+def _scope_header_nodes(node: ast.AST) -> list[ast.AST]:
+    """Return the parts of a scope-defining statement that execute where the statement appears.
+
+    Decorators, argument defaults, annotations, and base-class expressions run in the
+    enclosing scope even though the body does not, so a walrus in a default can rebind a
+    module name.
+    """
+    body = getattr(node, "body", [])
+    body_nodes = body if isinstance(body, list) else [body]
+    body_ids = {id(child) for child in cast(list[object], body_nodes)}
+    return [child for child in ast.iter_child_nodes(node) if id(child) not in body_ids]
+
+
 def _executable_scope_nodes(tree: ast.AST) -> list[ast.AST]:
-    """Return nodes that run at module load, without entering deferred or class scopes.
+    """Return nodes that run at module load, without entering deferred or class bodies.
 
     Function, lambda, and class bodies cannot rebind a module-level name, so names bound
-    there must not count as rebinding the typing guard.
+    there must not count as rebinding the typing guard. Their headers still execute in the
+    enclosing scope and are traversed.
     """
     pending = list(ast.iter_child_nodes(tree))
     nodes: list[ast.AST] = []
@@ -432,6 +447,7 @@ def _executable_scope_nodes(tree: ast.AST) -> list[ast.AST]:
         node = pending.pop()
         nodes.append(node)
         if isinstance(node, (ast.AsyncFunctionDef, ast.ClassDef, ast.FunctionDef, ast.Lambda)):
+            pending.extend(_scope_header_nodes(node))
             continue
         pending.extend(ast.iter_child_nodes(node))
     return nodes

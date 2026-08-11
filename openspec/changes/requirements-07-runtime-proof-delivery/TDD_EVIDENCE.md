@@ -1625,7 +1625,7 @@
     tests/unit/scripts/test_requirements_proof_provenance.py -q
   ```
 
-- **Passing result:** all 95 provenance tests passed, under both the default
+- **Passing result:** all 102 provenance tests passed, under both the default
   random ordering and `-p no:randomly`.
 - **Reconciliation with `2f893e95`:** that commit landed the last open Codex
   finding by retaining known constant values when a conditional assignment is
@@ -1772,6 +1772,25 @@
   stay `('', 'src', 'tools')`, and no production module is bound. Proof inputs
   grew from 80 to 83 and 105 to 108 paths for two real selectors, which is
   exactly the three added configuration filenames.
+- **Fourth follow-on Codex round:** two further P1 findings against `56e2a56e`.
+  `_executable_scope_nodes` skipped whole `FunctionDef`, `AsyncFunctionDef`,
+  `Lambda`, and `ClassDef` nodes, but only their *bodies* are deferred:
+  decorators, argument defaults, annotations, and base-class expressions
+  execute where the statement appears, so a walrus in a default such as
+  `def helper(x=(TYPE_CHECKING := True))` rebinds the module guard.
+  `_scope_header_nodes` now traverses everything except the body.
+  `_pytest_ini_option` also constructed `ConfigParser()` with default
+  interpolation, so a literal percent in an option value — valid to pytest, for
+  example `addopts = --junit-prefix=foo%bar` — raised `InterpolationSyntaxError`
+  from `get()`, outside the `try` that wrapped only `read_string`. The parser is
+  now built with `interpolation=None` and the option read moved inside the
+  guard.
+- **Failing-before (fourth follow-on):** 7 failed — three scope-header
+  rebinding forms (function default, lambda default, class base) and four
+  ini-style percent-literal configurations. All pass after the fix.
+- **Verified on this repository:** proof inputs stay at 83 and 108 paths for
+  two real selectors, roots stay `('', 'src', 'tools')`, `addopts` still yields
+  no `-p` entries, and no production module is bound.
 - **Ruff:**
 
   ```shell

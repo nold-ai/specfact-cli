@@ -1389,3 +1389,71 @@ def test_git_bound_red_proof_tracks_compound_target_type_checking_rebinding(tmp_
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
         "stale-red-proof"
     ]
+
+
+@pytest.mark.parametrize(
+    "initializer_source",
+    [
+        "from typing import TYPE_CHECKING\n"
+        "def helper(x: object = (TYPE_CHECKING := True)) -> None:\n    return None\n"
+        "if TYPE_CHECKING:\n    import tests.runtime_support\n",
+        "from typing import TYPE_CHECKING\n"
+        "handler = lambda x=(TYPE_CHECKING := True): x\n"
+        "if TYPE_CHECKING:\n    import tests.runtime_support\n",
+        "from typing import TYPE_CHECKING\n"
+        "class Holder(list[(TYPE_CHECKING := True) and int]):\n    pass\n"
+        "if TYPE_CHECKING:\n    import tests.runtime_support\n",
+    ],
+)
+def test_git_bound_red_proof_tracks_scope_header_type_checking_rebinding(
+    tmp_path: Path, initializer_source: str
+) -> None:
+    """A scope header executes where it appears, so a rebinding there is not deferred."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "__init__.py").write_text(initializer_source, encoding="utf-8")
+    (tests_path / "runtime_support.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add scope-header guard rebinding")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (tests_path / "runtime_support.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change runtime support")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+@pytest.mark.parametrize("configuration_path", ["pytest.ini", ".pytest.ini", "tox.ini", "setup.cfg"])
+def test_git_bound_red_proof_reads_percent_literal_configuration(tmp_path: Path, configuration_path: str) -> None:
+    """A literal percent sign is valid in a pytest option and must not abort the gate."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    section = "tool:pytest" if configuration_path == "setup.cfg" else "pytest"
+    (tmp_path / configuration_path).write_text(
+        f"[{section}]\naddopts = --junit-prefix=foo%bar -p tests.localplugin\n", encoding="utf-8"
+    )
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "localplugin.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add percent-literal configuration")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (tests_path / "localplugin.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change addopts plugin")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
