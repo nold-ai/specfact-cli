@@ -1625,7 +1625,7 @@
     tests/unit/scripts/test_requirements_proof_provenance.py -q
   ```
 
-- **Passing result:** all 70 provenance tests passed, under both the default
+- **Passing result:** all 77 provenance tests passed, under both the default
   random ordering and `-p no:randomly`.
 - **Reconciliation with `2f893e95`:** that commit landed the last open Codex
   finding by retaining known constant values when a conditional assignment is
@@ -1695,6 +1695,30 @@
   `tests/helpers/doc_frontmatter_fixtures.py` remains bound, and no
   `src/specfact_cli/**` module appears in the resolved proof inputs for either
   a script-level or a module-registry selector.
+- **Follow-on Codex findings on this work:** two P1 findings were raised
+  against `1d288c8f` and are fixed here.
+  `_compound_binding_names` now records names bound by loop, context-manager,
+  exception, match, and walrus targets, which `_name_bindings` did not see, so
+  `for PLUGINS in [...]` no longer leaves a stale literal active; the binding is
+  recorded as unresolved and the declaration fails closed.
+  `_imported_python_paths` now distinguishes an absent candidate from an
+  existing input it cannot parse: when `_python_tree_at_ref` returns `None` for
+  a path that `_test_path_is_regular_at_ref` confirms is a regular blob, the
+  proof is rejected instead of silently dropping that file's imports. Checking
+  the blob mode rather than mere existence keeps tree and symlink candidates
+  treated as absent.
+- **Failing-before (follow-on):**
+
+  ```shell
+  uv run --python 3.11 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py -p no:randomly \
+    -k "compound_target or unparsable or oversized" -q
+  ```
+
+  Result: 7 failed, 70 deselected. All seven pass after the fix.
+- **No spurious rejection:** resolving proof inputs for three real selectors in
+  this repository, individually and together, raises no fail-closed finding, so
+  every file in the live traversal graph parses within the bound.
 - **Ruff:**
 
   ```shell

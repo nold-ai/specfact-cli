@@ -8,7 +8,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
-from typing import Protocol, cast
+from typing import Any, Protocol, cast
 
 import pytest
 
@@ -1143,3 +1143,84 @@ def test_git_bound_red_proof_allows_production_change_under_pythonpath_root(tmp_
     final_ref = _commit(tmp_path, "feat: implement delivery behavior")
 
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
+
+
+@pytest.mark.parametrize(
+    "plugin_declaration",
+    [
+        'PLUGINS = ("tests.helpers.other",)\nfor PLUGINS in [("tests.helpers.fixtures",)]:\n    pass\npytest_plugins = PLUGINS\n',
+        'PLUGINS = ("tests.helpers.other",)\nwith open("x") as PLUGINS:\n    pass\npytest_plugins = PLUGINS\n',
+        'PLUGINS = ("tests.helpers.other",)\ntry:\n    pass\nexcept ValueError as PLUGINS:\n    pass\npytest_plugins = PLUGINS\n',
+        'PLUGINS = ("tests.helpers.other",)\nmatch object():\n    case PLUGINS:\n        pass\npytest_plugins = PLUGINS\n',
+        'PLUGINS = ("tests.helpers.other",)\nif (PLUGINS := load()):\n    pass\npytest_plugins = PLUGINS\n',
+    ],
+)
+def test_git_bound_red_proof_rejects_compound_target_plugin_rebinding(tmp_path: Path, plugin_declaration: str) -> None:
+    """A plugin constant rebound by a compound statement target cannot be treated as still known."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "conftest.py").write_text(plugin_declaration, encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add compound-target plugin rebinding")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "delivery.py").write_text("VALUE = 1\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "feat: delivery")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_git_bound_red_proof_rejects_unparsable_proof_input(tmp_path: Path) -> None:
+    """An existing proof input that cannot be parsed must fail closed, not be skipped as absent."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "conftest.py").write_text("def broken(:\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add unparsable conftest")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "delivery.py").write_text("VALUE = 1\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "feat: delivery")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_git_bound_red_proof_rejects_oversized_proof_input(tmp_path: Path) -> None:
+    """An existing proof input beyond the parse bound must fail closed rather than be skipped."""
+    module = _load_provenance_module()
+    # Kept above the selected test blob so only the conftest exceeds the parse bound.
+    cast(Any, module).MAX_TEST_BLOB_BYTES = 256
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "conftest.py").write_text(f"VALUE = '{'x' * 512}'\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add oversized conftest")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "delivery.py").write_text("VALUE = 1\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "feat: delivery")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]

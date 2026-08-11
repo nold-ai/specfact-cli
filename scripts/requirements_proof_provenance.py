@@ -269,8 +269,42 @@ def _augmented_assignments(node: ast.AST) -> list[tuple[str, ast.expr]]:
     return []
 
 
+def _target_names(target: ast.expr) -> list[str]:
+    """Return every name bound by an assignment-like target expression."""
+    if isinstance(target, ast.Name):
+        return [target.id]
+    if isinstance(target, (ast.List, ast.Tuple)):
+        return [name for element in target.elts for name in _target_names(element)]
+    if isinstance(target, ast.Starred):
+        return _target_names(target.value)
+    return []
+
+
+def _compound_binding_names(node: ast.AST) -> list[str]:
+    """Return names bound by a compound statement target, whose value is not statically known.
+
+    Loop, context-manager, exception, and match targets rebind a module constant without an
+    evaluable right-hand side, so their names must be recorded rather than left stale.
+    """
+    if isinstance(node, (ast.AsyncFor, ast.For)):
+        return _target_names(node.target)
+    if isinstance(node, (ast.AsyncWith, ast.With)):
+        return [
+            name for item in node.items if item.optional_vars is not None for name in _target_names(item.optional_vars)
+        ]
+    if isinstance(node, ast.ExceptHandler):
+        return [node.name] if node.name else []
+    if isinstance(node, (ast.MatchAs, ast.MatchStar)):
+        return [node.name] if node.name else []
+    if isinstance(node, ast.MatchMapping):
+        return [node.rest] if node.rest else []
+    return []
+
+
 def _name_bindings(node: ast.AST) -> list[tuple[str, ast.expr]]:
     """Return every module-level name binding made by one statement."""
+    if isinstance(node, ast.NamedExpr):
+        return _destructured_targets(node.target, node.value)
     return [*_simple_assignments(node), *_augmented_assignments(node)]
 
 
@@ -436,6 +470,8 @@ def _pytest_plugin_names(tree: ast.AST) -> list[list[str]]:
                 value = UNRESOLVED_PLUGIN_VALUE
             extends = id(node) in conditional_assignment_ids or bool(_augmented_assignments(node))
             _record_constant(constants, name, value, extends=extends)
+        for name in _compound_binding_names(node):
+            _record_constant(constants, name, UNRESOLVED_PLUGIN_VALUE, extends=True)
     return plugin_names
 
 
@@ -501,6 +537,8 @@ def _imported_python_paths(
         traversed_paths.add(traversal)
         tree = _python_tree_at_ref(repo_root, source_ref, current_path)
         if tree is None:
+            if _test_path_is_regular_at_ref(repo_root, source_ref, current_path):
+                raise ValueError("stale-red-proof")
             continue
         ordinary_paths = _discovered_python_paths(
             _import_module_names(tree, current_path), REPOSITORY_ROOT_MODULE_ROOTS
@@ -625,6 +663,7 @@ def _test_path_exists_at_ref(repo_root: Path, source_ref: str, test_path: str) -
     return _git(repo_root, "cat-file", "-e", f"{source_ref}:{test_path}").returncode == 0
 
 
+@functools.cache
 def _test_path_is_regular_at_ref(repo_root: Path, source_ref: str, test_path: str) -> bool:
     """Reject symlink selectors because pytest follows bytes not bound by their Git blob."""
     result = _git(repo_root, "ls-tree", source_ref, "--", test_path)
