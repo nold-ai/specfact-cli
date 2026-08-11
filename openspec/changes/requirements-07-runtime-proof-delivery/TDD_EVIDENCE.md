@@ -1625,7 +1625,7 @@
     tests/unit/scripts/test_requirements_proof_provenance.py -q
   ```
 
-- **Passing result:** all 102 provenance tests passed, under both the default
+- **Passing result:** all 110 provenance tests passed, under both the default
   random ordering and `-p no:randomly`.
 - **Reconciliation with `2f893e95`:** that commit landed the last open Codex
   finding by retaining known constant values when a conditional assignment is
@@ -1791,6 +1791,28 @@
 - **Verified on this repository:** proof inputs stay at 83 and 108 paths for
   two real selectors, roots stay `('', 'src', 'tools')`, `addopts` still yields
   no `-p` entries, and no production module is bound.
+- **Fifth follow-on Codex round:** four findings against `f4ad7bd8`.
+  `_guard_attribute_targets` now drops a module guard whose `TYPE_CHECKING`
+  attribute is written directly, which `_name_bindings` ignored because the
+  target is an `ast.Attribute` rather than a name.
+  `_global_rebound_names` treats a name that a `global` declaration rebinds from
+  a nested scope as module-scoped, since a class body executes during import.
+  `_pytest_configuration_sources` now fails closed on a configuration candidate
+  that exists but exceeds the read bound, matching the Python-input rule: an
+  unread configuration could declare plugins or roots this gate must bind.
+  `_static_condition` resolves any literal condition through `ast.literal_eval`,
+  so `if 0:`, `if None:`, `if "":`, and `if ():` prune as `if False:` does.
+- **Correction found by the new tests:** the first attempt at the literal-guard
+  fix special-cased `ast.Constant`, which left `if ():` unresolved because an
+  empty tuple is an `ast.Tuple` display. `ast.literal_eval` covers every literal
+  form uniformly and still leaves dynamic expressions runtime-unknown.
+- **Failing-before (fifth follow-on):** 8 failed — three guard-mutation forms
+  (attribute assignment, attribute augmented assignment, class-body `global`),
+  the oversized configuration source, and four falsy literal guards. All pass
+  after the fix.
+- **Verified on this repository:** proof inputs stay at 83 and 108 paths for two
+  real selectors, and the committed `pyproject.toml` is 29 KB against the 10 MiB
+  bound, so the new fail-closed path is unreachable here.
 - **Ruff:**
 
   ```shell

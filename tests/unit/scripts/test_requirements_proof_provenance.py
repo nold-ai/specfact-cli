@@ -1457,3 +1457,87 @@ def test_git_bound_red_proof_reads_percent_literal_configuration(tmp_path: Path,
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
         "stale-red-proof"
     ]
+
+
+@pytest.mark.parametrize(
+    "initializer_source",
+    [
+        "import typing\ntyping.TYPE_CHECKING = True\nif typing.TYPE_CHECKING:\n    import tests.runtime_support\n",
+        "import typing\ntyping.TYPE_CHECKING |= True\nif typing.TYPE_CHECKING:\n    import tests.runtime_support\n",
+        "from typing import TYPE_CHECKING\n"
+        "class Holder:\n    global TYPE_CHECKING\n    TYPE_CHECKING = True\n"
+        "if TYPE_CHECKING:\n    import tests.runtime_support\n",
+    ],
+)
+def test_git_bound_red_proof_tracks_mutated_type_checking_guard(tmp_path: Path, initializer_source: str) -> None:
+    """An attribute write or a global declaration mutates the module guard, so it is not static."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "__init__.py").write_text(initializer_source, encoding="utf-8")
+    (tests_path / "runtime_support.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add mutated type-checking guard")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (tests_path / "runtime_support.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change runtime support")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_git_bound_red_proof_rejects_oversized_pytest_configuration(tmp_path: Path) -> None:
+    """An unreadable configuration could declare plugins or roots, so it must fail closed."""
+    module = _load_provenance_module()
+    # Kept above the selected test blob so only the configuration exceeds the read bound.
+    cast(Any, module).MAX_TEST_BLOB_BYTES = 256
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / "pyproject.toml").write_text(
+        f'[tool.pytest.ini_options]\nfilterwarnings = ["{"x" * 512}"]\n', encoding="utf-8"
+    )
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    base_ref = _commit(tmp_path, "chore: add oversized pytest configuration")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "delivery.py").write_text("VALUE = 1\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "feat: delivery")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+@pytest.mark.parametrize("guard_literal", ["0", "None", '""', "()"])
+def test_git_bound_red_proof_ignores_falsy_literal_guard_imports(tmp_path: Path, guard_literal: str) -> None:
+    """Any falsy literal guard is as unreachable as `if False`, so its import is not executed."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "__init__.py").write_text(f"if {guard_literal}:\n    import tests.typing_only\n", encoding="utf-8")
+    (tests_path / "typing_only.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add falsy literal guard")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (tests_path / "typing_only.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "chore: change unexecuted helper")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []

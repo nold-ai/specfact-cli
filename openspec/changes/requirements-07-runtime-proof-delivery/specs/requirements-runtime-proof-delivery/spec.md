@@ -193,9 +193,13 @@ retain deterministic JUnit results for module-owned reconciliation.
   statically is treated as stale rather than silently ignored, including when a
   loop, context-manager, exception, match, or walrus target rebinds the
   constant it reads
-- **AND** a proof input that exists at the red source but cannot be parsed,
-  because it is oversized or malformed, is treated as stale rather than skipped
-  like an absent candidate
+- **AND** a proof input or configuration source that exists at the red source
+  but cannot be read or parsed, because it is oversized or malformed, is treated
+  as stale rather than skipped like an absent candidate
+- **AND** a typing guard is trusted only while unmutated, so an attribute write
+  to its `TYPE_CHECKING` member or a `global` declaration that rebinds it from a
+  nested scope drops the guard, while any literal branch condition is resolved
+  by its truthiness
 - **AND** a malformed report field, undecodable or oversized source, or Git
   timeout yields a deterministic finding rather than an unhandled error
 - **AND** the Requirements evidence gate exits nonzero after retaining its

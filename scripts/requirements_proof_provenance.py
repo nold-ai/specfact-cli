@@ -198,12 +198,18 @@ def _pytest_ini_option(text: str, configuration_path: str, option: str) -> objec
 
 @functools.cache
 def _pytest_configuration_sources(repo_root: Path, source_ref: str) -> tuple[tuple[str, str], ...]:
-    """Return the readable pytest configuration candidates committed at the red source."""
+    """Return the readable pytest configuration candidates committed at the red source.
+
+    Raises ``ValueError('stale-red-proof')`` when a candidate exists but exceeds the read
+    bound, because an unread configuration could declare plugins or roots this gate must bind.
+    """
     sources: list[tuple[str, str]] = []
     for path in PYTEST_CONFIGURATION_FILES:
         result = _git_bytes(repo_root, "show", f"{source_ref}:{path}")
-        if result.returncode != 0 or len(result.stdout) > MAX_TEST_BLOB_BYTES:
+        if result.returncode != 0:
             continue
+        if len(result.stdout) > MAX_TEST_BLOB_BYTES:
+            raise ValueError("stale-red-proof")
         sources.append((path, result.stdout.decode("utf-8", errors="surrogateescape")))
     return tuple(sources)
 
@@ -311,8 +317,12 @@ def _destructured_targets(target: ast.expr, value: ast.expr) -> list[tuple[str, 
 
 def _static_condition(test: ast.AST, type_checking_names: set[str], typing_module_names: set[str]) -> bool | None:
     """Return a known branch condition used during module loading."""
-    if isinstance(test, ast.Constant) and isinstance(test.value, bool):
-        return test.value
+    try:
+        # Any literal has known truthiness, so `if 0:`, `if None:`, and `if ():` are as
+        # static as `if False:`. A dynamic expression raises and stays runtime-unknown.
+        return bool(ast.literal_eval(test))
+    except (ValueError, TypeError):
+        pass
     if isinstance(test, ast.Name) and test.id in type_checking_names:
         return False
     if (
@@ -453,13 +463,43 @@ def _executable_scope_nodes(tree: ast.AST) -> list[ast.AST]:
     return nodes
 
 
+def _guard_attribute_targets(node: ast.AST) -> list[str]:
+    """Return module names whose ``TYPE_CHECKING`` attribute this statement writes."""
+    targets: list[ast.expr] = []
+    if isinstance(node, ast.Assign):
+        targets = list(node.targets)
+    elif isinstance(node, (ast.AnnAssign, ast.AugAssign)):
+        targets = [node.target]
+    return [
+        target.value.id
+        for target in targets
+        if isinstance(target, ast.Attribute) and target.attr == "TYPE_CHECKING" and isinstance(target.value, ast.Name)
+    ]
+
+
+def _global_rebound_names(tree: ast.AST) -> set[str]:
+    """Return names a ``global`` declaration rebinds from inside a nested scope.
+
+    A class body executes during import and a ``global`` declaration makes its assignment
+    module-scoped, so such a binding is not confined to the nested scope.
+    """
+    nodes = list(ast.walk(tree))
+    declared = {name for node in nodes if isinstance(node, ast.Global) for name in node.names}
+    bound = {name for node in nodes for name, _ in _name_bindings(node)} | {
+        name for node in nodes for name in _compound_binding_names(node)
+    }
+    return declared & bound
+
+
 def _verified_type_checking_bindings(tree: ast.AST) -> tuple[set[str], set[str]]:
     """Return unrebound names imported from the typing module.
 
     Rebinding is detected across every node that executes at module load, including loop,
     context-manager, exception, and match targets, so a nested but reachable rebinding
     replaces the guard while a name bound only inside a function, lambda, or class body
-    does not. A guard is trusted only when imported directly at module scope.
+    does not — unless a ``global`` declaration makes that binding module-scoped. A module
+    guard is also dropped when its ``TYPE_CHECKING`` attribute is written directly. A guard
+    is trusted only when imported directly at module scope.
     """
     body = tree.body if isinstance(tree, ast.Module) else []
     nodes = _executable_scope_nodes(tree)
@@ -467,10 +507,12 @@ def _verified_type_checking_bindings(tree: ast.AST) -> tuple[set[str], set[str]]
         _other_import_names(nodes)
         | {name for node in nodes for name, _ in _name_bindings(node)}
         | {name for node in nodes for name in _compound_binding_names(node)}
+        | _global_rebound_names(tree)
     )
+    mutated_guard_names = {name for node in nodes for name in _guard_attribute_targets(node)}
     return (
         _imported_type_checking_names(body) - rebound_names,
-        _imported_typing_module_names(body) - rebound_names,
+        _imported_typing_module_names(body) - rebound_names - mutated_guard_names,
     )
 
 
