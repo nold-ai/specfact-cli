@@ -1625,7 +1625,7 @@
     tests/unit/scripts/test_requirements_proof_provenance.py -q
   ```
 
-- **Passing result:** all 120 provenance tests passed, under both the default
+- **Passing result:** all 123 provenance tests passed, under both the default
   random ordering and `-p no:randomly`.
 - **Reconciliation with `2f893e95`:** that commit landed the last open Codex
   finding by retaining known constant values when a conditional assignment is
@@ -1872,6 +1872,30 @@
 - **Verified on this repository:** proof inputs stay at 83 and 108 paths for two
   real selectors, the declared plugin stays bound, and no production module is
   bound. 574 passed / 4 skipped across `tests/unit/scripts`,
+  `tests/unit/workflows`, and `tests/unit/tools`.
+- **Ninth follow-on Codex round:** two findings against `fb66d5e9`.
+  `_module_scope_nodes` now traverses scope headers for deferred and excluded
+  class scopes, the same correction made to `_executable_scope_nodes` earlier,
+  so a plugin bound in a function default such as
+  `def helper(arg=(pytest_plugins := (...)))` is seen by the resolver.
+  `_global_rebound_names` was also narrowed, but not as reported: the finding
+  asked to limit detection to class bodies and scope headers, which would have
+  reintroduced a fail-open case, since a function *invoked while the module
+  loads* genuinely does rebind the guard. Detection now applies a deferred
+  function's `global` bindings only when that function is called at module
+  scope, which removes the reported false positive without opening that hole.
+- **Failing-before (ninth follow-on):** 2 failed — the scope-header plugin
+  binding and the uncalled-function false positive.
+  `test_git_bound_red_proof_tracks_called_global_guard_rebinding` passed before
+  and after, and is the lock proving the narrowing did not become fail-open.
+- **Known limit:** call detection is one level deep and matches direct
+  invocation by name, so a `global` rebinding reached only through an
+  indirection — a decorator, an alias, or a nested call chain — is not tracked.
+  This is recorded rather than resolved, since deeper reachability analysis
+  would be disproportionate to a construct this rare.
+- **Verified on this repository:** proof inputs stay at 83 and 108 paths for two
+  real selectors, the declared plugin stays bound, and no production module is
+  bound. 577 passed / 4 skipped across `tests/unit/scripts`,
   `tests/unit/workflows`, and `tests/unit/tools`.
 - **Ruff:**
 

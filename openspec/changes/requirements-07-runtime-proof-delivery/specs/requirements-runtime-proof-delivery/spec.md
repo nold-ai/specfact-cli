@@ -201,9 +201,10 @@ retain deterministic JUnit results for module-owned reconciliation.
   whose executed bytes were never inspected, is treated as stale rather than
   skipped like an absent candidate
 - **AND** a typing guard is trusted only while unmutated, so an attribute write
-  to its `TYPE_CHECKING` member or a `global` declaration that rebinds it from a
-  nested scope drops the guard, while any literal branch condition is resolved
-  by its truthiness
+  to its `TYPE_CHECKING` member drops the guard, as does a `global` declaration
+  that rebinds it from a class body or from a function invoked while the module
+  loads, while an uncalled definition does not, and any literal branch condition
+  is resolved by its truthiness
 - **AND** a malformed report field, undecodable or oversized source, or Git
   timeout yields a deterministic finding rather than an unhandled error
 - **AND** the Requirements evidence gate exits nonzero after retaining its

@@ -491,18 +491,34 @@ def _guard_attribute_targets(node: ast.AST) -> list[str]:
     ]
 
 
-def _global_rebound_names(tree: ast.AST) -> set[str]:
-    """Return names a ``global`` declaration rebinds from inside a nested scope.
-
-    A class body executes during import and a ``global`` declaration makes its assignment
-    module-scoped, so such a binding is not confined to the nested scope.
-    """
-    nodes = list(ast.walk(tree))
+def _globally_rebound_in(nodes: Sequence[ast.AST]) -> set[str]:
+    """Return names both declared ``global`` and bound among the given nodes."""
     declared = {name for node in nodes if isinstance(node, ast.Global) for name in node.names}
     bound = {name for node in nodes for name, _ in _name_bindings(node)} | {
         name for node in nodes for name in _compound_binding_names(node)
     }
     return declared & bound
+
+
+def _called_names(nodes: Sequence[ast.AST]) -> set[str]:
+    """Return names invoked directly among the given nodes."""
+    return {node.func.id for node in nodes if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)}
+
+
+def _global_rebound_names(tree: ast.AST) -> set[str]:
+    """Return names a ``global`` declaration rebinds while the module loads.
+
+    A class body executes during import, so a ``global`` binding there always applies. A
+    function body applies only when that function is invoked as the module loads, because
+    an uncalled definition never runs and must not drop the guard.
+    """
+    executing_nodes = _executable_scope_nodes(tree, include_class_bodies=True)
+    rebound = _globally_rebound_in(executing_nodes)
+    called = _called_names(executing_nodes)
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef)) and node.name in called:
+            rebound |= _globally_rebound_in(list(ast.walk(node)))
+    return rebound
 
 
 def _verified_type_checking_bindings(tree: ast.AST) -> tuple[set[str], set[str]]:
@@ -545,6 +561,8 @@ def _module_scope_nodes(tree: ast.AST, *, include_class_bodies: bool = False) ->
         deferred_scope = isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef, ast.Lambda))
         excluded_class_scope = isinstance(node, ast.ClassDef) and not include_class_bodies
         if deferred_scope or excluded_class_scope:
+            # The body does not run here, but decorators, defaults, and bases do.
+            pending.extend(reversed(_scope_header_nodes(node)))
             continue
         if (
             isinstance(node, ast.If)
