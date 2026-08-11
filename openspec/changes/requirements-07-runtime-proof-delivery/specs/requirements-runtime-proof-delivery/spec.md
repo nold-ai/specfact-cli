@@ -167,20 +167,22 @@ retain deterministic JUnit results for module-owned reconciliation.
 
 #### Scenario: Retained proof inputs or output are missing or stale
 
-- **GIVEN** a retained red proof whose selected test, an applicable pytest
-  `conftest.py`, a possible parent package initializer of either input
-  (including the repository-root initializer) or its statically reachable
-  repository-local imports after resolving verified `typing.TYPE_CHECKING`
-  guards, or a module-level pytest plugin declared directly or through the
-  active or runtime-conditionally possible values of a static module constant
-  across branch, loop, exception, context, or match constructs by a selected
-  test—including known values preserved across non-literal conditional
-  assignments—applicable
-  `conftest.py`, or the specifically registered plugin module—including each
-  module in a supported comma-separated declaration—changes after the red
-  source, or an executor run that leaves no non-empty JUnit artifact
+- **GIVEN** a retained red proof whose pytest-determining inputs change after
+  the red source, or an executor run that leaves no non-empty JUnit artifact
+- **AND** pytest-determining inputs are the selected test, every applicable
+  `conftest.py`, every possible parent package initializer of either input
+  including the repository-root initializer, the repository pytest
+  configuration source, every statically reachable repository-local import of
+  those files after resolving verified `typing.TYPE_CHECKING` guards, and every
+  module-level `pytest_plugins` declaration made by a pytest-considered module
+  through its active or runtime-conditionally possible static bindings,
+  including known values preserved across non-literal conditional assignments
 - **WHEN** pull-request CI validates or executes the Requirements proof
 - **THEN** the proof remains stale or unproven
+- **AND** an active `pytest_plugins` declaration whose value cannot be resolved
+  statically is treated as stale rather than silently ignored
+- **AND** a malformed report field, undecodable or oversized source, or Git
+  timeout yields a deterministic finding rather than an unhandled error
 - **AND** the Requirements evidence gate exits nonzero after retaining its
   diagnostic reports.
 

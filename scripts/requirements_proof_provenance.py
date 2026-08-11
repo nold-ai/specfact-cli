@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import functools
 import hashlib
 import json
 import re
@@ -34,15 +35,33 @@ GOVERNED_PRODUCTION_PREFIXES = (
     "modules/bundle-mapper/",
 )
 GOVERNED_PRODUCTION_FILES = {"pyproject.toml", "setup.py", "uv.lock", "requirements/ci/locked.txt"}
+PYTEST_CONFIGURATION_FILES = ("pyproject.toml", "pytest.ini", "setup.cfg", "tox.ini")
+GIT_TIMEOUT_SECONDS = 30
+UNRESOLVED_PLUGIN_VALUE = object()
+
+
+def _git_bytes(repo_root: Path, *arguments: str) -> subprocess.CompletedProcess[bytes]:
+    """Run Git for payloads that are not required to be valid text."""
+    try:
+        return subprocess.run(
+            ["git", *arguments],
+            cwd=repo_root,
+            capture_output=True,
+            check=False,
+            timeout=GIT_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        return subprocess.CompletedProcess(["git", *arguments], returncode=1, stdout=b"", stderr=b"")
 
 
 def _git(repo_root: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["git", *arguments],
-        cwd=repo_root,
-        capture_output=True,
-        check=False,
-        text=True,
+    """Run Git for textual output, treating a timeout as an ordinary command failure."""
+    result = _git_bytes(repo_root, *arguments)
+    return subprocess.CompletedProcess(
+        result.args,
+        returncode=result.returncode,
+        stdout=result.stdout.decode("utf-8", errors="surrogateescape"),
+        stderr=result.stderr.decode("utf-8", errors="surrogateescape"),
     )
 
 
@@ -64,7 +83,8 @@ def _validated_execution_proof(report: dict[str, object]) -> dict[str, object]:
     return cast(dict[str, object], execution_proof)
 
 
-def _validated_selectors(execution_proof: dict[str, object]) -> list[object]:
+def _validated_selectors(execution_proof: dict[str, object]) -> list[str]:
+    """Return selector strings only when the red source and every selector entry are well formed."""
     source_ref = execution_proof.get("source_ref")
     selectors = execution_proof.get("selectors")
     if (
@@ -72,9 +92,10 @@ def _validated_selectors(execution_proof: dict[str, object]) -> list[object]:
         or GIT_OBJECT_PATTERN.fullmatch(source_ref) is None
         or not isinstance(selectors, list)
         or not selectors
+        or not all(isinstance(selector, str) for selector in cast(list[object], selectors))
     ):
         raise ValueError("prior-red-proof-invalid")
-    return selectors
+    return cast(list[str], selectors)
 
 
 def _selector_paths(report: dict[str, object]) -> tuple[str, list[str]]:
@@ -89,8 +110,6 @@ def _selector_paths(report: dict[str, object]) -> tuple[str, list[str]]:
     assert isinstance(source_ref, str)
     paths: set[str] = set()
     for selector in selectors:
-        if not isinstance(selector, str):
-            raise ValueError("prior-red-proof-invalid")
         test_path, separator, _ = selector.partition("::")
         path = PurePosixPath(test_path)
         if not separator or path.is_absolute() or ".." in path.parts or not test_path.endswith(".py"):
@@ -126,15 +145,26 @@ def _python_module_paths(module_parts: Sequence[str]) -> set[str]:
     return paths
 
 
-def _assigned_value(node: ast.AST, name: str) -> ast.AST | None:
-    """Return the value statically assigned to a named variable."""
-    if isinstance(node, ast.Assign) and any(
-        isinstance(target, ast.Name) and target.id == name for target in node.targets
+def _destructured_targets(target: ast.expr, value: ast.expr) -> list[tuple[str, ast.expr]]:
+    """Return the names bound by one assignment target, unpacking literal sequences."""
+    if isinstance(target, ast.Name):
+        return [(target.id, value)]
+    if (
+        isinstance(target, (ast.List, ast.Tuple))
+        and isinstance(value, (ast.List, ast.Tuple))
+        and len(target.elts) == len(value.elts)
     ):
-        return node.value
-    if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and node.target.id == name:
-        return node.value
-    return None
+        return [
+            binding
+            for element, element_value in zip(target.elts, value.elts, strict=True)
+            for binding in _destructured_targets(element, element_value)
+        ]
+    return []
+
+
+def _assigned_value_nodes(node: ast.AST, name: str) -> list[ast.expr]:
+    """Return every value statically bound to a named variable by one statement."""
+    return [value for bound_name, value in _name_bindings(node) if bound_name == name]
 
 
 def _static_condition(test: ast.AST, type_checking_names: set[str], typing_module_names: set[str]) -> bool | None:
@@ -153,13 +183,25 @@ def _static_condition(test: ast.AST, type_checking_names: set[str], typing_modul
     return None
 
 
-def _simple_assignments(node: ast.AST) -> list[tuple[str, ast.AST]]:
-    """Return direct name assignments made by one module statement."""
+def _simple_assignments(node: ast.AST) -> list[tuple[str, ast.expr]]:
+    """Return name assignments that replace any previous binding."""
     if isinstance(node, ast.Assign):
-        return [(target.id, node.value) for target in node.targets if isinstance(target, ast.Name)]
-    if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and node.value is not None:
-        return [(node.target.id, node.value)]
+        return [binding for target in node.targets for binding in _destructured_targets(target, node.value)]
+    if isinstance(node, ast.AnnAssign) and node.value is not None:
+        return _destructured_targets(node.target, node.value)
     return []
+
+
+def _augmented_assignments(node: ast.AST) -> list[tuple[str, ast.expr]]:
+    """Return name assignments that extend rather than replace a previous binding."""
+    if isinstance(node, ast.AugAssign):
+        return _destructured_targets(node.target, node.value)
+    return []
+
+
+def _name_bindings(node: ast.AST) -> list[tuple[str, ast.expr]]:
+    """Return every module-level name binding made by one statement."""
+    return [*_simple_assignments(node), *_augmented_assignments(node)]
 
 
 def _imported_type_checking_names(body: Sequence[ast.stmt]) -> set[str]:
@@ -184,18 +226,18 @@ def _imported_typing_module_names(body: Sequence[ast.stmt]) -> set[str]:
     }
 
 
-def _other_import_names(body: Sequence[ast.stmt]) -> set[str]:
+def _other_import_names(nodes: Sequence[ast.AST]) -> set[str]:
     """Return local names bound by imports other than typing guards."""
     direct_imports = {
         alias.asname or alias.name.split(".")[0]
-        for node in body
+        for node in nodes
         if isinstance(node, ast.Import)
         for alias in node.names
         if alias.name != "typing"
     }
     from_imports = {
         alias.asname or alias.name
-        for node in body
+        for node in nodes
         if isinstance(node, ast.ImportFrom)
         for alias in node.names
         if node.module != "typing" or alias.name != "TYPE_CHECKING"
@@ -204,11 +246,15 @@ def _other_import_names(body: Sequence[ast.stmt]) -> set[str]:
 
 
 def _verified_type_checking_bindings(tree: ast.AST) -> tuple[set[str], set[str]]:
-    """Return unrebound names imported from the typing module."""
+    """Return unrebound names imported from the typing module.
+
+    Rebinding is detected across the whole tree because an assignment or an import anywhere
+    in the module may replace the guard, while a guard is only trusted when it is imported
+    directly at module scope.
+    """
     body = tree.body if isinstance(tree, ast.Module) else []
-    rebound_names = _other_import_names(body) | {
-        name for node in ast.walk(tree) for name, _ in _simple_assignments(node)
-    }
+    nodes = list(ast.walk(tree))
+    rebound_names = _other_import_names(nodes) | {name for node in nodes for name, _ in _name_bindings(node)}
     return (
         _imported_type_checking_names(body) - rebound_names,
         _imported_typing_module_names(body) - rebound_names,
@@ -256,19 +302,23 @@ def _conditional_assignment_ids(tree: ast.AST) -> set[int]:
             id(descendant)
             for branch_node in branch_nodes
             for descendant in ast.walk(branch_node)
-            if _simple_assignments(descendant)
+            if _name_bindings(descendant)
         )
     return conditional_ids
 
 
-def _resolved_literals(value_node: ast.AST, constants: dict[str, list[object]]) -> list[object]:
-    """Resolve a literal expression or all possible values of a bound name."""
+def _resolved_literals(value_node: ast.expr, constants: dict[str, list[object]]) -> list[object]:
+    """Resolve a literal expression or all possible values of a bound name.
+
+    An expression that cannot be evaluated yields the unresolved marker so callers fail
+    closed instead of silently treating an active declaration as absent.
+    """
     if isinstance(value_node, ast.Name):
-        return constants.get(value_node.id, [])
+        return constants.get(value_node.id, [UNRESOLVED_PLUGIN_VALUE])
     try:
         return [ast.literal_eval(value_node)]
     except (ValueError, TypeError):
-        return []
+        return [UNRESOLVED_PLUGIN_VALUE]
 
 
 def _plugin_parts(value: object) -> list[list[str]]:
@@ -285,28 +335,37 @@ def _plugin_parts(value: object) -> list[list[str]]:
     ]
 
 
+def _record_constant(constants: dict[str, list[object]], name: str, value: object, *, extends: bool) -> None:
+    """Record one possible value of a module constant, keeping earlier possibilities when they survive."""
+    if extends:
+        constants.setdefault(name, []).append(value)
+    else:
+        constants[name] = [value]
+
+
 def _pytest_plugin_names(tree: ast.AST) -> list[list[str]]:
-    """Return statically declared ``pytest_plugins`` module names."""
+    """Return statically declared ``pytest_plugins`` module names.
+
+    Raises ``ValueError('stale-red-proof')`` when an active declaration cannot be resolved,
+    because an unverifiable plugin set cannot prove the retained failure is still current.
+    """
     plugin_names: list[list[str]] = []
     module_nodes = _module_scope_nodes(tree)
     conditional_assignment_ids = _conditional_assignment_ids(tree)
     constants: dict[str, list[object]] = {}
     for node in module_nodes:
-        value_node = _assigned_value(node, "pytest_plugins")
-        if value_node is not None:
+        for value_node in _assigned_value_nodes(node, "pytest_plugins"):
             for value in _resolved_literals(value_node, constants):
+                if value is UNRESOLVED_PLUGIN_VALUE:
+                    raise ValueError("stale-red-proof")
                 plugin_names.extend(_plugin_parts(value))
-        for name, assigned_node in _simple_assignments(node):
+        for name, assigned_node in _name_bindings(node):
             try:
                 value = ast.literal_eval(assigned_node)
             except (ValueError, TypeError):
-                if id(node) not in conditional_assignment_ids:
-                    constants.pop(name, None)
-                continue
-            if id(node) in conditional_assignment_ids:
-                constants.setdefault(name, []).append(value)
-            else:
-                constants[name] = [value]
+                value = UNRESOLVED_PLUGIN_VALUE
+            extends = id(node) in conditional_assignment_ids or bool(_augmented_assignments(node))
+            _record_constant(constants, name, value, extends=extends)
     return plugin_names
 
 
@@ -325,12 +384,20 @@ def _import_module_names(tree: ast.AST, current_path: str) -> list[list[str]]:
     return module_names
 
 
+@functools.cache
 def _python_tree_at_ref(repo_root: Path, source_ref: str, path: str) -> ast.AST | None:
-    """Parse committed Python source without consulting mutable worktree bytes."""
-    result = _git(repo_root, "show", f"{source_ref}:{path}")
+    """Parse committed Python source without consulting mutable worktree bytes.
+
+    Source is parsed as bytes so a PEP 263 encoding declaration is honoured rather than
+    forcing a UTF-8 decode that would abort the gate on legally encoded modules. Results are
+    cached because the content of a path at an immutable ref cannot change during one run.
+    """
+    result = _git_bytes(repo_root, "show", f"{source_ref}:{path}")
+    if result.returncode != 0 or len(result.stdout) > MAX_TEST_BLOB_BYTES:
+        return None
     try:
-        return ast.parse(result.stdout) if result.returncode == 0 else None
-    except SyntaxError:
+        return ast.parse(result.stdout)
+    except (SyntaxError, ValueError):
         return None
 
 
@@ -447,20 +514,7 @@ def _changed_paths_in_history(
     for revision in revisions.stdout.splitlines():
         parents = _git(repo_root, "rev-list", "--parents", "-n", "1", revision).stdout.split()
         comparison_ref = f"{revision}^{merge_parent}" if len(parents) > 2 else f"{revision}^"
-        result = subprocess.run(
-            [
-                "git",
-                "diff",
-                "--name-status",
-                "-z",
-                "--find-renames",
-                comparison_ref,
-                revision,
-            ],
-            cwd=repo_root,
-            capture_output=True,
-            check=False,
-        )
+        result = _git_bytes(repo_root, "diff", "--name-status", "-z", "--find-renames", comparison_ref, revision)
         commit_paths = _parse_name_status_records(result.stdout) if result.returncode == 0 else None
         if commit_paths is None:
             return None
@@ -485,7 +539,9 @@ def _has_governed_production_path(paths: Sequence[str]) -> bool:
     return any(path in GOVERNED_PRODUCTION_FILES or path.startswith(GOVERNED_PRODUCTION_PREFIXES) for path in paths)
 
 
+@functools.cache
 def _test_path_exists_at_ref(repo_root: Path, source_ref: str, test_path: str) -> bool:
+    """Return whether a path exists at an immutable ref, caching the answer for the run."""
     return _git(repo_root, "cat-file", "-e", f"{source_ref}:{test_path}").returncode == 0
 
 
@@ -504,13 +560,7 @@ def _blob_digest_at_ref(repo_root: Path, source_ref: str, test_path: str) -> str
         return None
     if size_result.returncode != 0 or blob_size > MAX_TEST_BLOB_BYTES:
         return None
-    result = subprocess.run(
-        ["git", "show", f"{source_ref}:{test_path}"],
-        cwd=repo_root,
-        capture_output=True,
-        check=False,
-        timeout=30,
-    )
+    result = _git_bytes(repo_root, "show", f"{source_ref}:{test_path}")
     return f"sha256:{hashlib.sha256(result.stdout).hexdigest()}" if result.returncode == 0 else None
 
 
@@ -564,6 +614,31 @@ def _validate_execution_bindings(
             raise ValueError("prior-red-proof-invalid")
 
 
+def _proof_inputs(repo_root: Path, source_ref: str, selector_paths: Sequence[str]) -> set[str]:
+    """Return every committed path whose change after the red source would invalidate the proof.
+
+    Selectors are resolved together so their shared conftest, initializer, and import graph is
+    traversed once for the whole proof.
+    """
+    pytest_inputs = {
+        path for test_path in selector_paths for path in (test_path, *_ancestor_file_paths(test_path, "conftest.py"))
+    }
+    initializer_inputs = {
+        initializer for path in pytest_inputs for initializer in _ancestor_file_paths(path, "__init__.py")
+    }
+    traversal_inputs = pytest_inputs | initializer_inputs
+    return {
+        *traversal_inputs,
+        *PYTEST_CONFIGURATION_FILES,
+        *_imported_python_paths(
+            repo_root,
+            source_ref,
+            sorted(traversal_inputs),
+            pytest_plugin_source_paths=pytest_inputs,
+        ),
+    }
+
+
 @beartype
 @ensure(
     lambda result: all(
@@ -601,22 +676,12 @@ def validate_prior_red_proof(red_proof_path: Path, repo_root: Path, *, base_ref:
             repo_root, source_ref, test_path
         ):
             return ["prior-red-proof-invalid"]
-        pytest_inputs = {test_path, *_ancestor_file_paths(test_path, "conftest.py")}
-        initializer_inputs = {
-            initializer for path in pytest_inputs for initializer in _ancestor_file_paths(path, "__init__.py")
-        }
-        traversal_inputs = pytest_inputs | initializer_inputs
-        proof_inputs = {
-            *traversal_inputs,
-            *_imported_python_paths(
-                repo_root,
-                source_ref,
-                sorted(traversal_inputs),
-                pytest_plugin_source_paths=pytest_inputs,
-            ),
-        }
-        if not proof_inputs.isdisjoint(paths_after_red):
-            return ["stale-red-proof"]
+    try:
+        proof_inputs = _proof_inputs(repo_root, source_ref, selector_paths)
+    except ValueError as error:
+        return [str(error)]
+    if not proof_inputs.isdisjoint(paths_after_red):
+        return ["stale-red-proof"]
     return []
 
 

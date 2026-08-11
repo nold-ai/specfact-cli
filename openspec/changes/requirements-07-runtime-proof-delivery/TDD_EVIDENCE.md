@@ -1587,3 +1587,112 @@
   Result: the change is valid.
 - **Skipped:** 0 tests.
 - **Environment:** Linux, Python 3.11.15, pytest 9.1.1.
+
+## Independent review remediation: configuration, rebinding, and fail-closed inputs
+
+- **Recorded:** 2026-08-11 (UTC)
+- **Review findings:** an independent review of PR #671 raised seven findings
+  beyond the Codex turns: the typing-guard rebinding scan covered nested
+  assignments but only top-level imports; the pytest configuration source was
+  never a proof input; `pytest_plugins` written by augmented assignment or a
+  tuple target was ignored; an unresolvable `pytest_plugins` value produced no
+  plugins instead of failing closed; a malformed `selectors` entry raised
+  `TypeError` instead of a deterministic finding; a non-UTF-8 committed module
+  aborted the gate with `UnicodeDecodeError`; and Git results were never
+  memoised across candidate paths or selectors.
+- **Converging Codex finding:** Codex independently raised the first of these
+  against `2f893e95`, in the form where a nested import rebinds the `typing`
+  module alias rather than the `TYPE_CHECKING` name. The rebinding scan here
+  covers both channels, so the regression is parametrized over the aliased
+  module form and the imported-name form, and a genuine unrebound guard is
+  still pruned.
+- **Failing-before command:**
+
+  ```shell
+  uv run --python 3.11 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py -p no:randomly -q
+  ```
+
+- **Failing result:** 16 failed, 47 passed. The failures were the three new
+  augmented and tuple-target plugin parameters, the rebound typing-guard import,
+  all four pytest configuration parameters, all five unresolvable plugin
+  parameters, both malformed selector parameters, and the non-UTF-8 support
+  module case.
+- **Passing-after command:**
+
+  ```shell
+  uv run --python 3.11 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py -q
+  ```
+
+- **Passing result:** all 65 provenance tests passed, under both the default
+  random ordering and `-p no:randomly`.
+- **Reconciliation with `2f893e95`:** that commit landed the last open Codex
+  finding by retaining known constant values when a conditional assignment is
+  non-literal. This section supersedes its `_pytest_plugin_names` body with the
+  stricter of the two options that finding offered. Known values are still
+  retained, because a conditional unresolvable assignment appends the
+  unresolved marker rather than replacing the list, but an active declaration
+  that reaches that marker now fails closed instead of binding only the value
+  that happened to be resolvable. The regression added by `2f893e95` still
+  passes, through the fail-closed path rather than its original binding path.
+- **Behavior changes:** rebinding detection now scans imports across the whole
+  module tree as it already did for assignments; `PYTEST_CONFIGURATION_FILES`
+  binds `pyproject.toml`, `pytest.ini`, `setup.cfg`, and `tox.ini` as proof
+  inputs; `_destructured_targets` unpacks literal tuple and list targets and
+  `_augmented_assignments` extends rather than replaces a binding; an active
+  `pytest_plugins` declaration that cannot be resolved raises
+  `stale-red-proof` through the `UNRESOLVED_PLUGIN_VALUE` marker rather than
+  yielding no plugins; `_validated_selectors` rejects non-string entries before
+  the JUnit selector comparison; `_python_tree_at_ref` parses committed bytes so
+  PEP 263 declarations are honoured and applies `MAX_TEST_BLOB_BYTES`; and
+  `_git_bytes` centralises Git execution with a `GIT_TIMEOUT_SECONDS` bound that
+  degrades to an ordinary command failure.
+- **Efficiency:** `_proof_inputs` resolves every selector in one traversal and
+  `_python_tree_at_ref` and `_test_path_exists_at_ref` are memoised on the
+  immutable `(repo_root, source_ref, path)` key. Measured against this
+  repository for `tests/unit/scripts/test_requirements_proof_provenance.py`,
+  Git invocations fell from 129 to 73 for a single selector, and a second
+  selector sharing the same graph now adds none.
+- **Fail-closed regression guard:** both committed `conftest.py` files in this
+  repository still resolve their plugin declarations statically, and
+  `pyproject.toml` and `tests/helpers/doc_frontmatter_fixtures.py` are present
+  in the resolved proof inputs.
+- **Ledger binding:** the approved legacy ledger digest covers the first 1143
+  lines only. This section appends beyond that boundary, so
+  `legacy_tdd_ledger_digest` in `.github/workflows/requirements-evidence.yml`
+  remains `sha256:d6e35c93...5e8c3` and was reverified unchanged.
+- **Deferred:** module names are still resolved relative to the repository root
+  only, so a pytest plugin or conftest helper reachable only through a
+  configured `pythonpath` root would not be bound. This is latent in this
+  repository: the sole declared plugin resolves at the root, and any change to
+  the `pythonpath` setting itself now stales the proof through the pytest
+  configuration input. Tracked as a follow-up rather than fixed here.
+- **Ruff:**
+
+  ```shell
+  uv run --python 3.11 --locked --extra dev ruff check \
+    scripts/requirements_proof_provenance.py \
+    tests/unit/scripts/test_requirements_proof_provenance.py
+  ```
+
+  Result: all checks passed, and `ruff format --check` reports both files clean.
+- **Basedpyright:**
+
+  ```shell
+  uv run --python 3.11 --locked --extra dev bash tools/run_basedpyright.sh \
+    --project pyproject.toml scripts/requirements_proof_provenance.py \
+    tests/unit/scripts/test_requirements_proof_provenance.py
+  ```
+
+  Result: 0 errors, 0 warnings, and 0 notes.
+- **OpenSpec validation:**
+
+  ```shell
+  npx --yes @fission-ai/openspec@latest validate \
+    requirements-07-runtime-proof-delivery --strict
+  ```
+
+  Result: the change is valid.
+- **Skipped:** 0 tests.
+- **Environment:** Linux, Python 3.11.15, pytest 9.1.1.

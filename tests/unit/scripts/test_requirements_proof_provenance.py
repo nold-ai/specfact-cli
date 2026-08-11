@@ -222,6 +222,9 @@ def test_git_bound_red_proof_rejects_changed_support_imported_by_conftest(tmp_pa
         'FLAG = True\nif FLAG:\n    PLUGINS = ("tests.helpers.fixtures",)\nelse:\n    PLUGINS = ("tests.helpers.other",)\npytest_plugins = PLUGINS\n',
         'PLUGINS = ("tests.helpers.fixtures",)\nfor _ in ():\n    PLUGINS = ("tests.helpers.other",)\npytest_plugins = PLUGINS\n',
         'FLAG = False\nPLUGINS = ("tests.helpers.fixtures",)\nif FLAG:\n    PLUGINS = load_plugins()\npytest_plugins = PLUGINS\n',
+        'pytest_plugins = ()\npytest_plugins += ("tests.helpers.fixtures",)\n',
+        'pytest_plugins, _unused = ("tests.helpers.fixtures",), 1\n',
+        'PLUGINS = ()\nPLUGINS += ("tests.helpers.fixtures",)\npytest_plugins = PLUGINS\n',
     ],
 )
 def test_git_bound_red_proof_rejects_changed_pytest_plugin(tmp_path: Path, plugin_declaration: str) -> None:
@@ -926,4 +929,150 @@ def test_git_bound_red_proof_rejects_test_digest_not_present_at_source(tmp_path:
 
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
         "prior-red-proof-invalid"
+    ]
+
+
+@pytest.mark.parametrize(
+    "initializer_source",
+    [
+        "from typing import TYPE_CHECKING\n"
+        "if True:\n    from tests.guard import TYPE_CHECKING\n"
+        "if TYPE_CHECKING:\n    import tests.runtime_support\n",
+        "import typing\n"
+        "if True:\n    import tests.guard as typing\n"
+        "if typing.TYPE_CHECKING:\n    import tests.runtime_support\n",
+    ],
+)
+def test_git_bound_red_proof_tracks_rebound_type_checking_import(tmp_path: Path, initializer_source: str) -> None:
+    """A nested import rebinding the guard name or the typing module cannot prune a runtime branch."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "guard.py").write_text("TYPE_CHECKING = True\n", encoding="utf-8")
+    (tests_path / "__init__.py").write_text(initializer_source, encoding="utf-8")
+    (tests_path / "runtime_support.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add rebound type-checking import")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (tests_path / "runtime_support.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change runtime type-checking support")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+@pytest.mark.parametrize("configuration_path", ["pyproject.toml", "pytest.ini", "tox.ini", "setup.cfg"])
+def test_git_bound_red_proof_rejects_changed_pytest_configuration(tmp_path: Path, configuration_path: str) -> None:
+    """Pytest ini options decide collection and outcome, so they must stay bound to the red failure."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    configuration = tmp_path / configuration_path
+    configuration.write_text("[pytest]\nfilterwarnings =\n    error\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "chore: add pytest configuration")
+    test_path = tmp_path / "tests" / "test_proof.py"
+    test_path.parent.mkdir()
+    test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    configuration.write_text("[pytest]\nfilterwarnings =\n    ignore\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: relax pytest configuration")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+@pytest.mark.parametrize(
+    "plugin_declaration",
+    [
+        'BASE = ("tests.helpers.fixtures",)\npytest_plugins = list(BASE)\n',
+        'BASE = ("tests.helpers.fixtures",)\nEXTRA = ("tests.helpers.other",)\npytest_plugins = BASE + EXTRA\n',
+        'BASE = ("tests.helpers.fixtures",)\npytest_plugins = [*BASE, "tests.helpers.other"]\n',
+        "pytest_plugins = _discover_plugins()\n",
+        'FLAG = True\nPLUGINS = ("tests.helpers.fixtures",)\nif FLAG:\n    PLUGINS = _load()\npytest_plugins = PLUGINS\n',
+    ],
+)
+def test_git_bound_red_proof_rejects_unresolvable_pytest_plugins(tmp_path: Path, plugin_declaration: str) -> None:
+    """An active plugin declaration that cannot be resolved statically must fail closed."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "conftest.py").write_text(plugin_declaration, encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add unresolvable plugin declaration")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "delivery.py").write_text("VALUE = 1\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "feat: delivery")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+@pytest.mark.parametrize("selectors", [[{"path": "tests/test_proof.py"}], [["tests/test_proof.py::test_selected"]]])
+def test_git_bound_red_proof_rejects_unhashable_selector_entry(tmp_path: Path, selectors: list[object]) -> None:
+    """A malformed selector entry yields a deterministic finding instead of an unhandled error."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / "README.md").write_text("# proof\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "chore: base")
+    test_path = tmp_path / "tests" / "test_proof.py"
+    test_path.parent.mkdir()
+    test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+    report = json.loads(red_proof_path.read_text(encoding="utf-8"))
+    report["execution_proof"]["selectors"] = selectors
+    red_proof_path.write_text(json.dumps(report), encoding="utf-8")
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "delivery.py").write_text("VALUE = 1\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "feat: delivery")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "prior-red-proof-invalid"
+    ]
+
+
+def test_git_bound_red_proof_binds_non_utf8_support_module(tmp_path: Path) -> None:
+    """A legally encoded non-UTF-8 support module must be parsed, not crash the gate."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "support.py").write_bytes(b"# -*- coding: latin-1 -*-\nLABEL = 'caf\xe9'\nVALUE = False\n")
+    (tests_path / "conftest.py").write_bytes(b"# -*- coding: latin-1 -*-\n# caf\xe9\nimport tests.support\n")
+    (tests_path / "__init__.py").write_text("", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add latin-1 support module")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (tests_path / "support.py").write_bytes(b"# -*- coding: latin-1 -*-\nLABEL = 'caf\xe9'\nVALUE = True\n")
+    final_ref = _commit(tmp_path, "fix: change latin-1 support module")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
     ]

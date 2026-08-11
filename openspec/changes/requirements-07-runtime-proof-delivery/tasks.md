@@ -106,6 +106,18 @@ behavior before its tests exist and have failed for the expected reason.
 
 ## Post-merge cleanup
 
+- [ ] Update `wiki/sources/requirements-07-runtime-proof-delivery.md`
+  (depends-on / blocks / external-deps / status / summary) and run
+  `python3 scripts/wiki_rebuild_graph.py` from the `specfact-cli-internal`
+  repository root. The retained-proof scenario now states pytest-determining
+  inputs as an invariant that includes the pytest configuration source, so the
+  mirrored scope text is stale. Recorded as a follow-up because the sibling
+  internal checkout was unavailable in the session that made the change.
+- [ ] Resolve module names against configured `pythonpath` roots so a pytest
+  plugin or conftest helper reachable only through such a root is bound as a
+  proof input. Latent today: the sole declared plugin resolves at the
+  repository root, and a `pythonpath` change already stales the proof through
+  the pytest configuration input.
 - [ ] Return to the primary core checkout, fetch `dev`, remove the worktree,
   delete the local feature branch after merge, prune worktrees, and optionally
   delete the merged remote branch.
