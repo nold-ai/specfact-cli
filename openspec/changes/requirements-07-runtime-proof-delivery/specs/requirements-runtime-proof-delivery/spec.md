@@ -172,7 +172,8 @@ retain deterministic JUnit results for module-owned reconciliation.
 - **AND** pytest-determining inputs are the selected test, every applicable
   `conftest.py`, every possible parent package initializer of either input
   including the repository-root initializer, the repository pytest
-  configuration source, every statically reachable repository-local import of
+  configuration source in every implicit candidate the locked pytest version
+  discovers, every statically reachable repository-local import of
   those files after resolving verified `typing.TYPE_CHECKING` guards, and every
   module-level `pytest_plugins` declaration made by a pytest-considered module
   through its active or runtime-conditionally possible static bindings,

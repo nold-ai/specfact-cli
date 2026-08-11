@@ -38,8 +38,27 @@ GOVERNED_PRODUCTION_PREFIXES = (
     "modules/bundle-mapper/",
 )
 GOVERNED_PRODUCTION_FILES = {"pyproject.toml", "setup.py", "uv.lock", "requirements/ci/locked.txt"}
-PYTEST_CONFIGURATION_FILES = ("pyproject.toml", "pytest.ini", "setup.cfg", "tox.ini")
-PYTEST_INI_SECTIONS = {"pytest.ini": "pytest", "setup.cfg": "tool:pytest", "tox.ini": "pytest"}
+# Implicit configuration candidates and their tables, mirroring pytest's own discovery order.
+PYTEST_CONFIGURATION_FILES = (
+    "pytest.toml",
+    ".pytest.toml",
+    "pytest.ini",
+    ".pytest.ini",
+    "pyproject.toml",
+    "tox.ini",
+    "setup.cfg",
+)
+PYTEST_TOML_TABLES: dict[str, tuple[tuple[str, ...], ...]] = {
+    "pytest.toml": (("pytest",),),
+    ".pytest.toml": (("pytest",),),
+    "pyproject.toml": (("tool", "pytest", "ini_options"), ("tool", "pytest")),
+}
+PYTEST_INI_SECTIONS = {
+    "pytest.ini": "pytest",
+    ".pytest.ini": "pytest",
+    "tox.ini": "pytest",
+    "setup.cfg": "tool:pytest",
+}
 REPOSITORY_ROOT_MODULE_ROOTS = ("",)
 GIT_TIMEOUT_SECONDS = 30
 UNRESOLVED_PLUGIN_VALUE = object()
@@ -142,24 +161,32 @@ def _pythonpath_entries(value: object) -> list[str]:
     return []
 
 
-def _toml_ini_option(text: str, option: str) -> object | None:
-    """Return one option declared under ``[tool.pytest.ini_options]``."""
+def _toml_option_value(text: str, table_paths: Sequence[Sequence[str]], option: str) -> object | None:
+    """Return one option from the first TOML table that declares it."""
     try:
-        node: object = tomllib.loads(text)
+        document: object = tomllib.loads(text)
     except (tomllib.TOMLDecodeError, ValueError):
         return None
-    for key in ("tool", "pytest", "ini_options", option):
-        if not isinstance(node, dict):
-            return None
-        node = cast(dict[str, object], node).get(key)
-    return node
+    for table_path in table_paths:
+        node = document
+        for key in (*table_path, option):
+            if not isinstance(node, dict):
+                node = None
+                break
+            node = cast(dict[str, object], node).get(key)
+        if node is not None:
+            return node
+    return None
 
 
 def _pytest_ini_option(text: str, configuration_path: str, option: str) -> object | None:
-    """Return one pytest ini option from a TOML or ini-style configuration source."""
+    """Return one pytest configuration option from a TOML or ini-style source."""
+    table_paths = PYTEST_TOML_TABLES.get(configuration_path)
+    if table_paths is not None:
+        return _toml_option_value(text, table_paths, option)
     section = PYTEST_INI_SECTIONS.get(configuration_path)
     if section is None:
-        return _toml_ini_option(text, option)
+        return None
     parser = configparser.ConfigParser()
     try:
         parser.read_string(text)
@@ -413,14 +440,18 @@ def _executable_scope_nodes(tree: ast.AST) -> list[ast.AST]:
 def _verified_type_checking_bindings(tree: ast.AST) -> tuple[set[str], set[str]]:
     """Return unrebound names imported from the typing module.
 
-    Rebinding is detected across every node that executes at module load, so a nested but
-    reachable assignment or import replaces the guard, while a name bound only inside a
-    function, lambda, or class body does not. A guard is trusted only when imported
-    directly at module scope.
+    Rebinding is detected across every node that executes at module load, including loop,
+    context-manager, exception, and match targets, so a nested but reachable rebinding
+    replaces the guard while a name bound only inside a function, lambda, or class body
+    does not. A guard is trusted only when imported directly at module scope.
     """
     body = tree.body if isinstance(tree, ast.Module) else []
     nodes = _executable_scope_nodes(tree)
-    rebound_names = _other_import_names(nodes) | {name for node in nodes for name, _ in _name_bindings(node)}
+    rebound_names = (
+        _other_import_names(nodes)
+        | {name for node in nodes for name, _ in _name_bindings(node)}
+        | {name for node in nodes for name in _compound_binding_names(node)}
+    )
     return (
         _imported_type_checking_names(body) - rebound_names,
         _imported_typing_module_names(body) - rebound_names,

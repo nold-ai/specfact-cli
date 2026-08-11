@@ -1625,7 +1625,7 @@
     tests/unit/scripts/test_requirements_proof_provenance.py -q
   ```
 
-- **Passing result:** all 85 provenance tests passed, under both the default
+- **Passing result:** all 95 provenance tests passed, under both the default
   random ordering and `-p no:randomly`.
 - **Reconciliation with `2f893e95`:** that commit landed the last open Codex
   finding by retaining known constant values when a conditional assignment is
@@ -1750,6 +1750,28 @@
   `pythonpath` roots stay `('', 'src', 'tools')`, proof inputs are unchanged at
   80 and 105 paths for two real selectors, no production module is bound, and
   the declared plugin remains bound.
+- **Third follow-on Codex round:** two further P1 findings against `a66956ed`.
+  The configuration candidate list omitted `pytest.toml`, which the locked
+  pytest 9.1.1 discovers *first*. Reading that version's own
+  `_pytest/config/findpaths.py` showed the authoritative order is
+  `pytest.toml`, `.pytest.toml`, `pytest.ini`, `.pytest.ini`, `pyproject.toml`,
+  `tox.ini`, `setup.cfg`, so three candidates were missing rather than one, and
+  `pyproject.toml` also accepts a TOML-mode `[tool.pytest]` table beside
+  `[tool.pytest.ini_options]`. `PYTEST_TOML_TABLES` now maps each TOML
+  candidate to its tables and `_toml_option_value` reads the first table that
+  declares the option, so `pythonpath` and `addopts` resolve from every
+  supported spelling.
+  `_verified_type_checking_bindings` also now unions `_compound_binding_names`,
+  so a module-scope `for typing in [...]` rebinding is detected; those targets
+  were collected for plugin constants but unused for the guard.
+- **Failing-before (third follow-on):** 10 failed — three configuration
+  candidates, four `addopts` spellings, two `pythonpath` spellings, and the
+  compound-target guard rebinding. All pass after the fix.
+- **Verified on this repository:** the candidate list matches pytest's own
+  order, configured `addopts` still yields no `-p` entries, `pythonpath` roots
+  stay `('', 'src', 'tools')`, and no production module is bound. Proof inputs
+  grew from 80 to 83 and 105 to 108 paths for two real selectors, which is
+  exactly the three added configuration filenames.
 - **Ruff:**
 
   ```shell

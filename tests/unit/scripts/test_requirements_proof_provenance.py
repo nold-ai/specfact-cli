@@ -968,15 +968,32 @@ def test_git_bound_red_proof_tracks_rebound_type_checking_import(tmp_path: Path,
     ]
 
 
-@pytest.mark.parametrize("configuration_path", ["pyproject.toml", "pytest.ini", "tox.ini", "setup.cfg"])
-def test_git_bound_red_proof_rejects_changed_pytest_configuration(tmp_path: Path, configuration_path: str) -> None:
-    """Pytest ini options decide collection and outcome, so they must stay bound to the red failure."""
+@pytest.mark.parametrize(
+    ("configuration_path", "red_body", "final_body"),
+    [
+        ("pytest.toml", '[pytest]\nfilterwarnings = ["error"]\n', '[pytest]\nfilterwarnings = ["ignore"]\n'),
+        (".pytest.toml", '[pytest]\nfilterwarnings = ["error"]\n', '[pytest]\nfilterwarnings = ["ignore"]\n'),
+        ("pytest.ini", "[pytest]\nfilterwarnings =\n    error\n", "[pytest]\nfilterwarnings =\n    ignore\n"),
+        (".pytest.ini", "[pytest]\nfilterwarnings =\n    error\n", "[pytest]\nfilterwarnings =\n    ignore\n"),
+        (
+            "pyproject.toml",
+            '[tool.pytest.ini_options]\nfilterwarnings = ["error"]\n',
+            '[tool.pytest.ini_options]\nfilterwarnings = ["ignore"]\n',
+        ),
+        ("tox.ini", "[pytest]\nfilterwarnings =\n    error\n", "[pytest]\nfilterwarnings =\n    ignore\n"),
+        ("setup.cfg", "[tool:pytest]\nfilterwarnings =\n    error\n", "[tool:pytest]\nfilterwarnings =\n    ignore\n"),
+    ],
+)
+def test_git_bound_red_proof_rejects_changed_pytest_configuration(
+    tmp_path: Path, configuration_path: str, red_body: str, final_body: str
+) -> None:
+    """Pytest configuration decides collection and outcome, so it must stay bound to the red failure."""
     module = _load_provenance_module()
     _git(tmp_path, "init")
     _git(tmp_path, "config", "user.email", "requirements@example.test")
     _git(tmp_path, "config", "user.name", "Requirements proof")
     configuration = tmp_path / configuration_path
-    configuration.write_text("[pytest]\nfilterwarnings =\n    error\n", encoding="utf-8")
+    configuration.write_text(red_body, encoding="utf-8")
     base_ref = _commit(tmp_path, "chore: add pytest configuration")
     test_path = tmp_path / "tests" / "test_proof.py"
     test_path.parent.mkdir()
@@ -985,7 +1002,7 @@ def test_git_bound_red_proof_rejects_changed_pytest_configuration(tmp_path: Path
     red_proof_path = tmp_path / ".git" / "red.json"
     _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
 
-    configuration.write_text("[pytest]\nfilterwarnings =\n    ignore\n", encoding="utf-8")
+    configuration.write_text(final_body, encoding="utf-8")
     final_ref = _commit(tmp_path, "fix: relax pytest configuration")
 
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
@@ -1085,6 +1102,8 @@ def test_git_bound_red_proof_binds_non_utf8_support_module(tmp_path: Path) -> No
         ("pytest.ini", "[pytest]\npythonpath = source\n"),
         ("tox.ini", "[pytest]\npythonpath = source\n"),
         ("setup.cfg", "[tool:pytest]\npythonpath = source\n"),
+        ("pytest.toml", '[pytest]\npythonpath = ["source"]\n'),
+        ("pyproject.toml", '[tool.pytest]\npythonpath = ["source"]\n'),
     ],
 )
 def test_git_bound_red_proof_rejects_changed_plugin_under_pythonpath_root(
@@ -1234,6 +1253,10 @@ def test_git_bound_red_proof_rejects_oversized_proof_input(tmp_path: Path) -> No
         ("pytest.ini", "[pytest]\naddopts = -ra -p tests.localplugin\n"),
         ("tox.ini", "[pytest]\naddopts = -ra -p tests.localplugin\n"),
         ("setup.cfg", "[tool:pytest]\naddopts = -ra -p tests.localplugin\n"),
+        ("pytest.toml", '[pytest]\naddopts = "-ra -p tests.localplugin"\n'),
+        (".pytest.toml", '[pytest]\naddopts = ["-ra", "-p", "tests.localplugin"]\n'),
+        ("pyproject.toml", '[tool.pytest]\naddopts = "-ra -p tests.localplugin"\n'),
+        (".pytest.ini", "[pytest]\naddopts = -ra -p tests.localplugin\n"),
     ],
 )
 def test_git_bound_red_proof_rejects_changed_addopts_plugin(
@@ -1339,3 +1362,30 @@ def test_git_bound_red_proof_ignores_function_local_type_checking_rebinding(tmp_
     final_ref = _commit(tmp_path, "chore: change type-only helper")
 
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
+
+
+def test_git_bound_red_proof_tracks_compound_target_type_checking_rebinding(tmp_path: Path) -> None:
+    """A module-scope compound target can rebind the typing alias, so its guard is not static."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "__init__.py").write_text(
+        "import typing\nfor typing in []:\n    pass\nif typing.TYPE_CHECKING:\n    import tests.runtime_support\n",
+        encoding="utf-8",
+    )
+    (tests_path / "runtime_support.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add compound-target typing rebinding")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (tests_path / "runtime_support.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change runtime support")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
