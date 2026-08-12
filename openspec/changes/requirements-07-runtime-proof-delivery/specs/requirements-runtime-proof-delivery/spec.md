@@ -173,7 +173,10 @@ retain deterministic JUnit results for module-owned reconciliation.
   including the repository-root initializer, the repository pytest
   configuration source in every implicit candidate the locked pytest version
   discovers, every statically reachable repository-local import of
-  those files after resolving verified `typing.TYPE_CHECKING` guards, and every
+  those files after resolving verified `typing.TYPE_CHECKING` guards, including
+  imports inside a function body once the module invokes anything while loading,
+  because which body such a call reaches cannot be decided, while a module that
+  invokes nothing keeps its function bodies unbound, and every
   module-level `pytest_plugins` declaration made by a pytest-considered module
   through its active or runtime-conditionally possible static bindings,
   including known values preserved across non-literal conditional assignments

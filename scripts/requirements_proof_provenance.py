@@ -675,14 +675,25 @@ def _verified_type_checking_bindings(tree: ast.AST, before_line: int | None = No
     )
 
 
-def _module_scope_nodes(tree: ast.AST, *, include_class_bodies: bool = False) -> list[ast.AST]:
-    """Return executable module nodes without entering deferred function scopes."""
+def _module_scope_nodes(
+    tree: ast.AST, *, include_class_bodies: bool = False, include_deferred_scopes: bool = False
+) -> list[ast.AST]:
+    """Return executable module nodes without entering deferred function scopes.
+
+    A caller collecting imports enters them anyway: a function invoked while the module
+    loads executes its imports at import time, and one invoked from a fixture executes them
+    while the selected test runs, so either way the imported file decides the outcome.
+    Static branch pruning still applies inside those bodies, so a guarded type-only import
+    stays unbound.
+    """
     pending = list(reversed(list(ast.iter_child_nodes(tree))))
     nodes: list[ast.AST] = []
     while pending:
         node = pending.pop()
         nodes.append(node)
-        deferred_scope = isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef, ast.Lambda))
+        deferred_scope = (
+            isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef, ast.Lambda)) and not include_deferred_scopes
+        )
         excluded_class_scope = isinstance(node, ast.ClassDef) and not include_class_bodies
         if deferred_scope or excluded_class_scope:
             # The body does not run here, but decorators, defaults, and bases do.
@@ -870,7 +881,11 @@ def _import_module_names(tree: ast.AST, current_path: str) -> list[list[str]]:
     """Return imported module names, including relative import candidates."""
     current_package = list(PurePosixPath(current_path).parent.parts)
     module_names: list[list[str]] = []
-    for node in _module_scope_nodes(tree, include_class_bodies=True):
+    # A function body runs only when something invokes it. A module that calls nothing while
+    # loading cannot reach one, so its bodies stay unbound; once the module does invoke
+    # something, which body that reaches cannot be decided, so every body counts.
+    reachable_bodies = _calls_during_module_load(tree)
+    for node in _module_scope_nodes(tree, include_class_bodies=True, include_deferred_scopes=reachable_bodies):
         if isinstance(node, ast.Import):
             module_names.extend(alias.name.split(".") for alias in node.names)
         elif isinstance(node, ast.ImportFrom):

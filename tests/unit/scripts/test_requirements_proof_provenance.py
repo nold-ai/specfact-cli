@@ -2356,3 +2356,55 @@ def test_git_bound_red_proof_treats_a_bare_decorator_as_a_module_load_call(tmp_p
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
         "stale-red-proof"
     ]
+
+
+def test_git_bound_red_proof_binds_imports_inside_an_invoked_function(tmp_path: Path) -> None:
+    """A function body called during module load executes its imports at import time."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "conftest.py").write_text(
+        "def _load() -> None:\n    import tests.runtime_support\n\n\n_load()\n", encoding="utf-8"
+    )
+    (tests_path / "runtime_support.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: import support from an invoked function")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (tests_path / "runtime_support.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change runtime support")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_git_bound_red_proof_ignores_type_only_import_inside_a_function(tmp_path: Path) -> None:
+    """Widening to function bodies must not bind imports a typing guard keeps unexecuted."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "conftest.py").write_text(
+        "from typing import TYPE_CHECKING\n\n\ndef _load() -> None:\n"
+        "    if TYPE_CHECKING:\n        import tests.type_support\n",
+        encoding="utf-8",
+    )
+    (tests_path / "type_support.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: guard a function-body import")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (tests_path / "type_support.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "chore: change type-only helper")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []

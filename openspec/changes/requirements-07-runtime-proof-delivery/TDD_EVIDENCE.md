@@ -2323,3 +2323,60 @@ Each was reproduced by execution before any production edit.
   guard, which the repository's committed conftests and initializers do not
   have. Wall time for the full selector set rose from 14.2s to 17.4s, from
   walking nested call arguments.
+
+## Codex round-16 remediation: imports inside invoked function bodies
+
+One finding, and the first in this series that directly contradicts an earlier
+accepted one.
+
+- **The finding:** a conftest, test, or initializer that calls a local function
+  whose body performs `import tests.runtime_support` executes that import during
+  module load, but `_import_module_names` stopped at the function definition, so
+  the imported file never entered `proof_inputs`.
+- **The contradiction:** the "Codex lazy initializer import remediation" round
+  above fixed the opposite complaint — imports in *uncalled* initializer function
+  bodies were bound as though package import executed them, which rejected valid
+  evidence. That fix discarded function bodies wholesale, which is what this
+  finding now exposes as too coarse in the other direction.
+- **The resolution:** the distinguishing fact is whether anything invokes the
+  body. `_module_scope_nodes` gained `include_deferred_scopes`, and
+  `_import_module_names` enables it exactly when `_calls_during_module_load` is
+  true. A module that invokes nothing cannot reach a function body, so its
+  imports stay unbound and the earlier finding still holds; once the module does
+  invoke something, which body that reaches cannot be decided, so every body
+  counts. Neither the by-name call resolution removed earlier nor a blanket
+  widening would satisfy both findings at once.
+- Static branch pruning still applies inside those bodies, so a
+  `TYPE_CHECKING`-guarded import in a function stays unbound. That direction is
+  pinned by its own regression rather than left to inspection.
+
+- **Failing-before command:**
+
+  ```shell
+  uv run --python 3.11 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py -p no:randomly \
+    -k "invoked_function or type_only_import_inside" -q
+  ```
+
+  Recorded 2026-08-12T17:14:03Z. Result: 1 failed, 1 passed — the over-strictness
+  lock already held, only the fail-open case was missing.
+- **Passing-after:** 146 passed in that file, including the earlier
+  `..._ignores_lazy_initializer_import` that a blanket widening broke.
+- **Real-repository check:** this is the first change in the series that moves
+  the numbers — 163 to 174 inputs for the 31 `tests/unit/scripts` selectors and
+  2186 to 2274 for all 333. The 88 additions were inspected individually rather
+  than accepted as a total:
+  - **87 do not exist in the repository.** They are candidate paths for
+    third-party imports found in function bodies — `rich/progress.py`,
+    `requests/HTTPError.py`, `ruamel/yaml.py`, and repository-root candidates for
+    `specfact_cli`, whose package lives under `src`. A path absent from the tree
+    can never change in a pull request, so it cannot produce a false stale.
+  - **1 exists: `scripts/runtime_discovery_smoke.py`**, imported inside a
+    function by a test that calls it. Binding it is correct.
+  - **No `src/specfact_cli/**` path is bound**, so the invariant that a
+    red-to-green change may edit governed production code without invalidating
+    its own proof still holds.
+  - Wall time for all 333 selectors rose from 17.4s to 41.6s. The gate validates
+    only the selected subset in CI, where the comparable figure is 2.3s for 31
+    selectors, but the growth is worth recording: descending into function bodies
+    roughly doubles the traversal.
