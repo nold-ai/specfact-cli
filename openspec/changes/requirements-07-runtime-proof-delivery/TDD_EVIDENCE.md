@@ -2221,3 +2221,40 @@ bound, and each defeated a rule added in an earlier round.
   second-reference rule is deliberately blunt — any `alias = typing` drops the
   guard — so this measurement is what establishes it costs this repository
   nothing.
+
+## Requirements Evidence CI status and the withdrawn mapping change
+
+An external quality assessment claimed the Requirements Evidence check was red
+because the historical TDD ledger digest did not match. Checking the workflow
+runs rather than the summary shows a different picture, and one correction to
+an earlier note in this ledger.
+
+- **The check is red on every commit of this branch, and on the base.** Run
+  history for `requirements-evidence.yml` shows `failure` for every head from
+  `fb66d5e9` through `b38ea723`, and also for `6a81ad3290` — the `dev` commit
+  that is this pull request's merge base. An earlier note here treated the
+  broadly green check-run list as "CI green"; that list did not include this
+  workflow, so the claim was wrong and is corrected.
+- **The current cause is not the ledger digest.** The job log shows the
+  SpecFact CLI exiting 1 during planning with "Bundled Modules Need Refresh —
+  some bundled modules are missing or outdated", before the legacy-ledger block
+  runs. Only three of the six declared artifacts are uploaded, so no plan,
+  JUnit, or ledger artifact is ever produced. The ledger-digest failure the
+  assessment cites was the earlier cause at `ea2e256d`; the committed ledger
+  digest over the first 1143 lines still equals the pinned
+  `sha256:d6e35c93...5e8c3`, reverified after every append in this branch.
+- **Because of that, one drafted correction was withdrawn.** Declaring the gate
+  script as a touchpoint requires editing `requirements-evidence.yaml`, which
+  changes the mapping digest. That digest is pinned in three places this branch
+  cannot regenerate: the product-owner acceptance record
+  (`mapping_digest: sha256:4e346ea4...`), and `legacy_tdd_mapping_digest` plus
+  `legacy_tdd_plan_digest` in the workflow. The change would therefore have
+  added a second, self-inflicted failure once the module-bundling problem is
+  fixed, and by this change's own "Accepted Mapping Before Automation"
+  requirement a mapping digest without matching acceptance blocks automation.
+  The mapping is restored to its 18-case pinned state and the correction is
+  recorded as task 3.9 with the full draft, so it can land in a change where
+  acceptance is renewed deliberately.
+
+No test or gate behavior changed with this withdrawal: the provenance fixes,
+the spec de-duplication, and the guard-aliasing fix are unaffected.

@@ -52,10 +52,13 @@ Remediation extended `scripts/requirements_proof_provenance.py` to resolve the
 complete pytest-determining input set and to fail closed on any input it cannot
 read, parse, or statically resolve. Two consequences for this report:
 
-- The gate script is now a declared touchpoint of `git-bound-failing-first-proof`
-  in `requirements-evidence.yaml`. It was previously absent, so this change's own
-  "changed interface -> mapped touchpoint -> exact selector" chain did not cover
-  the file implementing the requirement.
+- The gate script is not a declared touchpoint of `git-bound-failing-first-proof`
+  in `requirements-evidence.yaml`, so this change's own "changed interface ->
+  mapped touchpoint -> exact selector" chain does not cover the file
+  implementing the requirement. The correction is drafted in task 3.9 but
+  deliberately not applied here: it changes the mapping digest, which is pinned
+  in the acceptance record and in two workflow constants that only a
+  product-owner run can regenerate.
 - The requirement text no longer restates a partial input list. The enumeration
   exists once, in the retained-proof scenario, because the duplicate had already
   drifted behind the implementation.

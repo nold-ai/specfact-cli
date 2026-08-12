@@ -76,9 +76,21 @@ behavior before its tests exist and have failed for the expected reason.
   configured `pythonpath` roots, `addopts` `-p` plugins, declared
   `pytest_plugins`, and statically reachable repository-local imports — and
   fail closed on any input that cannot be read, parsed, or statically resolved.
-- [x] 3.9 Declare `scripts/requirements_proof_provenance.py` as a governed
+- [ ] 3.9 Declare `scripts/requirements_proof_provenance.py` as a governed
   touchpoint of the failing-first requirement and map its scenarios to exact,
   unparametrized selectors so this change's own gate covers its implementation.
+  Drafted and withdrawn from this pull request: editing
+  `requirements-evidence.yaml` changes the mapping digest, which is pinned in
+  three places that only a product-owner run can regenerate — the acceptance
+  record `requirements-proof/review-evidence.json`, and
+  `legacy_tdd_mapping_digest` plus `legacy_tdd_plan_digest` in
+  `.github/workflows/requirements-evidence.yml`. Landing it here would add a
+  second CI failure on top of the pre-existing one. The draft raised the plan
+  from 18 to 23 cases: a `cli_command` touchpoint for the gate script, and
+  cases R07-CORE-003-S04..S08 covering the configuration source and configured
+  roots, unreadable inputs, unresolvable plugin declarations, guard rewriting,
+  and symlinked selectors. Every drafted selector was verified to collect
+  exactly one test.
 
 ## 4. Passing evidence and delivery verification
 
