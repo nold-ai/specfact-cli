@@ -2572,3 +2572,55 @@ from it, and that plugin's own import.
   The invariant fires on exactly the defect that two review rounds reported, and
   passes once it is fixed, which is stronger evidence than a synthetic mutation.
 - **Passing-after:** 194 passed in the provenance file.
+
+## Round 20: a dynamic import names its target in the argument
+
+Review found that a conftest loading repository support through
+`importlib.import_module("tests.runtime_support")` bound only the ordinary
+`import importlib` statement, never the module actually executed. Editing that
+support module between the red source and the final commit therefore left the
+proof standing.
+
+- **Failing-first evidence (2026-08-12T21:35:30Z).** Five spellings of the same
+  load — `importlib.import_module`, `__import__`, `importlib.__import__`, a
+  `from importlib import import_module` call, and the same call aliased to
+  `_load` — all returned `[]` where `['stale-red-proof']` was required. The
+  aliased spelling failing alongside the others is the evidence that rejected a
+  name-matching fix: a rule keyed on the callee cannot see `_load`.
+
+The fix resolves the **argument** rather than the callee. A dynamic import names
+its target in data, so the mechanism does not identify it; the literal does. Any
+dotted, identifier-shaped string a reachable body hands to a call is a candidate,
+which covers every mechanism, alias, and wrapper at once, including a name read
+out of a literal list, tuple, set, or dict handed to a loader.
+
+Two positions bound the rule, and both were set by measurement rather than by
+taste. Widening it to *any* literal in a reachable body was tried first and
+rejected: it broke the five existing locks that keep a `pytest_plugins` value in
+a scope pytest ignores from binding anything, because a string merely written
+down is loaded by no one. Accepting bare words was tried and rejected too — on
+this repository `Path("src")` bound `src/__init__.py` and the `repro setup`
+subcommand argument bound `setup.py`. Prose is unbounded, while the residual gap
+(a single-part target resting directly on an import root) is not.
+
+Existence is then checked per **name**, not per candidate path, because
+`src.module_a` in an analyzer fixture would otherwise bind `src/__init__.py`
+through the parent-package candidate while naming nothing that exists. An
+ordinary `import` statement is proof of its own target and keeps its absent
+candidates bound; a name guessed from a literal earns that only once its module
+is committed.
+
+- **Whole-repository measurement.** 333 selectors over the real checkout:
+  204 inputs for the scripts group and 2776 overall, identical to the previous
+  head — 0 added, 0 removed, and nothing under `src/specfact_cli/**` bound. Each
+  rejected variant was measured the same way and discarded on what it added:
+  the any-literal rule added 9 paths, bare words added `src/__init__.py` and
+  `setup.py`, and per-path existence checking left `src/__init__.py` behind.
+- **Hardening.** `DYNAMIC_LOADER_SHAPES` holds 16 spellings — keyword argument,
+  `find_spec`, a local wrapper, `functools.partial`, literal groups, conditional,
+  `try`, class body, fixture, and test bodies — and `INERT_LITERAL_SHAPES` holds
+  6 counter-shapes that must stay unbound, so the two directions are locked
+  against each other. `test_a_dynamic_import_in_an_uncalled_initializer_is_not_bound`
+  keeps the reachability rule in step with ordinary imports, which now share one
+  `_deferred_scopes_are_reachable` helper rather than two copies that can drift.
+- **Passing-after:** 217 passed in the provenance file.

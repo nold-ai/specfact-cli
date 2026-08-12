@@ -182,6 +182,14 @@ retain deterministic JUnit results for module-owned reconciliation.
   module-level `pytest_plugins` declaration made by a pytest-considered module
   through its active or runtime-conditionally possible static bindings,
   including known values preserved across non-literal conditional assignments
+- **AND** a dotted module name a reachable body hands to a call is bound when
+  that module exists at the red source, because a dynamic import names its
+  target in data rather than in the callee, so `importlib.import_module`,
+  `__import__`, an alias, a wrapper, and a name read out of a literal group are
+  covered without matching an import mechanism by name; a literal that is only
+  written down, that names no committed module, or that is a bare word rather
+  than a dotted name is not read as an import, because binding prose would fail
+  valid proofs on edits to files pytest never loads
 - **AND** a plugin early-loaded through a configured `addopts` `-p` option is a
   proof input on the same terms as a declared plugin
 - **AND** only the final possible `pytest_plugins` binding is bound, because an

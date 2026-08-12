@@ -7,6 +7,7 @@ import ast
 import configparser
 import functools
 import hashlib
+import itertools
 import json
 import re
 import shlex
@@ -997,14 +998,67 @@ def _pytest_plugin_names(tree: ast.AST) -> list[list[str]]:
     return plugin_names
 
 
+def _deferred_scopes_are_reachable(tree: ast.AST, current_path: str) -> bool:
+    """Report whether a module's deferred bodies run during the pytest session.
+
+    Pytest invokes test and fixture bodies during the run, so their imports always execute.
+    Only a package initializer needs an import-time call to reach one of its own functions.
+    """
+    is_package_initializer = PurePosixPath(current_path).name == "__init__.py"
+    return not is_package_initializer or _calls_during_module_load(tree)
+
+
+def _literal_module_candidates(tree: ast.AST, current_path: str) -> list[list[str]]:
+    """Return module names spelled as string literals in a reachable body.
+
+    A dynamic import names its target in data rather than in the callee, so the mechanism is
+    not what identifies it: ``importlib.import_module``, ``__import__``, an alias, a wrapper, or
+    a name read out of a list all execute the same module. Resolving the literal itself covers
+    every such spelling without matching a mechanism by name — the matching that aliasing and
+    indirection defeat.
+
+    Two positions narrow the literals worth reading as names. It must be handed to a call,
+    because a string merely written down is not loaded by anyone — a ``pytest_plugins`` value in
+    a scope pytest ignores names a module that is never imported. And it must be dotted, because
+    a bare word is ordinary prose, the directory component in ``Path("src")``; reading those as
+    imports binds unrelated files and fails valid proofs with no legible cause. The cost is that
+    a single-part dynamic target resting directly on an import root stays unbound; that gap is
+    bounded, while prose is not. Because even a handed-over dotted literal may be prose, the
+    caller keeps only the names whose module exists at the red source.
+    """
+    names: list[list[str]] = []
+    reachable_bodies = _deferred_scopes_are_reachable(tree, current_path)
+    for node in _module_scope_nodes(tree, include_class_bodies=True, include_deferred_scopes=reachable_bodies):
+        if not isinstance(node, ast.Call):
+            continue
+        arguments = [*node.args, *(keyword.value for keyword in node.keywords)]
+        for value in itertools.chain.from_iterable(_literal_strings(argument) for argument in arguments):
+            parts = value.split(".")
+            if len(parts) > 1 and all(part.isidentifier() for part in parts):
+                names.append(parts)
+    return names
+
+
+def _literal_strings(expression: ast.expr) -> list[str]:
+    """Return the string literals an expression hands over, including through a literal group.
+
+    A loader is as often given a collection of names as a single one, and the elements of a
+    literal sequence are handed over just as directly as a bare argument is.
+    """
+    if isinstance(expression, ast.Constant):
+        return [expression.value] if isinstance(expression.value, str) else []
+    if isinstance(expression, (ast.List, ast.Tuple, ast.Set)):
+        return [value for element in expression.elts for value in _literal_strings(element)]
+    if isinstance(expression, ast.Dict):
+        return [value for element in expression.values for value in _literal_strings(element)]
+    return []
+
+
 def _import_module_names(tree: ast.AST, current_path: str) -> list[list[str]]:
     """Return imported module names, including relative import candidates."""
     current_package = list(PurePosixPath(current_path).parent.parts)
     module_names: list[list[str]] = []
-    # Pytest invokes test and fixture bodies during the run, so their imports always execute.
-    # Only a package initializer needs an import-time call to reach one of its own functions.
-    is_package_initializer = PurePosixPath(current_path).name == "__init__.py"
-    reachable_bodies = not is_package_initializer or _calls_during_module_load(tree)
+    reachable_bodies = _deferred_scopes_are_reachable(tree, current_path)
     for node in _module_scope_nodes(tree, include_class_bodies=True, include_deferred_scopes=reachable_bodies):
         if isinstance(node, ast.Import):
             module_names.extend(alias.name.split(".") for alias in node.names)
@@ -1051,6 +1105,27 @@ def _discovered_rooted_paths(
     }
 
 
+def _committed_module_names(
+    module_names: Sequence[Sequence[str]], module_roots: Sequence[str], repo_root: Path, source_ref: str
+) -> list[list[str]]:
+    """Return the module names whose own file is committed at the red source.
+
+    An ordinary ``import`` statement is proof that its target is imported, so its absent
+    candidates are bound as absent and a later addition invalidates the proof. A name merely
+    guessed from a string literal carries no such proof, so a name is kept only once the module
+    it points at exists. The test is the module's own file rather than any of the candidate
+    paths, because a parent package's ``__init__.py`` can exist while the named module does not.
+    """
+    return [
+        list(module_parts)
+        for module_parts in module_names
+        if any(
+            _test_path_exists_at_ref(repo_root, source_ref, path)
+            for path in _python_module_target_paths(module_parts, module_roots)
+        )
+    ]
+
+
 def _module_relative_path(path: str, module_root: str) -> str:
     """Return a path relative to the module root it was discovered under."""
     prefix = f"{module_root}/"
@@ -1093,9 +1168,14 @@ def _imported_python_paths(
             if _test_path_exists_at_ref(repo_root, source_ref, current_path):
                 raise ValueError("stale-red-proof")
             continue
-        ordinary_rooted = _discovered_rooted_paths(
-            _import_module_names(tree, _module_relative_path(current_path, module_root)),
-            _import_roots(module_root),
+        import_roots = _import_roots(module_root)
+        relative_path = _module_relative_path(current_path, module_root)
+        ordinary_rooted = _discovered_rooted_paths(_import_module_names(tree, relative_path), import_roots)
+        ordinary_rooted |= _discovered_rooted_paths(
+            _committed_module_names(
+                _literal_module_candidates(tree, relative_path), import_roots, repo_root, source_ref
+            ),
+            import_roots,
         )
         plugin_names = _pytest_plugin_names(tree) if inspect_pytest_plugins else []
         plugin_rooted = _discovered_rooted_paths(plugin_names, plugin_module_roots)

@@ -2841,3 +2841,125 @@ def test_a_plugin_reached_through_a_nested_root_is_bound_with_its_imports(tmp_pa
     assert "tests/plugins/localplugin.py" in inputs
     assert "tests/plugins/helper.py" in inputs
     assert "tests/support.py" in inputs
+
+
+# Every way a conftest can hand ``tests.runtime_support`` to something that loads it. The
+# mechanism differs in each; what they share is that the target is named by a literal, so a rule
+# that resolves the literal covers the family rather than the spellings enumerated here.
+DYNAMIC_LOADER_SHAPES = (
+    'importlib.import_module("tests.runtime_support")',
+    '__import__("tests.runtime_support")',
+    'importlib.__import__("tests.runtime_support")',
+    'from importlib import import_module\nimport_module("tests.runtime_support")',
+    'from importlib import import_module as _load\n_load("tests.runtime_support")',
+    'importlib.import_module(name="tests.runtime_support")',
+    'importlib.util.find_spec("tests.runtime_support")',
+    'def _bring_in(name):\n    return importlib.import_module(name)\n\n\n_bring_in("tests.runtime_support")',
+    'for _name in _collect(["tests.runtime_support"]):\n    importlib.import_module(_name)',
+    'functools.partial(importlib.import_module, "tests.runtime_support")()',
+    'if VERSION:\n    importlib.import_module("tests.runtime_support")',
+    'try:\n    importlib.import_module("tests.runtime_support")\nexcept ImportError:\n    pass',
+    'class Support:\n    module = importlib.import_module("tests.runtime_support")',
+    '@pytest.fixture\ndef support():\n    return importlib.import_module("tests.runtime_support")',
+    'def test_local() -> None:\n    importlib.import_module("tests.runtime_support")',
+    '_preload({"support": "tests.runtime_support"})',
+)
+
+# Literals shaped like a module name that are never handed to a loader, or that name nothing
+# importable. Binding these would reject valid proofs whenever an unrelated file changes.
+INERT_LITERAL_SHAPES = (
+    'NAMES = ("tests.runtime_support",)',
+    'def helper():\n    names = ["tests.runtime_support"]\n    return names',
+    'class Helper:\n    names = ("tests.runtime_support",)',
+    'assert ARGUMENTS == ["-p", "tests.runtime_support"]',
+    'importlib.import_module("tests.absent_support")',
+    'Path("tests")\nPath("runtime_support")',
+)
+
+_DYNAMIC_LOADER_HEADER = (
+    "import functools\n"
+    "import importlib\n"
+    "import importlib.util\n"
+    "from pathlib import Path\n"
+    "\n"
+    "import pytest\n"
+    "\n"
+    "VERSION = 1\n"
+    "ARGUMENTS = []\n"
+    "\n"
+    "\n"
+    "def _collect(names):\n"
+    "    return names\n"
+    "\n"
+    "\n"
+    "def _preload(mapping):\n"
+    "    return mapping\n"
+)
+
+
+def _repository_with_dynamic_loader(tmp_path: Path, body: str) -> tuple[str, Path]:
+    """Commit a conftest carrying ``body`` beside a support module, and return the red proof."""
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "conftest.py").write_text(f"{_DYNAMIC_LOADER_HEADER}\n\n{body}\n", encoding="utf-8")
+    (tests_path / "runtime_support.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add support module")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+    return base_ref, red_proof_path
+
+
+@pytest.mark.parametrize("loader", DYNAMIC_LOADER_SHAPES)
+def test_git_bound_red_proof_binds_a_literal_dynamic_import_target(tmp_path: Path, loader: str) -> None:
+    """A statically known dynamic-import target is an ordinary proof input, however it is spelled."""
+    module = _load_provenance_module()
+    base_ref, red_proof_path = _repository_with_dynamic_loader(tmp_path, loader)
+
+    (tmp_path / "tests" / "runtime_support.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change dynamically loaded support")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+@pytest.mark.parametrize("inert", INERT_LITERAL_SHAPES)
+def test_a_name_shaped_literal_that_loads_nothing_does_not_bind_a_file(tmp_path: Path, inert: str) -> None:
+    """Reading every module-shaped string as an import would fail proofs on unrelated edits."""
+    module = _load_provenance_module()
+    base_ref, red_proof_path = _repository_with_dynamic_loader(tmp_path, inert)
+
+    (tmp_path / "tests" / "runtime_support.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "chore: edit a module nothing loads")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
+
+
+def test_a_dynamic_import_in_an_uncalled_initializer_is_not_bound(tmp_path: Path) -> None:
+    """A deferred body no one invokes never runs, so its target is not an input pytest reads."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    package_path = tmp_path / "tests" / "helpers"
+    package_path.mkdir(parents=True)
+    (tmp_path / "tests" / "__init__.py").write_text("", encoding="utf-8")
+    (tmp_path / "tests" / "conftest.py").write_text("from tests import helpers\n", encoding="utf-8")
+    initializer = 'import importlib\n\n\ndef load():\n    return importlib.import_module("tests.helpers.support")\n'
+    (package_path / "__init__.py").write_text(initializer, encoding="utf-8")
+    (package_path / "support.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add lazy loader")
+    (tmp_path / "tests" / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (package_path / "support.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "chore: edit the never-loaded support")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
