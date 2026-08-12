@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import hashlib
 import importlib.util
+import itertools
 import json
 import subprocess
 import sys
@@ -2961,5 +2962,136 @@ def test_a_dynamic_import_in_an_uncalled_initializer_is_not_bound(tmp_path: Path
 
     (package_path / "support.py").write_text("VALUE = True\n", encoding="utf-8")
     final_ref = _commit(tmp_path, "chore: edit the never-loaded support")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
+
+
+def _executor_early_loaded_plugin_names() -> set[str]:
+    """Return the plugin names the executor early-loads, read from its own command shape."""
+    tree = ast.parse((Path(__file__).resolve().parents[3] / "scripts" / "requirements_proof_executor.py").read_bytes())
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.List, ast.Tuple)):
+            continue
+        literals = [element.value if isinstance(element, ast.Constant) else None for element in node.elts]
+        names.update(
+            following
+            for token, following in itertools.pairwise(literals)
+            if token == "-p" and isinstance(following, str)
+        )
+    return names
+
+
+def test_every_plugin_the_executor_early_loads_is_a_proof_input(tmp_path: Path) -> None:
+    """A plugin the proof run always loads decides collection, so changing it invalidates the proof."""
+    module = _load_provenance_module()
+    early_loaded = _executor_early_loaded_plugin_names()
+    assert early_loaded, "the executor no longer early-loads any plugin; this guard needs updating"
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    plugin_paths = [Path(*name.split(".")).with_suffix(".py") for name in sorted(early_loaded)]
+    for relative in plugin_paths:
+        (tmp_path / relative).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / relative).write_text(
+            "def pytest_collection_modifyitems(items):\n    return None\n", encoding="utf-8"
+        )
+    (tmp_path / "tests").mkdir()
+    base_ref = _commit(tmp_path, "test: add the early-loaded plugin")
+    (tmp_path / "tests" / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (tmp_path / plugin_paths[0]).write_text(
+        "def pytest_collection_modifyitems(items):\n    items.clear()\n", encoding="utf-8"
+    )
+    final_ref = _commit(tmp_path, "fix: change the early-loaded plugin")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_the_gate_seeds_every_plugin_the_executor_early_loads() -> None:
+    """The two scripts must not drift: a plugin added to the command must be bound by the gate."""
+    module = _load_provenance_module()
+    seeded = {".".join(parts) for parts in module.EXECUTOR_PLUGIN_NAMES}
+
+    assert _executor_early_loaded_plugin_names() <= seeded
+
+
+def _repository_with_data_read(tmp_path: Path, body: str, extra: dict[str, str] | None = None) -> tuple[str, Path]:
+    """Commit a conftest whose ``body`` reads repository data, and return the red proof."""
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / "tests" / "data").mkdir(parents=True)
+    (tmp_path / "tests" / "data" / "case.json").write_text('{"expected": false}\n', encoding="utf-8")
+    for relative, text in (extra or {}).items():
+        (tmp_path / relative).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / relative).write_text(text, encoding="utf-8")
+    header = "from pathlib import Path\n\nREPO_ROOT = Path(__file__).resolve().parents[1]\n"
+    (tmp_path / "tests" / "conftest.py").write_text(f"{header}\n{body}\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add data the harness reads")
+    (tmp_path / "tests" / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+    return base_ref, red_proof_path
+
+
+# Every way the harness can name ``tests/data/case.json`` as a file it reads.
+DATA_READ_SHAPES = (
+    'CASE = Path("tests/data/case.json").read_text()',
+    'CASE = open("tests/data/case.json").read()',
+    'CASE = (REPO_ROOT / "tests" / "data" / "case.json").read_text()',
+    'CASE = (REPO_ROOT / "tests/data/case.json").read_text()',
+    'def fixture_case():\n    return Path("tests/data/case.json").read_bytes()',
+    'CASES = [Path(name) for name in ["tests/data/case.json"]]',
+)
+
+
+@pytest.mark.parametrize("read", DATA_READ_SHAPES)
+def test_repository_data_the_harness_reads_is_a_proof_input(tmp_path: Path, read: str) -> None:
+    """Data inside the test tree decides the outcome, so changing it invalidates the proof."""
+    module = _load_provenance_module()
+    base_ref, red_proof_path = _repository_with_data_read(tmp_path, read)
+
+    (tmp_path / "tests" / "data" / "case.json").write_text('{"expected": true}\n', encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change the case the harness reads")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+@pytest.mark.parametrize(
+    ("read", "changed"),
+    [
+        ('CASE = Path("src/product.py").read_text()', "src/product.py"),
+        ('CASE = Path("README.md").read_text()', "README.md"),
+        ('CASE = Path("docs/index.md").read_text()', "docs/index.md"),
+    ],
+)
+def test_a_file_the_fix_is_expected_to_change_is_not_bound_by_a_read(tmp_path: Path, read: str, changed: str) -> None:
+    """Production source and documentation are what a red-to-green change edits, not the harness."""
+    module = _load_provenance_module()
+    base_ref, red_proof_path = _repository_with_data_read(tmp_path, read, {changed: "before\n"})
+
+    (tmp_path / changed).write_text("after\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change the file under test")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
+
+
+def test_a_read_that_cannot_be_resolved_does_not_fail_the_proof(tmp_path: Path) -> None:
+    """Harnesses read paths built at runtime constantly; failing closed on those rejects every proof."""
+    module = _load_provenance_module()
+    body = 'def fixture_case(tmp_path):\n    return (tmp_path / "case.json").read_text()'
+    base_ref, red_proof_path = _repository_with_data_read(tmp_path, body)
+
+    (tmp_path / "tests" / "data" / "case.json").write_text('{"expected": true}\n', encoding="utf-8")
+    final_ref = _commit(tmp_path, "chore: change data nothing reads")
 
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []

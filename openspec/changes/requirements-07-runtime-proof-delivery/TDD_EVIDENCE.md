@@ -2624,3 +2624,73 @@ is committed.
   keeps the reachability rule in step with ordinary imports, which now share one
   `_deferred_scopes_are_reachable` helper rather than two copies that can drift.
 - **Passing-after:** 217 passed in the provenance file.
+
+## Round 21: the inputs a proof run reads that are not imports
+
+Two findings landed together, both of the same shape: a file the proof run reads
+that the import graph cannot see.
+
+### The plugin the executor always loads
+
+Every run passes `-p scripts.requirements_proof_pytest_plugin` on the command
+line. The gate bound plugins declared in configuration and none from the command,
+so changing that plugin after the red source left the proof standing while the
+new code could alter collection, reports, and the selector properties JUnit
+validation depends on.
+
+- **Failing-first.** `test_every_plugin_the_executor_early_loads_is_a_proof_input`
+  returned `[]` where `['stale-red-proof']` was required.
+
+The name is now seeded beside the configured `addopts` names, since both arrive
+through the same option and pytest treats them identically. Naming it in the gate
+would ordinarily duplicate a fact owned by the executor, so
+`test_the_gate_seeds_every_plugin_the_executor_early_loads` parses the executor's
+own command shape and asserts every `-p` value it emits is seeded. The two files
+are held together by a test rather than by remembering to edit both.
+
+### Repository data the harness reads
+
+A selected test or fixture that reads `tests/data/case.json` bound nothing, so
+editing that data could turn the same test green with the retained failure still
+accepted.
+
+- **Failing-first.** All six shapes in `DATA_READ_SHAPES` returned `[]` where
+  `['stale-red-proof']` was required: `Path(...)`, `open(...)`, a component-wise
+  join onto a path root, a joined relative path, a read inside a fixture body, and
+  a name iterated out of a literal list.
+
+The scope was set by measurement, not by the finding's wording. Binding every
+committed path a reachable body names would have bound 134 files on this
+repository, including ten under `src/specfact_cli/**` — the modules a red-to-green
+change edits by definition, whose exclusion is the reason ordinary imports already
+stop at the repository root. Excluding governed production paths still left 37,
+almost all `README.md`, `CHANGELOG.md`, and `docs/**`: documentation is likewise
+what a change is expected to edit, so binding it would reject proofs for
+documentation-driven work.
+
+The line that holds is the harness itself. A read binds when the file lies inside
+a directory the selected tests live in and is not a governed production path.
+Data under the test tree is harness the change may not edit; everything outside is
+a fix target. Three counter-shapes lock that boundary — a read of `src/product.py`,
+of `README.md`, and of `docs/index.md` must all leave the proof valid.
+
+The second half of the finding asked to fail closed on reachable repository I/O
+that cannot be resolved. That is declined with a reason, and the reason is locked
+by `test_a_read_that_cannot_be_resolved_does_not_fail_the_proof`: a harness builds
+paths under `tmp_path` constantly, so failing closed there rejects every proof in
+every repository that uses temporary directories, which catches no drift and
+blocks all valid work.
+
+- **Whole-repository measurement.** 333 selectors: 217 inputs for the scripts
+  group and 2785 overall, up from 204 and 2776. Exactly two existing files were
+  added — `scripts/requirements_proof_pytest_plugin.py` and
+  `tests/fixtures/keys/test_private_key.pem`, one per finding. The remaining seven
+  additions are absent candidates under the configured `src` and `tools` roots,
+  bound as absent so adding one invalidates the proof, exactly as ordinary import
+  candidates already are. Nothing under `src/specfact_cli/**` is bound.
+- **Structure.** Both features answer the same question — is this literal handed
+  to something that consumes it, or only written down — so they share one
+  `_handed_over_expressions` helper covering call arguments and iterated values.
+  That is what carried the comprehension shape without a second rule, and it keeps
+  the module-name and path rules from drifting apart.
+- **Passing-after:** 229 passed in the provenance file.

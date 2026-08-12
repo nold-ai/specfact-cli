@@ -190,8 +190,18 @@ retain deterministic JUnit results for module-owned reconciliation.
   written down, that names no committed module, or that is a bare word rather
   than a dotted name is not read as an import, because binding prose would fail
   valid proofs on edits to files pytest never loads
-- **AND** a plugin early-loaded through a configured `addopts` `-p` option is a
-  proof input on the same terms as a declared plugin
+- **AND** a plugin early-loaded through a `-p` option is a proof input on the
+  same terms as a declared plugin, whether the option comes from configured
+  `addopts` or from the command the proof executor builds for every run, because
+  a plugin the run always loads decides collection and report shape
+- **AND** a committed file the resolved proof inputs read by literal path, either
+  as a single string handed to a call or as literals joined onto a path root, is
+  itself a proof input when it lies inside a directory the selected tests live
+  in, because data under the test tree is harness the red-to-green change may not
+  edit; a path outside that tree is what the change is expected to edit and stays
+  unbound, and a path assembled at runtime binds nothing rather than failing the
+  proof, because a harness that writes into a temporary directory is not evidence
+  of anything stale
 - **AND** only the final possible `pytest_plugins` binding is bound, because an
   assignment a later one overwrites never loads, and a name bound only inside a
   function, lambda, or class body does not rebind a module-level guard

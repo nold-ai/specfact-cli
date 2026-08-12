@@ -61,6 +61,10 @@ PYTEST_INI_SECTIONS = {
     "setup.cfg": "tool:pytest",
 }
 REPOSITORY_ROOT_MODULE_ROOTS = ("",)
+# Plugins the executor early-loads with ``-p`` on every proof run. They are not declared in any
+# configuration this gate can read, so they are named here and held to the executor's own command
+# shape by a contract test rather than by these two files being edited together.
+EXECUTOR_PLUGIN_NAMES = (("scripts", "requirements_proof_pytest_plugin"),)
 GIT_TIMEOUT_SECONDS = 30
 UNRESOLVED_PLUGIN_VALUE = object()
 
@@ -1029,14 +1033,28 @@ def _literal_module_candidates(tree: ast.AST, current_path: str) -> list[list[st
     names: list[list[str]] = []
     reachable_bodies = _deferred_scopes_are_reachable(tree, current_path)
     for node in _module_scope_nodes(tree, include_class_bodies=True, include_deferred_scopes=reachable_bodies):
-        if not isinstance(node, ast.Call):
-            continue
-        arguments = [*node.args, *(keyword.value for keyword in node.keywords)]
-        for value in itertools.chain.from_iterable(_literal_strings(argument) for argument in arguments):
+        handed_over = _handed_over_expressions(node)
+        for value in itertools.chain.from_iterable(_literal_strings(argument) for argument in handed_over):
             parts = value.split(".")
             if len(parts) > 1 and all(part.isidentifier() for part in parts):
                 names.append(parts)
     return names
+
+
+def _handed_over_expressions(node: ast.AST) -> list[ast.expr]:
+    """Return the expressions a statement hands to something that consumes them.
+
+    A call receives its arguments and a loop or comprehension receives what it iterates. A value
+    in either position is used, unlike one that is only bound to a name, so this is the position
+    that separates a literal naming something the run reads from a literal written down.
+    """
+    if isinstance(node, ast.Call):
+        return [*node.args, *(keyword.value for keyword in node.keywords)]
+    if isinstance(node, (ast.AsyncFor, ast.For)):
+        return [node.iter]
+    if isinstance(node, ast.comprehension):
+        return [node.iter]
+    return []
 
 
 def _literal_strings(expression: ast.expr) -> list[str]:
@@ -1102,6 +1120,83 @@ def _discovered_rooted_paths(
         for module_parts in module_names
         for root in module_roots
         for path in _python_module_paths(module_parts, (root,))
+    }
+
+
+def _joined_path_literal(expression: ast.expr) -> str | None:
+    """Return the repository-relative path a chain of ``/`` joins spells, if it is fully literal.
+
+    ``REPO_ROOT / "tests" / "data" / "case.json"`` names a file as directly as a single string
+    does; the root the chain starts from is dropped because a path built inside the checkout is
+    only bindable relative to it.
+    """
+    parts: list[str] = []
+    node: ast.expr = expression
+    while isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
+        if not isinstance(node.right, ast.Constant) or not isinstance(node.right.value, str):
+            return None
+        parts.insert(0, node.right.value)
+        node = node.left
+    return "/".join(parts) if parts else None
+
+
+def _literal_path_candidates(tree: ast.AST, current_path: str) -> list[str]:
+    """Return repository-relative paths a reachable body names as literals.
+
+    A harness reads a data file the same way it names a module: by handing a literal to a call,
+    or by joining literals onto a path root. Both are resolved, and nothing else is, because a
+    path assembled at runtime — ``tmp_path / name`` — cannot be bound to a committed file and
+    failing closed on it would reject every proof in a repository that uses temporary
+    directories, which is every repository.
+    """
+    candidates: list[str] = []
+    reachable_bodies = _deferred_scopes_are_reachable(tree, current_path)
+    for node in _module_scope_nodes(tree, include_class_bodies=True, include_deferred_scopes=reachable_bodies):
+        handed_over = _handed_over_expressions(node)
+        candidates.extend(itertools.chain.from_iterable(_literal_strings(argument) for argument in handed_over))
+        if isinstance(node, ast.BinOp) and (joined := _joined_path_literal(node)) is not None:
+            candidates.append(joined)
+    return [candidate.strip("/") for candidate in candidates if candidate.strip("/")]
+
+
+def _harness_directories(selector_paths: Sequence[str]) -> tuple[str, ...]:
+    """Return the top-level directories the selected tests live in.
+
+    Data beneath them belongs to the harness, so a red-to-green change may not edit it. Anything
+    outside is what the change is expected to edit — production source, documentation, packaging
+    — which is why ordinary imports already stop at the repository root rather than following
+    into it. A selector sitting at the repository root contributes no directory, so it widens
+    nothing.
+    """
+    return tuple(sorted({parts[0] for path in selector_paths if (parts := PurePosixPath(path).parts[:-1])}))
+
+
+def _is_harness_path(path: str, harness_directories: Sequence[str]) -> bool:
+    """Return whether a path names harness data rather than something the fix may change."""
+    if path in GOVERNED_PRODUCTION_FILES or path.startswith(GOVERNED_PRODUCTION_PREFIXES):
+        return False
+    return any(path.startswith(f"{directory}/") for directory in harness_directories)
+
+
+def _referenced_data_paths(
+    repo_root: Path, source_ref: str, python_paths: Sequence[str], selector_paths: Sequence[str]
+) -> set[str]:
+    """Return committed harness data the resolved Python proof inputs read by literal path.
+
+    Data files import nothing, so this pass runs once over the already-resolved Python inputs
+    rather than participating in their traversal.
+    """
+    harness_directories = _harness_directories(selector_paths)
+    if not harness_directories:
+        return set()
+    return {
+        candidate
+        for path in python_paths
+        if (tree := _python_tree_at_ref(repo_root, source_ref, path)) is not None
+        for candidate in _literal_path_candidates(tree, path)
+        if _is_harness_path(candidate, harness_directories)
+        and _test_path_exists_at_ref(repo_root, source_ref, candidate)
+        and _test_path_is_regular_at_ref(repo_root, source_ref, candidate)
     }
 
 
@@ -1378,8 +1473,9 @@ def _proof_inputs(repo_root: Path, source_ref: str, selector_paths: Sequence[str
     """Return every committed path whose change after the red source would invalidate the proof.
 
     Selectors are resolved together so their shared conftest, initializer, and import graph is
-    traversed once for the whole proof. Plugins early-loaded through configured ``addopts``
-    ``-p`` options are seeded alongside them, because pytest loads those modules too.
+    traversed once for the whole proof. Plugins early-loaded through ``-p`` are seeded alongside
+    them, because pytest loads those modules too, whether the option comes from configured
+    ``addopts`` or from the command the executor builds for every run.
     """
     pytest_inputs = {
         path for test_path in selector_paths for path in (test_path, *_ancestor_file_paths(test_path, "conftest.py"))
@@ -1390,7 +1486,10 @@ def _proof_inputs(repo_root: Path, source_ref: str, selector_paths: Sequence[str
     traversal_inputs = pytest_inputs | initializer_inputs
     configuration_directories = _configuration_directories(selector_paths)
     plugin_module_roots = _pythonpath_roots(repo_root, source_ref, configuration_directories)
-    addopts_names = _addopts_plugin_module_names(repo_root, source_ref, configuration_directories)
+    addopts_names = (
+        *_addopts_plugin_module_names(repo_root, source_ref, configuration_directories),
+        *EXECUTOR_PLUGIN_NAMES,
+    )
     addopts_rooted = _discovered_rooted_paths(addopts_names, plugin_module_roots)
     addopts_targets = {
         (root, path)
@@ -1400,16 +1499,15 @@ def _proof_inputs(repo_root: Path, source_ref: str, selector_paths: Sequence[str
     }
     seeds = [(path, path in pytest_inputs, "") for path in sorted(traversal_inputs)]
     seeds += [(path, (root, path) in addopts_targets, root) for root, path in sorted(addopts_rooted)]
-    return {
+    python_inputs = {
         *traversal_inputs,
-        *_configuration_candidate_paths(configuration_directories),
         *(path for _, path in addopts_rooted),
-        *_imported_python_paths(
-            repo_root,
-            source_ref,
-            seeds,
-            plugin_module_roots=plugin_module_roots,
-        ),
+        *_imported_python_paths(repo_root, source_ref, seeds, plugin_module_roots=plugin_module_roots),
+    }
+    return {
+        *python_inputs,
+        *_configuration_candidate_paths(configuration_directories),
+        *_referenced_data_paths(repo_root, source_ref, sorted(python_inputs), selector_paths),
     }
 
 
