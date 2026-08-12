@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import re
 import subprocess
+import sys
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -381,3 +385,139 @@ def test_requirements_evidence_workflow_blocks_each_final_verdict(
 
     assert review[review_field] == review_value
     assert terminal_failure in enforce["if"]  # type: ignore[index]
+
+
+def _legacy_ledger_digest(ledger_bytes: bytes, line_count: int) -> str:
+    """Digest the approved ledger prefix exactly as the workflow's inline Python does."""
+    lines = ledger_bytes.splitlines(keepends=True)
+    if len(lines) < line_count:
+        raise ValueError("Approved legacy TDD ledger is incomplete")
+    return f"sha256:{hashlib.sha256(b''.join(lines[:line_count])).hexdigest()}"
+
+
+def _pinned_legacy_ledger_binding() -> tuple[int, str]:
+    """Return the line count and digest the workflow pins, parsed rather than restated."""
+    command = _run_evidence_command()
+    line_count = re.search(r"legacy_tdd_line_count=(\d+)", command)
+    digest = re.search(r'legacy_tdd_ledger_digest="(sha256:[0-9a-f]{64})"', command)
+    assert line_count is not None, "workflow must pin a legacy ledger line count"
+    assert digest is not None, "workflow must pin a legacy ledger digest"
+    return int(line_count.group(1)), digest.group(1)
+
+
+def _committed_legacy_ledger() -> Path:
+    return REPO_ROOT / "openspec" / "changes" / "requirements-07-runtime-proof-delivery" / "TDD_EVIDENCE.md"
+
+
+def test_workflow_legacy_ledger_digest_matches_the_committed_ledger() -> None:
+    """The pinned digest must be recomputed from the ledger, not restated as a constant.
+
+    A prior break appended evidence inside the pinned window without re-pinning; the
+    workflow and its contract test held the same stale constant, so both stayed green while
+    the gate rejected every run.
+    """
+    line_count, pinned_digest = _pinned_legacy_ledger_binding()
+    actual_digest = _legacy_ledger_digest(_committed_legacy_ledger().read_bytes(), line_count)
+    assert actual_digest == pinned_digest, (
+        f"Legacy ledger drifted from its pin: committed prefix digests to {actual_digest}, "
+        f"workflow pins {pinned_digest}. Re-pin legacy_tdd_ledger_digest after editing the "
+        f"first {line_count} lines of TDD_EVIDENCE.md."
+    )
+
+
+def test_workflow_legacy_ledger_line_count_is_within_the_committed_ledger() -> None:
+    """A pin longer than the ledger makes the gate reject the binding as incomplete."""
+    line_count, _ = _pinned_legacy_ledger_binding()
+    committed_lines = len(_committed_legacy_ledger().read_bytes().splitlines(keepends=True))
+    assert line_count <= committed_lines
+
+
+def test_legacy_ledger_digest_detects_an_edit_inside_the_pinned_window() -> None:
+    """Prove the guard is sensitive to the edit shape that broke the gate.
+
+    The regression inserted lines at 1086 of a 1143-line window. An append past the window
+    must stay valid, so both directions are asserted.
+    """
+    ledger = b"".join(f"line {index}\n".encode() for index in range(1, 21))
+    baseline = _legacy_ledger_digest(ledger, 10)
+
+    inside_window = ledger.replace(b"line 5\n", b"line 5\ninserted\n")
+    assert _legacy_ledger_digest(inside_window, 10) != baseline
+
+    past_window = ledger + b"appended evidence\n"
+    assert _legacy_ledger_digest(past_window, 10) == baseline
+
+
+def test_workflow_pinned_plan_digests_match_a_regenerated_plan() -> None:
+    """The pinned mapping and plan digests must match what the module actually emits."""
+    fixture_root_text = os.environ.get("SPECFACT_MODULES_REPO")
+    if fixture_root_text is None or not Path(fixture_root_text).is_dir():
+        pytest.skip("requires the pinned modules fixture")
+    command = _run_evidence_command()
+    pinned = {
+        key: match.group(1)
+        for key in ("legacy_tdd_mapping_digest", "legacy_tdd_plan_digest")
+        if (match := re.search(rf'{key}="(sha256:[0-9a-f]{{64}})"', command)) is not None
+    }
+    assert set(pinned) == {"legacy_tdd_mapping_digest", "legacy_tdd_plan_digest"}
+
+    # The plan selects cases from the diff, so it must be regenerated against the same base
+    # the workflow uses; an empty range emits no plan at all.
+    if (
+        subprocess.run(
+            ["git", "rev-parse", "--verify", "origin/dev"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            check=False,
+        ).returncode
+        != 0
+    ):
+        pytest.skip("requires origin/dev to resolve the workflow's evidence base")
+
+    with tempfile.TemporaryDirectory() as directory:
+        plan_path = Path(directory) / "plan.json"
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "specfact_cli",
+                "requirements",
+                "evidence",
+                "--repo-root",
+                str(REPO_ROOT),
+                "--base-ref",
+                "origin/dev",
+                "--required-maturity",
+                "test-authored",
+                "--review-evidence",
+                str(
+                    REPO_ROOT
+                    / "openspec"
+                    / "changes"
+                    / "requirements-07-runtime-proof-delivery"
+                    / "requirements-proof"
+                    / "review-evidence.json"
+                ),
+                "--plan-output",
+                str(plan_path),
+                "--output",
+                str(Path(directory) / "evidence.json"),
+                "--summary",
+                str(Path(directory) / "evidence.md"),
+            ],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if not plan_path.is_file():
+            pytest.skip(f"planning did not emit a plan in this environment: {result.stdout[-400:]}")
+        plan = json.loads(plan_path.read_text(encoding="utf-8")).get("plan")
+
+    assert isinstance(plan, dict)
+    assert plan.get("mapping_digest") == pinned["legacy_tdd_mapping_digest"], (
+        "requirements-evidence.yaml changed without re-pinning legacy_tdd_mapping_digest"
+    )
+    assert plan.get("plan_digest") == pinned["legacy_tdd_plan_digest"], (
+        "the emitted plan changed without re-pinning legacy_tdd_plan_digest"
+    )

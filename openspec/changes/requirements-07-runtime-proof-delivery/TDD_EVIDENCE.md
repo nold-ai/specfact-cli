@@ -2380,3 +2380,51 @@ accepted one.
     only the selected subset in CI, where the comparable figure is 2.3s for 31
     selectors, but the growth is worth recording: descending into function bodies
     roughly doubles the traversal.
+
+## Drift guards for the pinned legacy-ledger and plan digests
+
+The Requirements Evidence check has been red on `dev` since `8766b8fe`, and the
+cause is a class of drift nothing tested for.
+
+- **What broke.** The workflow pins a digest over the first 1143 lines of this
+  ledger. Commit `8766b8fe` inserted evidence at line 1086 — *inside* that
+  window, not appended past it — so the committed prefix began hashing to
+  `d6e35c93…` while the workflow still pinned `1df90efd…`. Every run since has
+  been rejected with "Approved legacy TDD ledger digest does not match".
+- **Why no test caught it.** The existing contract test asserted the workflow
+  *contains* the literal digest string. The workflow and its test therefore held
+  the same constant and could never disagree, and neither was ever compared to
+  the ledger they describe. The pair drifted away from the artifact together
+  while staying green.
+- **The guards.** `test_workflow_legacy_ledger_digest_matches_the_committed_ledger`
+  parses the pinned line count and digest out of the workflow and recomputes the
+  digest from the committed ledger using the same algorithm the workflow's inline
+  Python uses. It restates no constant, so it cannot drift alongside the pin.
+  `test_workflow_legacy_ledger_line_count_is_within_the_committed_ledger` catches
+  the other rejection path, "ledger is incomplete".
+  `test_legacy_ledger_digest_detects_an_edit_inside_the_pinned_window` pins the
+  sensitivity in both directions, because the whole point of the window is that
+  an append past it stays valid while an edit inside it does not.
+  `test_workflow_pinned_plan_digests_match_a_regenerated_plan` covers the
+  remaining two pins by regenerating the plan through the released module and
+  comparing `mapping_digest` and `plan_digest`; it skips without the fixture,
+  matching the existing convention.
+
+- **Failing-before evidence.** Rather than a synthetic mutation, the guard was
+  replayed against the real history:
+
+  | commit | pinned | committed prefix | guard |
+  |---|---|---|---|
+  | `f398b194` last green | `1df90efd` | `1df90efd` | passes |
+  | `8766b8fe` first red | `1df90efd` | `d6e35c93` | **fires** |
+  | `origin/dev` today | `1df90efd` | `d6e35c93` | **fires** |
+
+  The guard passes at the last green commit and fires at exactly the commit that
+  turned the check red, which is the strongest available proof that it detects
+  this class rather than merely restating today's values.
+- **Passing-after:** 13 passed in the workflow contract file with the pinned
+  fixture mounted; 12 passed and 1 skipped without it, so CI behaviour is
+  unchanged where the fixture is absent.
+- **Scope note:** this branch already carries the corrected ledger pin
+  (`d6e35c93…`), so the guards pass here. They will fail on `dev` until its pin
+  is corrected — which is the intended signal, not a regression.
