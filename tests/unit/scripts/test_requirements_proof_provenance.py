@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import importlib.util
 import json
@@ -2408,3 +2409,298 @@ def test_git_bound_red_proof_ignores_type_only_import_inside_a_function(tmp_path
     final_ref = _commit(tmp_path, "chore: change type-only helper")
 
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
+
+
+def test_git_bound_red_proof_binds_imports_inside_a_selected_test_body(tmp_path: Path) -> None:
+    """Pytest executes a test body, so its imports run even with no import-time call."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "runtime_support.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add support imported by the selected test")
+    (tests_path / "test_proof.py").write_text(
+        "def test_selected() -> None:\n    import tests.runtime_support\n\n    assert False\n", encoding="utf-8"
+    )
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (tests_path / "runtime_support.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change runtime support")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_git_bound_red_proof_reads_pytest_configuration_from_selector_ancestors(tmp_path: Path) -> None:
+    """Pytest searches upward from the selector, so a nested configuration decides collection."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "pytest.ini").write_text("[pytest]\naddopts = -p tests.localplugin\n", encoding="utf-8")
+    (tests_path / "localplugin.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add nested pytest configuration")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (tests_path / "localplugin.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change nested-config plugin")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_git_bound_red_proof_tracks_augmented_mutation_of_an_aliased_plugin_list(tmp_path: Path) -> None:
+    """List `+=` mutates the shared object rather than rebinding the name."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "conftest.py").write_text(
+        'PLUGINS = []\npytest_plugins = PLUGINS\nPLUGINS += ["tests.localplugin"]\n', encoding="utf-8"
+    )
+    (tests_path / "localplugin.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: extend an aliased plugin list in place")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "delivery.py").write_text("VALUE = 1\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "feat: delivery")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_git_bound_red_proof_rejects_imports_through_a_symlinked_package_directory(tmp_path: Path) -> None:
+    """Python follows a directory link, so the resolved candidate is not the Git path."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    support_path = tests_path / "support"
+    support_path.mkdir(parents=True)
+    (support_path / "__init__.py").write_text("", encoding="utf-8")
+    (support_path / "helper.py").write_text("VALUE = False\n", encoding="utf-8")
+    (tmp_path / "support").symlink_to(Path("tests") / "support")
+    (tests_path / "conftest.py").write_text("from support import helper\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: import through a symlinked package directory")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (support_path / "helper.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change helper behind the directory link")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_git_bound_red_proof_tracks_guard_written_through_a_module_dictionary(tmp_path: Path) -> None:
+    """A write through `__dict__` changes the same attribute the guard reads."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "__init__.py").write_text(
+        'import typing\ntyping.__dict__["TYPE_CHECKING"] = True\n'
+        "if typing.TYPE_CHECKING:\n    import tests.runtime_support\n",
+        encoding="utf-8",
+    )
+    (tests_path / "runtime_support.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: rewrite the guard through a module dictionary")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (tests_path / "runtime_support.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change runtime support")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_git_bound_red_proof_fails_closed_when_configuration_cannot_be_read(tmp_path: Path) -> None:
+    """An unreadable configuration is not an absent one; a Git failure must not silently skip it."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / "pytest.ini").write_text("[pytest]\naddopts = -p tests.localplugin\n", encoding="utf-8")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "localplugin.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add configuration that will be unreadable")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "delivery.py").write_text("VALUE = 1\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "feat: delivery")
+
+    original_git_bytes = module._git_bytes
+
+    def _failing_git_bytes(repo_root: Path, *arguments: str):  # type: ignore[no-untyped-def]
+        if arguments[:1] == ("show",) and arguments[1].endswith(":pytest.ini"):
+            return subprocess.CompletedProcess(["git", *arguments], returncode=1, stdout=b"", stderr=b"timeout")
+        return original_git_bytes(repo_root, *arguments)
+
+    module._git_bytes = _failing_git_bytes  # type: ignore[attr-defined]
+    try:
+        findings = module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref)
+    finally:
+        module._git_bytes = original_git_bytes  # type: ignore[attr-defined]
+
+    assert findings == ["stale-red-proof"]
+
+
+GUARD_REWRITE_SHAPES = (
+    "typing.TYPE_CHECKING = True",
+    'setattr(typing, "TYPE_CHECKING", True)',
+    'from builtins import setattr as _s\n_s(typing, "TYPE_CHECKING", True)',
+    'setattr([typing][0], "TYPE_CHECKING", True)',
+    'vars(typing)["TYPE_CHECKING"] = True',
+    'typing.__dict__["TYPE_CHECKING"] = True',
+    'getattr(typing, "__dict__")["TYPE_CHECKING"] = True',
+    "alias = typing\nalias.TYPE_CHECKING = True",
+    'a = typing\nb = a\nb.__dict__["TYPE_CHECKING"] = True',
+    "_rewrite(typing)",
+    'def _e() -> None:\n    setattr(typing, "TYPE_CHECKING", True)\n_e()',
+    "def _e() -> None:\n    typing.TYPE_CHECKING = True\nactivate = _e\nactivate()",
+    '_e = lambda: setattr(typing, "TYPE_CHECKING", True)\n_e()',
+    "def _d(f):\n    typing.TYPE_CHECKING = True\n    return f\n@_d\ndef _c() -> None:\n    return None",
+    "class _C:\n    global typing\n    typing = _fake",
+    'globals()["TYPE_CHECKING"] = True',
+)
+
+
+@pytest.mark.parametrize("mutation", GUARD_REWRITE_SHAPES)
+def test_typing_guard_is_never_trusted_after_any_rewrite_shape(mutation: str) -> None:
+    """No syntactic wrapper may leave the guard trusted.
+
+    This battery exists because every review round found another wrapper around the same
+    idea. Asserting the family rather than the instance means a newly invented shape has to
+    defeat the structural rules, not merely differ from the shapes already listed.
+    """
+    module = cast(Any, _load_provenance_module())
+    tree = ast.parse(f"import typing\n{mutation}\nif typing.TYPE_CHECKING:\n    import tests.support\n")
+    _type_checking_names, typing_module_names = module._verified_type_checking_bindings(tree)
+    assert "typing" not in typing_module_names, f"guard stayed trusted after: {mutation!r}"
+
+
+UNRESOLVABLE_PLUGIN_SHAPES = (
+    'pytest_plugins = []\npytest_plugins.append("tests.p")',
+    'P = []\npytest_plugins = P\nP.append("tests.p")',
+    'P = []\npytest_plugins = P\nP += ["tests.p"]',
+    'P = ["tests.old"]\npytest_plugins = P\nP[0] = "tests.p"',
+    'P = ["tests.old"]\npytest_plugins = P\ndel P[0]',
+    'P = pytest_plugins = []\nP.append("tests.p")',
+    'P = {}\npytest_plugins = P\nP.setdefault("a", "b")',
+    'globals()["pytest_plugins"] = ["tests.p"]',
+    'vars()["pytest_plugins"] = ["tests.p"]',
+    'class _C:\n    global pytest_plugins\n    pytest_plugins = ("tests.p",)',
+    'def _f() -> None:\n    global pytest_plugins\n    pytest_plugins = ("tests.p",)\n_f()',
+    "from tests.other import pytest_plugins",
+    'for pytest_plugins in [("tests.p",)]:\n    pass',
+    'with open("f") as pytest_plugins:\n    pass',
+    "try:\n    pass\nexcept OSError as pytest_plugins:\n    pass",
+    "pytest_plugins = _dynamic()",
+)
+
+
+@pytest.mark.parametrize("declaration", UNRESOLVABLE_PLUGIN_SHAPES)
+def test_unresolvable_plugin_declaration_always_fails_closed(declaration: str) -> None:
+    """A plugin declaration this gate cannot resolve must never resolve to nothing.
+
+    Reporting no plugins for an unresolvable declaration is the fail-open shape every plugin
+    finding shared, so the whole family is asserted rather than each shape as it is reported.
+    """
+    module = cast(Any, _load_provenance_module())
+    with pytest.raises(ValueError, match="stale-red-proof"):
+        module._pytest_plugin_names(ast.parse(declaration))
+
+
+def test_root_name_resolves_through_arbitrary_wrapper_nesting() -> None:
+    """The single resolver behind every "which name does this touch" rule must not bottom out."""
+    module = cast(Any, _load_provenance_module())
+    resolve = module._root_name
+    expressions = (
+        "typing",
+        "typing.a",
+        "typing.a.b.c",
+        "typing['a']",
+        "typing.__dict__['x']['y']",
+        "typing.a['b'].c['d']",
+        "typing()",
+        "typing().a['b']",
+    )
+    for source in expressions:
+        assert resolve(ast.parse(source, mode="eval").body) == "typing", source
+    assert resolve(ast.parse("[typing][0]", mode="eval").body) is None
+
+
+def test_statically_resolvable_declarations_still_resolve() -> None:
+    """The batteries must not be satisfiable by rejecting everything."""
+    module = cast(Any, _load_provenance_module())
+    assert module._pytest_plugin_names(ast.parse('pytest_plugins = ("tests.p",)')) == [["tests", "p"]]
+    assert module._pytest_plugin_names(ast.parse('pytest_plugins = "tests.p"')) == [["tests", "p"]]
+    assert module._pytest_plugin_names(ast.parse("VALUE = 1\n")) == []
+    # A later explicit assignment overwrites whatever a star import may have bound, so the
+    # final value is knowable even though the star import alone is not.
+    star_then_assign = 'from tests.other import *\npytest_plugins = ("tests.p",)'
+    assert module._pytest_plugin_names(ast.parse(star_then_assign)) == [["tests", "p"]]
+    # A conditional declaration binds the union of its possible values, which is the
+    # fail-closed direction: the plugin is bound whether or not the branch ran.
+    conditional = 'if _flag:\n    pytest_plugins = ("tests.p",)'
+    assert module._pytest_plugin_names(ast.parse(conditional)) == [["tests", "p"]]
+    tree = ast.parse("from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    import tests.support\n")
+    type_checking_names, _typing_module_names = module._verified_type_checking_bindings(tree)
+    assert "TYPE_CHECKING" in type_checking_names
+
+
+def test_ordinary_mapping_writes_do_not_make_a_module_unverifiable() -> None:
+    """Fail-closed rules must not fire on code that touches nothing this gate depends on.
+
+    Broadening guard-write detection to every subscript target once made almost every real
+    conftest unverifiable, because `mapping[key] = value` inside any helper marked the module
+    as state-mutating. The whole-repository measurement caught it; this pins the boundary.
+    """
+    module = cast(Any, _load_provenance_module())
+    benign = (
+        'CACHE = {}\ndef _store(key, value):\n    CACHE[key] = value\n_store("a", 1)\npytest_plugins = ("tests.p",)\n'
+    )
+    assert module._pytest_plugin_names(ast.parse(benign)) == [["tests", "p"]]
+    assert not module._unverifiable_module_state(ast.parse(benign))
+
+
+def test_guard_survives_unrelated_module_load_activity() -> None:
+    """A typing guard stays trusted when nothing can reach the module it names."""
+    module = cast(Any, _load_provenance_module())
+    tree = ast.parse(
+        "import typing\nimport json\nVALUES = {}\nVALUES['a'] = json.dumps({})\n"
+        "if typing.TYPE_CHECKING:\n    import tests.support\n"
+    )
+    _type_checking_names, typing_module_names = module._verified_type_checking_bindings(tree)
+    assert "typing" in typing_module_names

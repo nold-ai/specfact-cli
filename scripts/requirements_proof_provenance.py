@@ -203,23 +203,46 @@ def _pytest_ini_option(text: str, configuration_path: str, option: str) -> objec
         return None
 
 
+def _configuration_directories(selector_paths: Sequence[str]) -> tuple[str, ...]:
+    """Return the repository root and every selector ancestor pytest may take configuration from.
+
+    Pytest searches upward from the arguments' common ancestor, so a nested ``tests/pytest.ini``
+    decides collection for a selector beneath it.
+    """
+    directories = {""}
+    for path in selector_paths:
+        parent = PurePosixPath(path).parent
+        while parent != PurePosixPath("."):
+            directories.add(parent.as_posix())
+            parent = parent.parent
+    return tuple(sorted(directories))
+
+
 @functools.cache
-def _pytest_configuration_sources(repo_root: Path, source_ref: str) -> tuple[tuple[str, str], ...]:
+def _pytest_configuration_sources(
+    repo_root: Path, source_ref: str, directories: tuple[str, ...] = ("",)
+) -> tuple[tuple[str, str], ...]:
     """Return the readable pytest configuration candidates committed at the red source.
 
-    Raises ``ValueError('stale-red-proof')`` when a candidate exists but exceeds the read
-    bound, because an unread configuration could declare plugins or roots this gate must bind.
-    A symlinked candidate is rejected on the same terms: pytest reads the target bytes, while
-    the blob at this path holds only the link text.
+    Raises ``ValueError('stale-red-proof')`` when a candidate exists but cannot be read,
+    whether because it is oversized, symlinked, or its Git read failed, because an unread
+    configuration could declare plugins or roots this gate must bind. An absent candidate is
+    distinguished from an unreadable one so a timeout is never mistaken for absence.
     """
     sources: list[tuple[str, str]] = []
-    for path in PYTEST_CONFIGURATION_FILES:
-        result = _git_bytes(repo_root, "show", f"{source_ref}:{path}")
-        if result.returncode != 0:
-            continue
-        if len(result.stdout) > MAX_TEST_BLOB_BYTES or not _test_path_is_regular_at_ref(repo_root, source_ref, path):
-            raise ValueError("stale-red-proof")
-        sources.append((path, result.stdout.decode("utf-8", errors="surrogateescape")))
+    for directory in directories:
+        for name in PYTEST_CONFIGURATION_FILES:
+            path = f"{directory}/{name}" if directory else name
+            result = _git_bytes(repo_root, "show", f"{source_ref}:{path}")
+            if result.returncode != 0:
+                if _test_path_exists_at_ref(repo_root, source_ref, path):
+                    raise ValueError("stale-red-proof")
+                continue
+            if len(result.stdout) > MAX_TEST_BLOB_BYTES or not _test_path_is_regular_at_ref(
+                repo_root, source_ref, path
+            ):
+                raise ValueError("stale-red-proof")
+            sources.append((path, result.stdout.decode("utf-8", errors="surrogateescape")))
     return tuple(sources)
 
 
@@ -248,17 +271,70 @@ def _addopts_plugin_names(value: object) -> list[list[str]]:
 
 
 @functools.cache
-def _addopts_plugin_module_names(repo_root: Path, source_ref: str) -> tuple[tuple[str, ...], ...]:
+def _addopts_plugin_module_names(
+    repo_root: Path, source_ref: str, directories: tuple[str, ...] = ("",)
+) -> tuple[tuple[str, ...], ...]:
     """Return plugin module names early-loaded by configured ``addopts`` at the red source.
 
     ``-p name`` loads a plugin module regardless of autoload settings, so a repository-local
     module named there decides collection exactly as a declared ``pytest_plugins`` entry does.
     """
     names: set[tuple[str, ...]] = set()
-    for path, text in _pytest_configuration_sources(repo_root, source_ref):
-        for parts in _addopts_plugin_names(_pytest_ini_option(text, path, "addopts")):
+    for path, text in _pytest_configuration_sources(repo_root, source_ref, directories):
+        for parts in _addopts_plugin_names(_pytest_ini_option(text, PurePosixPath(path).name, "addopts")):
             names.add(tuple(parts))
     return tuple(sorted(names))
+
+
+def _root_name(expression: ast.expr) -> str | None:
+    """Return the base name an attribute, subscript, or call chain is rooted at.
+
+    Every check that asks "which name does this touch" resolves through this helper, so a
+    wrapped form such as ``typing.__dict__["TYPE_CHECKING"]`` cannot evade a rule that its
+    unwrapped equivalent triggers.
+    """
+    node: ast.expr = expression
+    while True:
+        if isinstance(node, ast.Name):
+            return node.id
+        if isinstance(node, (ast.Attribute, ast.Subscript)):
+            node = node.value
+            continue
+        if isinstance(node, ast.Call):
+            node = node.func
+            continue
+        return None
+
+
+@functools.cache
+def _symlink_paths_at_ref(repo_root: Path, source_ref: str) -> frozenset[str]:
+    """Return every symlinked path committed at the red source.
+
+    Collected in one traversal so any candidate path can be tested for a symlinked ancestor
+    without another Git call per lookup.
+    """
+    result = _git(repo_root, "ls-tree", "-r", "--full-tree", source_ref)
+    if result.returncode != 0:
+        return frozenset()
+    paths: set[str] = set()
+    for line in result.stdout.splitlines():
+        metadata, _, path = line.partition("\t")
+        if metadata.startswith("120000 "):
+            paths.add(path.strip('"'))
+    return frozenset(paths)
+
+
+def _has_symlinked_ancestor(repo_root: Path, source_ref: str, path: str) -> bool:
+    """Return whether a directory link stands between the repository root and this path."""
+    symlinks = _symlink_paths_at_ref(repo_root, source_ref)
+    if not symlinks:
+        return False
+    parent = PurePosixPath(path).parent
+    while parent != PurePosixPath("."):
+        if parent.as_posix() in symlinks:
+            return True
+        parent = parent.parent
+    return False
 
 
 def _safe_module_root(root: str, repo_root: Path) -> str | None:
@@ -290,15 +366,15 @@ def _safe_module_root(root: str, repo_root: Path) -> str | None:
 
 
 @functools.cache
-def _pythonpath_roots(repo_root: Path, source_ref: str) -> tuple[str, ...]:
+def _pythonpath_roots(repo_root: Path, source_ref: str, directories: tuple[str, ...] = ("",)) -> tuple[str, ...]:
     """Return module roots configured through pytest ``pythonpath`` at the red source.
 
     Every configuration candidate is read rather than replicating pytest's inifile
     precedence, because binding a root pytest did not use only widens the proof inputs.
     """
     roots: set[str] = set()
-    for path, text in _pytest_configuration_sources(repo_root, source_ref):
-        entries = _pythonpath_entries(_pytest_ini_option(text, path, "pythonpath"))
+    for path, text in _pytest_configuration_sources(repo_root, source_ref, directories):
+        entries = _pythonpath_entries(_pytest_ini_option(text, PurePosixPath(path).name, "pythonpath"))
         roots.update(root for entry in entries if (root := _safe_module_root(entry, repo_root)) is not None)
     return (*REPOSITORY_ROOT_MODULE_ROOTS, *sorted(roots - set(REPOSITORY_ROOT_MODULE_ROOTS)))
 
@@ -505,11 +581,20 @@ def _guard_attribute_targets(node: ast.AST) -> list[str]:
         targets = list(node.targets)
     elif isinstance(node, (ast.AnnAssign, ast.AugAssign)):
         targets = [node.target]
-    return [
-        target.value.id
-        for target in targets
-        if isinstance(target, ast.Attribute) and target.attr == "TYPE_CHECKING" and isinstance(target.value, ast.Name)
+    guarded: list[ast.expr] = [
+        target for target in targets if isinstance(target, ast.Attribute) and target.attr == "TYPE_CHECKING"
     ]
+    # A write through the module mapping reaches the same attribute the guard reads. The key
+    # is matched so an ordinary `mapping[key] = value` does not read as a guard write, which
+    # would make almost every module unverifiable.
+    guarded.extend(
+        target
+        for target in targets
+        if isinstance(target, ast.Subscript)
+        and isinstance(target.slice, ast.Constant)
+        and target.slice.value == "TYPE_CHECKING"
+    )
+    return [name for target in guarded for name in (_root_name(target.value),) if name is not None]
 
 
 def _call_argument_names(node: ast.AST) -> list[str]:
@@ -779,9 +864,13 @@ def _import_binding_names(node: ast.AST) -> list[str]:
 
 
 def _mutation_target_names(target: ast.expr) -> list[str]:
-    """Return the name a subscript or attribute write changes in place."""
-    if isinstance(target, (ast.Attribute, ast.Subscript)) and isinstance(target.value, ast.Name):
-        return [target.value.id]
+    """Return the name a subscript or attribute write changes in place.
+
+    The base is resolved through wrapper chains, so ``typing.__dict__["TYPE_CHECKING"]``
+    reports ``typing`` exactly as a direct attribute write does.
+    """
+    if isinstance(target, (ast.Attribute, ast.Subscript)):
+        return [name for name in (_root_name(target.value),) if name is not None]
     return []
 
 
@@ -809,6 +898,9 @@ def _mutated_name_targets(node: ast.AST) -> list[str]:
             and isinstance(child.func.value, ast.Name)
         ):
             names.append(child.func.value.id)
+        if isinstance(child, ast.AugAssign) and isinstance(child.target, ast.Name):
+            # `x += [...]` extends a list in place, so every alias observes it.
+            names.append(child.target.id)
         names.extend(name for target in _write_targets(child) for name in _mutation_target_names(target))
     return names
 
@@ -881,10 +973,10 @@ def _import_module_names(tree: ast.AST, current_path: str) -> list[list[str]]:
     """Return imported module names, including relative import candidates."""
     current_package = list(PurePosixPath(current_path).parent.parts)
     module_names: list[list[str]] = []
-    # A function body runs only when something invokes it. A module that calls nothing while
-    # loading cannot reach one, so its bodies stay unbound; once the module does invoke
-    # something, which body that reaches cannot be decided, so every body counts.
-    reachable_bodies = _calls_during_module_load(tree)
+    # Pytest invokes test and fixture bodies during the run, so their imports always execute.
+    # Only a package initializer needs an import-time call to reach one of its own functions.
+    is_package_initializer = PurePosixPath(current_path).name == "__init__.py"
+    reachable_bodies = not is_package_initializer or _calls_during_module_load(tree)
     for node in _module_scope_nodes(tree, include_class_bodies=True, include_deferred_scopes=reachable_bodies):
         if isinstance(node, ast.Import):
             module_names.extend(alias.name.split(".") for alias in node.names)
@@ -985,6 +1077,12 @@ def _imported_python_paths(
             for root in plugin_module_roots
             for path in _python_module_target_paths(module_parts, (root,))
         }
+        for _, candidate in sorted(ordinary_rooted | plugin_rooted):
+            if not _test_path_exists_at_ref(repo_root, source_ref, candidate) and _has_symlinked_ancestor(
+                repo_root, source_ref, candidate
+            ):
+                # Python follows the directory link; Git records the link, not the target tree.
+                raise ValueError("stale-red-proof")
         imported_paths.update(path for _, path in ordinary_rooted | plugin_rooted)
         pending.extend(
             (imported_path, False, root)
@@ -1182,8 +1280,9 @@ def _proof_inputs(repo_root: Path, source_ref: str, selector_paths: Sequence[str
         initializer for path in pytest_inputs for initializer in _ancestor_file_paths(path, "__init__.py")
     }
     traversal_inputs = pytest_inputs | initializer_inputs
-    plugin_module_roots = _pythonpath_roots(repo_root, source_ref)
-    addopts_names = _addopts_plugin_module_names(repo_root, source_ref)
+    configuration_directories = _configuration_directories(selector_paths)
+    plugin_module_roots = _pythonpath_roots(repo_root, source_ref, configuration_directories)
+    addopts_names = _addopts_plugin_module_names(repo_root, source_ref, configuration_directories)
     addopts_rooted = _discovered_rooted_paths(addopts_names, plugin_module_roots)
     addopts_targets = {
         (root, path)

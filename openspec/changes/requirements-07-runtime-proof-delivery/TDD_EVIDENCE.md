@@ -2428,3 +2428,70 @@ cause is a class of drift nothing tested for.
 - **Scope note:** this branch already carries the corrected ledger pin
   (`d6e35c93…`), so the guards pass here. They will fail on `dev` until its pin
   is corrected — which is the intended signal, not a regression.
+
+## Codex round-17 remediation and structural hardening
+
+Six P1 findings, all reproduced by execution first, plus the hardening that
+stops this class from recurring one shape at a time.
+
+- **Imports in a selected test or fixture body.** The round-16 gate keyed body
+  traversal on `_calls_during_module_load`, but pytest invokes test and fixture
+  bodies during the run regardless. The gate now keys on file role instead: only
+  a package initializer needs an import-time call to reach its own functions,
+  which is exactly the distinction the earlier lazy-initializer round required.
+- **Configuration beneath a selector.** Pytest searches upward from the
+  arguments' common ancestor, so `tests/pytest.ini` decides collection for a
+  selector beneath it. Discovery now walks the root and every selector ancestor.
+- **Augmented assignment through an alias.** `PLUGINS += [...]` mutates the
+  shared list, so it now propagates to aliases like the other mutation forms.
+- **Imports through a symlinked directory.** Python follows the link while Git
+  records it, so a candidate under a symlinked ancestor fails closed. One cached
+  `ls-tree` collects every symlink, so this costs no per-lookup Git call.
+- **Guard written through a module mapping.** `typing.__dict__["TYPE_CHECKING"]`
+  reaches the attribute the guard reads.
+- **Unreadable configuration read as absent.** A failed or timed-out `git show`
+  now distinguishes an absent candidate from an unreadable one and fails closed.
+
+### Hardening
+
+Two structural changes, then two batteries that assert the families rather than
+the instances.
+
+- `_root_name` resolves attribute, subscript, and call chains to their base
+  name, and every "which name does this touch" rule goes through it. The
+  recurring finding shape was a known idea inside a new wrapper; wrappers now
+  resolve identically to their unwrapped form.
+- The batteries enumerate 16 guard-rewrite shapes and 16 unresolvable plugin
+  shapes and assert every one fails closed, alongside positive controls proving
+  the rules are not satisfiable by rejecting everything.
+
+The batteries earned their keep immediately, in both directions:
+
+- Two shapes I had listed as fail-open were **not** defects. A star import
+  followed by an explicit assignment is definitively resolvable, and a
+  conditional declaration binds the union of its possible values, which is the
+  fail-closed direction. Both moved to the positive controls rather than
+  "fixing" correct behavior — the labels were wrong, not the code.
+- Broadening guard-write detection to every subscript target made
+  `mapping[key] = value` inside any helper mark a module state-mutating, so
+  **every proof on this repository was rejected**. The whole-repository
+  measurement caught it before it shipped; the rule now matches the guard key,
+  and `test_ordinary_mapping_writes_do_not_make_a_module_unverifiable` pins the
+  boundary that nothing previously guarded.
+
+- **Failing-before command:**
+
+  ```shell
+  uv run --python 3.11 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py -p no:randomly \
+    -k "selected_test_body or selector_ancestors or augmented_mutation or \
+    symlinked_package_directory or module_dictionary or cannot_be_read" -q
+  ```
+
+  Recorded 2026-08-12T20:27:33Z. Result: 6 failed.
+- **Passing-after:** 188 passed in that file.
+- **Real-repository check:** 176 inputs for the 31 `tests/unit/scripts`
+  selectors and 2286 for all 333, up from 174 and 2274, the increase coming from
+  test-body imports now binding. No `src/specfact_cli/**` path is bound, so a
+  red-to-green change may still edit governed production code without
+  invalidating its own proof.

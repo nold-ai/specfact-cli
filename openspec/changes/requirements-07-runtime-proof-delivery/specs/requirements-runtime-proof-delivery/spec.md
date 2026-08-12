@@ -172,11 +172,12 @@ retain deterministic JUnit results for module-owned reconciliation.
   `conftest.py`, every possible parent package initializer of either input
   including the repository-root initializer, the repository pytest
   configuration source in every implicit candidate the locked pytest version
-  discovers, every statically reachable repository-local import of
+  discovers beneath the repository root and every selector ancestor pytest
+  searches upward through, every statically reachable repository-local import of
   those files after resolving verified `typing.TYPE_CHECKING` guards, including
-  imports inside a function body once the module invokes anything while loading,
-  because which body such a call reaches cannot be decided, while a module that
-  invokes nothing keeps its function bodies unbound, and every
+  imports inside a function body, because pytest invokes test and fixture bodies
+  during the run, while a package initializer keeps its bodies unbound until it
+  invokes something while loading, and every
   module-level `pytest_plugins` declaration made by a pytest-considered module
   through its active or runtime-conditionally possible static bindings,
   including known values preserved across non-literal conditional assignments
@@ -201,16 +202,20 @@ retain deterministic JUnit results for module-owned reconciliation.
   loop, context-manager, exception, match, or walrus target rebinds the
   constant it reads, when a mutation reaches the declaration through another
   name bound to the same object whether by method call, subscript or attribute
-  write, or deletion, including a chained assignment whose targets share one
-  object, when an executing class body creates the declaration through a
+  write, augmented assignment, or deletion, including a chained assignment whose
+  targets share one object, when an executing class body creates the declaration through a
   `global` statement, or when the declaration is bound by an import whose value
   lives in another module
 - **AND** a proof input or configuration source that exists at the red source
-  but cannot be read or parsed, because it is oversized, malformed, or a symlink
-  whose executed bytes were never inspected, is treated as stale rather than
-  skipped like an absent candidate, and a symlink is recognized by its Git mode
-  rather than by failing to parse, because a link text such as `support.py` is
-  itself valid Python
+  but cannot be read or parsed, because it is oversized, malformed, unreadable
+  through a failed or timed-out read, or a symlink whose executed bytes were
+  never inspected, is treated as stale rather than skipped like an absent
+  candidate, so an unreadable candidate is never mistaken for a missing one, and
+  a symlink is recognized by its Git mode rather than by failing to parse,
+  because a link text such as `support.py` is itself valid Python
+- **AND** an import resolved through a symlinked directory is treated as stale,
+  because Python follows the directory link while Git records the link rather
+  than the target tree
 - **AND** a typing guard is trusted only while unmutated, so an attribute write
   to its `TYPE_CHECKING` member, handing the guard module to any call that could
   rewrite that member including through a nested argument expression, copying
@@ -229,6 +234,13 @@ retain deterministic JUnit results for module-owned reconciliation.
   write creates the attribute pytest reads without binding any name
 - **AND** a rewriter is recognized by the guard name it receives rather than by
   the callee's name, so an aliased or wrapped rewriter cannot evade the rule
+- **AND** every rule that asks which name an expression touches resolves that
+  name through attribute, subscript, and call chains, so a wrapped form such as
+  a write through the module mapping cannot evade a rule its unwrapped
+  equivalent triggers
+- **AND** each fail-closed rule is bounded to the state this gate depends on, so
+  ordinary module activity that cannot reach a guard or a plugin declaration
+  leaves both resolvable
 - **AND** a malformed report field, undecodable or oversized source, or Git
   timeout yields a deterministic finding rather than an unhandled error
 - **AND** the Requirements evidence gate exits nonzero after retaining its
