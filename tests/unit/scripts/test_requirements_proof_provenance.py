@@ -2704,3 +2704,61 @@ def test_guard_survives_unrelated_module_load_activity() -> None:
     )
     _type_checking_names, typing_module_names = module._verified_type_checking_bindings(tree)
     assert "typing" in typing_module_names
+
+
+def test_git_bound_red_proof_binds_a_nested_configuration_path(tmp_path: Path) -> None:
+    """A nested configuration decides collection, so changing it after red invalidates proof."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "pytest.ini").write_text("[pytest]\nfilterwarnings = error\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add nested configuration")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (tests_path / "pytest.ini").write_text("[pytest]\nfilterwarnings = ignore\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change nested configuration")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_git_bound_red_proof_resolves_pythonpath_against_its_configuration(tmp_path: Path) -> None:
+    """Pytest joins a relative `pythonpath` entry to the directory of the file declaring it."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    plugins_path = tests_path / "plugins"
+    plugins_path.mkdir(parents=True)
+    (plugins_path / "localplugin.py").write_text("VALUE = False\n", encoding="utf-8")
+    (tests_path / "pytest.ini").write_text(
+        "[pytest]\npythonpath = plugins\naddopts = -p localplugin\n", encoding="utf-8"
+    )
+    base_ref = _commit(tmp_path, "test: declare a nested pythonpath root")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (plugins_path / "localplugin.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change the nested-root plugin")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_git_bound_red_proof_fails_closed_when_a_call_receives_an_aliased_plugin_list() -> None:
+    """An unbound-method call mutates the argument, not the receiver."""
+    module = cast(Any, _load_provenance_module())
+    declaration = 'P = []\npytest_plugins = P\nlist.append(P, "tests.localplugin")\n'
+    with pytest.raises(ValueError, match="stale-red-proof"):
+        module._pytest_plugin_names(ast.parse(declaration))

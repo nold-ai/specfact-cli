@@ -2495,3 +2495,44 @@ The batteries earned their keep immediately, in both directions:
   test-body imports now binding. No `src/specfact_cli/**` path is bound, so a
   red-to-green change may still edit governed production code without
   invalidating its own proof.
+
+## Codex round-18 remediation: follow-ups to the round-17 fixes
+
+Three P1 findings, each a gap in a fix from the previous round rather than a new
+class. All reproduced by execution first.
+
+- **Nested configuration was discovered but not bound.** Round 17 taught
+  discovery to read `tests/pytest.ini`, but the returned proof set still expanded
+  only the root-level basenames, so changing or adding a nested candidate after
+  the red source did not intersect the changed paths.
+  `_configuration_candidate_paths` now binds every directory-qualified candidate.
+  Binding candidates that do not exist is deliberate: the finding is as much
+  about *adding* a configuration after red as changing one.
+- **`pythonpath` was resolved against the wrong directory.** Pytest joins a
+  relative entry to the declaring file's directory, so `tests/pytest.ini` with
+  `pythonpath = plugins` names `tests/plugins`. Entries are now joined to that
+  directory before normalization, which also leaves root-level configuration
+  unchanged because joining against `.` is the identity.
+- **An unbound-method call mutates its argument, not its receiver.**
+  `list.append(P, "tests.p")` was invisible to mutation detection, which looked
+  only at the call receiver. A declaration handed to any call now becomes
+  unresolved through the same alias propagation, mirroring the rule the typing
+  guard already uses: an object given to a call is no longer statically known.
+
+- **Failing-before command:**
+
+  ```shell
+  uv run --python 3.11 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py -p no:randomly \
+    -k "nested_configuration_path or pythonpath_against_its_configuration or \
+    receives_an_aliased_plugin_list" -q
+  ```
+
+  Recorded 2026-08-12T20:56:34Z. Result: 3 failed.
+- **Passing-after:** 191 passed in that file.
+- **Real-repository check:** 204 inputs for the 31 `tests/unit/scripts`
+  selectors and 2776 for all 333, up from 176 and 2286. Every one of the 490
+  additions is a nested configuration candidate under `tests/`, and **none of
+  them exists in the tree** — which is the intended semantics rather than an
+  accident, since a configuration added after the red source must invalidate the
+  proof. No `src/specfact_cli/**` path is bound.

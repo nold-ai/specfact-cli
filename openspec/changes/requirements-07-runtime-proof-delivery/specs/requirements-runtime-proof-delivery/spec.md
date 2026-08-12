@@ -173,7 +173,8 @@ retain deterministic JUnit results for module-owned reconciliation.
   including the repository-root initializer, the repository pytest
   configuration source in every implicit candidate the locked pytest version
   discovers beneath the repository root and every selector ancestor pytest
-  searches upward through, every statically reachable repository-local import of
+  searches upward through, each such candidate being bound whether or not it
+  exists at the red source so that adding one afterwards invalidates the proof, every statically reachable repository-local import of
   those files after resolving verified `typing.TYPE_CHECKING` guards, including
   imports inside a function body, because pytest invokes test and fixture bodies
   during the run, while a package initializer keeps its bodies unbound until it
@@ -188,9 +189,10 @@ retain deterministic JUnit results for module-owned reconciliation.
   function, lambda, or class body does not rebind a module-level guard
 - **AND** a declared plugin is resolved against the repository root and every
   configured pytest `pythonpath` root, parsed as pytest parses a path list and
-  normalized as pytest resolves it, so a repository-contained root binds its
-  plugins whether it is spelled with traversal segments or as an absolute path
-  inside the checkout, rather than being dropped, and
+  normalized as pytest resolves it against the directory of the file declaring
+  it, so a repository-contained root binds its plugins whether it is spelled
+  relative to a nested configuration, with traversal segments, or as an absolute
+  path inside the checkout, rather than being dropped, and
   a plugin loaded from such a root resolves its own imports against that root,
   while an input discovered at the repository root resolves ordinary imports
   there alone so governed production modules that a red-to-green change is
@@ -202,8 +204,8 @@ retain deterministic JUnit results for module-owned reconciliation.
   loop, context-manager, exception, match, or walrus target rebinds the
   constant it reads, when a mutation reaches the declaration through another
   name bound to the same object whether by method call, subscript or attribute
-  write, augmented assignment, or deletion, including a chained assignment whose
-  targets share one object, when an executing class body creates the declaration through a
+  write, augmented assignment, deletion, or being handed to a call that could
+  mutate it, including a chained assignment whose targets share one object, when an executing class body creates the declaration through a
   `global` statement, or when the declaration is bound by an import whose value
   lives in another module
 - **AND** a proof input or configuration source that exists at the red source

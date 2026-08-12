@@ -203,6 +203,17 @@ def _pytest_ini_option(text: str, configuration_path: str, option: str) -> objec
         return None
 
 
+def _configuration_candidate_paths(directories: Sequence[str]) -> set[str]:
+    """Return every configuration path pytest may read for these directories.
+
+    The returned set is bound as proof input, so adding or changing a nested candidate after
+    the red source invalidates the proof exactly as a root-level one does.
+    """
+    return {
+        f"{directory}/{name}" if directory else name for directory in directories for name in PYTEST_CONFIGURATION_FILES
+    }
+
+
 def _configuration_directories(selector_paths: Sequence[str]) -> tuple[str, ...]:
     """Return the repository root and every selector ancestor pytest may take configuration from.
 
@@ -375,7 +386,14 @@ def _pythonpath_roots(repo_root: Path, source_ref: str, directories: tuple[str, 
     roots: set[str] = set()
     for path, text in _pytest_configuration_sources(repo_root, source_ref, directories):
         entries = _pythonpath_entries(_pytest_ini_option(text, PurePosixPath(path).name, "pythonpath"))
-        roots.update(root for entry in entries if (root := _safe_module_root(entry, repo_root)) is not None)
+        # Pytest joins a relative entry to the declaring file's directory, so a nested
+        # configuration names a root beneath itself rather than beneath the repository root.
+        declaring_directory = PurePosixPath(path).parent
+        roots.update(
+            root
+            for entry in entries
+            if (root := _safe_module_root((declaring_directory / entry).as_posix(), repo_root)) is not None
+        )
     return (*REPOSITORY_ROOT_MODULE_ROOTS, *sorted(roots - set(REPOSITORY_ROOT_MODULE_ROOTS)))
 
 
@@ -918,6 +936,16 @@ def _aliased_names(constants: dict[str, list[object]], name: str) -> set[str]:
     }
 
 
+def _received_call_argument_names(node: ast.AST) -> list[str]:
+    """Return names handed to any call within this statement.
+
+    An unbound-method form such as ``list.append(P, ...)`` mutates the argument rather than
+    the receiver, so a declaration reached this way is no more knowable than one mutated
+    through its own method.
+    """
+    return [name for child in ast.walk(node) for name in _call_argument_names(child)]
+
+
 def _has_star_import(node: ast.AST) -> bool:
     """Return whether one statement imports an unknown set of names."""
     return isinstance(node, ast.ImportFrom) and any(alias.name == "*" for alias in node.names)
@@ -956,7 +984,7 @@ def _pytest_plugin_names(tree: ast.AST) -> list[list[str]]:
             _record_constant(constants, name, UNRESOLVED_PLUGIN_VALUE, extends=True)
         for name in _import_binding_names(node):
             _record_constant(constants, name, UNRESOLVED_PLUGIN_VALUE, extends=False)
-        for name in _mutated_name_targets(node):
+        for name in (*_mutated_name_targets(node), *_received_call_argument_names(node)):
             for aliased in _aliased_names(constants, name):
                 _record_constant(constants, aliased, UNRESOLVED_PLUGIN_VALUE, extends=True)
         if _has_star_import(node):
@@ -1294,7 +1322,7 @@ def _proof_inputs(repo_root: Path, source_ref: str, selector_paths: Sequence[str
     seeds += [(path, (root, path) in addopts_targets, root) for root, path in sorted(addopts_rooted)]
     return {
         *traversal_inputs,
-        *PYTEST_CONFIGURATION_FILES,
+        *_configuration_candidate_paths(configuration_directories),
         *(path for _, path in addopts_rooted),
         *_imported_python_paths(
             repo_root,
