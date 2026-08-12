@@ -184,8 +184,9 @@ retain deterministic JUnit results for module-owned reconciliation.
   function, lambda, or class body does not rebind a module-level guard
 - **AND** a declared plugin is resolved against the repository root and every
   configured pytest `pythonpath` root, parsed as pytest parses a path list and
-  normalized as pytest resolves it, so a repository-contained root spelled with
-  traversal segments still binds its plugins rather than being dropped, and
+  normalized as pytest resolves it, so a repository-contained root binds its
+  plugins whether it is spelled with traversal segments or as an absolute path
+  inside the checkout, rather than being dropped, and
   a plugin loaded from such a root resolves its own imports against that root,
   while an input discovered at the repository root resolves ordinary imports
   there alone so governed production modules that a red-to-green change is
@@ -197,7 +198,9 @@ retain deterministic JUnit results for module-owned reconciliation.
   loop, context-manager, exception, match, or walrus target rebinds the
   constant it reads, when a mutation reaches the declaration through another
   name bound to the same object whether by method call, subscript or attribute
-  write, or deletion, or when the declaration is bound by an import whose value
+  write, or deletion, including a chained assignment whose targets share one
+  object, when an executing class body creates the declaration through a
+  `global` statement, or when the declaration is bound by an import whose value
   lives in another module
 - **AND** a proof input or configuration source that exists at the red source
   but cannot be read or parsed, because it is oversized, malformed, or a symlink
@@ -207,15 +210,20 @@ retain deterministic JUnit results for module-owned reconciliation.
   itself valid Python
 - **AND** a typing guard is trusted only while unmutated, so an attribute write
   to its `TYPE_CHECKING` member, handing the guard module to any call that could
-  rewrite that member, copying the module into a second binding through which a
-  write would be invisible, or a `global` rebinding from a class body drops it,
-  a rebinding invalidates only the branches that follow it, and any literal
-  branch condition is resolved by its truthiness
+  rewrite that member including through a nested argument expression, copying
+  the module into a second binding through which a write would be invisible, or
+  a `global` rebinding from a class body drops it, a rebinding invalidates only
+  the branches that follow it, and any literal branch condition is resolved by
+  its truthiness
 - **AND** module state is treated as unverifiable, failing closed for both the
-  guard and the plugin declaration, when a module defines a function that can
-  rebind a global, write a `TYPE_CHECKING` attribute, rewrite an attribute
-  through `setattr`, hand the guard module to any call, or assign
-  `pytest_plugins`, and also calls anything while loading
+  guard and the plugin declaration, when a module defines a function or lambda
+  that can rebind a global, write a `TYPE_CHECKING` attribute, rewrite an
+  attribute through `setattr`, hand the guard module to any call, or assign
+  `pytest_plugins`, and also invokes anything while loading, where applying a
+  decorator counts as an invocation even when it is a bare name
+- **AND** a module that writes its own namespace mapping, as through
+  `globals()` or `vars()`, is unverifiable on the same terms, because such a
+  write creates the attribute pytest reads without binding any name
 - **AND** a rewriter is recognized by the guard name it receives rather than by
   the callee's name, so an aliased or wrapped rewriter cannot evade the rule
 - **AND** a malformed report field, undecodable or oversized source, or Git

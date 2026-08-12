@@ -261,16 +261,21 @@ def _addopts_plugin_module_names(repo_root: Path, source_ref: str) -> tuple[tupl
     return tuple(sorted(names))
 
 
-def _safe_module_root(root: str) -> str | None:
+def _safe_module_root(root: str, repo_root: Path) -> str | None:
     """Return a repository-relative module root, normalizing traversal within the repository.
 
     Pytest resolves the configured entry against the rootdir, so ``a/../b`` names the root
-    ``b`` and must bind the plugins reachable through it. An absolute or escaping entry names
-    a tree outside the repository whose files no Git ref can bind, so it yields no root.
+    ``b`` and must bind the plugins reachable through it. An absolute entry is resolved the
+    same way and kept when it lands inside the checkout. Only an entry naming a tree outside
+    the repository yields no root, because no Git ref can bind its files.
     """
     path = PurePosixPath(root)
     if path.is_absolute():
-        return None
+        try:
+            contained = Path(root).resolve().relative_to(repo_root.resolve())
+        except (OSError, ValueError):
+            return None
+        return "" if contained == Path() else contained.as_posix()
     parts: list[str] = []
     for part in path.parts:
         if part == ".":
@@ -294,7 +299,7 @@ def _pythonpath_roots(repo_root: Path, source_ref: str) -> tuple[str, ...]:
     roots: set[str] = set()
     for path, text in _pytest_configuration_sources(repo_root, source_ref):
         entries = _pythonpath_entries(_pytest_ini_option(text, path, "pythonpath"))
-        roots.update(root for entry in entries if (root := _safe_module_root(entry)) is not None)
+        roots.update(root for entry in entries if (root := _safe_module_root(entry, repo_root)) is not None)
     return (*REPOSITORY_ROOT_MODULE_ROOTS, *sorted(roots - set(REPOSITORY_ROOT_MODULE_ROOTS)))
 
 
@@ -517,7 +522,8 @@ def _call_argument_names(node: ast.AST) -> list[str]:
     if not isinstance(node, ast.Call):
         return []
     arguments = [*node.args, *(keyword.value for keyword in node.keywords)]
-    return [argument.id for argument in arguments if isinstance(argument, ast.Name)]
+    # Nested expressions still hand the module over: `setattr([typing][0], ...)` reaches it.
+    return [child.id for argument in arguments for child in ast.walk(argument) if isinstance(child, ast.Name)]
 
 
 def _second_reference_names(nodes: Sequence[ast.AST]) -> set[str]:
@@ -557,7 +563,8 @@ def _module_state_mutating_functions(tree: ast.AST) -> list[ast.AST]:
     guard_names = _imported_typing_module_names(tree.body if isinstance(tree, ast.Module) else [])
     definitions: list[ast.AST] = []
     for node in ast.walk(tree):
-        if not isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef)):
+        # A lambda body runs when it is called, exactly as a function body does.
+        if not isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef, ast.Lambda)):
             continue
         body_nodes = list(ast.walk(node))
         mutates = (
@@ -573,8 +580,31 @@ def _module_state_mutating_functions(tree: ast.AST) -> list[ast.AST]:
 
 
 def _calls_during_module_load(tree: ast.AST) -> bool:
-    """Return whether the module invokes anything while it loads."""
-    return any(isinstance(node, ast.Call) for node in _executable_scope_nodes(tree, include_class_bodies=True))
+    """Return whether the module invokes anything while it loads.
+
+    Applying a decorator invokes it during import even when the decorator expression is a
+    bare name, which produces no ``ast.Call`` node of its own.
+    """
+    nodes = _executable_scope_nodes(tree, include_class_bodies=True)
+    return any(isinstance(node, ast.Call) for node in nodes) or any(
+        getattr(node, "decorator_list", ()) for node in nodes
+    )
+
+
+def _writes_module_namespace(tree: ast.AST) -> bool:
+    """Return whether the module rewrites its own namespace mapping while loading.
+
+    ``globals()["pytest_plugins"] = [...]`` creates exactly the attribute pytest reads, but
+    through a subscript whose base is a call rather than a name, so no binding is recorded.
+    """
+    return any(
+        isinstance(target, ast.Subscript)
+        and isinstance(target.value, ast.Call)
+        and isinstance(target.value.func, ast.Name)
+        and target.value.func.id in {"globals", "vars"}
+        for node in _executable_scope_nodes(tree, include_class_bodies=True)
+        for target in _write_targets(node)
+    )
 
 
 def _unverifiable_module_state(tree: ast.AST) -> bool:
@@ -583,8 +613,11 @@ def _unverifiable_module_state(tree: ast.AST) -> bool:
     Resolving which function a module-load call reaches would require following aliases,
     wrappers, decorators, and transitive calls, and any partial resolution silently accepts
     the shapes it cannot follow. When a module both defines a state-mutating function and
-    calls anything while loading, the resulting state is therefore treated as unknown.
+    calls anything while loading, the resulting state is therefore treated as unknown. A
+    module that writes its own namespace mapping is unverifiable on the same grounds.
     """
+    if _writes_module_namespace(tree):
+        return True
     return bool(_module_state_mutating_functions(tree)) and _calls_during_module_load(tree)
 
 
@@ -799,12 +832,21 @@ def _pytest_plugin_names(tree: ast.AST) -> list[list[str]]:
     """
     if _unverifiable_module_state(tree):
         raise ValueError("stale-red-proof")
+    if "pytest_plugins" in _global_rebound_names(tree):
+        # An executing class body created the module attribute pytest reads, outside the
+        # module-scope traversal that resolves values.
+        raise ValueError("stale-red-proof")
     conditional_assignment_ids = _conditional_assignment_ids(tree)
     constants: dict[str, list[object]] = {}
+    # Chained targets share one right-hand side node and therefore one runtime object, so the
+    # evaluation is memoized per node to keep alias identity intact.
+    evaluated: dict[int, list[object]] = {}
     for node in _module_scope_nodes(tree):
         for name, assigned_node in _name_bindings(node):
             extends = id(node) in conditional_assignment_ids or bool(_augmented_assignments(node))
-            for value in _resolved_literals(assigned_node, constants):
+            if id(assigned_node) not in evaluated:
+                evaluated[id(assigned_node)] = _resolved_literals(assigned_node, constants)
+            for value in evaluated[id(assigned_node)]:
                 _record_constant(constants, name, value, extends=extends)
                 extends = True
         for name in _compound_binding_names(node):

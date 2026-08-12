@@ -2166,3 +2166,193 @@ def test_git_bound_red_proof_tracks_guard_written_through_a_module_alias(tmp_pat
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
         "stale-red-proof"
     ]
+
+
+def test_git_bound_red_proof_tracks_mutation_through_a_chained_assignment(tmp_path: Path) -> None:
+    """Chained targets share one runtime object, so a mutation reaches both names."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "conftest.py").write_text(
+        'PLUGINS = pytest_plugins = []\nPLUGINS.append("tests.localplugin")\n', encoding="utf-8"
+    )
+    (tests_path / "localplugin.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: mutate a chained plugin assignment")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "delivery.py").write_text("VALUE = 1\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "feat: delivery")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_git_bound_red_proof_binds_repository_contained_absolute_pythonpath_root(tmp_path: Path) -> None:
+    """An absolute pythonpath entry inside the checkout still names a repository root."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    plugins_path = tmp_path / "plugins"
+    plugins_path.mkdir()
+    (plugins_path / "localplugin.py").write_text("VALUE = False\n", encoding="utf-8")
+    (tmp_path / "pytest.ini").write_text(
+        f"[pytest]\npythonpath = {plugins_path}\naddopts = -p localplugin\n", encoding="utf-8"
+    )
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    base_ref = _commit(tmp_path, "test: add plugin under an absolute pythonpath root")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (plugins_path / "localplugin.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change plugin under an absolute root")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_git_bound_red_proof_tracks_called_lambda_guard_mutation(tmp_path: Path) -> None:
+    """A lambda body runs when it is called, so it mutates module state like a function."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "__init__.py").write_text(
+        'import typing\nactivate = lambda: setattr(typing, "TYPE_CHECKING", True)\nactivate()\n'
+        "if typing.TYPE_CHECKING:\n    import tests.runtime_support\n",
+        encoding="utf-8",
+    )
+    (tests_path / "runtime_support.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: rewrite the guard from a called lambda")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (tests_path / "runtime_support.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change runtime support")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_git_bound_red_proof_rejects_module_namespace_plugin_write(tmp_path: Path) -> None:
+    """A write through globals() creates the attribute pytest reads without a name target."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "conftest.py").write_text('globals()["pytest_plugins"] = ["tests.localplugin"]\n', encoding="utf-8")
+    (tests_path / "localplugin.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: declare plugins through the module namespace")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "delivery.py").write_text("VALUE = 1\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "feat: delivery")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_git_bound_red_proof_rejects_class_body_global_plugin_binding(tmp_path: Path) -> None:
+    """A class body executes at import, so a global plugin binding there is what pytest reads."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "conftest.py").write_text(
+        'class _Configure:\n    global pytest_plugins\n    pytest_plugins = ("tests.localplugin",)\n',
+        encoding="utf-8",
+    )
+    (tests_path / "localplugin.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: declare plugins from a class body")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "delivery.py").write_text("VALUE = 1\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "feat: delivery")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_git_bound_red_proof_tracks_guard_nested_in_a_call_argument(tmp_path: Path) -> None:
+    """A guard reached through a nested argument expression is still handed to the call."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "__init__.py").write_text(
+        'import typing\nsetattr([typing][0], "TYPE_CHECKING", True)\n'
+        "if typing.TYPE_CHECKING:\n    import tests.runtime_support\n",
+        encoding="utf-8",
+    )
+    (tests_path / "runtime_support.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: rewrite the guard through a nested argument")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (tests_path / "runtime_support.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change runtime support")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_git_bound_red_proof_treats_a_bare_decorator_as_a_module_load_call(tmp_path: Path) -> None:
+    """Applying a decorator invokes it during import even without a call expression."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "conftest.py").write_text(
+        "def activate(function):\n    global pytest_plugins\n"
+        '    pytest_plugins = ("tests.localplugin",)\n    return function\n\n\n'
+        "@activate\ndef _configure() -> None:\n    return None\n",
+        encoding="utf-8",
+    )
+    (tests_path / "localplugin.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: declare plugins from a bare decorator")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "delivery.py").write_text("VALUE = 1\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "feat: delivery")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]

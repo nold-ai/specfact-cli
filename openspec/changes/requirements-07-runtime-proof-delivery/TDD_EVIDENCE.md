@@ -2258,3 +2258,68 @@ an earlier note in this ledger.
 
 No test or gate behavior changed with this withdrawal: the provenance fixes,
 the spec de-duplication, and the guard-aliasing fix are unaffected.
+
+## Codex round-15 remediation: seven remaining fail-open shapes
+
+Seven unresolved P1 findings had accumulated across three review rounds — two
+raised against `ce05b1c6`, three against `b38ea723`, two against `aab1570f`.
+Each was reproduced by execution before any production edit.
+
+- **Chained assignment split one object into two.** `PLUGINS = pytest_plugins =
+  []` evaluated the shared right-hand side once per target, so the identity
+  propagation added in round 13 saw two unrelated lists and a later
+  `PLUGINS.append(...)` never reached `pytest_plugins`. Literal evaluation is now
+  memoized per right-hand-side node, so chained targets share one object exactly
+  as the runtime does.
+- **An absolute `pythonpath` inside the checkout was dropped.** Round 13
+  normalized traversal but still rejected every absolute entry. An absolute path
+  is now resolved against the repository root and kept when it lands inside it;
+  only a genuinely external tree yields no root.
+- **A called lambda was not a state mutator.** `activate = lambda:
+  setattr(typing, "TYPE_CHECKING", True)` followed by `activate()` mutates the
+  guard at load, but only `FunctionDef` and `AsyncFunctionDef` were scanned.
+  Lambdas are included now: a lambda body runs when it is called.
+- **A `globals()` write declared plugins with no binding.** Subscript mutation
+  detection required a plain name base, so `globals()["pytest_plugins"] = [...]`
+  produced no binding at all. A module that writes its own namespace mapping
+  through `globals()` or `vars()` is now unverifiable, failing closed for both
+  the guard and the declaration.
+- **A class-body `global` declaration was outside the plugin traversal.** The
+  guard path already covered class-body globals, but the plugin resolver still
+  used the class-excluding traversal. A `pytest_plugins` name created by a
+  `global` statement now fails closed, because the value is bound outside the
+  traversal that resolves it.
+- **A guard nested in a call argument was invisible.** `setattr([typing][0],
+  ...)` hands the module over, but only direct `ast.Name` arguments were
+  inspected. Argument expressions are walked now.
+- **A bare decorator was not a module-load call.** `@activate` invokes the
+  decorator during import while producing no `ast.Call` node, so
+  `_calls_during_module_load` returned false and an invoked mutator went
+  unnoticed. Decorator application counts as an invocation. This is the same
+  defect class already fixed in `scripts/verify_safe_project_writes.py`, found
+  there by the related-code audit and here by review — worth recording, because
+  it is the one class that has now appeared in both static analysers.
+
+- **Failing-before command:**
+
+  ```shell
+  uv run --python 3.11 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py -p no:randomly \
+    -k "chained_assignment or absolute_pythonpath or called_lambda or \
+    module_namespace_plugin or class_body_global_plugin or \
+    nested_in_a_call_argument or bare_decorator" -q
+  ```
+
+  Recorded 2026-08-12T16:34:45Z. Result: 7 failed, each accepting evidence the
+  gate must reject.
+- **Passing-after:** 144 passed in that file.
+- **Real-repository check:** three of these rules are much broader than what
+  they replace — every bare decorator now counts as a module-load call, and this
+  repository uses them everywhere — so the measurement matters more than usual.
+  Configuration sources, `pythonpath` roots, and the resolved proof inputs are
+  unchanged at 163 inputs for the 31 `tests/unit/scripts` selectors and 2186 for
+  all 333 tracked selectors. The broadened rules cost nothing here because
+  failing closed still requires a state-mutating definition or a typing-module
+  guard, which the repository's committed conftests and initializers do not
+  have. Wall time for the full selector set rose from 14.2s to 17.4s, from
+  walking nested call arguments.
