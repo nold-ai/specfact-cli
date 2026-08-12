@@ -2536,3 +2536,39 @@ class. All reproduced by execution first.
   them exists in the tree** — which is the intended semantics rather than an
   accident, since a configuration added after the red source must invalidate the
   proof. No `src/specfact_cli/**` path is bound.
+
+## Plumbing invariant: anything read to decide collection must be bound
+
+The AST batteries cover the rule family, but two rounds of findings landed in the
+path plumbing instead, where they could not reach: a configuration source was
+discovered and read to derive plugins and roots, then never added to the returned
+proof set, so changing it after the red source did not intersect the changed
+paths. The batteries test helpers against parsed trees; nothing asserted that the
+set of files the gate *reads* and the set it *binds* agree.
+
+`test_every_file_whose_content_is_read_is_bound_as_a_proof_input` states that
+directly. It records every `git show <ref>:<path>` the gate performs while
+resolving a proof, and asserts that every recorded path which exists in the tree
+appears in the returned inputs. The property needs no list of shapes, so a source
+added by a future change is covered the day it is read.
+
+Two companions bound the edges it cannot see. Absent candidates are invisible to
+a read-based property, so
+`test_every_configuration_candidate_is_bound_including_absent_ones` asserts the
+full candidate set for the root and each selector ancestor is bound — the
+semantics that make an *added* configuration invalidate the proof. And
+`test_a_plugin_reached_through_a_nested_root_is_bound_with_its_imports` asserts
+the chain end to end: nested configuration, its relative root, the plugin loaded
+from it, and that plugin's own import.
+
+- **Failing-before evidence.** Replayed against `1c46aac5`, the commit that had
+  nested discovery but not nested binding:
+
+  | version | read but unbound | nested plugin bound |
+  |---|---|---|
+  | `1c46aac5` pre-fix | `['tests/pytest.ini']` | no |
+  | current | none | yes |
+
+  The invariant fires on exactly the defect that two review rounds reported, and
+  passes once it is fixed, which is stronger evidence than a synthetic mutation.
+- **Passing-after:** 194 passed in the provenance file.

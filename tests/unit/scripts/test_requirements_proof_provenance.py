@@ -2762,3 +2762,82 @@ def test_git_bound_red_proof_fails_closed_when_a_call_receives_an_aliased_plugin
     declaration = 'P = []\npytest_plugins = P\nlist.append(P, "tests.localplugin")\n'
     with pytest.raises(ValueError, match="stale-red-proof"):
         module._pytest_plugin_names(ast.parse(declaration))
+
+
+def _repository_with_nested_pytest_layout(tmp_path: Path) -> str:
+    """Build a repository exercising nested configuration, roots, plugins, and imports."""
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    unit_path = tests_path / "unit"
+    plugins_path = tests_path / "plugins"
+    unit_path.mkdir(parents=True)
+    plugins_path.mkdir(parents=True)
+    (tmp_path / "pytest.ini").write_text("[pytest]\nfilterwarnings = error\n", encoding="utf-8")
+    (tests_path / "pytest.ini").write_text(
+        "[pytest]\npythonpath = plugins\naddopts = -p localplugin\n", encoding="utf-8"
+    )
+    (plugins_path / "localplugin.py").write_text("import helper\n", encoding="utf-8")
+    (plugins_path / "helper.py").write_text("VALUE = False\n", encoding="utf-8")
+    (tests_path / "__init__.py").write_text("", encoding="utf-8")
+    (tests_path / "conftest.py").write_text("import tests.support\n", encoding="utf-8")
+    (tests_path / "support.py").write_text("VALUE = False\n", encoding="utf-8")
+    (unit_path / "__init__.py").write_text("", encoding="utf-8")
+    (unit_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    return _commit(tmp_path, "test: nested pytest layout")
+
+
+def test_every_file_whose_content_is_read_is_bound_as_a_proof_input(tmp_path: Path) -> None:
+    """Anything the gate reads to decide collection must also be bound as a proof input.
+
+    Two review rounds found the same shape: a source was *discovered and read* to derive
+    plugins or roots, but never added to the returned set, so changing it after the red
+    source did not intersect the changed paths. The AST batteries cannot catch that, because
+    the defect lives in the path plumbing rather than in a rule. This asserts the invariant
+    directly by recording every content read the gate performs.
+    """
+    module = cast(Any, _load_provenance_module())
+    source_ref = _repository_with_nested_pytest_layout(tmp_path)
+
+    read_paths: list[str] = []
+    original_git_bytes = module._git_bytes
+
+    def _recording_git_bytes(repo_root: Path, *arguments: str):  # type: ignore[no-untyped-def]
+        if arguments[:1] == ("show",) and ":" in arguments[1]:
+            read_paths.append(arguments[1].partition(":")[2])
+        return original_git_bytes(repo_root, *arguments)
+
+    module._git_bytes = _recording_git_bytes
+    try:
+        inputs = module._proof_inputs(tmp_path, source_ref, ("tests/unit/test_proof.py",))
+    finally:
+        module._git_bytes = original_git_bytes
+
+    read_and_present = {path for path in read_paths if (tmp_path / path).is_file()}
+    assert read_and_present, "the layout must exercise real content reads"
+    unbound = sorted(read_and_present - inputs)
+    assert not unbound, f"read to decide collection but never bound as proof input: {unbound}"
+
+
+def test_every_configuration_candidate_is_bound_including_absent_ones(tmp_path: Path) -> None:
+    """A configuration added after the red source must invalidate the proof, so absent candidates bind."""
+    module = cast(Any, _load_provenance_module())
+    source_ref = _repository_with_nested_pytest_layout(tmp_path)
+    inputs = module._proof_inputs(tmp_path, source_ref, ("tests/unit/test_proof.py",))
+
+    directories = module._configuration_directories(("tests/unit/test_proof.py",))
+    assert set(directories) == {"", "tests", "tests/unit"}
+    unbound = sorted(module._configuration_candidate_paths(directories) - inputs)
+    assert not unbound, f"configuration candidates not bound: {unbound}"
+
+
+def test_a_plugin_reached_through_a_nested_root_is_bound_with_its_imports(tmp_path: Path) -> None:
+    """A root declared by a nested configuration must bind the plugin and what the plugin imports."""
+    module = cast(Any, _load_provenance_module())
+    source_ref = _repository_with_nested_pytest_layout(tmp_path)
+    inputs = module._proof_inputs(tmp_path, source_ref, ("tests/unit/test_proof.py",))
+
+    assert "tests/plugins/localplugin.py" in inputs
+    assert "tests/plugins/helper.py" in inputs
+    assert "tests/support.py" in inputs
