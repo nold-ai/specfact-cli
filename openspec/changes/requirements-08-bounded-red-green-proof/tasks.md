@@ -47,3 +47,28 @@ All implementation tasks are intentionally small (target: at most two hours) and
 - Do not allow test/config/harness changes after R; require a new R.
 - Do not emit pass/no-impact for missing or unresolved mandatory facts.
 
+## Closed implementation allowlist
+
+Anything not listed here is prohibited unless this OpenSpec change is updated and accepted first.
+
+Production/configuration:
+
+- `scripts/requirements_proof_provenance.py`: replace the existing static/AST closure with the small Git-only B/R/H validator, isolated replay orchestration, and attestation builder. Delete the old import/plugin/config/data-read rules; do not add a parallel provenance script.
+- `.github/workflows/requirements-evidence.yml`: pass explicit B/R/H, invoke shadow replay, retain both JUnit artifacts and attestation before enforcement, and enforce verifier-epoch bootstrap.
+- `ci/module-fixture.lock.json`: signed R08-capable modules identity only.
+- `scripts/requirements_proof_executor.py`: conditional only when replay cannot use its current public seam; permit explicit worktree root/run-stage/output while preserving argv/environment safety.
+
+Tests:
+
+- `tests/unit/scripts/test_requirements_proof_provenance.py`: replace obsolete static-closure cases with ancestry, path-set, missing-history/artifact, rename, attestation, and bootstrap cases.
+- New exactly `tests/integration/scripts/test_requirements_red_green_replay.py`: temporary-repository exact fail-at-R/pass-at-H replay, timeout, and selector mismatch.
+- `tests/unit/workflows/test_requirements_evidence_delivery_workflow.py`: shadow wiring, artifacts-before-enforcement, and epoch bootstrap.
+- `tests/unit/scripts/test_requirements_proof_executor.py`: conditional only when the executor changes.
+- Temporary repositories live inside the named tests; no fixture directory.
+
+Explicitly forbidden:
+
+- any new general pytest analyzer/provenance production file;
+- `scripts/requirements_proof_pytest_plugin.py` unless its existing canonical-selector contract demonstrably fails;
+- `scripts/requirements_evidence_delivery_gate.py`, `scripts/pre-commit-quality-checks.sh`, all `src/**`, and `tools/**`;
+- security, dependency, safe-write, and smart-coverage paths, `pyproject.toml`, `uv.lock`, and unrelated tests.

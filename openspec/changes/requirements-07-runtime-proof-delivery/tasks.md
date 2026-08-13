@@ -41,3 +41,27 @@
 - Do not add AST rules for imports, plugins, configuration, data files, aliases, mutations, namespaces, symlinks, or dynamic execution.
 - Do not mark a skipped, failed, unresolved, or missing tool result as pass/no-impact.
 - Do not modify unrelated security, dependency-trust, safe-write, or smart-coverage tooling.
+
+## Closed implementation allowlist
+
+Anything not listed here is prohibited unless this OpenSpec change is updated and accepted first.
+
+Production/configuration:
+
+- `ci/module-fixture.lock.json`: signed modules repository/commit/tree/package identities only.
+- `scripts/requirements_evidence_delivery_gate.py`: adapt request/report fields for independent `current_execution`; no chronology or Git-history logic.
+- `.github/workflows/requirements-evidence.yml`: remove retained-run discovery/download and legacy-ledger/prior-red branches; consume, publish, and enforce current-run evidence plus explicit PR review paths.
+- `scripts/requirements_proof_executor.py`: conditional only when a named failing test proves schema incompatibility; plan/result field adaptation only.
+
+Tests:
+
+- `tests/unit/workflows/test_requirements_evidence_delivery_workflow.py`.
+- `tests/unit/scripts/test_requirements_evidence_delivery_gate.py`.
+- `tests/unit/scripts/test_requirements_proof_executor.py`: conditional only when the executor changes.
+- No new R07 test module.
+
+Explicitly forbidden:
+
+- `scripts/requirements_proof_provenance.py`, `scripts/requirements_proof_pytest_plugin.py`, and `scripts/pre-commit-quality-checks.sh`;
+- all `src/**`, `tools/**`, security, dependency, safe-write, and smart-coverage paths;
+- `pyproject.toml`, `uv.lock`, and unrelated tests.
