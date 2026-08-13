@@ -17,7 +17,9 @@ This branch changes OpenSpec planning artifacts only. It deliberately does not c
 
 ## Planning sources and constraints
 
-- Applied sources: `AGENTS.md`, `openspec/config.yaml`, and `docs/agent-rules/40-openspec-and-tdd.md`, `50-github-project-management.md`, and `70-release-commit-and-docs.md`.
+- Applied sources: `AGENTS.md`, `openspec/config.yaml`, and `docs/agent-rules/40-openspec-and-tdd.md`, `60-github-change-governance.md`, and `70-release-commit-and-docs.md`.
+- GitHub governance check, live-read 2026-08-13T21:49:59Z: issue #662 exists and is open; type is User Story; parent is Feature #374; labels are `enhancement`, `openspec`, and `change-proposal`; assignee is `djm81`; its recorded blocker modules #368 is closed/completed. The ephemeral hierarchy cache was unavailable in this connector-only workspace, so the documented live-GitHub fallback was used.
+- Unverified stop condition: project assignment/project status is not exposed by the current connector, so concurrency and project readiness are not proven. Task B.3 requires a fresh cache/project check and stops implementation while either remains unavailable or ambiguous.
 - Internal wiki: unavailable in this workspace; `tasks.md` requires the exact post-merge source-page and graph-rebuild follow-up.
 - Affected planning files: `README.md`, `proposal.md`, `design.md`, `tasks.md`, `CHANGE_VALIDATION.md`, `TDD_EVIDENCE.md`, `requirements-evidence.yaml`, and both R07 delta specifications.
 - Excluded or unavailable dependencies: corrected signed modules release, accepted report-schema identity, approved signing-key/trust-root identity, internal-wiki checkout, and final R06-to-R07 archive verification.
