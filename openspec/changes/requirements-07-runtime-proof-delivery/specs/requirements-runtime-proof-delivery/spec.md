@@ -205,14 +205,18 @@ retain deterministic JUnit results for module-owned reconciliation.
 - **AND** a literal that cannot name a committed path, because it carries a
   control character or a traversal segment, is discarded before it becomes a Git
   argument, so an arbitrary string in a test fixture cannot raise out of the gate
-- **AND** a join is resolved against the base it starts from, so a harness naming
-  data beside itself through `__file__`, `.parent`, `.parents[n]`, `.resolve()`,
-  or a name bound to any of them binds the file it actually reads, while a join
-  from a base decided at runtime binds nothing rather than being read as though
-  it started at the repository root
-- **AND** a committed link a proof input reads is followed to its target, with
-  every hop bound because editing any of them changes the bytes returned, and a
-  link that leaves the checkout, cycles, or points at nothing is stale
+- **AND** a join is resolved against the base it starts from, in every notation —
+  `base / "a"`, `os.path.join(base, "a")`, and `base.joinpath("a")` are one
+  construction — so a harness naming data beside itself through `__file__`,
+  `.parent`, `.parents[n]`, `.resolve()`, `os.path.dirname`, or a name bound to
+  any of them binds the file it actually reads, while a join from a base decided
+  at runtime binds nothing rather than being read as though it started at the
+  repository root, and a join's components are never read as paths of their own
+- **AND** a committed link a proof input reads is followed to its target at every
+  path component rather than only the last, because a linked directory carries a
+  read exactly as a linked file does, with every link crossed bound because
+  editing any of them changes the bytes returned, and a link that leaves the
+  checkout, cycles, or resolves to nothing is stale
 - **AND** a lookup Git could not answer, including a timed-out one, is stale
   rather than absent, because treating an unanswered lookup as a missing file
   leaves the module and everything it imports untraversed
@@ -274,9 +278,15 @@ retain deterministic JUnit results for module-owned reconciliation.
   attribute through `setattr`, hand the guard module to any call, or assign
   `pytest_plugins`, and also invokes anything while loading, where applying a
   decorator counts as an invocation even when it is a bare name
-- **AND** a module that writes its own namespace mapping, as through
-  `globals()` or `vars()`, is unverifiable on the same terms, because such a
-  write creates the attribute pytest reads without binding any name
+- **AND** a module that reaches its own namespace mapping, as through `globals()`
+  or `vars()`, for anything other than reading one key out of it is unverifiable
+  on the same terms, because every other use of the mapping — a subscript write,
+  a method such as `update`, `setdefault`, or `__setitem__`, or handing it to
+  `exec` or any other call — creates the attribute pytest reads without binding
+  any name; the rule is positional rather than a list of mutating methods, which
+  would admit whichever spelling the list omits, and a write to a `pytest_plugins`
+  attribute is unverifiable wherever it appears, since the module object is
+  reachable by other routes such as `sys.modules[__name__]`
 - **AND** a rewriter is recognized by the guard name it receives rather than by
   the callee's name, so an aliased or wrapped rewriter cannot evade the rule
 - **AND** every rule that asks which name an expression touches resolves that

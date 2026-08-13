@@ -709,20 +709,47 @@ def _calls_during_module_load(tree: ast.AST) -> bool:
     )
 
 
-def _writes_module_namespace(tree: ast.AST) -> bool:
-    """Return whether the module rewrites its own namespace mapping while loading.
-
-    ``globals()["pytest_plugins"] = [...]`` creates exactly the attribute pytest reads, but
-    through a subscript whose base is a call rather than a name, so no binding is recorded.
-    """
-    return any(
-        isinstance(target, ast.Subscript)
-        and isinstance(target.value, ast.Call)
-        and isinstance(target.value.func, ast.Name)
-        and target.value.func.id in {"globals", "vars"}
-        for node in _executable_scope_nodes(tree, include_class_bodies=True)
-        for target in _write_targets(node)
+def _is_namespace_mapping(expression: ast.expr) -> bool:
+    """Return whether an expression is this module's own namespace mapping."""
+    return (
+        isinstance(expression, ast.Call)
+        and isinstance(expression.func, ast.Name)
+        and expression.func.id in {"globals", "vars"}
     )
+
+
+def _reaches_namespace_mapping(expression: ast.expr) -> bool:
+    """Return whether the namespace mapping is anywhere inside an expression."""
+    return any(_is_namespace_mapping(child) for child in ast.walk(expression) if isinstance(child, ast.expr))
+
+
+def _writes_module_namespace(tree: ast.AST) -> bool:
+    """Return whether the module can create the attribute pytest reads without binding a name.
+
+    ``globals()["pytest_plugins"] = [...]`` writes exactly that attribute through a subscript
+    rather than a name, and so does every other route to the mapping: ``globals().update(...)``,
+    ``setdefault``, ``__setitem__``, and handing the mapping to ``exec`` or to any function that
+    could write it. Enumerating the mutating methods would invite the next spelling, so the rule
+    is positional instead: reading one key out of the mapping is fine, and every other use of it
+    leaves the module's declarations unknowable.
+
+    A write to a ``pytest_plugins`` attribute is treated the same way wherever it appears, since
+    ``sys.modules[__name__].pytest_plugins = [...]`` reaches the module object by another door.
+    """
+    for node in _executable_scope_nodes(tree, include_class_bodies=True):
+        for target in _write_targets(node):
+            if isinstance(target, ast.Subscript) and _is_namespace_mapping(target.value):
+                return True
+            if isinstance(target, ast.Attribute) and target.attr == "pytest_plugins":
+                return True
+        if not isinstance(node, ast.Call):
+            continue
+        # A method on the mapping, or the mapping handed to anything, can rewrite any key.
+        if isinstance(node.func, ast.Attribute) and _is_namespace_mapping(node.func.value):
+            return True
+        if any(_reaches_namespace_mapping(argument) for argument in _handed_over_expressions(node)):
+            return True
+    return False
 
 
 def _unverifiable_module_state(tree: ast.AST) -> bool:
@@ -1187,16 +1214,46 @@ def _discovered_rooted_paths(
     }
 
 
-def _path_join_chain(expression: ast.expr) -> tuple[ast.expr, list[str]] | None:
-    """Split a chain of ``/`` joins into the base it starts from and its literal components."""
+PATH_JOIN_METHODS = frozenset({"join", "joinpath"})
+POSIX_PATH_MODULES = frozenset({"os", "posixpath", "ntpath"})
+PATH_PRESERVING_METHODS = frozenset({"resolve", "absolute", "expanduser"})
+PATH_PARENT_FUNCTIONS = frozenset({"dirname"})
+
+
+def _path_join(expression: ast.expr) -> tuple[ast.expr, list[ast.expr]] | None:
+    """Split a path join into the base it starts from and the component expressions after it.
+
+    Both spellings are one construction: ``base / "a" / "b"``, ``os.path.join(base, "a")``, and
+    ``base.joinpath("a")`` differ only in notation, and a rule that reads one but not the other
+    invites the same finding again in the other form.
+    """
+    if isinstance(expression, ast.BinOp):
+        components: list[ast.expr] = []
+        node: ast.expr = expression
+        while isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
+            components.insert(0, node.right)
+            node = node.left
+        return (node, components) if components else None
+    if not isinstance(expression, ast.Call):
+        return None
+    callee = expression.func
+    if not isinstance(callee, ast.Attribute) or callee.attr not in PATH_JOIN_METHODS:
+        return None
+    # ``os.path.join`` takes its base as the first argument; ``base.joinpath`` uses the receiver.
+    joins_receiver = callee.attr == "joinpath" or _root_name(callee) not in POSIX_PATH_MODULES
+    if joins_receiver:
+        return (callee.value, list(expression.args)) if expression.args else None
+    return (expression.args[0], list(expression.args[1:])) if len(expression.args) > 1 else None
+
+
+def _literal_join_parts(components: Sequence[ast.expr]) -> list[str] | None:
+    """Return the components' literal values, or ``None`` when any is decided at runtime."""
     parts: list[str] = []
-    node: ast.expr = expression
-    while isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
-        if not isinstance(node.right, ast.Constant) or not isinstance(node.right.value, str):
+    for component in components:
+        if not isinstance(component, ast.Constant) or not isinstance(component.value, str):
             return None
-        parts.insert(0, node.right.value)
-        node = node.left
-    return (node, parts) if parts else None
+        parts.append(component.value)
+    return parts
 
 
 def _ancestor_directory(path: str, levels: int) -> str:
@@ -1227,16 +1284,31 @@ def _path_base_directory(
     fixture value such as ``tmp_path`` names a file that does not exist in the repository at
     all, and reading it as root-relative would bind whatever committed file happens to share
     the remaining components.
+
+    A join is itself a path, so one resolves here too and every notation for it arrives through
+    the same door: a base is as often ``os.path.join(os.path.dirname(__file__), "data")`` as it
+    is ``Path(__file__).parent / "data"``.
     """
     if depth > MAX_SYMLINK_HOPS:
         return None
+    if isinstance(expression, ast.Constant):
+        return expression.value if isinstance(expression.value, str) else None
+    if _names_the_module_file(expression):
+        return current_path
+    if (join := _path_join(expression)) is not None:
+        base, components = join
+        parts = _literal_join_parts(components)
+        directory = _path_base_directory(base, current_path, bindings, depth + 1)
+        if parts is None or directory is None:
+            return None
+        return "/".join([directory, *parts]) if directory else "/".join(parts)
     if isinstance(expression, ast.Name):
         bound = bindings.get(expression.id)
         return None if bound is None else _path_base_directory(bound, current_path, bindings, depth + 1)
     if isinstance(expression, ast.Call):
         callee = expression.func
         method = callee.attr if isinstance(callee, ast.Attribute) else None
-        if method in {"resolve", "absolute"}:
+        if method in PATH_PRESERVING_METHODS:
             return _path_base_directory(callee.value, current_path, bindings, depth + 1)
         for argument in expression.args:
             base = (
@@ -1246,8 +1318,9 @@ def _path_base_directory(
             )
             if base is None:
                 continue
-            # ``os.path.dirname(x)`` names the directory holding x; a path constructor keeps it.
-            return _ancestor_directory(base, 1) if method == "dirname" else base
+            # ``os.path.dirname(x)`` names the directory holding x; a path constructor keeps it,
+            # and so does a normalizing wrapper such as ``abspath`` or ``realpath``.
+            return _ancestor_directory(base, 1) if method in PATH_PARENT_FUNCTIONS else base
         return None
     if isinstance(expression, ast.Attribute) and expression.attr == "parent":
         base = _path_base_directory(expression.value, current_path, bindings, depth + 1)
@@ -1275,13 +1348,18 @@ def _literal_path_candidates(
     """Return repository-relative paths a reachable body names as literals.
 
     A harness reads a data file the same way it names a module: by handing a literal to a call,
-    or by joining literals onto a path base. Both are resolved, and nothing else is, because a
-    path assembled at runtime — ``tmp_path / name`` — cannot be bound to a committed file and
-    failing closed on it would reject every proof in a repository that uses temporary
-    directories, which is every repository. A join whose base is unknowable is discarded for the
-    same reason, rather than being read as though it started at the repository root.
+    or by joining onto a path base. Both are resolved, and nothing else is, because a path
+    assembled at runtime — ``tmp_path / name`` — cannot be bound to a committed file and failing
+    closed on it would reject every proof in a repository that uses temporary directories, which
+    is every repository. A join whose base is unknowable is discarded for the same reason,
+    rather than being read as though it started at the repository root.
+
+    A join's components are consumed either way, because a component is part of a path and not a
+    path of its own. Without that, the tail of ``os.path.join(tmp_path, "tests/data/case.json")``
+    would still be read as repository-relative and would bind a file the run never opened.
     """
     candidates: list[str] = []
+    consumed: set[int] = set()
     reachable_bodies = _deferred_scopes_are_reachable(tree, current_path)
     nodes = _module_scope_nodes(
         tree,
@@ -1290,14 +1368,17 @@ def _literal_path_candidates(
         skipped_scope_names=skipped_scope_names,
     )
     bindings = _module_scope_bindings(nodes)
+    # Enclosing expressions are visited before the parts they are built from, so a component is
+    # marked consumed before it would otherwise be collected on its own.
     for node in nodes:
-        handed_over = _handed_over_expressions(node)
-        candidates.extend(itertools.chain.from_iterable(_literal_strings(argument) for argument in handed_over))
-        if not isinstance(node, ast.BinOp) or (chain := _path_join_chain(node)) is None:
-            continue
-        base, parts = chain
-        if (directory := _path_base_directory(base, current_path, bindings)) is not None:
-            candidates.append("/".join([directory, *parts]) if directory else "/".join(parts))
+        if isinstance(node, ast.expr) and (join := _path_join(node)) is not None:
+            consumed.update(id(component) for component in join[1])
+            if (resolved := _path_base_directory(node, current_path, bindings)) is not None:
+                candidates.append(resolved)
+                continue
+        for argument in _handed_over_expressions(node):
+            if id(argument) not in consumed:
+                candidates.extend(_literal_strings(argument))
     return [stripped for candidate in candidates if _names_a_repository_path(stripped := candidate.strip("/"))]
 
 
@@ -1363,34 +1444,57 @@ def _referenced_data_paths(
 def _read_data_paths(repo_root: Path, source_ref: str, candidate: str) -> set[str]:
     """Return the committed paths a harness read of ``candidate`` actually consumes.
 
-    A link is followed rather than skipped, because pytest reads the target's bytes while Git
-    records only the link, so binding neither would let the target change unnoticed. Both the
-    link and its target are bound, since editing either changes what the read returns. A link
-    that leaves the repository, cycles, or points at nothing cannot be bound at all, and is
+    A link is followed rather than skipped, because the filesystem reads the target's bytes
+    while Git records only the link, so binding neither would let the target change unnoticed.
+    Every link crossed is bound along with the file finally reached, since editing any of them
+    changes what the read returns.
+
+    The walk goes component by component from the repository root, because a link is as often a
+    directory in the middle of a path as it is the file at the end — ``tests/data_link/case.json``
+    has no Git entry at all, so looking up only the full path finds nothing to follow. A link
+    that leaves the repository, cycles, or points at nothing binds no committed bytes and is
     treated as stale rather than dropped.
     """
-    mode = _tree_entry_mode_at_ref(repo_root, source_ref, candidate)
-    if mode is None:
-        return set()
     bound: set[str] = set()
+    seen: set[str] = set()
     for _ in range(MAX_SYMLINK_HOPS):
-        if mode in REGULAR_FILE_MODES:
-            return bound | {candidate}
-        if mode != SYMLINK_MODE:
-            # A directory is named, not read; there are no bytes to bind.
+        if candidate in seen or not _names_a_repository_path(candidate):
+            raise ValueError("stale-red-proof")
+        seen.add(candidate)
+        crossed = _first_crossed_link(repo_root, source_ref, candidate)
+        if crossed is None:
+            mode = _tree_entry_mode_at_ref(repo_root, source_ref, candidate)
+            if mode in REGULAR_FILE_MODES:
+                return bound | {candidate}
+            if mode is None and bound:
+                # A link was followed to nothing. Creating that file later would start feeding
+                # the read without binding anything, so the chain is not verifiable.
+                raise ValueError("stale-red-proof")
+            # A directory or a path that was never there is named rather than read.
             return bound
-        bound.add(candidate)
-        result = _git_bytes(repo_root, "show", f"{source_ref}:{candidate}")
-        if result.returncode != 0 or len(result.stdout) > MAX_TEST_BLOB_BYTES:
-            raise ValueError("stale-red-proof")
-        target = result.stdout.decode("utf-8", errors="surrogateescape")
-        candidate = _repository_relative_target(candidate, target)
-        if candidate in bound or not _names_a_repository_path(candidate):
-            raise ValueError("stale-red-proof")
-        mode = _tree_entry_mode_at_ref(repo_root, source_ref, candidate)
-        if mode is None:
-            raise ValueError("stale-red-proof")
+        link_path, remainder = crossed
+        bound.add(link_path)
+        candidate = _link_target_path(repo_root, source_ref, link_path, remainder)
     raise ValueError("stale-red-proof")
+
+
+def _first_crossed_link(repo_root: Path, source_ref: str, candidate: str) -> tuple[str, str] | None:
+    """Return the first symlinked prefix of a path and what follows it, if any."""
+    parts = PurePosixPath(candidate).parts
+    for depth, _ in enumerate(parts, start=1):
+        prefix = "/".join(parts[:depth])
+        if _tree_entry_mode_at_ref(repo_root, source_ref, prefix) == SYMLINK_MODE:
+            return prefix, "/".join(parts[depth:])
+    return None
+
+
+def _link_target_path(repo_root: Path, source_ref: str, link_path: str, remainder: str) -> str:
+    """Return the path a link resolves to, keeping whatever the original path named beneath it."""
+    result = _git_bytes(repo_root, "show", f"{source_ref}:{link_path}")
+    if result.returncode != 0 or len(result.stdout) > MAX_TEST_BLOB_BYTES:
+        raise ValueError("stale-red-proof")
+    target = _repository_relative_target(link_path, result.stdout.decode("utf-8", errors="surrogateescape"))
+    return f"{target}/{remainder}" if remainder else target
 
 
 def _repository_relative_target(link_path: str, target: str) -> str:

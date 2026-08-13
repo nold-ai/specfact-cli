@@ -2852,3 +2852,74 @@ stay bound.
   unchanged.
 - **Passing-after:** 256 passed in the provenance file, 640 across the scripts,
   workflows, and integration suites.
+
+## Round 24: closing three families rather than three spellings
+
+All three findings were second spellings of rules changed in round 23, and each was
+reported as "fresh evidence beyond the resolved thread". That is the signature of a
+rule stated as a shape rather than as a principle, so each was fixed by replacing
+the rule, not by adding a case.
+
+### Reaching the namespace mapping
+
+`globals().update(pytest_plugins=[...])` creates the attribute pytest reads while
+the predicate inspected only assignment targets, so the declaration was invisible
+and the plugin never bound.
+
+- **Failing-first.** Of eight shapes in `NAMESPACE_REWRITE_SHAPES`, five already
+  failed closed and three did not: `exec(..., globals())`, handing the mapping to a
+  local function, and `sys.modules[__name__].pytest_plugins = [...]`.
+
+Enumerating mutating methods would have admitted whichever spelling the list
+omitted — `setdefault` after `update`, `__setitem__` after that. The rule is
+positional instead: reading one key out of the mapping is fine, and **every other
+use of it** leaves the module unknowable, whether that is a subscript write, any
+method call on it, or handing it to anything. A `pytest_plugins` attribute write is
+unverifiable wherever it appears, because the module object is reachable by other
+routes than the mapping.
+
+### One join, several notations
+
+`os.path.join(os.path.dirname(__file__), "data/case.json")` is an `ast.Call`, and
+the resolver read only `ast.BinOp`, so the operator form worked and the functional
+form bound nothing.
+
+- **Failing-first.** All six shapes in `FUNCTIONAL_JOIN_SHAPES` returned `[]` where
+  `['stale-red-proof']` was required, including `joinpath`, `abspath` wrapping, and
+  a doubled `dirname`.
+
+`base / "a"`, `os.path.join(base, "a")`, and `base.joinpath("a")` are now one
+construction behind a single splitter, and a join is itself resolvable as a path,
+so nesting them composes without further cases.
+
+The over-binding direction needed its own rule. A join's components are consumed
+whether or not its base turns out to be knowable, because a component is part of a
+path rather than a path of its own — otherwise the tail of
+`os.path.join(tmp_path, "tests/data/case.json")` would still be read as
+repository-relative and bind a file the run never opened.
+`test_a_functional_join_from_an_unknowable_base_binds_nothing` locks that.
+
+### Links at any component, not only the last
+
+`tests/data_link/case.json` where `tests/data_link -> real_data` has no Git entry at
+the full path, so looking up only the whole candidate found nothing to follow and
+bound neither the link nor the target.
+
+- **Failing-first.** Both shapes returned `[]` where `['stale-red-proof']` was
+  required, including a two-deep chain of directory links.
+
+Resolution now walks the path component by component from the repository root and
+follows the first link it crosses, which subsumes the file-link case that was fixed
+last round: a link at the end is simply the last component. Every link crossed is
+bound.
+
+Rewriting the walk lost a behaviour the previous version had, and the existing lock
+caught it: a link resolving to nothing returned the link alone instead of failing.
+That is fail-open — creating the missing file later would start feeding the read
+while binding nothing — so a chain that crosses a link and ends at an absent path is
+stale, while a path that was simply never there stays unbound.
+
+- **Whole-repository measurement.** Zero added, zero removed against the previous
+  head; no module in this repository reaches its namespace mapping, so the stricter
+  rule rejects nothing here. The automated repository measurement passes unchanged.
+- **Passing-after:** 273 passed in the provenance file.

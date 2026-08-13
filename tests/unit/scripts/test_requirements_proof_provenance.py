@@ -3374,3 +3374,117 @@ def test_a_fixture_body_stays_bound_beside_an_unselected_test(tmp_path: Path) ->
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
         "stale-red-proof"
     ]
+
+
+# Every way a module can create ``pytest_plugins`` without an assignment statement whose target
+# names it. Each reaches the namespace pytest reads, so none may be inspected as a mere target.
+NAMESPACE_REWRITE_SHAPES = (
+    'globals().update(pytest_plugins=["tests.localplugin"])',
+    'globals().update({"pytest_plugins": ["tests.localplugin"]})',
+    'globals().setdefault("pytest_plugins", ["tests.localplugin"])',
+    'globals().__setitem__("pytest_plugins", ["tests.localplugin"])',
+    'vars().update(pytest_plugins=["tests.localplugin"])',
+    "exec('pytest_plugins = [\"tests.localplugin\"]', globals())",
+    "_install(globals())",
+    'sys.modules[__name__].pytest_plugins = ["tests.localplugin"]',
+)
+
+
+@pytest.mark.parametrize("rewrite", NAMESPACE_REWRITE_SHAPES)
+def test_a_namespace_rewrite_leaves_the_plugin_set_unverifiable(tmp_path: Path, rewrite: str) -> None:
+    """A declaration created through the namespace mapping is not readable from assignment targets."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "localplugin.py").write_text("def pytest_configure(config):\n    return None\n", "utf-8")
+    (tmp_path / "conftest.py").write_text(
+        f"import sys\n\n\ndef _install(namespace):\n    return namespace\n\n\n{rewrite}\n", "utf-8"
+    )
+    base_ref = _commit(tmp_path, "test: declare a plugin through the namespace")
+    (tmp_path / "tests" / "test_proof.py").write_text("def test_selected() -> None: assert False\n", "utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (tmp_path / "tests" / "localplugin.py").write_text("def pytest_configure(config):\n    config.x = 1\n", "utf-8")
+    final_ref = _commit(tmp_path, "fix: change the plugin loaded through the namespace")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+# Joins spelled as calls rather than with the ``/`` operator. All name tests/data/case.json.
+FUNCTIONAL_JOIN_SHAPES = (
+    'open(os.path.join(os.path.dirname(__file__), "data/case.json")).read()',
+    'open(os.path.join(os.path.dirname(__file__), "data", "case.json")).read()',
+    '(Path(__file__).parent.joinpath("data", "case.json")).read_text()',
+    'Path(os.path.join(os.path.dirname(__file__), "data")).joinpath("case.json").read_text()',
+    'open(os.path.abspath(os.path.join(os.path.dirname(__file__), "data/case.json"))).read()',
+    'open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "tests", "data", "case.json")).read()',
+)
+
+
+@pytest.mark.parametrize("read", FUNCTIONAL_JOIN_SHAPES)
+def test_a_functional_join_resolves_like_an_operator_join(tmp_path: Path, read: str) -> None:
+    """How a path is spelled is not what decides whether the run reads the file."""
+    module = _load_provenance_module()
+    base_ref, red_proof_path = _repository_with_data_read(tmp_path, f"import os\n\nCASE = {read}")
+
+    (tmp_path / "tests" / "data" / "case.json").write_text('{"expected": true}\n', encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change the case the harness reads")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_a_functional_join_from_an_unknowable_base_binds_nothing(tmp_path: Path) -> None:
+    """A recognized join consumes its components, so they are not read as root-relative paths."""
+    module = _load_provenance_module()
+    body = 'import os\n\n\ndef fixture_case(tmp_path):\n    return open(os.path.join(tmp_path, "tests/data/case.json")).read()'
+    base_ref, red_proof_path = _repository_with_data_read(tmp_path, body)
+
+    (tmp_path / "tests" / "data" / "case.json").write_text('{"expected": true}\n', encoding="utf-8")
+    final_ref = _commit(tmp_path, "chore: change a case nothing reads")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
+
+
+@pytest.mark.parametrize(
+    ("link_name", "link_text", "read_path", "changed"),
+    [
+        ("tests/data_link", "real_data", "tests/data_link/case.json", "tests/real_data/case.json"),
+        ("tests/deep_link", "data_link", "tests/deep_link/case.json", "tests/real_data/case.json"),
+    ],
+)
+def test_a_data_read_through_a_linked_directory_binds_the_target(
+    tmp_path: Path, link_name: str, link_text: str, read_path: str, changed: str
+) -> None:
+    """The filesystem follows a directory link exactly as it follows a file link."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / "tests" / "real_data").mkdir(parents=True)
+    (tmp_path / "tests" / "real_data" / "case.json").write_text('{"expected": false}\n', encoding="utf-8")
+    (tmp_path / "tests" / "data_link").symlink_to("real_data")
+    if link_name != "tests/data_link":
+        (tmp_path / link_name).symlink_to(link_text)
+    (tmp_path / "tests" / "conftest.py").write_text(
+        f'from pathlib import Path\n\nCASE = Path("{read_path}").read_text()\n', encoding="utf-8"
+    )
+    base_ref = _commit(tmp_path, "test: add linked data directory")
+    (tmp_path / "tests" / "test_proof.py").write_text("def test_selected() -> None: assert False\n", "utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (tmp_path / changed).write_text('{"expected": true}\n', encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change the target behind the directory link")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
