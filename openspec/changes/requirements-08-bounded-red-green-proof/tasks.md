@@ -12,9 +12,9 @@ All implementation tasks are intentionally small (target: at most two hours) and
 
 - [ ] B.1 Create a dedicated implementation worktree and feature branch from current `origin/dev`; do not implement from the primary, `dev`, or `main` checkout.
 - [ ] B.2 Run `hatch env create`, then `hatch run smart-test-status` and `hatch run contract-test-status` in the worktree; record and resolve unexpected baseline failures before edits.
-- [ ] B.3 Run the change-specific strict OpenSpec command; confirm issue #675 remains open with parent Feature #374, requested User Story type, required labels/project assignment, accepted specs/dependencies, signed-module prerequisites, and both repository-specific closed allowlists. Stop before implementation if project/type metadata cannot be verified.
+- [ ] B.3 Read and apply `openspec/config.yaml` and its artifact rules. If the sibling `specfact-cli-internal` checkout exists, consult the applicable internal-wiki guidance. Record the sources and constraints used in `CHANGE_VALIDATION.md`. Then run exactly `openspec validate requirements-08-bounded-red-green-proof --strict`; require success before tests or source edits and rerun it after every validation-artifact fix. Confirm issue #675 remains open with parent Feature #374, requested User Story type, required labels/project assignment, accepted specs/dependencies, signed-module prerequisites, and both repository-specific closed allowlists. Stop before implementation if project/type metadata cannot be verified.
 - [ ] B.4 Follow `spec -> tests -> failing evidence -> code -> passing evidence`; in `TDD_EVIDENCE.md`, record separate failing-before and passing-after sections with exact commands, timestamps, actual results, behavioral summaries, environment limitations, and artifact identities. Record passing evidence only after implementation.
-- [ ] B.5 Before PR finalization, run the required format, type, lint, YAML, contract, focused/full test, workflow, independent-analysis, signature, and explicit base/head Code Review gates; resolve every finding or document an approved exception.
+- [ ] B.5 Before PR finalization, rerun exactly `openspec validate requirements-08-bounded-red-green-proof --strict` plus the required format, type, lint, YAML, contract, focused/full test, workflow, independent-analysis, signature, and explicit base/head Code Review gates. Update `CHANGE_VALIDATION.md` with validation scope/impact, affected files, exact commands, actual results and test counts, focused/full tests, skipped or unavailable tests/dependencies with reasons, artifact locations/identities, environment limitations, and release hygiene. Keep planning evidence, failing-before evidence, and H..D passing/implementation evidence separate; rerun affected validation after every artifact fix and resolve every finding or document an approved exception.
 - [ ] B.6 After each merge, remove the implementation worktree, delete its local feature branch, run `git worktree prune`, and complete an explicit `AGENTS.md` worktree/policy self-check. Archive only from a dedicated follow-up worktree when the stated dependency, release, and rollout gates are complete.
 
 ## 1. Paired modules release
@@ -49,14 +49,15 @@ All implementation tasks are intentionally small (target: at most two hours) and
 ## 4. Verification and rollout
 
 - [ ] 4.1 Run the #665–#671 benchmark plus seeded invalid-history/path cases.
-- [ ] 4.2 Run strict OpenSpec, workflow lint, focused/full tests, contracts, static analysis, and explicit base/head Code Review.
+- [ ] 4.2 Run exactly `openspec validate requirements-08-bounded-red-green-proof --strict`, workflow lint, focused/full tests, contracts, static analysis, and explicit base/head Code Review; record the exact results under task B.5 and rerun the affected commands after every validation or evidence-artifact fix.
 - [ ] 4.3 After implementation, add a separate passing-after section to `TDD_EVIDENCE.md` with timestamps, exact commands, actual results, behavioral summaries, environment limitations, and artifact identities.
-- [ ] 4.4 Establish and document the initial reviewed verifier policy epoch.
-- [ ] 4.5 Run shadow, warning, then strict rollout; record rollback instructions.
-- [ ] 4.6 Merge the completed implementation to `dev` only after the paired signed module release is pinned and all gates pass.
-- [ ] 4.7 After R07 is archived and the R08 strict rollout is accepted, from the repository root in a dedicated follow-up worktree run exactly `openspec archive requirements-08-bounded-red-green-proof` and verify the canonical bounded-replay specification. Do not move a directory into `openspec/changes/archive/` manually.
-- [ ] 4.8 Merge checklist follow-up: create or update `wiki/sources/requirements-08-bounded-red-green-proof.md` (`depends-on`, `blocks`, `external-deps`, `status`, and summary) and run `python3 scripts/wiki_rebuild_graph.py` from the `specfact-cli-internal` repository root.
-- [ ] 4.9 After each implementation or archive PR merges, remove its worktree, delete its local feature branch, run `git worktree prune`, and record the worktree-policy self-check.
+- [ ] 4.4 Create or update `docs/guides/requirements-evidence.md` to distinguish `current_execution`, bounded `tdd_chronology`, `unproven`, bootstrap/shadow status, and remediation. Update `docs/index.md` and `docs/_layouts/default.html` only when needed to expose the guide, and regenerate `llms.txt` through the existing docs generator rather than hand-editing it.
+- [ ] 4.5 Establish and document the initial reviewed verifier policy epoch.
+- [ ] 4.6 Run shadow, warning, then strict rollout; record rollback instructions.
+- [ ] 4.7 Merge the completed implementation to `dev` only after the paired signed module release is pinned and all gates pass.
+- [ ] 4.8 After R07 is archived and the R08 strict rollout is accepted, from the repository root in a dedicated follow-up worktree run exactly `openspec archive requirements-08-bounded-red-green-proof` and verify the canonical bounded-replay specification. Do not move a directory into `openspec/changes/archive/` manually.
+- [ ] 4.9 Merge checklist follow-up: create or update `wiki/sources/requirements-08-bounded-red-green-proof.md` (`depends-on`, `blocks`, `external-deps`, `status`, and summary) and run `python3 scripts/wiki_rebuild_graph.py` from the `specfact-cli-internal` repository root.
+- [ ] 4.10 After each implementation or archive PR merges, remove its worktree, delete its local feature branch, run `git worktree prune`, and record the worktree-policy self-check.
 
 ## Prohibited shortcuts
 
@@ -91,6 +92,12 @@ Tests:
 - `tests/unit/workflows/test_requirements_evidence_delivery_workflow.py`: shadow wiring, artifacts-before-enforcement, and epoch bootstrap.
 - `tests/unit/scripts/test_requirements_proof_executor.py`: conditional only when the executor changes.
 - Temporary repositories live inside the named tests; no fixture directory.
+
+Adoption documentation:
+
+- `docs/guides/requirements-evidence.md`: canonical current-execution versus bounded-chronology guide; create if absent.
+- `docs/index.md` and `docs/_layouts/default.html`: link/navigation only when the guide is otherwise undiscoverable.
+- `llms.txt`: generated from accepted docs only through the existing generator; never hand-edit.
 
 Paired modules dependency allowlist — separate repository `nold-ai/specfact-cli-modules`, implemented and reviewed in PR #412 rather than on this core branch:
 
