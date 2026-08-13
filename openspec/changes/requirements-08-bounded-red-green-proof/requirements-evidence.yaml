@@ -44,7 +44,7 @@ requirements:
         intent: "Inspect the versioned capsule bindings and core/Requirements-module ownership boundary."
         observable: "Core produces Git and execution facts while the signed Requirements module validates the accepted capsule without executing Git or tests."
       - case_id: R08-CORE-003-S02
-        scenario_id: candidate-verifier-cannot-authorize-itself
+        scenario_id: bound-proof-attestation
         method: inspection
         intent: "Inspect the negative verifier-promotion rule before strict enforcement."
         observable: "A candidate verifier or policy change remains shadow-only and unproven until independently promoted under a new epoch."
@@ -63,7 +63,7 @@ requirements:
         intent: "Inspect the planned fail-closed behavior for unresolved history, execution, isolation, capsule, scope, or identity."
         observable: "The specification requires an explicit unproven chronology result and non-zero strict enforcement."
       - case_id: R08-CORE-004-S02
-        scenario_id: unproven-chronology-preserves-current-execution
+        scenario_id: fail-closed-unproven-state
         method: inspection
         intent: "Inspect that an unproven R08 claim cannot erase or inflate R07 current execution."
         observable: "Only red_green_chronology becomes unproven; current_execution and independent Code Review remain unchanged."
