@@ -3022,3 +3022,36 @@ becomes a root because pytest walks up past it.
   directory). The fix is inert here and live for any repository on the default mode.
 - **Passing-after:** 292 passed in the provenance file, 7 in the new oracle, 683
   across the scripts, workflows, and integration suites.
+
+## Round 27: closing the oracle's own blind spot
+
+Round 26 added the oracle and recorded three limits of it. One was not a limit but
+a hole: the oracle read `sys.modules`, so it saw imports and nothing else. Every
+path-resolution rule — the join notations, `__file__`-relative bases, links at any
+component — governs files consumed as *data*, which never appear there. The rule
+family that had produced the most findings was the one family the new oracle could
+not see, and stating that in a docstring does not close it.
+
+The observer now also records reads, through an audit hook on the `open` event
+installed before the session begins. Writes are ignored, and `.git`, `__pycache__`,
+and `.pytest_cache` are excluded because a run populates those itself and no gate
+can bind what is not committed. Six layouts were added, all of them reads rather
+than imports: a repository-relative literal, a base relative to the reading module,
+a functional join, a read inside a fixture body, a linked file, and a linked
+directory.
+
+- **Proof that the read channel is real.** A green suite here could equally mean
+  the hook recorded nothing, which is the failure mode this round exists to fix, so
+  it was tested rather than assumed. With `_referenced_data_paths` disabled, **all
+  six read layouts fail and none of the seven import layouts do** — the two channels
+  are independent, and the read channel carries what it claims to. The message for
+  the hardest case names `tests/real_data/case.json`, the target resolved through a
+  directory link, not the link the source spelled.
+
+The oracle now covers both kinds of input the gate binds. What remains genuinely
+outside it is unchanged and worth stating plainly: it observes the layouts it is
+given, so a shape nobody has thought of is still unobserved. Adding a layout is now
+the cheapest way to close a class, and a layout is four lines.
+
+- **Passing-after:** 13 in the oracle, 689 across the scripts, workflows, and
+  integration suites.

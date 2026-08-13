@@ -238,9 +238,12 @@ retain deterministic JUnit results for module-owned reconciliation.
   exception, and the set stays proportional to the selectors, because a rule that
   binds too much satisfies every positive expectation while rejecting valid proofs
 - **AND** the resolved input set is checked against a real pytest run over a set
-  of repository layouts, binding at least every repository-local module that run
-  imports, because each rule is a model of pytest's behaviour and a model that is
-  only read rather than executed diverges without anyone noticing
+  of repository layouts, binding at least every repository-local file that run
+  imports **or reads**, because each rule is a model of pytest's behaviour and a
+  model that is only read rather than executed diverges without anyone noticing;
+  reads are observed as well as imports because a file consumed as data leaves no
+  trace among the imported modules, and the path-resolution rules are exercised by
+  nothing else
 - **AND** only the final possible `pytest_plugins` binding is bound, because an
   assignment a later one overwrites never loads, and a name bound only inside a
   function, lambda, or class body does not rebind a module-level guard

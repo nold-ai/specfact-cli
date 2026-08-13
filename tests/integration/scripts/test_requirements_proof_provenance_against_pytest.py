@@ -6,11 +6,17 @@ in. A model has no error bar. Each divergence found so far was found by a review
 rule, which makes review the only oracle, and review does not run on every change.
 
 These tests supply the missing oracle. For a set of repository layouts, pytest is run for real
-and every repository-local module it imports is recorded; the gate must bind all of them. A rule
-that stops matching how pytest actually resolves something fails here rather than surviving
-until someone reads it.
+and every repository-local file it imports *or reads* is recorded; the gate must bind all of
+them. A rule that stops matching how pytest actually resolves something fails here rather than
+surviving until someone reads it.
 
-The direction is deliberate: this asserts the gate binds at least what pytest loaded. It is a
+Reads are observed as well as imports because the two exercise different rule families. An
+import is visible in ``sys.modules``; a fixture reading ``tests/data/case.json`` is not, and the
+path-resolution rules — join notations, ``__file__``-relative bases, links — live entirely in
+that second family. Observing only imports would leave them checked by review alone, which is
+the condition this file exists to end.
+
+The direction is deliberate: this asserts the gate binds at least what pytest touched. It is a
 guard against binding too little. The companion measurement in
 ``test_requirements_proof_provenance_repository.py`` guards the other direction.
 """
@@ -36,10 +42,23 @@ SELECTOR = f"{SELECTED_TEST}::test_selected"
 
 
 class Layout(NamedTuple):
-    """One repository shape, described by the files it contains."""
+    """One repository shape, described by the files it contains and any links it needs."""
 
     name: str
     files: dict[str, str]
+    links: dict[str, str] = {}
+
+
+class Observation(NamedTuple):
+    """What one real pytest run touched inside the observed repository."""
+
+    imported: frozenset[str]
+    read: frozenset[str]
+
+    @property
+    def touched(self) -> frozenset[str]:
+        """Return every repository file the run depended on, however it reached it."""
+        return self.imported | self.read
 
 
 # Each layout puts the helper somewhere pytest can reach and the gate must therefore resolve.
@@ -101,6 +120,61 @@ LAYOUTS = [
             "tests/helper.py": "VALUE = False\n",
         },
     ),
+    # From here the run reads data rather than importing it. None of these appear in
+    # ``sys.modules``, so they exercise the path-resolution rules and nothing else does.
+    Layout(
+        "data read through a repository-relative literal",
+        {
+            "tests/conftest.py": 'from pathlib import Path\n\nCASE = Path("tests/data/case.json").read_text()\n',
+            "tests/data/case.json": '{"expected": false}\n',
+        },
+    ),
+    Layout(
+        "data read relative to the reading module",
+        {
+            "tests/conftest.py": (
+                'from pathlib import Path\n\nCASE = (Path(__file__).parent / "data" / "case.json").read_text()\n'
+            ),
+            "tests/data/case.json": '{"expected": false}\n',
+        },
+    ),
+    Layout(
+        "data read through a functional join",
+        {
+            "tests/conftest.py": (
+                "import os\n\nwith open(os.path.join(os.path.dirname(__file__), "
+                '"data", "case.json")) as handle:\n    CASE = handle.read()\n'
+            ),
+            "tests/data/case.json": '{"expected": false}\n',
+        },
+    ),
+    Layout(
+        "data read inside a fixture body",
+        {
+            "tests/conftest.py": (
+                "from pathlib import Path\n\nimport pytest\n\n\n@pytest.fixture\ndef case():\n"
+                '    return (Path(__file__).parent / "data" / "case.json").read_text()\n'
+            ),
+            "tests/data/case.json": '{"expected": false}\n',
+            "tests/test_proof.py": "def test_selected(case) -> None:\n    assert False\n",
+        },
+    ),
+    Layout(
+        "data read through a linked file",
+        {
+            "tests/conftest.py": 'from pathlib import Path\n\nCASE = Path("tests/data/case.json").read_text()\n',
+            "tests/data/real.json": '{"expected": false}\n',
+        },
+        {"tests/data/case.json": "real.json"},
+    ),
+    Layout(
+        "data read through a linked directory",
+        {
+            "tests/conftest.py": 'from pathlib import Path\n\nCASE = Path("tests/linked/case.json").read_text()\n',
+            "tests/real_data/case.json": '{"expected": false}\n',
+        },
+        {"tests/linked": "real_data"},
+    ),
 ]
 
 
@@ -129,9 +203,14 @@ def _build_repository(repository: Path, layout: Layout) -> str:
         path = repository / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding="utf-8")
+    for relative, target in layout.links.items():
+        link = repository / relative
+        link.parent.mkdir(parents=True, exist_ok=True)
+        link.symlink_to(target)
     selected = repository / SELECTED_TEST
-    selected.parent.mkdir(parents=True, exist_ok=True)
-    selected.write_text("def test_selected() -> None:\n    assert False\n", encoding="utf-8")
+    if SELECTED_TEST not in layout.files:
+        selected.parent.mkdir(parents=True, exist_ok=True)
+        selected.write_text("def test_selected() -> None:\n    assert False\n", encoding="utf-8")
     _git(repository, "init")
     _git(repository, "config", "user.email", "requirements@example.test")
     _git(repository, "config", "user.name", "Requirements proof")
@@ -140,8 +219,8 @@ def _build_repository(repository: Path, layout: Layout) -> str:
     return _git(repository, "rev-parse", "HEAD").strip()
 
 
-def _observed_repository_modules(repository: Path, observation_path: Path) -> set[str]:
-    """Run pytest for real and return the repository-local modules it imported."""
+def _observed_repository_files(repository: Path, observation_path: Path) -> Observation:
+    """Run pytest for real and return the repository-local files it imported and read."""
     environment = {
         **os.environ,
         "PYTHONPATH": str(OBSERVER_DIRECTORY),
@@ -161,29 +240,32 @@ def _observed_repository_modules(repository: Path, observation_path: Path) -> se
     )
     if not observation_path.exists():
         raise AssertionError(f"pytest did not reach session finish:\n{result.stdout}\n{result.stderr}")
-    observed = cast(list[str], json.loads(observation_path.read_text(encoding="utf-8")))
+    recorded = cast(dict[str, list[str]], json.loads(observation_path.read_text(encoding="utf-8")))
+    observation = Observation(frozenset(recorded["imported"]), frozenset(recorded["read"]))
     # The run must have collected the selected test, or it observed nothing meaningful.
-    assert SELECTED_TEST in observed, f"pytest did not import the selected test:\n{result.stdout}\n{result.stderr}"
-    return set(observed)
+    assert SELECTED_TEST in observation.imported, (
+        f"pytest did not import the selected test:\n{result.stdout}\n{result.stderr}"
+    )
+    return observation
 
 
 @pytest.mark.integration
 @pytest.mark.slow
 @pytest.mark.parametrize("layout", LAYOUTS, ids=lambda layout: layout.name)
-def test_the_gate_binds_every_module_pytest_actually_imported(tmp_path: Path, layout: Layout) -> None:
-    """Whatever pytest loaded decided the outcome, so a proof that omits it is not bound to it."""
+def test_the_gate_binds_every_file_pytest_actually_used(tmp_path: Path, layout: Layout) -> None:
+    """Whatever pytest loaded or read decided the outcome, so a proof that omits it is not bound."""
     module = _load_provenance_module()
     repository = tmp_path / "repository"
     repository.mkdir()
     source_ref = _build_repository(repository, layout)
 
-    observed = _observed_repository_modules(repository, tmp_path / "observed.json")
+    observed = _observed_repository_files(repository, tmp_path / "observed.json")
     bound = module._proof_inputs(
         repository, source_ref, (SELECTED_TEST,), {SELECTED_TEST: frozenset({"test_selected"})}
     )
 
-    unbound = sorted(observed - bound)
+    unbound = sorted(observed.touched - bound)
     assert not unbound, (
-        f"pytest imported these files while the gate bound none of them, so a change to any of "
+        f"pytest used these files while the gate bound none of them, so a change to any of "
         f"them after the red source would not invalidate the proof: {unbound}"
     )
