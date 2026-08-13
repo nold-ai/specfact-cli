@@ -6,23 +6,31 @@
 
 The proposal, design, scenarios, bounded tasks, non-goals, and rollback path are defined. Runtime proof has not started. No statement in this folder is evidence that R08 is implemented.
 
-## Validation evidence
+## Current delivery-tree validation contract
 
-- Evidence class: planning structure and repository integration only.
-- Strict planning command: `openspec validate --all --strict`.
-- Result: passed for commit `4b12860a70c9e29dd67a01bd5f3cd55dcb86af60` in [SpecFact CLI Validation run 31741879217](https://github.com/nold-ai/specfact-cli/actions/runs/31741879217).
-- Execution timestamp: 2026-08-13T20:38:42Z through 2026-08-13T20:40:05Z.
-- Required per-change pre-implementation command: `openspec validate requirements-08-bounded-red-green-proof --strict`.
+- Planning command: `openspec validate --all --strict`.
+- Required per-change command before and after implementation: `openspec validate requirements-08-bounded-red-green-proof --strict`.
+- The authoritative planning result is the final successful SpecFact CLI Validation check on PR #674 whose recorded `head_sha` equals the PR delivery head.
+- The exact final head SHA, workflow run URL, status, and result belong in the PR/check-suite delivery record after the last content commit. They are intentionally not hard-coded here: adding a commit's own SHA to this file would change that SHA and create an impossible self-reference.
+- The earlier run for `4b12860a70c9e29dd67a01bd5f3cd55dcb86af60` is historical planning evidence only and is not evidence for the final PR tree.
+- No failing-before implementation artifact, passing-after artifact, R/H/D replay, capsule, or verifier-epoch result exists yet.
+
+## Planning sources and constraints
+
+- Applied sources: `AGENTS.md`, `openspec/config.yaml`, and `docs/agent-rules/40-openspec-and-tdd.md`, `50-github-project-management.md`, and `70-release-commit-and-docs.md`.
+- Internal wiki: unavailable in this workspace; `tasks.md` requires the exact source-page and graph-rebuild follow-up.
 - Affected planning files: `.openspec.yaml`, `README.md`, `proposal.md`, `design.md`, `tasks.md`, `CHANGE_VALIDATION.md`, `TDD_EVIDENCE.md`, `requirements-evidence.yaml`, and the R08 delta specification.
-- Failing-before implementation artifact: not applicable to this planning-only branch; it becomes mandatory before production edits.
-- Passing-after implementation artifact: unavailable; no R/H/D replay runner, delivery binding, capsule, verifier epoch, or implementation exists.
-- Excluded or unavailable dependencies: the signed immutable modules R08 release/fixture, accepted capsule schema version, promoted verifier epoch, internal-wiki checkout, and benchmark corpus results.
+- Excluded or unavailable dependencies: signed immutable modules R08 release/fixture, accepted capsule-schema version, approved signing-key/trust-root identity, promoted verifier epoch, internal-wiki checkout, and benchmark corpus results.
+
+## Required implementation evidence
+
+At implementation finalization this file SHALL record validation scope and impact, affected files, exact commands, actual outcomes and test counts, focused and full tests, skipped or unavailable tests/dependencies with reasons, artifact locations and identities, environment limitations, B/R/H/D and capsule identities, approved signer/trust-root verification, verifier epoch, and release hygiene. Planning evidence, failing-before evidence, and H..D passing/implementation evidence remain separate.
 
 ## Readiness blockers
 
 - The paired modules R08 versioned capsule schema accepting B/R/H/D and the signed immutable release are not published.
-- The signed fixture identity does not yet bind an accepted capsule schema/version and verifier epoch.
-- Failing tests have not been written or recorded.
+- The signed fixture identity does not yet bind an accepted capsule-schema version, approved signing-key/trust-root identity, and verifier epoch.
+- Failing tests, exact selectors, and failing-before evidence have not been written or recorded.
 - No enforced network-isolation policy or verifier policy epoch exists.
 - No benchmark result has been produced by the proposed replay runner.
 - Issue #675 exists with the required labels and assignee, but its requested User Story type and project assignment must be verified before implementation because the current connector cannot update project fields.
