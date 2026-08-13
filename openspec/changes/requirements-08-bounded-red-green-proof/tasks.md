@@ -8,16 +8,25 @@ All implementation tasks are intentionally small (target: at most two hours) and
 - [x] 0.2 Define allowed future paths and prohibit extension of static dependency inference.
 - [x] 0.3 Record that this planning branch contains no behavior changes.
 
+## Implementation-session checklist — before any unchecked implementation task
+
+- [ ] B.1 Create a dedicated implementation worktree and feature branch from current `origin/dev`; do not implement from the primary, `dev`, or `main` checkout.
+- [ ] B.2 Run `hatch env create`, then `hatch run smart-test-status` and `hatch run contract-test-status` in the worktree; record and resolve unexpected baseline failures before edits.
+- [ ] B.3 Run the change-specific strict OpenSpec command and confirm the accepted specs, dependencies, signed-module prerequisites, and closed file allowlist still match repository reality.
+- [ ] B.4 Follow `spec -> tests -> failing evidence -> code -> passing evidence`; record exact failing-before and passing-after commands, timestamps, and artifact identities in `TDD_EVIDENCE.md`.
+- [ ] B.5 Before PR finalization, run the required format, type, lint, YAML, contract, focused/full test, workflow, independent-analysis, signature, and explicit base/head Code Review gates; resolve every finding or document an approved exception.
+- [ ] B.6 After merge and only when the change is complete, archive with the OpenSpec CLI, update the internal-wiki mirror, remove the worktree, prune it, and complete an explicit `AGENTS.md` worktree/policy self-check.
+
 ## 1. Paired modules release
 
 - [ ] 1.1 Implement independent current-execution and chronology states in the paired modules R07/R08 changes.
-- [ ] 1.2 Implement the bounded attestation schema and validation contracts.
-- [ ] 1.3 Publish a signed module release and record the immutable release SHA.
+- [ ] 1.2 Implement the versioned replay-capsule schema and validation contracts: core supplies Git/execution facts; modules validate schema/hash/transition/outcome facts without running Git or tests.
+- [ ] 1.3 Publish a signed module release and record its immutable repository commit/tree, package version, capsule-schema version, manifest integrity, and signature identities.
 
 ## 2. Failing tests first
 
 - [ ] 2.1 In `tests/unit/scripts/test_requirements_proof_provenance.py`, replace obsolete static-closure cases with temporary-Git-repository tests for valid B < R < H and invalid ancestry.
-- [ ] 2.2 In `tests/unit/scripts/test_requirements_proof_provenance.py`, add failing tests for B..R production changes and R..H undeclared/test/config/harness changes.
+- [ ] 2.2 In `tests/unit/scripts/test_requirements_proof_provenance.py`, add failing tests that reject every undeclared/disallowed B..R path or rename endpoint and every R..H undeclared/test/config/harness change.
 - [ ] 2.3 In exactly `tests/integration/scripts/test_requirements_red_green_replay.py`, add failing integration tests proving exact failure at R and exact pass at H under identical selectors.
 - [ ] 2.4 In `tests/unit/scripts/test_requirements_proof_provenance.py`, add shallow-history, invalid-ref, checkout-failure, missing-artifact, and rename-endpoint cases; execution timeout and selector-mismatch cases may additionally use `tests/integration/scripts/test_requirements_red_green_replay.py`.
 - [ ] 2.5 In `tests/unit/scripts/test_requirements_proof_provenance.py`, add a failing bootstrap test proving verifier/policy self-changes cannot self-attest.
@@ -25,11 +34,11 @@ All implementation tasks are intentionally small (target: at most two hours) and
 
 ## 3. Minimal implementation
 
-- [ ] 3.1 In `scripts/requirements_proof_provenance.py`, add an explicit full-SHA red reference to the accepted checkpoint input. Do not auto-discover R.
-- [ ] 3.2 In `scripts/requirements_proof_provenance.py`, implement ancestry and changed-path-set validation. Do not parse Python AST.
-- [ ] 3.3 In `scripts/requirements_proof_provenance.py`, implement isolated worktree replay for R and H with identical bounded subprocess arguments; change `scripts/requirements_proof_executor.py` only if the existing seam demonstrably cannot support explicit worktree/output inputs.
-- [ ] 3.4 In `scripts/requirements_proof_provenance.py`, implement attestation construction and module reconciliation handoff.
-- [ ] 3.5 In `.github/workflows/requirements-evidence.yml` and `tests/unit/workflows/test_requirements_evidence_delivery_workflow.py`, wire shadow mode and retain all artifacts before enforcement.
+- [ ] 3.1 In `scripts/requirements_proof_provenance.py`, add explicit full-SHA B/R/H inputs plus complete declared `red_setup_touchpoints` and implementation-touchpoint sets. Do not auto-discover R.
+- [ ] 3.2 In `scripts/requirements_proof_provenance.py`, implement ancestry and both closed changed-path/rename-endpoint validators. Do not parse Python AST.
+- [ ] 3.3 In `scripts/requirements_proof_provenance.py`, implement isolated worktree replay for R and H with identical bounded subprocess arguments and enforced network-isolation evidence; change `scripts/requirements_proof_executor.py` only if the existing seam demonstrably cannot support explicit worktree/output inputs.
+- [ ] 3.4 In `scripts/requirements_proof_provenance.py`, produce the versioned capsule and hand it to the signed Requirements module; bind the accepted capsule schema, module identity/signature, network policy, and verifier epoch.
+- [ ] 3.5 In `.github/workflows/requirements-evidence.yml` and `tests/unit/workflows/test_requirements_evidence_delivery_workflow.py`, wire shadow mode, make unavailable network isolation unproven, and retain all artifacts before enforcement.
 - [ ] 3.6 In `scripts/requirements_proof_provenance.py`, remove or bypass obsolete static pytest-input closure from the authoritative path; prefer deletion over parallel complexity.
 
 ## 4. Verification and rollout

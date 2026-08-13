@@ -6,7 +6,7 @@ The core CLI SHALL enforce the reviewed, immutable Requirements module release b
 
 #### Scenario: Reject an unverified or mutable fixture
 
-- **GIVEN** the modules repository, commit, tree, package version, signature, or clean-state identity differs from the fixture lock
+- **GIVEN** the modules repository, commit, tree, package version, signature, accepted report-schema version, or clean-state identity differs from the fixture lock
 - **WHEN** local or CI Requirements evidence enforcement initializes
 - **THEN** it fails before invoking module code
 - **AND** it does not use a branch, sibling checkout, or other mutable module source
@@ -19,21 +19,21 @@ The core CLI SHALL enforce the reviewed, immutable Requirements module release b
 - **THEN** only the explicit non-secret runtime allowlist and verified fixture-root variables are present
 - **AND** unrelated ambient variables and caller-controlled `PYTHONPATH` are absent.
 
-#### Scenario: Block staged delivery after retaining a blocking decision
+#### Scenario: Block staged delivery after retaining a red report
 
 - **GIVEN** the verified released fixture returns a blocking or unresolved staged Requirements decision
 - **WHEN** the pre-commit hook evaluates staged changes
 - **THEN** it retains the JSON and Markdown remediation reports before returning non-zero
 - **AND** Code Review and contract-test gates do not run afterward.
 
-#### Scenario: Continue staged delivery after a non-blocking decision
+#### Scenario: Continue staged delivery after a green report
 
 - **GIVEN** the verified released fixture returns a non-blocking staged Requirements decision
 - **WHEN** the pre-commit hook evaluates staged changes
 - **THEN** it retains the generated reports
 - **AND** it continues to the existing Code Review and contract-test gates.
 
-#### Scenario: Current-run artifacts are retained before pull-request enforcement
+#### Scenario: Publish pull-request evidence for any verdict
 
 - **GIVEN** planning or execution produces success, failure, timeout, or reconciliation diagnostics
 - **WHEN** the pull-request workflow reaches its terminal policy step

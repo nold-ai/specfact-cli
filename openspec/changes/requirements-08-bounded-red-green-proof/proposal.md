@@ -9,9 +9,11 @@ SpecFact can prove a smaller and stronger statement mechanically: exact declared
 ## What Changes
 
 - Introduce an explicit three-commit boundary: merge base B, red commit R, and final head H, with B ancestor of R and R a strict ancestor of H.
-- Require B..R to contain no governed implementation change and R..H to change only explicitly mapped implementation touchpoints.
-- Replay identical exact selectors at R and H during the same trusted CI run in the same pinned environment.
-- Bind Git, plan, selector, JUnit, runner, environment, policy, and verifier identities in one attestation.
+- Require every B..R path and rename endpoint to be an explicitly mapped red-setup touchpoint with an allowed requirement/specification/test role; reject implementation, dependency, workflow, verifier, policy, and unclassified paths.
+- Require R..H to change only explicitly mapped implementation touchpoints.
+- Replay identical exact selectors at R and H during the same trusted CI run in the same pinned environment with enforced network isolation for strict proof.
+- Have core produce a versioned replay capsule binding Git, plan, selector, JUnit, runner, environment, network-policy, policy, verifier, and signed-module identities.
+- Have the signed Requirements module validate the capsule schema, hash links, transition facts, selector outcomes, and verifier epoch without executing Git or tests.
 - Produce `unproven` and fail strict policy whenever scope, history, execution, identity, or artifacts cannot be established.
 - Establish a verifier-promotion boundary: a candidate replay verifier cannot authorize itself.
 
@@ -24,7 +26,7 @@ SpecFact can prove a smaller and stronger statement mechanically: exact declared
 ## Impact
 
 - Planning scope only; no implementation, workflow, tests, fixture pins, or released schemas change in this commit.
-- Depends on the paired modules R08 report/attestation contract and a signed module release.
+- Depends on the paired modules R08 versioned replay-capsule contract and a signed immutable module release/fixture. Core owns Git/worktree/test execution and capsule production; the Requirements module owns capsule validation and chronology status without executing Git or tests.
 - Later implementation should simplify or replace prior-red provenance code rather than extend it.
 - Rollback: disable the R08 profile and retain R07 current-run evidence; both claims remain independent.
 

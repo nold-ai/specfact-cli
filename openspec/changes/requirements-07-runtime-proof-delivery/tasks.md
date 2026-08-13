@@ -7,12 +7,21 @@
 - [x] 0.3 Record explicit non-goals prohibiting Python/pytest dependency-closure inference.
 - [x] 0.4 Create this planning commit without runtime, workflow, fixture, test, or schema implementation changes.
 
+## Implementation-session checklist — before any unchecked implementation task
+
+- [ ] B.1 Create a dedicated implementation worktree and feature branch from current `origin/dev`; do not implement from the primary, `dev`, or `main` checkout.
+- [ ] B.2 Run `hatch env create`, then `hatch run smart-test-status` and `hatch run contract-test-status` in the worktree; record and resolve unexpected baseline failures before edits.
+- [ ] B.3 Run the change-specific strict OpenSpec command and confirm the accepted specs, dependencies, signed-module prerequisites, and closed file allowlist still match repository reality.
+- [ ] B.4 Follow `spec -> tests -> failing evidence -> code -> passing evidence`; record exact failing-before and passing-after commands, timestamps, and artifact identities in `TDD_EVIDENCE.md`.
+- [ ] B.5 Before PR finalization, run the required format, type, lint, YAML, contract, focused/full test, workflow, independent-analysis, signature, and explicit base/head Code Review gates; resolve every finding or document an approved exception.
+- [ ] B.6 After merge and only when the change is complete, archive with the OpenSpec CLI, update the internal-wiki mirror, remove the worktree, prune it, and complete an explicit `AGENTS.md` worktree/policy self-check.
+
 ## 1. Modules dependency — each task at most two hours
 
 - [ ] 1.1 In the paired modules branch, add failing model tests separating `current_execution` from `red_green_chronology`. Allowed files: the Requirements lifecycle model and its focused tests.
-- [ ] 1.2 Update the module reconciliation schema so current-run pass/fail can be final without historical proof. Allowed files: Requirements report/reconciliation models and focused tests.
-- [ ] 1.3 Update Code Review context validation to accept finalized current-run evidence without requiring a historical proof basis. Allowed files: review context adapter and focused tests.
-- [ ] 1.4 Publish a signed modules release and record its immutable commit and package versions.
+- [ ] 1.2 Update the module reconciliation schema so current-run pass/fail can be final without historical proof; version the accepted report shape. Allowed files: Requirements report/reconciliation models and focused tests.
+- [ ] 1.3 Update the paired Code Review context adapter and `tests/unit/specfact_code_review/run/test_commands.py` plus `test_findings.py` so `current_execution` is retained without requiring `proof_basis: "red-junit"`; preserve optional `red_green_chronology` as a separate field that cannot rewrite the review verdict.
+- [ ] 1.4 Publish a signed modules release and record its immutable repository commit/tree, package version, report-schema version, manifest integrity, and signature identities.
 
 ## 2. Core failing tests — tests before implementation, each task at most two hours
 
@@ -23,10 +32,10 @@
 
 ## 3. Core implementation — each task at most two hours
 
-- [ ] 3.1 Pin the signed corrected modules release. Allowed file: `ci/module-fixture.lock.json` and its exact fixture assertion only.
-- [ ] 3.2 Adapt current-run report handling without implementing chronology. Allowed files: `.github/workflows/requirements-evidence.yml` and one existing small delivery adapter if necessary.
-- [ ] 3.3 Remove the R07 legacy-ledger/prior-red requirement from current-run enforcement. Do not add replacement AST inference.
-- [ ] 3.4 Keep Requirements and Code Review verdicts independent and publish both artifacts before enforcement.
+- [ ] 3.1 Pin the signed corrected modules repository commit/tree, package version, report-schema version, manifest integrity, and signature identities. Allowed file: `ci/module-fixture.lock.json` and its exact fixture assertion only.
+- [ ] 3.2 Adapt current-run report handling without implementing chronology. Allowed files: `.github/workflows/requirements-evidence.yml` and `scripts/requirements_evidence_delivery_gate.py`; change `scripts/requirements_proof_executor.py` only when a named failing test proves field incompatibility.
+- [ ] 3.3 Remove the R07 legacy-ledger/prior-red requirement from current-run enforcement in `.github/workflows/requirements-evidence.yml` and `scripts/requirements_evidence_delivery_gate.py`. Do not add replacement AST inference.
+- [ ] 3.4 In `.github/workflows/requirements-evidence.yml`, keep Requirements and Code Review verdicts independent and publish both available artifacts before terminal enforcement.
 
 ## 4. Verification and delivery
 

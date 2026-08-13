@@ -10,11 +10,11 @@ requirements:
         kind: specification
         locator: "specs/requirements-bounded-red-green-proof/spec.md"
     verification_cases:
-      - case_id: R08-CORE-001
+      - case_id: R08-CORE-001-S01
         scenario_id: explicit-three-commit-boundary
         method: inspection
-        intent: "Inspect the planned B < R < H ancestry and declared transition-scope contract."
-        observable: "The specification and tasks define ancestry and path-set facts without runtime dependency inference."
+        intent: "Inspect the planned B < R < H ancestry and both complete declared transition allowlists."
+        observable: "The specification rejects every undeclared or disallowed B..R or R..H path and rename endpoint without runtime dependency inference."
   openspec:requirements-08-bounded-red-green-proof:requirements-bounded-red-green-proof:authoritative-runtime-replay:
     rationale: "Historical chronology is strongest when both endpoint executions are replayed together."
     stakeholder_refs:
@@ -24,13 +24,13 @@ requirements:
         kind: planned_ci_workflow
         locator: ".github/workflows/requirements-evidence.yml"
     verification_cases:
-      - case_id: R08-CORE-002
+      - case_id: R08-CORE-002-S01
         scenario_id: authoritative-runtime-replay
         method: inspection
-        intent: "Inspect the planned requirement to replay identical exact selectors at R and H in one pinned environment."
-        observable: "The specification requires one declared failure at R and one pass at H for each identical selector."
+        intent: "Inspect the planned requirement to replay identical exact selectors at R and H in one pinned, network-isolated environment."
+        observable: "The specification requires one declared failure at R and one pass at H for each identical selector and makes unavailable isolation unproven."
   openspec:requirements-08-bounded-red-green-proof:requirements-bounded-red-green-proof:bound-proof-attestation:
-    rationale: "Every claim must identify its snapshots, inputs, tools, limits, and verifier epoch."
+    rationale: "Every claim must identify its snapshots, inputs, tools, limits, trust boundary, and verifier epoch."
     stakeholder_refs:
       - "nold-ai/specfact-cli#665"
     touchpoints:
@@ -38,11 +38,16 @@ requirements:
         kind: planned_artifact
         locator: ".specfact/requirements-red-green.json"
     verification_cases:
-      - case_id: R08-CORE-003
+      - case_id: R08-CORE-003-S01
         scenario_id: bound-proof-attestation
         method: inspection
-        intent: "Inspect the planned attestation bindings for Git, plan, selectors, JUnit, environment, policy, and verifier identities."
-        observable: "The specification defines the bounded claim, mandatory identities, and explicit limitations."
+        intent: "Inspect the versioned capsule bindings and core/Requirements-module ownership boundary."
+        observable: "Core produces Git and execution facts while the signed Requirements module validates the accepted capsule without executing Git or tests."
+      - case_id: R08-CORE-003-S02
+        scenario_id: candidate-verifier-cannot-authorize-itself
+        method: inspection
+        intent: "Inspect the negative verifier-promotion rule before strict enforcement."
+        observable: "A candidate verifier or policy change remains shadow-only and unproven until independently promoted under a new epoch."
   openspec:requirements-08-bounded-red-green-proof:requirements-bounded-red-green-proof:fail-closed-unproven-state:
     rationale: "Missing mandatory facts cannot become a green result."
     stakeholder_refs:
@@ -52,9 +57,13 @@ requirements:
         kind: planned_policy
         locator: "requirements-bounded-red-green-proof"
     verification_cases:
-      - case_id: R08-CORE-004
+      - case_id: R08-CORE-004-S01
         scenario_id: fail-closed-unproven-state
         method: inspection
-        intent: "Inspect the planned fail-closed behavior for unresolved history, execution, scope, or identity."
-        observable: "The specification requires an explicit unproven result and non-zero strict enforcement."
-
+        intent: "Inspect the planned fail-closed behavior for unresolved history, execution, isolation, capsule, scope, or identity."
+        observable: "The specification requires an explicit unproven chronology result and non-zero strict enforcement."
+      - case_id: R08-CORE-004-S02
+        scenario_id: unproven-chronology-preserves-current-execution
+        method: inspection
+        intent: "Inspect that an unproven R08 claim cannot erase or inflate R07 current execution."
+        observable: "Only red_green_chronology becomes unproven; current_execution and independent Code Review remain unchanged."
