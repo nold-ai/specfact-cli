@@ -2,11 +2,11 @@
 
 ### Requirement: Requirements evidence delivery enforcement
 
-The core CLI SHALL enforce the reviewed, immutable Requirements module release before Code Review and contract delivery gates. It SHALL verify the exact fixture identity before importing or invoking module code, invoke released commands through an explicit non-secret environment allowlist, retain every current-run Requirements artifact produced by the reached stages, and enforce Requirements and Code Review decisions independently. The executable identity check SHALL cover repository, commit, tree, package version, manifest integrity, signature, accepted report-schema version, and clean-state identity; every mismatch SHALL retain an actionable field-specific diagnostic.
+The core CLI SHALL enforce the reviewed, immutable Requirements module release before Code Review and contract delivery gates. It SHALL verify the exact fixture identity before importing or invoking module code, invoke released commands through an explicit non-secret environment allowlist, retain every current-run Requirements artifact produced by the reached stages, and enforce Requirements and Code Review decisions independently. The executable identity check SHALL cover repository, commit, tree, package version, manifest integrity, signature, approved public-key fingerprint or trust-root reference, accepted report-schema version, and clean-state identity. It SHALL validate the key or trust-root reference against the repository's configured approved key set before module import; every missing, unknown, or mismatched identity SHALL retain an actionable field-specific diagnostic.
 
 #### Scenario: Reject an unverified or mutable fixture
 
-- **GIVEN** the modules repository, commit, tree, package version, signature, accepted report-schema version, or clean-state identity differs from the fixture lock
+- **GIVEN** the modules repository, commit, tree, package version, signature, approved public-key fingerprint or trust-root reference, accepted report-schema version, or clean-state identity is missing, unknown, or differs from the fixture lock and configured approved key set
 - **WHEN** local or CI Requirements evidence enforcement initializes
 - **THEN** it fails before invoking module code
 - **AND** it does not use a branch, sibling checkout, or other mutable module source
