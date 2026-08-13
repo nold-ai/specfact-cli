@@ -4,7 +4,7 @@
 
 Core SHALL evaluate historical red-green proof against three explicit full Git identities: B, the pull-request merge base; R, an accepted red commit; and H, the green implementation checkpoint. It SHALL also bind D, the current delivered head. It SHALL prove B is an ancestor of R, R is a strict ancestor of H, H is an ancestor of or equal to D, and D exactly equals the delivery identity.
 
-The complete B..R changed-path set and both endpoints of every rename SHALL be a subset of explicitly mapped `red_setup_touchpoints`. Each red-setup touchpoint SHALL have an allowed requirement, specification, selected-test, test-helper, conftest, or deterministic-test-configuration role. Governed implementation, dependency locks, workflows, runners, verifier/policy/schema files, generated artifacts, and unclassified paths SHALL be rejected.
+The complete B..R changed-path set and both endpoints of every rename SHALL be a subset of explicitly mapped `red_setup_touchpoints`. Each red-setup touchpoint SHALL have an allowed requirement, specification, selected-test, test-helper, conftest, deterministic-test-configuration, `proof_mapping`, or `failing_tdd_evidence` role. `proof_mapping` SHALL identify this change's accepted `requirements-evidence.yaml` containing schema-validated exact selectors and all three path-role sets. `failing_tdd_evidence` SHALL identify only this change's `TDD_EVIDENCE.md` failing-before record written before production edits. Both inputs and their digests SHALL be frozen at R. Governed implementation, dependency locks, workflows, runners, verifier/policy/schema files, other generated artifacts, and unclassified paths SHALL be rejected.
 
 The complete R..H changed-path set and both endpoints of every rename SHALL be a subset of explicitly mapped implementation touchpoints. Tests, fixtures, conftest files, test configuration, dependency locks, runners/workflows, mappings/plans, policy/verifier/schema files, evidence records, generated artifacts, and unclassified paths SHALL be rejected and require a new R.
 
@@ -13,7 +13,7 @@ When D differs from H, the complete H..D changed-path set and both endpoints of 
 #### Scenario: Declared red setup, implementation transition, and delivery evidence are eligible
 
 - **GIVEN** valid full B, R, H, and D commits with B < R < H <= D and D equals the current delivery identity
-- **AND** every B..R changed path and rename endpoint is an explicitly mapped allowed red-setup touchpoint
+- **AND** every B..R changed path and rename endpoint is an explicitly mapped allowed red-setup touchpoint, including the accepted proof mapping and failing-before TDD evidence
 - **AND** every R..H changed path and rename endpoint is an explicitly mapped implementation touchpoint
 - **AND** every H..D changed path and rename endpoint, when present, is an exact mapped delivery-evidence touchpoint
 - **WHEN** the boundary is evaluated
@@ -21,7 +21,8 @@ When D differs from H, the complete H..D changed-path set and both endpoints of 
 
 #### Scenario: Undeclared red-setup path invalidates R
 
-- **GIVEN** B..R changes governed implementation, a dependency lock, workflow, runner, verifier/policy/schema file, generated artifact, or any undeclared or unclassified path or rename endpoint
+- **GIVEN** B..R changes governed implementation, a dependency lock, workflow, runner, verifier/policy/schema file, non-approved generated artifact, or any undeclared or unclassified path or rename endpoint
+- **OR** the proof mapping, exact selectors, path-role sets, or failing-before evidence are absent, invalid, or not frozen at R
 - **WHEN** the boundary is evaluated
 - **THEN** the checkpoint is unproven and strict policy fails
 - **AND** remediation requires a new declared red checkpoint.

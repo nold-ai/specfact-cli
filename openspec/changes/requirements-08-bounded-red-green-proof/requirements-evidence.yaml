@@ -5,6 +5,7 @@ requirements:
     stakeholder_refs:
       - "nold-ai/specfact-cli#665"
       - "nold-ai/specfact-cli#671"
+      - "nold-ai/specfact-cli#675"
     touchpoints:
       - id: bounded-red-green-contract
         kind: specification
@@ -13,8 +14,8 @@ requirements:
       - case_id: R08-CORE-001-S01
         scenario_id: explicit-three-commit-boundary
         method: inspection
-        intent: "Inspect the planned B < R < H <= D ancestry/delivery binding and all three complete declared transition allowlists."
-        observable: "The specification rejects every undeclared or disallowed B..R, R..H, or H..D path and rename endpoint without runtime dependency inference."
+        intent: "Inspect the planned B < R < H <= D ancestry/delivery binding and all three complete declared transition allowlists, including accepted mapping and failing-before evidence in B..R."
+        observable: "The specification rejects every undeclared or disallowed B..R, R..H, or H..D path and rename endpoint without runtime dependency inference. Before accepting R, task 2.7 must convert applicable cases to exact test selectors and declare the schema-accepted path-role sets in this sidecar."
   openspec:requirements-08-bounded-red-green-proof:requirements-bounded-red-green-proof:authoritative-runtime-replay:
     rationale: "Historical chronology is strongest when red, green-checkpoint, and delivered-head executions are replayed together."
     stakeholder_refs:

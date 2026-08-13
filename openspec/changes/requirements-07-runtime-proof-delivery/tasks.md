@@ -18,10 +18,10 @@
 
 ## 1. Modules dependency — each task at most two hours
 
-- [ ] 1.1 In the paired modules branch, add failing model tests separating `current_execution` from `red_green_chronology`. Allowed files: the Requirements lifecycle model and its focused tests.
-- [ ] 1.2 Update the module reconciliation schema so current-run pass/fail can be final without historical proof; version the accepted report shape. Allowed files: Requirements report/reconciliation models and focused tests.
-- [ ] 1.3 Update the paired Code Review context adapter and `tests/unit/specfact_code_review/run/test_commands.py` plus `test_findings.py` so `current_execution` is retained without requiring `proof_basis: "red-junit"`; preserve optional `red_green_chronology` as a separate field that cannot rewrite the review verdict.
-- [ ] 1.4 Publish a signed modules release and record its immutable repository commit/tree, package version, report-schema version, manifest integrity, and signature identities.
+- [ ] 1.1 In modules PR #412, add failing model tests separating `current_execution` from `red_green_chronology` using only the companion paths listed below.
+- [ ] 1.2 In modules PR #412, update the Requirements reconciliation/report schema so current-run pass/fail can be final without historical proof; version the accepted report shape using only the companion paths listed below.
+- [ ] 1.3 In modules PR #412, update the Code Review context adapter and its focused tests so `current_execution` is retained without requiring `proof_basis: "red-junit"`; preserve optional `red_green_chronology` as a separate field that cannot rewrite the review verdict.
+- [ ] 1.4 Publish the paired module payloads through the repository release generators. Version module manifests, update `CHANGELOG.md`, `registry/index.json`, generated archives/checksums/signatures, and record immutable commit/tree, package/report-schema versions, manifest integrity, signer/signature identities, and passing package/signature/registry verification evidence.
 
 ## 2. Core failing tests — tests before implementation, each task at most two hours
 
@@ -42,10 +42,10 @@
 
 - [ ] 4.1 Run focused tests, strict OpenSpec validation, workflow lint, type/lint/contract checks, and full Code Review with explicit base/head scope.
 - [ ] 4.2 After implementation, add a separate passing-after section to `TDD_EVIDENCE.md` with timestamps, exact commands, actual results, behavioral summaries, environment limitations, and artifact identities.
-- [ ] 4.3 Update user documentation to distinguish current-run evidence from bounded historical proof.
+- [ ] 4.3 Create or update `docs/guides/requirements-evidence.md` to distinguish current-run evidence from bounded historical proof; update `docs/index.md` and `docs/_layouts/default.html` only when needed to expose the guide, and regenerate `llms.txt` through the existing docs generator rather than hand-editing it.
 - [ ] 4.4 Merge the completed implementation to `dev`; do not archive R07 until the correction is released and observed for one delivery cycle.
-- [ ] 4.5 Before archiving R07, archive `requirements-06-evidence-enforcement` with the OpenSpec CLI in a disposable verification checkout, then verify this exact-name `MODIFIED` delta leaves one canonical delivery-gate requirement rather than a duplicate.
-- [ ] 4.6 After the correction is released and observed for one delivery cycle, archive R07 with the OpenSpec CLI from a dedicated follow-up worktree and verify the canonical delivery-gate requirement remains singular.
+- [ ] 4.5 Before archiving R07, from the repository root in a disposable verification worktree run exactly `openspec archive requirements-06-evidence-enforcement`, then verify this exact-name `MODIFIED` delta leaves one canonical delivery-gate requirement rather than a duplicate. Do not move an OpenSpec directory manually.
+- [ ] 4.6 After the correction is released and observed for one delivery cycle, from the repository root in a dedicated follow-up worktree run exactly `openspec archive requirements-07-runtime-proof-delivery` and verify the canonical delivery-gate requirement remains singular. Do not move a directory into `openspec/changes/archive/` manually.
 - [ ] 4.7 Merge checklist follow-up: update `wiki/sources/requirements-07-runtime-proof-delivery.md` (`depends-on`, `blocks`, `external-deps`, `status`, and summary) and run `python3 scripts/wiki_rebuild_graph.py` from the `specfact-cli-internal` repository root.
 - [ ] 4.8 After each implementation or archive PR merges, remove its worktree, delete its local feature branch, run `git worktree prune`, and record the worktree-policy self-check.
 
@@ -55,6 +55,7 @@
 - Do not add AST rules for imports, plugins, configuration, data files, aliases, mutations, namespaces, symlinks, or dynamic execution.
 - Do not mark a skipped, failed, unresolved, or missing tool result as pass/no-impact.
 - Do not modify unrelated security, dependency-trust, safe-write, or smart-coverage tooling.
+- Do not manually move directories into `openspec/changes/archive/`; use the exact repository-root `openspec archive <change-id>` commands above.
 
 ## Closed implementation allowlist
 
@@ -73,6 +74,21 @@ Tests:
 - `tests/unit/scripts/test_requirements_evidence_delivery_gate.py`.
 - `tests/unit/scripts/test_requirements_proof_executor.py`: conditional only when the executor changes.
 - No new R07 test module.
+
+Adoption documentation:
+
+- `docs/guides/requirements-evidence.md`: canonical current-execution versus chronology guide; create if absent.
+- `docs/index.md` and `docs/_layouts/default.html`: link/navigation only when the new guide is otherwise undiscoverable.
+- `llms.txt`: generated from accepted docs only through the existing generator; never hand-edit.
+
+Paired modules dependency allowlist — separate repository `nold-ai/specfact-cli-modules`, implemented and reviewed in PR #412 rather than on this core branch:
+
+- Requirements sources: `packages/specfact-requirements/src/specfact_requirements/requirements/lifecycle.py`, `evidence.py`, `commands.py`, new `replay_proof.py`, and `__init__.py` only for intentional exports.
+- Code Review handoff sources: `packages/specfact-code-review/src/specfact_code_review/run/commands.py` and `findings.py` only.
+- Focused tests: `tests/unit/specfact_requirements/test_requirements_lifecycle.py`, new `test_requirements_replay_proof.py`, `test_requirements_evidence.py`, `tests/integration/specfact_requirements/test_command_apps.py`, `tests/unit/specfact_code_review/run/test_commands.py`, and `test_findings.py`.
+- Release/docs sources: `docs/bundles/requirements/overview.md`, `packages/specfact-requirements/module-package.yaml`, and `packages/specfact-code-review/module-package.yaml` only when its proof-context payload changes.
+- Generated publication outputs, only through existing generators after behavior passes: `registry/index.json`, `registry/modules/specfact-requirements-<version>.tar.gz`, its `.sha256`, `registry/signatures/specfact-requirements-<version>.tar.sig`, and equivalent Code Review artifacts when that payload changes; include `CHANGELOG.md` and generated command docs required by module policy.
+- No core implementation file is authorized by this companion allowlist, and no companion file is authorized by the core allowlist above.
 
 Explicitly forbidden:
 

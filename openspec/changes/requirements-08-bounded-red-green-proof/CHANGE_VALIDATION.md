@@ -25,4 +25,5 @@ The proposal, design, scenarios, bounded tasks, non-goals, and rollback path are
 - Failing tests have not been written or recorded.
 - No enforced network-isolation policy or verifier policy epoch exists.
 - No benchmark result has been produced by the proposed replay runner.
+- Issue #675 exists with the required labels and assignee, but its requested User Story type and project assignment must be verified before implementation because the current connector cannot update project fields.
 - The internal-wiki follow-up in `tasks.md` remains incomplete.

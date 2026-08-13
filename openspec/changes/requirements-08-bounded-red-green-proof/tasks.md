@@ -12,7 +12,7 @@ All implementation tasks are intentionally small (target: at most two hours) and
 
 - [ ] B.1 Create a dedicated implementation worktree and feature branch from current `origin/dev`; do not implement from the primary, `dev`, or `main` checkout.
 - [ ] B.2 Run `hatch env create`, then `hatch run smart-test-status` and `hatch run contract-test-status` in the worktree; record and resolve unexpected baseline failures before edits.
-- [ ] B.3 Run the change-specific strict OpenSpec command and confirm the accepted specs, dependencies, signed-module prerequisites, and closed file allowlist still match repository reality.
+- [ ] B.3 Run the change-specific strict OpenSpec command; confirm issue #675 remains open with parent Feature #374, requested User Story type, required labels/project assignment, accepted specs/dependencies, signed-module prerequisites, and both repository-specific closed allowlists. Stop before implementation if project/type metadata cannot be verified.
 - [ ] B.4 Follow `spec -> tests -> failing evidence -> code -> passing evidence`; in `TDD_EVIDENCE.md`, record separate failing-before and passing-after sections with exact commands, timestamps, actual results, behavioral summaries, environment limitations, and artifact identities. Record passing evidence only after implementation.
 - [ ] B.5 Before PR finalization, run the required format, type, lint, YAML, contract, focused/full test, workflow, independent-analysis, signature, and explicit base/head Code Review gates; resolve every finding or document an approved exception.
 - [ ] B.6 After each merge, remove the implementation worktree, delete its local feature branch, run `git worktree prune`, and complete an explicit `AGENTS.md` worktree/policy self-check. Archive only from a dedicated follow-up worktree when the stated dependency, release, and rollout gates are complete.
@@ -21,7 +21,7 @@ All implementation tasks are intentionally small (target: at most two hours) and
 
 - [ ] 1.1 Implement independent current-execution and chronology states in the paired modules R07/R08 changes.
 - [ ] 1.2 Implement the versioned B/R/H/D replay-capsule schema and validation contracts: core supplies Git/execution facts; modules validate schema/hash/transition/outcome facts without running Git or tests.
-- [ ] 1.3 Publish a signed module release and record its immutable repository commit/tree, package version, capsule-schema version, manifest integrity, and signature identities.
+- [ ] 1.3 Publish the paired Requirements payload through the modules repository release generators. Version `packages/specfact-requirements/module-package.yaml`, update `CHANGELOG.md` and `registry/index.json`, generate the versioned archive/checksum/signature under `registry/modules/` and `registry/signatures/`, and record immutable commit/tree, package/capsule-schema versions, manifest integrity, signer/signature identities, and passing package/signature/registry verification evidence.
 
 ## 2. Failing tests first
 
@@ -31,14 +31,15 @@ All implementation tasks are intentionally small (target: at most two hours) and
 - [ ] 2.4 In `tests/unit/scripts/test_requirements_proof_provenance.py`, add shallow-history, invalid-ref, checkout-failure, missing-artifact, and rename-endpoint cases; execution timeout and selector-mismatch cases may additionally use `tests/integration/scripts/test_requirements_red_green_replay.py`.
 - [ ] 2.5 In `tests/unit/scripts/test_requirements_proof_provenance.py`, add a failing bootstrap test proving verifier/policy self-changes cannot self-attest.
 - [ ] 2.6 In `tests/unit/workflows/test_requirements_evidence_delivery_workflow.py`, add `test_replay_capsule_requires_trusted_module_and_epoch`, rejecting an unreleased/mismatched signed-module identity, capsule schema, or verifier epoch before chronology enforcement.
-- [ ] 2.7 Before production edits, add a failing-before section to `TDD_EVIDENCE.md` with timestamps, exact commands, actual results, behavioral summaries, environment limitations, and artifact identities.
+- [ ] 2.7 Before accepting R, update `requirements-evidence.yaml` under the paired released mapping schema: replace applicable planning-only inspection cases with exact executable test selectors; declare complete `red_setup_touchpoints`, implementation touchpoints, and exact delivery-evidence touchpoints; include this mapping and the governed `TDD_EVIDENCE.md` failing-before record in red setup; then freeze mapping, plan, selector, and path-set digests at R.
+- [ ] 2.8 Before production edits and before accepting R, add the actual failing-before section to `TDD_EVIDENCE.md` with timestamps, exact commands/results, behavioral summary, environment limitations, and artifact identities. This file is an explicitly mapped B..R `failing_tdd_evidence` touchpoint and is frozen from R through H.
 
 ## 3. Minimal implementation
 
 - [ ] 3.1 In `scripts/requirements_proof_provenance.py`, require explicit full-SHA B/R/H/D inputs plus complete declared `red_setup_touchpoints`, implementation touchpoints, and exact `delivery_evidence_touchpoints`. Validate D equals the current delivery head, H is its ancestor or equal, and every identity is full length; do not auto-discover R or substitute another green/delivery endpoint.
 - [ ] 3.2 In `scripts/requirements_proof_provenance.py`, implement ancestry and all three closed B..R, R..H, and H..D changed-path/rename-endpoint validators. Do not parse Python AST.
 - [ ] 3.3 In `scripts/requirements_proof_provenance.py`, implement isolated worktree replay for R, H, and distinct D with identical bounded subprocess arguments and enforced network-isolation evidence; reuse H as D only when the SHAs are equal. Change `scripts/requirements_proof_executor.py` only if the existing seam demonstrably cannot support explicit worktree/output inputs.
-- [ ] 3.4 In `scripts/requirements_proof_provenance.py`, produce the versioned B/R/H/D capsule and hand it to the signed Requirements module; bind all three transition manifests, red/green/delivery JUnit, the accepted capsule schema, module identity/signature, network policy, and verifier epoch.
+- [ ] 3.4 In `scripts/requirements_proof_provenance.py`, produce and schema-validate the versioned capsule before handing it to the signed Requirements module. Mandatory fields: B/R/H/D commit and tree identities; B..R, R..H, and H..D path/rename manifests and digests; mapping and plan digests; exact selector list; red, green-checkpoint, and delivery JUnit digests; runner, toolchain, dependency, environment, plugin, and network-policy identities/results; policy/verifier identities and epoch; timestamps and resource bounds; and signed module repository, commit, tree, package, manifest-integrity, signer, and signature identities. Add focused tests that delete or alter each mandatory field and require `unproven`.
 - [ ] 3.5 In `.github/workflows/requirements-evidence.yml` and `tests/unit/workflows/test_requirements_evidence_delivery_workflow.py`, pass explicit B/R/H/D, bind D to the current delivery SHA, wire shadow mode, make unavailable network isolation unproven, and retain all artifacts before enforcement.
 - [ ] 3.6 In `scripts/requirements_proof_provenance.py`, remove or bypass obsolete static pytest-input closure from the authoritative path; prefer deletion over parallel complexity.
 
@@ -50,7 +51,7 @@ All implementation tasks are intentionally small (target: at most two hours) and
 - [ ] 4.4 Establish and document the initial reviewed verifier policy epoch.
 - [ ] 4.5 Run shadow, warning, then strict rollout; record rollback instructions.
 - [ ] 4.6 Merge the completed implementation to `dev` only after the paired signed module release is pinned and all gates pass.
-- [ ] 4.7 After R07 is archived and the R08 strict rollout is accepted, archive R08 with the OpenSpec CLI from a dedicated follow-up worktree and verify the canonical bounded-replay specification.
+- [ ] 4.7 After R07 is archived and the R08 strict rollout is accepted, from the repository root in a dedicated follow-up worktree run exactly `openspec archive requirements-08-bounded-red-green-proof` and verify the canonical bounded-replay specification. Do not move a directory into `openspec/changes/archive/` manually.
 - [ ] 4.8 Merge checklist follow-up: create or update `wiki/sources/requirements-08-bounded-red-green-proof.md` (`depends-on`, `blocks`, `external-deps`, `status`, and summary) and run `python3 scripts/wiki_rebuild_graph.py` from the `specfact-cli-internal` repository root.
 - [ ] 4.9 After each implementation or archive PR merges, remove its worktree, delete its local feature branch, run `git worktree prune`, and record the worktree-policy self-check.
 
@@ -61,14 +62,21 @@ All implementation tasks are intentionally small (target: at most two hours) and
 - Do not reuse retained red artifacts in the strongest replay profile.
 - Do not allow test/config/harness changes after R; require a new R.
 - Do not emit pass/no-impact for missing or unresolved mandatory facts.
+- Do not manually move directories into `openspec/changes/archive/`; use the exact repository-root archive command above.
 
 ## Closed implementation allowlist
 
 Anything not listed here is prohibited unless this OpenSpec change is updated and accepted first.
 
+Pre-red mapping and evidence records:
+
+- `openspec/changes/requirements-08-bounded-red-green-proof/requirements-evidence.yaml`: before R only, add schema-accepted exact selectors plus complete red-setup, implementation, and delivery-evidence declarations; freeze its digest at R.
+- `openspec/changes/requirements-08-bounded-red-green-proof/TDD_EVIDENCE.md`: failing-before section in B..R; frozen R..H; passing-after section only in H..D.
+- `openspec/changes/requirements-08-bounded-red-green-proof/CHANGE_VALIDATION.md`: final implementation validation record only in H..D.
+
 Production/configuration:
 
-- `scripts/requirements_proof_provenance.py`: replace the existing static/AST closure with the small Git-only B/R/H validator, isolated replay orchestration, and attestation builder. Delete the old import/plugin/config/data-read rules; do not add a parallel provenance script.
+- `scripts/requirements_proof_provenance.py`: replace the existing static/AST closure with the small Git-only B/R/H/D validator, isolated replay orchestration, and attestation builder. Delete the old import/plugin/config/data-read rules; do not add a parallel provenance script.
 - `.github/workflows/requirements-evidence.yml`: pass explicit B/R/H/D, bind D to the current delivery SHA, invoke shadow replay, retain red/green/delivery JUnit artifacts and attestation before enforcement, and enforce verifier-epoch bootstrap.
 - `ci/module-fixture.lock.json`: signed R08-capable modules identity only.
 - `scripts/requirements_proof_executor.py`: conditional only when replay cannot use its current public seam; permit explicit worktree root/run-stage/output while preserving argv/environment safety.
@@ -80,6 +88,15 @@ Tests:
 - `tests/unit/workflows/test_requirements_evidence_delivery_workflow.py`: shadow wiring, artifacts-before-enforcement, and epoch bootstrap.
 - `tests/unit/scripts/test_requirements_proof_executor.py`: conditional only when the executor changes.
 - Temporary repositories live inside the named tests; no fixture directory.
+
+Paired modules dependency allowlist — separate repository `nold-ai/specfact-cli-modules`, implemented and reviewed in PR #412 rather than on this core branch:
+
+- Requirements sources: new `packages/specfact-requirements/src/specfact_requirements/requirements/replay_proof.py`; `lifecycle.py`, `evidence.py`, and `commands.py`; `app.py`/`__init__.py` only for required command/export wiring.
+- Focused tests: new `tests/unit/specfact_requirements/test_requirements_replay_proof.py`; `test_requirements_lifecycle.py`, `test_requirements_evidence.py`, and `tests/integration/specfact_requirements/test_command_apps.py`.
+- Code Review provenance handoff, only if the capsule context changes: `packages/specfact-code-review/src/specfact_code_review/run/commands.py`, `findings.py`, and their focused `test_commands.py`/`test_findings.py` tests.
+- Release/docs sources: `docs/bundles/requirements/overview.md`, `packages/specfact-requirements/module-package.yaml`, and `packages/specfact-code-review/module-package.yaml` only when its payload changes.
+- Generated publication outputs, only through existing generators after behavior passes: `registry/index.json`, `registry/modules/specfact-requirements-<version>.tar.gz`, its `.sha256`, `registry/signatures/specfact-requirements-<version>.tar.sig`, `CHANGELOG.md`, and generated command/docs outputs required by module policy.
+- The module validator must not run Git, pytest, subprocesses, or infer Python/pytest dependencies. No core file is authorized by this companion allowlist.
 
 Explicitly forbidden:
 
