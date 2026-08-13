@@ -16,9 +16,12 @@ path-resolution rules — join notations, ``__file__``-relative bases, links —
 that second family. Observing only imports would leave them checked by review alone, which is
 the condition this file exists to end.
 
-The direction is deliberate: this asserts the gate binds at least what pytest touched. It is a
-guard against binding too little. The companion measurement in
-``test_requirements_proof_provenance_repository.py`` guards the other direction.
+Each layout is checked in both directions. The gate must bind everything pytest touched, and it
+must leave alone a production file the run never opened — because a rule that becomes too eager
+rejects valid proofs just as silently as a rule that misses an input accepts stale ones, and a
+layout is the cheapest place to catch either. The whole-repository measurement in
+``test_requirements_proof_provenance_repository.py`` bounds the same two directions over real
+code, where these bound them over shapes chosen to be awkward.
 """
 
 from __future__ import annotations
@@ -39,6 +42,9 @@ PROVENANCE_SCRIPT = REPO_ROOT / "scripts" / "requirements_proof_provenance.py"
 OBSERVER_DIRECTORY = Path(__file__).resolve().parent
 SELECTED_TEST = "tests/test_proof.py"
 SELECTOR = f"{SELECTED_TEST}::test_selected"
+# Added to every layout and touched by none of them. A red-to-green change edits exactly this
+# kind of file, so binding it would reject the proof of the fix it is meant to prove.
+UNTOUCHED_PRODUCTION = "src/product.py"
 
 
 class Layout(NamedTuple):
@@ -175,6 +181,40 @@ LAYOUTS = [
         },
         {"tests/linked": "real_data"},
     ),
+    # Shapes chosen to look like something the gate rejects while reaching nothing it reads.
+    # They carry no helper: the assertion that matters is that the proof stays resolvable and
+    # the untouched production file stays unbound.
+    Layout(
+        # Attribute-backed and keyed by ``__name__``, which is the shape of the module table
+        # without being it. A method is called on the result, so a predicate that matches the
+        # shape rather than the table reads this as a namespace rewrite.
+        "a mapping merely keyed by the module name",
+        {
+            "tests/registry.py": "entries = {}\n",
+            "tests/conftest.py": (
+                "import registry\n\nregistry.entries[__name__] = []\nregistry.entries[__name__].append(1)\n"
+            ),
+        },
+    ),
+    Layout(
+        "a path assembled from a fixture value",
+        {
+            "tests/conftest.py": (
+                "from pathlib import Path\n\nimport pytest\n\n\n@pytest.fixture\n"
+                'def case(tmp_path):\n    target = tmp_path / "tests" / "data" / "case.json"\n'
+                '    target.parent.mkdir(parents=True)\n    target.write_text("{}")\n'
+                "    return target.read_text()\n"
+            ),
+            "tests/data/case.json": '{"expected": false}\n',
+            "tests/test_proof.py": "def test_selected(case) -> None:\n    assert False\n",
+        },
+    ),
+    Layout(
+        "a namespace read that writes nothing",
+        {
+            "tests/conftest.py": 'MARKER = "value"\nCHOSEN = globals()["MARKER"]\n',
+        },
+    ),
 ]
 
 
@@ -207,6 +247,9 @@ def _build_repository(repository: Path, layout: Layout) -> str:
         link = repository / relative
         link.parent.mkdir(parents=True, exist_ok=True)
         link.symlink_to(target)
+    production = repository / UNTOUCHED_PRODUCTION
+    production.parent.mkdir(parents=True, exist_ok=True)
+    production.write_text("VALUE = 0\n", encoding="utf-8")
     selected = repository / SELECTED_TEST
     if SELECTED_TEST not in layout.files:
         selected.parent.mkdir(parents=True, exist_ok=True)
@@ -268,4 +311,8 @@ def test_the_gate_binds_every_file_pytest_actually_used(tmp_path: Path, layout: 
     assert not unbound, (
         f"pytest used these files while the gate bound none of them, so a change to any of "
         f"them after the red source would not invalidate the proof: {unbound}"
+    )
+    assert UNTOUCHED_PRODUCTION not in bound, (
+        "the gate bound a production file this run never opened, so the red-to-green change "
+        "that edits it would invalidate its own proof"
     )

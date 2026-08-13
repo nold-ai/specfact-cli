@@ -3055,3 +3055,69 @@ the cheapest way to close a class, and a layout is four lines.
 
 - **Passing-after:** 13 in the oracle, 689 across the scripts, workflows, and
   integration suites.
+
+## Round 28: three findings, and the check that would have caught one of them
+
+### A mutation receiver read the way an argument already was
+
+`[PLUGINS][0].append("tests.localplugin")` mutates the aliased plugin list, but the rule
+matched only a bare `ast.Name` receiver, so the declaration resolved to no plugins.
+
+- **Failing-first, after a false start worth recording.** The first attempt asserted
+  through a whole proof and **passed while the defect was present**. The dotted
+  literal `"tests.localplugin"` is bound by the dynamic-import rule, so the proof
+  came out stale for an unrelated reason. Driving `_pytest_plugin_names` directly
+  showed the truth: five of six wrapper shapes resolved to `[]` where
+  `stale-red-proof` was required. The lesson is the same one round 25 recorded —
+  a green test is not evidence until you know which rule made it green.
+
+The receiver is now read exactly as an argument already was: every name inside it
+counts, at any nesting. `_call_argument_names` had carried that reasoning since the
+guard work; the receiver simply never received it. A positive control keeps the
+widening honest — a declaration no wrapper touches still resolves.
+
+### Every command, not every call site
+
+Round 23 separated "absent" from "could not answer" for path lookups. A **second**
+cached command kept the conflation: a failed symlink inventory returned an empty
+set, which reads as "this repository has no symlinks", and an import beneath a
+linked directory was skipped rather than rejected.
+
+Rather than fix the reported one, every Git result in the module was audited.
+`_is_ancestor`, `_changed_paths_in_history` and `_blob_digest_at_ref` already fail
+closed. Two did not: the symlink inventory, and `_artifact_is_tracked`, which used
+`ls-files --error-unmatch` — an exit code that means both "untracked" and "could not
+run", so a timeout read as an untracked artifact and a committed proof would have
+been accepted. It now asks for the listing instead, where an answer, an empty
+answer, and a failure are three distinct outcomes.
+
+- **Failing-first.** Both sites returned `[]` and `[]` where `['stale-red-proof']`
+  and `['prior-red-proof-invalid']` were required.
+
+### An over-strictness this work introduced
+
+Review found that `registry.entries[__name__].touch()` was classified as the module
+table purely because the mapping was an attribute and the key was `__name__`, so
+every proof in such a repository was rejected. That predicate was written two rounds
+ago in this change; the finding is against work done here, not against pytest.
+
+The table is now identified as the table — an attribute named `modules` — rather
+than by the shape of the expression around it.
+
+### Making the oracle catch that class
+
+The oracle added in round 26 checks one direction: everything pytest touched must be
+bound. This finding was the other direction, and nothing executable covered it for
+synthetic shapes. Every layout now also asserts that a production file the run never
+opened stays unbound, and three layouts were added whose only purpose is to look
+like something the gate rejects while reaching nothing it reads.
+
+- **Proof the new direction fires.** The first version of the inert layout used a
+  `Name`-keyed mapping and passed against the restored over-strict predicate —
+  the wrong shape, and it proved nothing. Corrected to the attribute-backed form the
+  finding names, it fails against that predicate and passes against the fix. The
+  check was calibrated against the defect rather than assumed to cover it.
+
+- **Whole-repository measurement.** Zero added, zero removed.
+- **Passing-after:** 302 in the provenance file, 16 in the oracle, 702 across the
+  scripts, workflows, and integration suites.

@@ -3643,3 +3643,118 @@ def test_a_package_directory_does_not_become_an_import_root(tmp_path: Path) -> N
     final_ref = _commit(tmp_path, "chore: change a module nothing imports")
 
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
+
+
+# Receivers that still reach the aliased plugin list through a wrapper. The mutation happens to
+# the same object in each, so recognizing only a bare name misses all of them.
+WRAPPED_RECEIVER_SHAPES = (
+    '[PLUGINS][0].append("tests.localplugin")',
+    '(PLUGINS,)[0].append("tests.localplugin")',
+    '{"k": PLUGINS}["k"].append("tests.localplugin")',
+    '(PLUGINS if VERSION else PLUGINS).append("tests.localplugin")',
+    '_identity(PLUGINS).append("tests.localplugin")',
+    '[[PLUGINS]][0][0].append("tests.localplugin")',
+)
+
+
+@pytest.mark.parametrize("mutation", WRAPPED_RECEIVER_SHAPES)
+def test_a_mutation_through_a_wrapped_receiver_is_unverifiable(mutation: str) -> None:
+    """A wrapper around the receiver does not change which object the method mutates.
+
+    The resolver is driven directly rather than through a whole proof, because a dotted literal
+    handed to a call is bound by the dynamic-import rule as well. That masks this defect
+    end-to-end: the proof comes out stale for the wrong reason while the plugin set is still
+    resolved as empty.
+    """
+    module = _load_provenance_module()
+    source = (
+        "VERSION = 1\n\n\ndef _identity(value):\n    return value\n\n\n"
+        f"PLUGINS = []\npytest_plugins = PLUGINS\n{mutation}\n"
+    )
+
+    with pytest.raises(ValueError, match="stale-red-proof"):
+        module._pytest_plugin_names(ast.parse(source))
+
+
+def test_a_declaration_no_wrapper_touches_still_resolves() -> None:
+    """Reading every wrapped name as a mutation would make an ordinary declaration unverifiable."""
+    module = _load_provenance_module()
+    source = 'OTHER = []\npytest_plugins = ["tests.localplugin"]\n[OTHER][0].append("noise")\n'
+
+    assert module._pytest_plugin_names(ast.parse(source)) == [["tests", "localplugin"]]
+
+
+def test_an_ordinary_keyed_lookup_is_not_the_module_table(tmp_path: Path) -> None:
+    """A mapping that merely uses ``__name__`` as a key reaches nothing this gate reads."""
+    module = _load_provenance_module()
+    base_ref, red_proof_path = _repository_with_module_reference(
+        tmp_path, "class _Registry:\n    entries = {__name__: _install}\n\n\n_Registry.entries[__name__]('x')"
+    )
+
+    (tmp_path / "tests" / "localplugin.py").write_text("def pytest_configure(config):\n    config.x = 1\n", "utf-8")
+    final_ref = _commit(tmp_path, "chore: change a plugin nothing declares")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
+
+
+def _failing_git_bytes(module: Any, matches: Any) -> Any:
+    """Return a Git wrapper that reports failure, as a timeout does, for matching commands."""
+    original = module._git_bytes
+
+    def wrapper(repo_root: Path, *arguments: str) -> Any:
+        if matches(arguments):
+            return subprocess.CompletedProcess(["git", *arguments], returncode=1, stdout=b"", stderr=b"")
+        return original(repo_root, *arguments)
+
+    return wrapper
+
+
+@pytest.mark.parametrize(
+    ("description", "matches", "expected"),
+    [
+        (
+            "the symlink inventory",
+            lambda arguments: arguments[:2] == ("ls-tree", "-r"),
+            ["stale-red-proof"],
+        ),
+        (
+            "the tracked-artifact check",
+            lambda arguments: arguments[0] == "ls-files",
+            ["prior-red-proof-invalid"],
+        ),
+    ],
+)
+def test_an_unanswered_git_command_is_never_read_as_an_answer(
+    tmp_path: Path, description: str, matches: Any, expected: list[str]
+) -> None:
+    """Every lookup this gate makes must distinguish a failure from a result."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "__init__.py").write_text("", encoding="utf-8")
+    (tmp_path / "tests" / "conftest.py").write_text("import tests.support\n", encoding="utf-8")
+    (tmp_path / "tests" / "support.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add support")
+    (tmp_path / "tests" / "test_proof.py").write_text("def test_selected() -> None: assert False\n", "utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "product.py").write_text("VALUE = 1\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "feat: change only product source")
+
+    original = module._git_bytes
+    module._git_bytes = _failing_git_bytes(module, matches)
+    try:
+        module._tree_entry_mode_at_ref.cache_clear()
+        module._python_tree_at_ref.cache_clear()
+        module._symlink_paths_at_ref.cache_clear()
+        findings = module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref)
+    finally:
+        module._git_bytes = original
+        module._tree_entry_mode_at_ref.cache_clear()
+        module._symlink_paths_at_ref.cache_clear()
+
+    assert findings == expected, description

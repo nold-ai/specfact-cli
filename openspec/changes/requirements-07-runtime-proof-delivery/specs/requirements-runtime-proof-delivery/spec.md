@@ -219,7 +219,9 @@ retain deterministic JUnit results for module-owned reconciliation.
   checkout, cycles, or resolves to nothing is stale
 - **AND** a lookup Git could not answer, including a timed-out one, is stale
   rather than absent, because treating an unanswered lookup as a missing file
-  leaves the module and everything it imports untraversed
+  leaves the module and everything it imports untraversed; this holds for every
+  command the gate issues, so a failed symlink inventory is not a repository
+  without symlinks and a failed tracked-file listing is not an untracked artifact
 - **AND** the body of a test an exact selection does not run is not traversed,
   provided the selection resolves to functions defined in that module and the
   function's name appears nowhere else in it; fixtures are always traversed,
@@ -303,6 +305,12 @@ retain deterministic JUnit results for module-owned reconciliation.
   one thing seen from different sides; an entry keyed by any other module is
   ordinary test substitution and reaches nothing this gate reads, and a write to a
   `pytest_plugins` attribute is unverifiable wherever it appears
+- **AND** the module table is identified as the table itself rather than by the
+  shape of the expression, so an ordinary mapping that merely uses `__name__` as a
+  key is not read as the running module and does not make its file unverifiable
+- **AND** a mutation is attributed to every name its receiver expression contains,
+  as it already is for the names an argument contains, so wrapping a receiver in a
+  subscript, a literal group, or a call cannot hide which object a method changes
 - **AND** a rewriter is recognized by the guard name it receives rather than by
   the callee's name, so an aliased or wrapped rewriter cannot evade the rule
 - **AND** every rule that asks which name an expression touches resolves that

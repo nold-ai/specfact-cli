@@ -342,10 +342,14 @@ def _symlink_paths_at_ref(repo_root: Path, source_ref: str) -> frozenset[str]:
 
     Collected in one traversal so any candidate path can be tested for a symlinked ancestor
     without another Git call per lookup.
+
+    A failed traversal is not an empty repository. Reporting one would say "no symlinks here"
+    on the strength of a lookup that never ran, and an import beneath a linked directory would
+    be skipped instead of rejected, so an unanswered inventory is stale like any other.
     """
     result = _git(repo_root, "ls-tree", "-r", "--full-tree", source_ref)
     if result.returncode != 0:
-        return frozenset()
+        raise ValueError("stale-red-proof")
     paths: set[str] = set()
     for line in result.stdout.splitlines():
         metadata, _, path = line.partition("\t")
@@ -721,16 +725,31 @@ def _looks_up_this_module(expression: ast.expr) -> bool:
     ordinary test practice and reaches nothing this gate reads.
     """
     if isinstance(expression, ast.Subscript):
-        keyed_by_this_module = isinstance(expression.slice, ast.Name) and expression.slice.id == "__name__"
-        return keyed_by_this_module and isinstance(expression.value, ast.Attribute)
+        return _names_this_module(expression.slice) and _is_module_table(expression.value)
     if not isinstance(expression, ast.Call):
         return False
-    named_this_module = any(
-        isinstance(argument, ast.Name) and argument.id == "__name__" for argument in expression.args
-    )
+    if not any(_names_this_module(argument) for argument in expression.args):
+        return False
     callee = expression.func
-    method = callee.attr if isinstance(callee, ast.Attribute) else getattr(callee, "id", None)
-    return named_this_module and method in MODULE_LOOKUP_FUNCTIONS
+    if isinstance(callee, ast.Attribute) and callee.attr in MODULE_TABLE_LOOKUP_METHODS:
+        return _is_module_table(callee.value)
+    # ``import_module(__name__)`` returns this module whichever module exposes the function.
+    return (callee.attr if isinstance(callee, ast.Attribute) else getattr(callee, "id", None)) == "import_module"
+
+
+def _names_this_module(expression: ast.expr) -> bool:
+    """Return whether an expression is the running module's own name."""
+    return isinstance(expression, ast.Name) and expression.id == "__name__"
+
+
+def _is_module_table(expression: ast.expr) -> bool:
+    """Return whether an expression is the interpreter's table of loaded modules.
+
+    Requiring the table itself keeps an ordinary mapping that merely uses ``__name__`` as a key
+    from being read as the module object, which would reject every proof in a repository whose
+    harness happens to index anything that way.
+    """
+    return isinstance(expression, ast.Attribute) and expression.attr == "modules"
 
 
 def _is_namespace_mapping(expression: ast.expr) -> bool:
@@ -988,15 +1007,15 @@ def _mutated_name_targets(node: ast.AST) -> list[str]:
     A method call, a subscript or attribute write, and a deletion all change the object a
     name is bound to without rebinding the name itself, so a binding copied from it earlier
     still observes the change.
+
+    A receiver is read the way an argument already is: every name inside it is reported, not
+    only a bare one. ``[PLUGINS][0].append(...)`` mutates exactly the object ``PLUGINS`` names,
+    and a rule matching only a direct name misses every wrapper that can carry it there.
     """
     names: list[str] = []
     for child in ast.walk(node):
-        if (
-            isinstance(child, ast.Call)
-            and isinstance(child.func, ast.Attribute)
-            and isinstance(child.func.value, ast.Name)
-        ):
-            names.append(child.func.value.id)
+        if isinstance(child, ast.Call) and isinstance(child.func, ast.Attribute):
+            names.extend(nested.id for nested in ast.walk(child.func.value) if isinstance(nested, ast.Name))
         if isinstance(child, ast.AugAssign) and isinstance(child.target, ast.Name):
             # `x += [...]` extends a list in place, so every alias observes it.
             names.append(child.target.id)
@@ -1247,7 +1266,7 @@ def _discovered_rooted_paths(
     }
 
 
-MODULE_LOOKUP_FUNCTIONS = frozenset({"get", "setdefault", "import_module"})
+MODULE_TABLE_LOOKUP_METHODS = frozenset({"get", "setdefault"})
 # Import modes that put a test file's own directory on sys.path. ``prepend`` is pytest's default.
 PREPENDING_IMPORT_MODES = frozenset({"prepend", "append"})
 PATH_JOIN_METHODS = frozenset({"join", "joinpath"})
@@ -1723,12 +1742,20 @@ def _validate_retained_red_junit(red_proof_path: Path, report: dict[str, object]
 
 
 def _artifact_is_tracked(repo_root: Path, artifact_path: Path) -> bool:
-    """Return whether an artifact is controlled by the pull-request Git tree."""
+    """Return whether an artifact is controlled by the pull-request Git tree.
+
+    ``ls-files --error-unmatch`` exits non-zero both for an untracked path and for a command
+    that could not run, so the two are separated by asking for the listing instead: an answer
+    naming the path means tracked, an empty answer means untracked, and a failure is neither.
+    """
     try:
         relative_path = artifact_path.resolve().relative_to(repo_root.resolve())
     except ValueError:
         return False
-    return _git(repo_root, "ls-files", "--error-unmatch", "--", relative_path.as_posix()).returncode == 0
+    result = _git(repo_root, "ls-files", "--", relative_path.as_posix())
+    if result.returncode != 0:
+        raise ValueError("prior-red-proof-invalid")
+    return bool(result.stdout.strip())
 
 
 def _is_ancestor(repo_root: Path, ancestor: str, descendant: str) -> bool:
@@ -1950,10 +1977,13 @@ def _proof_inputs(
 )
 def validate_prior_red_proof(red_proof_path: Path, repo_root: Path, *, base_ref: str, final_ref: str) -> list[str]:
     """Return deterministic findings when a red report cannot prove failing-first order."""
-    if _artifact_is_tracked(repo_root, red_proof_path) or _artifact_is_tracked(
-        repo_root, red_proof_path.with_suffix(".xml")
-    ):
-        return ["prior-red-proof-invalid"]
+    try:
+        if _artifact_is_tracked(repo_root, red_proof_path) or _artifact_is_tracked(
+            repo_root, red_proof_path.with_suffix(".xml")
+        ):
+            return ["prior-red-proof-invalid"]
+    except ValueError as error:
+        return [str(error)]
     try:
         report = _read_red_proof(red_proof_path)
         _validate_retained_red_junit(red_proof_path, report)
