@@ -35,5 +35,6 @@ At implementation finalization this file SHALL record validation scope and impac
 - Failing tests, exact selectors, and failing-before evidence have not been written or recorded.
 - No enforced network-isolation policy or verifier policy epoch exists.
 - No benchmark result has been produced by the proposed replay runner.
-- Issue #675 exists with the required labels and assignee, but its requested User Story type and project assignment must be verified before implementation because the current connector cannot update project fields.
+- Issue #675 exists with the required labels and assignee, but its requested User Story type, actual parent relation, project assignment/status, and concurrency state must be verified before implementation because the current connector cannot update project fields.
+- Issue #675 currently records no GitHub blocker relationship. Before implementation, it must explicitly record and verify the corrected R07 current-run prerequisite (#662) and the paired signed modules R08 release tracked by modules issue #414/PR #412; missing or ambiguous dependency links are a stop condition.
 - The internal-wiki follow-up in `tasks.md` remains incomplete.
