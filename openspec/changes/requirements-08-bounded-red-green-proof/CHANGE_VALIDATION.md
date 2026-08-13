@@ -17,7 +17,9 @@ The proposal, design, scenarios, bounded tasks, non-goals, and rollback path are
 
 ## Planning sources and constraints
 
-- Applied sources: `AGENTS.md`, `openspec/config.yaml`, and `docs/agent-rules/40-openspec-and-tdd.md`, `50-github-project-management.md`, and `70-release-commit-and-docs.md`.
+- Applied sources: `AGENTS.md`, `openspec/config.yaml`, and `docs/agent-rules/40-openspec-and-tdd.md`, `60-github-change-governance.md`, and `70-release-commit-and-docs.md`.
+- GitHub governance check, live-read 2026-08-13T21:49:59Z: issue #675 exists and is open; labels are `enhancement`, `openspec`, and `change-proposal`; assignee is `djm81`; no blocker relationship is recorded. The ephemeral hierarchy cache was unavailable in this connector-only workspace, so the documented live-GitHub fallback was used.
+- Unverified stop conditions: issue type, actual parent relationship, project assignment, and project status/concurrency are not exposed or not set in the returned issue metadata. Task B.3 stops implementation until a fresh cache/project check verifies them.
 - Internal wiki: unavailable in this workspace; `tasks.md` requires the exact source-page and graph-rebuild follow-up.
 - Affected planning files: `.openspec.yaml`, `README.md`, `proposal.md`, `design.md`, `tasks.md`, `CHANGE_VALIDATION.md`, `TDD_EVIDENCE.md`, `requirements-evidence.yaml`, and the R08 delta specification.
 - Excluded or unavailable dependencies: signed immutable modules R08 release/fixture, accepted capsule-schema version, approved signing-key/trust-root identity, promoted verifier epoch, internal-wiki checkout, and benchmark corpus results.
