@@ -29,7 +29,8 @@
 - [ ] 2.2 Add `test_missing_historical_proof_retains_current_run_observation`. Allowed file: `tests/unit/scripts/test_requirements_evidence_delivery_gate.py`.
 - [ ] 2.3 Add `test_unresolved_current_run_cannot_be_pass_or_no_impact`, covering missing scope, missing JUnit, timeout, and tool failure. Allowed file: `tests/unit/scripts/test_requirements_evidence_delivery_gate.py`.
 - [ ] 2.4 Add `test_unverified_fixture_identity_fails_before_module_execution`, rejecting mismatched repository, commit, tree, package, report-schema, manifest-integrity, signature, or clean-state identity with field-specific diagnostics. Allowed file: `tests/unit/workflows/test_requirements_evidence_delivery_workflow.py`.
-- [ ] 2.5 Record the exact failing commands, timestamps, actual results, behavioral summaries, environment limitations, and artifact identities in the failing-before section of `TDD_EVIDENCE.md` before production edits.
+- [ ] 2.5 Before any production edit, update `requirements-evidence.yaml` under the paired released mapping schema: convert `R07-CORE-009-S01` from inspection to `tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_current_run_pass_is_not_labelled_passing_after_red`, convert `R07-CORE-009-S02` from inspection to `tests/unit/scripts/test_requirements_evidence_delivery_gate.py::test_missing_historical_proof_retains_current_run_observation`, verify both exact selectors collect once, and freeze the accepted mapping and plan digests. Do not invent selectors on this planning-only branch.
+- [ ] 2.6 Record the exact failing commands, timestamps, actual results, behavioral summaries, environment limitations, and artifact identities in the failing-before section of `TDD_EVIDENCE.md` before production edits.
 
 ## 3. Core implementation — each task at most two hours
 
@@ -60,6 +61,12 @@
 ## Closed implementation allowlist
 
 Anything not listed here is prohibited unless this OpenSpec change is updated and accepted first.
+
+OpenSpec mapping and evidence records:
+
+- `openspec/changes/requirements-07-runtime-proof-delivery/requirements-evidence.yaml`: before production edits only, convert `R07-CORE-009-S01` and `R07-CORE-009-S02` to the exact selectors named in task 2.5 and freeze the accepted mapping/plan digests.
+- `openspec/changes/requirements-07-runtime-proof-delivery/TDD_EVIDENCE.md`: add failing-before evidence after the named tests fail and before production edits; add a separate passing-after section only after implementation passes.
+- `openspec/changes/requirements-07-runtime-proof-delivery/CHANGE_VALIDATION.md`: final corrected implementation validation only after the implementation and all required gates complete.
 
 Production/configuration:
 
