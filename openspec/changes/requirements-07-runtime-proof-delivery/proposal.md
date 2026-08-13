@@ -43,6 +43,7 @@ That stronger claim caused the gate to grow into a static approximation of pytes
 - **GitHub Issue**: [#662](https://github.com/nold-ai/specfact-cli/issues/662)
 - **Parent Feature**: [#374](https://github.com/nold-ai/specfact-cli/issues/374)
 - **Parent Epic**: [#258](https://github.com/nold-ai/specfact-cli/issues/258)
+- **Extends**: `requirements-06-evidence-enforcement`; archive R06 first, then apply this exact-name `MODIFIED` delta.
 - **Paired Modules Change**: corrected `requirements-07-scenario-runtime-proof`
 - **Follow-up**: `requirements-08-bounded-red-green-proof`
 - **Planning correction date**: 2026-08-13

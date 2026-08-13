@@ -34,6 +34,8 @@
 - [ ] 4.2 Update `TDD_EVIDENCE.md` with passing commands and artifact identities.
 - [ ] 4.3 Update user documentation to distinguish current-run evidence from bounded historical proof.
 - [ ] 4.4 Merge the completed implementation to `dev`; do not archive R07 until the correction is released and observed for one delivery cycle.
+- [ ] 4.5 Before archiving R07, archive `requirements-06-evidence-enforcement` with the OpenSpec CLI in a disposable verification checkout, then verify this exact-name `MODIFIED` delta leaves one canonical delivery-gate requirement rather than a duplicate.
+- [ ] 4.6 Merge checklist follow-up: update `wiki/sources/requirements-07-runtime-proof-delivery.md` (`depends-on`, `blocks`, `external-deps`, `status`, and summary) and run `python3 scripts/wiki_rebuild_graph.py` from the `specfact-cli-internal` repository root.
 
 ## Prohibited shortcuts
 

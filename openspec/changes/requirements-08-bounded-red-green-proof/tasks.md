@@ -16,21 +16,21 @@ All implementation tasks are intentionally small (target: at most two hours) and
 
 ## 2. Failing tests first
 
-- [ ] 2.1 Create temporary-Git-repository tests for valid B < R < H and invalid ancestry. Allowed path: one new focused unit test module.
-- [ ] 2.2 Add failing tests for B..R production changes and R..H undeclared/test/config/harness changes. Allowed path: the same focused unit test module.
-- [ ] 2.3 Add failing integration tests proving exact failure at R and exact pass at H under identical selectors. Allowed path: one new integration test module.
-- [ ] 2.4 Add failing tests for shallow history, invalid refs, checkout failure, timeout, missing JUnit, selector mismatch, and rename endpoints.
-- [ ] 2.5 Add a failing bootstrap test proving verifier/policy self-changes cannot self-attest.
+- [ ] 2.1 In `tests/unit/scripts/test_requirements_proof_provenance.py`, replace obsolete static-closure cases with temporary-Git-repository tests for valid B < R < H and invalid ancestry.
+- [ ] 2.2 In `tests/unit/scripts/test_requirements_proof_provenance.py`, add failing tests for B..R production changes and R..H undeclared/test/config/harness changes.
+- [ ] 2.3 In exactly `tests/integration/scripts/test_requirements_red_green_replay.py`, add failing integration tests proving exact failure at R and exact pass at H under identical selectors.
+- [ ] 2.4 In `tests/unit/scripts/test_requirements_proof_provenance.py`, add shallow-history, invalid-ref, checkout-failure, missing-artifact, and rename-endpoint cases; execution timeout and selector-mismatch cases may additionally use `tests/integration/scripts/test_requirements_red_green_replay.py`.
+- [ ] 2.5 In `tests/unit/scripts/test_requirements_proof_provenance.py`, add a failing bootstrap test proving verifier/policy self-changes cannot self-attest.
 - [ ] 2.6 Record commands and expected failures in `TDD_EVIDENCE.md` before production edits.
 
 ## 3. Minimal implementation
 
-- [ ] 3.1 Add an explicit full-SHA red reference to the accepted checkpoint input. Do not auto-discover R.
-- [ ] 3.2 Implement ancestry and changed-path-set validation. Do not parse Python AST.
-- [ ] 3.3 Implement isolated worktree replay for R and H with identical bounded subprocess arguments.
-- [ ] 3.4 Implement attestation construction and module reconciliation handoff.
-- [ ] 3.5 Wire the workflow in shadow mode and retain all artifacts before enforcement.
-- [ ] 3.6 Remove or bypass obsolete static pytest-input closure from the authoritative path; prefer deletion over parallel complexity.
+- [ ] 3.1 In `scripts/requirements_proof_provenance.py`, add an explicit full-SHA red reference to the accepted checkpoint input. Do not auto-discover R.
+- [ ] 3.2 In `scripts/requirements_proof_provenance.py`, implement ancestry and changed-path-set validation. Do not parse Python AST.
+- [ ] 3.3 In `scripts/requirements_proof_provenance.py`, implement isolated worktree replay for R and H with identical bounded subprocess arguments; change `scripts/requirements_proof_executor.py` only if the existing seam demonstrably cannot support explicit worktree/output inputs.
+- [ ] 3.4 In `scripts/requirements_proof_provenance.py`, implement attestation construction and module reconciliation handoff.
+- [ ] 3.5 In `.github/workflows/requirements-evidence.yml` and `tests/unit/workflows/test_requirements_evidence_delivery_workflow.py`, wire shadow mode and retain all artifacts before enforcement.
+- [ ] 3.6 In `scripts/requirements_proof_provenance.py`, remove or bypass obsolete static pytest-input closure from the authoritative path; prefer deletion over parallel complexity.
 
 ## 4. Verification and rollout
 
@@ -38,6 +38,7 @@ All implementation tasks are intentionally small (target: at most two hours) and
 - [ ] 4.2 Run strict OpenSpec, workflow lint, focused/full tests, contracts, static analysis, and explicit base/head Code Review.
 - [ ] 4.3 Establish and document the initial reviewed verifier policy epoch.
 - [ ] 4.4 Run shadow, warning, then strict rollout; record rollback instructions.
+- [ ] 4.5 Merge checklist follow-up: create or update `wiki/sources/requirements-08-bounded-red-green-proof.md` (`depends-on`, `blocks`, `external-deps`, `status`, and summary) and run `python3 scripts/wiki_rebuild_graph.py` from the `specfact-cli-internal` repository root.
 
 ## Prohibited shortcuts
 
