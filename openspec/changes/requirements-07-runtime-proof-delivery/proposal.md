@@ -41,10 +41,18 @@ That stronger claim caused the gate to grow into a static approximation of pytes
 
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: [#662](https://github.com/nold-ai/specfact-cli/issues/662)
+- **Repository**: `nold-ai/specfact-cli`
+- **Issue Type**: User Story
+- **Last Synced Status**: open, live-read 2026-08-13T21:49:59Z
+- **Assignee**: `djm81`
+- **Labels**: `enhancement`, `openspec`, `change-proposal`
+- **Project Assignment / Project Status**: not exposed by the current connector; implementation is blocked until a fresh hierarchy-cache/project check verifies both and rules out concurrent work.
 - **Parent Feature**: [#374](https://github.com/nold-ai/specfact-cli/issues/374)
 - **Parent Epic**: [#258](https://github.com/nold-ai/specfact-cli/issues/258)
+- **Blocked By**: [specfact-cli-modules#368](https://github.com/nold-ai/specfact-cli-modules/issues/368), closed/completed; the corrected signed release planned by modules PR #412 is the remaining implementation dependency.
+- **Concurrency**: no current project status was available to prove whether #662 is already in progress; task B.3 is a mandatory stop condition before implementation.
 - **Extends**: `requirements-06-evidence-enforcement`; archive R06 first, then apply this exact-name `MODIFIED` delta.
-- **Paired Modules Change**: corrected `requirements-07-scenario-runtime-proof`
+- **Paired Modules Change**: corrected `requirements-07-scenario-runtime-proof` and [modules PR #412](https://github.com/nold-ai/specfact-cli-modules/pull/412)
 - **Follow-up**: `requirements-08-bounded-red-green-proof`
 - **Planning correction date**: 2026-08-13
 
