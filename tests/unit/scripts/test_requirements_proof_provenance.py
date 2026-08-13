@@ -3095,3 +3095,24 @@ def test_a_read_that_cannot_be_resolved_does_not_fail_the_proof(tmp_path: Path) 
     final_ref = _commit(tmp_path, "chore: change data nothing reads")
 
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
+
+
+@pytest.mark.parametrize(
+    "literal",
+    [
+        "tests/data/case.json\x00truncated",
+        "tests/data/case.json\tinjected",
+        "tests/data/case.json\ninjected",
+        "tests/../src/product.py",
+    ],
+)
+def test_a_literal_that_cannot_name_a_committed_path_is_discarded(tmp_path: Path, literal: str) -> None:
+    """Arbitrary strings become Git arguments, and a null byte cannot even reach a subprocess."""
+    module = _load_provenance_module()
+    body = f"CASE = Path({literal!r}).read_text()"
+    base_ref, red_proof_path = _repository_with_data_read(tmp_path, body)
+
+    (tmp_path / "tests" / "data" / "case.json").write_text('{"expected": true}\n', encoding="utf-8")
+    final_ref = _commit(tmp_path, "chore: change data the malformed literal does not name")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []

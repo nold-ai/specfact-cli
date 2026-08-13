@@ -2694,3 +2694,70 @@ blocks all valid work.
   That is what carried the comprehension shape without a second rule, and it keeps
   the module-name and path rules from drifting apart.
 - **Passing-after:** 229 passed in the provenance file.
+
+## Round 22: the over-strictness axis, measured by the suite instead of by hand
+
+Every test in the provenance suite states what the gate must bind. None stated what
+it must not, and that is the axis where this work has failed hardest: a rule that
+binds too much satisfies every positive expectation while rejecting valid proofs.
+One round widened a guard rule and rejected every proof on this repository; it was
+caught only because a whole-repository measurement was run by hand before pushing.
+That manual step was the entire safety net, and it depended on remembering it.
+
+`tests/integration/scripts/test_requirements_proof_provenance_repository.py` runs
+the measurement as part of the suite. It resolves the proof inputs once for all 333
+committed selectors and asserts four things:
+
+- no file under `src/specfact_cli/` is ever an input, stated separately by name so
+  it cannot be weakened by appending to an exception list;
+- every bound file outside the test tree is one of four recorded exceptions, each
+  something pytest genuinely loads — the executor's `-p` plugin and three modules
+  imported directly by the tests that exercise them;
+- the set stays proportional to the selectors, which catches a rule that pulls in
+  whole directories while staying inside the test tree, where the check above
+  cannot see it;
+- the selectors are still bound themselves, because restraint is only evidence
+  while the gate still resolves what it must.
+
+Failures name the offending paths, since the fix is always to narrow the rule that
+bound them.
+
+- **Proof that the guard fires.** The gate was mutated to the variant this work had
+  already rejected once — bind every committed path a reachable body names — and
+  the measurement failed on the mutation, listing all eight bound
+  `src/specfact_cli/**` modules and 105 files outside the test tree. Reverted, it
+  passes. A guard that has never failed is not evidence, so this was run rather
+  than assumed.
+
+### A latent crash the mutation exposed
+
+Running the mutation raised `ValueError: embedded null byte` out of the middle of
+the gate rather than failing an assertion. Path literals were handed to Git
+unvalidated, and this repository already contains a literal of that class —
+`tests/test_proof.py::test_selected\tinjected` in the executor's own tests. A
+literal beginning `tests/` and containing a null byte passed the harness check and
+reached the subprocess, where it cannot be passed at all.
+
+- **Failing-before evidence.** Against the pre-fix module,
+  `_literal_path_candidates` produced `'tests/data/case.json\x00truncated'`, it
+  passed `_is_harness_path`, and handing it to Git raised `ValueError`.
+
+`_names_a_repository_path` now discards a literal carrying a control character or a
+traversal segment before it becomes a Git argument. Four shapes are locked: a null
+byte, a tab, a newline, and `tests/../src/product.py`, which would otherwise have
+named product source through the harness prefix.
+
+### Correction to the round 21 figures
+
+Round 21 recorded 217 and 2785 inputs. Those were measured before the final
+`_handed_over_expressions` refactor in that same round and were not re-measured
+after it. At the committed head the figures are **219 and 2787**. The delta the
+round claimed is unchanged and remains the substantive result: 9 candidates added,
+0 removed, of which exactly 2 exist —
+`scripts/requirements_proof_pytest_plugin.py` and
+`tests/fixtures/keys/test_private_key.pem`, one per finding. Absolute totals also
+move as the repository moves, because the gate reads the committed tree, which is
+why the automated measurement asserts structure rather than a pinned count.
+
+- **Passing-after:** 233 passed in the provenance file, 4 in the repository
+  measurement.

@@ -1156,7 +1156,20 @@ def _literal_path_candidates(tree: ast.AST, current_path: str) -> list[str]:
         candidates.extend(itertools.chain.from_iterable(_literal_strings(argument) for argument in handed_over))
         if isinstance(node, ast.BinOp) and (joined := _joined_path_literal(node)) is not None:
             candidates.append(joined)
-    return [candidate.strip("/") for candidate in candidates if candidate.strip("/")]
+    return [stripped for candidate in candidates if _names_a_repository_path(stripped := candidate.strip("/"))]
+
+
+def _names_a_repository_path(candidate: str) -> bool:
+    """Return whether a literal could name a committed repository path at all.
+
+    Arbitrary strings reach here — a selector fixture, a shell fragment, a message — and they
+    are handed to Git as arguments. A control character cannot appear in a committed path, and
+    a null byte cannot even be passed to a subprocess, so such a literal is discarded before it
+    becomes a Git argument rather than raising out of the middle of the gate.
+    """
+    if not candidate or ".." in PurePosixPath(candidate).parts:
+        return False
+    return not any(character < " " or character == "\x7f" for character in candidate)
 
 
 def _harness_directories(selector_paths: Sequence[str]) -> tuple[str, ...]:

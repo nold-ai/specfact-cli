@@ -202,6 +202,14 @@ retain deterministic JUnit results for module-owned reconciliation.
   unbound, and a path assembled at runtime binds nothing rather than failing the
   proof, because a harness that writes into a temporary directory is not evidence
   of anything stale
+- **AND** a literal that cannot name a committed path, because it carries a
+  control character or a traversal segment, is discarded before it becomes a Git
+  argument, so an arbitrary string in a test fixture cannot raise out of the gate
+- **AND** the resolved input set is measured against this repository so the rule
+  family is held to what it must not bind as well as what it must: no product
+  source is ever an input, every bound file outside the test tree is a recorded
+  exception, and the set stays proportional to the selectors, because a rule that
+  binds too much satisfies every positive expectation while rejecting valid proofs
 - **AND** only the final possible `pytest_plugins` binding is bound, because an
   assignment a later one overwrites never loads, and a name bound only inside a
   function, lambda, or class body does not rebind a module-level guard
