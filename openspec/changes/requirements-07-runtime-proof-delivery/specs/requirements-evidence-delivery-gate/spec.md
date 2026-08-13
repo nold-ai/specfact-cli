@@ -2,7 +2,7 @@
 
 ### Requirement: Requirements evidence delivery enforcement
 
-The core CLI SHALL enforce the reviewed, immutable Requirements module release before Code Review and contract delivery gates. It SHALL verify the exact fixture identity before module execution, invoke released commands through an explicit non-secret environment allowlist, retain every current-run Requirements artifact produced by the reached stages, and enforce Requirements and Code Review decisions independently.
+The core CLI SHALL enforce the reviewed, immutable Requirements module release before Code Review and contract delivery gates. It SHALL verify the exact fixture identity before importing or invoking module code, invoke released commands through an explicit non-secret environment allowlist, retain every current-run Requirements artifact produced by the reached stages, and enforce Requirements and Code Review decisions independently. The executable identity check SHALL cover repository, commit, tree, package version, manifest integrity, signature, accepted report-schema version, and clean-state identity; every mismatch SHALL retain an actionable field-specific diagnostic.
 
 #### Scenario: Reject an unverified or mutable fixture
 
@@ -39,7 +39,9 @@ The core CLI SHALL enforce the reviewed, immutable Requirements module release b
 - **WHEN** the pull-request workflow reaches its terminal policy step
 - **THEN** it has already uploaded the plan, JUnit when produced, Requirements JSON and Markdown, and Code Review JSON when review execution is reached
 - **AND** the summary identifies which independent claim failed or remained unresolved
-- **AND** a blocking verdict fails delivery only after its available artifacts are retained.
+- **AND** missing or unresolved scope, missing required JUnit or evidence, planning/execution timeout or failure, reconciliation failure, or required-tool failure produces an explicit unresolved Requirements verdict and non-zero exit only after available artifacts are retained
+- **AND** any other blocking Requirements verdict likewise fails delivery only after its available artifacts are retained
+- **AND** Code Review cannot overwrite or downgrade an unresolved Requirements verdict.
 
 #### Scenario: Review is run over an explicit resolved file set
 

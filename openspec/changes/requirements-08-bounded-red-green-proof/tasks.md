@@ -13,9 +13,9 @@ All implementation tasks are intentionally small (target: at most two hours) and
 - [ ] B.1 Create a dedicated implementation worktree and feature branch from current `origin/dev`; do not implement from the primary, `dev`, or `main` checkout.
 - [ ] B.2 Run `hatch env create`, then `hatch run smart-test-status` and `hatch run contract-test-status` in the worktree; record and resolve unexpected baseline failures before edits.
 - [ ] B.3 Run the change-specific strict OpenSpec command and confirm the accepted specs, dependencies, signed-module prerequisites, and closed file allowlist still match repository reality.
-- [ ] B.4 Follow `spec -> tests -> failing evidence -> code -> passing evidence`; record exact failing-before and passing-after commands, timestamps, and artifact identities in `TDD_EVIDENCE.md`.
+- [ ] B.4 Follow `spec -> tests -> failing evidence -> code -> passing evidence`; in `TDD_EVIDENCE.md`, record separate failing-before and passing-after sections with exact commands, timestamps, actual results, behavioral summaries, environment limitations, and artifact identities. Record passing evidence only after implementation.
 - [ ] B.5 Before PR finalization, run the required format, type, lint, YAML, contract, focused/full test, workflow, independent-analysis, signature, and explicit base/head Code Review gates; resolve every finding or document an approved exception.
-- [ ] B.6 After merge and only when the change is complete, archive with the OpenSpec CLI, update the internal-wiki mirror, remove the worktree, prune it, and complete an explicit `AGENTS.md` worktree/policy self-check.
+- [ ] B.6 After each merge, remove the implementation worktree, delete its local feature branch, run `git worktree prune`, and complete an explicit `AGENTS.md` worktree/policy self-check. Archive only from a dedicated follow-up worktree when the stated dependency, release, and rollout gates are complete.
 
 ## 1. Paired modules release
 
@@ -30,11 +30,12 @@ All implementation tasks are intentionally small (target: at most two hours) and
 - [ ] 2.3 In exactly `tests/integration/scripts/test_requirements_red_green_replay.py`, add failing integration tests proving exact failure at R and exact pass at H under identical selectors.
 - [ ] 2.4 In `tests/unit/scripts/test_requirements_proof_provenance.py`, add shallow-history, invalid-ref, checkout-failure, missing-artifact, and rename-endpoint cases; execution timeout and selector-mismatch cases may additionally use `tests/integration/scripts/test_requirements_red_green_replay.py`.
 - [ ] 2.5 In `tests/unit/scripts/test_requirements_proof_provenance.py`, add a failing bootstrap test proving verifier/policy self-changes cannot self-attest.
-- [ ] 2.6 Record commands and expected failures in `TDD_EVIDENCE.md` before production edits.
+- [ ] 2.6 In `tests/unit/workflows/test_requirements_evidence_delivery_workflow.py`, add `test_replay_capsule_requires_trusted_module_and_epoch`, rejecting an unreleased/mismatched signed-module identity, capsule schema, or verifier epoch before chronology enforcement.
+- [ ] 2.7 Before production edits, add a failing-before section to `TDD_EVIDENCE.md` with timestamps, exact commands, actual results, behavioral summaries, environment limitations, and artifact identities.
 
 ## 3. Minimal implementation
 
-- [ ] 3.1 In `scripts/requirements_proof_provenance.py`, add explicit full-SHA B/R/H inputs plus complete declared `red_setup_touchpoints` and implementation-touchpoint sets. Do not auto-discover R.
+- [ ] 3.1 In `scripts/requirements_proof_provenance.py`, require explicit full-SHA B/R/H inputs plus complete declared `red_setup_touchpoints` and implementation-touchpoint sets. Validate H equals the current delivery head identity before replay; an absent, abbreviated, or mismatched H is unproven. Do not auto-discover R or substitute another green endpoint.
 - [ ] 3.2 In `scripts/requirements_proof_provenance.py`, implement ancestry and both closed changed-path/rename-endpoint validators. Do not parse Python AST.
 - [ ] 3.3 In `scripts/requirements_proof_provenance.py`, implement isolated worktree replay for R and H with identical bounded subprocess arguments and enforced network-isolation evidence; change `scripts/requirements_proof_executor.py` only if the existing seam demonstrably cannot support explicit worktree/output inputs.
 - [ ] 3.4 In `scripts/requirements_proof_provenance.py`, produce the versioned capsule and hand it to the signed Requirements module; bind the accepted capsule schema, module identity/signature, network policy, and verifier epoch.
@@ -45,9 +46,13 @@ All implementation tasks are intentionally small (target: at most two hours) and
 
 - [ ] 4.1 Run the #665–#671 benchmark plus seeded invalid-history/path cases.
 - [ ] 4.2 Run strict OpenSpec, workflow lint, focused/full tests, contracts, static analysis, and explicit base/head Code Review.
-- [ ] 4.3 Establish and document the initial reviewed verifier policy epoch.
-- [ ] 4.4 Run shadow, warning, then strict rollout; record rollback instructions.
-- [ ] 4.5 Merge checklist follow-up: create or update `wiki/sources/requirements-08-bounded-red-green-proof.md` (`depends-on`, `blocks`, `external-deps`, `status`, and summary) and run `python3 scripts/wiki_rebuild_graph.py` from the `specfact-cli-internal` repository root.
+- [ ] 4.3 After implementation, add a separate passing-after section to `TDD_EVIDENCE.md` with timestamps, exact commands, actual results, behavioral summaries, environment limitations, and artifact identities.
+- [ ] 4.4 Establish and document the initial reviewed verifier policy epoch.
+- [ ] 4.5 Run shadow, warning, then strict rollout; record rollback instructions.
+- [ ] 4.6 Merge the completed implementation to `dev` only after the paired signed module release is pinned and all gates pass.
+- [ ] 4.7 After R07 is archived and the R08 strict rollout is accepted, archive R08 with the OpenSpec CLI from a dedicated follow-up worktree and verify the canonical bounded-replay specification.
+- [ ] 4.8 Merge checklist follow-up: create or update `wiki/sources/requirements-08-bounded-red-green-proof.md` (`depends-on`, `blocks`, `external-deps`, `status`, and summary) and run `python3 scripts/wiki_rebuild_graph.py` from the `specfact-cli-internal` repository root.
+- [ ] 4.9 After each implementation or archive PR merges, remove its worktree, delete its local feature branch, run `git worktree prune`, and record the worktree-policy self-check.
 
 ## Prohibited shortcuts
 

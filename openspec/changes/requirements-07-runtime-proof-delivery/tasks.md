@@ -12,9 +12,9 @@
 - [ ] B.1 Create a dedicated implementation worktree and feature branch from current `origin/dev`; do not implement from the primary, `dev`, or `main` checkout.
 - [ ] B.2 Run `hatch env create`, then `hatch run smart-test-status` and `hatch run contract-test-status` in the worktree; record and resolve unexpected baseline failures before edits.
 - [ ] B.3 Run the change-specific strict OpenSpec command and confirm the accepted specs, dependencies, signed-module prerequisites, and closed file allowlist still match repository reality.
-- [ ] B.4 Follow `spec -> tests -> failing evidence -> code -> passing evidence`; record exact failing-before and passing-after commands, timestamps, and artifact identities in `TDD_EVIDENCE.md`.
+- [ ] B.4 Follow `spec -> tests -> failing evidence -> code -> passing evidence`; in `TDD_EVIDENCE.md`, record separate failing-before and passing-after sections with exact commands, timestamps, actual results, behavioral summaries, environment limitations, and artifact identities. Record passing evidence only after implementation.
 - [ ] B.5 Before PR finalization, run the required format, type, lint, YAML, contract, focused/full test, workflow, independent-analysis, signature, and explicit base/head Code Review gates; resolve every finding or document an approved exception.
-- [ ] B.6 After merge and only when the change is complete, archive with the OpenSpec CLI, update the internal-wiki mirror, remove the worktree, prune it, and complete an explicit `AGENTS.md` worktree/policy self-check.
+- [ ] B.6 After each merge, remove the implementation worktree, delete its local feature branch, run `git worktree prune`, and complete an explicit `AGENTS.md` worktree/policy self-check. Archive only from a dedicated follow-up worktree when the stated release and observation gates are complete.
 
 ## 1. Modules dependency — each task at most two hours
 
@@ -28,11 +28,12 @@
 - [ ] 2.1 Add `test_current_run_pass_is_not_labelled_passing_after_red`. Allowed file: `tests/unit/workflows/test_requirements_evidence_delivery_workflow.py`.
 - [ ] 2.2 Add `test_missing_historical_proof_retains_current_run_observation`. Allowed file: `tests/unit/scripts/test_requirements_evidence_delivery_gate.py`.
 - [ ] 2.3 Add `test_unresolved_current_run_cannot_be_pass_or_no_impact`, covering missing scope, missing JUnit, timeout, and tool failure. Allowed file: `tests/unit/scripts/test_requirements_evidence_delivery_gate.py`.
-- [ ] 2.4 Record the exact failing commands and expected failures in `TDD_EVIDENCE.md` before production edits.
+- [ ] 2.4 Add `test_unverified_fixture_identity_fails_before_module_execution`, rejecting mismatched repository, commit, tree, package, report-schema, manifest-integrity, signature, or clean-state identity with field-specific diagnostics. Allowed file: `tests/unit/workflows/test_requirements_evidence_delivery_workflow.py`.
+- [ ] 2.5 Record the exact failing commands, timestamps, actual results, behavioral summaries, environment limitations, and artifact identities in the failing-before section of `TDD_EVIDENCE.md` before production edits.
 
 ## 3. Core implementation — each task at most two hours
 
-- [ ] 3.1 Pin the signed corrected modules repository commit/tree, package version, report-schema version, manifest integrity, and signature identities. Allowed file: `ci/module-fixture.lock.json` and its exact fixture assertion only.
+- [ ] 3.1 Pin and verify the signed corrected modules repository commit/tree, package version, report-schema version, manifest integrity, signature, and clean-state identities before any module import or execution; retain field-specific mismatch diagnostics. Allowed files: `ci/module-fixture.lock.json` and the exact pre-execution fixture assertion in `.github/workflows/requirements-evidence.yml` only.
 - [ ] 3.2 Adapt current-run report handling without implementing chronology. Allowed files: `.github/workflows/requirements-evidence.yml` and `scripts/requirements_evidence_delivery_gate.py`; change `scripts/requirements_proof_executor.py` only when a named failing test proves field incompatibility.
 - [ ] 3.3 Remove the R07 legacy-ledger/prior-red requirement from current-run enforcement in `.github/workflows/requirements-evidence.yml` and `scripts/requirements_evidence_delivery_gate.py`. Do not add replacement AST inference.
 - [ ] 3.4 In `.github/workflows/requirements-evidence.yml`, keep Requirements and Code Review verdicts independent and publish both available artifacts before terminal enforcement.
@@ -40,11 +41,13 @@
 ## 4. Verification and delivery
 
 - [ ] 4.1 Run focused tests, strict OpenSpec validation, workflow lint, type/lint/contract checks, and full Code Review with explicit base/head scope.
-- [ ] 4.2 Update `TDD_EVIDENCE.md` with passing commands and artifact identities.
+- [ ] 4.2 After implementation, add a separate passing-after section to `TDD_EVIDENCE.md` with timestamps, exact commands, actual results, behavioral summaries, environment limitations, and artifact identities.
 - [ ] 4.3 Update user documentation to distinguish current-run evidence from bounded historical proof.
 - [ ] 4.4 Merge the completed implementation to `dev`; do not archive R07 until the correction is released and observed for one delivery cycle.
 - [ ] 4.5 Before archiving R07, archive `requirements-06-evidence-enforcement` with the OpenSpec CLI in a disposable verification checkout, then verify this exact-name `MODIFIED` delta leaves one canonical delivery-gate requirement rather than a duplicate.
-- [ ] 4.6 Merge checklist follow-up: update `wiki/sources/requirements-07-runtime-proof-delivery.md` (`depends-on`, `blocks`, `external-deps`, `status`, and summary) and run `python3 scripts/wiki_rebuild_graph.py` from the `specfact-cli-internal` repository root.
+- [ ] 4.6 After the correction is released and observed for one delivery cycle, archive R07 with the OpenSpec CLI from a dedicated follow-up worktree and verify the canonical delivery-gate requirement remains singular.
+- [ ] 4.7 Merge checklist follow-up: update `wiki/sources/requirements-07-runtime-proof-delivery.md` (`depends-on`, `blocks`, `external-deps`, `status`, and summary) and run `python3 scripts/wiki_rebuild_graph.py` from the `specfact-cli-internal` repository root.
+- [ ] 4.8 After each implementation or archive PR merges, remove its worktree, delete its local feature branch, run `git worktree prune`, and record the worktree-policy self-check.
 
 ## Prohibited shortcuts
 

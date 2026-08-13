@@ -2,7 +2,7 @@
 
 ### Requirement: Explicit Three-Commit Boundary
 
-Core SHALL evaluate historical red-green proof against three explicit full Git identities: B, the pull-request merge base; R, an accepted red commit; and H, the evaluated head. It SHALL prove B is an ancestor of R and R is a strict ancestor of H.
+Core SHALL evaluate historical red-green proof against three explicit full Git identities: B, the pull-request merge base; R, an accepted red commit; and H, the evaluated delivery head. It SHALL prove B is an ancestor of R and R is a strict ancestor of H. H SHALL be supplied as an immutable full SHA and SHALL equal the current delivery-head identity; an absent, abbreviated, substituted, or mismatched H SHALL be unproven.
 
 The complete B..R changed-path set and both endpoints of every rename SHALL be a subset of explicitly mapped `red_setup_touchpoints`. Each red-setup touchpoint SHALL have an allowed requirement, specification, selected-test, test-helper, conftest, or deterministic-test-configuration role. Governed implementation, dependency locks, workflows, runners, verifier/policy/schema files, generated artifacts, and unclassified paths SHALL be rejected.
 
@@ -10,7 +10,7 @@ The complete R..H changed-path set and both endpoints of every rename SHALL be a
 
 #### Scenario: Declared red setup and implementation-only transition are eligible
 
-- **GIVEN** valid full B, R, and H commits with B < R < H
+- **GIVEN** valid full B, R, and H commits with B < R < H and H equals the current delivery-head identity
 - **AND** every B..R changed path and rename endpoint is an explicitly mapped allowed red-setup touchpoint
 - **AND** every R..H changed path and rename endpoint is an explicitly mapped implementation touchpoint
 - **WHEN** the boundary is evaluated
