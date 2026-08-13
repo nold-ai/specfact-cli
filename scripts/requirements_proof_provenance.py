@@ -272,17 +272,21 @@ def _pytest_configuration_sources(
     return tuple(sources)
 
 
-def _addopts_plugin_names(value: object) -> list[list[str]]:
-    """Return module names early-loaded through ``-p`` in a configured ``addopts`` setting."""
+def _addopts_tokens(value: object) -> list[str]:
+    """Return the individual arguments of a configured ``addopts`` setting."""
     if isinstance(value, str):
         try:
-            tokens = shlex.split(value)
+            return shlex.split(value)
         except ValueError:
             return []
-    elif isinstance(value, list):
-        tokens = [token for token in cast(list[object], value) if isinstance(token, str)]
-    else:
-        return []
+    if isinstance(value, list):
+        return [token for token in cast(list[object], value) if isinstance(token, str)]
+    return []
+
+
+def _addopts_plugin_names(value: object) -> list[list[str]]:
+    """Return module names early-loaded through ``-p`` in a configured ``addopts`` setting."""
+    tokens = _addopts_tokens(value)
     names: list[str] = []
     expecting_name = False
     for token in tokens:
@@ -1244,6 +1248,8 @@ def _discovered_rooted_paths(
 
 
 MODULE_LOOKUP_FUNCTIONS = frozenset({"get", "setdefault", "import_module"})
+# Import modes that put a test file's own directory on sys.path. ``prepend`` is pytest's default.
+PREPENDING_IMPORT_MODES = frozenset({"prepend", "append"})
 PATH_JOIN_METHODS = frozenset({"join", "joinpath"})
 POSIX_PATH_MODULES = frozenset({"os", "posixpath", "ntpath"})
 PATH_PRESERVING_METHODS = frozenset({"resolve", "absolute", "expanduser"})
@@ -1576,9 +1582,45 @@ def _module_relative_path(path: str, module_root: str) -> str:
     return path.removeprefix(prefix) if module_root and path.startswith(prefix) else path
 
 
-def _import_roots(module_root: str) -> tuple[str, ...]:
-    """Return the roots an import inside a module discovered under one root may resolve against."""
-    return ("",) if not module_root else ("", module_root)
+def _import_roots(module_root: str, prepended_root: str | None = None) -> tuple[str, ...]:
+    """Return the roots an import inside a module may resolve against.
+
+    The repository root is always one, and a module discovered beneath a configured
+    ``pythonpath`` root resolves against that root as pytest does. The third is the directory
+    pytest itself puts on ``sys.path`` for this file, which is what makes a bare ``import
+    helper`` in a non-package test directory reach its sibling.
+    """
+    roots = ["", *([module_root] if module_root else []), *([prepended_root] if prepended_root else [])]
+    return tuple(dict.fromkeys(roots))
+
+
+def _configured_import_mode(repo_root: Path, source_ref: str, directories: tuple[str, ...]) -> str:
+    """Return the import mode the proof run uses, which decides whether a directory is prepended."""
+    for path, text in _pytest_configuration_sources(repo_root, source_ref, directories):
+        value = _pytest_ini_option(text, PurePosixPath(path).name, "addopts")
+        tokens = _addopts_tokens(value)
+        for index, token in enumerate(tokens):
+            if token.startswith("--import-mode="):
+                return token.partition("=")[2]
+            if token == "--import-mode" and index + 1 < len(tokens):
+                return tokens[index + 1]
+    return "prepend"
+
+
+def _prepended_root(repo_root: Path, source_ref: str, path: str) -> str:
+    """Return the directory pytest inserts on ``sys.path`` for one test or conftest file.
+
+    Pytest walks up from the file while each directory is a package, and prepends the first
+    directory that is not. Resolving this is what the enumeration of import roots was missing:
+    the roots are not a property of the repository, they are a property of each file's position
+    in it.
+    """
+    directory = PurePosixPath(path).parent
+    while directory != PurePosixPath(".") and _test_path_exists_at_ref(
+        repo_root, source_ref, (directory / "__init__.py").as_posix()
+    ):
+        directory = directory.parent
+    return "" if directory == PurePosixPath(".") else directory.as_posix()
 
 
 def _imported_python_paths(
@@ -1588,6 +1630,7 @@ def _imported_python_paths(
     *,
     plugin_module_roots: Sequence[str],
     selection: Mapping[str, frozenset[str]],
+    prepends_test_directories: bool,
 ) -> set[str]:
     """Return transitive repository-local Python imports used by pytest inputs.
 
@@ -1613,7 +1656,8 @@ def _imported_python_paths(
             if _test_path_exists_at_ref(repo_root, source_ref, current_path):
                 raise ValueError("stale-red-proof")
             continue
-        import_roots = _import_roots(module_root)
+        prepended_root = _prepended_root(repo_root, source_ref, current_path) if prepends_test_directories else None
+        import_roots = _import_roots(module_root, prepended_root)
         relative_path = _module_relative_path(current_path, module_root)
         skipped_scopes = _unexecuted_test_scopes(tree, selection.get(current_path, frozenset()))
         ordinary_rooted = _discovered_rooted_paths(
@@ -1882,7 +1926,13 @@ def _proof_inputs(
         *traversal_inputs,
         *(path for _, path in addopts_rooted),
         *_imported_python_paths(
-            repo_root, source_ref, seeds, plugin_module_roots=plugin_module_roots, selection=selection or {}
+            repo_root,
+            source_ref,
+            seeds,
+            plugin_module_roots=plugin_module_roots,
+            selection=selection or {},
+            prepends_test_directories=_configured_import_mode(repo_root, source_ref, configuration_directories)
+            in PREPENDING_IMPORT_MODES,
         ),
     }
     return {

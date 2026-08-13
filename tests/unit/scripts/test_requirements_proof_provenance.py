@@ -3556,3 +3556,90 @@ def test_an_ordinary_module_reference_stays_verifiable(tmp_path: Path, inert: st
     final_ref = _commit(tmp_path, "chore: change a plugin nothing declares")
 
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
+
+
+def _repository_with_prepend_layout(
+    tmp_path: Path, importer: str, statement: str, addopts: str = ""
+) -> tuple[str, Path]:
+    """Commit a non-package test directory whose ``importer`` imports a sibling module."""
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / "pyproject.toml").write_text(f"[tool.pytest.ini_options]\n{addopts}\n", encoding="utf-8")
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "helper.py").write_text("VALUE = False\n", encoding="utf-8")
+    (tmp_path / "tests" / "helper").mkdir()
+    (tmp_path / "tests" / "helper" / "__init__.py").write_text("", encoding="utf-8")
+    (tmp_path / "tests" / "helper" / "sub.py").write_text("VALUE = False\n", encoding="utf-8")
+    selected_path = "tests/test_proof.py"
+    (tmp_path / importer).parent.mkdir(parents=True, exist_ok=True)
+    if importer != selected_path:
+        (tmp_path / importer).write_text(f"{statement}\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add a sibling helper")
+    # When the selected test is itself the importer, its import must survive into the red commit.
+    selected_source = statement if importer == selected_path else "def test_selected() -> None: assert False"
+    (tmp_path / selected_path).write_text(f"{selected_source}\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+    return base_ref, red_proof_path
+
+
+@pytest.mark.parametrize(
+    ("importer", "statement", "changed"),
+    [
+        ("tests/conftest.py", "import helper", "tests/helper.py"),
+        ("tests/conftest.py", "from helper import VALUE", "tests/helper.py"),
+        ("tests/conftest.py", "import helper.sub", "tests/helper/sub.py"),
+        ("tests/test_proof.py", "import helper\n\n\ndef test_selected() -> None: assert False", "tests/helper.py"),
+    ],
+)
+def test_an_import_through_the_prepended_directory_is_bound(
+    tmp_path: Path, importer: str, statement: str, changed: str
+) -> None:
+    """Pytest prepends a non-package test directory, so a bare name there is a sibling module."""
+    module = _load_provenance_module()
+    base_ref, red_proof_path = _repository_with_prepend_layout(tmp_path, importer, statement)
+
+    (tmp_path / changed).write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change the sibling helper")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_the_prepended_directory_is_not_used_when_the_import_mode_forbids_it(tmp_path: Path) -> None:
+    """Importlib mode inserts nothing on sys.path, so a bare name cannot reach a sibling."""
+    module = _load_provenance_module()
+    base_ref, red_proof_path = _repository_with_prepend_layout(
+        tmp_path, "tests/conftest.py", "import helper", addopts='addopts = "--import-mode=importlib"'
+    )
+
+    (tmp_path / "tests" / "helper.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "chore: change a module this mode cannot reach")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
+
+
+def test_a_package_directory_does_not_become_an_import_root(tmp_path: Path) -> None:
+    """Pytest walks up past every directory holding __init__.py before prepending one."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "__init__.py").write_text("", encoding="utf-8")
+    (tmp_path / "tests" / "conftest.py").write_text("import tests.helper\n", encoding="utf-8")
+    (tmp_path / "tests" / "helper.py").write_text("VALUE = False\n", encoding="utf-8")
+    (tmp_path / "unrelated.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add a package helper")
+    (tmp_path / "tests" / "test_proof.py").write_text("def test_selected() -> None: assert False\n", "utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (tmp_path / "unrelated.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "chore: change a module nothing imports")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []

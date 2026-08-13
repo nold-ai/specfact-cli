@@ -226,11 +226,21 @@ retain deterministic JUnit results for module-owned reconciliation.
   because which ones a run activates depends on autouse declarations, indirect
   parametrization, conftest chains, and plugins, none of which this gate can
   decide from the module's syntax
+- **AND** an import resolves against the directory pytest itself places on
+  `sys.path` for the importing file — the first ancestor that is not a package —
+  as well as against the repository root and any configured `pythonpath` root, so
+  a bare import in a non-package test directory binds its sibling; the directory
+  is used only when the configured import mode places it there, because `importlib`
+  mode inserts nothing and a bare name cannot reach a sibling under it
 - **AND** the resolved input set is measured against this repository so the rule
   family is held to what it must not bind as well as what it must: no product
   source is ever an input, every bound file outside the test tree is a recorded
   exception, and the set stays proportional to the selectors, because a rule that
   binds too much satisfies every positive expectation while rejecting valid proofs
+- **AND** the resolved input set is checked against a real pytest run over a set
+  of repository layouts, binding at least every repository-local module that run
+  imports, because each rule is a model of pytest's behaviour and a model that is
+  only read rather than executed diverges without anyone noticing
 - **AND** only the final possible `pytest_plugins` binding is bound, because an
   assignment a later one overwrites never loads, and a name bound only inside a
   function, lambda, or class body does not rebind a module-level guard

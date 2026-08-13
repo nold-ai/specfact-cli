@@ -2960,3 +2960,65 @@ must stay verifiable for the positional rule to mean anything.
   head. No module here reaches its own namespace by any door, so the wider subject
   rejects nothing on this repository; its coverage is the thirteen-shape battery.
 - **Passing-after:** 286 passed in the provenance file.
+
+## Round 26: the missing oracle, and the import root it would have caught
+
+### Why findings kept arriving
+
+Every rule in this gate is a hand-derived model of pytest: which files it reads to
+decide collection, which directories it puts on `sys.path`, which modules a
+declaration pulls in. A model has no error bar. Twenty-odd rounds of findings were
+not twenty unrelated bugs; they were one condition — **the only oracle for the
+model was review**, and review does not run on every change. Each round fixed the
+instance a reviewer happened to read, and the next divergence waited for the next
+reader.
+
+`tests/integration/scripts/test_requirements_proof_provenance_against_pytest.py`
+supplies the oracle. For seven repository layouts it runs pytest for real, records
+every repository-local module the run imports through a plugin loaded from outside
+the repository under test, and asserts the gate binds all of them. The layouts
+differ in mechanism, not outcome: a bare sibling import, a package-qualified
+import, a root conftest chain, a declared plugin importing its own helper, a plugin
+behind a configured `pythonpath` root, an import inside a fixture body, and a
+package initializer importing at load time.
+
+- **Proof that the oracle fires.** With the import-root fix below reverted, it
+  failed on the reported layout **and on a second one the review had not
+  mentioned** — the root conftest chain had the same gap — naming
+  `tests/helper.py` in both. Restored, all seven pass. An oracle that has never
+  failed is not an oracle, so this was run rather than assumed.
+
+This is the under-binding direction. The repository measurement added in round 22
+guards over-binding. Together they bound the rule family from both sides without
+anyone having to read it.
+
+### Imports through the directory pytest prepends
+
+Review found that a non-package `tests/conftest.py` containing `import helper`
+loads `tests/helper.py`, because pytest's default import mode prepends the file's
+own base directory to `sys.path`. The gate resolved imports against the repository
+root and configured `pythonpath` roots only, so the sibling was never bound.
+
+- **Failing-first.** Four shapes returned `[]` where `['stale-red-proof']` was
+  required: `import helper`, `from helper import VALUE`, `import helper.sub`, and
+  the same bare import inside the selected test rather than a conftest.
+
+The roots are not a property of the repository, which is what the previous
+enumeration assumed. They are a property of each file's position in it: pytest
+walks up from the file while each directory is a package and prepends the first one
+that is not. That rule is now computed per traversed file.
+
+It is also conditional. `--import-mode=importlib` inserts nothing on `sys.path`, so
+a bare name cannot reach a sibling under it, and binding one would reject valid
+proofs. The configured mode is read from `addopts` and the directory is used only
+when the mode places it there. Two counter-shapes lock this: an `importlib`
+repository binds nothing through the sibling route, and a package directory never
+becomes a root because pytest walks up past it.
+
+- **Whole-repository measurement.** Zero added, zero removed. This repository
+  configures `--import-mode=importlib`, so the new root is correctly withheld here —
+  confirmed by reading the mode the gate resolves (`importlib`) alongside the base
+  directory it would otherwise use (`tests/unit/scripts`, a real non-package
+  directory). The fix is inert here and live for any repository on the default mode.
+- **Passing-after:** 292 passed in the provenance file, 7 in the new oracle, 683
+  across the scripts, workflows, and integration suites.
