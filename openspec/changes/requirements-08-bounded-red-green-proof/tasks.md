@@ -4,7 +4,7 @@ All implementation tasks are intentionally small (target: at most two hours) and
 
 ## 0. Planning
 
-- [x] 0.1 Define the bounded B < R < H claim and explicit non-goals.
+- [x] 0.1 Define the bounded B < R < H proof claim, delivered-head binding H <= D, and explicit non-goals.
 - [x] 0.2 Define allowed future paths and prohibit extension of static dependency inference.
 - [x] 0.3 Record that this planning branch contains no behavior changes.
 
@@ -20,14 +20,14 @@ All implementation tasks are intentionally small (target: at most two hours) and
 ## 1. Paired modules release
 
 - [ ] 1.1 Implement independent current-execution and chronology states in the paired modules R07/R08 changes.
-- [ ] 1.2 Implement the versioned replay-capsule schema and validation contracts: core supplies Git/execution facts; modules validate schema/hash/transition/outcome facts without running Git or tests.
+- [ ] 1.2 Implement the versioned B/R/H/D replay-capsule schema and validation contracts: core supplies Git/execution facts; modules validate schema/hash/transition/outcome facts without running Git or tests.
 - [ ] 1.3 Publish a signed module release and record its immutable repository commit/tree, package version, capsule-schema version, manifest integrity, and signature identities.
 
 ## 2. Failing tests first
 
-- [ ] 2.1 In `tests/unit/scripts/test_requirements_proof_provenance.py`, replace obsolete static-closure cases with temporary-Git-repository tests for valid B < R < H and invalid ancestry.
-- [ ] 2.2 In `tests/unit/scripts/test_requirements_proof_provenance.py`, add failing tests that reject every undeclared/disallowed B..R path or rename endpoint and every R..H undeclared/test/config/harness change.
-- [ ] 2.3 In exactly `tests/integration/scripts/test_requirements_red_green_replay.py`, add failing integration tests proving exact failure at R and exact pass at H under identical selectors.
+- [ ] 2.1 In `tests/unit/scripts/test_requirements_proof_provenance.py`, replace obsolete static-closure cases with temporary-Git-repository tests for valid B < R < H <= D, exact D delivery binding, and invalid ancestry/identity.
+- [ ] 2.2 In `tests/unit/scripts/test_requirements_proof_provenance.py`, add failing tests that reject every undeclared/disallowed B..R path or rename endpoint, every R..H non-implementation change, and every H..D path except exact mapped `TDD_EVIDENCE.md`/`CHANGE_VALIDATION.md` delivery evidence.
+- [ ] 2.3 In exactly `tests/integration/scripts/test_requirements_red_green_replay.py`, add failing integration tests proving exact failure at R, exact pass at H, and retained exact pass at a distinct D under identical selectors.
 - [ ] 2.4 In `tests/unit/scripts/test_requirements_proof_provenance.py`, add shallow-history, invalid-ref, checkout-failure, missing-artifact, and rename-endpoint cases; execution timeout and selector-mismatch cases may additionally use `tests/integration/scripts/test_requirements_red_green_replay.py`.
 - [ ] 2.5 In `tests/unit/scripts/test_requirements_proof_provenance.py`, add a failing bootstrap test proving verifier/policy self-changes cannot self-attest.
 - [ ] 2.6 In `tests/unit/workflows/test_requirements_evidence_delivery_workflow.py`, add `test_replay_capsule_requires_trusted_module_and_epoch`, rejecting an unreleased/mismatched signed-module identity, capsule schema, or verifier epoch before chronology enforcement.
@@ -35,11 +35,11 @@ All implementation tasks are intentionally small (target: at most two hours) and
 
 ## 3. Minimal implementation
 
-- [ ] 3.1 In `scripts/requirements_proof_provenance.py`, require explicit full-SHA B/R/H inputs plus complete declared `red_setup_touchpoints` and implementation-touchpoint sets. Validate H equals the current delivery head identity before replay; an absent, abbreviated, or mismatched H is unproven. Do not auto-discover R or substitute another green endpoint.
-- [ ] 3.2 In `scripts/requirements_proof_provenance.py`, implement ancestry and both closed changed-path/rename-endpoint validators. Do not parse Python AST.
-- [ ] 3.3 In `scripts/requirements_proof_provenance.py`, implement isolated worktree replay for R and H with identical bounded subprocess arguments and enforced network-isolation evidence; change `scripts/requirements_proof_executor.py` only if the existing seam demonstrably cannot support explicit worktree/output inputs.
-- [ ] 3.4 In `scripts/requirements_proof_provenance.py`, produce the versioned capsule and hand it to the signed Requirements module; bind the accepted capsule schema, module identity/signature, network policy, and verifier epoch.
-- [ ] 3.5 In `.github/workflows/requirements-evidence.yml` and `tests/unit/workflows/test_requirements_evidence_delivery_workflow.py`, wire shadow mode, make unavailable network isolation unproven, and retain all artifacts before enforcement.
+- [ ] 3.1 In `scripts/requirements_proof_provenance.py`, require explicit full-SHA B/R/H/D inputs plus complete declared `red_setup_touchpoints`, implementation touchpoints, and exact `delivery_evidence_touchpoints`. Validate D equals the current delivery head, H is its ancestor or equal, and every identity is full length; do not auto-discover R or substitute another green/delivery endpoint.
+- [ ] 3.2 In `scripts/requirements_proof_provenance.py`, implement ancestry and all three closed B..R, R..H, and H..D changed-path/rename-endpoint validators. Do not parse Python AST.
+- [ ] 3.3 In `scripts/requirements_proof_provenance.py`, implement isolated worktree replay for R, H, and distinct D with identical bounded subprocess arguments and enforced network-isolation evidence; reuse H as D only when the SHAs are equal. Change `scripts/requirements_proof_executor.py` only if the existing seam demonstrably cannot support explicit worktree/output inputs.
+- [ ] 3.4 In `scripts/requirements_proof_provenance.py`, produce the versioned B/R/H/D capsule and hand it to the signed Requirements module; bind all three transition manifests, red/green/delivery JUnit, the accepted capsule schema, module identity/signature, network policy, and verifier epoch.
+- [ ] 3.5 In `.github/workflows/requirements-evidence.yml` and `tests/unit/workflows/test_requirements_evidence_delivery_workflow.py`, pass explicit B/R/H/D, bind D to the current delivery SHA, wire shadow mode, make unavailable network isolation unproven, and retain all artifacts before enforcement.
 - [ ] 3.6 In `scripts/requirements_proof_provenance.py`, remove or bypass obsolete static pytest-input closure from the authoritative path; prefer deletion over parallel complexity.
 
 ## 4. Verification and rollout
@@ -69,14 +69,14 @@ Anything not listed here is prohibited unless this OpenSpec change is updated an
 Production/configuration:
 
 - `scripts/requirements_proof_provenance.py`: replace the existing static/AST closure with the small Git-only B/R/H validator, isolated replay orchestration, and attestation builder. Delete the old import/plugin/config/data-read rules; do not add a parallel provenance script.
-- `.github/workflows/requirements-evidence.yml`: pass explicit B/R/H, invoke shadow replay, retain both JUnit artifacts and attestation before enforcement, and enforce verifier-epoch bootstrap.
+- `.github/workflows/requirements-evidence.yml`: pass explicit B/R/H/D, bind D to the current delivery SHA, invoke shadow replay, retain red/green/delivery JUnit artifacts and attestation before enforcement, and enforce verifier-epoch bootstrap.
 - `ci/module-fixture.lock.json`: signed R08-capable modules identity only.
 - `scripts/requirements_proof_executor.py`: conditional only when replay cannot use its current public seam; permit explicit worktree root/run-stage/output while preserving argv/environment safety.
 
 Tests:
 
-- `tests/unit/scripts/test_requirements_proof_provenance.py`: replace obsolete static-closure cases with ancestry, path-set, missing-history/artifact, rename, attestation, and bootstrap cases.
-- New exactly `tests/integration/scripts/test_requirements_red_green_replay.py`: temporary-repository exact fail-at-R/pass-at-H replay, timeout, and selector mismatch.
+- `tests/unit/scripts/test_requirements_proof_provenance.py`: replace obsolete static-closure cases with B/R/H/D ancestry/delivery identity, three path-set, missing-history/artifact, rename, attestation, and bootstrap cases.
+- New exactly `tests/integration/scripts/test_requirements_red_green_replay.py`: temporary-repository exact fail-at-R/pass-at-H/remain-pass-at-distinct-D replay, timeout, and selector mismatch.
 - `tests/unit/workflows/test_requirements_evidence_delivery_workflow.py`: shadow wiring, artifacts-before-enforcement, and epoch bootstrap.
 - `tests/unit/scripts/test_requirements_proof_executor.py`: conditional only when the executor changes.
 - Temporary repositories live inside the named tests; no fixture directory.

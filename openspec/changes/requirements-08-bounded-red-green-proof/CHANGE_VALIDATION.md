@@ -15,12 +15,12 @@ The proposal, design, scenarios, bounded tasks, non-goals, and rollback path are
 - Required per-change pre-implementation command: `openspec validate requirements-08-bounded-red-green-proof --strict`.
 - Affected planning files: `.openspec.yaml`, `README.md`, `proposal.md`, `design.md`, `tasks.md`, `CHANGE_VALIDATION.md`, `TDD_EVIDENCE.md`, `requirements-evidence.yaml`, and the R08 delta specification.
 - Failing-before implementation artifact: not applicable to this planning-only branch; it becomes mandatory before production edits.
-- Passing-after implementation artifact: unavailable; no replay runner, capsule, verifier epoch, or implementation exists.
+- Passing-after implementation artifact: unavailable; no R/H/D replay runner, delivery binding, capsule, verifier epoch, or implementation exists.
 - Excluded or unavailable dependencies: the signed immutable modules R08 release/fixture, accepted capsule schema version, promoted verifier epoch, internal-wiki checkout, and benchmark corpus results.
 
 ## Readiness blockers
 
-- The paired modules R08 versioned capsule schema and signed immutable release are not published.
+- The paired modules R08 versioned capsule schema accepting B/R/H/D and the signed immutable release are not published.
 - The signed fixture identity does not yet bind an accepted capsule schema/version and verifier epoch.
 - Failing tests have not been written or recorded.
 - No enforced network-isolation policy or verifier policy epoch exists.

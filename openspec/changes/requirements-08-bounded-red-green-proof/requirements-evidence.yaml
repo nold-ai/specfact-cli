@@ -13,10 +13,10 @@ requirements:
       - case_id: R08-CORE-001-S01
         scenario_id: explicit-three-commit-boundary
         method: inspection
-        intent: "Inspect the planned B < R < H ancestry and both complete declared transition allowlists."
-        observable: "The specification rejects every undeclared or disallowed B..R or R..H path and rename endpoint without runtime dependency inference."
+        intent: "Inspect the planned B < R < H <= D ancestry/delivery binding and all three complete declared transition allowlists."
+        observable: "The specification rejects every undeclared or disallowed B..R, R..H, or H..D path and rename endpoint without runtime dependency inference."
   openspec:requirements-08-bounded-red-green-proof:requirements-bounded-red-green-proof:authoritative-runtime-replay:
-    rationale: "Historical chronology is strongest when both endpoint executions are replayed together."
+    rationale: "Historical chronology is strongest when red, green-checkpoint, and delivered-head executions are replayed together."
     stakeholder_refs:
       - "nold-ai/specfact-cli#665"
     touchpoints:
@@ -27,8 +27,8 @@ requirements:
       - case_id: R08-CORE-002-S01
         scenario_id: authoritative-runtime-replay
         method: inspection
-        intent: "Inspect the planned requirement to replay identical exact selectors at R and H in one pinned, network-isolated environment."
-        observable: "The specification requires one declared failure at R and one pass at H for each identical selector and makes unavailable isolation unproven."
+        intent: "Inspect the planned requirement to replay identical exact selectors at R, H, and distinct delivered head D in one pinned, network-isolated environment."
+        observable: "The specification requires one declared failure at R, one pass at H, and one retained pass at distinct D for each identical selector and makes unavailable isolation unproven."
   openspec:requirements-08-bounded-red-green-proof:requirements-bounded-red-green-proof:bound-proof-attestation:
     rationale: "Every claim must identify its snapshots, inputs, tools, limits, trust boundary, and verifier epoch."
     stakeholder_refs:
