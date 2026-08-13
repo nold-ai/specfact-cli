@@ -1,0 +1,60 @@
+schema_version: "2"
+requirements:
+  openspec:requirements-08-bounded-red-green-proof:requirements-bounded-red-green-proof:explicit-three-commit-boundary:
+    rationale: "A finite Git mutation policy replaces unbounded Python/pytest dependency inference."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#665"
+      - "nold-ai/specfact-cli#671"
+    touchpoints:
+      - id: bounded-red-green-contract
+        kind: specification
+        locator: "specs/requirements-bounded-red-green-proof/spec.md"
+    verification_cases:
+      - case_id: R08-CORE-001
+        scenario_id: explicit-three-commit-boundary
+        method: test
+        intent: "Validate B < R < H and declared mutation sets without runtime dependency inference."
+        observable: "Ancestry and path-set facts produce proven or unproven chronology."
+  openspec:requirements-08-bounded-red-green-proof:requirements-bounded-red-green-proof:authoritative-runtime-replay:
+    rationale: "Historical chronology is strongest when both endpoint executions are replayed together."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#665"
+    touchpoints:
+      - id: bounded-replay-runner
+        kind: planned_ci_workflow
+        locator: ".github/workflows/requirements-evidence.yml"
+    verification_cases:
+      - case_id: R08-CORE-002
+        scenario_id: authoritative-runtime-replay
+        method: test
+        intent: "Replay identical exact selectors at R and H in one pinned environment."
+        observable: "Expected failures at R and passes at H are bound to canonical selectors."
+  openspec:requirements-08-bounded-red-green-proof:requirements-bounded-red-green-proof:bound-proof-attestation:
+    rationale: "Every claim must identify its snapshots, inputs, tools, limits, and verifier epoch."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#665"
+    touchpoints:
+      - id: bounded-proof-attestation
+        kind: planned_artifact
+        locator: ".specfact/requirements-red-green.json"
+    verification_cases:
+      - case_id: R08-CORE-003
+        scenario_id: bound-proof-attestation
+        method: test
+        intent: "Bind Git, plan, selector, JUnit, environment, policy, and verifier identities."
+        observable: "The attestation states the bounded claim and its limitations."
+  openspec:requirements-08-bounded-red-green-proof:requirements-bounded-red-green-proof:fail-closed-unproven-state:
+    rationale: "Missing mandatory facts cannot become a green result."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#665"
+    touchpoints:
+      - id: bounded-proof-policy
+        kind: planned_policy
+        locator: "requirements-bounded-red-green-proof"
+    verification_cases:
+      - case_id: R08-CORE-004
+        scenario_id: fail-closed-unproven-state
+        method: test
+        intent: "Preserve UNKNOWN/unproven for unresolved history, execution, scope, or identity."
+        observable: "Strict policy exits non-zero after retaining diagnostics."
+

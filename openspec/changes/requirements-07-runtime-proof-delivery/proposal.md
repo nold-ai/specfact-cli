@@ -1,84 +1,49 @@
-# Change: Deliver Empirical Requirements Proof in Local and CI Gates
+# Change: Deliver Current-Run Requirements Evidence in Local and CI Gates
 
 ## Why
 
-The released core gate validates Requirements evidence before review and
-contract checks, but that evidence proves source validity and declared test
-links rather than current-run behavioral execution. The pull-request workflow
-also runs only for a narrow path set, so a product-interface change can avoid an
-explicit Requirements impact decision. Delivery needs a safe bridge from a
-module-owned scenario test plan to current-run test results and review context.
+Issue #662 asks SpecFact to execute exact tests linked to changed requirement scenarios and to report whether those tests were collected and passed in the current delivery run. The existing R07 implementation mixed that bounded observation with a stronger historical claim: proving that the tests failed earlier and remained unchanged through arbitrary Python and pytest dependency behavior.
+
+That stronger claim caused the gate to grow into a static approximation of pytest execution. It also made a current-run Requirements result depend on historical evidence that issue #662 did not require. The two claims need independent contracts and independent statuses.
 
 ## What Changes
 
-- Extend staged pre-commit enforcement to validate changed scenario,
-  touchpoint, and exact-test-plan completeness while keeping local execution
-  bounded and fast.
-- Extend pull-request CI to run for relevant product, contract, test, and
-  requirement-source changes; emit an explicit auditable skipped result only
-  after a deterministic no-impact decision.
-- Consume only the reviewed, signed `nold-ai/specfact-requirements` 0.5.1
-  release from modules #379; validate its
-  structured test plan, execute approved exact selectors without shell
-  interpretation, retain JUnit output, and delegate reconciliation back to the
-  released Requirements command.
-- Pass only finalized Requirements proof into the released Code Review context
-  interface, then run the existing contract gates.
-- Publish the plan, JUnit results, final JSON/Markdown proof, review provenance,
-  and concise job summary before enforcing the authoritative verdict.
-- Keep the runtime-discovery smoke registry dependency-aware: it must stage the
-  transitive bundle dependencies declared by the smoke modules, so the pinned
-  module fixture is exercised through the same dependency resolution path as
-  users.
-- Keep Requirements semantics module-owned and keep cross-domain aggregation
-  owned by `validation-02-full-chain-engine`.
+- Keep R07 responsible for lifecycle-derived planning maturity, accepted mappings, exact selector plans, safe current-run execution, JUnit reconciliation, explicit no-impact decisions, artifact publication, and the independent Code Review handoff.
+- Define a current-run pass precisely: every required selector was collected exactly once and passed at the evaluated source revision in the pinned execution environment.
+- Remove Git-bound failing-first proof, legacy-ledger migration, and static pytest/Python dependency-closure inference from R07.
+- Move historical red-to-green proof to `requirements-08-bounded-red-green-proof`, where the red and final commits are replayed under an explicit bounded Git policy.
+- Preserve Requirements and Code Review as independent verdicts. Requirements evidence is review context and provenance; it does not rewrite review findings or scores.
 
 ## Capabilities
 
-### New Capabilities
+### Modified Capabilities
 
-- `requirements-runtime-proof-delivery`: Safely execute a module-produced
-  scenario proof plan and retain current-run evidence in local/CI delivery.
-- `requirements-proof-review-handoff`: Supply finalized Requirements proof to
-  Code Review without merging or replacing either verdict.
+- `requirements-runtime-proof-delivery`: Plan and safely execute exact Requirements selectors, then report current-run observations without implying historical chronology.
+- `requirements-evidence-delivery-gate`: Pin the reviewed module release, retain artifacts, and enforce the current-run Requirements and Code Review decisions independently.
 
 ## Impact
 
-- Affected delivery surfaces: pre-commit Block 2, the Requirements evidence
-  workflow or PR orchestrator, immutable fixture lock/verification, frozen test
-  execution, artifact upload, and branch-protection documentation.
-- Affected tests: script, selector-safety, staged-index, workflow-contract,
-  runtime-discovery dependency-closure, JUnit handoff, report-retention,
-  review-order, and failure-order coverage.
-- Affected documentation: core Requirements evidence adoption and Code Review
-  delivery guidance; module command reference remains modules-owned.
-- Dependencies: unblocked by merged modules PR
-  [#379](https://github.com/nold-ai/specfact-cli-modules/pull/379) and the
-  signed immutable `nold-ai/specfact-requirements` 0.5.1 release. Produces a bounded Requirements signal consumable
-  by, but does not implement, `validation-02-full-chain-engine`.
-- Rollback: restore the current static evidence gate and remove targeted test
-  execution/review context while retaining previously uploaded proof artifacts.
+- Planning scope: OpenSpec artifacts only in this commit. No runtime, workflow, test, fixture, or report-schema implementation changes are included.
+- Later implementation may simplify or replace prior-red provenance code after R08 is ready; it must not add more AST rules for imports, plugins, configuration, data reads, aliases, mutation, or dynamic execution.
+- The module-side R07 contract must first separate current execution from historical chronology and publish a signed release before core adopts the corrected report.
+- Rollback: retain the current R07 runtime behind its existing branch while the corrected contract is implemented; the planning commit is reversible by reverting one commit.
 
-## Quality Standards
+## Explicit Non-Goals
 
-- Preserve module-owned verdicts and execute selectors only through validated
-  argument arrays in the frozen environment; never use `eval`, shell-generated
-  command text, or mutable module sources.
-- Use spec-first, failing-before TDD for every gate behavior and retain
-  actionable artifacts before any blocking exit.
-- Run workflow lint, focused/full tests, contract gates, independent analysis,
-  strict module verification, and fresh SpecFact code review before delivery.
+- Prove historical failing-first chronology.
+- Infer every input that could influence arbitrary Python or pytest execution.
+- Prove that linked tests completely represent stakeholder intent.
+- Prove overall correctness, architecture quality, security, or absence of defects.
+- Replace full tests, contracts, static analysis, security checks, or independent review.
+- Redefine generic Code Review changed-scope behavior; that is module-owned.
 
 ## Source Tracking
 
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: [#662](https://github.com/nold-ai/specfact-cli/issues/662)
-- **GitHub Type**: User Story
 - **Parent Feature**: [#374](https://github.com/nold-ai/specfact-cli/issues/374)
 - **Parent Epic**: [#258](https://github.com/nold-ai/specfact-cli/issues/258)
-- **Project**: SpecFact CLI (`Todo`)
-- **Extends**: `requirements-06-evidence-enforcement`
-- **Historical Blocker**: [nold-ai/specfact-cli-modules#368](https://github.com/nold-ai/specfact-cli-modules/issues/368), resolved by merged PR #379 and the pinned Requirements 0.5.1 release
-- **Paired Modules Change**: `requirements-07-scenario-runtime-proof`
-- **Repository**: nold-ai/specfact-cli
-- **Last Synced Status**: proposed / Todo (2026-08-02)
+- **Paired Modules Change**: corrected `requirements-07-scenario-runtime-proof`
+- **Follow-up**: `requirements-08-bounded-red-green-proof`
+- **Planning correction date**: 2026-08-13
+

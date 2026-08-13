@@ -63,42 +63,6 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_requirements_evidence_delivery_gate.py::test_released_evidence_rejects_stale_acceptance
-  openspec:requirements-07-runtime-proof-delivery:requirements-runtime-proof-delivery:git-bound-failing-first-proof:
-    rationale: "Production behavior needs empirical failing-first proof, not a declared test link."
-    stakeholder_refs:
-      - "nold-ai/specfact-cli#662"
-    touchpoints:
-      - id: red-proof-verifier
-        kind: ci_workflow
-        locator: "requirements-proof/red.json"
-      - id: legacy-tdd-ledger
-        kind: evidence_ledger
-        locator: "TDD_EVIDENCE.md"
-    verification_cases:
-      - case_id: R07-CORE-003-S01
-        scenario_id: git-bound-failing-first-proof
-        method: test
-        intent: "Prove core validates a red ancestor before forwarding it to released reconciliation."
-        observable: "A test-only red ancestor passes; a changed selector file is rejected as stale."
-        selector:
-          runner: pytest
-          node_id: tests/unit/scripts/test_requirements_proof_provenance.py::test_git_bound_red_proof_requires_test_only_ancestor_and_unchanged_selector_files
-      - case_id: R07-CORE-003-S02
-        scenario_id: git-bound-failing-first-proof
-        method: test
-        intent: "Prove a red proof follows the current base and preserves governed rename sources."
-        observable: "Replayed red evidence and production-to-docs renames are rejected."
-        selector:
-          runner: pytest
-          node_id: tests/unit/scripts/test_requirements_proof_provenance.py::test_git_bound_red_proof_rejects_replayed_or_renamed_production_history
-      - case_id: R07-CORE-003-S03
-        scenario_id: git-bound-failing-first-proof
-        method: test
-        intent: "Prove the approved R07 historical ledger is digest-bound before final reconciliation."
-        observable: "Legacy ledger basis is passed only for R07 and no synthetic red proof is generated."
-        selector:
-          runner: pytest
-          node_id: tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_uses_digest_bound_legacy_tdd_ledger_for_r07
   openspec:requirements-07-runtime-proof-delivery:requirements-runtime-proof-delivery:staged-scenario-proof-planning:
     rationale: "Local feedback must validate planning without pretending to execute tests."
     stakeholder_refs:
@@ -165,6 +129,25 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_requirements_evidence_delivery_gate.py::test_released_reconciliation_marks_incomplete_junit_unverified
+  openspec:requirements-07-runtime-proof-delivery:requirements-runtime-proof-delivery:current-run-evidence-boundary:
+    rationale: "A current CI observation and a historical failing-first chronology are different claims."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#662"
+    touchpoints:
+      - id: current-run-reconciliation
+        kind: ci_workflow
+        locator: ".github/workflows/requirements-evidence.yml"
+    verification_cases:
+      - case_id: R07-CORE-009-S01
+        scenario_id: current-run-evidence-boundary
+        method: test
+        intent: "Prove a current-run pass is retained without being labelled passing-after-red."
+        observable: "Independent current_execution pass and unproven chronology."
+      - case_id: R07-CORE-009-S02
+        scenario_id: current-run-evidence-boundary
+        method: test
+        intent: "Prove missing historical context cannot erase or inflate the current-run observation."
+        observable: "Current execution remains exact while chronology remains independent."
   openspec:requirements-07-runtime-proof-delivery:requirements-runtime-proof-delivery:authoritative-reconciliation-and-review-handoff:
     rationale: "Requirements proof and review are independent delivery signals."
     stakeholder_refs:
@@ -185,7 +168,7 @@ requirements:
       - case_id: R07-CORE-006-S02
         scenario_id: authoritative-reconciliation-and-review-handoff
         method: test
-        intent: "Prove a green review cannot override a red Requirements proof."
+        intent: "Prove a green review cannot override a red Requirements result."
         observable: "Independent blocking Requirements verdict."
         selector:
           runner: pytest
@@ -193,7 +176,7 @@ requirements:
       - case_id: R07-CORE-006-S03
         scenario_id: authoritative-reconciliation-and-review-handoff
         method: test
-        intent: "Prove other quality gates remain independent of Requirements proof."
+        intent: "Prove other quality gates remain independent of Requirements evidence."
         observable: "Separate blocking verdict for each failing gate."
         selector:
           runner: pytest
@@ -218,7 +201,7 @@ requirements:
       - case_id: R07-CORE-007-S02
         scenario_id: always-published-requirements-proof-decision
         method: test
-        intent: "Prove a governed no-impact pull-request diff publishes an explicit skip."
+        intent: "Prove a governed no-impact pull-request diff publishes an explicit decision."
         observable: "Successful terminal result with bounded skip provenance."
         selector:
           runner: pytest

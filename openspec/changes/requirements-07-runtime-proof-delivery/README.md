@@ -1,4 +1,6 @@
-# requirements-07-runtime-proof-delivery
+# Requirements 07: Current-Run Runtime Proof Delivery
 
-Execute module-owned scenario proof plans safely in core delivery gates and
-publish empirical Requirements proof before requirements-aware review.
+This corrected change owns safe planning, execution, JUnit reconciliation, and publication of Requirements evidence observed in the current run.
+
+Historical failing-first chronology is intentionally separated into `requirements-08-bounded-red-green-proof`. R07 must not infer a complete Python or pytest dependency closure and must not label a current-run pass as passing-after-red.
+

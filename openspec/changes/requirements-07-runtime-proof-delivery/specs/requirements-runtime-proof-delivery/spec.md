@@ -2,236 +2,121 @@
 
 ### Requirement: Lifecycle-Derived Requirements Gate
 
-Core SHALL derive the required evidence maturity from the complete pull-request
-or staged diff and repository policy rather than an author-declared phase. A
-proposal-only change requires `planned` maturity and may pass without test
-execution; its retained report SHALL explicitly state that implementation
-evidence is not yet available. Test-only and production changes SHALL require
-successively stronger accepted, red, and verified evidence.
+Core SHALL derive required evidence maturity from the evaluated staged or pull-request snapshot and repository policy. Proposal readiness, accepted mapping, current execution, and historical red-green chronology are separate claims. A weaker artifact SHALL NOT downgrade a stronger maturity required by changed governed paths.
 
-#### Scenario: Proposal-only change passes readiness without execution
+#### Scenario: Proposal-only change reports readiness without execution
 
-- **GIVEN** a changed OpenSpec proposal with a complete planned requirements
-  mapping and no changed governed production or test path
-- **WHEN** the gate evaluates the diff
-- **THEN** it requires `planned` maturity
-- **AND** it publishes a successful proposal-readiness report
-- **AND** the report labels implementation evidence as not-yet-available
-- **AND** it does not label the change executed, implemented, or verified.
+- **GIVEN** only proposal artifacts changed and their planned mappings are complete
+- **WHEN** the Requirements gate evaluates the snapshot
+- **THEN** it may pass proposal readiness
+- **AND** it reports implementation evidence as not yet available
+- **AND** it makes no current-run or historical proof claim.
 
-#### Scenario: Mixed or production diff cannot be downgraded
+#### Scenario: Production change cannot be downgraded by proposal files
 
-- **GIVEN** a diff containing a proposal mapping and a governed test or
-  production touchpoint
-- **WHEN** the gate evaluates the diff
-- **THEN** it requires the strongest maturity applicable to that touchpoint
-- **AND** a proposal-only mapping cannot cause the product change to pass at
-  `planned` maturity.
+- **GIVEN** a snapshot changes both proposal files and governed production touchpoints
+- **WHEN** maturity is derived
+- **THEN** the strongest applicable maturity is required
+- **AND** an author-provided phase label cannot reduce it.
 
 ### Requirement: Accepted Mapping Before Automation
 
-Core SHALL require acceptance evidence bound to the canonical mapping digest
-before test automation or production implementation. Acceptance may originate
-from a trusted reviewed base branch or a provider-neutral normalized review
-record; proposal-only readiness SHALL expose pending acceptance without
-blocking proposal review.
+Core SHALL require the pinned Requirements module to validate provider-neutral acceptance evidence against the current mapping digest before test-authored or current-run evidence can satisfy strict policy.
 
-#### Scenario: Test-only change requires current acceptance
+#### Scenario: Stale acceptance blocks automation
 
-- **GIVEN** a test-only diff mapped to an active requirement source
-- **WHEN** the gate evaluates the diff
-- **THEN** it requires accepted mapping evidence whose digest matches the
-  current mapping
-- **AND** stale, rejected, or unverifiable review evidence blocks automation.
-
-### Requirement: Git-Bound Failing-First Proof
-
-Except for the bounded R07 migration described below, Core SHALL require a
-runner-generated red proof from a test-only ancestor commit after the current
-pull-request base before a governed production change can reach verified
-maturity. The
-proof SHALL bind the commit/tree, merge base, mapping digest, selectors,
-test-file digests, JUnit digest, and toolchain identity. Core SHALL reject
-proof when governed production changed before the red commit, including a
-governed source renamed outside its prefix, or when selectors, applicable
-pytest `conftest.py` files, their repository-local imported Python support
-modules (including statically declared `pytest_plugins` and import targets that
-were absent at red), or test files changed after it. Before forwarding a prior-red report to the
-released reconciliation command, core SHALL verify that its source commit is a
-strict ancestor of the final source, the current pull-request base is an
-ancestor of that source, and that the selected test files remain
-unchanged since that source.
-The prior-red JSON SHALL be accompanied by a retained JUnit XML artifact whose
-digest matches the execution proof and whose cases contain a failure or error;
-self-reported JSON without that artifact SHALL be rejected. Core SHALL also
-reject prior-red JSON or JUnit committed in the pull-request tree; normal red
-proof inputs SHALL come from runner-retained artifacts outside that tree.
-
-For `requirements-07-runtime-proof-delivery` only, Core SHALL instead accept
-the historical failing-first ledger from approved immutable commit
-`69f075819be5e1ceca1446b026b0417f19e584ca` when its ledger digest is bound to
-the current mapping and final-plan digests. Core SHALL use this exception only
-during final reconciliation, SHALL reject a modified checkout ledger, and
-SHALL NOT extend it to any other change.
-
-#### Scenario: Production change follows valid red proof
-
-- **GIVEN** a valid test-only ancestor and red proof for the exact mapping and
-  selectors
-- **WHEN** production code changes and the selectors pass at the current HEAD
-- **THEN** the gate reports verified maturity
-- **AND** it preserves both red and final execution provenance.
-
-#### Scenario: Same-commit or stale red proof is rejected
-
-- **GIVEN** tests and production code first appear in the same commit, or a
-  mapped selector, its applicable pytest `conftest.py`, a repository-local
-  Python support module imported or declared as a plugin by either input, an
-  absent local import target is added, or its test file changes after the red proof
-- **WHEN** the gate evaluates a governed production diff
-- **THEN** it fails with `tdd-order-unproven` or `stale-red-proof`
-- **AND** retained-run discovery searches every completed-run page, skips
-  invalid red artifacts, and continues to older eligible runs
-- **AND** it retains diagnostic artifacts before enforcing the verdict.
+- **GIVEN** acceptance evidence is missing, rejected, or bound to another mapping digest
+- **WHEN** the gate requires accepted maturity or higher
+- **THEN** it preserves a deterministic acceptance finding
+- **AND** it does not invent approval from passing tests.
 
 ### Requirement: Staged Scenario Proof Planning
 
-The core pre-commit gate SHALL invoke only a verified released Requirements
-module to produce and validate a proof plan from the staged Git index before
-Code Review and contract tests. It SHALL keep local planning bounded and SHALL
-NOT claim current-run execution proof without a result-reconciliation step.
+The staged gate SHALL evaluate only the Git index, validate mapped touchpoints and exact structured selectors, and retain a plan or explicit no-impact decision. It SHALL NOT execute tests or reuse worktree/CI evidence for different bytes.
 
-#### Scenario: Staged product change has complete proof plan
+#### Scenario: Valid staged mapping produces a static plan
 
-- **GIVEN** staged requirement and product-interface changes map selected
-  scenarios to valid touchpoints and exact test selectors
-- **WHEN** pre-commit Block 2 runs
-- **THEN** the gate retains the index-isolated plan and static evidence report
-- **AND** it continues to ordinary Code Review and contract gates
-- **AND** it does not mark any test executed or passed.
+- **GIVEN** staged governed changes have accepted scenarios and safe exact selectors
+- **WHEN** pre-commit planning runs
+- **THEN** it emits an index-bound deterministic plan
+- **AND** it does not claim collection, execution, pass, or red-green chronology.
 
-#### Scenario: Staged interface change lacks mapped proof
+#### Scenario: Unmapped staged interface blocks later gates
 
-- **GIVEN** a staged relevant product-interface change with no governed
-  scenario mapping or no valid exact test selector
-- **WHEN** staged proof planning runs under strict policy
-- **THEN** the gate retains remediation evidence and exits non-zero
-- **AND** later review and contract gates do not run.
-
-#### Scenario: Staged change has no requirement impact
-
-- **GIVEN** the staged diff qualifies for a governed no-requirement-impact
-  decision
+- **GIVEN** a staged governed interface has no accepted scenario or exact selector when required
 - **WHEN** planning runs
-- **THEN** it emits an explicit skipped report with the bounded reason and
-  changed-path digest
-- **AND** policy-designated product-interface, contract, requirement-source,
-  and proof-test paths cannot use that skip
-- **AND** it does not silently omit the Requirements gate.
+- **THEN** the gate retains remediation evidence and fails before review and contract gates.
 
 ### Requirement: Safe Pull-Request Proof Execution
 
-Core CI SHALL validate a module-produced structured proof plan and execute only
-supported exact test selectors in the frozen repository environment. It SHALL
-pass selectors as process arguments without shell interpretation and SHALL
-retain deterministic JUnit results for module-owned reconciliation.
+Core SHALL execute only exact selectors from a validated plan by using a subprocess argument array in a pinned, bounded environment. It SHALL reject unsafe selectors, unsupported runners, excessive plans, missing regular files, and incomplete result output before current-run proof can pass.
 
-#### Scenario: Valid exact selectors execute through an argument array
+#### Scenario: Exact selectors produce canonical JUnit identities
 
-- **GIVEN** the verified module emits a supported bounded plan whose pytest
-  selectors identify repository-contained exact test cases
-- **WHEN** the CI executor runs the plan
-- **THEN** it invokes the frozen pytest runner with selectors as argument-array
-  values after the runner option boundary
-- **AND** a repository-controlled result plugin records each exact collected
-  pytest node ID as a canonical selector property in JUnit
-- **AND** it writes JUnit to a fresh deterministic artifact path
-- **AND** it does not use `eval`, shell expansion, or command text from the plan.
+- **GIVEN** a valid current-run plan
+- **WHEN** core invokes pytest
+- **THEN** selectors appear only after the option boundary in the argument array
+- **AND** every collected test case records its canonical selector identity
+- **AND** the JUnit artifact is written outside mutable source paths.
 
-#### Scenario: Unsafe plan is rejected before test execution
+#### Scenario: Unsafe input fails before execution
 
-- **GIVEN** a selector has an absolute or escaping path, option prefix,
-  control/shell syntax, wildcard expansion, duplicate identity, unsupported
-  runner, or exceeds a configured plan bound
-- **WHEN** core validates the plan
-- **THEN** it fails before starting a test process
-- **AND** it retains bounded diagnostic evidence describing the rejected field.
+- **GIVEN** a selector contains traversal, absolute paths, option/control syntax, shell syntax, wildcard expansion, duplication, or an unsupported runner
+- **WHEN** the executor validates the plan
+- **THEN** it emits a bounded failure and starts no test process.
 
-#### Scenario: Test execution is incomplete or fails
+#### Scenario: Missing or incomplete JUnit is not a pass
 
-- **GIVEN** a valid plan whose test process times out, fails, errors, skips a
-  required test, or omits a required selector from JUnit
-- **WHEN** core returns the plan and available JUnit to the verified module
-- **THEN** the module-owned final report remains red or unproven
-- **AND** core publishes all available artifacts before enforcing failure.
+- **GIVEN** the executor times out, errors, emits no non-empty JUnit, or fails to collect every selector exactly once
+- **WHEN** the gate finalizes current-run evidence
+- **THEN** the execution claim is failed or unknown according to module policy
+- **AND** it is never converted to pass or no-impact.
 
-#### Scenario: Retained proof inputs or output are missing or stale
+### Requirement: Current-Run Evidence Boundary
 
-- **GIVEN** a retained red proof whose selected test or an applicable pytest
-  `conftest.py` changes after the red source, or an executor run that leaves no
-  non-empty JUnit artifact
-- **WHEN** pull-request CI validates or executes the Requirements proof
-- **THEN** the proof remains stale or unproven
-- **AND** the Requirements evidence gate exits nonzero after retaining its
-  diagnostic reports.
+Core SHALL report exact-selector execution observed in the current run independently from any historical failing-first claim. A current-run result SHALL bind the mapping, plan, selectors, source commit and tree, JUnit digest, runner identity, environment identity, and collection/result counts.
 
-#### Scenario: A selected test path is a symlink
+#### Scenario: Current selectors pass without historical proof
 
-- **GIVEN** a retained red proof selects a symlink instead of a regular test file
-- **WHEN** core validates its Git-bound execution inputs
-- **THEN** core rejects the proof as invalid rather than hashing only the link target name.
+- **GIVEN** every required selector is collected exactly once and passes at the evaluated source
+- **WHEN** the pinned module reconciles the current-run plan and JUnit
+- **THEN** the report records a passing current execution
+- **AND** it does not label the result passing-after-red or change-proven
+- **AND** a missing historical attestation leaves only the independent chronology claim unproven.
+
+#### Scenario: Historical evidence cannot inflate current execution
+
+- **GIVEN** a retained historical artifact exists but current selectors are missing, skipped, failed, errored, or ambiguous
+- **WHEN** reconciliation runs
+- **THEN** current execution does not pass
+- **AND** historical evidence cannot replace current-run results.
 
 ### Requirement: Authoritative Reconciliation and Review Handoff
 
-Core SHALL delegate scenario proof reconciliation to the same verified module
-release that produced the plan. It SHALL pass only finalized Requirements proof
-to the released Code Review context interface, preserve both reports and
-verdicts separately, and run existing contract/full quality gates independently.
+Core SHALL delegate current-run reconciliation to the same pinned Requirements module release and pass the finalized result to Code Review only as validated context. Requirements, Code Review, contracts, security, and broader tests retain independent verdicts.
 
-#### Scenario: Current-run proof passes and informs review
+#### Scenario: Finalized evidence informs review without verdict fusion
 
-- **GIVEN** exact selected tests execute and pass and module reconciliation
-  returns a finalized passing Requirements report
-- **WHEN** CI starts Code Review
-- **THEN** it supplies the finalized report as validated context
-- **AND** retains Requirements and review provenance separately
-- **AND** continues to existing independent contract and quality checks.
-
-#### Scenario: Review passes while Requirements proof fails
-
-- **GIVEN** the Requirements report is red and the separate review report is
-  green
-- **WHEN** delivery enforcement runs
-- **THEN** the Requirements check remains blocking
-- **AND** the review verdict does not replace or rewrite it.
-
-#### Scenario: Requirements proof passes while another gate fails
-
-- **GIVEN** the Requirements report is green but Code Review, contract tests,
-  full tests, static analysis, or security checks fail
-- **WHEN** delivery enforcement completes
-- **THEN** those independent gates remain blocking
-- **AND** targeted scenario proof is not treated as a replacement for them.
+- **GIVEN** a finalized current-run Requirements report
+- **WHEN** Code Review receives it
+- **THEN** review retains its source and digest provenance
+- **AND** neither decision changes the other decision, score, or exit semantics.
 
 ### Requirement: Always-Published Requirements Proof Decision
 
-Pull-request CI SHALL produce a selected, failed, or explicit skipped
-Requirements proof decision for every governed pull request and SHALL retain
-the plan, JUnit when execution starts, final JSON/Markdown evidence, and concise
-summary before enforcing a red verdict.
+Every governed pull request SHALL publish selected, failed, or deterministic no-impact Requirements evidence before enforcement. Scope-resolution failure, missing tools, timeout, or missing artifacts SHALL NOT be represented as no-impact or pass.
 
-#### Scenario: Relevant product change cannot disappear through path filters
+#### Scenario: Governed no-impact decision is auditable
 
-- **GIVEN** a pull request changes governed product, contract, test, or
-  requirement-source paths
-- **WHEN** workflows are scheduled
-- **THEN** the Requirements proof decision runs even if no OpenSpec file changed
-- **AND** branch protection receives a terminal result.
+- **GIVEN** the complete resolved PR diff contains no policy-governed Requirements impact
+- **WHEN** the gate evaluates it
+- **THEN** it publishes the base/head identities, changed-path digest, policy identity, and bounded reason
+- **AND** the terminal check succeeds without claiming tests executed.
 
-#### Scenario: No-impact pull request reports a governed skip
+#### Scenario: Unresolved execution remains non-green
 
-- **GIVEN** a pull request has no requirement impact under deterministic policy
-- **WHEN** the Requirements proof decision runs
-- **THEN** it publishes a skipped report and reason
-- **AND** branch protection receives a successful terminal result rather than a
-  missing check.
+- **GIVEN** Git scope, the pinned fixture, a mandatory tool, execution, or an artifact cannot be resolved
+- **WHEN** the terminal decision is produced
+- **THEN** strict policy exits non-zero after retaining diagnostics
+- **AND** no summary says all validations passed.
+

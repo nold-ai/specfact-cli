@@ -8,7 +8,7 @@ active changes should be implemented.
 
 | Bucket | Count | Location |
 |---|---:|---|
-| **Active** | 19 | [`openspec/changes/`](changes/) |
+| **Active** | 20 | [`openspec/changes/`](changes/) |
 | **Parked** | 21 | [`openspec/parking-lot/`](parking-lot/) |
 | **Archived** | 115 | [`openspec/changes/archive/`](changes/archive/) |
 
@@ -38,7 +38,7 @@ brownfield delivery. The active roadmap should make that thesis stronger:
 
 ## Active tracks
 
-The 19 active changes group into three product tracks plus one reliability lane.
+The 20 active changes group into three product tracks plus one reliability lane.
 Tracks can run in parallel; within a track, follow the order column.
 
 ### Track A - Validation Evidence Spine
@@ -85,8 +85,9 @@ planning workflows.
 | 3 | `openspec-01-intent-trace` | [#350](https://github.com/nold-ai/specfact-cli/issues/350) | Import-first OpenSpec and Spec Kit requirement evidence with pass/fail gates (rescoped 2026-07-13) | requirements-01/02 |
 | 4 | `requirements-04-upstream-source-readiness` | [#648](https://github.com/nold-ai/specfact-cli/issues/648) | Reject incomplete or policy-invalid native OpenSpec and Spec Kit sources before requirement normalization | openspec-01; paired modules #346 |
 | 5 | `requirements-06-evidence-enforcement` | [#657](https://github.com/nold-ai/specfact-cli/issues/657) | Enforce released Requirements evidence reports in staged pre-commit and pull-request delivery gates | released modules #361 fixture |
-| 6 | `requirements-07-runtime-proof-delivery` | [#662](https://github.com/nold-ai/specfact-cli/issues/662) | Execute safe scenario test plans, reconcile JUnit proof, and hand finalized Requirements context to review | modules [#368](https://github.com/nold-ai/specfact-cli-modules/issues/368) signed release |
-| 7 | `architecture-01-solution-layer` | [#240](https://github.com/nold-ai/specfact-cli/issues/240) | Architecture-boundary records and drift validation | requirements input contracts |
+| 6 | `requirements-07-runtime-proof-delivery` | [#662](https://github.com/nold-ai/specfact-cli/issues/662) | Execute exact scenario selectors and report current-run JUnit evidence independently from historical chronology | corrected modules R07 signed release |
+| 7 | `requirements-08-bounded-red-green-proof` | - | Replay an explicit B < R < H checkpoint and attest only the declared selector/path transition | corrected modules R08; R07 current-run boundary |
+| 8 | `architecture-01-solution-layer` | [#240](https://github.com/nold-ai/specfact-cli/issues/240) | Architecture-boundary records and drift validation | requirements input contracts |
 | Parked | `requirements-03-backlog-sync` | [#244](https://github.com/nold-ai/specfact-cli/issues/244) | Read-first drift evidence; no write-back critical path. Deprioritized 2026-07-13 behind openspec-01 | requirements-02; modules `sync-01` |
 | Gated | `architecture-02-well-architected-review` | [#524](https://github.com/nold-ai/specfact-cli/issues/524) | Architecture-boundary review findings | architecture-01 shipped plus one usage cycle |
 | Gated | `telemetry-01-opentelemetry-default-on` | [#518](https://github.com/nold-ai/specfact-cli/issues/518) | Opt-in validation outcome telemetry only | governance-01 evidence fields |
