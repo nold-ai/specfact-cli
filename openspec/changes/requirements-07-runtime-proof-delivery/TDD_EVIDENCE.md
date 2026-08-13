@@ -2923,3 +2923,40 @@ stale, while a path that was simply never there stays unbound.
   head; no module in this repository reaches its namespace mapping, so the stricter
   rule rejects nothing here. The automated repository measurement passes unchanged.
 - **Passing-after:** 273 passed in the provenance file.
+
+## Round 25: one namespace, every door
+
+The third finding on the same rule: `setattr(sys.modules[__name__], "pytest_plugins", ...)`
+and `sys.modules[__name__].__dict__` reach the namespace pytest reads without
+going through `globals()`. Round 24 made the rule positional — reading one key is
+fine, every other use is not — but left the *subject* of that rule narrow, naming
+only the mapping returned by `globals()` and `vars()`. A positional rule over an
+incomplete subject is still an incomplete rule.
+
+- **Failing-first.** Six of the nine shapes in `MODULE_OBJECT_REWRITE_SHAPES`
+  already failed closed, but by accident rather than by rule: they were caught by
+  the unrelated `setattr` check or by the `pytest_plugins` attribute-write check.
+  Three were not caught at all — a subscript write through the module's `__dict__`,
+  handing the module object to a local function, and `exec` against that `__dict__`.
+
+The subject is now the namespace itself, recognized by every door that reaches it:
+`globals()`, `vars()`, this module's own entry in the module table by subscript, by
+`get`, or through `import_module`, and the `__dict__` of any of them. They are one
+object seen from different sides, so one predicate recognizes all of them and every
+rule already written applies to each without restatement.
+
+Verified as such rather than by suite outcome: all nine shapes now trip the
+predicate directly, so each is rejected by the rule that is supposed to reject it
+instead of by a neighbouring check that happened to fire.
+
+The key matters. `sys.modules["tests.substitute"] = ...` is ordinary test practice
+and reaches nothing this gate reads, so only an entry keyed by `__name__` denotes
+this module. `INERT_MODULE_REFERENCE_SHAPES` locks four such cases —
+`logging.getLogger(__name__)`, splitting `__name__`, substituting another module,
+and `setattr` on that substitute — alongside a plain `globals()["key"]` read, which
+must stay verifiable for the positional rule to mean anything.
+
+- **Whole-repository measurement.** Zero added, zero removed against the previous
+  head. No module here reaches its own namespace by any door, so the wider subject
+  rejects nothing on this repository; its coverage is the thirteen-shape battery.
+- **Passing-after:** 286 passed in the provenance file.

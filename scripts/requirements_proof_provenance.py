@@ -709,17 +709,46 @@ def _calls_during_module_load(tree: ast.AST) -> bool:
     )
 
 
-def _is_namespace_mapping(expression: ast.expr) -> bool:
-    """Return whether an expression is this module's own namespace mapping."""
-    return (
-        isinstance(expression, ast.Call)
-        and isinstance(expression.func, ast.Name)
-        and expression.func.id in {"globals", "vars"}
+def _looks_up_this_module(expression: ast.expr) -> bool:
+    """Return whether an expression fetches this module's own entry from the module table.
+
+    ``sys.modules[__name__]``, the same entry via ``.get``, and ``import_module(__name__)`` all
+    hand back the running module. The key must be ``__name__``: substituting *another* module is
+    ordinary test practice and reaches nothing this gate reads.
+    """
+    if isinstance(expression, ast.Subscript):
+        keyed_by_this_module = isinstance(expression.slice, ast.Name) and expression.slice.id == "__name__"
+        return keyed_by_this_module and isinstance(expression.value, ast.Attribute)
+    if not isinstance(expression, ast.Call):
+        return False
+    named_this_module = any(
+        isinstance(argument, ast.Name) and argument.id == "__name__" for argument in expression.args
     )
+    callee = expression.func
+    method = callee.attr if isinstance(callee, ast.Attribute) else getattr(callee, "id", None)
+    return named_this_module and method in MODULE_LOOKUP_FUNCTIONS
+
+
+def _is_namespace_mapping(expression: ast.expr) -> bool:
+    """Return whether an expression denotes this module's own namespace or module object.
+
+    The namespace is reachable by more than one door — ``globals()``, ``vars()``, the module
+    object itself, and the ``__dict__`` of either — and they are the same thing seen from
+    different sides, so one predicate recognizes them all and every rule below applies to each.
+    """
+    if isinstance(expression, ast.Attribute) and expression.attr == "__dict__":
+        return _is_namespace_mapping(expression.value)
+    if _looks_up_this_module(expression):
+        return True
+    if not isinstance(expression, ast.Call) or not isinstance(expression.func, ast.Name):
+        return False
+    if expression.func.id == "globals":
+        return not expression.args
+    return expression.func.id == "vars" and (not expression.args or _is_namespace_mapping(expression.args[0]))
 
 
 def _reaches_namespace_mapping(expression: ast.expr) -> bool:
-    """Return whether the namespace mapping is anywhere inside an expression."""
+    """Return whether the namespace is anywhere inside an expression."""
     return any(_is_namespace_mapping(child) for child in ast.walk(expression) if isinstance(child, ast.expr))
 
 
@@ -1214,6 +1243,7 @@ def _discovered_rooted_paths(
     }
 
 
+MODULE_LOOKUP_FUNCTIONS = frozenset({"get", "setdefault", "import_module"})
 PATH_JOIN_METHODS = frozenset({"join", "joinpath"})
 POSIX_PATH_MODULES = frozenset({"os", "posixpath", "ntpath"})
 PATH_PRESERVING_METHODS = frozenset({"resolve", "absolute", "expanduser"})

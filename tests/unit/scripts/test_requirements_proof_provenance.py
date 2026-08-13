@@ -3488,3 +3488,71 @@ def test_a_data_read_through_a_linked_directory_binds_the_target(
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
         "stale-red-proof"
     ]
+
+
+# Routes to this module's own namespace that do not go through ``globals()``. Each can create
+# the attribute pytest reads, so each must leave the declarations unknowable.
+MODULE_OBJECT_REWRITE_SHAPES = (
+    'setattr(sys.modules[__name__], "pytest_plugins", ["tests.localplugin"])',
+    'sys.modules[__name__].__dict__.update(pytest_plugins=["tests.localplugin"])',
+    'sys.modules[__name__].__dict__["pytest_plugins"] = ["tests.localplugin"]',
+    'vars(sys.modules[__name__])["pytest_plugins"] = ["tests.localplugin"]',
+    'vars(sys.modules[__name__]).update(pytest_plugins=["tests.localplugin"])',
+    "globals().__dict__ if False else _install(sys.modules[__name__])",
+    'sys.modules.get(__name__).pytest_plugins = ["tests.localplugin"]',
+    'setattr(importlib.import_module(__name__), "pytest_plugins", ["tests.localplugin"])',
+    "exec('pytest_plugins = [\"tests.localplugin\"]', sys.modules[__name__].__dict__)",
+)
+
+# Ordinary uses of ``__name__`` and of the module table that reach nothing this gate reads.
+# Treating these as rewrites would make almost every conftest unverifiable.
+INERT_MODULE_REFERENCE_SHAPES = (
+    "LOGGER = logging.getLogger(__name__)",
+    'PARTS = __name__.split(".")',
+    'sys.modules["tests.substitute"] = _install',
+    'setattr(sys.modules["tests.substitute"], "value", 1)',
+)
+
+
+def _repository_with_module_reference(tmp_path: Path, body: str) -> tuple[str, Path]:
+    """Commit a root conftest carrying ``body`` beside a declarable plugin."""
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "localplugin.py").write_text("def pytest_configure(config):\n    return None\n", "utf-8")
+    (tmp_path / "tests" / "substitute.py").write_text("value = 0\n", encoding="utf-8")
+    header = "import importlib\nimport logging\nimport sys\n\n\ndef _install(target):\n    return target\n"
+    (tmp_path / "conftest.py").write_text(f"{header}\n{body}\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add a module-level reference")
+    (tmp_path / "tests" / "test_proof.py").write_text("def test_selected() -> None: assert False\n", "utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+    return base_ref, red_proof_path
+
+
+@pytest.mark.parametrize("rewrite", MODULE_OBJECT_REWRITE_SHAPES)
+def test_a_module_object_rewrite_leaves_the_plugin_set_unverifiable(tmp_path: Path, rewrite: str) -> None:
+    """The module object is another door to the namespace pytest reads, not a different rule."""
+    module = _load_provenance_module()
+    base_ref, red_proof_path = _repository_with_module_reference(tmp_path, rewrite)
+
+    (tmp_path / "tests" / "localplugin.py").write_text("def pytest_configure(config):\n    config.x = 1\n", "utf-8")
+    final_ref = _commit(tmp_path, "fix: change the plugin reached through the module object")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+@pytest.mark.parametrize("inert", INERT_MODULE_REFERENCE_SHAPES)
+def test_an_ordinary_module_reference_stays_verifiable(tmp_path: Path, inert: str) -> None:
+    """Naming ``__name__`` or another module's entry rewrites nothing this gate reads."""
+    module = _load_provenance_module()
+    base_ref, red_proof_path = _repository_with_module_reference(tmp_path, inert)
+
+    (tmp_path / "tests" / "localplugin.py").write_text("def pytest_configure(config):\n    config.x = 1\n", "utf-8")
+    final_ref = _commit(tmp_path, "chore: change a plugin nothing declares")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []

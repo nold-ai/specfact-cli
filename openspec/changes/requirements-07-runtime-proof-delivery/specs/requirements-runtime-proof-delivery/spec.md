@@ -278,15 +278,18 @@ retain deterministic JUnit results for module-owned reconciliation.
   attribute through `setattr`, hand the guard module to any call, or assign
   `pytest_plugins`, and also invokes anything while loading, where applying a
   decorator counts as an invocation even when it is a bare name
-- **AND** a module that reaches its own namespace mapping, as through `globals()`
-  or `vars()`, for anything other than reading one key out of it is unverifiable
-  on the same terms, because every other use of the mapping — a subscript write,
-  a method such as `update`, `setdefault`, or `__setitem__`, or handing it to
-  `exec` or any other call — creates the attribute pytest reads without binding
-  any name; the rule is positional rather than a list of mutating methods, which
-  would admit whichever spelling the list omits, and a write to a `pytest_plugins`
-  attribute is unverifiable wherever it appears, since the module object is
-  reachable by other routes such as `sys.modules[__name__]`
+- **AND** a module that reaches its own namespace for anything other than reading
+  one key out of it is unverifiable on the same terms, because every other use of
+  it — a subscript write, a method such as `update`, `setdefault`, or
+  `__setitem__`, or handing it to `exec` or any other call — creates the attribute
+  pytest reads without binding any name; the rule is positional rather than a list
+  of mutating methods, which would admit whichever spelling the list omits
+- **AND** the namespace is recognized by every door that reaches it — `globals()`,
+  `vars()`, this module's own entry in the module table whether taken by subscript,
+  `get`, or `import_module`, and the `__dict__` of any of them — because they are
+  one thing seen from different sides; an entry keyed by any other module is
+  ordinary test substitution and reaches nothing this gate reads, and a write to a
+  `pytest_plugins` attribute is unverifiable wherever it appears
 - **AND** a rewriter is recognized by the guard name it receives rather than by
   the callee's name, so an aliased or wrapped rewriter cannot evade the rule
 - **AND** every rule that asks which name an expression touches resolves that
