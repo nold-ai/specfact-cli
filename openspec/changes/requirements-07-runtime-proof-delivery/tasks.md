@@ -11,9 +11,9 @@
 
 - [ ] B.1 Create a dedicated implementation worktree and feature branch from current `origin/dev`; do not implement from the primary, `dev`, or `main` checkout.
 - [ ] B.2 Run `hatch env create`, then `hatch run smart-test-status` and `hatch run contract-test-status` in the worktree; record and resolve unexpected baseline failures before edits.
-- [ ] B.3 Run the change-specific strict OpenSpec command and confirm the accepted specs, dependencies, signed-module prerequisites, and closed file allowlist still match repository reality.
+- [ ] B.3 Read and apply `openspec/config.yaml` and its artifact rules. If the sibling `specfact-cli-internal` checkout exists, consult the applicable internal-wiki guidance. Record the sources and constraints used in `CHANGE_VALIDATION.md`. Then run exactly `openspec validate requirements-07-runtime-proof-delivery --strict`; require success before tests or source edits and rerun it after every validation-artifact fix. Confirm the accepted specs, dependencies, signed-module prerequisites, and closed file allowlist still match repository reality.
 - [ ] B.4 Follow `spec -> tests -> failing evidence -> code -> passing evidence`; in `TDD_EVIDENCE.md`, record separate failing-before and passing-after sections with exact commands, timestamps, actual results, behavioral summaries, environment limitations, and artifact identities. Record passing evidence only after implementation.
-- [ ] B.5 Before PR finalization, run the required format, type, lint, YAML, contract, focused/full test, workflow, independent-analysis, signature, and explicit base/head Code Review gates; resolve every finding or document an approved exception.
+- [ ] B.5 Before PR finalization, rerun exactly `openspec validate requirements-07-runtime-proof-delivery --strict` plus the required format, type, lint, YAML, contract, focused/full test, workflow, independent-analysis, signature, and explicit base/head Code Review gates. Update `CHANGE_VALIDATION.md` with validation scope/impact, affected files, exact commands, actual results and test counts, focused/full tests, skipped or unavailable tests/dependencies with reasons, artifact locations/identities, environment limitations, and release hygiene. Keep planning evidence, failing-before evidence, and passing-after evidence separate; rerun affected validation after every artifact fix and resolve every finding or document an approved exception.
 - [ ] B.6 After each merge, remove the implementation worktree, delete its local feature branch, run `git worktree prune`, and complete an explicit `AGENTS.md` worktree/policy self-check. Archive only from a dedicated follow-up worktree when the stated release and observation gates are complete.
 
 ## 1. Modules dependency — each task at most two hours
@@ -21,27 +21,27 @@
 - [ ] 1.1 In modules PR #412, add failing model tests separating `current_execution` from `red_green_chronology` using only the companion paths listed below.
 - [ ] 1.2 In modules PR #412, update the Requirements reconciliation/report schema so current-run pass/fail can be final without historical proof; version the accepted report shape using only the companion paths listed below.
 - [ ] 1.3 In modules PR #412, update the Code Review context adapter and its focused tests so `current_execution` is retained without requiring `proof_basis: "red-junit"`; preserve optional `red_green_chronology` as a separate field that cannot rewrite the review verdict.
-- [ ] 1.4 Publish the paired module payloads through the repository release generators. Version module manifests, update `CHANGELOG.md`, `registry/index.json`, generated archives/checksums/signatures, and record immutable commit/tree, package/report-schema versions, manifest integrity, signer/signature identities, and passing package/signature/registry verification evidence.
+- [ ] 1.4 Publish the paired module payloads through the repository release generators. Version module manifests, update `CHANGELOG.md`, `registry/index.json`, generated archives/checksums/signatures, and record immutable commit/tree, package/report-schema versions, manifest integrity, approved signing-key fingerprint or trust-root identity, signer/signature identities, and passing package/signature/registry verification evidence.
 
 ## 2. Core failing tests — tests before implementation, each task at most two hours
 
 - [ ] 2.1 Add `test_current_run_pass_is_not_labelled_passing_after_red`. Allowed file: `tests/unit/workflows/test_requirements_evidence_delivery_workflow.py`.
 - [ ] 2.2 Add `test_missing_historical_proof_retains_current_run_observation`. Allowed file: `tests/unit/scripts/test_requirements_evidence_delivery_gate.py`.
 - [ ] 2.3 Add `test_unresolved_current_run_cannot_be_pass_or_no_impact`, covering missing scope, missing JUnit, timeout, and tool failure. Allowed file: `tests/unit/scripts/test_requirements_evidence_delivery_gate.py`.
-- [ ] 2.4 Add `test_unverified_fixture_identity_fails_before_module_execution`, rejecting mismatched repository, commit, tree, package, report-schema, manifest-integrity, signature, or clean-state identity with field-specific diagnostics. Allowed file: `tests/unit/workflows/test_requirements_evidence_delivery_workflow.py`.
+- [ ] 2.4 Add `test_unverified_fixture_identity_fails_before_module_execution`, rejecting mismatched repository, commit, tree, package, report-schema, manifest-integrity, signature, clean-state identity, missing/unknown approved public-key fingerprint, or missing/unknown trust-root reference with field-specific diagnostics before module import. Allowed file: `tests/unit/workflows/test_requirements_evidence_delivery_workflow.py`.
 - [ ] 2.5 Before any production edit, update `requirements-evidence.yaml` under the paired released mapping schema: convert `R07-CORE-009-S01` from inspection to `tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_current_run_pass_is_not_labelled_passing_after_red`, convert `R07-CORE-009-S02` from inspection to `tests/unit/scripts/test_requirements_evidence_delivery_gate.py::test_missing_historical_proof_retains_current_run_observation`, verify both exact selectors collect once, and freeze the accepted mapping and plan digests. Do not invent selectors on this planning-only branch.
 - [ ] 2.6 Record the exact failing commands, timestamps, actual results, behavioral summaries, environment limitations, and artifact identities in the failing-before section of `TDD_EVIDENCE.md` before production edits.
 
 ## 3. Core implementation — each task at most two hours
 
-- [ ] 3.1 Pin and verify the signed corrected modules repository commit/tree, package version, report-schema version, manifest integrity, signature, and clean-state identities before any module import or execution; retain field-specific mismatch diagnostics. Allowed files: `ci/module-fixture.lock.json` and the exact pre-execution fixture assertion in `.github/workflows/requirements-evidence.yml` only.
+- [ ] 3.1 Pin and verify the signed corrected modules repository commit/tree, package version, report-schema version, manifest integrity, signature, clean-state identity, and approved public-key fingerprint or trust-root reference before any module import or execution. Validate the key/trust reference against the repository's configured approved key set and fail closed when it is missing or unknown; retain field-specific mismatch diagnostics. Allowed files: `ci/module-fixture.lock.json` and the exact pre-execution fixture/signature assertion in `.github/workflows/requirements-evidence.yml` only.
 - [ ] 3.2 Adapt current-run report handling without implementing chronology. Allowed files: `.github/workflows/requirements-evidence.yml` and `scripts/requirements_evidence_delivery_gate.py`; change `scripts/requirements_proof_executor.py` only when a named failing test proves field incompatibility.
 - [ ] 3.3 Remove the R07 legacy-ledger/prior-red requirement from current-run enforcement in `.github/workflows/requirements-evidence.yml` and `scripts/requirements_evidence_delivery_gate.py`. Do not add replacement AST inference.
 - [ ] 3.4 In `.github/workflows/requirements-evidence.yml`, keep Requirements and Code Review verdicts independent and publish both available artifacts before terminal enforcement.
 
 ## 4. Verification and delivery
 
-- [ ] 4.1 Run focused tests, strict OpenSpec validation, workflow lint, type/lint/contract checks, and full Code Review with explicit base/head scope.
+- [ ] 4.1 Run focused tests, exactly `openspec validate requirements-07-runtime-proof-delivery --strict`, workflow lint, type/lint/contract checks, and full Code Review with explicit base/head scope; record the exact results under task B.5 and rerun the affected commands after every validation or evidence-artifact fix.
 - [ ] 4.2 After implementation, add a separate passing-after section to `TDD_EVIDENCE.md` with timestamps, exact commands, actual results, behavioral summaries, environment limitations, and artifact identities.
 - [ ] 4.3 Create or update `docs/guides/requirements-evidence.md` to distinguish current-run evidence from bounded historical proof; update `docs/index.md` and `docs/_layouts/default.html` only when needed to expose the guide, and regenerate `llms.txt` through the existing docs generator rather than hand-editing it.
 - [ ] 4.4 Merge the completed implementation to `dev`; do not archive R07 until the correction is released and observed for one delivery cycle.
@@ -70,9 +70,9 @@ OpenSpec mapping and evidence records:
 
 Production/configuration:
 
-- `ci/module-fixture.lock.json`: signed modules repository/commit/tree/package identities only.
+- `ci/module-fixture.lock.json`: signed modules repository/commit/tree/package/report-schema identities plus the approved public-key fingerprint or trust-root reference only.
 - `scripts/requirements_evidence_delivery_gate.py`: adapt request/report fields for independent `current_execution`; no chronology or Git-history logic.
-- `.github/workflows/requirements-evidence.yml`: remove retained-run discovery/download and legacy-ledger/prior-red branches; consume, publish, and enforce current-run evidence plus explicit PR review paths.
+- `.github/workflows/requirements-evidence.yml`: remove retained-run discovery/download and legacy-ledger/prior-red branches; verify the fixture's approved signing-key/trust-root reference before module import; consume, publish, and enforce current-run evidence plus explicit PR review paths.
 - `scripts/requirements_proof_executor.py`: conditional only when a named failing test proves schema incompatibility; plan/result field adaptation only.
 
 Tests:
