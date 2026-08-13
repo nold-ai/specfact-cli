@@ -2761,3 +2761,94 @@ why the automated measurement asserts structure rather than a pinned count.
 
 - **Passing-after:** 233 passed in the provenance file, 4 in the repository
   measurement.
+
+## Round 23: four findings on what the run reads and what it never runs
+
+### A lookup Git could not answer is not proof of absence
+
+`_git_bytes` reports a timeout as an ordinary non-zero result, and `git cat-file -e`
+exits non-zero for both a missing path and an unusable ref. Existence therefore
+conflated "definitely absent" with "could not determine". A module whose lookup
+timed out was skipped as absent, and everything it imports went untraversed, so a
+later change to a transitive helper passed as fresh evidence.
+
+- **Failing-first.** With Git failing for `tests/support.py` and only
+  `tests/helper.py` — reached *through* it — changed after the red source, the gate
+  returned `[]` where `['stale-red-proof']` was required.
+
+`git ls-tree` separates the two answers: it succeeds with empty output for a path
+the ref does not contain and fails only when it could not answer. One cached
+`_tree_entry_mode_at_ref` now drives both existence and regularity, so the fix
+lands at the single place every caller goes through instead of at the call site
+the finding happened to name. The mode it returns is what made the link fix below
+possible without a second Git call.
+
+### A read through a link binds nothing
+
+The data pass filtered candidates to regular files, so a committed
+`tests/data/case.json -> real.json` was dropped and its target was never bound —
+pytest follows the link and reads bytes the gate had excluded.
+
+- **Failing-first.** Changing only `tests/data/real.json` after the red source
+  returned `[]` where `['stale-red-proof']` was required.
+
+Links are now followed, binding every hop, because editing any of them changes what
+the read returns. A link that leaves the checkout, cycles, or points at nothing
+binds no bytes and is stale rather than silently dropped; four such shapes are
+locked, along with a two-hop chain.
+
+### A join is resolved against the base it starts from
+
+`(Path(__file__).parent / "data" / "case.json")` discarded the base and produced
+`data/case.json`, which named nothing and bound nothing. A harness names its data
+beside itself far more often than beside the repository root.
+
+- **Failing-first.** Changing `tests/data/case.json` after the red source returned
+  `[]` where `['stale-red-proof']` was required.
+
+Eight base shapes now resolve — `__file__` turned into a path, `.parent`,
+`.parents[n]`, `.resolve()`, `os.path.dirname`, and a module-level name bound to
+any of them, including nested forms such as `Path(os.path.dirname(__file__))`.
+
+The same change closes an over-binding hole in the opposite direction that the
+finding did not mention. A join was previously read as root-relative *whatever* it
+started from, so `tmp_path / "tests" / "data" / "case.json"` bound the committed
+file that happened to share those components. A base that cannot be known now
+discards the join, which is the rule the specification already states for runtime
+paths. Three unknowable bases are locked as binding nothing.
+
+### The body of a test the run never enters
+
+Reported as P2: an exact selector runs one node, but every deferred scope in the
+module was traversed, so a helper imported only inside an *unselected* test body
+was bound and editing it rejected still-valid evidence.
+
+- **Failing-first.** With `tests/test_proof.py::test_selected` selected and
+  `tests/helper.py` imported only inside `test_other`, changing that helper
+  returned `['stale-red-proof']` where `[]` was required.
+
+The finding's proposed remedy — reachability from the selected node and its active
+fixtures — is **declined**, and the narrower rule implemented instead. Fixture
+activation depends on autouse declarations, indirect parametrization, conftest
+chains, and plugins; none is decidable from a module's syntax, and a partial
+implementation would silently stop binding fixtures that do run. That is the
+under-binding class this change has spent twenty rounds closing, and trading it for
+a narrow false positive is a bad exchange.
+
+What is implemented is provable: a scope is dropped only when it is a test, is not
+itself selected, and its name appears nowhere else in the module. Nothing is
+dropped at all unless a selected identifier matches a function defined there, so a
+selection this gate cannot resolve to names leaves every scope traversed. Node
+identifiers are now carried through from the red report rather than discarded after
+their paths are taken, with parametrized cases reduced to the function they run.
+Three locks hold the boundary: an import in the selected body, an import in an
+unselected body that the selected one calls, and an import in a fixture body all
+stay bound.
+
+- **Whole-repository measurement.** One file added against the previous head,
+  `tests/fixtures/speckit/spec-template-v0.12.18.md` — a fixture reached by a
+  `__file__`-relative join that previously resolved to nothing. Nothing under
+  `src/specfact_cli/**` is bound, and the automated repository measurement passes
+  unchanged.
+- **Passing-after:** 256 passed in the provenance file, 640 across the scripts,
+  workflows, and integration suites.

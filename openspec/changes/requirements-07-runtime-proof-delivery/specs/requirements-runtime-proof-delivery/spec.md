@@ -205,6 +205,23 @@ retain deterministic JUnit results for module-owned reconciliation.
 - **AND** a literal that cannot name a committed path, because it carries a
   control character or a traversal segment, is discarded before it becomes a Git
   argument, so an arbitrary string in a test fixture cannot raise out of the gate
+- **AND** a join is resolved against the base it starts from, so a harness naming
+  data beside itself through `__file__`, `.parent`, `.parents[n]`, `.resolve()`,
+  or a name bound to any of them binds the file it actually reads, while a join
+  from a base decided at runtime binds nothing rather than being read as though
+  it started at the repository root
+- **AND** a committed link a proof input reads is followed to its target, with
+  every hop bound because editing any of them changes the bytes returned, and a
+  link that leaves the checkout, cycles, or points at nothing is stale
+- **AND** a lookup Git could not answer, including a timed-out one, is stale
+  rather than absent, because treating an unanswered lookup as a missing file
+  leaves the module and everything it imports untraversed
+- **AND** the body of a test an exact selection does not run is not traversed,
+  provided the selection resolves to functions defined in that module and the
+  function's name appears nowhere else in it; fixtures are always traversed,
+  because which ones a run activates depends on autouse declarations, indirect
+  parametrization, conftest chains, and plugins, none of which this gate can
+  decide from the module's syntax
 - **AND** the resolved input set is measured against this repository so the rule
   family is held to what it must not bind as well as what it must: no product
   source is ever an input, every bound file outside the test tree is a recorded

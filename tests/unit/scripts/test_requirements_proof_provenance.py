@@ -3116,3 +3116,261 @@ def test_a_literal_that_cannot_name_a_committed_path_is_discarded(tmp_path: Path
     final_ref = _commit(tmp_path, "chore: change data the malformed literal does not name")
 
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
+
+
+def test_a_file_relative_data_read_resolves_against_the_reading_module(tmp_path: Path) -> None:
+    """``Path(__file__).parent / "data"`` names a directory beside the module, not beside the root."""
+    module = _load_provenance_module()
+    body = 'CASE = (Path(__file__).parent / "data" / "case.json").read_text()'
+    base_ref, red_proof_path = _repository_with_data_read(tmp_path, body)
+
+    (tmp_path / "tests" / "data" / "case.json").write_text('{"expected": true}\n', encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change the case the harness reads")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_a_data_read_through_a_symlink_binds_the_target(tmp_path: Path) -> None:
+    """Pytest follows the link and consumes the target's bytes, which Git records separately."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    data_path = tmp_path / "tests" / "data"
+    data_path.mkdir(parents=True)
+    (data_path / "real.json").write_text('{"expected": false}\n', encoding="utf-8")
+    (data_path / "case.json").symlink_to("real.json")
+    (tmp_path / "tests" / "conftest.py").write_text(
+        'from pathlib import Path\n\nCASE = Path("tests/data/case.json").read_text()\n', encoding="utf-8"
+    )
+    base_ref = _commit(tmp_path, "test: add linked data")
+    (tmp_path / "tests" / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (data_path / "real.json").write_text('{"expected": true}\n', encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change the link target")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_an_undetermined_existence_check_is_stale_rather_than_absent(tmp_path: Path) -> None:
+    """A Git call that could not answer is not evidence that a module is missing."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "conftest.py").write_text("import tests.support\n", encoding="utf-8")
+    (tmp_path / "tests" / "__init__.py").write_text("", encoding="utf-8")
+    (tmp_path / "tests" / "support.py").write_text("import tests.helper\n", encoding="utf-8")
+    (tmp_path / "tests" / "helper.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add support")
+    (tmp_path / "tests" / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+    # Only the helper reached *through* the unreadable module changes, so accepting the proof
+    # depends entirely on whether the unanswerable lookup was read as "absent".
+    (tmp_path / "tests" / "helper.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change the transitively imported helper")
+
+    original_git_bytes = module._git_bytes
+
+    def timing_out_git_bytes(repo_root: Path, *arguments: str) -> Any:
+        # A timeout reaches callers as an ordinary failure, whichever command was issued.
+        if any("tests/support.py" in argument for argument in arguments):
+            return subprocess.CompletedProcess(["git", *arguments], returncode=1, stdout=b"", stderr=b"")
+        return original_git_bytes(repo_root, *arguments)
+
+    module._git_bytes = timing_out_git_bytes
+    try:
+        module._tree_entry_mode_at_ref.cache_clear()
+        module._python_tree_at_ref.cache_clear()
+        findings = module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref)
+    finally:
+        module._git_bytes = original_git_bytes
+
+    assert findings == ["stale-red-proof"]
+
+
+# Every way a harness names data beside itself. The base differs in each; what they share is
+# that it resolves to the reading module's own directory rather than to the repository root.
+FILE_RELATIVE_BASE_SHAPES = (
+    '(Path(__file__).parent / "data" / "case.json").read_text()',
+    '(Path(__file__).resolve().parent / "data" / "case.json").read_text()',
+    '(Path(__file__).parents[0] / "data" / "case.json").read_text()',
+    '(Path(__file__).parent.parent / "tests" / "data" / "case.json").read_text()',
+    '(Path(__file__).resolve().parents[1] / "tests" / "data" / "case.json").read_text()',
+    'HERE = Path(__file__).parent\nCASE = (HERE / "data" / "case.json").read_text()',
+    'ROOT = Path(__file__).resolve().parents[1]\nCASE = (ROOT / "tests" / "data" / "case.json").read_text()',
+    '(Path(os.path.dirname(__file__)) / "data" / "case.json").read_text()',
+)
+
+# Joins whose base is decided at runtime. Reading them as root-relative would bind whatever
+# committed file happens to share the remaining components, failing proofs on unrelated edits.
+UNKNOWABLE_BASE_SHAPES = (
+    'def fixture_case(tmp_path):\n    return (tmp_path / "tests" / "data" / "case.json").read_text()',
+    'def fixture_case(request):\n    return (request.config.rootpath / "tests" / "data" / "case.json").read_text()',
+    'def fixture_case(base):\n    return (base / "tests" / "data" / "case.json").read_text()',
+)
+
+
+@pytest.mark.parametrize("read", FILE_RELATIVE_BASE_SHAPES)
+def test_a_data_read_resolves_every_knowable_path_base(tmp_path: Path, read: str) -> None:
+    """The reading module's own directory is the base a harness names its data from."""
+    module = _load_provenance_module()
+    base_ref, red_proof_path = _repository_with_data_read(tmp_path, f"import os\n\nCASE = {read}")
+
+    (tmp_path / "tests" / "data" / "case.json").write_text('{"expected": true}\n', encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change the case the harness reads")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+@pytest.mark.parametrize("read", UNKNOWABLE_BASE_SHAPES)
+def test_a_join_from_an_unknowable_base_binds_nothing(tmp_path: Path, read: str) -> None:
+    """A runtime base names no committed file, so treating it as root-relative binds the wrong one."""
+    module = _load_provenance_module()
+    base_ref, red_proof_path = _repository_with_data_read(tmp_path, read)
+
+    (tmp_path / "tests" / "data" / "case.json").write_text('{"expected": true}\n', encoding="utf-8")
+    final_ref = _commit(tmp_path, "chore: change a case nothing reads")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
+
+
+def _repository_with_linked_data(tmp_path: Path, link_text: str) -> tuple[str, Path]:
+    """Commit ``tests/data/case.json`` as a link to ``link_text`` beside a real target."""
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    data_path = tmp_path / "tests" / "data"
+    data_path.mkdir(parents=True)
+    (data_path / "real.json").write_text('{"expected": false}\n', encoding="utf-8")
+    (data_path / "hop.json").symlink_to("real.json")
+    (data_path / "case.json").symlink_to(link_text)
+    (tmp_path / "tests" / "conftest.py").write_text(
+        'from pathlib import Path\n\nCASE = Path("tests/data/case.json").read_text()\n', encoding="utf-8"
+    )
+    base_ref = _commit(tmp_path, "test: add linked data")
+    (tmp_path / "tests" / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+    return base_ref, red_proof_path
+
+
+def test_a_data_read_follows_a_chain_of_links_to_its_target(tmp_path: Path) -> None:
+    """Each hop is bound, because editing any of them changes the bytes the read returns."""
+    module = _load_provenance_module()
+    base_ref, red_proof_path = _repository_with_linked_data(tmp_path, "hop.json")
+
+    (tmp_path / "tests" / "data" / "real.json").write_text('{"expected": true}\n', encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change the far end of the chain")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+@pytest.mark.parametrize("link_text", ["../../../outside.json", "/etc/hostname", "missing.json", "case.json"])
+def test_a_link_that_cannot_be_bound_is_stale(tmp_path: Path, link_text: str) -> None:
+    """A link out of the checkout, at nothing, or at itself binds no bytes and is not proof."""
+    module = _load_provenance_module()
+    base_ref, red_proof_path = _repository_with_linked_data(tmp_path, link_text)
+
+    (tmp_path / "tests" / "data" / "real.json").write_text('{"expected": true}\n', encoding="utf-8")
+    final_ref = _commit(tmp_path, "chore: touch the repository after the red source")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def _repository_with_two_tests(
+    tmp_path: Path, other_body: str, selected_body: str = "assert False"
+) -> tuple[str, Path]:
+    """Commit a selected test beside an unselected one, and return the red proof."""
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "__init__.py").write_text("", encoding="utf-8")
+    (tmp_path / "tests" / "helper.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add helper")
+    (tmp_path / "tests" / "test_proof.py").write_text(
+        f"def test_selected() -> None:\n    {selected_body}\n\n\ndef test_other() -> None:\n    {other_body}\n",
+        encoding="utf-8",
+    )
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+    return base_ref, red_proof_path
+
+
+def test_an_import_only_inside_an_unselected_test_body_is_not_bound(tmp_path: Path) -> None:
+    """Exact selection runs one node, so another test's body never executes its imports."""
+    module = _load_provenance_module()
+    base_ref, red_proof_path = _repository_with_two_tests(tmp_path, "import tests.helper")
+
+    (tmp_path / "tests" / "helper.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "chore: change a helper only the unselected test imports")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
+
+
+@pytest.mark.parametrize(
+    ("other_body", "selected_body"),
+    [
+        # The selected body imports it, so it runs.
+        ("pass", "import tests.helper"),
+        # The unselected function is called by the selected one, so its body runs after all.
+        ("import tests.helper", "test_other()"),
+    ],
+)
+def test_an_import_a_selected_run_can_reach_stays_bound(tmp_path: Path, other_body: str, selected_body: str) -> None:
+    """Narrowing may only drop bodies nothing invokes; anything reachable still binds."""
+    module = _load_provenance_module()
+    base_ref, red_proof_path = _repository_with_two_tests(tmp_path, other_body, selected_body)
+
+    (tmp_path / "tests" / "helper.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change a helper the selected run reaches")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_a_fixture_body_stays_bound_beside_an_unselected_test(tmp_path: Path) -> None:
+    """Which fixtures a run activates is not statically decidable, so fixtures are never dropped."""
+    module = _load_provenance_module()
+    body = (
+        "import pytest\n\n\n@pytest.fixture\ndef support():\n    import tests.helper\n\n    return tests.helper\n\n\n"
+        "def test_selected(support) -> None:\n    assert False\n\n\ndef test_other() -> None:\n    pass\n"
+    )
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "__init__.py").write_text("", encoding="utf-8")
+    (tmp_path / "tests" / "helper.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add helper")
+    (tmp_path / "tests" / "test_proof.py").write_text(body, encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (tmp_path / "tests" / "helper.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change a helper the fixture imports")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]

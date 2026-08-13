@@ -14,7 +14,7 @@ import shlex
 import subprocess
 import sys
 import tomllib
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path, PurePosixPath
 from typing import cast
 from xml.etree import ElementTree
@@ -60,6 +60,9 @@ PYTEST_INI_SECTIONS = {
     "tox.ini": "pytest",
     "setup.cfg": "tool:pytest",
 }
+REGULAR_FILE_MODES = frozenset({"100644", "100755"})
+SYMLINK_MODE = "120000"
+MAX_SYMLINK_HOPS = 8
 REPOSITORY_ROOT_MODULE_ROOTS = ("",)
 # Plugins the executor early-loads with ``-p`` on every proof run. They are not declared in any
 # configuration this gate can read, so they are named here and held to the executor's own command
@@ -127,8 +130,12 @@ def _validated_selectors(execution_proof: dict[str, object]) -> list[str]:
     return cast(list[str], selectors)
 
 
-def _selector_paths(report: dict[str, object]) -> tuple[str, list[str]]:
-    """Validate the released red-report shape and extract unique selector file paths."""
+def _selector_paths(report: dict[str, object]) -> tuple[str, dict[str, frozenset[str]]]:
+    """Validate the released red-report shape and extract the selection per test file.
+
+    The node identifiers are kept, not only their paths, because an exact selection runs one
+    node out of a module and the bodies of the others never execute.
+    """
     execution_proof = _validated_execution_proof(report)
     if report.get("gate_decision") != "pass" or report.get("observed_maturity") != "red":
         raise ValueError("prior-red-proof-invalid")
@@ -137,14 +144,17 @@ def _selector_paths(report: dict[str, object]) -> tuple[str, list[str]]:
     selectors = _validated_selectors(execution_proof)
     source_ref = execution_proof["source_ref"]
     assert isinstance(source_ref, str)
-    paths: set[str] = set()
+    selection: dict[str, set[str]] = {}
     for selector in selectors:
-        test_path, separator, _ = selector.partition("::")
+        test_path, separator, node_id = selector.partition("::")
         path = PurePosixPath(test_path)
         if not separator or path.is_absolute() or ".." in path.parts or not test_path.endswith(".py"):
             raise ValueError("prior-red-proof-invalid")
-        paths.add(test_path)
-    return source_ref, sorted(paths)
+        # A parametrized node carries its case in brackets; the function it runs is the name.
+        selection.setdefault(test_path, set()).update(
+            component.partition("[")[0] for component in node_id.split("::") if component
+        )
+    return source_ref, {path: frozenset(names) for path, names in selection.items()}
 
 
 def _ancestor_file_paths(path: str, filename: str) -> set[str]:
@@ -784,7 +794,11 @@ def _verified_type_checking_bindings(tree: ast.AST, before_line: int | None = No
 
 
 def _module_scope_nodes(
-    tree: ast.AST, *, include_class_bodies: bool = False, include_deferred_scopes: bool = False
+    tree: ast.AST,
+    *,
+    include_class_bodies: bool = False,
+    include_deferred_scopes: bool = False,
+    skipped_scope_names: frozenset[str] = frozenset(),
 ) -> list[ast.AST]:
     """Return executable module nodes without entering deferred function scopes.
 
@@ -792,14 +806,16 @@ def _module_scope_nodes(
     loads executes its imports at import time, and one invoked from a fixture executes them
     while the selected test runs, so either way the imported file decides the outcome.
     Static branch pruning still applies inside those bodies, so a guarded type-only import
-    stays unbound.
+    stays unbound. Named scopes are skipped even then, for bodies the run provably never
+    enters — their headers still execute where they appear.
     """
     pending = list(reversed(list(ast.iter_child_nodes(tree))))
     nodes: list[ast.AST] = []
     while pending:
         node = pending.pop()
         nodes.append(node)
-        deferred_scope = (
+        skipped = isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef)) and node.name in skipped_scope_names
+        deferred_scope = skipped or (
             isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef, ast.Lambda)) and not include_deferred_scopes
         )
         excluded_class_scope = isinstance(node, ast.ClassDef) and not include_class_bodies
@@ -1002,6 +1018,40 @@ def _pytest_plugin_names(tree: ast.AST) -> list[list[str]]:
     return plugin_names
 
 
+def _unexecuted_test_scopes(tree: ast.AST, selected_names: frozenset[str]) -> frozenset[str]:
+    """Return test functions in this module that an exact selection provably never runs.
+
+    Pytest collects the module but runs only the selected node identifiers, so the body of an
+    unselected test executes nothing — binding what it imports rejects proofs over code the run
+    never touched. Only bodies that are provably unreachable are dropped: a function is skipped
+    only when it is a test, is not itself selected, and its name appears nowhere else in the
+    module, because a name that is referenced may be called from a body that does run.
+
+    Nothing is dropped unless at least one selected identifier matches a function defined here.
+    A selection this gate cannot resolve to names — a generated identifier, an unfamiliar
+    layout — leaves every scope traversed, because guessing wrong in this direction accepts
+    stale evidence rather than merely rejecting fresh evidence.
+
+    Fixtures are never dropped. Which fixtures a run activates depends on autouse declarations,
+    indirect parametrization, conftest chains, and plugins, none of which is decidable from this
+    module's syntax, so they are treated as executed.
+    """
+    if not selected_names:
+        return frozenset()
+    definitions = [node for node in ast.walk(tree) if isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef))]
+    defined_names = {node.name for node in definitions}
+    if not selected_names & defined_names:
+        return frozenset()
+    referenced = {node.id for node in ast.walk(tree) if isinstance(node, ast.Name)} | {
+        node.attr for node in ast.walk(tree) if isinstance(node, ast.Attribute)
+    }
+    return frozenset(
+        node.name
+        for node in definitions
+        if node.name.startswith("test_") and node.name not in selected_names and node.name not in referenced
+    )
+
+
 def _deferred_scopes_are_reachable(tree: ast.AST, current_path: str) -> bool:
     """Report whether a module's deferred bodies run during the pytest session.
 
@@ -1012,7 +1062,9 @@ def _deferred_scopes_are_reachable(tree: ast.AST, current_path: str) -> bool:
     return not is_package_initializer or _calls_during_module_load(tree)
 
 
-def _literal_module_candidates(tree: ast.AST, current_path: str) -> list[list[str]]:
+def _literal_module_candidates(
+    tree: ast.AST, current_path: str, skipped_scope_names: frozenset[str] = frozenset()
+) -> list[list[str]]:
     """Return module names spelled as string literals in a reachable body.
 
     A dynamic import names its target in data rather than in the callee, so the mechanism is
@@ -1032,7 +1084,12 @@ def _literal_module_candidates(tree: ast.AST, current_path: str) -> list[list[st
     """
     names: list[list[str]] = []
     reachable_bodies = _deferred_scopes_are_reachable(tree, current_path)
-    for node in _module_scope_nodes(tree, include_class_bodies=True, include_deferred_scopes=reachable_bodies):
+    for node in _module_scope_nodes(
+        tree,
+        include_class_bodies=True,
+        include_deferred_scopes=reachable_bodies,
+        skipped_scope_names=skipped_scope_names,
+    ):
         handed_over = _handed_over_expressions(node)
         for value in itertools.chain.from_iterable(_literal_strings(argument) for argument in handed_over):
             parts = value.split(".")
@@ -1072,12 +1129,19 @@ def _literal_strings(expression: ast.expr) -> list[str]:
     return []
 
 
-def _import_module_names(tree: ast.AST, current_path: str) -> list[list[str]]:
+def _import_module_names(
+    tree: ast.AST, current_path: str, skipped_scope_names: frozenset[str] = frozenset()
+) -> list[list[str]]:
     """Return imported module names, including relative import candidates."""
     current_package = list(PurePosixPath(current_path).parent.parts)
     module_names: list[list[str]] = []
     reachable_bodies = _deferred_scopes_are_reachable(tree, current_path)
-    for node in _module_scope_nodes(tree, include_class_bodies=True, include_deferred_scopes=reachable_bodies):
+    for node in _module_scope_nodes(
+        tree,
+        include_class_bodies=True,
+        include_deferred_scopes=reachable_bodies,
+        skipped_scope_names=skipped_scope_names,
+    ):
         if isinstance(node, ast.Import):
             module_names.extend(alias.name.split(".") for alias in node.names)
         elif isinstance(node, ast.ImportFrom):
@@ -1123,13 +1187,8 @@ def _discovered_rooted_paths(
     }
 
 
-def _joined_path_literal(expression: ast.expr) -> str | None:
-    """Return the repository-relative path a chain of ``/`` joins spells, if it is fully literal.
-
-    ``REPO_ROOT / "tests" / "data" / "case.json"`` names a file as directly as a single string
-    does; the root the chain starts from is dropped because a path built inside the checkout is
-    only bindable relative to it.
-    """
+def _path_join_chain(expression: ast.expr) -> tuple[ast.expr, list[str]] | None:
+    """Split a chain of ``/`` joins into the base it starts from and its literal components."""
     parts: list[str] = []
     node: ast.expr = expression
     while isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
@@ -1137,25 +1196,108 @@ def _joined_path_literal(expression: ast.expr) -> str | None:
             return None
         parts.insert(0, node.right.value)
         node = node.left
-    return "/".join(parts) if parts else None
+    return (node, parts) if parts else None
 
 
-def _literal_path_candidates(tree: ast.AST, current_path: str) -> list[str]:
+def _ancestor_directory(path: str, levels: int) -> str:
+    """Return the directory that many levels above a repository-relative path."""
+    ancestor = PurePosixPath(path)
+    for _ in range(levels):
+        ancestor = ancestor.parent
+    return "" if ancestor == PurePosixPath(".") else ancestor.as_posix()
+
+
+def _names_the_module_file(expression: ast.expr) -> bool:
+    """Return whether an expression is the ``__file__`` of the module being inspected."""
+    return isinstance(expression, ast.Name) and expression.id == "__file__"
+
+
+def _path_base_directory(
+    expression: ast.expr, current_path: str, bindings: Mapping[str, ast.expr], depth: int = 0
+) -> str | None:
+    """Return the repository-relative location a path expression denotes, if it is knowable.
+
+    A harness names its data relative to itself far more often than to the repository root, so
+    ``Path(__file__).parent / "data"`` must resolve against the module being inspected rather
+    than being read as a root-relative ``data``. The forms that appear in practice are covered —
+    ``__file__`` turned into a path, ``.parent``, ``.parents[n]``, ``.resolve()``, and a
+    module-level name bound to any of them.
+
+    A base that is not one of those is unknowable, and ``None`` says so: a chain rooted at a
+    fixture value such as ``tmp_path`` names a file that does not exist in the repository at
+    all, and reading it as root-relative would bind whatever committed file happens to share
+    the remaining components.
+    """
+    if depth > MAX_SYMLINK_HOPS:
+        return None
+    if isinstance(expression, ast.Name):
+        bound = bindings.get(expression.id)
+        return None if bound is None else _path_base_directory(bound, current_path, bindings, depth + 1)
+    if isinstance(expression, ast.Call):
+        callee = expression.func
+        method = callee.attr if isinstance(callee, ast.Attribute) else None
+        if method in {"resolve", "absolute"}:
+            return _path_base_directory(callee.value, current_path, bindings, depth + 1)
+        for argument in expression.args:
+            base = (
+                current_path
+                if _names_the_module_file(argument)
+                else _path_base_directory(argument, current_path, bindings, depth + 1)
+            )
+            if base is None:
+                continue
+            # ``os.path.dirname(x)`` names the directory holding x; a path constructor keeps it.
+            return _ancestor_directory(base, 1) if method == "dirname" else base
+        return None
+    if isinstance(expression, ast.Attribute) and expression.attr == "parent":
+        base = _path_base_directory(expression.value, current_path, bindings, depth + 1)
+        return None if base is None else _ancestor_directory(base, 1)
+    if (
+        isinstance(expression, ast.Subscript)
+        and isinstance(expression.value, ast.Attribute)
+        and expression.value.attr == "parents"
+        and isinstance(expression.slice, ast.Constant)
+        and isinstance(expression.slice.value, int)
+    ):
+        base = _path_base_directory(expression.value.value, current_path, bindings, depth + 1)
+        return None if base is None else _ancestor_directory(base, expression.slice.value + 1)
+    return None
+
+
+def _module_scope_bindings(nodes: Sequence[ast.AST]) -> dict[str, ast.expr]:
+    """Return the last module-scope value assigned to each name."""
+    return {name: value for node in nodes for name, value in _simple_assignments(node)}
+
+
+def _literal_path_candidates(
+    tree: ast.AST, current_path: str, skipped_scope_names: frozenset[str] = frozenset()
+) -> list[str]:
     """Return repository-relative paths a reachable body names as literals.
 
     A harness reads a data file the same way it names a module: by handing a literal to a call,
-    or by joining literals onto a path root. Both are resolved, and nothing else is, because a
+    or by joining literals onto a path base. Both are resolved, and nothing else is, because a
     path assembled at runtime — ``tmp_path / name`` — cannot be bound to a committed file and
     failing closed on it would reject every proof in a repository that uses temporary
-    directories, which is every repository.
+    directories, which is every repository. A join whose base is unknowable is discarded for the
+    same reason, rather than being read as though it started at the repository root.
     """
     candidates: list[str] = []
     reachable_bodies = _deferred_scopes_are_reachable(tree, current_path)
-    for node in _module_scope_nodes(tree, include_class_bodies=True, include_deferred_scopes=reachable_bodies):
+    nodes = _module_scope_nodes(
+        tree,
+        include_class_bodies=True,
+        include_deferred_scopes=reachable_bodies,
+        skipped_scope_names=skipped_scope_names,
+    )
+    bindings = _module_scope_bindings(nodes)
+    for node in nodes:
         handed_over = _handed_over_expressions(node)
         candidates.extend(itertools.chain.from_iterable(_literal_strings(argument) for argument in handed_over))
-        if isinstance(node, ast.BinOp) and (joined := _joined_path_literal(node)) is not None:
-            candidates.append(joined)
+        if not isinstance(node, ast.BinOp) or (chain := _path_join_chain(node)) is None:
+            continue
+        base, parts = chain
+        if (directory := _path_base_directory(base, current_path, bindings)) is not None:
+            candidates.append("/".join([directory, *parts]) if directory else "/".join(parts))
     return [stripped for candidate in candidates if _names_a_repository_path(stripped := candidate.strip("/"))]
 
 
@@ -1192,7 +1334,11 @@ def _is_harness_path(path: str, harness_directories: Sequence[str]) -> bool:
 
 
 def _referenced_data_paths(
-    repo_root: Path, source_ref: str, python_paths: Sequence[str], selector_paths: Sequence[str]
+    repo_root: Path,
+    source_ref: str,
+    python_paths: Sequence[str],
+    selector_paths: Sequence[str],
+    selection: Mapping[str, frozenset[str]],
 ) -> set[str]:
     """Return committed harness data the resolved Python proof inputs read by literal path.
 
@@ -1203,14 +1349,70 @@ def _referenced_data_paths(
     if not harness_directories:
         return set()
     return {
-        candidate
+        bound
         for path in python_paths
         if (tree := _python_tree_at_ref(repo_root, source_ref, path)) is not None
-        for candidate in _literal_path_candidates(tree, path)
+        for candidate in _literal_path_candidates(
+            tree, path, _unexecuted_test_scopes(tree, selection.get(path, frozenset()))
+        )
         if _is_harness_path(candidate, harness_directories)
-        and _test_path_exists_at_ref(repo_root, source_ref, candidate)
-        and _test_path_is_regular_at_ref(repo_root, source_ref, candidate)
+        for bound in _read_data_paths(repo_root, source_ref, candidate)
     }
+
+
+def _read_data_paths(repo_root: Path, source_ref: str, candidate: str) -> set[str]:
+    """Return the committed paths a harness read of ``candidate`` actually consumes.
+
+    A link is followed rather than skipped, because pytest reads the target's bytes while Git
+    records only the link, so binding neither would let the target change unnoticed. Both the
+    link and its target are bound, since editing either changes what the read returns. A link
+    that leaves the repository, cycles, or points at nothing cannot be bound at all, and is
+    treated as stale rather than dropped.
+    """
+    mode = _tree_entry_mode_at_ref(repo_root, source_ref, candidate)
+    if mode is None:
+        return set()
+    bound: set[str] = set()
+    for _ in range(MAX_SYMLINK_HOPS):
+        if mode in REGULAR_FILE_MODES:
+            return bound | {candidate}
+        if mode != SYMLINK_MODE:
+            # A directory is named, not read; there are no bytes to bind.
+            return bound
+        bound.add(candidate)
+        result = _git_bytes(repo_root, "show", f"{source_ref}:{candidate}")
+        if result.returncode != 0 or len(result.stdout) > MAX_TEST_BLOB_BYTES:
+            raise ValueError("stale-red-proof")
+        target = result.stdout.decode("utf-8", errors="surrogateescape")
+        candidate = _repository_relative_target(candidate, target)
+        if candidate in bound or not _names_a_repository_path(candidate):
+            raise ValueError("stale-red-proof")
+        mode = _tree_entry_mode_at_ref(repo_root, source_ref, candidate)
+        if mode is None:
+            raise ValueError("stale-red-proof")
+    raise ValueError("stale-red-proof")
+
+
+def _repository_relative_target(link_path: str, target: str) -> str:
+    """Return where a committed link points, relative to the repository root.
+
+    A link text is resolved against the directory holding the link, exactly as the filesystem
+    resolves it. An absolute text names nothing inside the checkout and is returned unchanged so
+    the caller rejects it.
+    """
+    if target.startswith("/"):
+        return target
+    resolved: list[str] = list(PurePosixPath(link_path).parent.parts)
+    for part in PurePosixPath(target).parts:
+        if part == ".":
+            continue
+        if part != "..":
+            resolved.append(part)
+        elif resolved:
+            resolved.pop()
+        else:
+            return f"../{target}"
+    return "/".join(resolved)
 
 
 def _committed_module_names(
@@ -1251,6 +1453,7 @@ def _imported_python_paths(
     seeds: Sequence[tuple[str, bool, str]],
     *,
     plugin_module_roots: Sequence[str],
+    selection: Mapping[str, frozenset[str]],
 ) -> set[str]:
     """Return transitive repository-local Python imports used by pytest inputs.
 
@@ -1278,10 +1481,16 @@ def _imported_python_paths(
             continue
         import_roots = _import_roots(module_root)
         relative_path = _module_relative_path(current_path, module_root)
-        ordinary_rooted = _discovered_rooted_paths(_import_module_names(tree, relative_path), import_roots)
+        skipped_scopes = _unexecuted_test_scopes(tree, selection.get(current_path, frozenset()))
+        ordinary_rooted = _discovered_rooted_paths(
+            _import_module_names(tree, relative_path, skipped_scopes), import_roots
+        )
         ordinary_rooted |= _discovered_rooted_paths(
             _committed_module_names(
-                _literal_module_candidates(tree, relative_path), import_roots, repo_root, source_ref
+                _literal_module_candidates(tree, relative_path, skipped_scopes),
+                import_roots,
+                repo_root,
+                source_ref,
             ),
             import_roots,
         )
@@ -1407,16 +1616,34 @@ def _has_governed_production_path(paths: Sequence[str]) -> bool:
 
 
 @functools.cache
+def _tree_entry_mode_at_ref(repo_root: Path, source_ref: str, test_path: str) -> str | None:
+    """Return the Git mode of a committed path, or ``None`` when the ref definitely lacks it.
+
+    Absence and failure are different answers and must not share one. ``git cat-file -e`` exits
+    non-zero for both a missing path and an unusable ref, and the Git wrapper reports a timeout
+    the same way, so a lookup that never ran would read as proof that a module is missing and
+    its imports would go untraversed. ``git ls-tree`` separates them: it succeeds with no output
+    for a path the ref does not contain, and fails only when it could not answer, which is
+    treated as stale because an unanswered lookup is not evidence of anything.
+    """
+    result = _git(repo_root, "ls-tree", source_ref, "--", test_path)
+    if result.returncode != 0:
+        raise ValueError("stale-red-proof")
+    entry = result.stdout.strip()
+    if not entry:
+        return None
+    mode, _, _ = entry.partition(" ")
+    return mode
+
+
 def _test_path_exists_at_ref(repo_root: Path, source_ref: str, test_path: str) -> bool:
     """Return whether a path exists at an immutable ref, caching the answer for the run."""
-    return _git(repo_root, "cat-file", "-e", f"{source_ref}:{test_path}").returncode == 0
+    return _tree_entry_mode_at_ref(repo_root, source_ref, test_path) is not None
 
 
-@functools.cache
 def _test_path_is_regular_at_ref(repo_root: Path, source_ref: str, test_path: str) -> bool:
     """Reject symlink selectors because pytest follows bytes not bound by their Git blob."""
-    result = _git(repo_root, "ls-tree", source_ref, "--", test_path)
-    return result.returncode == 0 and result.stdout.startswith(("100644 blob ", "100755 blob "))
+    return _tree_entry_mode_at_ref(repo_root, source_ref, test_path) in REGULAR_FILE_MODES
 
 
 def _blob_digest_at_ref(repo_root: Path, source_ref: str, test_path: str) -> str | None:
@@ -1482,7 +1709,12 @@ def _validate_execution_bindings(
             raise ValueError("prior-red-proof-invalid")
 
 
-def _proof_inputs(repo_root: Path, source_ref: str, selector_paths: Sequence[str]) -> set[str]:
+def _proof_inputs(
+    repo_root: Path,
+    source_ref: str,
+    selector_paths: Sequence[str],
+    selection: Mapping[str, frozenset[str]] | None = None,
+) -> set[str]:
     """Return every committed path whose change after the red source would invalidate the proof.
 
     Selectors are resolved together so their shared conftest, initializer, and import graph is
@@ -1515,12 +1747,14 @@ def _proof_inputs(repo_root: Path, source_ref: str, selector_paths: Sequence[str
     python_inputs = {
         *traversal_inputs,
         *(path for _, path in addopts_rooted),
-        *_imported_python_paths(repo_root, source_ref, seeds, plugin_module_roots=plugin_module_roots),
+        *_imported_python_paths(
+            repo_root, source_ref, seeds, plugin_module_roots=plugin_module_roots, selection=selection or {}
+        ),
     }
     return {
         *python_inputs,
         *_configuration_candidate_paths(configuration_directories),
-        *_referenced_data_paths(repo_root, source_ref, sorted(python_inputs), selector_paths),
+        *_referenced_data_paths(repo_root, source_ref, sorted(python_inputs), selector_paths, selection or {}),
     }
 
 
@@ -1539,7 +1773,8 @@ def validate_prior_red_proof(red_proof_path: Path, repo_root: Path, *, base_ref:
     try:
         report = _read_red_proof(red_proof_path)
         _validate_retained_red_junit(red_proof_path, report)
-        source_ref, selector_paths = _selector_paths(report)
+        source_ref, selection = _selector_paths(report)
+        selector_paths = sorted(selection)
     except ValueError as error:
         return [str(error)]
     if not _red_source_precedes_final(repo_root, base_ref, source_ref, final_ref):
@@ -1562,7 +1797,7 @@ def validate_prior_red_proof(red_proof_path: Path, repo_root: Path, *, base_ref:
         ):
             return ["prior-red-proof-invalid"]
     try:
-        proof_inputs = _proof_inputs(repo_root, source_ref, selector_paths)
+        proof_inputs = _proof_inputs(repo_root, source_ref, selector_paths, selection)
     except ValueError as error:
         return [str(error)]
     if not proof_inputs.isdisjoint(paths_after_red):
