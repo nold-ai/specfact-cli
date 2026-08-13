@@ -140,14 +140,14 @@ requirements:
     verification_cases:
       - case_id: R07-CORE-009-S01
         scenario_id: current-run-evidence-boundary
-        method: test
-        intent: "Prove a current-run pass is retained without being labelled passing-after-red."
-        observable: "Independent current_execution pass and unproven chronology."
+        method: inspection
+        intent: "Inspect that the corrected planning contract keeps current-run execution separate from historical chronology."
+        observable: "The specification and implementation tasks require independent current_execution and chronology states."
       - case_id: R07-CORE-009-S02
         scenario_id: current-run-evidence-boundary
-        method: test
-        intent: "Prove missing historical context cannot erase or inflate the current-run observation."
-        observable: "Current execution remains exact while chronology remains independent."
+        method: inspection
+        intent: "Inspect that missing historical context cannot erase or inflate a current-run observation."
+        observable: "The specification preserves exact current execution while leaving chronology independently unproven."
   openspec:requirements-07-runtime-proof-delivery:requirements-runtime-proof-delivery:authoritative-reconciliation-and-review-handoff:
     rationale: "Requirements proof and review are independent delivery signals."
     stakeholder_refs:

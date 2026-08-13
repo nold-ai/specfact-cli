@@ -12,9 +12,9 @@ requirements:
     verification_cases:
       - case_id: R08-CORE-001
         scenario_id: explicit-three-commit-boundary
-        method: test
-        intent: "Validate B < R < H and declared mutation sets without runtime dependency inference."
-        observable: "Ancestry and path-set facts produce proven or unproven chronology."
+        method: inspection
+        intent: "Inspect the planned B < R < H ancestry and declared transition-scope contract."
+        observable: "The specification and tasks define ancestry and path-set facts without runtime dependency inference."
   openspec:requirements-08-bounded-red-green-proof:requirements-bounded-red-green-proof:authoritative-runtime-replay:
     rationale: "Historical chronology is strongest when both endpoint executions are replayed together."
     stakeholder_refs:
@@ -26,9 +26,9 @@ requirements:
     verification_cases:
       - case_id: R08-CORE-002
         scenario_id: authoritative-runtime-replay
-        method: test
-        intent: "Replay identical exact selectors at R and H in one pinned environment."
-        observable: "Expected failures at R and passes at H are bound to canonical selectors."
+        method: inspection
+        intent: "Inspect the planned requirement to replay identical exact selectors at R and H in one pinned environment."
+        observable: "The specification requires one declared failure at R and one pass at H for each identical selector."
   openspec:requirements-08-bounded-red-green-proof:requirements-bounded-red-green-proof:bound-proof-attestation:
     rationale: "Every claim must identify its snapshots, inputs, tools, limits, and verifier epoch."
     stakeholder_refs:
@@ -40,9 +40,9 @@ requirements:
     verification_cases:
       - case_id: R08-CORE-003
         scenario_id: bound-proof-attestation
-        method: test
-        intent: "Bind Git, plan, selector, JUnit, environment, policy, and verifier identities."
-        observable: "The attestation states the bounded claim and its limitations."
+        method: inspection
+        intent: "Inspect the planned attestation bindings for Git, plan, selectors, JUnit, environment, policy, and verifier identities."
+        observable: "The specification defines the bounded claim, mandatory identities, and explicit limitations."
   openspec:requirements-08-bounded-red-green-proof:requirements-bounded-red-green-proof:fail-closed-unproven-state:
     rationale: "Missing mandatory facts cannot become a green result."
     stakeholder_refs:
@@ -54,7 +54,7 @@ requirements:
     verification_cases:
       - case_id: R08-CORE-004
         scenario_id: fail-closed-unproven-state
-        method: test
-        intent: "Preserve UNKNOWN/unproven for unresolved history, execution, scope, or identity."
-        observable: "Strict policy exits non-zero after retaining diagnostics."
+        method: inspection
+        intent: "Inspect the planned fail-closed behavior for unresolved history, execution, scope, or identity."
+        observable: "The specification requires an explicit unproven result and non-zero strict enforcement."
 
