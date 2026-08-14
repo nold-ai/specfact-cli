@@ -12,6 +12,9 @@ requirements:
       - id: fixture-lock
         kind: config_file
         locator: "ci/module-fixture.lock.json"
+      - id: local-requirements-fixture-adapter
+        kind: cli_command
+        locator: "scripts/requirements_evidence_delivery_gate.py"
     verification_cases:
       - case_id: R07-CORE-008-S01
         scenario_id: requirements-evidence-delivery-enforcement
@@ -21,6 +24,11 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_requirements_evidence_delivery_gate.py::test_verified_fixture_requires_exact_released_identity_and_clean_tree
+      - case_id: R07-CORE-008-S02
+        scenario_id: requirements-evidence-delivery-enforcement
+        method: inspection
+        intent: "Inspect that local enforcement verifies the full signed fixture and approved trust identity before module import."
+        observable: "The specification and implementation tasks require the local adapter to fail closed with field-specific diagnostics before module execution."
   openspec:requirements-07-runtime-proof-delivery:requirements-runtime-proof-delivery:lifecycle-derived-requirements-gate:
     rationale: "Proposal review must distinguish a complete plan from delivered behavior."
     stakeholder_refs:
@@ -148,6 +156,11 @@ requirements:
         method: inspection
         intent: "Inspect that missing historical context cannot erase or inflate a current-run observation."
         observable: "The specification preserves exact current execution while leaving chronology independently unproven."
+      - case_id: R07-CORE-009-S03
+        scenario_id: current-run-evidence-boundary
+        method: inspection
+        intent: "Inspect that unresolved current-run scope, JUnit, timeout, or tool facts cannot become pass or no-impact."
+        observable: "The specification and implementation tasks require an explicit unresolved non-green decision with retained diagnostics."
   openspec:requirements-07-runtime-proof-delivery:requirements-runtime-proof-delivery:authoritative-reconciliation-and-review-handoff:
     rationale: "Requirements proof and review are independent delivery signals."
     stakeholder_refs:
