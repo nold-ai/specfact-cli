@@ -24,7 +24,9 @@ The verifier needs to determine whether a red result is still meaningful after i
 
 ### Use a B-R-H proof boundary with a delivered-head binding D
 
-B is the resolved PR merge base, R is an explicit full commit SHA supplied by the accepted mapping/checkpoint, H is the explicit green implementation checkpoint, and D is the current delivered head. The validator proves B is an ancestor of R, R is a strict ancestor of H, H is an ancestor of or equal to D, and D exactly matches the delivery identity.
+B is the resolved PR merge base and D is the current delivered head. R and H are resolved only from protected signed annotated checkpoint tags, never from candidate-controlled SHA text. The validator proves B is an ancestor of R, R is a strict ancestor of H, H is an ancestor of or equal to D, and D exactly matches the delivery identity.
+
+The verifier derives the exact tag names `refs/tags/specfact-checkpoint/<change-id>/<mapping-digest>/red` and `refs/tags/specfact-checkpoint/<change-id>/<mapping-digest>/green` from the accepted change identifier and frozen mapping digest. Each annotated tag is created after its target commit by an approved checkpoint issuer under a non-rewritable repository ruleset and canonically binds repository ID, change ID, role, commit and tree SHA, mapping/plan/selector/path-role digests, verifier epoch, issuer identity, and signature. Replay fetches and validates the tag objects with a read-only token before network-isolated execution. A lightweight, unsigned, movable, deleted/recreated, wrong-role, wrong-digest, unapproved-signer, or direct-SHA/PR-body/label/comment/workflow-input substitute is unproven. Historical workflow artifacts may retain diagnostics but are not checkpoint authority.
 
 The complete B..R changed-path set, including both rename endpoints, must be a subset of explicitly mapped `red_setup_touchpoints`. Each touchpoint is classified as a requirement, specification, selected test, test helper, conftest, deterministic test configuration, `proof_mapping`, or `failing_tdd_evidence` required to establish the red checkpoint. `proof_mapping` is this change's accepted `requirements-evidence.yaml`; `failing_tdd_evidence` is only this change's `TDD_EVIDENCE.md` failing-before record. The mapping declares one stable opaque `expected_failure_id` for every exact selector before R. The mapping, plan, selectors, expected-failure identities, path sets, failing-before evidence, and their digests are frozen at R. Governed implementation, dependency locks, workflows, runners, verifier/policy/schema files, other generated artifacts, and unclassified paths are forbidden.
 
@@ -46,7 +48,7 @@ Every selector must collect exactly once at every executed snapshot. Before R, t
 
 Core owns Git resolution, ancestry/path facts, isolated worktrees, test execution, JUnit retention, and production of the versioned replay capsule. The capsule includes a `schema_version` accepted by the paired signed Requirements release.
 
-The capsule binds B/R/H/D commits and trees, B..R, R..H, and H..D transition manifests/digests, mapping and plan digests, selector list, mapped expected-failure IDs, canonical observed red failure IDs and their digest, red, green-checkpoint, and delivery JUnit digests, runner/toolchain/environment/network-policy identities, policy identity, verifier identity and epoch, timestamps, resource limits, and the signed module repository/commit/tree/package/signature identity.
+The capsule binds B/R/H/D commits and trees; both checkpoint tag names, tag-object identities, canonical annotations, signatures, approved issuer/trust identities, repository-ruleset identity, and checkpoint-policy epoch; B..R, R..H, and H..D transition manifests/digests, mapping and plan digests, selector list, mapped expected-failure IDs, canonical observed red failure IDs and their digest, red, green-checkpoint, and delivery JUnit digests, runner/toolchain/environment/network-policy identities, policy identity, verifier identity and epoch, timestamps, resource limits, and the signed module repository/commit/tree/package/signature identity.
 
 The Requirements module validates capsule structure, hash links, transition facts, selector and failure-identity equality/outcomes, trusted module identity, and verifier epoch. It does not execute Git, pytest, or subprocesses. Unsupported capsule versions or untrusted module identities are `unproven`.
 
@@ -58,7 +60,7 @@ The report also states that this does not prove intent completeness, absence of 
 
 ### Treat missing facts as unproven without rewriting current execution
 
-Shallow history, unresolved refs, delivery-head mismatch, undeclared paths in any transition, checkout failure, selector mismatch, missing JUnit, timeout, tool error, network-isolation failure, capsule-version mismatch, module-identity mismatch, or verifier mismatch cannot produce pass, skip, or no-impact. Diagnostics and partial facts are retained before a non-zero strict exit.
+Shallow history, missing or untrusted checkpoint tags, unresolved refs, delivery-head mismatch, undeclared paths in any transition, checkout failure, selector mismatch, missing JUnit, timeout, tool error, network-isolation failure, capsule-version mismatch, module-identity mismatch, or verifier mismatch cannot produce pass, skip, or no-impact. Diagnostics and partial facts are retained before a non-zero strict exit.
 
 R08 updates only `red_green_chronology`. It cannot erase, inflate, or overwrite R07 `current_execution` or the independent Code Review verdict.
 
