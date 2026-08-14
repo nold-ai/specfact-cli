@@ -24,9 +24,13 @@ This branch changes OpenSpec planning artifacts only. It deliberately does not c
 - Affected planning files: `README.md`, `proposal.md`, `design.md`, `tasks.md`, `CHANGE_VALIDATION.md`, `TDD_EVIDENCE.md`, `requirements-evidence.yaml`, and both R07 delta specifications.
 - Excluded or unavailable dependencies: corrected signed modules release, accepted report-schema identity, approved signing-key/trust-root identity, internal-wiki checkout, and final R06-to-R07 archive verification.
 
+## Future pre-implementation readiness evidence
+
+Before tests or source edits, task B.3 SHALL append a readiness section recording the fresh hierarchy/project/concurrency/dependency checks, source timestamps, signed-module prerequisites, exact pre-change validation commands/results, environment limitations, and stop conditions. This phase is explicitly allowed by the closed change allowlist and is not implementation or passing evidence.
+
 ## Required implementation evidence
 
-At implementation finalization this file SHALL record validation scope and impact, affected files, exact commands, actual outcomes and test counts, focused and full tests, skipped or unavailable tests/dependencies with reasons, artifact locations and identities, environment limitations, approved signer/trust-root verification, and release hygiene. Planning evidence, failing-before evidence, and passing-after evidence remain separate.
+At implementation finalization, in a separate section, this file SHALL record validation scope and impact, affected files, exact commands, actual outcomes and test counts, focused and full tests, skipped or unavailable tests/dependencies with reasons, artifact locations and identities, environment limitations, approved signer/trust-root verification, and release hygiene. Planning evidence, failing-before evidence, and passing-after evidence remain separate.
 
 ## Validated planning boundaries
 
