@@ -4,7 +4,7 @@
 
 Core SHALL evaluate historical red-green proof against three explicit full Git identities: B, the pull-request merge base; R, an accepted red commit; and H, the green implementation checkpoint. It SHALL also bind D, the current delivered head. It SHALL prove B is an ancestor of R, R is a strict ancestor of H, H is an ancestor of or equal to D, and D exactly equals the delivery identity.
 
-The complete B..R changed-path set and both endpoints of every rename SHALL be a subset of explicitly mapped `red_setup_touchpoints`. Each red-setup touchpoint SHALL have an allowed requirement, specification, selected-test, test-helper, conftest, deterministic-test-configuration, `proof_mapping`, or `failing_tdd_evidence` role. `proof_mapping` SHALL identify this change's accepted `requirements-evidence.yaml` containing schema-validated exact selectors and all three path-role sets. `failing_tdd_evidence` SHALL identify only this change's `TDD_EVIDENCE.md` failing-before record written before production edits. Both inputs and their digests SHALL be frozen at R. Governed implementation, dependency locks, workflows, runners, verifier/policy/schema files, other generated artifacts, and unclassified paths SHALL be rejected.
+The complete B..R changed-path set and both endpoints of every rename SHALL be a subset of explicitly mapped `red_setup_touchpoints`. Each red-setup touchpoint SHALL have an allowed requirement, specification, selected-test, test-helper, conftest, deterministic-test-configuration, `proof_mapping`, or `failing_tdd_evidence` role. `proof_mapping` SHALL identify this change's accepted `requirements-evidence.yaml` containing schema-validated exact selectors, one stable opaque `expected_failure_id` for every selector, and all three path-role sets. `failing_tdd_evidence` SHALL identify only this change's `TDD_EVIDENCE.md` failing-before record written before production edits. The mapping, plan, selectors, expected-failure identities, path-role sets, failing-before evidence, and their digests SHALL be frozen at R. Governed implementation, dependency locks, workflows, runners, verifier/policy/schema files, other generated artifacts, and unclassified paths SHALL be rejected.
 
 The complete R..H changed-path set and both endpoints of every rename SHALL be a subset of explicitly mapped implementation touchpoints. Tests, fixtures, conftest files, test configuration, dependency locks, runners/workflows, mappings/plans, policy/verifier/schema files, evidence records, generated artifacts, and unclassified paths SHALL be rejected and require a new R.
 
@@ -22,7 +22,7 @@ When D differs from H, the complete H..D changed-path set and both endpoints of 
 #### Scenario: Undeclared red-setup path invalidates R
 
 - **GIVEN** B..R changes governed implementation, a dependency lock, workflow, runner, verifier/policy/schema file, non-approved generated artifact, or any undeclared or unclassified path or rename endpoint
-- **OR** the proof mapping, exact selectors, path-role sets, or failing-before evidence are absent, invalid, or not frozen at R
+- **OR** the proof mapping, exact selectors, expected-failure identities, path-role sets, or failing-before evidence are absent, invalid, or not frozen at R
 - **WHEN** the boundary is evaluated
 - **THEN** the checkpoint is unproven and strict policy fails
 - **AND** remediation requires a new declared red checkpoint.
@@ -41,27 +41,27 @@ Core SHALL replay identical exact selectors at R and H and, when D differs from 
 
 Strict proof SHALL bind the network-policy identity and successful isolation result. If network isolation cannot be established, chronology SHALL be unproven; a diagnostic run MAY continue only in shadow mode and SHALL NOT satisfy strict policy.
 
-Each selector SHALL collect exactly once at every executed snapshot. At R it SHALL fail for the mapped expected assertion class and SHALL NOT count skip, collection/setup error, timeout, or absence as red. At H it SHALL pass. At a distinct D it SHALL remain passing.
+Each selector SHALL collect exactly once at every executed snapshot. Before R, the accepted mapping SHALL assign the selector a stable opaque `expected_failure_id`, and the intended failing assertion SHALL emit exactly one `[specfact-failure:<expected_failure_id>]` marker in canonical JUnit failure text. At R the observed marker SHALL exactly equal the mapped ID. Assertion class alone SHALL be insufficient; a missing, duplicate, or different marker, including a different failure from the same assertion class, SHALL NOT count as red. Skip, collection/setup error, timeout, or absence also SHALL NOT count as red. At H the selector SHALL pass. At a distinct D it SHALL remain passing.
 
 #### Scenario: Exact selectors fail at R, pass at H, and remain passing at D
 
-- **GIVEN** an eligible boundary, accepted exact selectors, and enforced network isolation
+- **GIVEN** an eligible boundary, accepted exact selectors with one mapped `expected_failure_id` each, and enforced network isolation
 - **WHEN** replay completes at R, H, and distinct D when present
-- **THEN** every selector has one canonical failing result at R, one canonical passing result at H, and one canonical passing result at distinct D
+- **THEN** every selector has one canonical failing result at R whose single observed failure marker exactly matches its mapped `expected_failure_id`, one canonical passing result at H, and one canonical passing result at distinct D
 - **AND** all result sets and the network-policy identity are retained for attestation.
 
 #### Scenario: Replay cannot establish chronology
 
-- **GIVEN** checkout, environment, network isolation, collection, execution, or result identity fails at any required snapshot
+- **GIVEN** checkout, environment, network isolation, collection, execution, selector identity, or expected/observed failure identity fails at any required snapshot
 - **WHEN** replay finalizes
 - **THEN** chronology is unproven
 - **AND** partial diagnostics are retained before strict policy exits non-zero.
 
 ### Requirement: Bound Proof Attestation
 
-Core SHALL produce a content-addressed, versioned replay capsule using a `schema_version` accepted by the paired signed Requirements release. The capsule SHALL bind B/R/H/D commits and trees, B..R, R..H, and H..D path manifests/digests, mapping and plan digests, exact selectors, red, green-checkpoint, and delivery JUnit digests, runner/toolchain/environment/network-policy identities, policy identity, verifier identity and epoch, timestamps, resource bounds, and the signed module repository/commit/tree/package/signature identity.
+Core SHALL produce a content-addressed, versioned replay capsule using a `schema_version` accepted by the paired signed Requirements release. The capsule SHALL bind B/R/H/D commits and trees, B..R, R..H, and H..D path manifests/digests, mapping and plan digests, exact selectors, mapped expected-failure IDs, canonical observed red failure IDs and their digest, red, green-checkpoint, and delivery JUnit digests, runner/toolchain/environment/network-policy identities, policy identity, verifier identity and epoch, timestamps, resource bounds, and the signed module repository/commit/tree/package/signature identity.
 
-Core SHALL own Git resolution, isolated worktrees, test execution, and capsule production. The paired Requirements module SHALL validate the capsule schema, hash links, transition facts, selector equality/outcomes, trusted module identity, and verifier epoch without executing Git, pytest, or subprocesses. Unsupported capsule versions or untrusted module identities SHALL be unproven.
+Core SHALL own Git resolution, isolated worktrees, test execution, and capsule production. The paired Requirements module SHALL validate the capsule schema, hash links, transition facts, selector and failure-identity equality/outcomes, trusted module identity, and verifier epoch without executing Git, pytest, or subprocesses. Unsupported capsule versions or untrusted module identities SHALL be unproven.
 
 The attested human claim SHALL be: "These declared selectors failed at R, passed at H, and still passed at delivery head D; only declared implementation touchpoints changed from R to H and only declared delivery-evidence touchpoints changed from H to D." The report SHALL state that it does not prove stakeholder-intent completeness, absence of defects, or code quality.
 
@@ -69,7 +69,7 @@ The attested human claim SHALL be: "These declared selectors failed at R, passed
 
 - **GIVEN** an eligible boundary, successful required-snapshot replay, and a trusted signed Requirements release
 - **WHEN** core builds the capsule and the Requirements module validates it
-- **THEN** every mandatory identity, schema version, transition, result, and digest is present and valid
+- **THEN** every mandatory identity, including each mapped expected-failure ID and matching canonical observed red failure ID, schema version, transition, result, and digest is present and valid
 - **AND** D equals the current delivery identity
 - **AND** an independent runner can reconstruct the commands and verify artifact digests
 - **AND** the module performs no Git or test execution
@@ -84,7 +84,7 @@ The attested human claim SHALL be: "These declared selectors failed at R, passed
 
 ### Requirement: Fail-Closed Unproven State
 
-Missing or shallow history, invalid or abbreviated refs, unresolved merge base, mismatched delivery identity, undeclared paths in any transition, checkout failure, selector mismatch, missing artifacts, tool failure, timeout, network-isolation failure, environment mismatch, unsupported capsule version, untrusted module identity, or verifier mismatch SHALL produce an explicit unproven result and non-zero strict exit after diagnostics are retained. None of these conditions may be represented as pass, skip, or no-impact.
+Missing or shallow history, invalid or abbreviated refs, unresolved merge base, mismatched delivery identity, undeclared paths in any transition, checkout failure, selector or failure-identity mismatch, missing artifacts, tool failure, timeout, network-isolation failure, environment mismatch, unsupported capsule version, untrusted module identity, or verifier mismatch SHALL produce an explicit unproven result and non-zero strict exit after diagnostics are retained. None of these conditions may be represented as pass, skip, or no-impact.
 
 #### Scenario: Mandatory fact is unavailable
 
