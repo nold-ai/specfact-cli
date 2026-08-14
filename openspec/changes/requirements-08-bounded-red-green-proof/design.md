@@ -26,7 +26,7 @@ The verifier needs to determine whether a red result is still meaningful after i
 
 B is the resolved PR merge base, R is an explicit full commit SHA supplied by the accepted mapping/checkpoint, H is the explicit green implementation checkpoint, and D is the current delivered head. The validator proves B is an ancestor of R, R is a strict ancestor of H, H is an ancestor of or equal to D, and D exactly matches the delivery identity.
 
-The complete B..R changed-path set, including both rename endpoints, must be a subset of explicitly mapped `red_setup_touchpoints`. Each touchpoint is classified as a requirement, specification, selected test, test helper, conftest, or deterministic test configuration required to establish the red checkpoint. Governed implementation, dependency locks, workflows, runners, verifier/policy/schema files, generated artifacts, and unclassified paths are forbidden.
+The complete B..R changed-path set, including both rename endpoints, must be a subset of explicitly mapped `red_setup_touchpoints`. Each touchpoint is classified as a requirement, specification, selected test, test helper, conftest, deterministic test configuration, `proof_mapping`, or `failing_tdd_evidence` required to establish the red checkpoint. `proof_mapping` is this change's accepted `requirements-evidence.yaml`; `failing_tdd_evidence` is only this change's `TDD_EVIDENCE.md` failing-before record. The mapping declares one stable opaque `expected_failure_id` for every exact selector before R. The mapping, plan, selectors, expected-failure identities, path sets, failing-before evidence, and their digests are frozen at R. Governed implementation, dependency locks, workflows, runners, verifier/policy/schema files, other generated artifacts, and unclassified paths are forbidden.
 
 The complete R..H changed-path set, including both rename endpoints, must be a subset of explicitly mapped implementation touchpoints. Tests, fixtures, conftest files, pytest configuration, dependency locks, runner/workflow files, mappings, policies, verifier/schema files, evidence records, and unclassified paths invalidate the checkpoint and require a new R.
 
@@ -40,15 +40,15 @@ The workflow creates isolated read-only worktrees for R, H, and D when D differs
 
 Strict proof requires enforced egress isolation. The attestation binds the immutable network-policy identity and enforcement result. If isolation cannot be established, the run may remain diagnostic in shadow mode but chronology is `unproven` and strict policy cannot pass.
 
-Every selector must collect exactly once at every executed snapshot. At R it must fail for the expected mapped assertion class, not skip, error during setup/collection, or disappear. At H it must pass, and at a distinct D it must remain passing. Any mismatch is `unproven` or failed according to the paired module contract and blocks strict policy.
+Every selector must collect exactly once at every executed snapshot. Before R, the accepted mapping assigns the selector a stable opaque `expected_failure_id`, and the intended failing assertion emits exactly one `[specfact-failure:<expected_failure_id>]` marker in canonical JUnit failure text. At R the observed marker must exactly equal the mapped ID; assertion class alone is insufficient. A missing, duplicate, or different marker—including a different failure from the same assertion class—does not count as red. Skip, setup/collection error, timeout, or absence also does not count as red. At H the selector must pass, and at a distinct D it must remain passing. Any mismatch is `unproven` or failed according to the paired module contract and blocks strict policy.
 
 ### Core produces a versioned capsule; modules validate it
 
 Core owns Git resolution, ancestry/path facts, isolated worktrees, test execution, JUnit retention, and production of the versioned replay capsule. The capsule includes a `schema_version` accepted by the paired signed Requirements release.
 
-The capsule binds B/R/H/D commits and trees, B..R, R..H, and H..D transition manifests/digests, mapping and plan digests, selector list, red, green-checkpoint, and delivery JUnit digests, runner/toolchain/environment/network-policy identities, policy identity, verifier identity and epoch, timestamps, resource limits, and the signed module repository/commit/tree/package/signature identity.
+The capsule binds B/R/H/D commits and trees, B..R, R..H, and H..D transition manifests/digests, mapping and plan digests, selector list, mapped expected-failure IDs, canonical observed red failure IDs and their digest, red, green-checkpoint, and delivery JUnit digests, runner/toolchain/environment/network-policy identities, policy identity, verifier identity and epoch, timestamps, resource limits, and the signed module repository/commit/tree/package/signature identity.
 
-The Requirements module validates capsule structure, hash links, transition facts, selector equality/outcomes, trusted module identity, and verifier epoch. It does not execute Git, pytest, or subprocesses. Unsupported capsule versions or untrusted module identities are `unproven`.
+The Requirements module validates capsule structure, hash links, transition facts, selector and failure-identity equality/outcomes, trusted module identity, and verifier epoch. It does not execute Git, pytest, or subprocesses. Unsupported capsule versions or untrusted module identities are `unproven`.
 
 The fixed human claim is:
 
