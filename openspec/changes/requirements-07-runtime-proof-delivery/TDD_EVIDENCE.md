@@ -1169,3 +1169,12 @@
   regular blob modes while continuing to reject symlinks.
 - **Skipped:** 0 tests.
 - **Environment:** Linux, Python 3.12.13, pytest 9.1.1.
+
+
+## 2026-08-13 scope-correction record
+
+This planning commit corrects the R07 contract without rewriting the historical evidence above. Prior-red, legacy-ledger, retained-artifact, and static freshness results above document the superseded design; they are not evidence for the corrected current-run boundary and are not evidence that R08 is implemented.
+
+- Corrected behavior status: not started.
+- Runtime, workflow, fixture, schema, and test changes in this commit: none.
+- Required next evidence: the named failing tests in `tasks.md`, followed by the minimal implementation and a signed corrected modules release.
