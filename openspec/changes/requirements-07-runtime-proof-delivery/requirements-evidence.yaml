@@ -202,7 +202,7 @@ requirements:
         scenario_id: always-published-requirements-proof-decision
         method: test
         intent: "Prove a governed no-impact pull-request diff publishes an explicit decision."
-        observable: "Successful terminal result with bounded skip provenance."
+        observable: "Successful terminal result with explicit no-impact evidence binding full base/head commit identities, changed-path digest, policy identity, and a bounded no-impact reason."
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_requirements_evidence_delivery_gate.py::test_released_evidence_publishes_a_bounded_no_impact_pull_request_decision
