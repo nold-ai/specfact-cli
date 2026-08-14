@@ -26,11 +26,11 @@ The proposal, design, scenarios, bounded tasks, non-goals, and rollback path are
 
 ## Future pre-R readiness evidence
 
-Before accepting R, task B.3 SHALL append a readiness section recording the fresh governance/project/dependency checks, repository administrator approval, external checkpoint issuer/trust set, non-rewritable tag-ruleset identity, canonical annotation schema, checkpoint-policy epoch, signed-module prerequisites, environment limitations, and exact validation results. The mapping SHALL classify that section as `readiness_validation_evidence`; its bytes and digest are frozen at R and remain unchanged through H. Only after H may this same file be extended in H..D under its separate delivery-evidence role.
+Before accepting R, task B.3 SHALL append a readiness section recording the fresh governance/project/dependency checks, repository administrator approval, external checkpoint issuer/trust set, non-rewritable tag-ruleset identity, canonical annotation schema, checkpoint-policy epoch, signed-module prerequisites, environment limitations, and exact validation results. The readiness bytes SHALL be enclosed by exactly one `specfact:frozen-readiness` marker pair. The mapping SHALL classify that section as `readiness_validation_evidence`; its bytes and digest are frozen at R and must remain exactly once and byte-identical through D. Only after H may this file be extended outside the markers in H..D under its separate delivery-evidence role.
 
 ## Required implementation evidence
 
-At implementation finalization this file SHALL record validation scope and impact, affected files, exact commands, actual outcomes and test counts, focused and full tests, skipped or unavailable tests/dependencies with reasons, artifact locations and identities, environment limitations, B/R/H/D and capsule identities, approved signer/trust-root verification, verifier epoch, and release hygiene. Planning evidence, failing-before evidence, and H..D passing/implementation evidence remain separate.
+After H, outside the frozen readiness markers, this file SHALL record validation scope and impact, affected files, exact commands, actual outcomes and test counts, focused and full tests, skipped or unavailable tests/dependencies with reasons, artifact locations and identities, environment limitations, B/R/H/D and capsule identities, approved signer/trust-root verification, verifier epoch, and release hygiene. Planning evidence, failing-before evidence, and H..D passing/implementation evidence remain separate.
 
 ## Readiness blockers
 
