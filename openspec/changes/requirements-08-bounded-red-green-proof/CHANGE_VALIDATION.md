@@ -22,7 +22,11 @@ The proposal, design, scenarios, bounded tasks, non-goals, and rollback path are
 - Unverified stop conditions: issue type, actual parent relationship, project assignment, and project status/concurrency are not exposed or not set in the returned issue metadata. Task B.3 stops implementation until a fresh cache/project check verifies them.
 - Internal wiki: unavailable in this workspace; `tasks.md` requires the exact source-page and graph-rebuild follow-up.
 - Affected planning files: `.openspec.yaml`, `README.md`, `proposal.md`, `design.md`, `tasks.md`, `CHANGE_VALIDATION.md`, `TDD_EVIDENCE.md`, `requirements-evidence.yaml`, and the R08 delta specification.
-- Excluded or unavailable dependencies: signed immutable modules R08 release/fixture, accepted capsule-schema version, approved signing-key/trust-root identity, promoted verifier epoch, internal-wiki checkout, and benchmark corpus results.
+- Excluded or unavailable dependencies: signed immutable modules R08 release/fixture, accepted capsule-schema version, approved signing-key/trust-root identity, promoted verifier epoch, external checkpoint issuer/trust set, protected tag-ruleset identity, checkpoint-policy epoch, internal-wiki checkout, and benchmark corpus results.
+
+## Future pre-R readiness evidence
+
+Before accepting R, task B.3 SHALL append a readiness section recording the fresh governance/project/dependency checks, repository administrator approval, external checkpoint issuer/trust set, non-rewritable tag-ruleset identity, canonical annotation schema, checkpoint-policy epoch, signed-module prerequisites, environment limitations, and exact validation results. The mapping SHALL classify that section as `readiness_validation_evidence`; its bytes and digest are frozen at R and remain unchanged through H. Only after H may this same file be extended in H..D under its separate delivery-evidence role.
 
 ## Required implementation evidence
 
@@ -34,6 +38,7 @@ At implementation finalization this file SHALL record validation scope and impac
 - The signed fixture identity does not yet bind an accepted capsule-schema version, approved signing-key/trust-root identity, and verifier epoch.
 - Failing tests, exact selectors, and failing-before evidence have not been written or recorded.
 - No enforced network-isolation policy or verifier policy epoch exists.
+- No external checkpoint issuer/trust set, non-rewritable `refs/tags/specfact-checkpoint/**` ruleset, canonical annotation schema, or checkpoint-policy epoch has been established; red/green issuance is blocked.
 - No benchmark result has been produced by the proposed replay runner.
 - Issue #675 exists with the required labels and assignee, but its requested User Story type, actual parent relation, project assignment/status, and concurrency state must be verified before implementation because the current connector cannot update project fields.
 - Issue #675 currently records no GitHub blocker relationship. Before implementation, it must explicitly record and verify the corrected R07 current-run prerequisite (#662) and the paired signed modules R08 release tracked by modules issue #414/PR #412; missing or ambiguous dependency links are a stop condition.
