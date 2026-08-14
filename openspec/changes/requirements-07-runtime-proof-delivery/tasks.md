@@ -66,7 +66,7 @@ OpenSpec mapping and evidence records:
 
 - `openspec/changes/requirements-07-runtime-proof-delivery/requirements-evidence.yaml`: before production edits only, remap `R07-CORE-008-S01`, convert planned `R07-CORE-008-S02`, and convert `R07-CORE-009-S01`/`R07-CORE-009-S02` plus planned `R07-CORE-009-S03` to the five exact selectors named in task 2.5, verify collection, and freeze the accepted mapping/plan digests.
 - `openspec/changes/requirements-07-runtime-proof-delivery/TDD_EVIDENCE.md`: add failing-before evidence after the named tests fail and before production edits; add a separate passing-after section only after implementation passes.
-- `openspec/changes/requirements-07-runtime-proof-delivery/CHANGE_VALIDATION.md`: final corrected implementation validation only after the implementation and all required gates complete.
+- `openspec/changes/requirements-07-runtime-proof-delivery/CHANGE_VALIDATION.md`: pre-implementation readiness section required by task B.3 before tests/source edits, plus a separate final corrected implementation-validation section only after implementation and all required gates complete.
 
 Production/configuration:
 
