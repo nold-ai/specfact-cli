@@ -15,7 +15,7 @@ requirements:
         scenario_id: explicit-three-commit-boundary
         method: inspection
         intent: "Inspect the planned B < R < H <= D ancestry/delivery binding and all three complete declared transition allowlists, including accepted mapping and failing-before evidence in B..R."
-        observable: "The specification rejects every undeclared or disallowed B..R, R..H, or H..D path and rename endpoint without runtime dependency inference. Before accepting R, task 2.7 must convert applicable cases to exact test selectors and declare the schema-accepted path-role sets in this sidecar."
+        observable: "The specification rejects every undeclared or disallowed B..R, R..H, or H..D path and rename endpoint without runtime dependency inference. Before accepting R, task 2.9 must convert applicable cases to exact test selectors and declare the schema-accepted path-role sets in this sidecar."
   openspec:requirements-08-bounded-red-green-proof:requirements-bounded-red-green-proof:authoritative-runtime-replay:
     rationale: "Historical chronology is strongest when red, green-checkpoint, and delivered-head executions are replayed together."
     stakeholder_refs:
@@ -28,8 +28,8 @@ requirements:
       - case_id: R08-CORE-002-S01
         scenario_id: authoritative-runtime-replay
         method: inspection
-        intent: "Inspect the planned requirement to replay identical exact selectors at R, H, and distinct delivered head D in one pinned, network-isolated environment."
-        observable: "The specification requires one declared failure at R, one pass at H, and one retained pass at distinct D for each identical selector and makes unavailable isolation unproven."
+        intent: "Inspect the planned requirement to replay identical exact selectors with mapped expected-failure identities at R, H, and distinct delivered head D in one pinned, network-isolated environment."
+        observable: "The specification requires each selector's single red failure marker to match its frozen expected_failure_id, then one pass at H and one retained pass at distinct D; wrong same-class failures and unavailable isolation remain unproven."
   openspec:requirements-08-bounded-red-green-proof:requirements-bounded-red-green-proof:bound-proof-attestation:
     rationale: "Every claim must identify its snapshots, inputs, tools, limits, trust boundary, and verifier epoch."
     stakeholder_refs:
@@ -43,7 +43,7 @@ requirements:
         scenario_id: bound-proof-attestation
         method: inspection
         intent: "Inspect the versioned capsule bindings and core/Requirements-module ownership boundary."
-        observable: "Core produces Git and execution facts while the signed Requirements module validates the accepted capsule without executing Git or tests."
+        observable: "Core produces Git and execution facts, including mapped and observed red failure identities, while the signed Requirements module validates exact identity/hash relationships without executing Git or tests."
       - case_id: R08-CORE-003-S02
         scenario_id: bound-proof-attestation
         method: inspection
