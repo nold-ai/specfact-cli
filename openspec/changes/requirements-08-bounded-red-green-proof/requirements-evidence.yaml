@@ -14,7 +14,7 @@ requirements:
       - case_id: R08-CORE-001-S01
         scenario_id: explicit-three-commit-boundary
         method: inspection
-        intent: "Inspect the planned B < R < H <= D ancestry/delivery binding and all three complete declared transition allowlists, including accepted mapping and failing-before evidence in B..R."
+        intent: "Inspect the planned B < R < H <= D ancestry/delivery binding and all three complete declared transition allowlists, including accepted mapping, failing-before evidence, and pre-R readiness-validation evidence in B..R."
         observable: "The specification requires an external administrator/issuer ceremony for protected signed R/H checkpoint tags, maps the pre-R CHANGE_VALIDATION readiness section, derives tag names from change ID plus frozen mapping digest, rejects candidate-controlled SHA sources, and rejects every undeclared or disallowed B..R, R..H, or H..D path/rename endpoint without runtime dependency inference. Before accepting R, task 2.9 must convert applicable cases to exact test selectors and declare the schema-accepted path-role sets in this sidecar."
   openspec:requirements-08-bounded-red-green-proof:requirements-bounded-red-green-proof:authoritative-runtime-replay:
     rationale: "Historical chronology is strongest when red, green-checkpoint, and delivered-head executions are replayed together."
