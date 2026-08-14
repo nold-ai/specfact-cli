@@ -15,7 +15,7 @@ requirements:
         scenario_id: explicit-three-commit-boundary
         method: inspection
         intent: "Inspect the planned B < R < H <= D ancestry/delivery binding and all three complete declared transition allowlists, including accepted mapping and failing-before evidence in B..R."
-        observable: "The specification rejects every undeclared or disallowed B..R, R..H, or H..D path and rename endpoint without runtime dependency inference. Before accepting R, task 2.9 must convert applicable cases to exact test selectors and declare the schema-accepted path-role sets in this sidecar."
+        observable: "The specification derives protected signed R/H checkpoint tags from change ID plus frozen mapping digest, rejects candidate-controlled SHA sources, and rejects every undeclared or disallowed B..R, R..H, or H..D path/rename endpoint without runtime dependency inference. Before accepting R, task 2.9 must convert applicable cases to exact test selectors and declare the schema-accepted path-role sets in this sidecar."
   openspec:requirements-08-bounded-red-green-proof:requirements-bounded-red-green-proof:authoritative-runtime-replay:
     rationale: "Historical chronology is strongest when red, green-checkpoint, and delivered-head executions are replayed together."
     stakeholder_refs:
@@ -43,7 +43,7 @@ requirements:
         scenario_id: bound-proof-attestation
         method: inspection
         intent: "Inspect the versioned capsule bindings and core/Requirements-module ownership boundary."
-        observable: "Core produces Git and execution facts, including mapped and observed red failure identities, while the signed Requirements module validates exact identity/hash relationships without executing Git or tests."
+        observable: "Core validates protected signed checkpoint tags and produces Git/execution facts, including mapped and observed red failure identities, while the signed Requirements module validates exact checkpoint/identity/hash relationships without executing Git or tests."
       - case_id: R08-CORE-003-S02
         scenario_id: bound-proof-attestation
         method: inspection
