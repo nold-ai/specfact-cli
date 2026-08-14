@@ -30,7 +30,7 @@ Before accepting R, task B.3 SHALL append a readiness section recording the fres
 
 ## Required implementation evidence
 
-After H, outside the frozen readiness markers, this file SHALL record validation scope and impact, affected files, exact commands, actual outcomes and test counts, focused and full tests, skipped or unavailable tests/dependencies with reasons, artifact locations and identities, environment limitations, B/R/H/D and capsule identities, approved signer/trust-root verification, verifier epoch, and release hygiene. Planning evidence, failing-before evidence, and H..D passing/implementation evidence remain separate.
+After H, outside the frozen readiness markers, this file SHALL record validation scope and impact, affected files, exact commands, actual outcomes and test counts, focused and full tests, skipped or unavailable tests/dependencies with reasons, artifact locations and identities, environment limitations, B/R/H plus policy/schema identities, approved signer/trust-root verification, verifier epoch, and release hygiene. The exact D, capsule, final artifact, and workflow/check identities SHALL remain in the PR/check-suite record so this committed ledger does not create a self-reference. Planning evidence, failing-before evidence, and H..D passing/implementation evidence remain separate.
 
 ## Readiness blockers
 
