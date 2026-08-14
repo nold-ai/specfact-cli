@@ -15,6 +15,9 @@ requirements:
       - id: local-requirements-fixture-adapter
         kind: cli_command
         locator: "scripts/requirements_evidence_delivery_gate.py"
+      - id: runtime-smoke-registry
+        kind: cli_command
+        locator: "scripts/runtime_discovery_smoke.py"
     verification_cases:
       - case_id: R07-CORE-008-S01
         scenario_id: requirements-evidence-delivery-enforcement
@@ -29,6 +32,46 @@ requirements:
         method: inspection
         intent: "Inspect that local enforcement verifies the full signed fixture and approved trust identity before module import."
         observable: "The specification and implementation tasks require the local adapter to fail closed with field-specific diagnostics before module execution."
+      - case_id: R07-CORE-008-S03
+        scenario_id: requirements-evidence-delivery-enforcement
+        method: test
+        intent: "Preserve transitive bundle dependency assembly in the runtime-smoke registry."
+        observable: "Every declared dependency is included exactly once before launcher installation."
+        selector:
+          runner: pytest
+          node_id: tests/integration/scripts/test_runtime_discovery_smoke.py::test_local_runtime_registry_includes_transitive_bundle_dependencies
+      - case_id: R07-CORE-008-S04
+        scenario_id: requirements-evidence-delivery-enforcement
+        method: test
+        intent: "Preserve acceptance of complete Semantic Versioning 2.0.0 module versions."
+        observable: "Prerelease and build-suffix versions assemble successfully."
+        selector:
+          runner: pytest
+          node_id: tests/integration/scripts/test_runtime_discovery_smoke.py::test_semver_prerelease_and_suffix_are_valid_for_runtime_registry
+      - case_id: R07-CORE-008-S05
+        scenario_id: requirements-evidence-delivery-enforcement
+        method: test
+        intent: "Preserve rejection of a leading zero in a numeric core version."
+        observable: "Malformed version is rejected before an archive is written."
+        selector:
+          runner: pytest
+          node_id: tests/integration/scripts/test_runtime_discovery_smoke.py::test_local_runtime_registry_rejects_malformed_semver[01.2.3]
+      - case_id: R07-CORE-008-S06
+        scenario_id: requirements-evidence-delivery-enforcement
+        method: test
+        intent: "Preserve rejection of a leading zero in a numeric prerelease identifier."
+        observable: "Malformed version is rejected before an archive is written."
+        selector:
+          runner: pytest
+          node_id: tests/integration/scripts/test_runtime_discovery_smoke.py::test_local_runtime_registry_rejects_malformed_semver[1.2.3-01]
+      - case_id: R07-CORE-008-S07
+        scenario_id: requirements-evidence-delivery-enforcement
+        method: test
+        intent: "Preserve rejection of an empty prerelease identifier."
+        observable: "Malformed version is rejected before an archive is written."
+        selector:
+          runner: pytest
+          node_id: tests/integration/scripts/test_runtime_discovery_smoke.py::test_local_runtime_registry_rejects_malformed_semver[1.2.3-alpha..1]
   openspec:requirements-07-runtime-proof-delivery:requirements-runtime-proof-delivery:lifecycle-derived-requirements-gate:
     rationale: "Proposal review must distinguish a complete plan from delivered behavior."
     stakeholder_refs:
