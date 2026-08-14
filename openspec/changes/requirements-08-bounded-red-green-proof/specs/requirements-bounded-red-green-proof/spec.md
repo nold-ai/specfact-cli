@@ -10,7 +10,7 @@ The complete B..R changed-path set and both endpoints of every rename SHALL be a
 
 The complete R..H changed-path set and both endpoints of every rename SHALL be a subset of explicitly mapped implementation touchpoints. Tests, fixtures, conftest files, test configuration, dependency locks, runners/workflows, mappings/plans, policy/verifier/schema files, evidence records, generated artifacts, and unclassified paths SHALL be rejected and require a new R.
 
-When D differs from H, the complete H..D changed-path set and both endpoints of every rename SHALL be a subset of exact mapped `delivery_evidence_touchpoints`. Only the governed change's `TDD_EVIDENCE.md` and `CHANGE_VALIDATION.md` SHALL have that role. Implementation, tests, fixtures, configuration, dependencies, mapping/plan inputs, workflows, runners, policy/verifier/schema files, generated runtime inputs, other documentation, and unclassified paths SHALL be rejected. The validator SHALL use Git path and rename facts only. It SHALL NOT discover imports, pytest plugins, configuration, data reads, aliases, mutations, namespaces, symlinks, or other runtime dependency closure.
+When D differs from H, the complete H..D changed-path set and both endpoints of every rename SHALL be a subset of exact mapped `delivery_evidence_touchpoints`. Only the governed change's `TDD_EVIDENCE.md` and `CHANGE_VALIDATION.md` SHALL have that role. Implementation, tests, fixtures, configuration, dependencies, mapping/plan inputs, workflows, runners, policy/verifier/schema files, generated runtime inputs, other documentation, and unclassified paths SHALL be rejected. At R, core SHALL extract exactly one `specfact:frozen-failing` section from `TDD_EVIDENCE.md` and exactly one `specfact:frozen-readiness` section from `CHANGE_VALIDATION.md`, bind their exact bytes and digests, and repeat extraction at D. H..D changes SHALL be append-only outside those markers. A missing, duplicate, reordered, rewritten, or deleted frozen section SHALL be unproven even when every changed path is allowed. The validator SHALL use Git path and rename facts only. It SHALL NOT discover imports, pytest plugins, configuration, data reads, aliases, mutations, namespaces, symlinks, or other runtime dependency closure.
 
 #### Scenario: Declared red setup, implementation transition, and delivery evidence are eligible
 
@@ -41,6 +41,7 @@ When D differs from H, the complete H..D changed-path set and both endpoints of 
 
 - **GIVEN** R..H changes anything except a declared implementation touchpoint
 - **OR** H..D changes anything except an exact mapped delivery-evidence touchpoint
+- **OR** D does not preserve exactly one byte-identical frozen failing-before section and one byte-identical frozen readiness section from R
 - **WHEN** the boundary is evaluated
 - **THEN** the checkpoint is unproven and strict policy fails
 - **AND** a behavior-affecting change requires a new R; an invalid bookkeeping transition requires a corrected H/D boundary.
@@ -69,7 +70,7 @@ Each selector SHALL collect exactly once at every executed snapshot. Before R, t
 
 ### Requirement: Bound Proof Attestation
 
-Core SHALL produce a content-addressed, versioned replay capsule using a `schema_version` accepted by the paired signed Requirements release. The capsule SHALL bind B/R/H/D commits and trees; both checkpoint tag names, tag-object identities, canonical annotations, signatures, approved issuer/trust identities, repository-ruleset identity, and checkpoint-policy epoch; B..R, R..H, and H..D path manifests/digests, mapping and plan digests, exact selectors, mapped expected-failure IDs, canonical observed red failure IDs and their digest, red, green-checkpoint, and delivery JUnit digests, runner/toolchain/environment/network-policy identities, policy identity, verifier identity and epoch, timestamps, resource bounds, and the signed module repository/commit/tree/package/signature identity.
+Core SHALL produce a content-addressed, versioned replay capsule using a `schema_version` accepted by the paired signed Requirements release. The capsule SHALL bind B/R/H/D commits and trees; both checkpoint tag names, tag-object identities, canonical annotations, signatures, approved issuer/trust identities, repository-ruleset identity, and checkpoint-policy epoch; frozen failing/readiness section bytes and R/D digests plus equality results; B..R, R..H, and H..D path manifests/digests, mapping and plan digests, exact selectors, mapped expected-failure IDs, canonical observed red failure IDs and their digest, red, green-checkpoint, and delivery JUnit digests, runner/toolchain/environment/network-policy identities, policy identity, verifier identity and epoch, timestamps, resource bounds, and the signed module repository/commit/tree/package/signature identity.
 
 Core SHALL own Git resolution, isolated worktrees, test execution, and capsule production. The paired Requirements module SHALL validate the capsule schema, hash links, transition facts, selector and failure-identity equality/outcomes, trusted module identity, and verifier epoch without executing Git, pytest, or subprocesses. Unsupported capsule versions or untrusted module identities SHALL be unproven.
 
@@ -94,7 +95,7 @@ The attested human claim SHALL be: "These declared selectors failed at R, passed
 
 ### Requirement: Fail-Closed Unproven State
 
-Missing or shallow history, invalid or abbreviated refs, missing or untrusted checkpoint authority, unresolved merge base, mismatched delivery identity, undeclared paths in any transition, checkout failure, selector or failure-identity mismatch, missing artifacts, tool failure, timeout, network-isolation failure, environment mismatch, unsupported capsule version, untrusted module identity, or verifier mismatch SHALL produce an explicit unproven result and non-zero strict exit after diagnostics are retained. None of these conditions may be represented as pass, skip, or no-impact.
+Missing or shallow history, invalid or abbreviated refs, missing or untrusted checkpoint authority, unresolved merge base, mismatched delivery identity, undeclared paths or frozen-ledger-section mismatch in any transition, checkout failure, selector or failure-identity mismatch, missing artifacts, tool failure, timeout, network-isolation failure, environment mismatch, unsupported capsule version, untrusted module identity, or verifier mismatch SHALL produce an explicit unproven result and non-zero strict exit after diagnostics are retained. None of these conditions may be represented as pass, skip, or no-impact.
 
 #### Scenario: Mandatory fact is unavailable
 
