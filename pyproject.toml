@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling==1.31.0"]
+requires = ["hatchling==1.32.0"]
 build-backend = "hatchling.build"
 
 [project]
@@ -117,7 +117,7 @@ telemetry = [
 ]
 
 dev = [
-    "hatchling==1.31.0",  # Frozen PEP 517 backend used by delivery wheel builds.
+    "hatchling==1.32.0",  # Frozen PEP 517 backend used by delivery wheel builds.
     "setuptools>=83.0.0,<84",
     "pytest>=8.4.2",
     "pytest-cov>=7.0.0",
