@@ -118,7 +118,7 @@ telemetry = [
 
 dev = [
     "hatchling==1.31.0",  # Frozen PEP 517 backend used by delivery wheel builds.
-    "setuptools>=83.0.0,<84",
+    "setuptools>=83.0.0,<85",
     "pytest>=8.4.2",
     "pytest-cov>=7.0.0",
     "pytest-mock>=3.15.1",
@@ -195,7 +195,7 @@ python = "3.12"
 dependencies = [
     # CVE-2026-59890 is fixed in Setuptools 83.0.0. Semgrep 1.171+ supports
     # the patched build-tool line, which removes the former compatibility cap.
-    "setuptools>=83.0.0,<84",
+    "setuptools>=83.0.0,<85",
     "pip-tools",
     "pytest",
     "pytest-cov",
