@@ -1,19 +1,74 @@
 ## ADDED Requirements
 
-### Requirement: Agent Skill Spec Intelligence
+### Requirement: Discover module-owned skills
 
-The system SHALL provide a skill-first integration that directs AI agents to SpecFact workflows with low context overhead.
+The system SHALL discover versioned skill descriptors and assets from installed trusted SpecFact modules without defining their workflow content in core.
 
-#### Scenario: Skill instructs agent to run deterministic CLI checks
+#### Scenario: Signed preflight module exposes a skill
 
-- **GIVEN** skill is activated for PR or change analysis
-- **WHEN** agent follows skill guidance
-- **THEN** agent invokes commands such as `specfact validate`, `specfact trace show`, and `specfact requirements list`
-- **AND** output references evidence paths instead of embedding large raw artifacts.
+- **GIVEN** the stable preflight module is installed and its descriptor identifies `specfact-preflight`
+- **WHEN** skill discovery runs
+- **THEN** the skill is listed with module, version, workflow, compatibility, and content-digest provenance
+- **AND** core does not replace or reinterpret the workflow body.
 
-#### Scenario: Skill content remains lightweight at rest
+### Requirement: Canonical `.agents/skills` export
 
-- **GIVEN** skill metadata is loaded by an IDE agent
-- **WHEN** idle context is measured
-- **THEN** base skill content remains compact
-- **AND** detailed guidance is loaded only on activation.
+The system SHALL support canonical project export under `.agents/skills/<skill-id>/` with `SKILL.md` as the entrypoint and all supporting assets contained within the skill directory.
+
+#### Scenario: Skill is exported to a project
+
+- **GIVEN** a verified module-owned skill and a writable project target
+- **WHEN** canonical export is approved
+- **THEN** the exact verified assets are materialized under `.agents/skills/<skill-id>/`
+- **AND** the install inventory records every path and digest.
+
+### Requirement: Deterministic install and update
+
+Skill installation and update SHALL be idempotent for identical verified input and SHALL fail safely on incompatible or user-modified assets.
+
+#### Scenario: Identical skill is installed twice
+
+- **GIVEN** the installed inventory and target files match the requested skill identity and digests
+- **WHEN** installation runs again
+- **THEN** no duplicate files or instruction blocks are created
+- **AND** the result reports the installation already current.
+
+#### Scenario: User modified an installed asset
+
+- **GIVEN** a target file differs from its recorded installed digest
+- **WHEN** update is requested without an explicit conflict decision
+- **THEN** the update stops and reports the drift
+- **AND** the user file remains unchanged.
+
+### Requirement: Skill identity collisions fail closed
+
+The system SHALL not silently install two different module skill identities under one canonical skill ID.
+
+#### Scenario: Two modules claim one skill ID
+
+- **GIVEN** discovered descriptors claim the same canonical skill ID with different content or owners
+- **WHEN** installation is resolved
+- **THEN** installation is blocked with both identities
+- **AND** no arbitrary precedence is selected.
+
+### Requirement: Safe uninstall
+
+Uninstall SHALL remove only inventory-owned files whose current identities match the installed record.
+
+#### Scenario: Uninstall encounters unrelated assets
+
+- **GIVEN** the target skill directory contains an unrecorded file
+- **WHEN** uninstall runs
+- **THEN** the unrecorded file is preserved
+- **AND** any resulting non-empty directory is reported for user review.
+
+### Requirement: Distribution-only ownership
+
+The installer SHALL expose module-owned skills to compatible consumers without executing validators, approving changes, generating preflight seals, or packaging external harness adapters.
+
+#### Scenario: Preflight skill is installed
+
+- **GIVEN** `specfact-preflight` is exported successfully
+- **WHEN** installation completes
+- **THEN** the result reports the installed workflow identity and supported invocation metadata
+- **AND** no preflight run or source-artifact edit is triggered.

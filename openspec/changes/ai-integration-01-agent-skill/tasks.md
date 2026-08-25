@@ -1,30 +1,34 @@
 # Tasks: ai-integration-01-agent-skill
 
-## 1. Branch and dependency guardrails
+All tasks below are future implementation work. This rescope completes none of them and creates no skill/export or `TDD_EVIDENCE.md`.
 
-- [ ] 1.1 Create dedicated worktree branch `feature/ai-integration-01-agent-skill` from `dev` before implementation work: `scripts/worktree.sh create feature/ai-integration-01-agent-skill`.
-- [ ] 1.2 Verify prerequisite changes are implemented or explicitly accepted as parallel work.
-- [ ] 1.3 Reconfirm scope against the 2026-02-15 architecture integration plan and this proposal.
+## 1. Dedicated session, worktree, and readiness
 
-## 2. Spec-first and test-first preparation
+- [ ] 1.1 In a dedicated issue-linked session, create `feature/ai-integration-01-agent-skill` from current `origin/dev` in a new core worktree before any implementation edit.
+- [ ] 1.2 Refresh hierarchy metadata and verify #251 retains parent #372, complete labels/project/assignee, the stable preflight-module blocker, and no concurrent `In Progress` owner.
+- [ ] 1.3 Verify the released module skill descriptor and core module discovery/safe-write contracts against current repository reality.
 
-- [ ] 2.1 Finalize `specs/` deltas for all listed capabilities and cross-check scenario completeness.
-- [ ] 2.2 Add/update tests mapped to new and modified scenarios.
-- [ ] 2.3 Run targeted tests to capture failing-first behavior and record results in `TDD_EVIDENCE.md`.
+## 2. Specification and failing-first evidence
 
-## 3. Implementation
+- [ ] 2.1 Finalize descriptor, discovery, trust, canonical `.agents/skills`, inventory, collision, update, and uninstall deltas without adding workflow content or adapters.
+- [ ] 2.2 Add tests mapped to all discovery/export/idempotency/drift/collision/uninstall scenarios.
+- [ ] 2.3 Run targeted tests before production edits and record failing-first results in a newly created `TDD_EVIDENCE.md`.
 
-- [ ] 3.1 Implement minimal production code required to satisfy the new scenarios.
-- [ ] 3.2 Add/update contract decorators and type enforcement on public APIs.
-- [ ] 3.3 Update command wiring, adapters, and models required by this change scope only.
+## 3. Minimal distribution implementation
 
-## 4. Validation and documentation
+- [ ] 3.1 Implement module-owned skill discovery and integrity/compatibility validation.
+- [ ] 3.2 Implement canonical `.agents/skills` installation/export and inventory-backed update/uninstall.
+- [ ] 3.3 Verify `specfact-preflight` passes through from the signed module unchanged; do not add preflight validator or workflow semantics to core.
 
-- [ ] 4.1 Re-run tests and quality gates until all changed scenarios pass.
-- [ ] 4.2 Update user-facing docs and navigation for changed/added commands and workflows.
-- [ ] 4.3 Run `openspec validate ai-integration-01-agent-skill --strict` and resolve all issues.
+## 4. Passing evidence and quality gates
 
-## 5. Delivery
+- [ ] 4.1 Re-run mapped tests and capture passing evidence after implementation.
+- [ ] 4.2 Run required format, type, lint, contract, smart-test, test, and SpecFact code-review gates; resolve all findings.
+- [ ] 4.3 Run `openspec status --change ai-integration-01-agent-skill --json` and `openspec validate ai-integration-01-agent-skill --strict`.
+- [ ] 4.4 Document canonical export, conflicts, uninstall, and ownership limits using observed behavior.
 
-- [ ] 5.1 Update `openspec/CHANGE_ORDER.md` status/dependency notes if implementation sequencing changed.
-- [ ] 5.2 Open a PR from `feature/ai-integration-01-agent-skill` to `dev` with spec/test/code/docs evidence.
+## 5. Delivery and post-merge cleanup
+
+- [ ] 5.1 Hand the exact installation/export contract to #253 and keep external adapter packaging downstream.
+- [ ] 5.2 Open the implementation PR to `dev` as the final pre-merge task, linking #251 and the signed module dependency.
+- [ ] 5.3 After merge, run `openspec archive ai-integration-01-agent-skill`, update ordering/wiki source state, and remove the dedicated worktree and merged branch.

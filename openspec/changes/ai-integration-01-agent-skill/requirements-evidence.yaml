@@ -1,0 +1,70 @@
+schema_version: "2"
+x-planning-rationale: &planning-rationale "The proposal must make this requirement reviewable before implementation begins."
+x-planning-touchpoints: &planning-touchpoints
+  - id: openspec-source-spec
+    kind: config_file
+    locator: "openspec/changes/ai-integration-01-agent-skill/specs/agent-skill-spec-intelligence/spec.md"
+x-planning-observable: &planning-observable >-
+  Strict OpenSpec validation retains the requirement and its scenarios
+  without claiming implementation or test execution.
+requirements:
+  openspec:ai-integration-01-agent-skill:agent-skill-spec-intelligence:canonical-agents-skills-export:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#251"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: AI01-001
+        scenario_id: canonical-agents-skills-export
+        method: inspection
+        intent: "Inspect the canonical agents skills export planning contract before implementation."
+        observable: *planning-observable
+  openspec:ai-integration-01-agent-skill:agent-skill-spec-intelligence:deterministic-install-and-update:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#251"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: AI01-002
+        scenario_id: deterministic-install-and-update
+        method: inspection
+        intent: "Inspect the deterministic install and update planning contract before implementation."
+        observable: *planning-observable
+  openspec:ai-integration-01-agent-skill:agent-skill-spec-intelligence:discover-module-owned-skills:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#251"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: AI01-003
+        scenario_id: discover-module-owned-skills
+        method: inspection
+        intent: "Inspect the discover module owned skills planning contract before implementation."
+        observable: *planning-observable
+  openspec:ai-integration-01-agent-skill:agent-skill-spec-intelligence:distribution-only-ownership:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#251"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: AI01-004
+        scenario_id: distribution-only-ownership
+        method: inspection
+        intent: "Inspect the distribution only ownership planning contract before implementation."
+        observable: *planning-observable
+  openspec:ai-integration-01-agent-skill:agent-skill-spec-intelligence:safe-uninstall:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#251"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: AI01-005
+        scenario_id: safe-uninstall
+        method: inspection
+        intent: "Inspect the safe uninstall planning contract before implementation."
+        observable: *planning-observable
+  openspec:ai-integration-01-agent-skill:agent-skill-spec-intelligence:skill-identity-collisions-fail-closed:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#251"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: AI01-006
+        scenario_id: skill-identity-collisions-fail-closed
+        method: inspection
+        intent: "Inspect the skill identity collisions fail closed planning contract before implementation."
+        observable: *planning-observable

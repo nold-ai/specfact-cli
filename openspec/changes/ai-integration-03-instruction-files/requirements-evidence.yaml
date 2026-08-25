@@ -1,0 +1,80 @@
+schema_version: "2"
+x-planning-rationale: &planning-rationale "The proposal must make this requirement reviewable before implementation begins."
+x-planning-touchpoints: &planning-touchpoints
+  - id: openspec-source-spec
+    kind: config_file
+    locator: "openspec/changes/ai-integration-03-instruction-files/specs/cross-platform-instructions/spec.md"
+x-planning-observable: &planning-observable >-
+  Strict OpenSpec validation retains the requirement and its scenarios
+  without claiming implementation or test execution.
+requirements:
+  openspec:ai-integration-03-instruction-files:cross-platform-instructions:compact-preflight-gate-instructions:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#253"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: AI03-001
+        scenario_id: compact-preflight-gate-instructions
+        method: inspection
+        intent: "Inspect the compact preflight gate instructions planning contract before implementation."
+        observable: *planning-observable
+  openspec:ai-integration-03-instruction-files:cross-platform-instructions:external-packaging-remains-separate:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#253"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: AI03-002
+        scenario_id: external-packaging-remains-separate
+        method: inspection
+        intent: "Inspect the external packaging remains separate planning contract before implementation."
+        observable: *planning-observable
+  openspec:ai-integration-03-instruction-files:cross-platform-instructions:idempotent-managed-sections:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#253"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: AI03-003
+        scenario_id: idempotent-managed-sections
+        method: inspection
+        intent: "Inspect the idempotent managed sections planning contract before implementation."
+        observable: *planning-observable
+  openspec:ai-integration-03-instruction-files:cross-platform-instructions:installed-metadata-selects-invocation-syntax:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#253"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: AI03-004
+        scenario_id: installed-metadata-selects-invocation-syntax
+        method: inspection
+        intent: "Inspect the installed metadata selects invocation syntax planning contract before implementation."
+        observable: *planning-observable
+  openspec:ai-integration-03-instruction-files:cross-platform-instructions:openspec-pre-apply-ordering:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#253"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: AI03-005
+        scenario_id: openspec-pre-apply-ordering
+        method: inspection
+        intent: "Inspect the openspec pre apply ordering planning contract before implementation."
+        observable: *planning-observable
+  openspec:ai-integration-03-instruction-files:cross-platform-instructions:respect-upstream-context-ownership:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#253"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: AI03-006
+        scenario_id: respect-upstream-context-ownership
+        method: inspection
+        intent: "Inspect the respect upstream context ownership planning contract before implementation."
+        observable: *planning-observable
+  openspec:ai-integration-03-instruction-files:cross-platform-instructions:spec-kit-pre-implement-ordering:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#253"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: AI03-007
+        scenario_id: spec-kit-pre-implement-ordering
+        method: inspection
+        intent: "Inspect the spec kit pre implement ordering planning contract before implementation."
+        observable: *planning-observable

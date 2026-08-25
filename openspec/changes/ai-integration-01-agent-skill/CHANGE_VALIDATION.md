@@ -1,31 +1,34 @@
 # Change Validation: ai-integration-01-agent-skill
 
-- **Validated on (UTC):** 2026-02-15T21:54:26Z
-- **Workflow:** /wf-validate-change (proposal-stage dry-run validation)
-- **Strict command:** `openspec validate ai-integration-01-agent-skill --strict`
-- **Result:** PASS
+## Status
 
-## Scope Summary
+**PROPOSAL READY; IMPLEMENTATION NOT STARTED.**
 
-- **New capabilities:** agent-skill-spec-intelligence
-- **Modified capabilities:** (none)
-- **Declared dependencies:** validation-02 (full-chain validation as the engine behind skill invocations)
-- **Proposed affected code paths:** - `skills/specfact/` (new skill directory);- `skills/specfact-assess-pr/` (new sub-skill) - `skills/specfact-check-architecture/` (new sub-skill);- `skills/specfact-coverage/` (new sub-skill) - `modules/ide/` (new module for `specfact ide skill install`)
+## Rescope Decision
 
-## Breaking-Change Analysis (Dry-Run)
+- #251 retains Feature parent #372.
+- Scope is limited to shared discovery, integrity verification, installation, update, uninstall, and canonical `.agents/skills` export of module-owned skills.
+- The signed module owns `specfact-preflight` workflow content; #253 owns generated instructions; preflight-04 owns external adapter packages.
 
-- Interface changes are proposal-level only; no production code modifications were performed in this workflow stage.
-- Proposed modified capabilities are additive/extension-oriented in the current spec deltas and do not require immediate breaking migrations at proposal time.
-- Backward-compatibility risk is primarily sequencing-related (dependency ordering), not signature-level breakage at this stage.
+## Planning Boundary
 
-## Dependency and Integration Review
+- No production code, tests, skill files, exports, module package, manifest, signature, version, plugin, adapter, hook, workflow, or dependency is changed.
+- No `TDD_EVIDENCE.md` exists because implementation has not started.
 
-- Dependency declarations align with the 2026-02-15 architecture layer integration plan sequencing.
-- Cross-change integration points are explicitly represented in proposal/spec/task artifacts.
-- No additional mandatory scope expansion was required to pass strict OpenSpec validation.
+## Dependency Review
 
-## Validation Outcome
+- Parent Feature: core [#372](https://github.com/nold-ai/specfact-cli/issues/372).
+- Native blocker verified: signed modules [#432](https://github.com/nold-ai/specfact-cli-modules/issues/432).
+- Native downstream verified: core [#253](https://github.com/nold-ai/specfact-cli/issues/253).
+- GitHub readback verified the retained User Story parent #372, project `SpecFact CLI` / `Todo`, assignee `djm81`, and the required labels.
 
-- Required artifacts are present: `proposal.md`, `design.md`, `specs/**/*.md`, `tasks.md`.
-- Strict OpenSpec validation passed.
-- Change is ready for implementation-phase intake once prerequisites are satisfied.
+## Validation Record
+
+- `openspec status --change ai-integration-01-agent-skill --json`: PASS on 2026-08-25; all required proposal artifacts reported complete.
+- `openspec validate ai-integration-01-agent-skill --strict`: PASS on 2026-08-25.
+- Markdown lint limited to changed planning Markdown: PASS on 2026-08-25.
+- Staged schema-v2 Requirements planning evidence: PASS on 2026-08-25 with inspection-only cases and no test selectors or execution claims.
+
+## Decision
+
+The rescope is decision-complete and ready for a planning-only PR. Implementation remains explicitly unstarted.

@@ -1,0 +1,60 @@
+schema_version: "2"
+x-planning-rationale: &planning-rationale "The proposal must make this requirement reviewable before implementation begins."
+x-planning-touchpoints: &planning-touchpoints
+  - id: openspec-source-spec
+    kind: config_file
+    locator: "openspec/changes/preflight-03-dogfood-hardening-and-release/specs/preflight-dogfood-readiness/spec.md"
+x-planning-observable: &planning-observable >-
+  Strict OpenSpec validation retains the requirement and its scenarios
+  without claiming implementation or test execution.
+requirements:
+  openspec:preflight-03-dogfood-hardening-and-release:preflight-dogfood-readiness:defect-ownership-classification:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#683"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: PF03C-001
+        scenario_id: defect-ownership-classification
+        method: inspection
+        intent: "Inspect the defect ownership classification planning contract before implementation."
+        observable: *planning-observable
+  openspec:preflight-03-dogfood-hardening-and-release:preflight-dogfood-readiness:evidence-backed-hardening-handoff:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#683"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: PF03C-002
+        scenario_id: evidence-backed-hardening-handoff
+        method: inspection
+        intent: "Inspect the evidence backed hardening handoff planning contract before implementation."
+        observable: *planning-observable
+  openspec:preflight-03-dogfood-hardening-and-release:preflight-dogfood-readiness:identity-bound-c14-dogfood-run:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#683"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: PF03C-003
+        scenario_id: identity-bound-c14-dogfood-run
+        method: inspection
+        intent: "Inspect the identity bound c14 dogfood run planning contract before implementation."
+        observable: *planning-observable
+  openspec:preflight-03-dogfood-hardening-and-release:preflight-dogfood-readiness:readiness-decision-criteria:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#683"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: PF03C-004
+        scenario_id: readiness-decision-criteria
+        method: inspection
+        intent: "Inspect the readiness decision criteria planning contract before implementation."
+        observable: *planning-observable
+  openspec:preflight-03-dogfood-hardening-and-release:preflight-dogfood-readiness:user-authorized-refinement-only:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#683"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: PF03C-005
+        scenario_id: user-authorized-refinement-only
+        method: inspection
+        intent: "Inspect the user authorized refinement only planning contract before implementation."
+        observable: *planning-observable
