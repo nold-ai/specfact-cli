@@ -277,11 +277,15 @@ def test_requirements_evidence_workflow_fails_when_executor_omits_junit(tmp_path
 
 
 def test_requirements_evidence_workflow_ignores_archived_review_evidence() -> None:
-    """Only active change records may supply CI planning and reconciliation evidence."""
+    """Archived moves are ignored without allowing deletion-only evidence bypasses."""
     command = _run_evidence_command()
 
     assert "openspec/changes/archive/*" in command
-    assert '[[ -e "$changed_path" ]] || continue' in command
+    assert "declare -A archived_change_ids=()" in command
+    assert 'archived_change_id="${archive_directory#????-??-??-}"' in command
+    assert 'archived_change_ids["$archived_change_id"]=1' in command
+    assert '[[ -e "$changed_path" || -z "${archived_change_ids[$change_id]:-}" ]]' in command
+    assert '[[ -e "$changed_path" ]] || continue' not in command
     assert (
         "find openspec/changes -path 'openspec/changes/archive' -prune -o "
         "-path '*/requirements-proof/review-evidence.json' -type f -print"

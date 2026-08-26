@@ -66,12 +66,16 @@ every other change remains required to present a validator-complete red artifact
 ### Focused behavior and security controls
 
 ```text
-SPECFACT_MODULES_REPO=/private/tmp/specfact-modules-fixture.sFRAtj/repo \
-UV_CACHE_DIR=/private/tmp/specfact-uv-cache hatch run test \
+SPECFACT_MODULES_REPO=<PINNED_MODULE_FIXTURE> \
+UV_CACHE_DIR=<UV_CACHE> hatch run test \
   tests/unit/scripts/test_requirements_bootstrap_authority.py \
   tests/unit/scripts/test_requirements_proof_provenance_security.py
 ```
 
+- **Environment mapping**: `<PINNED_MODULE_FIXTURE>` is the temporary checkout at
+  the commit in `ci/module-fixture.lock.json`; `<UV_CACHE>` is a disposable local
+  uv cache. Neither host-specific path is part of the evidence contract.
+- **Recorded**: 2026-08-27 00:42 CEST (Europe/Berlin).
 - **Result**: 14 passed. This includes entity-declaration and oversized-file
   rejection, explicit workflow JUnit binding, JSON toolchain tamper rejection,
   exact-authority acceptance, every reviewed external-metadata rejection, and
@@ -89,10 +93,11 @@ UV_CACHE_DIR=/private/tmp/specfact-uv-cache hatch run test \
 ### Local quality and security gates
 
 ```text
-SPECFACT_MODULES_REPO=/private/tmp/specfact-modules-fixture.sFRAtj/repo \
-UV_CACHE_DIR=/private/tmp/specfact-uv-cache hatch run test
+SPECFACT_MODULES_REPO=<PINNED_MODULE_FIXTURE> \
+UV_CACHE_DIR=<UV_CACHE> hatch run test
 ```
 
+- **Recorded**: 2026-08-27 00:44 CEST (Europe/Berlin).
 - **Current expanded-suite result**: 3,033 passed and 9 skipped. Two environment
   controls failed locally: the sandbox denied PyPI DNS during a temporary
   runtime-discovery install, and denied a test write to the user metadata home.

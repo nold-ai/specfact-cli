@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import importlib.util
 import json
 import subprocess
@@ -15,6 +16,19 @@ from packaging.requirements import Requirement
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+
+
+def _setup_runtime_dependency_names() -> set[str]:
+    setup_tree = ast.parse((REPO_ROOT / "setup.py").read_text(encoding="utf-8"))
+    for node in ast.walk(setup_tree):
+        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Name) or node.func.id != "setup":
+            continue
+        install_requires = next((keyword.value for keyword in node.keywords if keyword.arg == "install_requires"), None)
+        if install_requires is None:
+            raise AssertionError("setup.py must declare install_requires")
+        dependencies = ast.literal_eval(install_requires)
+        return {Requirement(dependency).name.casefold() for dependency in dependencies}
+    raise AssertionError("setup.py must call setup")
 
 
 def test_reproducible_delivery_checker_is_versioned() -> None:
@@ -77,7 +91,7 @@ def test_reproducible_delivery_pins_patched_pip_to_tooling_only() -> None:
     assert "pip-tools>=7.6.1" in dev_dependencies
     assert "pip-tools>=7.6.1" in hatch_dependencies
     assert "pip" not in runtime_names
-    assert '\n            "pip' not in (REPO_ROOT / "setup.py").read_text(encoding="utf-8").casefold()
+    assert "pip" not in _setup_runtime_dependency_names()
 
 
 def test_reproducible_delivery_pins_pycg_consistently_across_tool_groups() -> None:

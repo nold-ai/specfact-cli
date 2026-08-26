@@ -1,8 +1,10 @@
 # Change Validation Report: fix-frozen-dependency-security-baseline
 
 **Validation Date**: 2026-08-26 (Europe/Berlin)
+**Evidence Recorded**: 2026-08-26 22:18:31 CEST (signed evidence commit)
 **Change Proposal**: [proposal.md](./proposal.md)
-**Validation Method**: Configuration/interface dependency analysis with temporary workspace `/private/tmp/specfact-validation-fix-frozen-dependency-security-baseline.kOyKA8`
+**Validation Method**: Configuration/interface dependency analysis with temporary workspace `<VALIDATION_WORKSPACE>`
+**Environment Mapping**: `<VALIDATION_WORKSPACE>` was an ephemeral local directory; its host path is not part of the validation contract.
 
 ## Executive Summary
 

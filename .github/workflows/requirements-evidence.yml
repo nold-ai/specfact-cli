@@ -210,15 +210,30 @@ jobs:
             planning_maturity=test-authored
           fi
           selected_change=""
+          declare -A archived_change_ids=()
+          for changed_path in "${changed_paths[@]}"; do
+            case "$changed_path" in
+              openspec/changes/archive/*/*)
+                relative_archive_path="${changed_path#openspec/changes/archive/}"
+                archive_directory="${relative_archive_path%%/*}"
+                archived_change_id="${archive_directory#????-??-??-}"
+                if [[ "$archived_change_id" != "$archive_directory" ]]; then
+                  archived_change_ids["$archived_change_id"]=1
+                fi
+                ;;
+            esac
+          done
           declare -A changed_change_ids=()
           for changed_path in "${changed_paths[@]}"; do
             case "$changed_path" in
               openspec/changes/archive/*)
                 ;;
               openspec/changes/*/*)
-                [[ -e "$changed_path" ]] || continue
                 relative_change_path="${changed_path#openspec/changes/}"
-                changed_change_ids["${relative_change_path%%/*}"]=1
+                change_id="${relative_change_path%%/*}"
+                if [[ -e "$changed_path" || -z "${archived_change_ids[$change_id]:-}" ]]; then
+                  changed_change_ids["$change_id"]=1
+                fi
                 ;;
             esac
           done
