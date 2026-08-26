@@ -117,6 +117,10 @@ UV_CACHE_DIR=/private/tmp/specfact-security-uv-cache .venv/bin/pytest \
   stale or modified mappings fail closed.
 - The staged `test-authored` gate passed with the two exact pytest selectors for
   the patched tooling-only pip floor and Hatchling/Twine publication boundary.
+- Signed red-only commit `4bdbcbef` ran those selectors in PR #688 workflow
+  `33009793444`: both failed for the intended missing constraints, and GitHub
+  retained Requirements evidence artifact `9622042446` before any governed
+  production path entered the branch.
 
 ## Passing-after evidence
 

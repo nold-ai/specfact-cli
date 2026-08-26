@@ -2,7 +2,7 @@
 
 ## 1. Branch and governance readiness
 
-- [x] 1.1 Create `bugfix/686-dependency-security-patch` in the isolated worktree from refreshed `origin/dev@e3a20f20df440dff49f8c6d1f73375451bea1d8c`.
+- [x] 1.1 Create `bugfix/686-dependency-security-patch-tdd` in the isolated worktree from refreshed `origin/dev@e3a20f20df440dff49f8c6d1f73375451bea1d8c`; retain superseded PR #687 without rewriting its history.
 - [x] 1.2 Create and assign issue #686 with bug/security labels after confirming no existing issue owns the finding.
 - [x] 1.3 Verify native issue type, project assignment/status, parent applicability, blockers, and blocked-by relationships before dependency implementation.
 
