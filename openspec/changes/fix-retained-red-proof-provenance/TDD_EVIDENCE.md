@@ -90,5 +90,19 @@ every other change remains required to present a validator-complete red artifact
   OpenSpec YAML style findings; the changed workflow parses and its focused
   workflow tests pass.
 
+### GitHub Actions authority-association compatibility
+
+- Final workflow run `33015938817` rejected the exact immutable authority at
+  `authority-comment-association`: the Actions token surfaces the private
+  organization member as `COLLABORATOR`, while the authenticated local API
+  surfaces the same login as `MEMBER`.
+- Read-only repository and organization APIs confirm `djm81` has repository
+  `admin` permission and active direct organization membership.
+- A test-only commit first reproduced rejection of the otherwise identical
+  `COLLABORATOR` comment. The implementation then admitted GitHub's three
+  maintainer associations (`OWNER`, `MEMBER`, and `COLLABORATOR`) while retaining
+  every exact comment, login, signed-commit, run, artifact, expiry, and ancestry
+  binding. Focused authority and producer-regression tests pass (6 passed).
+
 The internal wiki source follow-up remains intentionally unmodified because the
 user excluded internal wiki PR #38 and its planning branch from this task.

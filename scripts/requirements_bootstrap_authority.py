@@ -95,7 +95,7 @@ def _authority_from_comment(comment: dict[str, object], context: AuthorityContex
     body = comment.get("body")
     expected_issue_url = f"https://api.github.com/repos/{context.repository}/issues/{context.issue}"
     checks = {
-        "association": comment.get("author_association") in {"OWNER", "MEMBER"},
+        "association": comment.get("author_association") in {"COLLABORATOR", "MEMBER", "OWNER"},
         "body": isinstance(body, str),
         "id": comment.get("id") == context.comment_id,
         "issue": comment.get("issue_url") == expected_issue_url,
