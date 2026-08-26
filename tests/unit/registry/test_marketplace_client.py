@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from specfact_cli.registry import marketplace_client
 from specfact_cli.registry.marketplace_client import (
     REGISTRY_BASE_URL,
     SecurityError,
@@ -17,6 +18,20 @@ from specfact_cli.registry.marketplace_client import (
     get_registry_index_url,
     resolve_download_url,
 )
+
+
+def test_local_file_download_uses_platform_url_path_decoder(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Windows file URLs must retain their absolute drive path when opened."""
+    tarball = tmp_path / "module.tar.gz"
+    tarball.write_bytes(b"module")
+    monkeypatch.setattr(marketplace_client, "url2pathname", lambda _path: str(tarball))
+
+    downloaded = marketplace_client._download_bytes_from_url("file:///C:/registry/module.tar.gz", timeout=1)
+
+    assert downloaded == b"module"
 
 
 def test_get_modules_branch_detached_head_uses_ci_main_ref(monkeypatch: pytest.MonkeyPatch) -> None:
