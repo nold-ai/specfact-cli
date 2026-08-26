@@ -13,22 +13,22 @@
 
 ## 3. Minimal implementation
 
-- [ ] 3.1 Record canonical toolchain properties through the core-owned pytest plugin.
-- [ ] 3.2 Add fail-closed binding of Git objects, test blobs, JUnit, and toolchain facts to the provenance utility.
-- [ ] 3.3 Invoke binding only after successful red reconciliation and before artifact publication.
+- [x] 3.1 Record canonical toolchain properties through the core-owned pytest plugin.
+- [x] 3.2 Add fail-closed binding of Git objects, test blobs, JUnit, and toolchain facts to the provenance utility.
+- [x] 3.3 Invoke binding only after successful red reconciliation and before artifact publication.
 
 ## 4. Passing evidence and quality gates
 
-- [ ] 4.1 Run focused tests, retained-proof legitimate/tamper controls, and a real red-to-final Requirements workflow reproduction.
-- [ ] 4.2 Run format, lint, type-check, YAML/contract tests, full applicable tests, module signatures, dependency/security gates, and OpenSpec strict validation.
-- [ ] 4.3 Generate fresh changed/full code-review evidence, remediate all actionable findings, and close every fixed PR review thread with test evidence.
-- [ ] 4.4 Review README, docs, landing/navigation, release, and contributor impact; keep public docs unchanged when no user-facing behavior changes.
+- [ ] 4.1 Run focused tests, retained-proof legitimate/tamper controls, and a real red-to-final Requirements workflow reproduction. (Local controls and authoritative red complete; final GitHub run pending.)
+- [ ] 4.2 Run format, lint, type-check, YAML/contract tests, full applicable tests, module signatures, dependency/security gates, and OpenSpec strict validation. (Local gates complete; final GitHub gates pending.)
+- [ ] 4.3 Generate fresh changed/full code-review evidence, remediate all actionable findings, and close every fixed PR review thread with test evidence. (Local full-enforcement review has zero findings; PR review pending.)
+- [x] 4.4 Review README, docs, landing/navigation, release, and contributor impact; keep public docs unchanged when no user-facing behavior changes.
 
 ## 5. Delivery
 
-- [ ] 5.1 Create a signed Conventional Commit series preserving spec/tests/failing evidence before production implementation.
+- [x] 5.1 Create a signed Conventional Commit series preserving spec/tests/failing evidence before production implementation.
 - [ ] 5.2 Push and create the issue-linked PR to `dev`; observe required checks/reviews and merge only when policy permits.
-- [ ] 5.3 Keep the version at `0.55.1` in this prerequisite and let #686 perform the single planned `0.55.2` patch bump/changelog entry.
+- [x] 5.3 Keep the version at `0.55.1` in this prerequisite and let #686 perform the single planned `0.55.2` patch bump/changelog entry.
 
 ## Post-merge cleanup
 

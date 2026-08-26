@@ -63,4 +63,32 @@ every other change remains required to present a validator-complete red artifact
 
 ## Passing-after evidence
 
-Pending implementation.
+### Focused behavior and security controls
+
+- `hatch run test` over provenance, executor, plugin, authority, and workflow
+  coverage: 63 passed.
+- Entity-declaration rejection, explicit workflow JUnit binding, JSON toolchain
+  tamper rejection, exact-authority acceptance, and same-ledger/plan replay
+  without the authorized red ancestor all pass.
+- Authoritative final test-only red run:
+  `33013274590` at signed commit
+  `04b6c02eb63f779309d8dced48085f3ef0efe029`; artifact `9623426074`.
+- External one-time authority:
+  `https://github.com/nold-ai/specfact-cli/issues/689#issuecomment-5431081643`.
+
+### Local quality and security gates
+
+- Full repository tests: 3,024 collected, exit 0.
+- Ruff format/lint: pass; basedpyright: 0 errors (repository baseline warnings
+  unchanged); OpenSpec strict validation: pass.
+- SpecFact full-enforcement code review: pass with zero findings after all
+  blocking, warning, and advisory findings were remediated.
+- Bandit medium/high scan: zero findings and zero `nosec` suppressions.
+- Semgrep auto rules: 290 rules across three changed scripts, zero findings.
+- Module signature policy and license compliance: pass.
+- YAML wrapper exits 0 and continues to report only the pre-existing R07/R08
+  OpenSpec YAML style findings; the changed workflow parses and its focused
+  workflow tests pass.
+
+The internal wiki source follow-up remains intentionally unmodified because the
+user excluded internal wiki PR #38 and its planning branch from this task.

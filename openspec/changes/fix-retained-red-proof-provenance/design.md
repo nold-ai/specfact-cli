@@ -44,14 +44,19 @@ artifact fallback/terminal decision. Binding failure changes the workflow outcom
 to non-zero and retains diagnostics; incomplete evidence is never uploaded as an
 apparently usable red proof.
 
-### Bootstrap this producer repair with an exact ledger
+### Bootstrap this producer repair with external one-time authority
 
 The released producer cannot emit the fields needed to validate the red artifact
 for its own repair. The final #689 run therefore uses the repository's existing
 legacy-ledger mechanism with a new issue-specific allowlist entry bound to the
 signed red commit evidence, a fixed prefix digest, and the accepted execution
-mapping/plan digests. It does not pass the incomplete artifact to the validator or
-derive historical facts during the final run. The allowlist applies only to
+mapping/plan digests. A repository-member issue comment outside the pull-request
+Git tree is the one-time authority. It binds the exact issue and pull request,
+branch, signed red commit, failing workflow run, artifact identity/digest,
+report/JUnit/plan digests, and an expiry. The final workflow verifies GitHub's
+signature, run, and artifact metadata plus local ancestry before admitting the
+ledger. It does not retrofit the incomplete artifact or derive historical facts
+during the final run. The allowlist applies only to
 `fix-retained-red-proof-provenance`; every subsequent change must use the corrected
 producer path.
 
@@ -76,3 +81,6 @@ producer path.
   atomically only after all bindings are available.
 - **Binding after a passing/final run**: reject every state except reconciled red
   evidence with a retained failure/error JUnit.
+- **Bootstrap replay on recreated history**: require an unedited repository-member
+  authorization for the exact signed red commit/run/artifact, confirm the commit is
+  a strict test-only ancestor of the current final ref, and expire the authority.
