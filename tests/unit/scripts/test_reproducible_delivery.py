@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tomllib
 from pathlib import Path
+from typing import Any
 
 import pytest
 from packaging.requirements import Requirement
@@ -111,15 +112,7 @@ def test_reproducible_delivery_refresh_rejects_a_symlinked_output_parent(tmp_pat
         module.validate_locked_export_path(output, repository)
 
 
-def test_locked_sbom_renderer_uses_pip_inspect_without_generator_dependency(tmp_path: Path) -> None:
-    """Delivery SBOM evidence must be local, deterministic, and dependency-free."""
-    renderer = REPO_ROOT / "scripts" / "render_locked_sbom.py"
-    assert renderer.is_file()
-
-    project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    dev_dependencies = project["project"]["optional-dependencies"]["dev"]
-    assert all("cyclonedx" not in dependency.lower() for dependency in dev_dependencies)
-
+def _render_example_sbom(renderer: Path, tmp_path: Path) -> dict[str, Any]:
     inspect_report = tmp_path / "inspect.json"
     inspect_report.write_text(
         json.dumps(
@@ -142,7 +135,19 @@ def test_locked_sbom_renderer_uses_pip_inspect_without_generator_dependency(tmp_
     )
 
     assert completed.returncode == 0, completed.stderr
-    payload = json.loads(output.read_text(encoding="utf-8"))
+    return json.loads(output.read_text(encoding="utf-8"))
+
+
+def test_locked_sbom_renderer_uses_pip_inspect_without_generator_dependency(tmp_path: Path) -> None:
+    """Delivery SBOM evidence must be local, deterministic, and dependency-free."""
+    renderer = REPO_ROOT / "scripts" / "render_locked_sbom.py"
+    assert renderer.is_file()
+
+    project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    dev_dependencies = project["project"]["optional-dependencies"]["dev"]
+    assert all("cyclonedx" not in dependency.lower() for dependency in dev_dependencies)
+
+    payload = _render_example_sbom(renderer, tmp_path)
     assert payload["spdxVersion"] == "SPDX-2.3"
     assert payload["creationInfo"]["created"] == "1970-01-01T00:00:00Z"
     assert [(package["name"], package["versionInfo"]) for package in payload["packages"]] == [
