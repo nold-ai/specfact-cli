@@ -85,7 +85,11 @@ def _red_proof(
 def _write_red_proof(path: Path, repo_root: Path, source_ref: str, merge_base: str) -> None:
     junit = (
         b'<testsuite><testcase><properties><property name="specfact.selector" '
-        b'value="tests/test_proof.py::test_selected"/></properties><failure/></testcase></testsuite>'
+        b'value="tests/test_proof.py::test_selected"/>'
+        b'<property name="specfact.runner" value="pytest"/>'
+        b'<property name="specfact.python" value="3.12"/>'
+        b'<property name="specfact.pytest" value="9.1"/>'
+        b"</properties><failure/></testcase></testsuite>"
     )
     path.with_suffix(".xml").write_bytes(junit)
     digest = f"sha256:{hashlib.sha256(junit).hexdigest()}"
