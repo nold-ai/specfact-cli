@@ -222,6 +222,18 @@ def test_bootstrap_authority_accepts_exact_owner_bound_red_history(tmp_path: Pat
     assert _validate(module, fixture)
 
 
+def test_bootstrap_authority_accepts_exact_collaborator_bound_red_history(tmp_path: Path) -> None:
+    """Private organization membership may surface as COLLABORATOR to Actions."""
+    module = _load_authority_module()
+    fixture = _authority_fixture(tmp_path)
+    comment_path = cast(Path, fixture["comment_path"])
+    comment = json.loads(comment_path.read_text(encoding="utf-8"))
+    comment["author_association"] = "COLLABORATOR"
+    _write_json(comment_path, comment)
+
+    assert _validate(module, fixture)
+
+
 def test_bootstrap_authority_rejects_same_evidence_without_authorized_red_ancestor(tmp_path: Path) -> None:
     """Replaying the same ledger and plan on unrelated history must fail closed."""
     module = _load_authority_module()
