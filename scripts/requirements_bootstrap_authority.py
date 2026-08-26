@@ -8,7 +8,7 @@ import json
 import re
 import subprocess
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -233,21 +233,32 @@ def validate_bootstrap_authority(paths: AuthorityPaths, context: AuthorityContex
     return not _authority_findings(paths, context)
 
 
+def _record_check(findings: list[str], name: str, validator: Callable[[], bool]) -> None:
+    try:
+        if not validator():
+            findings.append(name)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError):
+        findings.append(f"{name}-metadata")
+
+
 def _authority_findings(paths: AuthorityPaths, context: AuthorityContext) -> list[str]:
     """Name each failed independent binding without exposing authority contents."""
     try:
         authority = _authority_from_comment(_read_object(paths.comment), context)
-        checks = {
-            "artifact-files": _valid_red_artifact(authority, paths.artifact_root),
-            "artifact-metadata": _valid_artifact(authority, _read_object(paths.artifacts)),
-            "commit-signature": _valid_commit(authority, _read_object(paths.commit)),
-            "execution-context": _valid_context(authority, context),
-            "git-history": _valid_history(authority, paths, context),
-            "workflow-run": _valid_run(authority, _read_object(paths.run)),
-        }
-        return [name for name, valid in checks.items() if not valid]
     except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError):
         return ["authority-metadata"]
+    findings: list[str] = []
+    checks = (
+        ("artifact-files", lambda: _valid_red_artifact(authority, paths.artifact_root)),
+        ("artifact-metadata", lambda: _valid_artifact(authority, _read_object(paths.artifacts))),
+        ("commit-signature", lambda: _valid_commit(authority, _read_object(paths.commit))),
+        ("execution-context", lambda: _valid_context(authority, context)),
+        ("git-history", lambda: _valid_history(authority, paths, context)),
+        ("workflow-run", lambda: _valid_run(authority, _read_object(paths.run))),
+    )
+    for name, validator in checks:
+        _record_check(findings, name, validator)
+    return findings
 
 
 def _build_parser() -> argparse.ArgumentParser:
