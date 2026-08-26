@@ -342,6 +342,29 @@ def _assert_code_review_handoff_command(command: object) -> None:
     assert all(fragment in command for fragment in expected_fragments)
 
 
+def test_requirements_code_review_uses_frozen_external_tools() -> None:
+    """Code Review must run its declared Pylint and BasedPyright checks from locks."""
+    workflow = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"
+    parsed = yaml.load(workflow.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    setup_node = _step_by_name(parsed, "Set up reviewed Code Review Node runtime")
+    install_tools = _step_by_name(parsed, "Install frozen Code Review tools")
+
+    assert setup_node["uses"] == "actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e"
+    assert setup_node["with"]["node-version"] == "24.16.0"  # type: ignore[index]
+    assert setup_node["if"] == "steps.run-evidence.outcome == 'success'"
+    command = install_tools["run"]
+    assert "npm ci --ignore-scripts --prefix tools/basedpyright" in command  # type: ignore[operator]
+    assert "uv pip install" in command  # type: ignore[operator]
+    assert "--require-hashes" in command  # type: ignore[operator]
+    assert "requirements/code-review/locked.txt" in command  # type: ignore[operator]
+    assert "tools/basedpyright/node_modules/.bin" in command  # type: ignore[operator]
+    assert _step_index(parsed, "Install frozen Code Review tools") < _step_index(
+        parsed, "Run Code Review with finalized Requirements context"
+    )
+    lock = (REPO_ROOT / "requirements" / "code-review" / "locked.txt").read_text(encoding="utf-8")
+    assert "pylint==4.0.7" in lock
+
+
 def test_requirements_evidence_workflow_hands_final_proof_to_code_review() -> None:
     """Code Review receives finalized proof context without owning its verdict."""
     workflow = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"
