@@ -363,6 +363,9 @@ def test_requirements_evidence_workflow_binds_red_proof_before_publication() -> 
     assert binding in command
     assert '--base-ref "origin/${EVIDENCE_BASE_BRANCH}"' in command
     assert 'write_failure_reports "Red proof binding rejected:' in command
+    assert 'selected_change" == "fix-retained-red-proof-provenance"' in command
+    assert "printf 'Red proof retained; final reconciliation is required.\\n'" in command
+    assert "exit_code=1" in command[command.index(binding) : command.index("fallback_required=0")]
     assert command.index(binding) < command.index("fallback_required=0")
 
 

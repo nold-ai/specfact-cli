@@ -31,3 +31,12 @@ when any required binding is unavailable, inconsistent, or malformed.
 - **WHEN** a later final run validates it
 - **THEN** the existing provenance validator SHALL reject it deterministically
 - **AND** no compatibility fallback SHALL downgrade the rejection.
+
+#### Scenario: Producer repair bootstraps from exact failing ledger
+
+- **GIVEN** the released producer cannot create the newly required bindings for its own repair branch
+- **AND** an issue-specific ledger binds the signed red commit, exact failing run, mapping, plan, and immutable ledger prefix
+- **WHEN** the producer repair reaches final reconciliation
+- **THEN** only that named change MAY use the exact approved ledger instead of its structurally incomplete red artifact
+- **AND** the final run SHALL still execute every mapped selector and produce a complete current-run proof
+- **AND** no other change or digest MAY reuse the bootstrap path.

@@ -44,12 +44,25 @@ artifact fallback/terminal decision. Binding failure changes the workflow outcom
 to non-zero and retains diagnostics; incomplete evidence is never uploaded as an
 apparently usable red proof.
 
+### Bootstrap this producer repair with an exact ledger
+
+The released producer cannot emit the fields needed to validate the red artifact
+for its own repair. The final #689 run therefore uses the repository's existing
+legacy-ledger mechanism with a new issue-specific allowlist entry bound to the
+signed red commit evidence, a fixed prefix digest, and the accepted execution
+mapping/plan digests. It does not pass the incomplete artifact to the validator or
+derive historical facts during the final run. The allowlist applies only to
+`fix-retained-red-proof-provenance`; every subsequent change must use the corrected
+producer path.
+
 ## Alternatives rejected
 
 - **Relax validator fields**: weakens the security boundary and would accept the
   structurally incomplete artifacts the validator was designed to reject.
 - **Retrofit old artifacts during final runs**: derives facts after the historical
   execution and cannot establish the original toolchain identity.
+- **Merge without governed chronology**: violates the repository's Requirements
+  gate. The exact one-change ledger retains fail-closed digest and selector checks.
 - **Change the pinned modules fixture**: expands scope into modules PR #436 and an
   independent signed release; the missing facts are core-owned.
 
