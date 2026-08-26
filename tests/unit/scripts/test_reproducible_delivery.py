@@ -10,6 +10,7 @@ import tomllib
 from pathlib import Path
 
 import pytest
+from packaging.requirements import Requirement
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -54,11 +55,26 @@ def test_reproducible_delivery_verifier_bounds_uv_commands_and_fails_closed_on_t
 def test_reproducible_delivery_wheel_build_uses_a_locked_backend() -> None:
     """The no-isolation wheel proof must use the backend pinned in delivery inputs."""
     project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    assert project["build-system"]["requires"] == ["hatchling==1.31.0"]
-    assert "hatchling==1.31.0" in project["project"]["optional-dependencies"]["dev"]
+    assert project["build-system"]["requires"] == ["hatchling==1.32.0"]
+    assert "hatchling==1.32.0" in project["project"]["optional-dependencies"]["dev"]
+    assert "twine>=7.0" in project["project"]["optional-dependencies"]["dev"]
+    assert "core-metadata-version" not in project["tool"]["hatch"]["build"]["targets"]["wheel"]
 
     workflow = (REPO_ROOT / ".github" / "workflows" / "pr-orchestrator.yml").read_text(encoding="utf-8")
     assert "Build package once\n        run: uv build --wheel --no-build-isolation" in workflow
+
+
+def test_reproducible_delivery_pins_patched_pip_to_tooling_only() -> None:
+    """The fixed pip floor must cover tooling without expanding core runtime dependencies."""
+    project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    dev_dependencies = project["project"]["optional-dependencies"]["dev"]
+    hatch_dependencies = project["tool"]["hatch"]["envs"]["default"]["dependencies"]
+    runtime_names = {Requirement(dependency).name.casefold() for dependency in project["project"]["dependencies"]}
+
+    assert "pip>=26.2" in dev_dependencies
+    assert "pip>=26.2" in hatch_dependencies
+    assert "pip" not in runtime_names
+    assert '\n            "pip' not in (REPO_ROOT / "setup.py").read_text(encoding="utf-8").casefold()
 
 
 def test_reproducible_delivery_pins_pycg_consistently_across_tool_groups() -> None:

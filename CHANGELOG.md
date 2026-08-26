@@ -10,6 +10,18 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.55.2] - 2026-08-26
+
+### Security
+
+- **Frozen delivery dependencies:** require patched pip 26.2 or newer in
+  development tooling, refresh the frozen graph to pip 26.2.1, and incorporate
+  the compatible pending Hatchling and setuptools updates for the `dev`
+  baseline. Upgrade the development-only publication client to Twine 7 so
+  Hatchling 1.32's Core Metadata 2.5 output remains publishable.
+
+---
+
 ## [0.55.1] - 2026-08-06
 
 ### Fixed
