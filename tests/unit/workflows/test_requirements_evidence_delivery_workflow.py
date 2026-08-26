@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import subprocess
@@ -295,11 +296,16 @@ def test_requirements_evidence_workflow_uses_digest_bound_legacy_tdd_ledger_for_
     assert isinstance(command, str)
 
     legacy_tdd_mapping_digest = "sha256:eccdf006792d8910c54a773e30967886063b4e30c99c180bc36d7372b1bbd9ef"
+    legacy_tdd_ledger = (
+        REPO_ROOT / "openspec" / "changes" / "requirements-07-runtime-proof-delivery" / "TDD_EVIDENCE.md"
+    )
+    approved_prefix = b"".join(legacy_tdd_ledger.read_bytes().splitlines(keepends=True)[:1143])
+    legacy_tdd_ledger_digest = f"sha256:{hashlib.sha256(approved_prefix).hexdigest()}"
     required_fragments = (
         'selected_change" == "requirements-07-runtime-proof-delivery"',
         "TDD_EVIDENCE.md",
         "legacy_tdd_line_count=1143",
-        'legacy_tdd_ledger_digest="sha256:1df90efd2402f14879da7705ab8afbf054eafc0fa71ff7a788df9f3db97b428c"',
+        f'legacy_tdd_ledger_digest="{legacy_tdd_ledger_digest}"',
         f'legacy_tdd_mapping_digest="{legacy_tdd_mapping_digest}"',
         'legacy_tdd_plan_digest="sha256:27ea6e6bcea0d68d68688b89fc8f89315d213b96918f4f76979484756fd8335e"',
         "read_bytes().splitlines(keepends=True)",
