@@ -281,10 +281,12 @@ def test_requirements_evidence_workflow_ignores_archived_review_evidence() -> No
     command = _run_evidence_command()
 
     assert "openspec/changes/archive/*" in command
-    assert "declare -A archived_change_ids=()" in command
-    assert 'archived_change_id="${archive_directory#????-??-??-}"' in command
-    assert 'archived_change_ids["$archived_change_id"]=1' in command
-    assert '[[ -e "$changed_path" || -z "${archived_change_ids[$change_id]:-}" ]]' in command
+    assert "declare -A archived_source_paths=()" in command
+    assert 'archived_source_paths["$source_path"]=1' in command
+    assert '[[ "$status" == R*' in command
+    assert '[[ "$source_change_id" == "$archived_change_id" ]]' in command
+    assert '[[ "$source_change_path" == "$archive_change_path" ]]' in command
+    assert '[[ -e "$changed_path" || -z "${archived_source_paths[$changed_path]:-}" ]]' in command
     assert '[[ -e "$changed_path" ]] || continue' not in command
     assert (
         "find openspec/changes -path 'openspec/changes/archive' -prune -o "
