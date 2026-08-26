@@ -61,8 +61,14 @@ def test_reproducible_delivery_checker_verifies_code_review_input_lock_pair(
     assert module.CODE_REVIEW_REQUIREMENTS_INPUT.is_file()
     assert module.CODE_REVIEW_LOCKED_EXPORT.is_file()
     lock = module.CODE_REVIEW_LOCKED_EXPORT.read_text(encoding="utf-8")
-    completed = subprocess.CompletedProcess(args=[], returncode=0, stdout=lock, stderr="")
-    monkeypatch.setattr(module.subprocess, "run", lambda *args, **kwargs: completed)
+
+    def compile_to_temporary_file(command: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        output = command[command.index("--output-file") + 1]
+        assert output != "-"
+        Path(output).write_text(lock, encoding="utf-8")
+        return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(module.subprocess, "run", compile_to_temporary_file)
     module.verify_code_review_lock()
 
 
@@ -77,8 +83,13 @@ def test_reproducible_delivery_checker_rejects_stale_code_review_lock(
     spec.loader.exec_module(module)
     lock = module.CODE_REVIEW_LOCKED_EXPORT.read_text(encoding="utf-8")
     stale_result = lock.replace("pylint==4.0.7", "pylint==4.0.8")
-    completed = subprocess.CompletedProcess(args=[], returncode=0, stdout=stale_result, stderr="")
-    monkeypatch.setattr(module.subprocess, "run", lambda *args, **kwargs: completed)
+
+    def compile_stale_result(command: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        output = command[command.index("--output-file") + 1]
+        Path(output).write_text(stale_result, encoding="utf-8")
+        return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(module.subprocess, "run", compile_stale_result)
 
     with pytest.raises(ValueError, match=r"differs from requirements\.in"):
         module.verify_code_review_lock()

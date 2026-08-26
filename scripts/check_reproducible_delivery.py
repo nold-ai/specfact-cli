@@ -8,6 +8,7 @@ import json
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import TypedDict, cast
 
@@ -120,29 +121,34 @@ def verify_code_review_lock() -> None:
     contents = CODE_REVIEW_LOCKED_EXPORT.read_text(encoding="utf-8")
     if "--hash=sha256:" not in contents:
         raise ValueError("Code Review lock must contain distribution hashes")
-    completed = subprocess.run(
-        [
-            "uv",
-            "pip",
-            "compile",
-            str(CODE_REVIEW_REQUIREMENTS_INPUT.relative_to(REPO_ROOT)),
-            "--python-version",
-            "3.12",
-            "--generate-hashes",
-            "--no-annotate",
-            "--output-file",
-            "-",
-        ],
-        cwd=REPO_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=UV_COMMAND_TIMEOUT_SECONDS,
-    )
-    if completed.returncode != 0:
-        detail = (completed.stderr or completed.stdout).strip()
-        raise ValueError(f"Could not compile Code Review requirements: {detail}")
-    if _without_generated_header(completed.stdout) != _without_generated_header(contents):
+    with tempfile.TemporaryDirectory(prefix="specfact-code-review-lock-") as temporary_directory:
+        rendered_lock = Path(temporary_directory) / "locked.txt"
+        completed = subprocess.run(
+            [
+                "uv",
+                "pip",
+                "compile",
+                str(CODE_REVIEW_REQUIREMENTS_INPUT.relative_to(REPO_ROOT)),
+                "--python-version",
+                "3.12",
+                "--generate-hashes",
+                "--no-annotate",
+                "--output-file",
+                str(rendered_lock),
+            ],
+            cwd=REPO_ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=UV_COMMAND_TIMEOUT_SECONDS,
+        )
+        if completed.returncode != 0:
+            detail = (completed.stderr or completed.stdout).strip()
+            raise ValueError(f"Could not compile Code Review requirements: {detail}")
+        if not rendered_lock.is_file():
+            raise ValueError("Code Review requirements compile did not create the expected lock")
+        rendered = rendered_lock.read_text(encoding="utf-8")
+    if _without_generated_header(rendered) != _without_generated_header(contents):
         raise ValueError("Code Review lock differs from requirements.in; regenerate the isolated lock")
 
 
