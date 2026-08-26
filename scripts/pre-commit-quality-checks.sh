@@ -446,7 +446,7 @@ staged_required_maturity() {
       return 1
     fi
     case "${file}" in
-      .github/*|ci/*|scripts/*|src/*|tools/*|pyproject.toml|setup.py|uv.lock|requirements/ci/locked.txt|resources/templates/*|resources/schemas/*|resources/mappings/*|resources/keys/*|modules/bundle-mapper/*)
+      .github/*|ci/*|scripts/*|src/*|tools/*|requirements/*|pyproject.toml|setup.py|uv.lock|resources/templates/*|resources/schemas/*|resources/mappings/*|resources/keys/*|modules/bundle-mapper/*)
         printf 'verified\n'
         return 0
         ;;
@@ -494,6 +494,9 @@ staged_active_change_ids() {
       openspec/changes/archive/*)
         ;;
       openspec/changes/*/*)
+        if ! git cat-file -e ":${file}" 2>/dev/null; then
+          continue
+        fi
         relative_path="${file#openspec/changes/}"
         if ! printf '%s\n' "${relative_path%%/*}" >>"${change_ids_file}"; then
           error "Unable to retain staged change identifiers"

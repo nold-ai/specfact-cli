@@ -40,9 +40,10 @@ GOVERNED_PRODUCTION_PREFIXES = (
     "resources/schemas/",
     "resources/mappings/",
     "resources/keys/",
+    "requirements/",
     "modules/bundle-mapper/",
 )
-GOVERNED_PRODUCTION_FILES = {"pyproject.toml", "setup.py", "uv.lock", "requirements/ci/locked.txt"}
+GOVERNED_PRODUCTION_FILES = {"pyproject.toml", "setup.py", "uv.lock"}
 
 
 @dataclass(frozen=True)

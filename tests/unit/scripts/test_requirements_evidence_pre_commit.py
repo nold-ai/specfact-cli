@@ -63,6 +63,7 @@ def test_pre_commit_selects_review_evidence_from_the_staged_change() -> None:
         'review_evidence="openspec/changes/${selected_change}/requirements-proof/review-evidence.json"',
         "Staged Requirements evidence spans multiple active changes",
         'if ! printf \'%s\\n\' "${relative_path%%/*}" >>"${change_ids_file}"; then',
+        'git cat-file -e ":${file}"',
         'if ! sort -u "${change_ids_file}"; then',
         "require_index_bound_review_evidence()",
         'git cat-file -e ":${review_evidence}"',

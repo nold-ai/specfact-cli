@@ -508,6 +508,33 @@ def test_git_bound_red_proof_rejects_base_commit_as_red_source(tmp_path: Path) -
     ) == ["tdd-order-unproven"]
 
 
+def _assert_renamed_governed_path_is_rejected(rename_root: Path, module: ProvenanceModule) -> None:
+    """Exercise the rename-source half of the governed-history boundary."""
+    rename_root.mkdir()
+    _git(rename_root, "init")
+    _git(rename_root, "config", "user.email", "requirements@example.test")
+    _git(rename_root, "config", "user.name", "Requirements proof")
+    (rename_root / "src").mkdir()
+    (rename_root / "src" / "delivery.py").write_text("VALUE = 0\n", encoding="utf-8")
+    rename_base_ref = _commit(rename_root, "chore: base")
+    (rename_root / "docs").mkdir()
+    _git(rename_root, "mv", "src/delivery.py", "docs/delivery.py")
+    _commit(rename_root, "docs: relocate delivery notes")
+    rename_test_path = rename_root / "tests" / "test_proof.py"
+    rename_test_path.parent.mkdir()
+    rename_test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    rename_red_ref = _commit(rename_root, "test: add red proof")
+    rename_proof_path = rename_root / ".git" / "red.json"
+    _write_red_proof(rename_proof_path, rename_root, rename_red_ref, rename_base_ref)
+    (rename_root / "src").mkdir(exist_ok=True)
+    (rename_root / "src" / "replacement.py").write_text("VALUE = 1\n", encoding="utf-8")
+    rename_final_ref = _commit(rename_root, "feat: replace delivery")
+
+    assert module.validate_prior_red_proof(
+        rename_proof_path, rename_root, base_ref=rename_base_ref, final_ref=rename_final_ref
+    ) == ["tdd-order-unproven"]
+
+
 def test_git_bound_red_proof_rejects_replayed_or_renamed_production_history(tmp_path: Path) -> None:
     """Red evidence must follow the current base and retain governed rename sources."""
     module = _load_provenance_module()
@@ -532,30 +559,7 @@ def test_git_bound_red_proof_rejects_replayed_or_renamed_production_history(tmp_
         red_proof_path, tmp_path, base_ref=current_base_ref, final_ref=final_ref
     ) == ["tdd-order-unproven"]
 
-    rename_root = tmp_path / "rename"
-    rename_root.mkdir()
-    _git(rename_root, "init")
-    _git(rename_root, "config", "user.email", "requirements@example.test")
-    _git(rename_root, "config", "user.name", "Requirements proof")
-    (rename_root / "src").mkdir()
-    (rename_root / "src" / "delivery.py").write_text("VALUE = 0\n", encoding="utf-8")
-    rename_base_ref = _commit(rename_root, "chore: base")
-    (rename_root / "docs").mkdir()
-    _git(rename_root, "mv", "src/delivery.py", "docs/delivery.py")
-    _commit(rename_root, "docs: relocate delivery notes")
-    rename_test_path = rename_root / "tests" / "test_proof.py"
-    rename_test_path.parent.mkdir()
-    rename_test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
-    rename_red_ref = _commit(rename_root, "test: add red proof")
-    rename_proof_path = rename_root / ".git" / "red.json"
-    _write_red_proof(rename_proof_path, rename_root, rename_red_ref, rename_base_ref)
-    (rename_root / "src").mkdir(exist_ok=True)
-    (rename_root / "src" / "replacement.py").write_text("VALUE = 1\n", encoding="utf-8")
-    rename_final_ref = _commit(rename_root, "feat: replace delivery")
-
-    assert module.validate_prior_red_proof(
-        rename_proof_path, rename_root, base_ref=rename_base_ref, final_ref=rename_final_ref
-    ) == ["tdd-order-unproven"]
+    _assert_renamed_governed_path_is_rejected(tmp_path / "rename", module)
 
 
 def test_git_bound_red_proof_rejects_governed_path_with_tab(tmp_path: Path) -> None:

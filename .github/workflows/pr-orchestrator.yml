@@ -1122,6 +1122,7 @@ jobs:
         run: |
           echo "🔍 Running CVE security audit..."
           python scripts/security_audit_gate.py
+          python scripts/security_audit_gate.py --requirement requirements/code-review/locked.txt
 
   reproducible-delivery:
     name: Reproducible Delivery Evidence

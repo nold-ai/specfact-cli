@@ -18,6 +18,9 @@ PR #688.
   plugin so provenance comes from the actual proof process.
 - **MODIFY** the Requirements workflow to bind only a successfully reconciled red
   report and fail closed when binding cannot be completed.
+- **ADD** an isolated, hash-locked Code Review tool environment so the final
+  review runs its declared BasedPyright and Pylint checks instead of reporting
+  tool-availability warnings.
 - **PRESERVE** all validator rejection behavior for incomplete, stale, tampered,
   tracked, or chronologically invalid evidence.
 
@@ -32,10 +35,12 @@ PR #688.
 
 - **Affected code**: `scripts/requirements_proof_pytest_plugin.py`,
   `scripts/requirements_proof_provenance.py`, and the Requirements Evidence
-  workflow.
+  workflow, plus the isolated Code Review tool lock and its audit wiring.
 - **Affected tests**: focused plugin, executor, provenance, and workflow contracts.
 - **Compatibility**: no public CLI/API, runtime dependency, module fixture, or
-  evidence-validator relaxation. Existing complete reports remain valid.
+  evidence-validator relaxation. Pylint is CI-only in an isolated environment;
+  BasedPyright continues to use the repository's committed npm lock. Existing
+  complete reports remain valid.
 - **Documentation**: contributor-facing OpenSpec/TDD evidence only; README, public
   guides, landing page, and navigation are unaffected.
 - **Release**: this prerequisite is included in the already planned `0.55.2`
@@ -54,6 +59,8 @@ PR #688.
 ## Dependencies
 
 - Baseline: `origin/dev@e3a20f20df440dff49f8c6d1f73375451bea1d8c`.
-- #686/#688 depends on this repair but keeps its dependency/security scope and
-  published history separate.
+- #686/#688 depends on this repair. Its signed dependency/security commits remain
+  a distinct merge parent, but live required checks force the two scopes to ship
+  through #690: #688 cannot pass the released producer, while #690 cannot pass the
+  validated baseline CVE audit without #686.
 - Requirements 08 remains independent and is not modified.

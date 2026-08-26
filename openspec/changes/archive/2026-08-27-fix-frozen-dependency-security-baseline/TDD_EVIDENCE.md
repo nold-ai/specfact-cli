@@ -124,6 +124,22 @@ UV_CACHE_DIR=/private/tmp/specfact-security-uv-cache .venv/bin/pytest \
 
 ## Passing-after evidence
 
+### Combined delivery necessity
+
+- Live PR #690 checks passed every pipeline gate except the repository-wide
+  Security Audit, which correctly failed on the `dev` baseline's validated
+  `pip==26.1.2` advisory. PR #688 contained the fixed graph but could not pass the
+  released Requirements producer repaired by #690.
+- The signed #686 red/green commits are therefore preserved as a merge parent in
+  #690. No commit, alert, or security gate is waived or rewritten; #688 remains
+  as comparison evidence until the combined PR is green.
+- Native `openspec archive` finalized this completed dependency change and applied
+  its delta to the canonical `dep-license-gate` specification. That leaves #689 as
+  #690's single active externally authorized producer-repair plan without changing
+  the generic multi-change rejection behavior. The independent Security Audit
+  continues to prove both frozen dependency graphs and is the terminal authority
+  for the dependency CVE.
+
 ### Frozen dependency result
 
 - `uv lock --upgrade-package pip --upgrade-package hatchling --upgrade-package setuptools`

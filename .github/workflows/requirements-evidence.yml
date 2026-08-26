@@ -196,7 +196,7 @@ jobs:
           rm -f "$changed_status_file"
           for changed_path in "${changed_paths[@]}"; do
             case "$changed_path" in
-              .github/*|ci/*|scripts/*|src/*|tools/*|pyproject.toml|setup.py|uv.lock|requirements/ci/locked.txt|resources/templates/*|resources/schemas/*|resources/mappings/*|resources/keys/*|modules/bundle-mapper/*)
+              .github/*|ci/*|scripts/*|src/*|tools/*|requirements/*|pyproject.toml|setup.py|uv.lock|resources/templates/*|resources/schemas/*|resources/mappings/*|resources/keys/*|modules/bundle-mapper/*)
                 required_maturity=verified
                 break
                 ;;
@@ -216,6 +216,7 @@ jobs:
               openspec/changes/archive/*)
                 ;;
               openspec/changes/*/*)
+                [[ -e "$changed_path" ]] || continue
                 relative_change_path="${changed_path#openspec/changes/}"
                 changed_change_ids["${relative_change_path%%/*}"]=1
                 ;;
@@ -439,6 +440,31 @@ jobs:
           if [ -f artifacts/requirements-evidence/requirements-evidence.md ]; then
             cat artifacts/requirements-evidence/requirements-evidence.md >> "$GITHUB_STEP_SUMMARY"
           fi
+
+      - name: Set up reviewed Code Review Node runtime
+        if: steps.run-evidence.outcome == 'success'
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: "24.16.0"
+          cache: npm
+          cache-dependency-path: tools/basedpyright/package-lock.json
+
+      - name: Install frozen Code Review tools
+        if: steps.run-evidence.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --prefix tools/basedpyright
+          review_tools="${RUNNER_TEMP}/specfact-code-review-tools"
+          uv venv --python "${pythonLocation}/bin/python" "$review_tools"
+          uv pip install \
+            --python "${review_tools}/bin/python" \
+            --require-hashes \
+            -r requirements/code-review/locked.txt
+          {
+            echo "${GITHUB_WORKSPACE}/tools/basedpyright/node_modules/.bin"
+            echo "${review_tools}/bin"
+          } >> "$GITHUB_PATH"
 
       - name: Run Code Review with finalized Requirements context
         id: run-code-review

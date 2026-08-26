@@ -691,7 +691,7 @@ def test_frozen_cve_audit_is_a_standalone_ci_and_pre_commit_gate() -> None:
     assert cve_hook.get("pass_filenames") is False
     assert cve_hook.get("entry") == "hatch run security-audit"
     assert "requirements/ci/locked" in str(cve_hook.get("files", ""))
-    assert "requirements/code-review/locked" in str(cve_hook.get("files", ""))
+    assert "requirements/code-review/" in str(cve_hook.get("files", ""))
     assert "vulnerability-audit-exceptions" in str(cve_hook.get("files", ""))
     hatch_scripts = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))["tool"]["hatch"]["envs"]["default"]["scripts"]
     assert "--requirement requirements/code-review/locked.txt" in hatch_scripts["security-audit"]

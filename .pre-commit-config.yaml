@@ -44,6 +44,7 @@ repos:
             pyproject\.toml|
             uv\.lock|
             requirements/ci/locked\.txt|
+            requirements/code-review/(requirements\.in|locked\.txt)|
             ci/vulnerability-audit-exceptions\.json|
             scripts/security_audit_gate\.py
           )$

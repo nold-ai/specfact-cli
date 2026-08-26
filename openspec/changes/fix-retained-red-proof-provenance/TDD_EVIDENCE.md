@@ -104,5 +104,35 @@ every other change remains required to present a validator-complete red artifact
   every exact comment, login, signed-commit, run, artifact, expiry, and ancestry
   binding. Focused authority and producer-regression tests pass (6 passed).
 
+### Final Code Review toolchain and finding remediation
+
+- Passing run `33016260828` proved the corrected final Requirements flow, but its
+  retained Code Review report exposed two `tool_error` warnings because
+  BasedPyright and Pylint were not available on the runner PATH, plus two
+  readability advisories in changed test helpers.
+- A workflow contract test first failed because no frozen review-tool setup
+  existed. A second audit-contract test first failed because the isolated tool
+  lock was not included in the CVE gate.
+- BasedPyright remains npm-lock bound at `1.39.9`. Pylint `4.0.7` and its six
+  transitive packages are hash-locked in an isolated Python 3.12 environment so
+  they cannot mutate the project environment. Installing that lock succeeds and
+  `pip-audit` reports no known vulnerabilities.
+- Both readability advisories were removed by extracting static workflow command
+  data and the governed-rename test helper. Full-enforcement Code Review with the
+  exact isolated tools reports `PASS` with no findings.
+
+### Combined delivery without a multi-change bypass
+
+- The local pre-commit gate demonstrated that two active issue-linked mappings
+  fail closed with `Requirements evidence spans multiple active changes`; the
+  pinned tool accepts only one mapping-specific review record.
+- The completed #686 change was therefore finalized through native
+  `openspec archive`, which applied its `dep-license-gate` delta to the canonical
+  specification and preserved its evidence ledger under the dated archive. #689
+  remains the only active mapping for #690's externally authorized plan.
+- No generic or issue-specific multi-change selector was retained. The dependency
+  graph remains independently governed by its focused tests and terminal Security
+  Audit.
+
 The internal wiki source follow-up remains intentionally unmodified because the
 user excluded internal wiki PR #38 and its planning branch from this task.

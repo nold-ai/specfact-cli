@@ -16,12 +16,18 @@
 - [x] 3.1 Record canonical toolchain properties through the core-owned pytest plugin.
 - [x] 3.2 Add fail-closed binding of Git objects, test blobs, JUnit, and toolchain facts to the provenance utility.
 - [x] 3.3 Invoke binding only after successful red reconciliation and before artifact publication.
+- [x] 3.4 Install the Code Review module's missing BasedPyright and Pylint tools
+  from isolated hash-protected locks and include the Python tool lock in the CVE
+  audit gate.
+- [x] 3.5 Finalize the completed #686 change with native `openspec archive` so
+  #689 remains the single active externally authorized proof plan; retain the
+  generic rejection of multiple active changes unchanged.
 
 ## 4. Passing evidence and quality gates
 
 - [ ] 4.1 Run focused tests, retained-proof legitimate/tamper controls, and a real red-to-final Requirements workflow reproduction. (Local controls and authoritative red complete; final GitHub run pending.)
 - [ ] 4.2 Run format, lint, type-check, YAML/contract tests, full applicable tests, module signatures, dependency/security gates, and OpenSpec strict validation. (Local gates complete; final GitHub gates pending.)
-- [ ] 4.3 Generate fresh changed/full code-review evidence, remediate all actionable findings, and close every fixed PR review thread with test evidence. (Local full-enforcement review has zero findings; PR review pending.)
+- [ ] 4.3 Generate fresh changed/full code-review evidence, remediate all actionable findings, and close every fixed PR review thread with test evidence. (Local full-enforcement review has zero findings after installing the exact frozen tools and simplifying both advisory test helpers; fresh PR evidence pending.)
 - [x] 4.4 Review README, docs, landing/navigation, release, and contributor impact; keep public docs unchanged when no user-facing behavior changes.
 
 ## 5. Delivery

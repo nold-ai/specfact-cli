@@ -54,11 +54,15 @@ security-clean core baseline before its implementation begins.
 - **GitHub Issue**: #686
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/686>
 - **Repository**: nold-ai/specfact-cli
-- **Last Synced Status**: open; native type Bug; project SpecFact CLI #1 status Todo; assigned to djm81; labels bug/security; no parent or dependency relationships (standalone remediation)
+- **Last Synced Status**: open; native type Bug; project SpecFact CLI #1 status Todo; assigned to djm81; labels bug/security; blocked by producer-repair issue #689
 
 ## Dependencies
 
 - Baseline: `origin/dev@e3a20f20df440dff49f8c6d1f73375451bea1d8c`.
+- Delivery integration: #688 carries the original signed dependency-only history,
+  while #690 combines that unchanged history with #689 because #688 cannot pass
+  the released Requirements producer and #690 cannot pass the validated baseline
+  CVE audit independently.
 - Prior delivery contract: `audit-01-reproducible-delivery` is already represented
   in the current `dev` tree; this bugfix does not alter its active branch or scope.
 - C14 consumes the final merged and released patch tag; C14 does not contribute code

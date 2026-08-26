@@ -35,10 +35,13 @@
 
 ## 6. Delivery
 
-- [ ] 6.1 Commit with a signed Conventional Commit, push, and create a PR to `dev` linked to #686.
+- [x] 6.1 Preserve the signed dependency-only commits in #688, then integrate
+  them without rewriting into combined PR #690 after live checks proved the
+  #688/#690 gate dependency cycle.
 - [ ] 6.2 Observe required CI/review gates, close only fully remediated review threads, and merge only when policy permits.
-- [ ] 6.3 Archive this change with `openspec archive fix-frozen-dependency-security-baseline`, then publish and verify the normal patch GitHub/PyPI release if authorized.
-- [ ] 6.4 Refresh or rerun PR #685 checks without modifying its branch, report the resulting Security Audit status, and record the exact C14 baseline commit/tag.
+- [x] 6.3 Archive this completed change with native `openspec archive fix-frozen-dependency-security-baseline` and apply its canonical spec delta.
+- [ ] 6.4 Publish and verify the normal patch GitHub/PyPI release if authorized.
+- [ ] 6.5 Refresh or rerun PR #685 checks without modifying its branch, report the resulting Security Audit status, and record the exact C14 baseline commit/tag.
 
 ## Post-merge cleanup
 

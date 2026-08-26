@@ -230,7 +230,7 @@ validate-prompts = "python tools/validate_prompts.py"
 bandit-scan = "bandit -r src/ -ll"
 license-check = "python scripts/check_license_compliance.py"
 # Wrap pip-audit so JSON parsing and CVSS threshold checks fail closed.
-security-audit = "python scripts/security_audit_gate.py"
+security-audit = "python scripts/security_audit_gate.py && python scripts/security_audit_gate.py --requirement requirements/code-review/locked.txt"
 refresh-frozen-delivery = "python scripts/refresh_reproducible_delivery.py"
 # Development scripts
 test = "pytest {args}"

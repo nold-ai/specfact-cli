@@ -14,6 +14,48 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 APPROVED_MODULE_COMMIT = "69f075819be5e1ceca1446b026b0417f19e584ca"
+EVIDENCE_COMMAND_FRAGMENTS = (
+    "uv run --locked --no-sync specfact requirements evidence",
+    '--base-ref "origin/${EVIDENCE_BASE_BRANCH}"',
+    "required_maturity=planned",
+    "required_maturity=test-authored",
+    "requirements/*|pyproject.toml|setup.py|uv.lock",
+    "resources/templates/*|resources/schemas/*|resources/mappings/*|resources/keys/*|modules/bundle-mapper/*",
+    ".github/*|ci/*|scripts/*|src/*|tools/*",
+    "planning_maturity=test-authored",
+    'if [[ "$exit_code" -eq 0 && "$required_maturity" != "planned" ]]; then',
+    "run_stage=red",
+    'if [[ "$required_maturity" == "verified" ]]; then',
+    "run_stage=final",
+    '--required-maturity "$planning_maturity"',
+    'review_evidence="openspec/changes/${selected_change}/requirements-proof/review-evidence.json"',
+    "openspec/changes/archive/*",
+    "find openspec/changes -path 'openspec/changes/archive' -prune -o -path '*/requirements-proof/review-evidence.json' -type f -print",
+    "write_failure_reports()",
+    'write_failure_reports "Invalid evidence base branch: $EVIDENCE_BASE_BRANCH"',
+    'changed_status_file="${RUNNER_TEMP}/requirements-evidence-changed-status.z"',
+    'if ! git diff --name-status -z --find-renames "origin/${EVIDENCE_BASE_BRANCH}...HEAD" > "$changed_status_file"; then',
+    "while IFS= read -r -d '' status; do",
+    'done < "$changed_status_file"',
+    'write_failure_reports "Unable to derive changed paths for $EVIDENCE_BASE_BRANCH"',
+    "--plan-output artifacts/requirements-evidence/requirements-evidence-plan.json",
+    '--review-evidence "$review_evidence"',
+    "python scripts/requirements_proof_executor.py",
+    "if [[ ! -s artifacts/requirements-evidence/requirements-proof.xml ]]; then",
+    "--junit artifacts/requirements-evidence/requirements-proof.xml",
+    "python scripts/requirements_proof_provenance.py",
+    '--final-ref "$EVIDENCE_FINAL_REF"',
+    '--final-ref "$EVIDENCE_FINAL_REF" 2>&1)',
+    "uv run --locked --no-sync specfact requirements reconcile",
+    "rm -f artifacts/requirements-evidence/requirements-evidence.json artifacts/requirements-evidence/requirements-evidence.md",
+    '--run-stage "$run_stage"',
+    '--source-ref "$EVIDENCE_FINAL_REF"',
+    '--prior-red-proof "$prior_red_proof"',
+    "fallback_required=0",
+    "fallback_required=1",
+    'if [[ "$fallback_required" -eq 1 ]]; then',
+    "exit 1",
+)
 
 
 def _step_by_name(workflow: dict[str, object], name: str) -> dict[str, object]:
@@ -54,50 +96,7 @@ def _assert_fixture_contract(workflow: dict[str, object]) -> None:
 def _assert_command_contract(workflow: dict[str, object]) -> None:
     run_evidence = _step_by_name(workflow, "Run Requirements evidence gate")
     assert run_evidence["id"] == "run-evidence"  # type: ignore[index]
-    required_fragments = (
-        "uv run --locked --no-sync specfact requirements evidence",
-        '--base-ref "origin/${EVIDENCE_BASE_BRANCH}"',
-        "required_maturity=planned",
-        "required_maturity=test-authored",
-        "pyproject.toml|setup.py|uv.lock|requirements/ci/locked.txt",
-        "resources/templates/*|resources/schemas/*|resources/mappings/*|resources/keys/*|modules/bundle-mapper/*",
-        ".github/*|ci/*|scripts/*|src/*|tools/*",
-        "planning_maturity=test-authored",
-        'if [[ "$exit_code" -eq 0 && "$required_maturity" != "planned" ]]; then',
-        "run_stage=red",
-        'if [[ "$required_maturity" == "verified" ]]; then',
-        "run_stage=final",
-        '--required-maturity "$planning_maturity"',
-        'review_evidence="openspec/changes/${selected_change}/requirements-proof/review-evidence.json"',
-        "openspec/changes/archive/*",
-        "find openspec/changes -path 'openspec/changes/archive' -prune -o -path '*/requirements-proof/review-evidence.json' -type f -print",
-        "write_failure_reports()",
-        'write_failure_reports "Invalid evidence base branch: $EVIDENCE_BASE_BRANCH"',
-        'changed_status_file="${RUNNER_TEMP}/requirements-evidence-changed-status.z"',
-        'if ! git diff --name-status -z --find-renames "origin/${EVIDENCE_BASE_BRANCH}...HEAD" > "$changed_status_file"; then',
-        "while IFS= read -r -d '' status; do",
-        'done < "$changed_status_file"',
-        'write_failure_reports "Unable to derive changed paths for $EVIDENCE_BASE_BRANCH"',
-        "--plan-output artifacts/requirements-evidence/requirements-evidence-plan.json",
-        '--review-evidence "$review_evidence"',
-        "python scripts/requirements_proof_executor.py",
-        "if [[ ! -s artifacts/requirements-evidence/requirements-proof.xml ]]; then",
-        "--junit artifacts/requirements-evidence/requirements-proof.xml",
-        "python scripts/requirements_proof_provenance.py",
-        '--base-ref "origin/${EVIDENCE_BASE_BRANCH}"',
-        '--final-ref "$EVIDENCE_FINAL_REF"',
-        '--final-ref "$EVIDENCE_FINAL_REF" 2>&1)',
-        "uv run --locked --no-sync specfact requirements reconcile",
-        "rm -f artifacts/requirements-evidence/requirements-evidence.json artifacts/requirements-evidence/requirements-evidence.md",
-        '--run-stage "$run_stage"',
-        '--source-ref "$EVIDENCE_FINAL_REF"',
-        '--prior-red-proof "$prior_red_proof"',
-        "fallback_required=0",
-        "fallback_required=1",
-        'if [[ "$fallback_required" -eq 1 ]]; then',
-        "exit 1",
-    )
-    assert all(fragment in run_evidence["run"] for fragment in required_fragments)  # type: ignore[index]
+    assert all(fragment in run_evidence["run"] for fragment in EVIDENCE_COMMAND_FRAGMENTS)  # type: ignore[index]
     assert 'if [[ "$execution_exit" -ne 0 ]]; then' not in run_evidence["run"]  # type: ignore[index]
     assert run_evidence["env"]["EVIDENCE_BASE_BRANCH"]  # type: ignore[index]
     assert "workflow_dispatch" in workflow["on"]  # type: ignore[operator]
@@ -282,6 +281,7 @@ def test_requirements_evidence_workflow_ignores_archived_review_evidence() -> No
     command = _run_evidence_command()
 
     assert "openspec/changes/archive/*" in command
+    assert '[[ -e "$changed_path" ]] || continue' in command
     assert (
         "find openspec/changes -path 'openspec/changes/archive' -prune -o "
         "-path '*/requirements-proof/review-evidence.json' -type f -print"
@@ -362,6 +362,8 @@ def test_requirements_code_review_uses_frozen_external_tools() -> None:
         parsed, "Run Code Review with finalized Requirements context"
     )
     lock = (REPO_ROOT / "requirements" / "code-review" / "locked.txt").read_text(encoding="utf-8")
+    requirement = (REPO_ROOT / "requirements" / "code-review" / "requirements.in").read_text(encoding="utf-8")
+    assert requirement.strip() == "pylint==4.0.7"
     assert "pylint==4.0.7" in lock
 
 
