@@ -235,7 +235,7 @@ jobs:
               openspec/changes/*/*)
                 relative_change_path="${changed_path#openspec/changes/}"
                 change_id="${relative_change_path%%/*}"
-                if [[ -e "$changed_path" || -z "${archived_source_paths[$changed_path]:-}" ]]; then
+                if [[ -e "$changed_path" || -d "openspec/changes/$change_id" || -z "${archived_source_paths[$changed_path]:-}" ]]; then
                   changed_change_ids["$change_id"]=1
                 fi
                 ;;

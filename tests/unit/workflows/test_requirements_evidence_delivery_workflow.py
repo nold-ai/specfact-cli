@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -76,6 +77,32 @@ def _run_evidence_command() -> str:
     command = _step_by_name(parsed, "Run Requirements evidence gate")["run"]
     assert isinstance(command, str)
     return command
+
+
+def _bash_with_associative_arrays() -> Path:
+    candidates = [Path(candidate) for candidate in (shutil.which("bash"), "/opt/homebrew/bin/bash") if candidate]
+    for candidate in candidates:
+        if not candidate.is_file():
+            continue
+        version = subprocess.run(
+            [candidate, "--version"], capture_output=True, text=True, check=True
+        ).stdout.splitlines()[0]
+        if "version 3." not in version:
+            return candidate
+    pytest.skip("Bash 4+ is required for associative-array workflow coverage")
+
+
+def _selection_script(command: str, source_path: str, archive_path: str) -> str:
+    selection = command.split("declare -A changed_change_ids=()", maxsplit=1)[1].split(
+        'if [[ "${#changed_change_ids[@]}" -eq 1 ]]', maxsplit=1
+    )[0]
+    return f"""
+changed_paths=({source_path} {archive_path})
+declare -A archived_source_paths=([{source_path}]=1)
+declare -A changed_change_ids=()
+{selection}
+printf '%s\\n' "${{!changed_change_ids[@]}}"
+"""
 
 
 def _assert_fixture_contract(workflow: dict[str, object]) -> None:
@@ -286,12 +313,35 @@ def test_requirements_evidence_workflow_ignores_archived_review_evidence() -> No
     assert '[[ "$status" == R*' in command
     assert '[[ "$source_change_id" == "$archived_change_id" ]]' in command
     assert '[[ "$source_change_path" == "$archive_change_path" ]]' in command
-    assert '[[ -e "$changed_path" || -z "${archived_source_paths[$changed_path]:-}" ]]' in command
+    assert (
+        '[[ -e "$changed_path" || -d "openspec/changes/$change_id" '
+        '|| -z "${archived_source_paths[$changed_path]:-}" ]]' in command
+    )
     assert '[[ -e "$changed_path" ]] || continue' not in command
     assert (
         "find openspec/changes -path 'openspec/changes/archive' -prune -o "
         "-path '*/requirements-proof/review-evidence.json' -type f -print"
     ) in command
+
+
+def test_requirements_evidence_workflow_rejects_partial_exact_archive_move(tmp_path: Path) -> None:
+    """One exact rename cannot hide an otherwise active change directory."""
+    command = _run_evidence_command()
+    source_path = "openspec/changes/example/proposal.md"
+    archive_path = "openspec/changes/archive/2026-08-27-example/proposal.md"
+    script = _selection_script(command, source_path, archive_path)
+    bash = _bash_with_associative_arrays()
+    active_directory = tmp_path / "openspec" / "changes" / "example"
+    active_directory.mkdir(parents=True)
+    (active_directory / "tasks.md").write_text("# still active\n", encoding="utf-8")
+
+    partial = subprocess.run([bash, "-c", script], cwd=tmp_path, capture_output=True, text=True, check=True)
+    assert partial.stdout.strip() == "example"
+
+    (active_directory / "tasks.md").unlink()
+    active_directory.rmdir()
+    complete = subprocess.run([bash, "-c", script], cwd=tmp_path, capture_output=True, text=True, check=True)
+    assert complete.stdout.strip() == ""
 
 
 def test_requirements_evidence_workflow_uses_digest_bound_legacy_tdd_ledger_for_r07() -> None:
