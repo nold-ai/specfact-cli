@@ -65,11 +65,21 @@ every other change remains required to present a validator-complete red artifact
 
 ### Focused behavior and security controls
 
-- `hatch run test` over provenance, executor, plugin, authority, and workflow
-  coverage: 63 passed.
-- Entity-declaration rejection, explicit workflow JUnit binding, JSON toolchain
-  tamper rejection, exact-authority acceptance, and same-ledger/plan replay
-  without the authorized red ancestor all pass.
+```text
+SPECFACT_MODULES_REPO=/private/tmp/specfact-modules-fixture.sFRAtj/repo \
+UV_CACHE_DIR=/private/tmp/specfact-uv-cache hatch run test \
+  tests/unit/scripts/test_requirements_bootstrap_authority.py \
+  tests/unit/scripts/test_requirements_proof_provenance_security.py
+```
+
+- **Result**: 14 passed. This includes entity-declaration and oversized-file
+  rejection, explicit workflow JUnit binding, JSON toolchain tamper rejection,
+  exact-authority acceptance, every reviewed external-metadata rejection, and
+  same-ledger/plan replay without the authorized red ancestor.
+- **Review-finding red control**: before the validator changes, the same command
+  produced 11 passed and three intended failures: invalid `base_commit` reached
+  Git, a non-string `red_commit` raised `TypeError`, and oversized JUnit reached
+  `read_bytes()`.
 - Authoritative final test-only red run:
   `33013274590` at signed commit
   `04b6c02eb63f779309d8dced48085f3ef0efe029`; artifact `9623426074`.
@@ -78,7 +88,19 @@ every other change remains required to present a validator-complete red artifact
 
 ### Local quality and security gates
 
-- Full repository tests: 3,024 collected, exit 0.
+```text
+SPECFACT_MODULES_REPO=/private/tmp/specfact-modules-fixture.sFRAtj/repo \
+UV_CACHE_DIR=/private/tmp/specfact-uv-cache hatch run test
+```
+
+- **Current expanded-suite result**: 3,033 passed and 9 skipped. Two environment
+  controls failed locally: the sandbox denied PyPI DNS during a temporary
+  runtime-discovery install, and denied a test write to the user metadata home.
+  Rerunning the runtime-discovery test with network access passed (1 passed).
+  The GitHub Tests job runs the full command in its isolated writable runner and
+  is the terminal control for the home-write case.
+- **Earlier pre-review-fix control**: the full repository suite passed at the
+  prior PR head before these eight security-boundary tests were added.
 - Ruff format/lint: pass; basedpyright: 0 errors (repository baseline warnings
   unchanged); OpenSpec strict validation: pass.
 - SpecFact full-enforcement code review: pass with zero findings after all
@@ -86,6 +108,7 @@ every other change remains required to present a validator-complete red artifact
 - Bandit medium/high scan: zero findings and zero `nosec` suppressions.
 - Semgrep auto rules: 290 rules across three changed scripts, zero findings.
 - Module signature policy and license compliance: pass.
+- `UV_CACHE_DIR=/private/tmp/specfact-uv-cache hatch run lint-workflows`: exit 0.
 - YAML wrapper exits 0 and continues to report only the pre-existing R07/R08
   OpenSpec YAML style findings; the changed workflow parses and its focused
   workflow tests pass.

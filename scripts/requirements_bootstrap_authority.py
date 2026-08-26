@@ -209,7 +209,16 @@ def _valid_red_artifact(authority: dict[str, object], artifact_root: Path) -> bo
 
 
 def _valid_history(authority: dict[str, object], paths: AuthorityPaths, context: AuthorityContext) -> bool:
-    red_commit = cast(str, authority.get("red_commit"))
+    red_commit = authority.get("red_commit")
+    base_commit = authority.get("base_commit")
+    if (
+        not isinstance(red_commit, str)
+        or GIT_OBJECT_PATTERN.fullmatch(red_commit) is None
+        or not isinstance(base_commit, str)
+        or GIT_OBJECT_PATTERN.fullmatch(base_commit) is None
+        or GIT_OBJECT_PATTERN.fullmatch(context.final_ref) is None
+    ):
+        return False
     merge_base = _git(paths.repo_root, "merge-base", context.base_ref, red_commit)
     changed_paths = _git(
         paths.repo_root,
@@ -217,12 +226,12 @@ def _valid_history(authority: dict[str, object], paths: AuthorityPaths, context:
         "--format=",
         "--name-only",
         "--no-renames",
-        f"{authority.get('base_commit')}..{red_commit}",
+        "--end-of-options",
+        f"{base_commit}..{red_commit}",
     )
     return (
-        GIT_OBJECT_PATTERN.fullmatch(context.final_ref) is not None
-        and merge_base.returncode == 0
-        and merge_base.stdout.strip() == authority.get("base_commit")
+        merge_base.returncode == 0
+        and merge_base.stdout.strip() == base_commit
         and _is_ancestor(paths.repo_root, context.base_ref, red_commit)
         and red_commit != context.final_ref
         and _is_ancestor(paths.repo_root, red_commit, context.final_ref)
@@ -242,7 +251,7 @@ def _record_check(findings: list[str], name: str, validator: Callable[[], bool])
     try:
         if not validator():
             findings.append(name)
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError):
+    except (OSError, TypeError, UnicodeDecodeError, json.JSONDecodeError, ValueError):
         findings.append(f"{name}-metadata")
 
 

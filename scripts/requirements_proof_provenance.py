@@ -272,9 +272,11 @@ def _validate_retained_red_junit(
     expected_digest = execution_proof.get("junit_digest")
     retained_junit_path = junit_path or red_proof_path.with_suffix(".xml")
     try:
+        if retained_junit_path.stat().st_size > MAX_JUNIT_BYTES:
+            raise ValueError("prior-red-proof-invalid")
         payload = retained_junit_path.read_bytes()
         parsed_junit = _parse_junit(payload)
-    except OSError as error:
+    except (OSError, ValueError) as error:
         raise ValueError("prior-red-proof-invalid") from error
     actual_digest = f"sha256:{hashlib.sha256(payload).hexdigest()}"
     if expected_digest != actual_digest or not parsed_junit.has_failure:

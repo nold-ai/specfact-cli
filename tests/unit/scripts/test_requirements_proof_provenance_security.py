@@ -53,6 +53,29 @@ def test_retained_red_junit_rejects_entity_declarations(tmp_path: Path) -> None:
         module._validate_retained_red_junit(red_proof_path, report)
 
 
+def test_retained_red_junit_rejects_oversized_file_before_read(tmp_path: Path) -> None:
+    """The validator must bound hostile runner output before loading it into memory."""
+    module = cast(Any, _load_provenance_module())
+    red_proof_path = tmp_path / "red.json"
+    report: dict[str, object] = {
+        "execution_proof": {
+            "junit_digest": f"sha256:{'a' * 64}",
+            "selectors": ["tests/test_proof.py::test_selected"],
+            "source_ref": "a" * 40,
+        }
+    }
+
+    class OversizedJunit:
+        def stat(self) -> Any:
+            return type("Stat", (), {"st_size": module.MAX_JUNIT_BYTES + 1})()
+
+        def read_bytes(self) -> bytes:
+            raise AssertionError("oversized JUnit was read")
+
+    with pytest.raises(ValueError, match="prior-red-proof-invalid"):
+        module._validate_retained_red_junit(red_proof_path, report, junit_path=cast(Path, OversizedJunit()))
+
+
 def test_bind_red_proof_uses_explicit_workflow_junit_path(tmp_path: Path) -> None:
     """The binder must consume the executor's real report and JUnit filenames."""
     module = cast(Any, _load_provenance_module())
