@@ -93,24 +93,28 @@ def _has_governed_production_path(paths: Sequence[str]) -> bool:
 def _authority_from_comment(comment: dict[str, object], context: AuthorityContext) -> dict[str, object]:
     user = _object(comment.get("user"))
     body = comment.get("body")
-    if (
-        comment.get("id") != context.comment_id
-        or comment.get("author_association") not in {"OWNER", "MEMBER"}
-        or comment.get("created_at") != comment.get("updated_at")
-        or comment.get("issue_url") != f"https://api.github.com/repos/{context.repository}/issues/{context.issue}"
-        or not isinstance(user.get("login"), str)
-        or not isinstance(body, str)
-    ):
-        raise ValueError("bootstrap-authority-invalid")
+    expected_issue_url = f"https://api.github.com/repos/{context.repository}/issues/{context.issue}"
+    checks = {
+        "association": comment.get("author_association") in {"OWNER", "MEMBER"},
+        "body": isinstance(body, str),
+        "id": comment.get("id") == context.comment_id,
+        "issue": comment.get("issue_url") == expected_issue_url,
+        "login": isinstance(user.get("login"), str),
+        "unedited": comment.get("created_at") == comment.get("updated_at"),
+    }
+    failed_checks = [name for name, valid in checks.items() if not valid]
+    if failed_checks:
+        raise ValueError(f"authority-comment-{','.join(failed_checks)}")
+    assert isinstance(body, str)
     header, separator, encoded_authority = body.partition("\n")
     if header != AUTHORITY_HEADER or not separator:
-        raise ValueError("bootstrap-authority-invalid")
+        raise ValueError("authority-comment-header")
     decoded_authority = json.loads(encoded_authority)
     if not isinstance(decoded_authority, dict):
-        raise ValueError("bootstrap-authority-invalid")
+        raise ValueError("authority-comment-payload")
     authority = cast(dict[str, object], decoded_authority)
     if authority.get("signer_login") != user["login"]:
-        raise ValueError("bootstrap-authority-invalid")
+        raise ValueError("authority-comment-signer")
     return authority
 
 
@@ -245,7 +249,9 @@ def _authority_findings(paths: AuthorityPaths, context: AuthorityContext) -> lis
     """Name each failed independent binding without exposing authority contents."""
     try:
         authority = _authority_from_comment(_read_object(paths.comment), context)
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError):
+    except ValueError as error:
+        return [str(error)]
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
         return ["authority-metadata"]
     findings: list[str] = []
     checks = (
