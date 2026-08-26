@@ -679,10 +679,11 @@ def test_dependency_trust_is_a_standalone_ci_and_pre_commit_gate() -> None:
 
 
 def test_frozen_cve_audit_is_a_standalone_ci_and_pre_commit_gate() -> None:
-    """The advisory database must audit the committed requirements graph, not an ambient environment."""
+    """The advisory database must audit every committed frozen requirements graph."""
     steps = _load_job_steps("security-audit")
     commands = "\n".join(str(step.get("run", "")) for step in steps)
     assert "scripts/security_audit_gate.py" in commands
+    assert "--requirement requirements/code-review/locked.txt" in commands
 
     hooks = _load_hooks()
     by_id = {str(hook["id"]): hook for hook in hooks}
@@ -690,7 +691,10 @@ def test_frozen_cve_audit_is_a_standalone_ci_and_pre_commit_gate() -> None:
     assert cve_hook.get("pass_filenames") is False
     assert cve_hook.get("entry") == "hatch run security-audit"
     assert "requirements/ci/locked" in str(cve_hook.get("files", ""))
+    assert "requirements/code-review/locked" in str(cve_hook.get("files", ""))
     assert "vulnerability-audit-exceptions" in str(cve_hook.get("files", ""))
+    hatch_scripts = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))["tool"]["hatch"]["envs"]["default"]["scripts"]
+    assert "--requirement requirements/code-review/locked.txt" in hatch_scripts["security-audit"]
 
 
 def _assert_docs_dependabot_monitoring() -> None:
