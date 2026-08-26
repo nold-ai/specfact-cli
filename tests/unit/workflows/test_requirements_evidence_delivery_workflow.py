@@ -353,6 +353,19 @@ def test_requirements_evidence_workflow_hands_final_proof_to_code_review() -> No
     )
 
 
+def test_requirements_evidence_workflow_binds_red_proof_before_publication() -> None:
+    """Only a successfully reconciled red report may receive producer provenance before upload."""
+    command = _run_evidence_command()
+    binding = "--bind-red-proof artifacts/requirements-evidence/requirements-evidence.json"
+
+    assert 'if [[ "$run_stage" == "red" && "$exit_code" -eq 0 ]]; then' in command
+    assert "python scripts/requirements_proof_provenance.py" in command
+    assert binding in command
+    assert '--base-ref "origin/${EVIDENCE_BASE_BRANCH}"' in command
+    assert 'write_failure_reports "Red proof binding rejected:' in command
+    assert command.index(binding) < command.index("fallback_required=0")
+
+
 def _review_and_enforcement_steps() -> tuple[dict[str, object], dict[str, object]]:
     """Load the two workflow steps that independently govern final PR status."""
     workflow = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import platform
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -300,6 +301,24 @@ def test_executor_records_canonical_selector_property_in_junit(tmp_path: Path) -
 
     root = ET.parse(junit_path).getroot()
     assert root.find(".//property[@name='specfact.selector'][@value='" + selector + "']") is not None
+
+
+def test_executor_records_proof_toolchain_identity_in_junit(tmp_path: Path) -> None:
+    """Retained provenance must identify the interpreter and pytest process that ran the selector."""
+    module = _load_executor_module()
+    selector = "tests/fixtures/requirements_proof_target.py::test_records_canonical_selector"
+    junit_path = tmp_path / "requirements-proof.xml"
+
+    assert module.execute_plan(_plan(selector), REPO_ROOT, junit_path) == 0
+
+    root = ET.parse(junit_path).getroot()
+    expected_properties = {
+        "specfact.runner": "pytest",
+        "specfact.python": platform.python_version(),
+        "specfact.pytest": pytest.__version__,
+    }
+    for name, value in expected_properties.items():
+        assert root.find(f".//property[@name='{name}'][@value='{value}']") is not None
 
 
 def test_executor_records_canonical_selector_for_skipped_and_setup_error_cases(tmp_path: Path) -> None:

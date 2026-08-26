@@ -20,6 +20,9 @@ PROVENANCE_SCRIPT = REPO_ROOT / "scripts" / "requirements_proof_provenance.py"
 class ProvenanceModule(Protocol):
     """Minimal public surface for validating a committed red-proof report."""
 
+    def bind_red_proof(self, red_proof_path: Path, repo_root: Path, *, base_ref: str) -> None:
+        raise NotImplementedError
+
     def validate_prior_red_proof(
         self, red_proof_path: Path, repo_root: Path, *, base_ref: str, final_ref: str
     ) -> list[str]:
@@ -102,6 +105,73 @@ def _write_red_proof(path: Path, repo_root: Path, source_ref: str, merge_base: s
         test_file_digest=test_file_digest,
     )
     path.write_text(json.dumps(report), encoding="utf-8")
+
+
+def _write_unbound_red_proof(path: Path, source_ref: str) -> None:
+    """Write the exact incomplete report shape produced by released reconciliation."""
+    selector = "tests/test_proof.py::test_selected"
+    junit = (
+        "<testsuite><testcase><properties>"
+        f'<property name="specfact.selector" value="{selector}"/>'
+        '<property name="specfact.runner" value="pytest"/>'
+        '<property name="specfact.python" value="3.13.7"/>'
+        '<property name="specfact.pytest" value="8.4.1"/>'
+        "</properties><failure/></testcase></testsuite>"
+    ).encode()
+    path.with_suffix(".xml").write_bytes(junit)
+    path.write_text(
+        json.dumps(
+            {
+                "gate_decision": "pass",
+                "observed_maturity": "red",
+                "mapping_digest": f"sha256:{'a' * 64}",
+                "plan_digest": f"sha256:{'b' * 64}",
+                "execution_proof": {
+                    "run_stage": "red",
+                    "source_ref": source_ref,
+                    "selectors": [selector],
+                    "junit_digest": f"sha256:{hashlib.sha256(junit).hexdigest()}",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_bind_red_proof_records_validator_complete_immutable_provenance(tmp_path: Path) -> None:
+    """The producer must fill every validator-required fact from the red execution boundary."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / "README.md").write_text("# proof\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "chore: base")
+    test_path = tmp_path / "tests" / "test_proof.py"
+    test_path.parent.mkdir()
+    test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_unbound_red_proof(red_proof_path, red_ref)
+
+    module.bind_red_proof(red_proof_path, tmp_path, base_ref=base_ref)
+
+    report = json.loads(red_proof_path.read_text(encoding="utf-8"))
+    execution_proof = report["execution_proof"]
+    assert execution_proof["source_tree"] == _git(tmp_path, "rev-parse", f"{red_ref}^{{tree}}")
+    assert execution_proof["merge_base"] == base_ref
+    assert execution_proof["test_file_digests"] == {
+        "tests/test_proof.py": f"sha256:{hashlib.sha256(test_path.read_bytes()).hexdigest()}"
+    }
+    assert execution_proof["toolchain_identity"] == {
+        "runner": "pytest",
+        "python": "3.13.7",
+        "pytest": "8.4.1",
+    }
+
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "delivery.py").write_text("VALUE = 1\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: deliver behavior")
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
 
 
 def test_git_bound_red_proof_requires_test_only_ancestor_and_unchanged_selector_files(tmp_path: Path) -> None:
