@@ -48,7 +48,9 @@ def test_reproducible_delivery_checker_verifies_hashed_export() -> None:
     module.verify_locked_export()
 
 
-def test_reproducible_delivery_checker_verifies_code_review_input_lock_pair() -> None:
+def test_reproducible_delivery_checker_verifies_code_review_input_lock_pair(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """The isolated Code Review lock must be reproducibly compiled from its input."""
     checker = REPO_ROOT / "scripts" / "check_reproducible_delivery.py"
     spec = importlib.util.spec_from_file_location("check_reproducible_delivery", checker)
@@ -58,7 +60,28 @@ def test_reproducible_delivery_checker_verifies_code_review_input_lock_pair() ->
 
     assert module.CODE_REVIEW_REQUIREMENTS_INPUT.is_file()
     assert module.CODE_REVIEW_LOCKED_EXPORT.is_file()
+    lock = module.CODE_REVIEW_LOCKED_EXPORT.read_text(encoding="utf-8")
+    completed = subprocess.CompletedProcess(args=[], returncode=0, stdout=lock, stderr="")
+    monkeypatch.setattr(module.subprocess, "run", lambda *args, **kwargs: completed)
     module.verify_code_review_lock()
+
+
+def test_reproducible_delivery_checker_rejects_stale_code_review_lock(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A resolver result that differs from the isolated lock must fail closed."""
+    checker = REPO_ROOT / "scripts" / "check_reproducible_delivery.py"
+    spec = importlib.util.spec_from_file_location("check_reproducible_delivery", checker)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    lock = module.CODE_REVIEW_LOCKED_EXPORT.read_text(encoding="utf-8")
+    stale_result = lock.replace("pylint==4.0.7", "pylint==4.0.8")
+    completed = subprocess.CompletedProcess(args=[], returncode=0, stdout=stale_result, stderr="")
+    monkeypatch.setattr(module.subprocess, "run", lambda *args, **kwargs: completed)
+
+    with pytest.raises(ValueError, match=r"differs from requirements\.in"):
+        module.verify_code_review_lock()
 
 
 def test_reproducible_delivery_refresh_uses_locked_export_contract() -> None:
