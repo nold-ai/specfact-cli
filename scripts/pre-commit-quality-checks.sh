@@ -446,7 +446,7 @@ staged_required_maturity() {
       return 1
     fi
     case "${file}" in
-      .github/*|ci/*|scripts/*|src/*|tools/*|requirements/*|pyproject.toml|setup.py|uv.lock|resources/templates/*|resources/schemas/*|resources/mappings/*|resources/keys/*|modules/bundle-mapper/*)
+      .github/*|ci/*|scripts/*|src/*|tools/*|pyproject.toml|setup.py|uv.lock|requirements/ci/locked.txt|requirements/*|resources/templates/*|resources/schemas/*|resources/mappings/*|resources/keys/*|modules/bundle-mapper/*)
         printf 'verified\n'
         return 0
         ;;

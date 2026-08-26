@@ -38,6 +38,7 @@ def test_pre_commit_derives_maturity_and_governs_product_only_changes() -> None:
         '--required-maturity "${required_maturity}"',
         "has_staged_requirements_evidence_scope()",
         "has_staged_requirements_evidence_scope || scope_status=$?",
+        "requirements/*",
     )
 
 
