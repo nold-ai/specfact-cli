@@ -230,20 +230,24 @@ def _valid_history(authority: dict[str, object], paths: AuthorityPaths, context:
 @ensure(lambda result: isinstance(result, bool))
 def validate_bootstrap_authority(paths: AuthorityPaths, context: AuthorityContext) -> bool:
     """Return whether all external authority, artifact, and Git-history bindings agree."""
+    return not _authority_findings(paths, context)
+
+
+def _authority_findings(paths: AuthorityPaths, context: AuthorityContext) -> list[str]:
+    """Name each failed independent binding without exposing authority contents."""
     try:
         authority = _authority_from_comment(_read_object(paths.comment), context)
-        return all(
-            (
-                _valid_context(authority, context),
-                _valid_commit(authority, _read_object(paths.commit)),
-                _valid_run(authority, _read_object(paths.run)),
-                _valid_artifact(authority, _read_object(paths.artifacts)),
-                _valid_red_artifact(authority, paths.artifact_root),
-                _valid_history(authority, paths, context),
-            )
-        )
+        checks = {
+            "artifact-files": _valid_red_artifact(authority, paths.artifact_root),
+            "artifact-metadata": _valid_artifact(authority, _read_object(paths.artifacts)),
+            "commit-signature": _valid_commit(authority, _read_object(paths.commit)),
+            "execution-context": _valid_context(authority, context),
+            "git-history": _valid_history(authority, paths, context),
+            "workflow-run": _valid_run(authority, _read_object(paths.run)),
+        }
+        return [name for name, valid in checks.items() if not valid]
     except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError):
-        return False
+        return ["authority-metadata"]
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -288,9 +292,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         pull_request=arguments.pull_request,
         head_branch=arguments.head_branch,
     )
-    valid = validate_bootstrap_authority(paths, context)
-    if not valid:
-        sys.stderr.write("bootstrap-authority-invalid\n")
+    findings = _authority_findings(paths, context)
+    if findings:
+        sys.stderr.write(f"bootstrap-authority-invalid:{','.join(findings)}\n")
         return 1
     return 0
 
