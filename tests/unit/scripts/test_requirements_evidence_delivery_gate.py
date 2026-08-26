@@ -595,7 +595,7 @@ def test_pre_commit_treats_delivery_inputs_as_production() -> None:
     """Staged dependency and packaging inputs must require production maturity."""
     pre_commit = (REPO_ROOT / "scripts" / "pre-commit-quality-checks.sh").read_text(encoding="utf-8")
 
-    assert "pyproject.toml|setup.py|uv.lock|requirements/ci/locked.txt" in pre_commit
+    assert "requirements/*|pyproject.toml|setup.py|uv.lock" in pre_commit
     assert (
         "resources/templates/*|resources/schemas/*|resources/mappings/*|resources/keys/*|modules/bundle-mapper/*"
         in pre_commit
