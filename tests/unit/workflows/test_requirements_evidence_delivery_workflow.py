@@ -344,6 +344,20 @@ def test_requirements_evidence_workflow_rejects_partial_exact_archive_move(tmp_p
     assert complete.stdout.strip() == ""
 
 
+def test_requirements_bootstrap_authority_is_pull_request_only() -> None:
+    """Manual dispatch must not infer a PR identity for the one-time authority."""
+    workflow_path = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"
+    workflow = yaml.load(workflow_path.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    run_evidence = _step_by_name(workflow, "Run Requirements evidence gate")
+    command = run_evidence["run"]
+    assert isinstance(command, str)
+    assert run_evidence["env"]["EVIDENCE_EVENT_NAME"] == "${{ github.event_name }}"  # type: ignore[index]
+    context_guard = 'if [[ "$EVIDENCE_EVENT_NAME" != "pull_request" ]]; then'
+    assert context_guard in command
+    assert command.index(context_guard) < command.index("bootstrap_comment_id=5431081643")
+    assert "One-time Requirements bootstrap requires pull-request context." in command
+
+
 def test_requirements_evidence_workflow_uses_digest_bound_legacy_tdd_ledger_for_r07() -> None:
     """Only the approved R07 migration may replace historical red-JUnit proof with its ledger."""
     workflow = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"

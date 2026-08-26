@@ -155,6 +155,7 @@ jobs:
         continue-on-error: true
         env:
           EVIDENCE_BASE_BRANCH: ${{ github.event_name == 'pull_request' && github.base_ref || inputs.base_branch || github.event.repository.default_branch }}
+          EVIDENCE_EVENT_NAME: ${{ github.event_name }}
           EVIDENCE_FINAL_REF: ${{ github.event.pull_request.head.sha || github.sha }}
           EVIDENCE_HEAD_BRANCH: ${{ github.head_ref }}
           EVIDENCE_PULL_REQUEST: ${{ github.event.pull_request.number }}
@@ -329,6 +330,10 @@ jobs:
                   legacy_tdd_mapping_digest="sha256:eccdf006792d8910c54a773e30967886063b4e30c99c180bc36d7372b1bbd9ef"
                   legacy_tdd_plan_digest="sha256:27ea6e6bcea0d68d68688b89fc8f89315d213b96918f4f76979484756fd8335e"
                 else
+                  if [[ "$EVIDENCE_EVENT_NAME" != "pull_request" ]]; then
+                    write_failure_reports "One-time Requirements bootstrap requires pull-request context."
+                    exit 1
+                  fi
                   legacy_tdd_line_count=62
                   legacy_tdd_ledger_digest="sha256:f948489e94966f4df144c5d83aa1caa6fe7a96f6ade9a4aef864794d8019b158"
                   legacy_tdd_mapping_digest="sha256:6a9413ab306eb0cf0aad62661d66c5ef684b91036766acf7021953877c9b617e"
