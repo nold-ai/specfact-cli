@@ -23,6 +23,19 @@ def _assert_contains_pre_commit_contract(*fragments: str) -> None:
         assert fragment in pre_commit
 
 
+def _run_pre_commit_function(
+    worktree: Path, pre_commit_library: str, function_name: str
+) -> subprocess.CompletedProcess[str]:
+    """Execute one sourced pre-commit helper against an isolated Git index."""
+    return subprocess.run(
+        ["bash", "-c", f"{pre_commit_library}\n{function_name}"],
+        cwd=worktree,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
 def _runtime_proof_requirements() -> dict[str, dict[str, list[dict[str, Any]]]]:
     sidecar = runtime_proof_change_root(REPO_ROOT) / "requirements-evidence.yaml"
     assert sidecar.is_file(), f"Required R07 mapping fixture is missing: {sidecar}"
@@ -178,20 +191,11 @@ def test_pre_commit_selects_deleted_active_change_unless_fully_archived(tmp_path
     assert '[[ "${status}" == R* ]]' in pre_commit_library
     assert '[[ "${status}" == "R100" ]]' not in pre_commit_library
     subprocess.run(["git", "rm", "-q", "openspec/changes/example/proposal.md"], cwd=tmp_path, check=True)
-    deleted = subprocess.run(
-        ["bash", "-c", f"{pre_commit_library}\nstaged_active_change_ids"],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
+    deleted = _run_pre_commit_function(tmp_path, pre_commit_library, "staged_active_change_ids")
+    assert deleted.returncode == 0, deleted.stderr
     assert deleted.stdout.strip() == "example"
-    deleted_validation = subprocess.run(
-        ["bash", "-c", f"{pre_commit_library}\nvalidate_staged_active_change_deletions"],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-        check=False,
+    deleted_validation = _run_pre_commit_function(
+        tmp_path, pre_commit_library, "validate_staged_active_change_deletions"
     )
     assert deleted_validation.returncode != 0
 
@@ -210,20 +214,11 @@ def test_pre_commit_selects_deleted_active_change_unless_fully_archived(tmp_path
         check=True,
     ).stdout.splitlines()
     assert any(status.startswith("R") and not status.startswith("R100") for status in statuses)
-    archived = subprocess.run(
-        ["bash", "-c", f"{pre_commit_library}\nstaged_active_change_ids"],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
+    archived = _run_pre_commit_function(tmp_path, pre_commit_library, "staged_active_change_ids")
+    assert archived.returncode == 0, archived.stderr
     assert archived.stdout.strip() == ""
-    archived_validation = subprocess.run(
-        ["bash", "-c", f"{pre_commit_library}\nvalidate_staged_active_change_deletions"],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-        check=False,
+    archived_validation = _run_pre_commit_function(
+        tmp_path, pre_commit_library, "validate_staged_active_change_deletions"
     )
     assert archived_validation.returncode == 0, archived_validation.stderr
 
@@ -236,12 +231,8 @@ def test_pre_commit_selects_deleted_active_change_unless_fully_archived(tmp_path
         check=True,
     )
     subprocess.run(["git", "rm", "-q", "openspec/changes/example/tasks.md"], cwd=tmp_path, check=True)
-    partial_validation = subprocess.run(
-        ["bash", "-c", f"{pre_commit_library}\nvalidate_staged_active_change_deletions"],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-        check=False,
+    partial_validation = _run_pre_commit_function(
+        tmp_path, pre_commit_library, "validate_staged_active_change_deletions"
     )
     assert partial_validation.returncode != 0
 

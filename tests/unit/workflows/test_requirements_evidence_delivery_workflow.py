@@ -412,6 +412,20 @@ def _assert_code_review_handoff_command(command: object) -> None:
     assert all(fragment in command for fragment in expected_fragments)
 
 
+def _assert_frozen_code_review_python_tools(command: object) -> None:
+    """Validate the isolated Python resolver input and its reviewed license note."""
+    assert isinstance(command, str)
+    assert "uv pip install" in command
+    assert "--require-hashes" in command
+    assert "requirements/code-review/locked.txt" in command
+    lock = (REPO_ROOT / "requirements" / "code-review" / "locked.txt").read_text(encoding="utf-8")
+    requirement = (REPO_ROOT / "requirements" / "code-review" / "requirements.in").read_text(encoding="utf-8")
+    assert requirement.split("#", maxsplit=1)[0].strip() == "pylint==4.0.7"
+    assert "GPL-2.0-or-later" in requirement
+    assert "Phase 2" in requirement
+    assert "pylint==4.0.7" in lock
+
+
 def test_requirements_code_review_uses_frozen_external_tools() -> None:
     """Code Review must run its declared Pylint and BasedPyright checks from locks."""
     workflow = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"
@@ -424,19 +438,11 @@ def test_requirements_code_review_uses_frozen_external_tools() -> None:
     assert setup_node["if"] == "steps.run-evidence.outcome == 'success'"
     command = install_tools["run"]
     assert "npm ci --ignore-scripts --prefix tools/basedpyright" in command  # type: ignore[operator]
-    assert "uv pip install" in command  # type: ignore[operator]
-    assert "--require-hashes" in command  # type: ignore[operator]
-    assert "requirements/code-review/locked.txt" in command  # type: ignore[operator]
     assert "tools/basedpyright/node_modules/.bin" in command  # type: ignore[operator]
     assert _step_index(parsed, "Install frozen Code Review tools") < _step_index(
         parsed, "Run Code Review with finalized Requirements context"
     )
-    lock = (REPO_ROOT / "requirements" / "code-review" / "locked.txt").read_text(encoding="utf-8")
-    requirement = (REPO_ROOT / "requirements" / "code-review" / "requirements.in").read_text(encoding="utf-8")
-    assert requirement.split("#", maxsplit=1)[0].strip() == "pylint==4.0.7"
-    assert "GPL-2.0-or-later" in requirement
-    assert "Phase 2" in requirement
-    assert "pylint==4.0.7" in lock
+    _assert_frozen_code_review_python_tools(command)
 
 
 def test_requirements_evidence_workflow_hands_final_proof_to_code_review() -> None:
