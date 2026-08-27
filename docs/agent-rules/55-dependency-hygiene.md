@@ -57,7 +57,8 @@ GPL packages in dev-only extras require:
 
 1. A `dev-only`-scoped entry in `scripts/license_allowlist.yaml` with a `reason`.
 2. An explicit Phase 2 removal plan in the `reason` field.
-3. A comment in `pyproject.toml` at the dependency line.
+3. A comment at the canonical dependency declaration (`pyproject.toml` or an
+   isolated reviewed requirements input).
 
 They are **never** acceptable in module manifests (see Section 1).
 
@@ -135,6 +136,7 @@ Before adding a new `pip_dependencies` entry to any `module-package.yaml`:
 | Package | Current status | Phase 2 action |
 | --- | --- | --- |
 | `yamllint` | dev-only (GPL-3.0-or-later) | Replace with a non-GPL YAML lint path once CI / pre-commit parity is preserved |
+| `pylint` | isolated Code Review tool (GPL-2.0-or-later) | Replace with Ruff/BasedPyright once equivalent semantic findings and report compatibility are preserved |
 | `gitpython` | runtime (CVE history) | Replace with `dulwich` adapter (3-file rewrite) |
 
 ## 8. Static license map

@@ -29,6 +29,16 @@ exceptions:
       appear in module manifests.
     scope: dev-only
 
+  - package: pylint
+    version: "4.0.7"
+    license: GPL-2.0-or-later
+    reason: >
+      Hash-locked isolated Code Review environment only; never installed by the
+      runtime package or a module manifest. Phase 2: replace Pylint with the
+      existing Ruff/BasedPyright review path once equivalent semantic findings
+      and the full-enforcement report contract are preserved.
+    scope: dev-only
+
   - package: docutils
     version: "0.23"
     license: BSD License; GNU General Public License (GPL); Public Domain

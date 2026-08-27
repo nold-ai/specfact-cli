@@ -6,7 +6,7 @@ We currently support the following versions of SpecFact CLI with security update
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.1.x   | :white_check_mark: |
+| 0.55.x  | :white_check_mark: |
 
 ## Reporting a Vulnerability
 
@@ -77,5 +77,6 @@ Run `hatch run license-check` (wraps `scripts/check_license_compliance.py`) to v
 GPL/AGPL packages are present in module manifests and all dev-env GPL exceptions are documented
 in `scripts/license_allowlist.yaml`.
 
-Run `hatch run security-audit` (wraps `pip-audit --desc --strict`) to check for CVEs in the
-installed environment. Any CVE with CVSS ≥ 7.0 is a blocker for release.
+Run `hatch run security-audit` to audit the committed, hash-protected frozen dependency export.
+Every advisory that is not covered by an exact, reviewed exception blocks the release; severity
+does not bypass this fail-closed gate.

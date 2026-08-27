@@ -23,6 +23,19 @@ def _assert_contains_pre_commit_contract(*fragments: str) -> None:
         assert fragment in pre_commit
 
 
+def _run_pre_commit_function(
+    worktree: Path, pre_commit_library: str, function_name: str
+) -> subprocess.CompletedProcess[str]:
+    """Execute one sourced pre-commit helper against an isolated Git index."""
+    return subprocess.run(
+        ["bash", "-c", f"{pre_commit_library}\n{function_name}"],
+        cwd=worktree,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
 def _runtime_proof_requirements() -> dict[str, dict[str, list[dict[str, Any]]]]:
     sidecar = runtime_proof_change_root(REPO_ROOT) / "requirements-evidence.yaml"
     assert sidecar.is_file(), f"Required R07 mapping fixture is missing: {sidecar}"
@@ -38,6 +51,7 @@ def test_pre_commit_derives_maturity_and_governs_product_only_changes() -> None:
         '--required-maturity "${required_maturity}"',
         "has_staged_requirements_evidence_scope()",
         "has_staged_requirements_evidence_scope || scope_status=$?",
+        "requirements/*",
     )
 
 
@@ -63,6 +77,7 @@ def test_pre_commit_selects_review_evidence_from_the_staged_change() -> None:
         'review_evidence="openspec/changes/${selected_change}/requirements-proof/review-evidence.json"',
         "Staged Requirements evidence spans multiple active changes",
         'if ! printf \'%s\\n\' "${relative_path%%/*}" >>"${change_ids_file}"; then',
+        'git cat-file -e ":${file}"',
         'if ! sort -u "${change_ids_file}"; then',
         "require_index_bound_review_evidence()",
         'git cat-file -e ":${review_evidence}"',
@@ -89,7 +104,7 @@ def test_pre_commit_treats_canonical_specs_as_governed_requirement_sources() -> 
     pre_commit = _pre_commit_text()
     scope = pre_commit[
         pre_commit.index("has_staged_requirements_evidence_scope() {") : pre_commit.index(
-            "staged_active_change_ids() {"
+            "is_complete_staged_archive_move() {"
         )
     ]
     assert "return 0" in scope
@@ -156,6 +171,70 @@ def test_pre_commit_preserves_tabbed_staged_evidence_paths(tmp_path: Path) -> No
 
     assert result.returncode == 0, result.stderr.decode()
     assert result.stdout.split(b"\0") == [b"src/tab\tpath.py", b""]
+
+
+def test_pre_commit_selects_deleted_active_change_unless_fully_archived(tmp_path: Path) -> None:
+    """Index-only deletion cannot hide an active change; a complete exact archive can."""
+    subprocess.run(["git", "init", "--quiet"], cwd=tmp_path, check=True)
+    active = tmp_path / "openspec" / "changes" / "example"
+    active.mkdir(parents=True)
+    for name in ("proposal.md", "tasks.md"):
+        (active / name).write_text(f"# {name}\n" + "stable fixture line\n" * 40, encoding="utf-8")
+    subprocess.run(["git", "add", "openspec"], cwd=tmp_path, check=True)
+    subprocess.run(
+        ["git", "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-qm", "fixture"],
+        cwd=tmp_path,
+        check=True,
+    )
+
+    pre_commit_library = _pre_commit_text().removesuffix('\nmain "$@"\n')
+    assert '[[ "${status}" == R* ]]' in pre_commit_library
+    assert '[[ "${status}" == "R100" ]]' not in pre_commit_library
+    subprocess.run(["git", "rm", "-q", "openspec/changes/example/proposal.md"], cwd=tmp_path, check=True)
+    deleted = _run_pre_commit_function(tmp_path, pre_commit_library, "staged_active_change_ids")
+    assert deleted.returncode == 0, deleted.stderr
+    assert deleted.stdout.strip() == "example"
+    deleted_validation = _run_pre_commit_function(
+        tmp_path, pre_commit_library, "validate_staged_active_change_deletions"
+    )
+    assert deleted_validation.returncode != 0
+
+    subprocess.run(["git", "reset", "--quiet", "--hard", "HEAD"], cwd=tmp_path, check=True)
+    archive = tmp_path / "openspec" / "changes" / "archive" / "2026-08-27-example"
+    archive.parent.mkdir(parents=True)
+    active.rename(archive)
+    with (archive / "tasks.md").open("a", encoding="utf-8") as stream:
+        stream.write("archive metadata update\n")
+    subprocess.run(["git", "add", "openspec"], cwd=tmp_path, check=True)
+    statuses = subprocess.run(
+        ["git", "diff", "--cached", "--name-status", "--find-renames"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.splitlines()
+    assert any(status.startswith("R") and not status.startswith("R100") for status in statuses)
+    archived = _run_pre_commit_function(tmp_path, pre_commit_library, "staged_active_change_ids")
+    assert archived.returncode == 0, archived.stderr
+    assert archived.stdout.strip() == ""
+    archived_validation = _run_pre_commit_function(
+        tmp_path, pre_commit_library, "validate_staged_active_change_deletions"
+    )
+    assert archived_validation.returncode == 0, archived_validation.stderr
+
+    subprocess.run(["git", "reset", "--quiet", "--hard", "HEAD"], cwd=tmp_path, check=True)
+    partial_archive = tmp_path / "openspec" / "changes" / "archive" / "2026-08-27-example"
+    partial_archive.mkdir(parents=True)
+    subprocess.run(
+        ["git", "mv", "openspec/changes/example/proposal.md", str(partial_archive / "proposal.md")],
+        cwd=tmp_path,
+        check=True,
+    )
+    subprocess.run(["git", "rm", "-q", "openspec/changes/example/tasks.md"], cwd=tmp_path, check=True)
+    partial_validation = _run_pre_commit_function(
+        tmp_path, pre_commit_library, "validate_staged_active_change_deletions"
+    )
+    assert partial_validation.returncode != 0
 
 
 def test_pre_commit_routes_docs_only_staging_to_the_evidence_gate(tmp_path: Path) -> None:

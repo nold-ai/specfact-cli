@@ -10,15 +10,18 @@ Exit codes:
 
 Usage:
   python scripts/check_license_compliance.py
+  python scripts/check_license_compliance.py --additional-python /path/to/tool-env/bin/python
   hatch run license-check
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import re
 import subprocess
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, cast
 
@@ -143,11 +146,14 @@ def _load_manifest_license_map(map_path: Path | None = None) -> dict[str, str]:
     return out
 
 
-def _run_pip_licenses() -> str:
+def _run_pip_licenses(python_executable: Path | None = None) -> str:
     """Run pip-licenses and return raw JSON output string (empty if the subprocess fails)."""
+    command = [sys.executable, "-m", "piplicenses", "--format=json"]
+    if python_executable is not None:
+        command.extend(("--python", str(python_executable)))
     try:
         result = subprocess.run(
-            [sys.executable, "-m", "piplicenses", "--format=json"],
+            command,
             capture_output=True,
             text=True,
             timeout=60,
@@ -290,6 +296,7 @@ def _evaluate_env_package(
 def scan_installed_environment(
     allowlist: dict[str, list[dict[str, str]]] | None = None,
     allowlist_path: Path | None = None,
+    python_executable: Path | None = None,
 ) -> int:
     """
     Scan the installed Python environment for GPL/AGPL packages.
@@ -297,6 +304,7 @@ def scan_installed_environment(
     Args:
         allowlist: Pre-loaded allowlist dict {package_lower: [entry, ...]}. If None, loads from disk.
         allowlist_path: Path to license_allowlist.yaml override.
+        python_executable: Optional interpreter whose installed distributions are scanned.
 
     Returns:
         0 on clean pass, 1 on violation.
@@ -304,7 +312,7 @@ def scan_installed_environment(
     if allowlist is None:
         allowlist = _load_allowlist(allowlist_path)
 
-    raw = _run_pip_licenses()
+    raw = _run_pip_licenses(python_executable)
     if not raw.strip():
         _emit(
             "ERROR: pip-licenses produced no usable output — cannot verify licenses (fail closed)",
@@ -324,7 +332,8 @@ def scan_installed_environment(
     for pkg in packages:
         violations += _evaluate_env_package(pkg, allowlist)
 
-    _emit(f"\nEnvironment scan: {len(packages)} packages checked, {violations} violation(s)")
+    target = str(python_executable) if python_executable is not None else str(sys.executable)
+    _emit(f"\nEnvironment scan ({target}): {len(packages)} packages checked, {violations} violation(s)")
     return 1 if violations > 0 else 0
 
 
@@ -514,10 +523,24 @@ def scan_module_manifests(
     return 1 if violations > 0 else 0
 
 
+def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
+    """Parse explicit additional environments that remain inside the license boundary."""
+    parser = argparse.ArgumentParser(description="Check repository Python dependency licenses.")
+    parser.add_argument(
+        "--additional-python",
+        action="append",
+        default=[],
+        type=Path,
+        help="Additional Python interpreter whose installed distributions must be scanned.",
+    )
+    return parser.parse_args(argv)
+
+
 @beartype
 @ensure(lambda result: result in (0, 1))
-def main() -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     """Run both env and manifest scans. Return combined exit code."""
+    args = _parse_args(argv)
     try:
         allowlist = _load_allowlist()
     except RuntimeError as exc:
@@ -530,6 +553,9 @@ def main() -> int:
 
     _emit("\n--- Installed environment scan ---")
     env_exit = scan_installed_environment(allowlist=allowlist)
+    for python_executable in args.additional_python:
+        _emit(f"\n--- Additional environment scan: {python_executable} ---")
+        env_exit |= scan_installed_environment(allowlist=allowlist, python_executable=python_executable)
 
     _emit("\n--- Module manifest scan ---")
     try:

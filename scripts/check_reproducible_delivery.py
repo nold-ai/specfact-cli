@@ -4,10 +4,12 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import TypedDict, cast
 
@@ -19,7 +21,11 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 UV_LOCK = REPO_ROOT / "uv.lock"
 MODULE_FIXTURE_LOCK = REPO_ROOT / "ci" / "module-fixture.lock.json"
 LOCKED_EXPORT = REPO_ROOT / "requirements" / "ci" / "locked.txt"
+CODE_REVIEW_REQUIREMENTS_INPUT = REPO_ROOT / "requirements" / "code-review" / "requirements.in"
+CODE_REVIEW_LOCKED_EXPORT = REPO_ROOT / "requirements" / "code-review" / "locked.txt"
+CODE_REVIEW_INPUT_BINDING_PREFIX = "# input-sha256:"
 COMMIT_SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
+SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 UV_COMMAND_TIMEOUT_SECONDS = 120
 
 
@@ -108,6 +114,66 @@ def verify_locked_export() -> None:
 
 
 @beartype
+@ensure(lambda result: result is None, "must return None")  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
+def _verify_code_review_input_binding(contents: str) -> None:
+    """Require one valid digest binding to the exact isolated-tooling input."""
+    binding_lines = [line for line in contents.splitlines() if line.startswith(CODE_REVIEW_INPUT_BINDING_PREFIX)]
+    if len(binding_lines) != 1:
+        raise ValueError("Code Review lock must contain exactly one input SHA-256 binding")
+    bound_digest = binding_lines[0].removeprefix(CODE_REVIEW_INPUT_BINDING_PREFIX).strip()
+    if SHA256_PATTERN.fullmatch(bound_digest) is None:
+        raise ValueError("Code Review lock input SHA-256 binding is malformed")
+    input_digest = hashlib.sha256(CODE_REVIEW_REQUIREMENTS_INPUT.read_bytes()).hexdigest()
+    if bound_digest != input_digest:
+        raise ValueError("Code Review lock input SHA-256 binding does not match requirements.in")
+
+
+@beartype
+@ensure(lambda result: result is None, "must return None")  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
+def verify_code_review_lock() -> None:
+    """Ensure the isolated Code Review lock matches its input under frozen constraints."""
+    if not CODE_REVIEW_REQUIREMENTS_INPUT.is_file():
+        raise ValueError(f"Missing Code Review requirements input: {CODE_REVIEW_REQUIREMENTS_INPUT}")
+    if not CODE_REVIEW_LOCKED_EXPORT.is_file():
+        raise ValueError(f"Missing Code Review lock: {CODE_REVIEW_LOCKED_EXPORT}")
+    contents = CODE_REVIEW_LOCKED_EXPORT.read_text(encoding="utf-8")
+    if "--hash=sha256:" not in contents:
+        raise ValueError("Code Review lock must contain distribution hashes")
+    _verify_code_review_input_binding(contents)
+    with tempfile.TemporaryDirectory(prefix="specfact-code-review-lock-") as temporary_directory:
+        rendered_lock = Path(temporary_directory) / "locked.txt"
+        completed = subprocess.run(
+            [
+                "uv",
+                "pip",
+                "compile",
+                str(CODE_REVIEW_REQUIREMENTS_INPUT.relative_to(REPO_ROOT)),
+                "--constraints",
+                str(CODE_REVIEW_LOCKED_EXPORT.relative_to(REPO_ROOT)),
+                "--python-version",
+                "3.12",
+                "--generate-hashes",
+                "--no-annotate",
+                "--output-file",
+                str(rendered_lock),
+            ],
+            cwd=REPO_ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=UV_COMMAND_TIMEOUT_SECONDS,
+        )
+        if completed.returncode != 0:
+            detail = (completed.stderr or completed.stdout).strip()
+            raise ValueError(f"Could not compile Code Review requirements: {detail}")
+        if not rendered_lock.is_file():
+            raise ValueError("Code Review requirements compile did not create the expected lock")
+        rendered = rendered_lock.read_text(encoding="utf-8")
+    if _without_generated_header(rendered) != _without_generated_header(contents):
+        raise ValueError("Code Review lock differs from requirements.in; regenerate the isolated lock")
+
+
+@beartype
 def _without_generated_header(contents: str) -> str:
     """Strip uv's descriptive header before comparing generated requirement bodies."""
     return "\n".join(line for line in contents.splitlines() if not line.startswith("#")).strip()
@@ -122,6 +188,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         verify_uv_lock()
         verify_locked_export()
+        verify_code_review_lock()
         verify_module_fixture()
     except (OSError, ValueError, json.JSONDecodeError, subprocess.TimeoutExpired) as error:
         sys.stderr.write(f"reproducible delivery check failed: {error}\n")

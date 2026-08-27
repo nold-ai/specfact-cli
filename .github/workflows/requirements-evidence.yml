@@ -16,6 +16,7 @@ on:
 permissions:
   actions: read
   contents: read
+  issues: read
 
 jobs:
   requirements-evidence:
@@ -154,7 +155,11 @@ jobs:
         continue-on-error: true
         env:
           EVIDENCE_BASE_BRANCH: ${{ github.event_name == 'pull_request' && github.base_ref || inputs.base_branch || github.event.repository.default_branch }}
+          EVIDENCE_EVENT_NAME: ${{ github.event_name }}
           EVIDENCE_FINAL_REF: ${{ github.event.pull_request.head.sha || github.sha }}
+          EVIDENCE_HEAD_BRANCH: ${{ github.head_ref }}
+          EVIDENCE_PULL_REQUEST: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -e
           write_failure_reports() {
@@ -173,6 +178,7 @@ jobs:
             exit 1
           fi
           changed_paths=()
+          declare -A archived_source_paths=()
           while IFS= read -r -d '' status; do
             if ! IFS= read -r -d '' source_path; then
               write_failure_reports "Unable to parse changed paths for $EVIDENCE_BASE_BRANCH"
@@ -186,13 +192,29 @@ jobs:
                   exit 1
                 fi
                 changed_paths+=("$destination_path")
+                if [[ "$status" == R* && "$source_path" == openspec/changes/*/* && "$source_path" != openspec/changes/archive/* && "$destination_path" == openspec/changes/archive/*/* ]]; then
+                  source_relative_path="${source_path#openspec/changes/}"
+                  source_change_id="${source_relative_path%%/*}"
+                  source_change_path="${source_relative_path#*/}"
+                  relative_archive_path="${destination_path#openspec/changes/archive/}"
+                  archive_directory="${relative_archive_path%%/*}"
+                  archive_change_path="${relative_archive_path#*/}"
+                  if [[ "$archive_directory" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}-(.+)$ ]]; then
+                    archived_change_id="${BASH_REMATCH[1]}"
+                    if [[ "$source_change_id" == "$archived_change_id" ]]; then
+                      if [[ "$source_change_path" == "$archive_change_path" ]]; then
+                        archived_source_paths["$source_path"]=1
+                      fi
+                    fi
+                  fi
+                fi
                 ;;
             esac
           done < "$changed_status_file"
           rm -f "$changed_status_file"
           for changed_path in "${changed_paths[@]}"; do
             case "$changed_path" in
-              .github/*|ci/*|scripts/*|src/*|tools/*|pyproject.toml|setup.py|uv.lock|requirements/ci/locked.txt|resources/templates/*|resources/schemas/*|resources/mappings/*|resources/keys/*|modules/bundle-mapper/*)
+              .github/*|ci/*|scripts/*|src/*|tools/*|requirements/*|pyproject.toml|setup.py|uv.lock|resources/templates/*|resources/schemas/*|resources/mappings/*|resources/keys/*|modules/bundle-mapper/*)
                 required_maturity=verified
                 break
                 ;;
@@ -213,7 +235,10 @@ jobs:
                 ;;
               openspec/changes/*/*)
                 relative_change_path="${changed_path#openspec/changes/}"
-                changed_change_ids["${relative_change_path%%/*}"]=1
+                change_id="${relative_change_path%%/*}"
+                if [[ -e "$changed_path" || -d "openspec/changes/$change_id" || -z "${archived_source_paths[$changed_path]:-}" ]]; then
+                  changed_change_ids["$change_id"]=1
+                fi
                 ;;
             esac
           done
@@ -294,12 +319,55 @@ jobs:
                   exit 1
                 fi
                 reconciliation_arguments+=(--prior-red-proof "$prior_red_proof")
-              elif [[ "$run_stage" == "final" && "$selected_change" == "requirements-07-runtime-proof-delivery" ]]; then
+              elif [[ "$run_stage" == "final" && (
+                "$selected_change" == "requirements-07-runtime-proof-delivery" ||
+                "$selected_change" == "fix-retained-red-proof-provenance"
+              ) ]]; then
                 legacy_tdd_ledger="openspec/changes/${selected_change}/TDD_EVIDENCE.md"
-                legacy_tdd_line_count=1143
-                legacy_tdd_ledger_digest="sha256:1df90efd2402f14879da7705ab8afbf054eafc0fa71ff7a788df9f3db97b428c"
-                legacy_tdd_mapping_digest="sha256:eccdf006792d8910c54a773e30967886063b4e30c99c180bc36d7372b1bbd9ef"
-                legacy_tdd_plan_digest="sha256:27ea6e6bcea0d68d68688b89fc8f89315d213b96918f4f76979484756fd8335e"
+                if [[ "$selected_change" == "requirements-07-runtime-proof-delivery" ]]; then
+                  legacy_tdd_line_count=1143
+                  legacy_tdd_ledger_digest="sha256:d6e35c934757c08fd1f3e3071fc02b92b080c009ba5e428f6ea2888e7cd5e8c3"
+                  legacy_tdd_mapping_digest="sha256:eccdf006792d8910c54a773e30967886063b4e30c99c180bc36d7372b1bbd9ef"
+                  legacy_tdd_plan_digest="sha256:27ea6e6bcea0d68d68688b89fc8f89315d213b96918f4f76979484756fd8335e"
+                else
+                  if [[ "$EVIDENCE_EVENT_NAME" != "pull_request" ]]; then
+                    write_failure_reports "One-time Requirements bootstrap requires pull-request context."
+                    exit 1
+                  fi
+                  legacy_tdd_line_count=62
+                  legacy_tdd_ledger_digest="sha256:f948489e94966f4df144c5d83aa1caa6fe7a96f6ade9a4aef864794d8019b158"
+                  legacy_tdd_mapping_digest="sha256:6a9413ab306eb0cf0aad62661d66c5ef684b91036766acf7021953877c9b617e"
+                  legacy_tdd_plan_digest="sha256:00595739da3dd81a01032fbc2661094b8c6e2836dc38e366eae0a666e4574222"
+                  bootstrap_comment_id=5431081643
+                  bootstrap_run_id=33013274590
+                  bootstrap_red_commit="04b6c02eb63f779309d8dced48085f3ef0efe029"
+                  bootstrap_root="${RUNNER_TEMP}/requirements-bootstrap-authority"
+                  bootstrap_artifact_root="${bootstrap_root}/artifact"
+                  mkdir -p "$bootstrap_artifact_root"
+                  if ! gh api "repos/${GITHUB_REPOSITORY}/issues/comments/${bootstrap_comment_id}" > "${bootstrap_root}/comment.json" \
+                    || ! gh api "repos/${GITHUB_REPOSITORY}/commits/${bootstrap_red_commit}" > "${bootstrap_root}/commit.json" \
+                    || ! gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${bootstrap_run_id}" > "${bootstrap_root}/run.json" \
+                    || ! gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${bootstrap_run_id}/artifacts" > "${bootstrap_root}/artifacts.json" \
+                    || ! gh run download "$bootstrap_run_id" --name requirements-evidence --dir "$bootstrap_artifact_root" \
+                    || ! python scripts/requirements_bootstrap_authority.py \
+                      --comment "${bootstrap_root}/comment.json" \
+                      --commit "${bootstrap_root}/commit.json" \
+                      --run "${bootstrap_root}/run.json" \
+                      --artifacts "${bootstrap_root}/artifacts.json" \
+                      --artifact-root "$bootstrap_artifact_root" \
+                      --repo-root "$GITHUB_WORKSPACE" \
+                      --comment-id "$bootstrap_comment_id" \
+                      --base-ref "origin/${EVIDENCE_BASE_BRANCH}" \
+                      --final-ref "$EVIDENCE_FINAL_REF" \
+                      --repository "$GITHUB_REPOSITORY" \
+                      --change-id "$selected_change" \
+                      --issue 689 \
+                      --pull-request "$EVIDENCE_PULL_REQUEST" \
+                      --head-branch "$EVIDENCE_HEAD_BRANCH"; then
+                    write_failure_reports "One-time Requirements bootstrap authority rejected."
+                    exit 1
+                  fi
+                fi
                 legacy_tdd_artifact="artifacts/requirements-evidence/approved-legacy-tdd-ledger.md"
                 legacy_tdd_evidence="artifacts/requirements-evidence/legacy-tdd-evidence.json"
                 if ! legacy_tdd_error="$(python3 - "$legacy_tdd_ledger" "$legacy_tdd_line_count" "$legacy_tdd_ledger_digest" "$legacy_tdd_artifact" "artifacts/requirements-evidence/requirements-evidence-plan.json" "$legacy_tdd_evidence" "$selected_change" "$legacy_tdd_mapping_digest" "$legacy_tdd_plan_digest" <<'PY'
@@ -362,6 +430,18 @@ jobs:
               exit_code=$?
               set -e
               failure_diagnostic="Requirements proof reconciliation exited with status $exit_code before writing reports."
+              if [[ "$run_stage" == "red" && "$exit_code" -eq 0 ]]; then
+                if ! binding_error="$(python scripts/requirements_proof_provenance.py \
+                  --bind-red-proof artifacts/requirements-evidence/requirements-evidence.json \
+                  --junit artifacts/requirements-evidence/requirements-proof.xml \
+                  --repo-root "$GITHUB_WORKSPACE" \
+                  --base-ref "origin/${EVIDENCE_BASE_BRANCH}" 2>&1)"; then
+                  write_failure_reports "Red proof binding rejected: ${binding_error:-prior-red-proof-invalid}"
+                  exit 1
+                fi
+                printf 'Red proof retained; final reconciliation is required.\n'
+                exit_code=1
+              fi
             fi
           fi
           fallback_required=0
@@ -384,6 +464,31 @@ jobs:
           if [ -f artifacts/requirements-evidence/requirements-evidence.md ]; then
             cat artifacts/requirements-evidence/requirements-evidence.md >> "$GITHUB_STEP_SUMMARY"
           fi
+
+      - name: Set up reviewed Code Review Node runtime
+        if: steps.run-evidence.outcome == 'success'
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: "24.16.0"
+          cache: npm
+          cache-dependency-path: tools/basedpyright/package-lock.json
+
+      - name: Install frozen Code Review tools
+        if: steps.run-evidence.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --prefix tools/basedpyright
+          review_tools="${RUNNER_TEMP}/specfact-code-review-tools"
+          uv venv --python "${pythonLocation}/bin/python" "$review_tools"
+          uv pip install \
+            --python "${review_tools}/bin/python" \
+            --require-hashes \
+            -r requirements/code-review/locked.txt
+          {
+            echo "${GITHUB_WORKSPACE}/tools/basedpyright/node_modules/.bin"
+            echo "${review_tools}/bin"
+          } >> "$GITHUB_PATH"
 
       - name: Run Code Review with finalized Requirements context
         id: run-code-review

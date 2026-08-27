@@ -11,3 +11,6 @@ def test_selector_plugin_uses_only_public_pytest_report_contract() -> None:
 
     assert "from _pytest" not in source
     assert 'record_property("specfact.selector", request.node.nodeid)' in source
+    assert 'record_property("specfact.runner", "pytest")' in source
+    assert 'record_property("specfact.python", platform.python_version())' in source
+    assert 'record_property("specfact.pytest", pytest.__version__)' in source
