@@ -76,7 +76,7 @@ older vulnerable MCP binding.
 The staged active-change deletion guard and branch-diff Requirements selector
 SHALL require a complete native archive move only when an active change leaves
 the active namespace entirely. Every base file SHALL have a byte-identical,
-mode-preserving regular-file destination at the same relative path in one dated archive, and
+regular-file destination at the same relative path in one dated archive, and
 the archive SHALL contain no additional files. A fabricated, rewritten,
 partial, or split archive SHALL leave the change governed, and non-planned work
 without one uniquely selected active change SHALL fail rather than fall back to
@@ -129,7 +129,7 @@ SHALL remain excluded because they do not bind the surrounding module global.
 
 - **WHEN** module scope uses a literal annotated `pytest_plugins` assignment
 - **THEN** those plugin modules are included in retained proof inputs
-- **AND** a non-literal, import-bound, pattern-captured, direct module-namespace assignment, or import-time namespace-mutator call fails closed as invalid retained proof
+- **AND** a non-literal, import-bound, pattern-captured, or direct module-namespace assignment fails closed as invalid retained proof
 
 #### Scenario: Definition expression binds the module global
 
