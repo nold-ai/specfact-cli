@@ -207,6 +207,16 @@ class TestGplViolationDetected:
 class TestAllowlistAccepted:
     """Scenario: Allowlist entry accepted in both env and manifest scan."""
 
+    def test_repository_allowlist_binds_the_locked_pylint_release(self, mod) -> None:
+        """The isolated review tool exception is exact and carries its removal plan."""
+        entries = mod._load_allowlist()["pylint"]
+        assert len(entries) == 1
+        entry = entries[0]
+        assert entry["version"] == "4.0.7"
+        assert entry["license"] == "GPL-2.0-or-later"
+        assert entry["scope"] == "dev-only"
+        assert "Phase 2" in entry["reason"]
+
     def test_allowlist_entry_suppresses_gpl_failure(self, mod) -> None:
         """GPL package in allowlist must not cause exit 1."""
         allowlist = {

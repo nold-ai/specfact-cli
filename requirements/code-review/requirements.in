@@ -1,1 +1,1 @@
-pylint==4.0.7
+pylint==4.0.7  # GPL-2.0-or-later, isolated dev/CI exception; Phase 2 replacement is tracked in the license allowlist.

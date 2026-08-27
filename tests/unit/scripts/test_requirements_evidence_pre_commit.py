@@ -91,7 +91,7 @@ def test_pre_commit_treats_canonical_specs_as_governed_requirement_sources() -> 
     pre_commit = _pre_commit_text()
     scope = pre_commit[
         pre_commit.index("has_staged_requirements_evidence_scope() {") : pre_commit.index(
-            "staged_active_change_ids() {"
+            "is_complete_staged_archive_move() {"
         )
     ]
     assert "return 0" in scope
@@ -166,7 +166,7 @@ def test_pre_commit_selects_deleted_active_change_unless_fully_archived(tmp_path
     active = tmp_path / "openspec" / "changes" / "example"
     active.mkdir(parents=True)
     for name in ("proposal.md", "tasks.md"):
-        (active / name).write_text(f"# {name}\n", encoding="utf-8")
+        (active / name).write_text(f"# {name}\n" + "stable fixture line\n" * 40, encoding="utf-8")
     subprocess.run(["git", "add", "openspec"], cwd=tmp_path, check=True)
     subprocess.run(
         ["git", "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-qm", "fixture"],
@@ -175,6 +175,8 @@ def test_pre_commit_selects_deleted_active_change_unless_fully_archived(tmp_path
     )
 
     pre_commit_library = _pre_commit_text().removesuffix('\nmain "$@"\n')
+    assert '[[ "${status}" == R* ]]' in pre_commit_library
+    assert '[[ "${status}" == "R100" ]]' not in pre_commit_library
     subprocess.run(["git", "rm", "-q", "openspec/changes/example/proposal.md"], cwd=tmp_path, check=True)
     deleted = subprocess.run(
         ["bash", "-c", f"{pre_commit_library}\nstaged_active_change_ids"],
@@ -184,12 +186,30 @@ def test_pre_commit_selects_deleted_active_change_unless_fully_archived(tmp_path
         check=True,
     )
     assert deleted.stdout.strip() == "example"
+    deleted_validation = subprocess.run(
+        ["bash", "-c", f"{pre_commit_library}\nvalidate_staged_active_change_deletions"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert deleted_validation.returncode != 0
 
     subprocess.run(["git", "reset", "--quiet", "--hard", "HEAD"], cwd=tmp_path, check=True)
     archive = tmp_path / "openspec" / "changes" / "archive" / "2026-08-27-example"
     archive.parent.mkdir(parents=True)
     active.rename(archive)
+    with (archive / "tasks.md").open("a", encoding="utf-8") as stream:
+        stream.write("archive metadata update\n")
     subprocess.run(["git", "add", "openspec"], cwd=tmp_path, check=True)
+    statuses = subprocess.run(
+        ["git", "diff", "--cached", "--name-status", "--find-renames"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.splitlines()
+    assert any(status.startswith("R") and not status.startswith("R100") for status in statuses)
     archived = subprocess.run(
         ["bash", "-c", f"{pre_commit_library}\nstaged_active_change_ids"],
         cwd=tmp_path,
@@ -198,6 +218,32 @@ def test_pre_commit_selects_deleted_active_change_unless_fully_archived(tmp_path
         check=True,
     )
     assert archived.stdout.strip() == ""
+    archived_validation = subprocess.run(
+        ["bash", "-c", f"{pre_commit_library}\nvalidate_staged_active_change_deletions"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert archived_validation.returncode == 0, archived_validation.stderr
+
+    subprocess.run(["git", "reset", "--quiet", "--hard", "HEAD"], cwd=tmp_path, check=True)
+    partial_archive = tmp_path / "openspec" / "changes" / "archive" / "2026-08-27-example"
+    partial_archive.mkdir(parents=True)
+    subprocess.run(
+        ["git", "mv", "openspec/changes/example/proposal.md", str(partial_archive / "proposal.md")],
+        cwd=tmp_path,
+        check=True,
+    )
+    subprocess.run(["git", "rm", "-q", "openspec/changes/example/tasks.md"], cwd=tmp_path, check=True)
+    partial_validation = subprocess.run(
+        ["bash", "-c", f"{pre_commit_library}\nvalidate_staged_active_change_deletions"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert partial_validation.returncode != 0
 
 
 def test_pre_commit_routes_docs_only_staging_to_the_evidence_gate(tmp_path: Path) -> None:

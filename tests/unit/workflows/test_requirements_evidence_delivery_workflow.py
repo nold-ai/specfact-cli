@@ -433,7 +433,9 @@ def test_requirements_code_review_uses_frozen_external_tools() -> None:
     )
     lock = (REPO_ROOT / "requirements" / "code-review" / "locked.txt").read_text(encoding="utf-8")
     requirement = (REPO_ROOT / "requirements" / "code-review" / "requirements.in").read_text(encoding="utf-8")
-    assert requirement.strip() == "pylint==4.0.7"
+    assert requirement.split("#", maxsplit=1)[0].strip() == "pylint==4.0.7"
+    assert "GPL-2.0-or-later" in requirement
+    assert "Phase 2" in requirement
     assert "pylint==4.0.7" in lock
 
 

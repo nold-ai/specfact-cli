@@ -54,6 +54,8 @@ jobs:
               - 'pyproject.toml'
               - 'uv.lock'
               - 'requirements/ci/locked.txt'
+              - 'requirements/code-review/requirements.in'
+              - 'requirements/code-review/locked.txt'
               - 'modules/**/module-package.yaml'
               - 'src/specfact_cli/modules/**/module-package.yaml'
               - 'scripts/check_license_compliance.py'
@@ -1072,10 +1074,22 @@ jobs:
       - name: Set up frozen license-check dependencies
         uses: ./.github/actions/setup-frozen-python
 
+      - name: Install frozen Code Review license scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          review_tools="${RUNNER_TEMP}/specfact-code-review-license-scope"
+          uv venv --python "${pythonLocation}/bin/python" "$review_tools"
+          uv pip install \
+            --python "${review_tools}/bin/python" \
+            --require-hashes \
+            -r requirements/code-review/locked.txt
+          echo "REVIEW_TOOLS_PYTHON=${review_tools}/bin/python" >> "$GITHUB_ENV"
+
       - name: Run license compliance gate
         run: |
           echo "🔍 Running license compliance gate..."
-          python scripts/check_license_compliance.py
+          python scripts/check_license_compliance.py --additional-python "$REVIEW_TOOLS_PYTHON"
 
   dependency-trust:
     name: Dependency Trust Gate
