@@ -480,44 +480,42 @@ has_staged_requirements_evidence_scope() {
 is_complete_staged_archive_move() {
   local change_id="$1"
   local active_prefix="openspec/changes/${change_id}"
-  local status source_path destination_path source_relative archive_relative archive_directory archive_change_path
-  local candidate="" candidate_count=0 source_count=0 matched pair_source pair_destination
-  local status_file pairs_file candidates_file active_index_file sources_file
+  local status source_path destination_path archive_relative archive_directory archive_change_path
+  local candidate="" candidate_count=0 source_count=0 destination_mode
+  local status_file candidates_file active_index_file sources_file
   status_file="$(mktemp)" || return 1
-  pairs_file="$(mktemp)" || {
+  candidates_file="$(mktemp)" || {
     rm -f "${status_file}"
     return 1
   }
-  candidates_file="$(mktemp)" || {
-    rm -f "${status_file}" "${pairs_file}"
-    return 1
-  }
   active_index_file="$(mktemp)" || {
-    rm -f "${status_file}" "${pairs_file}" "${candidates_file}"
+    rm -f "${status_file}" "${candidates_file}"
     return 1
   }
   sources_file="$(mktemp)" || {
-    rm -f "${status_file}" "${pairs_file}" "${candidates_file}" "${active_index_file}"
+    rm -f "${status_file}" "${candidates_file}" "${active_index_file}"
     return 1
   }
 
-  if ! git diff --cached --name-status -z --find-renames --diff-filter=R >"${status_file}"; then
-    rm -f "${status_file}" "${pairs_file}" "${candidates_file}" "${active_index_file}" "${sources_file}"
+  if ! git diff --cached --name-status -z --find-renames --diff-filter=AR >"${status_file}"; then
+    rm -f "${status_file}" "${candidates_file}" "${active_index_file}" "${sources_file}"
     return 1
   fi
   while IFS= read -r -d '' status; do
     IFS= read -r -d '' source_path || break
-    IFS= read -r -d '' destination_path || break
-    [[ "${status}" == R* ]] || continue
-    [[ "${source_path}" == "${active_prefix}/"* ]] || continue
+    destination_path="${source_path}"
+    if [[ "${status}" == R* ]]; then
+      IFS= read -r -d '' destination_path || break
+      [[ "${source_path}" == "${active_prefix}/"* ]] || continue
+    elif [[ "${status}" != A* ]]; then
+      continue
+    fi
     [[ "${destination_path}" == openspec/changes/archive/*/* ]] || continue
-    source_relative="${source_path#${active_prefix}/}"
     archive_relative="${destination_path#openspec/changes/archive/}"
     archive_directory="${archive_relative%%/*}"
     archive_change_path="${archive_relative#*/}"
     [[ "${archive_directory}" == [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-"${change_id}" ]] || continue
-    [[ "${archive_change_path}" == "${source_relative}" ]] || continue
-    printf '%s\0%s\0' "${source_path}" "${destination_path}" >>"${pairs_file}"
+    [[ -n "${archive_change_path}" ]] || continue
     printf '%s\n' "${archive_directory}" >>"${candidates_file}"
   done <"${status_file}"
 
@@ -530,29 +528,24 @@ is_complete_staged_archive_move() {
   git ls-files -z --cached -- "${active_prefix}" >"${active_index_file}"
   git ls-tree -r -z --name-only HEAD -- "${active_prefix}" >"${sources_file}"
   if [[ ${candidate_count} -ne 1 || -s "${active_index_file}" || ! -s "${sources_file}" ]]; then
-    rm -f "${status_file}" "${pairs_file}" "${candidates_file}" "${active_index_file}" "${sources_file}"
+    rm -f "${status_file}" "${candidates_file}" "${active_index_file}" "${sources_file}"
     return 1
   fi
 
   while IFS= read -r -d '' source_path; do
     source_count=$((source_count + 1))
     destination_path="openspec/changes/archive/${candidate}/${source_path#${active_prefix}/}"
-    matched=0
-    exec 3<"${pairs_file}"
-    while IFS= read -r -d '' pair_source <&3; do
-      IFS= read -r -d '' pair_destination <&3 || break
-      if [[ "${pair_source}" == "${source_path}" && "${pair_destination}" == "${destination_path}" ]]; then
-        matched=1
-        break
-      fi
-    done
-    exec 3<&-
-    if [[ ${matched} -ne 1 ]]; then
-      rm -f "${status_file}" "${pairs_file}" "${candidates_file}" "${active_index_file}" "${sources_file}"
+    if ! git cat-file -e ":${destination_path}" 2>/dev/null; then
+      rm -f "${status_file}" "${candidates_file}" "${active_index_file}" "${sources_file}"
+      return 1
+    fi
+    destination_mode="$(git ls-files --stage -- "${destination_path}" | awk 'NR == 1 { print $1 }')"
+    if [[ "${destination_mode}" != "100644" ]]; then
+      rm -f "${status_file}" "${candidates_file}" "${active_index_file}" "${sources_file}"
       return 1
     fi
   done <"${sources_file}"
-  rm -f "${status_file}" "${pairs_file}" "${candidates_file}" "${active_index_file}" "${sources_file}"
+  rm -f "${status_file}" "${candidates_file}" "${active_index_file}" "${sources_file}"
   [[ ${source_count} -gt 0 ]]
 }
 
@@ -565,6 +558,7 @@ validate_staged_active_change_deletions() {
     return 1
   fi
   while IFS= read -r -d '' status; do
+    destination_path=""
     if ! IFS= read -r -d '' source_path; then
       error "Unable to read staged deletion source for ${status}"
       rm -f "${status_file}"
@@ -585,6 +579,13 @@ validate_staged_active_change_deletions() {
       openspec/changes/*/*)
         relative_path="${source_path#openspec/changes/}"
         change_id="${relative_path%%/*}"
+        if [[ -n "${destination_path}" && "${destination_path}" == "openspec/changes/${change_id}/"* ]]; then
+          continue
+        fi
+        if [[ "${status}" == D* ]] && \
+          git ls-files --cached --error-unmatch -- "openspec/changes/${change_id}" >/dev/null 2>&1; then
+          continue
+        fi
         if ! is_complete_staged_archive_move "${change_id}"; then
           error "❌ Block 2 — Active change deletion is not a complete native archive move: ${change_id}"
           rm -f "${status_file}"

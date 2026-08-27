@@ -1,5 +1,7 @@
 """Security boundary coverage for the one-time Requirements bootstrap authority."""
 
+# pyright: reportUnknownMemberType=false
+
 from __future__ import annotations
 
 import hashlib
@@ -220,6 +222,29 @@ def _validate(module: Any, fixture: dict[str, object], *, final_ref: str | None 
     )
 
 
+def _authority_findings_for_fixture(module: Any, fixture: dict[str, object]) -> list[str]:
+    """Return the validator's non-sensitive diagnostic classes for regression checks."""
+    paths = module.AuthorityPaths(
+        comment=fixture["comment_path"],
+        commit=fixture["commit_path"],
+        run=fixture["run_path"],
+        artifacts=fixture["artifacts_path"],
+        artifact_root=fixture["artifact_root"],
+        repo_root=fixture["repo_root"],
+    )
+    context = module.AuthorityContext(
+        comment_id=33,
+        base_ref=cast(str, fixture["base_ref"]),
+        final_ref=cast(str, fixture["final_ref"]),
+        repository="nold-ai/specfact-cli",
+        change_id="fix-retained-red-proof-provenance",
+        issue=689,
+        pull_request=690,
+        head_branch="bugfix/689-retained-red-proof-provenance",
+    )
+    return cast(list[str], module._authority_findings(paths, context))
+
+
 def _mutate_authority(fixture: dict[str, object], **updates: object) -> None:
     comment_path = cast(Path, fixture["comment_path"])
     comment = json.loads(comment_path.read_text(encoding="utf-8"))
@@ -237,6 +262,15 @@ def test_bootstrap_authority_accepts_exact_owner_bound_red_history(tmp_path: Pat
     fixture = _authority_fixture(tmp_path)
 
     assert _validate(module, fixture)
+
+
+def test_bootstrap_authority_routes_invalid_utf8_to_input_finding(tmp_path: Path) -> None:
+    """Decode failures must reach the metadata diagnostic instead of comment validation."""
+    module = _load_authority_module()
+    fixture = _authority_fixture(tmp_path)
+    cast(Path, fixture["comment_path"]).write_bytes(b"\xff")
+
+    assert _authority_findings_for_fixture(module, fixture) == ["authority-metadata"]
 
 
 def test_bootstrap_authority_accepts_exact_collaborator_bound_red_history(tmp_path: Path) -> None:

@@ -9,10 +9,27 @@ import sys
 from datetime import date
 from pathlib import Path
 
+import pytest
+
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 TRUST_RECORD = REPO_ROOT / "ci" / "dependency-trust-exceptions.json"
 CHECKER = REPO_ROOT / "scripts" / "check_dependency_trust_exceptions.py"
+
+
+def _review_record(*, package: str, version: str, reviewed_on: str, expires_on: str) -> dict[str, str]:
+    """Build one syntactically complete exception record for policy tests."""
+    return {
+        "package": package,
+        "version": version,
+        "source_url": "https://files.pythonhosted.org/example.whl",
+        "artifact_sha256": "c3702b6d3dd8c7abc1afa565d7e63d53a1d0bd86cdc24edd75470f4de499cfcc",
+        "classification": "source-provenance-reviewed",
+        "reviewed_on": reviewed_on,
+        "expires_on": expires_on,
+        "transitive_path": "specfact-cli -> test fixture",
+        "rationale": "test fixture",
+    }
 
 
 def _load_checker():
@@ -109,34 +126,39 @@ def test_unofficial_executable_wheel_is_not_accepted() -> None:
     assert all(record["package"] != "nodejs-wheel-binaries" for record in payload["exceptions"])
 
 
-def test_expired_exception_fails_closed(tmp_path: Path) -> None:
-    """Expiry is enforced by CI rather than merely documented in static policy."""
-    record_path = tmp_path / "exceptions.json"
-    record_path.write_text(
-        json.dumps(
-            {
-                "exceptions": [
-                    {
-                        "package": "pycparser",
-                        "version": "2.22",
-                        "source_url": "https://files.pythonhosted.org/example.whl",
-                        "artifact_sha256": "c3702b6d3dd8c7abc1afa565d7e63d53a1d0bd86cdc24edd75470f4de499cfcc",
-                        "classification": "source-provenance-reviewed",
-                        "reviewed_on": "2026-07-24",
-                        "expires_on": "2026-07-23",
-                        "transitive_path": "specfact-cli -> cryptography -> cffi -> pycparser",
-                        "rationale": "test fixture",
-                    }
-                ]
-            }
+@pytest.mark.parametrize(
+    ("record", "expected"),
+    [
+        (
+            _review_record(
+                package="pycparser",
+                version="2.22",
+                reviewed_on="2026-07-24",
+                expires_on="2026-07-23",
+            ),
+            "pycparser==2.22 expired on 2026-07-23",
         ),
-        encoding="utf-8",
-    )
+        (
+            _review_record(
+                package="NodeJS_Wheel.Binaries",
+                version="1.0.0",
+                reviewed_on="2026-07-23",
+                expires_on="2026-10-22",
+            ),
+            "nodejs-wheel-binaries==1.0.0 is prohibited from the dependency trust register",
+        ),
+    ],
+    ids=["expired", "normalized-prohibited-executable-wheel"],
+)
+def test_invalid_exception_register_fails_closed(tmp_path: Path, record: dict[str, str], expected: str) -> None:
+    """Invalid records fail closed for both temporal and normalized-name policy."""
+    record_path = tmp_path / "exceptions.json"
+    record_path.write_text(json.dumps({"exceptions": [record]}), encoding="utf-8")
     checker = _load_checker()
 
     errors = checker.validate_exception_register(record_path, today=date(2026, 7, 24))
 
-    assert errors == ["pycparser==2.22 expired on 2026-07-23"]
+    assert errors == [expected]
 
 
 def test_reviewed_artifact_must_exist_in_the_frozen_lock(tmp_path: Path) -> None:
@@ -190,36 +212,6 @@ def test_review_evidence_must_bind_to_the_matching_lock_package(tmp_path: Path) 
     ]
 
 
-def test_prohibited_executable_wheel_name_is_pep503_normalized(tmp_path: Path) -> None:
-    """Separator and case variants cannot evade the executable-wheel denylist."""
-    record_path = tmp_path / "exceptions.json"
-    record_path.write_text(
-        json.dumps(
-            {
-                "exceptions": [
-                    {
-                        "package": "NodeJS_Wheel.Binaries",
-                        "version": "1.0.0",
-                        "source_url": "https://files.pythonhosted.org/example.whl",
-                        "artifact_sha256": "c3702b6d3dd8c7abc1afa565d7e63d53a1d0bd86cdc24edd75470f4de499cfcc",
-                        "classification": "source-provenance-reviewed",
-                        "reviewed_on": "2026-07-23",
-                        "expires_on": "2026-10-22",
-                        "transitive_path": "specfact-cli -> test fixture",
-                        "rationale": "test fixture",
-                    }
-                ]
-            }
-        ),
-        encoding="utf-8",
-    )
-    checker = _load_checker()
-
-    errors = checker.validate_exception_register(record_path, today=date(2026, 7, 24))
-
-    assert errors == ["nodejs-wheel-binaries==1.0.0 is prohibited from the dependency trust register"]
-
-
 def test_prohibited_executable_wheel_in_lock_fails_without_an_exception(tmp_path: Path) -> None:
     """The lock itself is the enforcement boundary for executable wheel runtimes."""
     register_path = tmp_path / "exceptions.json"
@@ -236,14 +228,23 @@ def test_prohibited_executable_wheel_in_lock_fails_without_an_exception(tmp_path
     assert errors == ["nodejs-wheel-binaries==1.0.0 is prohibited in the frozen lock"]
 
 
-def test_semgrep_lock_below_reviewed_security_floor_fails_before_install(tmp_path: Path) -> None:
-    """A lock downgrade cannot silently restore the reported vulnerable Semgrep line."""
+@pytest.mark.parametrize(
+    ("package", "locked_version", "floor"),
+    [("semgrep", "1.174.0", "1.175.0"), ("mcp", "1.23.3", "1.28.1")],
+)
+def test_security_tool_lock_below_reviewed_floor_fails_before_install(
+    tmp_path: Path, package: str, locked_version: str, floor: str
+) -> None:
+    """A lock downgrade cannot restore a reviewed vulnerable security-tool line."""
     register_path = tmp_path / "exceptions.json"
     register_path.write_text('{"exceptions": []}', encoding="utf-8")
     lock_path = tmp_path / "uv.lock"
-    lock_path.write_text('\n[[package]]\nname = "semgrep"\nversion = "1.70.1"\n', encoding="utf-8")
+    lock_path.write_text(
+        f'\n[[package]]\nname = "{package}"\nversion = "{locked_version}"\n',
+        encoding="utf-8",
+    )
     checker = _load_checker()
 
     errors = checker.validate_frozen_dependency_policy(register_path, lock_path, today=date(2026, 7, 24))
 
-    assert errors == ["semgrep==1.70.1 is below the reviewed security floor 1.171.0"]
+    assert errors == [f"{package}=={locked_version} is below the reviewed security floor {floor}"]

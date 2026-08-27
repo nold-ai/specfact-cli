@@ -1,5 +1,7 @@
 """Contract coverage for the core Requirements-evidence pull-request gate."""
 
+# pyright: reportUnknownMemberType=false
+
 from __future__ import annotations
 
 import hashlib
@@ -90,6 +92,7 @@ def _bash_with_associative_arrays() -> Path:
         if "version 3." not in version:
             return candidate
     pytest.skip("Bash 4+ is required for associative-array workflow coverage")
+    raise AssertionError("pytest.skip must terminate control flow")
 
 
 def _selection_script(command: str, source_path: str, archive_path: str) -> str:
@@ -460,6 +463,17 @@ def test_requirements_evidence_workflow_hands_final_proof_to_code_review() -> No
     assert _step_index(parsed, "Run Code Review with finalized Requirements context") < _step_index(
         parsed, "Upload requirements evidence artifact"
     )
+
+
+def test_requirements_evidence_code_review_setup_does_not_persist_an_npm_cache() -> None:
+    """Module-owned evidence code must not be followed by a persistent npm cache hook."""
+    workflow_path = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"
+    workflow = yaml.load(workflow_path.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    setup_node = _step_by_name(workflow, "Set up reviewed Code Review Node runtime")
+    setup_inputs = setup_node.get("with", {})
+    assert isinstance(setup_inputs, dict)
+    assert "cache" not in setup_inputs
+    assert "cache-dependency-path" not in setup_inputs
 
 
 def test_requirements_evidence_workflow_binds_red_proof_before_publication() -> None:

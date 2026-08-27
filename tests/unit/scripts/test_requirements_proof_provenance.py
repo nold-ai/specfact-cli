@@ -1,7 +1,10 @@
 """Contract coverage for Git-bound Requirements red-proof provenance."""
 
+# pyright: reportUnknownMemberType=false
+
 from __future__ import annotations
 
+import ast
 import hashlib
 import importlib.util
 import json
@@ -19,6 +22,9 @@ PROVENANCE_SCRIPT = REPO_ROOT / "scripts" / "requirements_proof_provenance.py"
 
 class ProvenanceModule(Protocol):
     """Minimal public surface for validating a committed red-proof report."""
+
+    def _pytest_plugin_names(self, tree: ast.AST) -> list[list[str]]:
+        raise NotImplementedError
 
     def bind_red_proof(self, red_proof_path: Path, repo_root: Path, *, base_ref: str) -> None:
         raise NotImplementedError
@@ -310,6 +316,72 @@ def test_git_bound_red_proof_rejects_changed_pytest_plugin(tmp_path: Path) -> No
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
         "stale-red-proof"
     ]
+
+
+def test_pytest_plugin_discovery_ignores_function_local_assignments() -> None:
+    """Module control flow counts, while function-local plugin assignments do not."""
+    module = _load_provenance_module()
+    tree = ast.parse(
+        'pytest_plugins = ("tests.helpers.active",)\n'
+        "if True:\n"
+        '    pytest_plugins = ("tests.helpers.conditional",)\n'
+        "try:\n"
+        '    pytest_plugins = ("tests.helpers.tried",)\n'
+        "except RuntimeError:\n"
+        "    pass\n"
+        'pytest_plugins: tuple[str, ...] = ("tests.helpers.annotated",)\n'
+        "def helper() -> None:\n"
+        '    pytest_plugins = ("tests.helpers.inactive",)\n'
+    )
+
+    assert module._pytest_plugin_names(tree) == [
+        ["tests", "helpers", "active"],
+        ["tests", "helpers", "conditional"],
+        ["tests", "helpers", "tried"],
+        ["tests", "helpers", "annotated"],
+    ]
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "pytest_plugins = discover_plugins()\n",
+        "from tests.helpers import plugins as pytest_plugins\n",
+        'match ("tests.helpers.matched",):\n    case pytest_plugins:\n        pass\n',
+        'globals()["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+    ],
+)
+def test_pytest_plugin_discovery_rejects_unresolved_module_bindings(source: str) -> None:
+    """Computed, imported, captured, and namespace bindings must fail closed."""
+    module = _load_provenance_module()
+
+    with pytest.raises(ValueError, match=r"^prior-red-proof-invalid$"):
+        module._pytest_plugin_names(ast.parse(source))
+
+
+def test_pytest_plugin_discovery_rejects_function_default_module_binding() -> None:
+    """Function defaults execute at module import and may bind the active global."""
+    module = _load_provenance_module()
+    source = 'def helper(bound=(pytest_plugins := ("tests.helpers.default_bound",))):\n    pass\n'
+
+    with pytest.raises(ValueError, match=r"^prior-red-proof-invalid$"):
+        module._pytest_plugin_names(ast.parse(source))
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        '[pytest_plugins for pytest_plugins in [("tests.helpers.local",)]]\n',
+        '{pytest_plugins for pytest_plugins in [("tests.helpers.local",)]}\n',
+        '{pytest_plugins: True for pytest_plugins in [("tests.helpers.local",)]}\n',
+        '(pytest_plugins for pytest_plugins in [("tests.helpers.local",)])\n',
+    ],
+)
+def test_pytest_plugin_discovery_ignores_comprehension_iteration_targets(source: str) -> None:
+    """Python 3 comprehension targets do not bind the surrounding module namespace."""
+    module = _load_provenance_module()
+
+    assert module._pytest_plugin_names(ast.parse(source)) == []
 
 
 def test_git_bound_red_proof_rejects_import_target_added_after_red(tmp_path: Path) -> None:

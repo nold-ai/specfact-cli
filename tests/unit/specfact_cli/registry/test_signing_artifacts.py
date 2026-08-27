@@ -1219,10 +1219,11 @@ def test_pr_orchestrator_quality_gates_still_depends_on_tests_for_coverage() -> 
     assert set(needs) == {"changes", "tests"}
 
 
-def test_frozen_setup_action_caches_only_the_locked_resolver_inputs() -> None:
-    """The shared setup action SHALL cache uv downloads keyed by the committed lock."""
+def test_frozen_setup_action_disables_persistent_cache_before_external_fixture_execution() -> None:
+    """The shared setup action SHALL not persist data writable by companion-module code."""
     content = _read_text_or_skip(FROZEN_SETUP_ACTION, reason="frozen setup action not present")
-    assert "enable-cache: true" in content
+    assert "enable-cache: false" in content
+    assert "enable-cache: true" not in content
     assert "cache-dependency-glob: uv.lock" in content
     assert "uv sync --locked --all-extras" in content
     assert "~/.local/share/hatch" not in content

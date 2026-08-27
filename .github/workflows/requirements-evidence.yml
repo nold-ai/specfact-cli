@@ -470,8 +470,6 @@ jobs:
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
         with:
           node-version: "24.16.0"
-          cache: npm
-          cache-dependency-path: tools/basedpyright/package-lock.json
 
       - name: Install frozen Code Review tools
         if: steps.run-evidence.outcome == 'success'

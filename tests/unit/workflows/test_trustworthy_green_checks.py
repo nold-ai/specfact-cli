@@ -434,6 +434,26 @@ def test_core_ci_uses_immutable_modules_fixture() -> None:
     assert "git -C specfact-cli-modules rev-parse HEAD" in raw
 
 
+def test_manual_dependency_compatibility_rejects_unprotected_fixture_refs() -> None:
+    """The advisory fixture job must have no branch-selected manual entrypoint."""
+    workflow = _load_yaml(PR_ORCHESTRATOR)
+    assert "workflow_dispatch" not in _workflow_on_block(workflow)
+    job = workflow["jobs"]["dependency-compatibility"]
+    condition = str(job.get("if", ""))
+    assert condition == "github.event_name == 'schedule'"
+
+    steps = job["steps"]
+    assert isinstance(steps, list)
+    names = [str(step.get("name", "")) for step in steps]
+    verify_index = names.index("Verify immutable module fixture")
+    export_index = names.index("Export module bundles path")
+    setup_index = names.index("Set up frozen baseline dependencies")
+    assert verify_index < export_index < setup_index
+    verification = str(steps[verify_index].get("run", ""))
+    assert "rev-parse HEAD" in verification
+    assert "HEAD^{tree}" in verification
+
+
 def test_license_gate_runs_for_every_frozen_dependency_graph_change() -> None:
     """Transitive lock/export refreshes must receive the license policy gate."""
     raw = PR_ORCHESTRATOR.read_text(encoding="utf-8")
@@ -672,11 +692,12 @@ def test_license_gate_audits_the_frozen_code_review_environment() -> None:
     commands = "\n".join(str(step.get("run", "")) for step in steps)
     assert "uv pip install" in commands
     assert "requirements/code-review/locked.txt" in commands
-    assert "--additional-python" in commands
+    assert "--code-review-python" in commands
+    assert "--additional-python" not in commands
 
 
-def test_dependency_trust_is_a_standalone_ci_and_pre_commit_gate() -> None:
-    """Known alerted releases must be blocked locally and by a visible CI status."""
+def _assert_dependency_trust_ci_job() -> None:
+    """Prove the dependency-trust job remains blocking and independently frozen."""
     jobs = _load_jobs()
     dependency_trust = jobs.get("dependency-trust")
     assert dependency_trust is not None
@@ -688,12 +709,18 @@ def test_dependency_trust_is_a_standalone_ci_and_pre_commit_gate() -> None:
     assert "scripts/check_dependency_trust_exceptions.py" in commands
     assert "scripts/check_reproducible_delivery.py" in commands
 
+
+def test_dependency_trust_is_a_standalone_ci_and_pre_commit_gate() -> None:
+    """Known alerted releases must be blocked locally and by a visible CI status."""
+    _assert_dependency_trust_ci_job()
     hooks = _load_hooks()
     by_id = {str(hook["id"]): hook for hook in hooks}
     trust_hook = by_id["dependency-trust-gate"]
     assert trust_hook.get("pass_filenames") is False
     assert trust_hook.get("entry") == "hatch run python scripts/check_dependency_trust_exceptions.py"
-    assert "uv\\.lock" in str(trust_hook.get("files", ""))
+    trust_files = str(trust_hook.get("files", ""))
+    assert "uv\\.lock" in trust_files
+    assert "requirements/code-review/(requirements\\.in|locked\\.txt)" in trust_files
 
 
 def test_frozen_cve_audit_is_a_standalone_ci_and_pre_commit_gate() -> None:
@@ -807,6 +834,7 @@ def _assert_pre_commit_cli_quality_block_hooks(by_id: dict[str, dict[str, Any]])
         assert "pre-commit-quality-checks.sh" in str(entry), f"{hid} must invoke quality-checks script"
     assert by_id["cli-block1-format"].get("always_run") is not True
     assert by_id["cli-block1-format"].get("files")
+    assert by_id["cli-block1-markdown-fix"].get("pass_filenames") is False
     assert by_id["cli-block2"].get("always_run") is True
     assert "check-doc-frontmatter" in by_id
 

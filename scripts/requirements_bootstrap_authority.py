@@ -259,10 +259,11 @@ def _authority_findings(paths: AuthorityPaths, context: AuthorityContext) -> lis
     """Name each failed independent binding without exposing authority contents."""
     try:
         authority = _authority_from_comment(_read_object(paths.comment), context)
-    except ValueError as error:
-        return [str(error)]
     except (OSError, UnicodeDecodeError, json.JSONDecodeError):
         return ["authority-metadata"]
+    except ValueError as error:
+        diagnostic = str(error)
+        return [diagnostic] if diagnostic.startswith("authority-comment-") else ["authority-metadata"]
     findings: list[str] = []
     checks = (
         ("artifact-files", lambda: _valid_red_artifact(authority, paths.artifact_root)),

@@ -200,22 +200,108 @@ def _python_module_paths(module_parts: Sequence[str]) -> set[str]:
     return paths
 
 
+def _definition_expression_children(node: ast.AST) -> list[ast.AST] | None:
+    """Return enclosing-scope expressions for one nested definition boundary."""
+    if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)):
+        return None
+    if getattr(node, "name", None) == "pytest_plugins":
+        raise ValueError("prior-red-proof-invalid")
+    nested_body = {node.body} if isinstance(node, ast.Lambda) else set(node.body)
+    return [child for child in ast.iter_child_nodes(node) if child not in nested_body]
+
+
+def _import_binds_pytest_plugins(node: ast.AST) -> bool:
+    """Return whether an import can create the active module global."""
+    if isinstance(node, ast.Import):
+        bound_names = {alias.asname or alias.name.split(".", maxsplit=1)[0] for alias in node.names}
+        return "pytest_plugins" in bound_names
+    if isinstance(node, ast.ImportFrom):
+        bound_names = {alias.asname or alias.name for alias in node.names}
+        return "pytest_plugins" in bound_names or "*" in bound_names
+    return False
+
+
+def _is_namespace_plugin_subscript(node: ast.AST) -> bool:
+    """Return whether a direct module-namespace write targets ``pytest_plugins``."""
+    return (
+        isinstance(node, ast.Subscript)
+        and isinstance(node.ctx, (ast.Store, ast.Del))
+        and isinstance(node.slice, ast.Constant)
+        and node.slice.value == "pytest_plugins"
+        and isinstance(node.value, ast.Call)
+        and isinstance(node.value.func, ast.Name)
+        and node.value.func.id in {"globals", "locals", "vars"}
+        and not node.value.args
+        and not node.value.keywords
+    )
+
+
+def _is_indirect_plugin_binding(node: ast.AST) -> bool:
+    """Return whether an unresolved enclosing-scope operation binds the plugin global."""
+    pattern_binding = (isinstance(node, (ast.MatchAs, ast.MatchStar)) and node.name == "pytest_plugins") or (
+        isinstance(node, ast.MatchMapping) and node.rest == "pytest_plugins"
+    )
+    name_binding = (
+        isinstance(node, ast.Name) and node.id == "pytest_plugins" and isinstance(node.ctx, (ast.Store, ast.Del))
+    )
+    return pattern_binding or name_binding or _is_namespace_plugin_subscript(node)
+
+
+def _plugin_assignment(node: ast.AST) -> tuple[ast.Name | None, ast.AST | None]:
+    """Return one direct plugin target and its value, when present."""
+    if isinstance(node, ast.Assign):
+        target = next(
+            (
+                candidate
+                for candidate in node.targets
+                if isinstance(candidate, ast.Name) and candidate.id == "pytest_plugins"
+            ),
+            None,
+        )
+        return target, node.value if target is not None else None
+    if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and node.target.id == "pytest_plugins":
+        return node.target, node.value
+    return None, None
+
+
+def _enclosing_scope_children(node: ast.AST, plugin_target: ast.Name | None) -> list[ast.AST]:
+    """Return children evaluated in the same scope, excluding local comprehension targets."""
+    if isinstance(node, ast.comprehension):
+        return [node.iter, *node.ifs]
+    return [child for child in ast.iter_child_nodes(node) if child is not plugin_target]
+
+
+def _literal_plugin_names(value_node: ast.AST) -> list[list[str]]:
+    """Parse one literal plugin declaration or reject ambiguous runtime data."""
+    try:
+        value = ast.literal_eval(value_node)
+    except (ValueError, TypeError) as error:
+        raise ValueError("prior-red-proof-invalid") from error
+    declared_plugins = [value] if isinstance(value, str) else value
+    if not isinstance(declared_plugins, (list, tuple)):
+        raise ValueError("prior-red-proof-invalid")
+    string_plugins = [plugin for plugin in declared_plugins if isinstance(plugin, str)]
+    if len(string_plugins) != len(declared_plugins):
+        raise ValueError("prior-red-proof-invalid")
+    return [plugin.split(".") for plugin in string_plugins]
+
+
 def _pytest_plugin_names(tree: ast.AST) -> list[list[str]]:
-    """Return statically declared ``pytest_plugins`` module names."""
+    """Return literal module-scope plugins or reject an unresolved declaration."""
     plugin_names: list[list[str]] = []
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Assign):
+    scope_nodes: list[ast.AST] = list(reversed(tree.body)) if isinstance(tree, ast.Module) else []
+    while scope_nodes:
+        node = scope_nodes.pop()
+        definition_children = _definition_expression_children(node)
+        if definition_children is not None:
+            scope_nodes.extend(reversed(definition_children))
             continue
-        assigned_names = {target.id for target in node.targets if isinstance(target, ast.Name)}
-        if "pytest_plugins" not in assigned_names:
-            continue
-        try:
-            value = ast.literal_eval(node.value)
-        except (ValueError, TypeError):
-            continue
-        declared_plugins = [value] if isinstance(value, str) else value
-        if isinstance(declared_plugins, (list, tuple)):
-            plugin_names.extend(plugin.split(".") for plugin in declared_plugins if isinstance(plugin, str))
+        if _import_binds_pytest_plugins(node) or _is_indirect_plugin_binding(node):
+            raise ValueError("prior-red-proof-invalid")
+        plugin_target, value_node = _plugin_assignment(node)
+        scope_nodes.extend(reversed(_enclosing_scope_children(node, plugin_target)))
+        if value_node is not None:
+            plugin_names.extend(_literal_plugin_names(value_node))
     return plugin_names
 
 
@@ -618,10 +704,15 @@ def _validate_red_history_freshness(
         ):
             return ["prior-red-proof-invalid"]
         pytest_inputs = {test_path, *_applicable_conftest_paths(test_path)}
-        proof_inputs = {
-            *pytest_inputs,
-            *_imported_python_paths(repo_root, source_ref, sorted(pytest_inputs)),
-        }
+        try:
+            proof_inputs = {
+                *pytest_inputs,
+                *_imported_python_paths(repo_root, source_ref, sorted(pytest_inputs)),
+            }
+        except ValueError as error:
+            if str(error) == "prior-red-proof-invalid":
+                return [str(error)]
+            raise
         if not proof_inputs.isdisjoint(paths_after_red):
             return ["stale-red-proof"]
     return []

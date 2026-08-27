@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-08-27
+goal: "Make PR #691 pass without weakening immutable fixture or release-safety
+  controls."

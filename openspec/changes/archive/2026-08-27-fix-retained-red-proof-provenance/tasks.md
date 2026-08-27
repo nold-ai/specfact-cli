@@ -25,17 +25,21 @@
 
 ## 4. Passing evidence and quality gates
 
-- [ ] 4.1 Run focused tests, retained-proof legitimate/tamper controls, and a real red-to-final Requirements workflow reproduction. (Local controls and authoritative red complete; final GitHub run pending.)
-- [ ] 4.2 Run format, lint, type-check, YAML/contract tests, full applicable tests, module signatures, dependency/security gates, and OpenSpec strict validation. (Local gates complete; final GitHub gates pending.)
-- [ ] 4.3 Generate fresh changed/full code-review evidence, remediate all actionable findings, and close every fixed PR review thread with test evidence. (Local full-enforcement review has zero findings after installing the exact frozen tools and simplifying both advisory test helpers; fresh PR evidence pending.)
+- [x] 4.1 Run focused tests, retained-proof legitimate/tamper controls, and a real red-to-final Requirements workflow reproduction.
+- [x] 4.2 Run format, lint, type-check, YAML/contract tests, full applicable tests, module signatures, dependency/security gates, and OpenSpec strict validation.
+- [x] 4.3 Generate fresh changed/full code-review evidence, remediate all actionable findings, and close every fixed PR review thread with test evidence.
 - [x] 4.4 Review README, docs, landing/navigation, release, and contributor impact; keep public docs unchanged when no user-facing behavior changes.
 
 ## 5. Delivery
 
 - [x] 5.1 Create a signed Conventional Commit series preserving spec/tests/failing evidence before production implementation.
-- [ ] 5.2 Push and create the issue-linked PR to `dev`; observe required checks/reviews and merge only when policy permits.
+- [x] 5.2 Push and create the issue-linked PR to `dev`; observe required checks/reviews and merge only when policy permits.
 - [x] 5.3 Keep the version at `0.55.1` in this prerequisite and let #686 perform the single planned `0.55.2` patch bump/changelog entry.
 
 ## Post-merge cleanup
 
-- [ ] 6.1 Archive this change using `openspec archive fix-retained-red-proof-provenance`, refresh internal wiki status from its repository root, and remove the worktree when safe.
+- [x] 6.1 Archive this change using `openspec archive fix-retained-red-proof-provenance`.
+
+The internal-wiki status refresh and implementation-worktree removal remain
+repository-external follow-ups. The user excluded internal wiki PR #38 and its
+planning branch from this delivery.
