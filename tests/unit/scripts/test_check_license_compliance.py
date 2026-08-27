@@ -7,7 +7,7 @@ from __future__ import annotations
 import importlib.util
 import json
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 import pytest
 
@@ -55,6 +55,8 @@ _GPL_PIP_LICENSES = json.dumps(
     ]
 )
 
+_LOCKED_PYLINT_LICENSES = json.dumps([{"Name": "pylint", "Version": "4.0.7", "License": "GPL-2.0-or-later"}])
+
 _MIXED_LICENSE_PIP_LICENSES = json.dumps(
     [
         {
@@ -97,6 +99,35 @@ class TestCleanEnvironmentPasses:
             exit_code = mod.scan_installed_environment(allowlist={}, python_executable=target_python)
         assert exit_code == 0
         run_pip_licenses.assert_called_once_with(target_python)
+
+    def test_main_routes_only_the_frozen_review_interpreter_to_review_scope(self, mod, tmp_path: Path) -> None:
+        """Generic additional interpreters must not inherit Code Review-only exceptions."""
+        generic_python = tmp_path / "generic" / "bin" / "python"
+        review_python = tmp_path / "review" / "bin" / "python"
+        with (
+            patch.object(mod, "_load_allowlist", return_value={}),
+            patch.object(mod, "scan_installed_environment", return_value=0) as scan,
+            patch.object(mod, "scan_module_manifests", return_value=0),
+        ):
+            exit_code = mod.main(
+                [
+                    "--additional-python",
+                    str(generic_python),
+                    "--code-review-python",
+                    str(review_python),
+                ]
+            )
+
+        assert exit_code == 0
+        assert scan.call_args_list == [
+            call(allowlist={}),
+            call(allowlist={}, python_executable=generic_python),
+            call(
+                allowlist={},
+                python_executable=review_python,
+                allowlist_scope="code-review-only",
+            ),
+        ]
 
 
 class TestGplViolationDetected:
@@ -214,8 +245,25 @@ class TestAllowlistAccepted:
         entry = entries[0]
         assert entry["version"] == "4.0.7"
         assert entry["license"] == "GPL-2.0-or-later"
-        assert entry["scope"] == "dev-only"
+        assert entry["scope"] == "code-review-only"
         assert "Phase 2" in entry["reason"]
+
+    def test_code_review_only_exception_is_rejected_by_primary_environment(self, mod) -> None:
+        """The isolated Pylint exception must not weaken the primary environment scan."""
+        allowlist = mod._load_allowlist()
+        with patch.object(mod, "_run_pip_licenses", return_value=_LOCKED_PYLINT_LICENSES):
+            exit_code = mod.scan_installed_environment(allowlist=allowlist)
+        assert exit_code == 1
+
+    def test_code_review_only_exception_is_accepted_only_for_review_environment(self, mod) -> None:
+        """The exact frozen review interpreter may use its explicitly scoped exception."""
+        allowlist = mod._load_allowlist()
+        with patch.object(mod, "_run_pip_licenses", return_value=_LOCKED_PYLINT_LICENSES):
+            exit_code = mod.scan_installed_environment(
+                allowlist=allowlist,
+                allowlist_scope="code-review-only",
+            )
+        assert exit_code == 0
 
     def test_allowlist_entry_suppresses_gpl_failure(self, mod) -> None:
         """GPL package in allowlist must not cause exit 1."""

@@ -1,0 +1,194 @@
+schema_version: "2"
+requirements:
+  openspec:fix-release-promotion-security-gates:trustworthy-green-checks:privileged-companion-module-execution-does-not-persist-dependency-caches:
+    rationale: "Privileged jobs must not restore or save dependency-cache content writable by companion-module code."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#692"
+      - "nold-ai/specfact-cli#691"
+    touchpoints:
+      - id: frozen-python-action
+        kind: ci_workflow
+        locator: ".github/actions/setup-frozen-python/action.yml"
+      - id: dependency-compatibility-workflow
+        kind: ci_workflow
+        locator: ".github/workflows/pr-orchestrator.yml"
+      - id: cache-boundary-regression
+        kind: test_file
+        locator: "tests/unit/specfact_cli/registry/test_signing_artifacts.py"
+      - id: workflow-boundary-regression
+        kind: test_file
+        locator: "tests/unit/workflows/test_trustworthy_green_checks.py"
+    verification_cases:
+      - case_id: RELEASE-692-CACHE-S01
+        scenario_id: privileged-companion-module-execution-does-not-persist-dependency-caches
+        method: test
+        intent: "Prove the shared frozen action disables persistent setup-uv cache restore and save."
+        observable: "The action declares enable-cache false, retains locked synchronization, and contains no true override."
+        selector:
+          runner: pytest
+          node_id: tests/unit/specfact_cli/registry/test_signing_artifacts.py::test_frozen_setup_action_disables_persistent_cache_before_external_fixture_execution
+      - case_id: RELEASE-692-FIXTURE-S03
+        scenario_id: privileged-companion-module-execution-does-not-persist-dependency-caches
+        method: test
+        intent: "Prove the compatibility fixture has no branch-selected manual entrypoint and is verified before export."
+        observable: "The PR Orchestrator has no manual trigger; its schedule-only job verifies commit and tree before module path export."
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_trustworthy_green_checks.py::test_manual_dependency_compatibility_rejects_unprotected_fixture_refs
+      - case_id: RELEASE-692-CACHE-S04
+        scenario_id: privileged-companion-module-execution-does-not-persist-dependency-caches
+        method: test
+        intent: "Prove Requirements module execution is not followed by a persistent npm cache hook."
+        observable: "The later setup-node step pins Node without cache or cache-dependency inputs."
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_code_review_setup_does_not_persist_an_npm_cache
+  openspec:fix-release-promotion-security-gates:trustworthy-green-checks:dependency-review-exceptions-remain-bound-to-their-declared-environment:
+    rationale: "The isolated Pylint review exception must not weaken other installed-environment scans."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#692"
+      - "nold-ai/specfact-cli#691"
+    touchpoints:
+      - id: license-gate
+        kind: source_file
+        locator: "scripts/check_license_compliance.py"
+      - id: license-policy
+        kind: config
+        locator: "scripts/license_allowlist.yaml"
+      - id: license-regressions
+        kind: test_file
+        locator: "tests/unit/scripts/test_check_license_compliance.py"
+    verification_cases:
+      - case_id: RELEASE-692-LICENSE-S01
+        scenario_id: dependency-review-exceptions-remain-bound-to-their-declared-environment
+        method: test
+        intent: "Prove the primary environment rejects the Code Review-only Pylint exception."
+        observable: "Exact Pylint 4.0.7 GPL metadata produces a violation under the default environment role."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_check_license_compliance.py::TestAllowlistAccepted::test_code_review_only_exception_is_rejected_by_primary_environment
+      - case_id: RELEASE-692-LICENSE-S02
+        scenario_id: dependency-review-exceptions-remain-bound-to-their-declared-environment
+        method: test
+        intent: "Prove only the dedicated frozen Code Review role accepts the exact reviewed metadata."
+        observable: "The exact Pylint release passes only with code-review-only scope."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_check_license_compliance.py::TestAllowlistAccepted::test_code_review_only_exception_is_accepted_only_for_review_environment
+  openspec:fix-release-promotion-security-gates:trustworthy-green-checks:local-dependency-trust-reacts-to-every-frozen-review-input:
+    rationale: "Local trust and CVE gates must select the same frozen Code Review inputs."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#692"
+    touchpoints:
+      - id: pre-commit-trust-filter
+        kind: config
+        locator: ".pre-commit-config.yaml"
+      - id: trust-filter-regression
+        kind: test_file
+        locator: "tests/unit/workflows/test_trustworthy_green_checks.py"
+    verification_cases:
+      - case_id: RELEASE-692-TRUST-S01
+        scenario_id: local-dependency-trust-reacts-to-every-frozen-review-input
+        method: test
+        intent: "Prove both Code Review input and lock select dependency trust locally."
+        observable: "The dependency-trust pre-commit regex contains the exact Code Review input pair."
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_trustworthy_green_checks.py::test_dependency_trust_is_a_standalone_ci_and_pre_commit_gate
+  openspec:fix-release-promotion-security-gates:trustworthy-green-checks:active-openspec-authoring-is-not-mistaken-for-archival-deletion:
+    rationale: "The archive guard must permit ordinary authoring while retaining exact archive enforcement."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#692"
+      - "nold-ai/specfact-cli#691"
+    touchpoints:
+      - id: active-change-guard
+        kind: source_file
+        locator: "scripts/pre-commit-quality-checks.sh"
+      - id: active-change-regression
+        kind: test_file
+        locator: "tests/unit/scripts/test_requirements_evidence_pre_commit.py"
+    verification_cases:
+      - case_id: RELEASE-692-ARCHIVE-S01
+        scenario_id: active-openspec-authoring-is-not-mistaken-for-archival-deletion
+        method: test
+        intent: "Prove an ordinary deletion passes while complete deletion remains rejected."
+        observable: "The combined regression admits one-file deletion and retains archive negative controls."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_evidence_pre_commit.py::test_pre_commit_selects_deleted_active_change_unless_fully_archived
+  openspec:fix-release-promotion-security-gates:trustworthy-green-checks:stateful-staged-index-hooks-execute-once-per-commit:
+    rationale: "A staged-index auto-fixer must not race concurrent Git index updates across filename batches."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#692"
+    touchpoints:
+      - id: pre-commit-markdown-fix
+        kind: config
+        locator: ".pre-commit-config.yaml"
+      - id: pre-commit-hook-regression
+        kind: test_file
+        locator: "tests/unit/workflows/test_trustworthy_green_checks.py"
+    verification_cases:
+      - case_id: RELEASE-692-PRECOMMIT-S01
+        scenario_id: stateful-staged-index-hooks-execute-once-per-commit
+        method: test
+        intent: "Prove pre-commit launches the staged-index Markdown fixer only once."
+        observable: "The Markdown auto-fix hook disables pre-commit filename batching while retaining its staged-file filter."
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_trustworthy_green_checks.py::test_pre_commit_config_matches_modular_quality_layout
+  openspec:fix-release-promotion-security-gates:trustworthy-green-checks:frozen-static-analysis-uses-a-non-vulnerable-mcp-binding:
+    rationale: "A compatible Semgrep release removes the need for the vulnerable MCP waiver."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#692"
+    touchpoints:
+      - id: dependency-policy
+        kind: config
+        locator: "pyproject.toml"
+      - id: frozen-resolution
+        kind: lockfile
+        locator: "uv.lock"
+      - id: frozen-export
+        kind: lockfile
+        locator: "requirements/ci/locked.txt"
+      - id: audit-exceptions
+        kind: config
+        locator: "ci/vulnerability-audit-exceptions.json"
+      - id: dependency-regression
+        kind: test_file
+        locator: "tests/unit/scripts/test_reproducible_delivery.py"
+    verification_cases:
+      - case_id: RELEASE-692-MCP-S01
+        scenario_id: frozen-static-analysis-uses-a-non-vulnerable-mcp-binding
+        method: test
+        intent: "Prove every Semgrep surface selects a release bound to fixed MCP and no stale waiver remains."
+        observable: >-
+          Semgrep floors are at least 1.175.0, frozen inputs contain Semgrep
+          1.175.0 and MCP 1.29.0, MCP stays out of core runtime, and the audit
+          exception register has no MCP entry.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_reproducible_delivery.py::test_reproducible_delivery_pins_semgrep_with_fixed_mcp_without_waiver
+  openspec:fix-release-promotion-security-gates:trustworthy-green-checks:retained-proof-binds-only-active-pytest-plugin-declarations:
+    rationale: "Inactive local assignments must not create false stale-proof dependencies."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#692"
+      - "nold-ai/specfact-cli#691"
+    touchpoints:
+      - id: proof-provenance
+        kind: source_file
+        locator: "scripts/requirements_proof_provenance.py"
+      - id: plugin-discovery-regression
+        kind: test_file
+        locator: "tests/unit/scripts/test_requirements_proof_provenance.py"
+    verification_cases:
+      - case_id: RELEASE-692-PYTEST-S01
+        scenario_id: retained-proof-binds-only-active-pytest-plugin-declarations
+        method: test
+        intent: "Prove active module plugin declarations are bound or fail closed while local assignments are ignored."
+        observable: >-
+          Literal direct, conditional, and annotated declarations are returned;
+          computed and indirect import-time bindings are rejected; nested bodies
+          and comprehension iteration targets are ignored.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_provenance.py::test_pytest_plugin_discovery_ignores_function_local_assignments
