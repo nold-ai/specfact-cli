@@ -467,6 +467,7 @@ def test_advisory_dependency_compatibility_lane_cannot_block_delivery() -> None:
     steps = _load_job_steps("dependency-compatibility")
     raw = "\n".join(str(step.get("run", "")) for step in steps)
     assert "uv lock --upgrade" in raw
+    assert "uv sync --locked --all-extras --resolution lowest-direct" in raw
     assert any(step.get("name") == "Checkout module bundles repo" for step in steps)
     assert "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" in raw
     assert "--deselect=tests/unit/scripts/test_dependency_trust_review.py" in raw
