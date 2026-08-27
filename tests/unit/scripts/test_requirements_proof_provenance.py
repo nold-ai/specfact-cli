@@ -330,8 +330,10 @@ def test_pytest_plugin_discovery_ignores_function_local_assignments() -> None:
         "except RuntimeError:\n"
         "    pass\n"
         'pytest_plugins: tuple[str, ...] = ("tests.helpers.annotated",)\n'
+        "globals().update(unrelated_binding=True)\n"
         "def helper() -> None:\n"
         '    pytest_plugins = ("tests.helpers.inactive",)\n'
+        '    exec("pytest_plugins = (\\"tests.helpers.also_inactive\\",)")\n'
     )
 
     assert module._pytest_plugin_names(tree) == [
@@ -349,6 +351,11 @@ def test_pytest_plugin_discovery_ignores_function_local_assignments() -> None:
         "from tests.helpers import plugins as pytest_plugins\n",
         'match ("tests.helpers.matched",):\n    case pytest_plugins:\n        pass\n',
         'globals()["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+        'globals().__setitem__("pytest_plugins", ("tests.helpers.hidden",))\n',
+        'globals().update(pytest_plugins=("tests.helpers.hidden",))\n',
+        'globals().update({"pytest_plugins": ("tests.helpers.hidden",)})\n',
+        "globals().update(dynamic_bindings)\n",
+        'exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
     ],
 )
 def test_pytest_plugin_discovery_rejects_unresolved_module_bindings(source: str) -> None:

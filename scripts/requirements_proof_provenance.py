@@ -236,6 +236,49 @@ def _is_namespace_plugin_subscript(node: ast.AST) -> bool:
     )
 
 
+def _bare_namespace_call(node: ast.AST) -> bool:
+    """Return whether a call exposes the current namespace without arguments."""
+    return (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id in {"globals", "locals", "vars"}
+        and not node.args
+        and not node.keywords
+    )
+
+
+def _mapping_can_bind_plugin(node: ast.AST) -> bool:
+    """Return whether an update mapping can contain the plugin global."""
+    if not isinstance(node, ast.Dict):
+        return True
+    return any(not isinstance(key, ast.Constant) or key.value == "pytest_plugins" for key in node.keys)
+
+
+def _key_mutator_can_bind_plugin(node: ast.Call) -> bool:
+    """Return whether a key-based namespace mutation can bind the plugin global."""
+    key = node.args[0] if node.args else None
+    return key is not None and (not isinstance(key, ast.Constant) or key.value == "pytest_plugins")
+
+
+def _update_mutator_can_bind_plugin(node: ast.Call) -> bool:
+    """Return whether an update-style namespace mutation can bind the plugin global."""
+    has_plugin_keyword = any(keyword.arg in {None, "pytest_plugins"} for keyword in node.keywords)
+    return has_plugin_keyword or any(_mapping_can_bind_plugin(argument) for argument in node.args)
+
+
+def _is_namespace_plugin_mutator(node: ast.AST) -> bool:
+    """Return whether an import-time call can create the plugin global."""
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "exec":
+        return True
+    if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)):
+        return False
+    if not _bare_namespace_call(node.func.value):
+        return False
+    if node.func.attr in {"__setitem__", "setdefault"}:
+        return _key_mutator_can_bind_plugin(node)
+    return node.func.attr in {"update", "__ior__"} and _update_mutator_can_bind_plugin(node)
+
+
 def _is_indirect_plugin_binding(node: ast.AST) -> bool:
     """Return whether an unresolved enclosing-scope operation binds the plugin global."""
     pattern_binding = (isinstance(node, (ast.MatchAs, ast.MatchStar)) and node.name == "pytest_plugins") or (
@@ -244,7 +287,7 @@ def _is_indirect_plugin_binding(node: ast.AST) -> bool:
     name_binding = (
         isinstance(node, ast.Name) and node.id == "pytest_plugins" and isinstance(node.ctx, (ast.Store, ast.Del))
     )
-    return pattern_binding or name_binding or _is_namespace_plugin_subscript(node)
+    return pattern_binding or name_binding or _is_namespace_plugin_subscript(node) or _is_namespace_plugin_mutator(node)
 
 
 def _plugin_assignment(node: ast.AST) -> tuple[ast.Name | None, ast.AST | None]:

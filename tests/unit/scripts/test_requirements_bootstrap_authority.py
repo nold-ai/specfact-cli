@@ -1,7 +1,5 @@
 """Security boundary coverage for the one-time Requirements bootstrap authority."""
 
-# pyright: reportUnknownMemberType=false
-
 from __future__ import annotations
 
 import hashlib
@@ -9,8 +7,9 @@ import importlib.util
 import json
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, cast
+from typing import Protocol, cast
 
 import pytest
 
@@ -19,14 +18,24 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 AUTHORITY_SCRIPT = REPO_ROOT / "scripts" / "requirements_bootstrap_authority.py"
 
 
-def _load_authority_module() -> Any:
+class _AuthorityModule(Protocol):
+    """Typed boundary for the dynamically loaded authority validator."""
+
+    AuthorityPaths: Callable[..., object]
+    AuthorityContext: Callable[..., object]
+    validate_bootstrap_authority: Callable[[object, object], bool]
+    _authority_findings: Callable[[object, object], list[str]]
+    _git: Callable[..., object]
+
+
+def _load_authority_module() -> _AuthorityModule:
     spec = importlib.util.spec_from_file_location("requirements_bootstrap_authority", AUTHORITY_SCRIPT)
     if spec is None or spec.loader is None:
         raise AssertionError("Requirements bootstrap authority validator must be importable")
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
-    return module
+    return cast(_AuthorityModule, module)
 
 
 def _git(repo_root: Path, *arguments: str) -> str:
@@ -197,7 +206,7 @@ def _authority_fixture(tmp_path: Path, *, governed_red_path: bool = False) -> di
     }
 
 
-def _validate(module: Any, fixture: dict[str, object], *, final_ref: str | None = None) -> bool:
+def _validate(module: _AuthorityModule, fixture: dict[str, object], *, final_ref: str | None = None) -> bool:
     paths = module.AuthorityPaths(
         comment=fixture["comment_path"],
         commit=fixture["commit_path"],
@@ -216,13 +225,10 @@ def _validate(module: Any, fixture: dict[str, object], *, final_ref: str | None 
         pull_request=690,
         head_branch="bugfix/689-retained-red-proof-provenance",
     )
-    return cast(
-        bool,
-        module.validate_bootstrap_authority(paths, context),
-    )
+    return module.validate_bootstrap_authority(paths, context)
 
 
-def _authority_findings_for_fixture(module: Any, fixture: dict[str, object]) -> list[str]:
+def _authority_findings_for_fixture(module: _AuthorityModule, fixture: dict[str, object]) -> list[str]:
     """Return the validator's non-sensitive diagnostic classes for regression checks."""
     paths = module.AuthorityPaths(
         comment=fixture["comment_path"],
@@ -242,7 +248,7 @@ def _authority_findings_for_fixture(module: Any, fixture: dict[str, object]) -> 
         pull_request=690,
         head_branch="bugfix/689-retained-red-proof-provenance",
     )
-    return cast(list[str], module._authority_findings(paths, context))
+    return module._authority_findings(paths, context)
 
 
 def _mutate_authority(fixture: dict[str, object], **updates: object) -> None:

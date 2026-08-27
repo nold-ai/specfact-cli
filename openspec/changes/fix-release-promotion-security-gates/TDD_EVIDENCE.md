@@ -240,6 +240,21 @@ the authoritative failing-before evidence or the candidate design.
   either lock; dependency trust, reproducible inputs, license, version/lock
   parity, module signatures, Bandit, wheel build, and Twine validation passed.
 
+**Import-time plugin namespace mutation review proof (2026-08-28):**
+
+- The review challenge added five test-first module-scope bindings using
+  `globals().__setitem__`, keyword and mapping forms of `globals().update`, an
+  unresolved update mapping, and `exec`. The focused parametrized selector
+  collected nine cases and exited 1 before implementation: the four existing
+  direct-binding controls passed and all five namespace-mutator cases failed
+  because no `ValueError` was raised.
+- After the fail-closed import-time call analysis was added, both owning files
+  passed: 58 tests, including legitimate controls for a statically unrelated
+  module update and function-local `exec`. Strict basedpyright validation of
+  the implementation and both test files completed with zero errors, warnings,
+  or notes; the authority test now uses a typed protocol instead of a
+  module-wide unknown-member suppression.
+
 ## Final verification
 
 - Product-owner approval is retained in

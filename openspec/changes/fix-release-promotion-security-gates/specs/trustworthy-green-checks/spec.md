@@ -129,7 +129,7 @@ SHALL remain excluded because they do not bind the surrounding module global.
 
 - **WHEN** module scope uses a literal annotated `pytest_plugins` assignment
 - **THEN** those plugin modules are included in retained proof inputs
-- **AND** a non-literal, import-bound, pattern-captured, or direct module-namespace assignment fails closed as invalid retained proof
+- **AND** a non-literal, import-bound, pattern-captured, direct module-namespace assignment, or import-time namespace-mutator call fails closed as invalid retained proof
 
 #### Scenario: Definition expression binds the module global
 
