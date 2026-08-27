@@ -244,7 +244,7 @@ def _build_local_registry(workspace: Path, modules_repo: Path) -> Path:
             {
                 "id": module_id,
                 "latest_version": str(manifest_data["version"]),
-                "download_url": archive_path.resolve().as_uri(),
+                "download_url": archive_path.relative_to(registry).as_posix(),
                 "checksum_sha256": hashlib.sha256(archive_path.read_bytes()).hexdigest(),
                 "tier": manifest_data.get("tier", "official"),
                 "publisher": manifest_data.get("publisher", {}),
@@ -254,7 +254,10 @@ def _build_local_registry(workspace: Path, modules_repo: Path) -> Path:
         )
 
     index_path = registry / "index.json"
-    index_path.write_text(json.dumps({"modules": entries}, indent=2), encoding="utf-8")
+    index_path.write_text(
+        json.dumps({"registry_base_url": str(registry.resolve()), "modules": entries}, indent=2),
+        encoding="utf-8",
+    )
     return index_path
 
 
