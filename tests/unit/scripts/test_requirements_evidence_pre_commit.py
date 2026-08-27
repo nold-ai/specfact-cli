@@ -63,7 +63,7 @@ def test_pre_commit_normalizes_verified_changes_to_test_authored_planning() -> N
         'required_maturity="$(staged_planning_maturity)"',
         "requirements-evidence-plan.json",
         "requirements-proof/review-evidence.json",
-        "find openspec/changes -path 'openspec/changes/archive' -prune -o -path '*/requirements-proof/review-evidence.json' -type f -print",
+        "Requirements evidence needs exactly one changed active OpenSpec change",
     }
     pre_commit = _pre_commit_text()
     assert all(fragment in pre_commit for fragment in required_fragments)
@@ -186,6 +186,7 @@ def _initialize_active_change_repo(tmp_path: Path) -> Path:
         cwd=tmp_path,
         check=True,
     )
+    subprocess.run(["git", "update-ref", "refs/remotes/origin/dev", "HEAD"], cwd=tmp_path, check=True)
     return active
 
 
@@ -223,12 +224,6 @@ def _assert_complete_archive_is_allowed(tmp_path: Path, active: Path, pre_commit
     archive = tmp_path / "openspec" / "changes" / "archive" / "2026-08-27-example"
     archive.parent.mkdir(parents=True)
     active.rename(archive)
-    with (archive / "tasks.md").open("a", encoding="utf-8") as stream:
-        stream.write("archive metadata update\n")
-    (archive / "CHANGE_VALIDATION.md").write_text(
-        "# Archived validation\n" + "new archive evidence\n" * 40,
-        encoding="utf-8",
-    )
     subprocess.run(["git", "add", "openspec"], cwd=tmp_path, check=True)
     statuses = subprocess.run(
         ["git", "diff", "--cached", "--name-status", "--find-renames"],
@@ -237,9 +232,7 @@ def _assert_complete_archive_is_allowed(tmp_path: Path, active: Path, pre_commit
         text=True,
         check=True,
     ).stdout.splitlines()
-    assert any(status.startswith("R") and not status.startswith("R100") for status in statuses)
-    assert "D\topenspec/changes/example/CHANGE_VALIDATION.md" in statuses
-    assert "A\topenspec/changes/archive/2026-08-27-example/CHANGE_VALIDATION.md" in statuses
+    assert all(status.startswith("R100") for status in statuses)
     archived = _run_pre_commit_function(tmp_path, pre_commit_library, "staged_active_change_ids")
     assert archived.returncode == 0, archived.stderr
     assert archived.stdout.strip() == ""
@@ -247,6 +240,47 @@ def _assert_complete_archive_is_allowed(tmp_path: Path, active: Path, pre_commit
         tmp_path, pre_commit_library, "validate_staged_active_change_deletions"
     )
     assert archived_validation.returncode == 0, archived_validation.stderr
+    _assert_committed_archive_is_ignored(tmp_path, pre_commit_library)
+
+
+def _assert_fabricated_archive_is_rejected(tmp_path: Path, pre_commit_library: str) -> None:
+    """Prove arbitrary same-relative-path files cannot impersonate an archive move."""
+    active = _initialize_active_change_repo(tmp_path)
+    archive = tmp_path / "openspec" / "changes" / "archive" / "2026-08-27-example"
+    archive.mkdir(parents=True)
+    for source in active.iterdir():
+        (archive / source.name).write_text("fabricated\n", encoding="utf-8")
+        source.unlink()
+    active.rmdir()
+    subprocess.run(["git", "add", "openspec"], cwd=tmp_path, check=True)
+
+    archived = _run_pre_commit_function(tmp_path, pre_commit_library, "staged_active_change_ids")
+    assert archived.returncode == 0, archived.stderr
+    assert archived.stdout.strip() == "example"
+    validation = _run_pre_commit_function(tmp_path, pre_commit_library, "validate_staged_active_change_deletions")
+    assert validation.returncode != 0
+
+
+def _assert_committed_archive_is_ignored(tmp_path: Path, pre_commit_library: str) -> None:
+    """Prove later staged work does not revive a complete committed archive."""
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Test",
+            "-c",
+            "user.email=test@example.invalid",
+            "commit",
+            "-qm",
+            "archive",
+        ],
+        cwd=tmp_path,
+        check=True,
+    )
+    branch_archived = _run_pre_commit_function(tmp_path, pre_commit_library, "branch_active_change_ids")
+    assert branch_archived.returncode == 0, branch_archived.stderr
+    assert branch_archived.stdout.strip() == ""
+    subprocess.run(["git", "reset", "--quiet", "--hard", "origin/dev"], cwd=tmp_path, check=True)
 
 
 def _assert_partial_archive_is_rejected(tmp_path: Path, pre_commit_library: str) -> None:
@@ -269,12 +303,14 @@ def test_pre_commit_selects_deleted_active_change_unless_fully_archived(tmp_path
     """Index-only deletion cannot hide an active change; a complete exact archive can."""
     active = _initialize_active_change_repo(tmp_path)
     pre_commit_library = _pre_commit_text().removesuffix('\nmain "$@"\n')
-    assert '[[ "${status}" == R* ]]' in pre_commit_library
-    assert '[[ "${status}" == "R100" ]]' not in pre_commit_library
+    assert "--find-renames=100%" in pre_commit_library
 
     _assert_in_change_authoring_is_allowed(tmp_path, pre_commit_library)
     _assert_complete_archive_is_allowed(tmp_path, active, pre_commit_library)
     _assert_partial_archive_is_rejected(tmp_path, pre_commit_library)
+    fabricated_root = tmp_path / "fabricated"
+    fabricated_root.mkdir()
+    _assert_fabricated_archive_is_rejected(fabricated_root, pre_commit_library)
 
 
 def test_pre_commit_routes_docs_only_staging_to_the_evidence_gate(tmp_path: Path) -> None:

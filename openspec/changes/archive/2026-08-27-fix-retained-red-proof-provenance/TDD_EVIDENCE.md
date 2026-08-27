@@ -113,7 +113,7 @@ UV_CACHE_DIR=<UV_CACHE> hatch run test
 - Bandit medium/high scan: zero findings and zero `nosec` suppressions.
 - Semgrep auto rules: 290 rules across three changed scripts, zero findings.
 - Module signature policy and license compliance: pass.
-- `UV_CACHE_DIR=<UV_CACHE> hatch run lint-workflows`: exit 0.
+- `UV_CACHE_DIR=/private/tmp/specfact-uv-cache hatch run lint-workflows`: exit 0.
 - YAML wrapper exits 0 and continues to report only the pre-existing R07/R08
   OpenSpec YAML style findings; the changed workflow parses and its focused
   workflow tests pass.

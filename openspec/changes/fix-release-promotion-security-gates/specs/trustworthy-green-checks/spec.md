@@ -73,10 +73,16 @@ older vulnerable MCP binding.
 
 ### Requirement: Active OpenSpec authoring is not mistaken for archival deletion
 
-The staged active-change deletion guard SHALL require a complete native archive
-move only when an active change leaves the active namespace entirely. It SHALL
-permit a file removal or rename while other files for the same active change
-remain staged in the index.
+The staged active-change deletion guard and branch-diff Requirements selector
+SHALL require a complete native archive move only when an active change leaves
+the active namespace entirely. Every base file SHALL have a byte-identical,
+regular-file destination at the same relative path in one dated archive, and
+the archive SHALL contain no additional files. A fabricated, rewritten,
+partial, or split archive SHALL leave the change governed, and non-planned work
+without one uniquely selected active change SHALL fail rather than fall back to
+unrelated review evidence. The guards SHALL permit a file removal or rename
+while other files for the same active change remain in the staged or committed
+tree.
 
 #### Scenario: Author removes one obsolete active-change file
 

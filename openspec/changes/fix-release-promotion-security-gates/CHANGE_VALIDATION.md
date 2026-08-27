@@ -33,9 +33,15 @@
 - Disabling setup-uv caching removes both restore and post-job save at the shared boundary. `save-cache: false` alone is insufficient.
 - The staged Markdown fixer now disables pre-commit filename batching, preventing
   concurrent full-index fixer processes from contending on `index.lock`.
-- Native archive validation now accepts Git's delete+add representation for a
-  heavily rewritten evidence file only when every original path has a regular
-  staged counterpart in one exact dated archive and no active path remains.
+- Native archive validation accepts an active change as archived only when
+  every regular source file moves byte-for-byte to the same relative path in
+  one exact dated archive, no active path remains, and the archive has no extra
+  files.
+- Requirements evidence selection applies the same provenance proof to
+  committed branch diffs and has no repository-wide review-evidence fallback.
+  A fabricated, rewritten, partial, split-date, missing, extra, or non-regular
+  archive remains active and fail-closed; it cannot suppress its own governed
+  identity or redirect approval to another change.
 - The PR Orchestrator has no manual-dispatch trigger; its advisory fixture lane is schedule-only, verifies both commit and tree, and exports the module path only after verification.
 - The Requirements workflow no longer registers an npm cache hook after module-owned evidence execution.
 - Retained proof now includes literal annotated and conditional module-scope plugin declarations and fails closed on computed or import-bound declarations.
@@ -85,10 +91,8 @@ Revert the issue-linked PR before release. If 0.55.2 has already shipped, publis
   planning findings while exiting zero; those protected planning changes remain
   outside this patch and are recorded as a baseline limitation rather than
   silently treated as clean.
-- Code Review reports zero errors and zero warnings. Its 13 informational
-  complexity observations are pre-existing long security-policy tests and the
-  explicit license-policy evaluator; no unrelated refactor was folded into this
-  security patch.
+- Final staged Code Review reports zero findings after the PR pipeline
+  regressions and their Git fixtures were simplified without changing behavior.
 - A targeted no-write solve changed only Semgrep 1.171.0 -> 1.175.0 and MCP
   1.23.3 -> 1.29.0 in the 184-package graph. The six-rule repository SAST scan
   then passed over 297 Python targets with zero findings.

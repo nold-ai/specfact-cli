@@ -1,7 +1,5 @@
 """Contract coverage for the core Requirements-evidence pull-request gate."""
 
-# pyright: reportUnknownMemberType=false
-
 from __future__ import annotations
 
 import hashlib
@@ -33,7 +31,7 @@ EVIDENCE_COMMAND_FRAGMENTS = (
     '--required-maturity "$planning_maturity"',
     'review_evidence="openspec/changes/${selected_change}/requirements-proof/review-evidence.json"',
     "openspec/changes/archive/*",
-    "find openspec/changes -path 'openspec/changes/archive' -prune -o -path '*/requirements-proof/review-evidence.json' -type f -print",
+    'write_failure_reports "Requirements evidence needs exactly one changed active OpenSpec change',
     "write_failure_reports()",
     'write_failure_reports "Invalid evidence base branch: $EVIDENCE_BASE_BRANCH"',
     'changed_status_file="${RUNNER_TEMP}/requirements-evidence-changed-status.z"',
@@ -95,17 +93,79 @@ def _bash_with_associative_arrays() -> Path:
     raise AssertionError("pytest.skip must terminate control flow")
 
 
-def _selection_script(command: str, source_path: str, archive_path: str) -> str:
-    selection = command.split("declare -A changed_change_ids=()", maxsplit=1)[1].split(
-        'if [[ "${#changed_change_ids[@]}" -eq 1 ]]', maxsplit=1
-    )[0]
+def _changed_pr_selection_script(command: str, base_branch: str) -> str:
+    """Extract the workflow's real diff parser and change selector."""
+    start = command.index("changed_paths=()")
+    end = command.index("clean_environment=(", start)
+    selection = command[start:end]
     return f"""
-changed_paths=({source_path} {archive_path})
-declare -A archived_source_paths=([{source_path}]=1)
-declare -A changed_change_ids=()
+set -e
+write_failure_reports() {{ :; }}
+EVIDENCE_BASE_BRANCH={base_branch}
+RUNNER_TEMP="$PWD/.runner-temp"
+mkdir -p "$RUNNER_TEMP"
+required_maturity=planned
+changed_status_file="$RUNNER_TEMP/requirements-evidence-changed-status.z"
+git diff --name-status -z --find-renames "origin/${{EVIDENCE_BASE_BRANCH}}...HEAD" > "$changed_status_file"
 {selection}
-printf '%s\\n' "${{!changed_change_ids[@]}}"
+printf '%s\\n' "$selected_change"
 """
+
+
+def _initialize_selection_repo(tmp_path: Path) -> None:
+    """Create the minimal committed repository used by branch-selection tests."""
+    subprocess.run(["git", "init", "--quiet"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=tmp_path, check=True)
+
+
+def _commit_selection_fixture(tmp_path: Path, message: str) -> None:
+    """Commit the current selection fixture without repeating Git plumbing."""
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "--quiet", "-m", message], cwd=tmp_path, check=True)
+
+
+def _write_selection_review_evidence(tmp_path: Path, change_id: str) -> None:
+    """Create one active review-evidence fixture."""
+    review_evidence = tmp_path / "openspec" / "changes" / change_id / "requirements-proof" / "review-evidence.json"
+    review_evidence.parent.mkdir(parents=True)
+    review_evidence.write_text("{}\n", encoding="utf-8")
+
+
+def _create_exact_archive_selection_fixture(tmp_path: Path) -> None:
+    """Create a byte-identical archive beside one active change."""
+    old_change = tmp_path / "openspec" / "changes" / "old-change"
+    old_change.mkdir(parents=True)
+    (old_change / "proposal.md").write_text("# Old proposal\n", encoding="utf-8")
+    (old_change / "CHANGE_VALIDATION.md").write_text("# Old validation\n", encoding="utf-8")
+    _write_selection_review_evidence(tmp_path, "unrelated-change")
+    _commit_selection_fixture(tmp_path, "baseline")
+    subprocess.run(["git", "update-ref", "refs/remotes/origin/dev", "HEAD"], cwd=tmp_path, check=True)
+    archive = tmp_path / "openspec" / "changes" / "archive" / "2026-08-27-old-change"
+    archive.parent.mkdir(parents=True)
+    subprocess.run(["git", "mv", str(old_change), str(archive)], cwd=tmp_path, check=True)
+    _write_selection_review_evidence(tmp_path, "selected-change")
+    _commit_selection_fixture(tmp_path, "archive and author")
+
+
+def _create_fabricated_archive_selection_fixture(tmp_path: Path) -> None:
+    """Replace an active change with unrelated same-path archive files."""
+    old_change = tmp_path / "openspec" / "changes" / "old-change"
+    old_change.mkdir(parents=True)
+    (old_change / "proposal.md").write_text("# Old proposal\n", encoding="utf-8")
+    (old_change / "CHANGE_VALIDATION.md").write_text("# Old validation\n", encoding="utf-8")
+    _write_selection_review_evidence(tmp_path, "unrelated-change")
+    _commit_selection_fixture(tmp_path, "baseline")
+    subprocess.run(["git", "update-ref", "refs/remotes/origin/dev", "HEAD"], cwd=tmp_path, check=True)
+    archive = tmp_path / "openspec" / "changes" / "archive" / "2026-08-27-old-change"
+    archive.mkdir(parents=True)
+    for source in old_change.iterdir():
+        (archive / source.name).write_text("fabricated\n", encoding="utf-8")
+        source.unlink()
+    old_change.rmdir()
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts" / "pipeline.py").write_text("print('governed')\n", encoding="utf-8")
+    _commit_selection_fixture(tmp_path, "fabricated archive")
 
 
 def _assert_fixture_contract(workflow: dict[str, object]) -> None:
@@ -311,40 +371,87 @@ def test_requirements_evidence_workflow_ignores_archived_review_evidence() -> No
     command = _run_evidence_command()
 
     assert "openspec/changes/archive/*" in command
-    assert "declare -A archived_source_paths=()" in command
-    assert 'archived_source_paths["$source_path"]=1' in command
-    assert '[[ "$status" == R*' in command
-    assert '[[ "$source_change_id" == "$archived_change_id" ]]' in command
-    assert '[[ "$source_change_path" == "$archive_change_path" ]]' in command
-    assert (
-        '[[ -e "$changed_path" || -d "openspec/changes/$change_id" '
-        '|| -z "${archived_source_paths[$changed_path]:-}" ]]' in command
-    )
+    assert "is_complete_branch_archive_move()" in command
+    assert "--find-renames=100%" in command
+    assert 'git ls-tree -r -z --name-only "origin/${EVIDENCE_BASE_BRANCH}"' in command
+    assert 'destination_entry="$(git ls-tree HEAD -- "$destination_path"' in command
+    assert 'git ls-tree HEAD -- "openspec/changes/$change_id"' in command
+    assert '! is_complete_branch_archive_move "$change_id"' in command
     assert '[[ -e "$changed_path" ]] || continue' not in command
-    assert (
-        "find openspec/changes -path 'openspec/changes/archive' -prune -o "
-        "-path '*/requirements-proof/review-evidence.json' -type f -print"
-    ) in command
+    assert "find openspec/changes -path 'openspec/changes/archive'" not in command
 
 
 def test_requirements_evidence_workflow_rejects_partial_exact_archive_move(tmp_path: Path) -> None:
     """One exact rename cannot hide an otherwise active change directory."""
     command = _run_evidence_command()
-    source_path = "openspec/changes/example/proposal.md"
-    archive_path = "openspec/changes/archive/2026-08-27-example/proposal.md"
-    script = _selection_script(command, source_path, archive_path)
     bash = _bash_with_associative_arrays()
     active_directory = tmp_path / "openspec" / "changes" / "example"
     active_directory.mkdir(parents=True)
+    (active_directory / "proposal.md").write_text("# proposal\n", encoding="utf-8")
     (active_directory / "tasks.md").write_text("# still active\n", encoding="utf-8")
+    _initialize_selection_repo(tmp_path)
+    _commit_selection_fixture(tmp_path, "baseline")
+    subprocess.run(["git", "update-ref", "refs/remotes/origin/dev", "HEAD"], cwd=tmp_path, check=True)
+    archive_directory = tmp_path / "openspec" / "changes" / "archive" / "2026-08-27-example"
+    archive_directory.mkdir(parents=True)
+    subprocess.run(
+        ["git", "mv", str(active_directory / "proposal.md"), str(archive_directory)],
+        cwd=tmp_path,
+        check=True,
+    )
+    _commit_selection_fixture(tmp_path, "partial archive")
 
+    script = _changed_pr_selection_script(command, "dev")
     partial = subprocess.run([bash, "-c", script], cwd=tmp_path, capture_output=True, text=True, check=True)
     assert partial.stdout.strip() == "example"
 
-    (active_directory / "tasks.md").unlink()
-    active_directory.rmdir()
+    subprocess.run(
+        ["git", "mv", str(active_directory / "tasks.md"), str(archive_directory)],
+        cwd=tmp_path,
+        check=True,
+    )
+    _commit_selection_fixture(tmp_path, "complete archive")
     complete = subprocess.run([bash, "-c", script], cwd=tmp_path, capture_output=True, text=True, check=True)
-    assert complete.stdout.strip() == ""
+    assert complete.stdout.strip() == "", complete.stderr
+
+
+def test_requirements_evidence_workflow_selects_active_change_beside_complete_archive(
+    tmp_path: Path,
+) -> None:
+    """A byte-identical archive does not hide the active PR change."""
+    command = _run_evidence_command()
+    bash = _bash_with_associative_arrays()
+    _initialize_selection_repo(tmp_path)
+    _create_exact_archive_selection_fixture(tmp_path)
+
+    result = subprocess.run(
+        [bash, "-c", _changed_pr_selection_script(command, "dev")],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+    assert result.stdout.strip() == "selected-change"
+
+
+def test_requirements_evidence_workflow_rejects_fabricated_archive_fallback(tmp_path: Path) -> None:
+    """A same-path fabricated archive cannot redirect approval to unrelated evidence."""
+    command = _run_evidence_command()
+    bash = _bash_with_associative_arrays()
+    _initialize_selection_repo(tmp_path)
+    _create_fabricated_archive_selection_fixture(tmp_path)
+
+    result = subprocess.run(
+        [bash, "-c", _changed_pr_selection_script(command, "dev")],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert "old-change has no regular review-evidence record" in result.stderr
 
 
 def test_requirements_bootstrap_authority_is_pull_request_only() -> None:

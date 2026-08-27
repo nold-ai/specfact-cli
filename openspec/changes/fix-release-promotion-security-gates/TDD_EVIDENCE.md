@@ -188,6 +188,58 @@ the authoritative failing-before evidence or the candidate design.
 - Contract test: exit 0; it reported no modified contract-owned files and used
   its cache. The full repository suite independently exercised the repository.
 
+**PR #693 pipeline regression (2026-08-28):**
+
+- The first GitHub Requirements Evidence run failed with `acceptance-missing`
+  even though its report retained the approved `d6ef...` mapping digest. Git
+  represented one rewritten archived ledger as delete+add, so the workflow
+  counted the deleted source as a second active change and omitted
+  `--review-evidence`.
+- The workflow regression first failed with an empty selected change while its
+  partial-archive control passed. The initial completeness fix required one
+  dated archive, no committed active tree, and a regular committed counterpart
+  for every base-branch source path; the later P1 proof below strengthened that
+  predicate to byte-identical one-to-one archive moves.
+- The first exact local Block 2 run then reproduced the same false active-change
+  classification in its branch selector. The existing mapped archive test
+  failed before the branch selector fix and passed after it. All 32 workflow
+  and pre-commit selector tests then passed.
+- Final exact Block 2 passed at `test-authored` maturity with mapping digest
+  `sha256:d6ef8ed0aa4623eaa8c3b74d6c85fd1a0efd91ac700c0ded7b9a8897626e20cf`;
+  command/documentation checks passed and Code Review reported zero findings.
+- The final post-P1 full-suite run collected 3,078 tests: 3,061 passed, ten
+  expected tests skipped, and the only seven failures were controls that require
+  the global module override to be absent. Rerunning both owning files without
+  that override passed all 25 tests. The run used an isolated writable home, the
+  pinned module roots where required, and the frozen Python for subprocesses.
+
+**Archive-provenance P1 red proof (2026-08-28):**
+
+- Two independent read-only reviews reproduced the same approval-redirection
+  bypass. Deleting an approved active change and adding arbitrary regular files
+  at the same relative paths below one dated archive made both completeness
+  predicates treat the change as archived; the workflow then selected an
+  unrelated singleton review-evidence record.
+- The test-first command
+  `hatch run pytest -q tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_rejects_fabricated_archive_fallback tests/unit/scripts/test_requirements_evidence_pre_commit.py::test_pre_commit_selects_deleted_active_change_unless_fully_archived`
+  failed both tests before the selector fix. The workflow returned zero and
+  printed `unrelated-change`; the pre-commit contract did not yet require exact
+  rename provenance.
+- After the fix, the same command passed, followed by both owning files: 33
+  tests passed. The malicious fixture remains attributed to its deleted active
+  change and fails for missing change-local review evidence. The legitimate
+  control moves every regular source file byte-for-byte to the same relative
+  path in one dated archive; partial archives, rewritten files, extra files,
+  split destinations, and ordinary in-change authoring exercise the opposite
+  branches.
+- The exact staged `scripts/pre-commit-quality-checks.sh all` pipeline passed
+  with the immutable module fixture, `test-authored` maturity, approved mapping
+  digest `sha256:d6ef8ed0aa4623eaa8c3b74d6c85fd1a0efd91ac700c0ded7b9a8897626e20cf`,
+  workflow lint, changed-file typing/lint, command/docs contracts, and zero Code
+  Review findings. Live frozen audits reported no unreviewed vulnerabilities in
+  either lock; dependency trust, reproducible inputs, license, version/lock
+  parity, module signatures, Bandit, wheel build, and Twine validation passed.
+
 ## Final verification
 
 - Product-owner approval is retained in
@@ -196,5 +248,5 @@ the authoritative failing-before evidence or the candidate design.
 - The final staged Requirements delivery gate passed at `test-authored`
   maturity with no findings. Test execution is proven separately by the
   ordered focused and full-suite evidence above.
-- Protected GitHub PR/release gates remain pending until the issue-linked
-  branch is pushed and reviewed.
+- Protected GitHub PR/release gates remain pending on the follow-up commit and
+  required review.

@@ -178,7 +178,6 @@ jobs:
             exit 1
           fi
           changed_paths=()
-          declare -A archived_source_paths=()
           while IFS= read -r -d '' status; do
             if ! IFS= read -r -d '' source_path; then
               write_failure_reports "Unable to parse changed paths for $EVIDENCE_BASE_BRANCH"
@@ -192,22 +191,6 @@ jobs:
                   exit 1
                 fi
                 changed_paths+=("$destination_path")
-                if [[ "$status" == R* && "$source_path" == openspec/changes/*/* && "$source_path" != openspec/changes/archive/* && "$destination_path" == openspec/changes/archive/*/* ]]; then
-                  source_relative_path="${source_path#openspec/changes/}"
-                  source_change_id="${source_relative_path%%/*}"
-                  source_change_path="${source_relative_path#*/}"
-                  relative_archive_path="${destination_path#openspec/changes/archive/}"
-                  archive_directory="${relative_archive_path%%/*}"
-                  archive_change_path="${relative_archive_path#*/}"
-                  if [[ "$archive_directory" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}-(.+)$ ]]; then
-                    archived_change_id="${BASH_REMATCH[1]}"
-                    if [[ "$source_change_id" == "$archived_change_id" ]]; then
-                      if [[ "$source_change_path" == "$archive_change_path" ]]; then
-                        archived_source_paths["$source_path"]=1
-                      fi
-                    fi
-                  fi
-                fi
                 ;;
             esac
           done < "$changed_status_file"
@@ -228,6 +211,66 @@ jobs:
             planning_maturity=test-authored
           fi
           selected_change=""
+          is_complete_branch_archive_move() {
+            local change_id="$1"
+            local active_prefix="openspec/changes/${change_id}"
+            local status source_path destination_path archive_relative archive_directory archive_change_path
+            local candidate="" candidate_count=0 source_count=0 destination_count=0 archive_valid=1
+            local source_entry destination_entry source_mode destination_mode source_hash destination_hash
+            local status_file candidates_file sources_file destinations_file
+            status_file="$(mktemp)" || return 1
+            candidates_file="$(mktemp)" || { rm -f "$status_file"; return 1; }
+            sources_file="$(mktemp)" || { rm -f "$status_file" "$candidates_file"; return 1; }
+            destinations_file="$(mktemp)" || { rm -f "$status_file" "$candidates_file" "$sources_file"; return 1; }
+            if ! git diff --name-status -z --find-renames=100% --diff-filter=R \
+              "origin/${EVIDENCE_BASE_BRANCH}...HEAD" > "$status_file"; then
+              rm -f "$status_file" "$candidates_file" "$sources_file" "$destinations_file"
+              return 1
+            fi
+            while IFS= read -r -d '' status; do
+              IFS= read -r -d '' source_path || break
+              IFS= read -r -d '' destination_path || break
+              [[ "$status" == "R100" && "$source_path" == "${active_prefix}/"* ]] || continue
+              [[ "$destination_path" == openspec/changes/archive/*/* ]] || continue
+              archive_relative="${destination_path#openspec/changes/archive/}"
+              archive_directory="${archive_relative%%/*}"
+              archive_change_path="${archive_relative#*/}"
+              [[ "$archive_directory" == [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-"${change_id}" ]] || continue
+              [[ "$archive_change_path" == "${source_path#"${active_prefix}/"}" ]] || continue
+              printf '%s\n' "$archive_directory" >> "$candidates_file"
+            done < "$status_file"
+            while IFS= read -r archive_directory || [[ -n "$archive_directory" ]]; do
+              [[ -z "$archive_directory" ]] && continue
+              candidate="$archive_directory"
+              candidate_count=$((candidate_count + 1))
+            done < <(sort -u "$candidates_file")
+            git ls-tree -r -z --name-only "origin/${EVIDENCE_BASE_BRANCH}" -- "$active_prefix" > "$sources_file"
+            git ls-tree -r -z --name-only HEAD -- "openspec/changes/archive/${candidate}" > "$destinations_file"
+            if [[ "$candidate_count" -ne 1 || -n "$(git ls-tree HEAD -- "$active_prefix")" || ! -s "$sources_file" ]]; then
+              rm -f "$status_file" "$candidates_file" "$sources_file" "$destinations_file"
+              return 1
+            fi
+            while IFS= read -r -d '' source_path; do
+              source_count=$((source_count + 1))
+              destination_path="openspec/changes/archive/${candidate}/${source_path#"${active_prefix}/"}"
+              source_entry="$(git ls-tree "origin/${EVIDENCE_BASE_BRANCH}" -- "$source_path")"
+              destination_entry="$(git ls-tree HEAD -- "$destination_path")"
+              source_mode="$(awk 'NR == 1 { print $1 }' <<<"$source_entry")"
+              source_hash="$(awk 'NR == 1 { print $3 }' <<<"$source_entry")"
+              destination_mode="$(awk 'NR == 1 { print $1 }' <<<"$destination_entry")"
+              destination_hash="$(awk 'NR == 1 { print $3 }' <<<"$destination_entry")"
+              if [[ "$source_mode" != "100644" || "$destination_mode" != "100644" || \
+                "$source_hash" != "$destination_hash" ]]; then
+                archive_valid=0
+                break
+              fi
+            done < "$sources_file"
+            while IFS= read -r -d '' destination_path; do
+              destination_count=$((destination_count + 1))
+            done < "$destinations_file"
+            rm -f "$status_file" "$candidates_file" "$sources_file" "$destinations_file"
+            [[ "$archive_valid" -eq 1 && "$source_count" -gt 0 && "$destination_count" -eq "$source_count" ]]
+          }
           declare -A changed_change_ids=()
           for changed_path in "${changed_paths[@]}"; do
             case "$changed_path" in
@@ -236,7 +279,9 @@ jobs:
               openspec/changes/*/*)
                 relative_change_path="${changed_path#openspec/changes/}"
                 change_id="${relative_change_path%%/*}"
-                if [[ -e "$changed_path" || -d "openspec/changes/$change_id" || -z "${archived_source_paths[$changed_path]:-}" ]]; then
+                if [[ -n "$(git ls-tree HEAD -- "openspec/changes/$change_id")" ]]; then
+                  changed_change_ids["$change_id"]=1
+                elif ! is_complete_branch_archive_move "$change_id"; then
                   changed_change_ids["$change_id"]=1
                 fi
                 ;;
@@ -247,13 +292,18 @@ jobs:
               :
             done
           fi
-          if [[ -z "$selected_change" ]]; then
-            mapfile -t active_review_evidence < <(
-              find openspec/changes -path 'openspec/changes/archive' -prune -o -path '*/requirements-proof/review-evidence.json' -type f -print | sort
-            )
-            if [[ "${#active_review_evidence[@]}" -eq 1 ]]; then
-              selected_change="${active_review_evidence[0]#openspec/changes/}"
-              selected_change="${selected_change%/requirements-proof/review-evidence.json}"
+          if [[ "$required_maturity" != "planned" && -z "$selected_change" ]]; then
+            write_failure_reports "Requirements evidence needs exactly one changed active OpenSpec change for ${required_maturity} planning."
+            printf 'Requirements evidence needs exactly one changed active OpenSpec change for %s planning.\n' "$required_maturity" >&2
+            exit 1
+          fi
+          review_evidence=""
+          if [[ "$required_maturity" != "planned" ]]; then
+            review_evidence="openspec/changes/${selected_change}/requirements-proof/review-evidence.json"
+            if [[ ! -f "$review_evidence" || -L "$review_evidence" ]]; then
+              write_failure_reports "Changed OpenSpec change ${selected_change} has no regular review-evidence record for ${required_maturity} planning."
+              printf 'Changed OpenSpec change %s has no regular review-evidence record for %s planning.\n' "$selected_change" "$required_maturity" >&2
+              exit 1
             fi
           fi
           clean_environment=(env -i "HOME=${HOME:-}" "LANG=${LANG:-}" "LC_ALL=${LC_ALL:-}" "LC_CTYPE=${LC_CTYPE:-}" "PATH=${PATH:-}" "RUNNER_TEMP=${RUNNER_TEMP}" "SPECFACT_MODULES_REPO=${SPECFACT_MODULES_REPO}" "SPECFACT_MODULES_ROOTS=${SPECFACT_MODULES_ROOTS}")
@@ -268,8 +318,7 @@ jobs:
           )
           prior_red_proof=""
           if [[ -n "$selected_change" ]]; then
-            review_evidence="openspec/changes/${selected_change}/requirements-proof/review-evidence.json"
-            if [[ -f "$review_evidence" ]]; then
+            if [[ -n "$review_evidence" ]]; then
               evidence_arguments+=(--review-evidence "$review_evidence")
             fi
             candidate_red_proof="${RUNNER_TEMP}/prior-red-proof/red.json"
