@@ -90,6 +90,14 @@ class TestCleanEnvironmentPasses:
         captured = capsys.readouterr()
         assert "checked" in captured.out or "scan" in captured.out.lower()
 
+    def test_scan_installed_env_targets_an_additional_python(self, mod, tmp_path: Path) -> None:
+        """The root pip-licenses tool can inspect a separately locked tool environment."""
+        target_python = tmp_path / "review-tools" / "bin" / "python"
+        with patch.object(mod, "_run_pip_licenses", return_value=_CLEAN_PIP_LICENSES) as run_pip_licenses:
+            exit_code = mod.scan_installed_environment(allowlist={}, python_executable=target_python)
+        assert exit_code == 0
+        run_pip_licenses.assert_called_once_with(target_python)
+
 
 class TestGplViolationDetected:
     """Scenario: Module manifest pip_dependency is GPL — gate fails."""

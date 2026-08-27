@@ -663,6 +663,18 @@ def test_pr_orchestrator_package_validation_waits_for_dependency_gates() -> None
     assert "dependency-trust" in needs
 
 
+def test_license_gate_audits_the_frozen_code_review_environment() -> None:
+    """Isolated review tools remain inside the blocking GPL/AGPL policy boundary."""
+    workflow = PR_ORCHESTRATOR.read_text(encoding="utf-8")
+    assert "requirements/code-review/requirements.in" in workflow
+    assert "requirements/code-review/locked.txt" in workflow
+    steps = _load_job_steps("license-check")
+    commands = "\n".join(str(step.get("run", "")) for step in steps)
+    assert "uv pip install" in commands
+    assert "requirements/code-review/locked.txt" in commands
+    assert "--additional-python" in commands
+
+
 def test_dependency_trust_is_a_standalone_ci_and_pre_commit_gate() -> None:
     """Known alerted releases must be blocked locally and by a visible CI status."""
     jobs = _load_jobs()

@@ -160,6 +160,46 @@ def test_pre_commit_preserves_tabbed_staged_evidence_paths(tmp_path: Path) -> No
     assert result.stdout.split(b"\0") == [b"src/tab\tpath.py", b""]
 
 
+def test_pre_commit_selects_deleted_active_change_unless_fully_archived(tmp_path: Path) -> None:
+    """Index-only deletion cannot hide an active change; a complete exact archive can."""
+    subprocess.run(["git", "init", "--quiet"], cwd=tmp_path, check=True)
+    active = tmp_path / "openspec" / "changes" / "example"
+    active.mkdir(parents=True)
+    for name in ("proposal.md", "tasks.md"):
+        (active / name).write_text(f"# {name}\n", encoding="utf-8")
+    subprocess.run(["git", "add", "openspec"], cwd=tmp_path, check=True)
+    subprocess.run(
+        ["git", "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-qm", "fixture"],
+        cwd=tmp_path,
+        check=True,
+    )
+
+    pre_commit_library = _pre_commit_text().removesuffix('\nmain "$@"\n')
+    subprocess.run(["git", "rm", "-q", "openspec/changes/example/proposal.md"], cwd=tmp_path, check=True)
+    deleted = subprocess.run(
+        ["bash", "-c", f"{pre_commit_library}\nstaged_active_change_ids"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert deleted.stdout.strip() == "example"
+
+    subprocess.run(["git", "reset", "--quiet", "--hard", "HEAD"], cwd=tmp_path, check=True)
+    archive = tmp_path / "openspec" / "changes" / "archive" / "2026-08-27-example"
+    archive.parent.mkdir(parents=True)
+    active.rename(archive)
+    subprocess.run(["git", "add", "openspec"], cwd=tmp_path, check=True)
+    archived = subprocess.run(
+        ["bash", "-c", f"{pre_commit_library}\nstaged_active_change_ids"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert archived.stdout.strip() == ""
+
+
 def test_pre_commit_routes_docs_only_staging_to_the_evidence_gate(tmp_path: Path) -> None:
     """A staged no-impact diff must invoke the adapter instead of silently skipping it."""
     subprocess.run(["git", "init", "--quiet"], cwd=tmp_path, check=True)
