@@ -255,6 +255,18 @@ the authoritative failing-before evidence or the candidate design.
   or notes; the authority test now uses a typed protocol instead of a
   module-wide unknown-member suppression.
 
+**Executable archive compatibility review proof (2026-08-28):**
+
+- The two existing positive native-archive selectors were strengthened so one
+  byte-identical source and destination uses regular-file mode `100755`. Before
+  implementation, both selectors failed: the workflow omitted the newly
+  authored active change and the staged selector incorrectly retained the
+  completely archived change.
+- After both mirrored archive predicates accepted mode `100755` while requiring
+  the destination mode to equal the source mode, both selectors passed. The
+  existing controls continue to reject symlinks, fabricated content, partial
+  archives, extra files, split destinations, and non-archive authoring.
+
 ## Final verification
 
 - Product-owner approval is retained in

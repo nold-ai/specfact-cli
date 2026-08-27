@@ -136,7 +136,9 @@ def _create_exact_archive_selection_fixture(tmp_path: Path) -> None:
     """Create a byte-identical archive beside one active change."""
     old_change = tmp_path / "openspec" / "changes" / "old-change"
     old_change.mkdir(parents=True)
-    (old_change / "proposal.md").write_text("# Old proposal\n", encoding="utf-8")
+    proposal = old_change / "proposal.md"
+    proposal.write_text("# Old proposal\n", encoding="utf-8")
+    proposal.chmod(0o755)
     (old_change / "CHANGE_VALIDATION.md").write_text("# Old validation\n", encoding="utf-8")
     _write_selection_review_evidence(tmp_path, "unrelated-change")
     _commit_selection_fixture(tmp_path, "baseline")

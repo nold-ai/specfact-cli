@@ -180,6 +180,7 @@ def _initialize_active_change_repo(tmp_path: Path) -> Path:
     active.mkdir(parents=True)
     for name in ("proposal.md", "tasks.md", "CHANGE_VALIDATION.md"):
         (active / name).write_text(f"# {name}\n" + "stable fixture line\n" * 40, encoding="utf-8")
+    (active / "proposal.md").chmod(0o755)
     subprocess.run(["git", "add", "openspec"], cwd=tmp_path, check=True)
     subprocess.run(
         ["git", "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-qm", "fixture"],

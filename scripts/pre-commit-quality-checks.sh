@@ -541,8 +541,8 @@ is_complete_staged_archive_move() {
     source_hash="$(awk 'NR == 1 { print $3 }' <<<"${source_entry}")"
     destination_mode="$(awk 'NR == 1 { print $1 }' <<<"${destination_entry}")"
     destination_hash="$(awk 'NR == 1 { print $2 }' <<<"${destination_entry}")"
-    if [[ "${source_mode}" != "100644" || "${destination_mode}" != "100644" || \
-      "${source_hash}" != "${destination_hash}" ]]; then
+    if [[ "${source_mode}" != "100644" && "${source_mode}" != "100755" ]] || \
+      [[ "${destination_mode}" != "${source_mode}" || "${source_hash}" != "${destination_hash}" ]]; then
       archive_valid=0
       break
     fi
@@ -703,8 +703,8 @@ is_complete_branch_archive_move() {
     source_hash="$(awk 'NR == 1 { print $3 }' <<<"${source_entry}")"
     destination_mode="$(awk 'NR == 1 { print $1 }' <<<"${destination_entry}")"
     destination_hash="$(awk 'NR == 1 { print $3 }' <<<"${destination_entry}")"
-    if [[ "${source_mode}" != "100644" || "${destination_mode}" != "100644" || \
-      "${source_hash}" != "${destination_hash}" ]]; then
+    if [[ "${source_mode}" != "100644" && "${source_mode}" != "100755" ]] || \
+      [[ "${destination_mode}" != "${source_mode}" || "${source_hash}" != "${destination_hash}" ]]; then
       archive_valid=0
       break
     fi
