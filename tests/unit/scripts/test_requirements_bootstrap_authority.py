@@ -262,6 +262,14 @@ def _mutate_authority(fixture: dict[str, object], **updates: object) -> None:
     _write_json(comment_path, comment)
 
 
+def _mutate_run(fixture: dict[str, object], **updates: object) -> None:
+    """Update bounded run metadata without repeating fixture plumbing."""
+    run_path = cast(Path, fixture["run_path"])
+    run = json.loads(run_path.read_text(encoding="utf-8"))
+    run.update(updates)
+    _write_json(run_path, run)
+
+
 def test_bootstrap_authority_accepts_exact_owner_bound_red_history(tmp_path: Path) -> None:
     """Every external and local identity must agree for the one-time bootstrap."""
     module = _load_authority_module()
@@ -289,6 +297,26 @@ def test_bootstrap_authority_accepts_exact_collaborator_bound_red_history(tmp_pa
     _write_json(comment_path, comment)
 
     assert _validate(module, fixture)
+
+
+def test_bootstrap_authority_accepts_explicit_distinct_red_branch(tmp_path: Path) -> None:
+    """A separately retained red run must bind both its branch and the final PR branch."""
+    module = _load_authority_module()
+    fixture = _authority_fixture(tmp_path)
+    red_branch = "codex/692-review-red-proof"
+    _mutate_authority(fixture, red_branch=red_branch)
+    _mutate_run(fixture, head_branch=red_branch)
+
+    assert _validate(module, fixture)
+
+
+def test_bootstrap_authority_rejects_unbound_red_branch(tmp_path: Path) -> None:
+    """A run from a different branch must be named by the owner authority."""
+    module = _load_authority_module()
+    fixture = _authority_fixture(tmp_path)
+    _mutate_run(fixture, head_branch="codex/unbound-red-proof")
+
+    assert not _validate(module, fixture)
 
 
 def test_bootstrap_authority_rejects_same_evidence_without_authorized_red_ancestor(tmp_path: Path) -> None:
@@ -322,10 +350,7 @@ def test_bootstrap_authority_rejects_nonfailing_red_run(tmp_path: Path) -> None:
     """Only a completed failing red run can authorize green delivery."""
     module = _load_authority_module()
     fixture = _authority_fixture(tmp_path)
-    run_path = cast(Path, fixture["run_path"])
-    run = json.loads(run_path.read_text(encoding="utf-8"))
-    run["conclusion"] = "success"
-    _write_json(run_path, run)
+    _mutate_run(fixture, conclusion="success")
 
     assert not _validate(module, fixture)
 

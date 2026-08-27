@@ -267,6 +267,26 @@ the authoritative failing-before evidence or the candidate design.
   existing controls continue to reject symlinks, fabricated content, partial
   archives, extra files, split destinations, and non-archive authoring.
 
+**Review-red bootstrap branch binding proof (2026-08-28):**
+
+- Signed test-only commit `2f5cb18c66b133a09a24234c982d2366f3de07d4`
+  was created from exact dev baseline
+  `3ea3d9b4492ade6ec5683fac83c5b5090b0cb547`. It changes only the approved
+  OpenSpec bundle and seven mapped test files; all ten mapped selectors fail
+  against the baseline.
+- Draft evidence PR #694 retained Requirements run `33124192051`, whose bounded
+  report passed at `red` maturity with all ten selectors, no findings, the
+  expected base commit, and immutable artifact digest
+  `sha256:518065784e6fcccd5aba2f39c94c4baeafc46998a8cb00debf9f69070f2c404a`.
+  The draft PR was closed without merge after the signed red commit became a
+  no-tree-change second parent of PR #693.
+- A test-first authority challenge changed only the retained run branch while
+  keeping the final PR branch bound separately. Before implementation, the
+  explicit distinct-branch acceptance selector failed and its unbound-branch
+  control passed. After the authority record gained an explicit `red_branch`
+  binding with backward-compatible same-branch behavior, all 13 authority
+  tests passed and strict basedpyright reported zero findings.
+
 ## Final verification
 
 - Product-owner approval is retained in

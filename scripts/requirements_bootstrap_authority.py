@@ -151,10 +151,13 @@ def _valid_commit(authority: dict[str, object], commit: dict[str, object]) -> bo
 
 def _valid_run(authority: dict[str, object], run: dict[str, object]) -> bool:
     repository = _object(run.get("repository"))
+    red_branch = authority.get("red_branch", authority.get("head_branch"))
     return (
         run.get("id") == authority.get("run_id")
         and run.get("head_sha") == authority.get("red_commit")
-        and run.get("head_branch") == authority.get("head_branch")
+        and isinstance(red_branch, str)
+        and bool(red_branch)
+        and run.get("head_branch") == red_branch
         and run.get("event") == "pull_request"
         and run.get("status") == "completed"
         and run.get("conclusion") == "failure"
