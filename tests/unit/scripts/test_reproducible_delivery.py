@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import hashlib
 import importlib.util
 import json
 import subprocess
@@ -16,6 +17,29 @@ from packaging.requirements import Requirement
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+
+
+def _write_invalid_binding_fixture(module: Any, tmp_path: Path, binding_state: str) -> tuple[Path, Path]:
+    """Create an isolated input/lock pair with the requested invalid binding."""
+    requirements = tmp_path / "repository" / "requirements" / "code-review"
+    requirements.mkdir(parents=True)
+    requirements_input = requirements / "requirements.in"
+    requirements_input.write_text("pylint>=4\n", encoding="utf-8")
+    locked_export = requirements / "locked.txt"
+    lock_body = "\n".join(
+        line
+        for line in module.CODE_REVIEW_LOCKED_EXPORT.read_text(encoding="utf-8").splitlines()
+        if not line.startswith("# input-sha256:")
+    )
+    original_digest = hashlib.sha256(b"pylint==4.0.7\n").hexdigest()
+    binding_lines = {
+        "missing": "",
+        "malformed": "# input-sha256: not-a-digest\n",
+        "duplicate": f"# input-sha256: {original_digest}\n# input-sha256: {original_digest}\n",
+        "mismatch": f"# input-sha256: {original_digest}\n",
+    }
+    locked_export.write_text(binding_lines[binding_state] + lock_body, encoding="utf-8")
+    return requirements_input, locked_export
 
 
 def _setup_runtime_dependency_names() -> set[str]:
@@ -72,6 +96,58 @@ def test_reproducible_delivery_checker_verifies_code_review_input_lock_pair(
     module.verify_code_review_lock()
 
 
+def test_code_review_lock_verification_constrains_live_resolution(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """New transitive releases must not change verification of an unchanged lock."""
+    checker = REPO_ROOT / "scripts" / "check_reproducible_delivery.py"
+    spec = importlib.util.spec_from_file_location("check_reproducible_delivery", checker)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    lock = module.CODE_REVIEW_LOCKED_EXPORT.read_text(encoding="utf-8")
+
+    def compile_with_committed_constraints(command: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        constraint = command[command.index("--constraints") + 1]
+        assert constraint == str(module.CODE_REVIEW_LOCKED_EXPORT.relative_to(module.REPO_ROOT))
+        assert "--upgrade" not in command
+        output = command[command.index("--output-file") + 1]
+        Path(output).write_text(lock, encoding="utf-8")
+        return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(module.subprocess, "run", compile_with_committed_constraints)
+    module.verify_code_review_lock()
+
+
+@pytest.mark.parametrize("binding_state", ["missing", "malformed", "duplicate", "mismatch"])
+def test_code_review_lock_verification_rejects_invalid_input_binding(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    binding_state: str,
+) -> None:
+    """The committed lock must bind the exact isolated tooling input once."""
+    checker = REPO_ROOT / "scripts" / "check_reproducible_delivery.py"
+    spec = importlib.util.spec_from_file_location("check_reproducible_delivery", checker)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    requirements_input, locked_export = _write_invalid_binding_fixture(module, tmp_path, binding_state)
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path / "repository")
+    monkeypatch.setattr(module, "CODE_REVIEW_REQUIREMENTS_INPUT", requirements_input)
+    monkeypatch.setattr(module, "CODE_REVIEW_LOCKED_EXPORT", locked_export)
+
+    def compile_matching_lock(command: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        output = command[command.index("--output-file") + 1]
+        Path(output).write_text(locked_export.read_text(encoding="utf-8"), encoding="utf-8")
+        return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(module.subprocess, "run", compile_matching_lock)
+
+    with pytest.raises(ValueError, match="input SHA-256 binding"):
+        module.verify_code_review_lock()
+
+
 def test_reproducible_delivery_checker_rejects_stale_code_review_lock(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -105,6 +181,29 @@ def test_reproducible_delivery_refresh_uses_locked_export_contract() -> None:
     assert "check_reproducible_delivery.py" in refresh
     assert "timeout=" in refresh
     assert "TimeoutExpired" in refresh
+
+
+def test_reproducible_delivery_refresh_renders_code_review_input_binding() -> None:
+    """The isolated lock refresh must atomically renew its exact input binding."""
+    refresh_path = REPO_ROOT / "scripts" / "refresh_reproducible_delivery.py"
+    spec = importlib.util.spec_from_file_location("refresh_reproducible_delivery", refresh_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    input_bytes = b"pylint==4.0.7\n"
+    generated = "# temporary uv command\nastroid==4.0.4 \\\n    --hash=sha256:abc\n"
+
+    rendered = module.render_code_review_lock(generated, input_bytes)
+
+    expected_digest = hashlib.sha256(input_bytes).hexdigest()
+    assert rendered.startswith(
+        "# This file was autogenerated by "
+        "`python scripts/refresh_reproducible_delivery.py --code-review`.\n"
+        f"# input-sha256: {expected_digest}\n"
+    )
+    assert rendered.count("# input-sha256:") == 1
+    assert "# temporary uv command" not in rendered
+    assert "astroid==4.0.4" in rendered
 
 
 def test_reproducible_delivery_verifier_bounds_uv_commands_and_fails_closed_on_timeout() -> None:

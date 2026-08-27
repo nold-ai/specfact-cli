@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import subprocess
@@ -22,7 +23,9 @@ MODULE_FIXTURE_LOCK = REPO_ROOT / "ci" / "module-fixture.lock.json"
 LOCKED_EXPORT = REPO_ROOT / "requirements" / "ci" / "locked.txt"
 CODE_REVIEW_REQUIREMENTS_INPUT = REPO_ROOT / "requirements" / "code-review" / "requirements.in"
 CODE_REVIEW_LOCKED_EXPORT = REPO_ROOT / "requirements" / "code-review" / "locked.txt"
+CODE_REVIEW_INPUT_BINDING_PREFIX = "# input-sha256:"
 COMMIT_SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
+SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 UV_COMMAND_TIMEOUT_SECONDS = 120
 
 
@@ -112,8 +115,23 @@ def verify_locked_export() -> None:
 
 @beartype
 @ensure(lambda result: result is None, "must return None")  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
+def _verify_code_review_input_binding(contents: str) -> None:
+    """Require one valid digest binding to the exact isolated-tooling input."""
+    binding_lines = [line for line in contents.splitlines() if line.startswith(CODE_REVIEW_INPUT_BINDING_PREFIX)]
+    if len(binding_lines) != 1:
+        raise ValueError("Code Review lock must contain exactly one input SHA-256 binding")
+    bound_digest = binding_lines[0].removeprefix(CODE_REVIEW_INPUT_BINDING_PREFIX).strip()
+    if SHA256_PATTERN.fullmatch(bound_digest) is None:
+        raise ValueError("Code Review lock input SHA-256 binding is malformed")
+    input_digest = hashlib.sha256(CODE_REVIEW_REQUIREMENTS_INPUT.read_bytes()).hexdigest()
+    if bound_digest != input_digest:
+        raise ValueError("Code Review lock input SHA-256 binding does not match requirements.in")
+
+
+@beartype
+@ensure(lambda result: result is None, "must return None")  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
 def verify_code_review_lock() -> None:
-    """Ensure the isolated Code Review lock is the current compiled input."""
+    """Ensure the isolated Code Review lock matches its input under frozen constraints."""
     if not CODE_REVIEW_REQUIREMENTS_INPUT.is_file():
         raise ValueError(f"Missing Code Review requirements input: {CODE_REVIEW_REQUIREMENTS_INPUT}")
     if not CODE_REVIEW_LOCKED_EXPORT.is_file():
@@ -121,6 +139,7 @@ def verify_code_review_lock() -> None:
     contents = CODE_REVIEW_LOCKED_EXPORT.read_text(encoding="utf-8")
     if "--hash=sha256:" not in contents:
         raise ValueError("Code Review lock must contain distribution hashes")
+    _verify_code_review_input_binding(contents)
     with tempfile.TemporaryDirectory(prefix="specfact-code-review-lock-") as temporary_directory:
         rendered_lock = Path(temporary_directory) / "locked.txt"
         completed = subprocess.run(
@@ -129,6 +148,8 @@ def verify_code_review_lock() -> None:
                 "pip",
                 "compile",
                 str(CODE_REVIEW_REQUIREMENTS_INPUT.relative_to(REPO_ROOT)),
+                "--constraints",
+                str(CODE_REVIEW_LOCKED_EXPORT.relative_to(REPO_ROOT)),
                 "--python-version",
                 "3.12",
                 "--generate-hashes",

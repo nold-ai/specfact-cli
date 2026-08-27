@@ -55,6 +55,16 @@ for Python packages, backed by the OSV and PyPI vulnerability databases.
 - **AND** the wheel SHALL retain the build backend's current metadata format
 - **AND** the frozen Twine validation SHALL accept the built wheel.
 
+#### Scenario: Isolated tooling lock verification is index-independent
+
+- **GIVEN** an isolated tooling input has a committed hash-protected lock
+- **WHEN** the reproducible-delivery checker validates input and lock parity
+- **THEN** the lock metadata SHALL bind the exact tooling input content by SHA-256
+- **AND** it SHALL constrain every transitive package to the committed lock
+- **AND** a newly published compatible transitive release SHALL NOT change the verification result
+- **AND** any changed tooling input without a renewed binding SHALL fail closed.
+- **AND** the repository refresh command SHALL atomically regenerate the lock and renew that binding.
+
 #### Scenario: Exact temporary advisory exception
 
 - **WHEN** `hatch run security-audit` is executed

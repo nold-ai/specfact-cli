@@ -213,3 +213,43 @@ UV_CACHE_DIR=/private/tmp/specfact-security-uv-cache .venv/bin/pytest \
   or the repository-wide advisory backlog is an explicit scope exception because
   it is unrelated to this dependency-only patch and would violate the smallest-fix
   constraint.
+
+## PR review P1: live-index-independent isolated lock verification
+
+- **Finding**: PR #690 discussion `r3867892984` correctly identified that
+  `verify_code_review_lock()` re-resolved the exact Pylint input against the current
+  package index without constraining transitive versions. An independent reproduction
+  resolved `platformdirs==4.11.3` at the historical cutoff and `4.11.4` from the same
+  unchanged input after that compatible release was published.
+- **Specification first**: the canonical and archived `dep-license-gate` specifications
+  now require the committed isolated lock to constrain parity verification while direct
+  input changes continue to fail closed.
+- **Failing-before command**:
+  `python -m pytest tests/unit/scripts/test_reproducible_delivery.py::test_code_review_lock_verification_constrains_live_resolution -q`
+  failed because the compile command contained no `--constraints` argument.
+- **Candidate bypass review**: constraints alone preserved the lock for a compatible
+  input widening from `pylint==4.0.7` to `pylint>=4`. Four additional red cases proved
+  that missing, malformed, duplicate, and mismatched input bindings were not rejected.
+- **Fix**: the committed lock metadata now binds the exact `requirements.in` bytes by
+  SHA-256. The verification-only `uv pip compile` command supplies the same lock through
+  `--constraints` and does not request upgrades. No dependency version, resolved graph,
+  runtime surface, or release metadata changed.
+- **Refresh-path red proof**: the independent bypass/regression review showed that a raw
+  `uv pip compile` refresh would discard the input binding. The new refresh-render test
+  failed before `render_code_review_lock()` existed.
+- **Passing-after controls**:
+  - All 17 `tests/unit/scripts/test_reproducible_delivery.py` tests passed, including
+    constrained unchanged-lock parity, all four invalid-binding cases, and the existing
+    stale-render rejection.
+  - `python scripts/refresh_reproducible_delivery.py --code-review` atomically regenerated
+    the real isolated lock, renewed its exact input binding, and invoked the verifier
+    successfully.
+  - `python scripts/check_reproducible_delivery.py` passed against the real committed
+    inputs and package index.
+  - A constrained real compile remained byte-equivalent to the committed lock after
+    generated headers were removed.
+  - Changing the direct input to `pylint==4.0.6` while retaining the committed
+    `pylint==4.0.7` constraints failed as unsatisfiable, proving intentional input drift
+    is not silently accepted.
+  - A compatible widening to `pylint>=4` and adding an already-transitive direct input
+    are rejected by the exact input digest before resolution.
