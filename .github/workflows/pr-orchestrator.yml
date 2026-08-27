@@ -1275,7 +1275,7 @@ jobs:
           uv sync --locked --all-extras
           python -m pytest -q "${compatibility_deselections[@]}" tests/unit
           uv lock --resolution lowest-direct
-          uv sync --locked --all-extras
+          uv sync --locked --all-extras --resolution lowest-direct
           python -m pytest -q "${compatibility_deselections[@]}" tests/unit
 
   package-validation:
