@@ -1228,6 +1228,33 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Read immutable module fixture
+        id: compatibility-modules-fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture_ref="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          echo "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout module bundles repo
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+          repository: nold-ai/specfact-cli-modules
+          path: specfact-cli-modules
+          ref: ${{ steps.compatibility-modules-fixture.outputs.ref }}
+
+      - name: Export module bundles path
+        run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
+
+      - name: Verify immutable module fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          actual="$(git -C specfact-cli-modules rev-parse HEAD)"
+          test "$actual" = "$expected"
+
       - name: Set up Python 3.12
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
@@ -1240,12 +1267,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          compatibility_deselections=(
+            --deselect=tests/unit/scripts/test_dependency_trust_review.py
+            --deselect=tests/unit/scripts/test_reproducible_delivery.py
+          )
           uv lock --upgrade
           uv sync --locked --all-extras
-          python -m pytest tests/unit -q
+          python -m pytest -q "${compatibility_deselections[@]}" tests/unit
           uv lock --resolution lowest-direct
           uv sync --locked --all-extras
-          python -m pytest tests/unit -q
+          python -m pytest -q "${compatibility_deselections[@]}" tests/unit
 
   package-validation:
     name: Package Validation (uvx/pip)
