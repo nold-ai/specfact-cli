@@ -464,8 +464,13 @@ def test_advisory_dependency_compatibility_lane_cannot_block_delivery() -> None:
     job = _load_jobs()["dependency-compatibility"]
     assert job.get("continue-on-error") is True
     assert "schedule" in str(job.get("if", ""))
-    raw = "\n".join(str(step.get("run", "")) for step in _load_job_steps("dependency-compatibility"))
+    steps = _load_job_steps("dependency-compatibility")
+    raw = "\n".join(str(step.get("run", "")) for step in steps)
     assert "uv lock --upgrade" in raw
+    assert any(step.get("name") == "Checkout module bundles repo" for step in steps)
+    assert "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" in raw
+    assert "--ignore=tests/unit/scripts/test_dependency_trust_review.py" in raw
+    assert "--ignore=tests/unit/scripts/test_reproducible_delivery.py" in raw
 
 
 def test_package_runtime_matrix_proves_all_declared_python_versions() -> None:
