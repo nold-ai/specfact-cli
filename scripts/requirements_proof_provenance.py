@@ -200,13 +200,13 @@ def _python_module_paths(module_parts: Sequence[str]) -> set[str]:
     return paths
 
 
-def _definition_expression_children(node: ast.AST) -> list[ast.AST] | None:
+def _definition_expression_children(node: ast.AST, scope_aliases: ScopeAliases | None = None) -> list[ast.AST] | None:
     """Return enclosing-scope expressions for one nested definition boundary."""
     if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)):
         return None
     if getattr(node, "name", None) == "pytest_plugins":
         raise ValueError("prior-red-proof-invalid")
-    if isinstance(node, ast.ClassDef) and _class_body_can_bind_module_plugin(node):
+    if isinstance(node, ast.ClassDef) and _class_body_can_bind_module_plugin(node, scope_aliases):
         raise ValueError("prior-red-proof-invalid")
     nested_body = {node.body} if isinstance(node, ast.Lambda) else set(node.body)
     return [child for child in ast.iter_child_nodes(node) if child not in nested_body]
@@ -239,15 +239,115 @@ def _same_scope_nodes(statements: Sequence[ast.AST]) -> list[ast.AST]:
     return discovered
 
 
-def _assignment_names_and_value(node: ast.AST) -> tuple[set[str], ast.AST | None]:
-    """Return simple assignment targets and their shared value."""
+def _bound_names(target: ast.AST) -> set[str]:
+    """Return names introduced by one assignment or iteration target."""
+    if isinstance(target, ast.Name):
+        return {target.id}
+    return {child.id for child in ast.walk(target) if isinstance(child, ast.Name) and isinstance(child.ctx, ast.Store)}
+
+
+def _pattern_bound_names(root: ast.pattern) -> set[str]:
+    """Return names introduced by one match pattern."""
+    names: set[str] = set()
+    for pattern in ast.walk(root):
+        if isinstance(pattern, (ast.MatchAs, ast.MatchStar)) and pattern.name is not None:
+            names.add(pattern.name)
+        elif isinstance(pattern, ast.MatchMapping) and pattern.rest is not None:
+            names.add(pattern.rest)
+    return names
+
+
+ScopeBinding = tuple[set[str], ast.AST | None]
+ScopeAliases = tuple[set[str], set[str], set[str]]
+
+
+def _target_bindings(target: ast.AST, value: ast.AST | None) -> list[ScopeBinding]:
+    """Pair destructuring targets with statically corresponding source values."""
+    if isinstance(target, ast.Name):
+        return [({target.id}, value)]
+    if isinstance(target, ast.Starred):
+        return _target_bindings(target.value, value)
+    if (
+        isinstance(target, (ast.Tuple, ast.List))
+        and isinstance(value, (ast.Tuple, ast.List))
+        and len(target.elts) == len(value.elts)
+    ):
+        return [
+            binding
+            for item, source in zip(target.elts, value.elts, strict=True)
+            for binding in _target_bindings(item, source)
+        ]
+    return [(_bound_names(target), value)]
+
+
+def _assignment_bindings(node: ast.AST) -> list[ScopeBinding]:
+    """Return position-preserving aliases introduced by one assignment."""
     if isinstance(node, ast.Assign):
-        return {target.id for target in node.targets if isinstance(target, ast.Name)}, node.value
-    if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-        return {node.target.id}, node.value
-    if isinstance(node, ast.NamedExpr) and isinstance(node.target, ast.Name):
-        return {node.target.id}, node.value
-    return set(), None
+        return [binding for target in node.targets for binding in _target_bindings(target, node.value)]
+    if isinstance(node, (ast.AnnAssign, ast.NamedExpr)):
+        return _target_bindings(node.target, node.value)
+    return []
+
+
+def _qualified_name(node: ast.AST | None) -> str | None:
+    """Return one static dotted name without evaluating its expression."""
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        parent = _qualified_name(node.value)
+        return f"{parent}.{node.attr}" if parent is not None else None
+    return None
+
+
+def _is_builtins_mapping_executor(node: ast.AST | None) -> bool:
+    """Return whether ``__builtins__`` is indexed for an executor."""
+    return (
+        isinstance(node, ast.Subscript)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "__builtins__"
+        and isinstance(node.slice, ast.Constant)
+        and node.slice.value in {"exec", "eval"}
+    )
+
+
+def _is_imported_builtins_executor(node: ast.AST | None) -> bool:
+    """Return whether ``__import__('builtins')`` selects an executor."""
+    return (
+        isinstance(node, ast.Attribute)
+        and node.attr in {"exec", "eval"}
+        and isinstance(node.value, ast.Call)
+        and isinstance(node.value.func, ast.Name)
+        and node.value.func.id == "__import__"
+        and bool(node.value.args)
+        and isinstance(node.value.args[0], ast.Constant)
+        and node.value.args[0].value == "builtins"
+    )
+
+
+def _is_getattr_executor(node: ast.AST | None, dynamic_executors: set[str]) -> bool:
+    """Return whether a static ``getattr`` selects a tracked executor."""
+    if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "getattr"):
+        return False
+    if len(node.args) < 2:
+        return False
+    owner = _qualified_name(node.args[0])
+    attribute = node.args[1]
+    return (
+        owner is not None
+        and isinstance(attribute, ast.Constant)
+        and isinstance(attribute.value, str)
+        and f"{owner}.{attribute.value}" in dynamic_executors
+    )
+
+
+def _is_dynamic_executor_reference(node: ast.AST | None, dynamic_executors: set[str]) -> bool:
+    """Return whether an expression statically names a built-in executor."""
+    return (
+        _qualified_name(node) in dynamic_executors
+        or _is_builtins_mapping_executor(node)
+        or _is_imported_builtins_executor(node)
+        or _is_getattr_executor(node, dynamic_executors)
+    )
 
 
 def _is_zero_argument_call_to(node: ast.AST | None, names: set[str]) -> bool:
@@ -261,36 +361,50 @@ def _is_zero_argument_call_to(node: ast.AST | None, names: set[str]) -> bool:
     )
 
 
-def _propagate_scope_aliases(
-    target_names: set[str],
-    value: ast.AST | None,
-    factories: set[str],
-    namespaces: set[str],
-    dynamic_executors: set[str],
-) -> None:
-    """Extend alias groups from one simple assignment."""
-    source_name = value.id if isinstance(value, ast.Name) else None
+def _propagate_scope_aliases(binding: ScopeBinding, aliases: ScopeAliases) -> None:
+    """Extend alias groups from one import-time binding."""
+    target_names, value = binding
+    factories, namespaces, dynamic_executors = aliases
+    source_name = _qualified_name(value)
     if source_name in factories:
         factories.update(target_names)
     if source_name in namespaces:
         namespaces.update(target_names)
-    if source_name in dynamic_executors:
+    if _is_dynamic_executor_reference(value, dynamic_executors):
         dynamic_executors.update(target_names)
     if _is_zero_argument_call_to(value, factories):
         namespaces.update(target_names)
+
+
+def _dynamic_executor_import_names(node: ast.AST) -> set[str]:
+    """Return dynamic-executor names introduced by one builtins import."""
+    if isinstance(node, ast.Import):
+        owners = [alias.asname or alias.name for alias in node.names if alias.name == "builtins"]
+        return {f"{owner}.{executor}" for owner in owners for executor in ("exec", "eval")}
+    if isinstance(node, ast.ImportFrom) and node.module == "builtins":
+        return {alias.asname or alias.name for alias in node.names if alias.name in {"exec", "eval"}}
+    return set()
+
+
+def _imported_dynamic_executors(statements: Sequence[ast.AST]) -> set[str]:
+    """Return qualified or direct aliases imported from the builtins module."""
+    executors = {"exec", "eval"}
+    for node in _same_scope_nodes(statements):
+        executors.update(_dynamic_executor_import_names(node))
+    return executors
 
 
 def _scope_aliases(statements: Sequence[ast.AST], namespace_builtins: set[str]) -> tuple[set[str], set[str], set[str]]:
     """Resolve namespace factories, namespace objects, and dynamic-execution aliases."""
     factories = set(namespace_builtins)
     namespaces: set[str] = set()
-    dynamic_executors = {"exec", "eval"}
-    assignments = [_assignment_names_and_value(node) for node in _same_scope_nodes(statements)]
+    dynamic_executors = _imported_dynamic_executors(statements)
+    assignments = [binding for node in _same_scope_nodes(statements) for binding in _assignment_bindings(node)]
     changed = True
     while changed:
         before = (len(factories), len(namespaces), len(dynamic_executors))
-        for target_names, value in assignments:
-            _propagate_scope_aliases(target_names, value, factories, namespaces, dynamic_executors)
+        for binding in assignments:
+            _propagate_scope_aliases(binding, (factories, namespaces, dynamic_executors))
         changed = before != (len(factories), len(namespaces), len(dynamic_executors))
     return factories, namespaces, dynamic_executors
 
@@ -375,15 +489,158 @@ def _is_global_namespace_plugin_operation(
 ) -> bool:
     """Return whether a class-body operation can mutate the containing module."""
     global_declaration = isinstance(node, ast.Global) and "pytest_plugins" in node.names
-    dynamic_execution = (
-        isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in dynamic_executors
-    )
+    dynamic_execution = isinstance(node, ast.Call) and _is_dynamic_executor_reference(node.func, dynamic_executors)
     return (
         global_declaration
         or dynamic_execution
         or _is_namespace_plugin_subscript(node, factories, namespaces)
         or _is_namespace_plugin_mutator(node, factories, namespaces)
     )
+
+
+def _copy_scope_aliases(aliases: ScopeAliases) -> ScopeAliases:
+    """Return mutable copies for one nested import-time binding scope."""
+    return tuple(set(group) for group in aliases)  # type: ignore[return-value]
+
+
+def _iterated_values(node: ast.AST) -> tuple[list[ast.AST], bool]:
+    """Return statically iterable values and whether their source is indirect."""
+    if isinstance(node, (ast.List, ast.Tuple, ast.Set)):
+        return list(node.elts), False
+    return [node], True
+
+
+def _propagate_nested_aliases(target_names: set[str], value: ast.AST, aliases: ScopeAliases) -> None:
+    """Conservatively bind a target from a context-manager or opaque iterable."""
+    factories, namespaces, dynamic_executors = aliases
+    value_nodes = _same_scope_nodes([value])
+    if any(_is_namespace_reference(child, factories, namespaces) for child in value_nodes):
+        namespaces.update(target_names)
+    if any(isinstance(child, ast.Name) and child.id in factories for child in value_nodes):
+        factories.update(target_names)
+    if any(_is_dynamic_executor_reference(child, dynamic_executors) for child in value_nodes):
+        dynamic_executors.update(target_names)
+
+
+def _bind_compound_target(target: ast.AST, value: ast.AST, aliases: ScopeAliases, *, indirect: bool) -> None:
+    """Propagate position-preserving aliases into one nested binding scope."""
+    for binding in _target_bindings(target, value):
+        _propagate_scope_aliases(binding, aliases)
+    if indirect:
+        _propagate_nested_aliases(_bound_names(target), value, aliases)
+
+
+def _match_pattern_bindings(pattern: ast.pattern, value: ast.AST) -> list[ScopeBinding]:
+    """Pair match captures with statically corresponding subject values."""
+    if isinstance(pattern, (ast.MatchAs, ast.MatchStar)) and pattern.name is not None:
+        return [({pattern.name}, value)]
+    if (
+        isinstance(pattern, ast.MatchSequence)
+        and isinstance(value, (ast.Tuple, ast.List))
+        and len(pattern.patterns) == len(value.elts)
+    ):
+        return [
+            binding
+            for child, source in zip(pattern.patterns, value.elts, strict=True)
+            for binding in _match_pattern_bindings(child, source)
+        ]
+    return [(_pattern_bound_names(pattern), value)]
+
+
+BindingRegion = tuple[ScopeAliases, list[ast.AST]]
+
+
+def _loop_binding_region(node: ast.For | ast.AsyncFor, aliases: ScopeAliases) -> BindingRegion:
+    """Return one loop body with its iteration aliases."""
+    local = _copy_scope_aliases(aliases)
+    values, indirect = _iterated_values(node.iter)
+    for value in values:
+        _bind_compound_target(node.target, value, local, indirect=indirect)
+    return local, [*node.body, *node.orelse]
+
+
+def _with_binding_region(node: ast.With | ast.AsyncWith, aliases: ScopeAliases) -> BindingRegion:
+    """Return one context body with its optional binding aliases."""
+    local = _copy_scope_aliases(aliases)
+    for item in node.items:
+        if item.optional_vars is not None:
+            _bind_compound_target(item.optional_vars, item.context_expr, local, indirect=True)
+    return local, list(node.body)
+
+
+def _comprehension_binding_region(
+    node: ast.ListComp | ast.SetComp | ast.DictComp, aliases: ScopeAliases
+) -> BindingRegion:
+    """Return one eager comprehension body with scoped iteration aliases."""
+    local = _copy_scope_aliases(aliases)
+    for generator in node.generators:
+        values, indirect = _iterated_values(generator.iter)
+        for value in values:
+            _bind_compound_target(generator.target, value, local, indirect=indirect)
+    result_nodes = [node.key, node.value] if isinstance(node, ast.DictComp) else [node.elt]
+    conditions = [condition for generator in node.generators for condition in generator.ifs]
+    return local, [*result_nodes, *conditions]
+
+
+def _match_binding_regions(node: ast.Match, aliases: ScopeAliases) -> list[BindingRegion]:
+    """Return match-case bodies with position-preserving capture aliases."""
+    regions: list[BindingRegion] = []
+    for case in node.cases:
+        local = _copy_scope_aliases(aliases)
+        for binding in _match_pattern_bindings(case.pattern, node.subject):
+            _propagate_scope_aliases(binding, local)
+        case_nodes = [*([case.guard] if case.guard is not None else []), *case.body]
+        regions.append((local, case_nodes))
+    return regions
+
+
+def _compound_binding_regions(node: ast.AST, aliases: ScopeAliases) -> list[BindingRegion]:
+    """Return nested regions with aliases created by compound bindings."""
+    if isinstance(node, (ast.For, ast.AsyncFor)):
+        return [_loop_binding_region(node, aliases)]
+    if isinstance(node, (ast.With, ast.AsyncWith)):
+        return [_with_binding_region(node, aliases)]
+    if isinstance(node, (ast.ListComp, ast.SetComp, ast.DictComp)):
+        return [_comprehension_binding_region(node, aliases)]
+    if isinstance(node, ast.Match):
+        return _match_binding_regions(node, aliases)
+    return []
+
+
+def _direct_indirect_plugin_binding(node: ast.AST, aliases: ScopeAliases) -> bool:
+    """Return whether one operation directly creates the module plugin binding."""
+    factories, namespaces, dynamic_executors = aliases
+    pattern_binding = (isinstance(node, (ast.MatchAs, ast.MatchStar)) and node.name == "pytest_plugins") or (
+        isinstance(node, ast.MatchMapping) and node.rest == "pytest_plugins"
+    )
+    name_binding = (
+        isinstance(node, ast.Name) and node.id == "pytest_plugins" and isinstance(node.ctx, (ast.Store, ast.Del))
+    )
+    dynamic_execution = isinstance(node, ast.Call) and _is_dynamic_executor_reference(node.func, dynamic_executors)
+    return (
+        pattern_binding
+        or name_binding
+        or dynamic_execution
+        or _is_namespace_plugin_subscript(node, factories, namespaces)
+        or _is_namespace_plugin_mutator(node, factories, namespaces)
+    )
+
+
+def _compound_binding_can_bind_plugin(node: ast.AST, aliases: ScopeAliases, *, class_scope: bool) -> bool:
+    """Inspect operations inside one loop, context, comprehension, or match binding scope."""
+    for local_aliases, statements in _compound_binding_regions(node, aliases):
+        local_factories, local_namespaces, local_executors = local_aliases
+        for current in _same_scope_nodes(statements):
+            direct_binding = (
+                _is_global_namespace_plugin_operation(current, local_factories, local_namespaces, local_executors)
+                if class_scope
+                else _direct_indirect_plugin_binding(current, local_aliases)
+            )
+            if direct_binding or _compound_binding_can_bind_plugin(current, local_aliases, class_scope=class_scope):
+                return True
+            if isinstance(current, ast.ClassDef) and _class_body_can_bind_module_plugin(current, local_aliases):
+                return True
+    return False
 
 
 def _class_import_time_children(current: ast.AST, parent: ast.AST) -> list[ast.AST]:
@@ -402,13 +659,21 @@ def _class_import_time_children(current: ast.AST, parent: ast.AST) -> list[ast.A
     return list(ast.iter_child_nodes(current))
 
 
-def _class_body_can_bind_module_plugin(node: ast.ClassDef) -> bool:
+def _class_body_can_bind_module_plugin(node: ast.ClassDef, inherited_aliases: ScopeAliases | None = None) -> bool:
     """Inspect import-time class code without treating class locals as module globals."""
     factories, namespaces, dynamic_executors = _scope_aliases(node.body, {"globals"})
+    if inherited_aliases is not None:
+        inherited_factories, inherited_namespaces, inherited_executors = inherited_aliases
+        factories.update(inherited_factories)
+        namespaces.update(inherited_namespaces)
+        dynamic_executors.update(inherited_executors)
     pending: list[tuple[ast.AST, ast.AST]] = [(child, node) for child in reversed(node.body)]
     while pending:
         current, parent = pending.pop()
-        if _is_global_namespace_plugin_operation(current, factories, namespaces, dynamic_executors):
+        aliases = (factories, namespaces, dynamic_executors)
+        if _is_global_namespace_plugin_operation(
+            current, factories, namespaces, dynamic_executors
+        ) or _compound_binding_can_bind_plugin(current, aliases, class_scope=True):
             return True
         children = _class_import_time_children(current, parent)
         pending.extend((child, current) for child in reversed(children))
@@ -419,21 +684,9 @@ def _is_indirect_plugin_binding(
     node: ast.AST, factories: set[str], namespaces: set[str], dynamic_executors: set[str]
 ) -> bool:
     """Return whether an unresolved enclosing-scope operation binds the plugin global."""
-    pattern_binding = (isinstance(node, (ast.MatchAs, ast.MatchStar)) and node.name == "pytest_plugins") or (
-        isinstance(node, ast.MatchMapping) and node.rest == "pytest_plugins"
-    )
-    name_binding = (
-        isinstance(node, ast.Name) and node.id == "pytest_plugins" and isinstance(node.ctx, (ast.Store, ast.Del))
-    )
-    dynamic_execution = (
-        isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in dynamic_executors
-    )
-    return (
-        pattern_binding
-        or name_binding
-        or dynamic_execution
-        or _is_namespace_plugin_subscript(node, factories, namespaces)
-        or _is_namespace_plugin_mutator(node, factories, namespaces)
+    aliases = (factories, namespaces, dynamic_executors)
+    return _direct_indirect_plugin_binding(node, aliases) or _compound_binding_can_bind_plugin(
+        node, aliases, class_scope=False
     )
 
 
@@ -481,10 +734,12 @@ def _pytest_plugin_names(tree: ast.AST) -> list[list[str]]:
     plugin_names: list[list[str]] = []
     root_statements = tree.body if isinstance(tree, ast.Module) else []
     factories, namespaces, dynamic_executors = _scope_aliases(root_statements, {"globals", "locals", "vars"})
+    class_factories, _, _ = _scope_aliases(root_statements, {"globals"})
+    class_aliases = (class_factories, namespaces, dynamic_executors)
     scope_nodes: list[ast.AST] = list(reversed(tree.body)) if isinstance(tree, ast.Module) else []
     while scope_nodes:
         node = scope_nodes.pop()
-        definition_children = _definition_expression_children(node)
+        definition_children = _definition_expression_children(node, class_aliases)
         if definition_children is not None:
             scope_nodes.extend(reversed(definition_children))
             continue

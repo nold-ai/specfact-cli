@@ -322,8 +322,20 @@ def test_git_bound_red_proof_rejects_changed_pytest_plugin(tmp_path: Path) -> No
         'plugin_key = "pytest_plugins"\nglobals()[plugin_key] = ("tests.helpers.fixtures",)\n',
         'class Plugins:\n    globals().update(pytest_plugins=("tests.helpers.fixtures",))\n',
         'class Plugins:\n    eval("globals().update(pytest_plugins=(\\"tests.helpers.fixtures\\",))")\n',
+        'import builtins\nbuiltins.exec("pytest_plugins = (\\"tests.helpers.fixtures\\",)")\n',
+        'for namespace in [globals()]:\n    namespace["pytest_plugins"] = ("tests.helpers.fixtures",)\n',
+        'from contextlib import nullcontext\nwith nullcontext(globals()) as namespace:\n    namespace["pytest_plugins"] = ("tests.helpers.fixtures",)\n',
+        'import builtins\nclass Plugins:\n    builtins.exec("global pytest_plugins; pytest_plugins = (\\"tests.helpers.fixtures\\",)")\n',
     ],
-    ids=("computed-module-key", "class-body-module-mutation", "class-body-indirect-execution"),
+    ids=(
+        "computed-module-key",
+        "class-body-module-mutation",
+        "class-body-indirect-execution",
+        "qualified-builtins-execution",
+        "compound-namespace-alias",
+        "with-namespace-alias",
+        "class-enclosing-executor-alias",
+    ),
 )
 def test_git_bound_red_proof_rejects_dynamic_pytest_plugin_binding(tmp_path: Path, declaration: str) -> None:
     """Dynamic import-time plugin bindings must invalidate retained proof."""
@@ -413,6 +425,21 @@ def test_pytest_plugin_discovery_ignores_function_local_assignments() -> None:
         'class Plugins:\n    eval("globals().update(pytest_plugins=(\\"tests.helpers.hidden\\",))")\n',
         'class Plugins:\n    getattr(globals(), "update")(pytest_plugins=("tests.helpers.hidden",))\n',
         'class Plugins:\n    run = exec\n    run("global pytest_plugins; pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
+        'import builtins\nbuiltins.exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
+        'import builtins as runtime\nruntime.eval("globals().update(pytest_plugins=(\\"tests.helpers.hidden\\",))")\n',
+        'from builtins import exec as run\nrun("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
+        'for namespace in [globals()]:\n    namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+        'namespace, = (globals(),)\nnamespace.update(pytest_plugins=("tests.helpers.hidden",))\n',
+        '[namespace.setdefault("pytest_plugins", ("tests.helpers.hidden",)) for namespace in [globals()]]\n',
+        'from contextlib import nullcontext\nwith nullcontext(globals()) as namespace:\n    namespace.update(pytest_plugins=("tests.helpers.hidden",))\n',
+        'for run in [exec]:\n    run("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
+        'match globals():\n    case namespace:\n        namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+        'namespace = globals()\nclass Plugins:\n    namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+        'import builtins\nclass Plugins:\n    builtins.exec("global pytest_plugins; pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
+        'class Plugins:\n    match globals():\n        case namespace:\n            namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+        '__builtins__["exec"]("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
+        '__import__("builtins").eval("globals().update(pytest_plugins=(\\"tests.helpers.hidden\\",))")\n',
+        'import builtins\ngetattr(builtins, "exec")("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
     ],
 )
 def test_pytest_plugin_discovery_rejects_unresolved_module_bindings(source: str) -> None:
@@ -432,14 +459,23 @@ def test_pytest_plugin_discovery_rejects_function_default_module_binding() -> No
         module._pytest_plugin_names(ast.parse(source))
 
 
-def test_pytest_plugin_discovery_allows_read_only_class_globals_access() -> None:
-    """Read-only class inspection of the module namespace must remain compatible."""
+def test_pytest_plugin_discovery_allows_legitimate_namespace_access() -> None:
+    """Read-only and ordinary-mapping namespace patterns must remain compatible."""
     module = _load_provenance_module()
     source = (
         "class Metadata:\n"
         '    module_name = globals().get("__name__")\n'
         '    module_package = globals()["__package__"]\n'
         '    lookup = getattr(globals(), "get")\n'
+        'for namespace in [{}]:\n    namespace.update(pytest_plugins=("tests.helpers.local",))\n'
+        'namespace, = ({},)\nnamespace["pytest_plugins"] = ("tests.helpers.local",)\n'
+        '[item.setdefault("pytest_plugins", ("tests.helpers.local",)) for item in [{}]]\n'
+        "from contextlib import nullcontext\n"
+        'with nullcontext({}) as item:\n    item.update(pytest_plugins=("tests.helpers.local",))\n'
+        'match {}:\n    case item:\n        item.update(pytest_plugins=("tests.helpers.local",))\n'
+        '[item.get("__name__") for item in [globals()]]\n'
+        'item = {}\nitem.update(pytest_plugins=("tests.helpers.local",))\n'
+        'for safe, namespace in [({}, globals())]:\n    safe["pytest_plugins"] = ("tests.helpers.local",)\n'
     )
 
     assert module._pytest_plugin_names(ast.parse(source)) == []

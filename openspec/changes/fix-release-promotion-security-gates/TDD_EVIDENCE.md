@@ -425,3 +425,30 @@ the authoritative failing-before evidence or the candidate design.
   Ruff lint, and formatting are clean. The combined owning governance/security
   set passes all 284 tests, and the changed trust checker plus its tests produce
   zero Code Review findings.
+
+**Final-head qualified-executor and compound-alias review proof (2026-08-28):**
+
+- Fresh Codex review of signed commit
+  `87f9bd636c079fe522e752bf4c6f25ed3ffbcaba` identified qualified built-in
+  dynamic execution and compound namespace bindings as two remaining ways to
+  create an active module-level `pytest_plugins` binding without adding its
+  plugin to retained-proof inputs. The first focused red run failed eight cases
+  with 27 controls passing: `builtins.exec`/`eval`, their import aliases, loop,
+  destructuring, and eager-comprehension namespace aliases all reproduced.
+- Independent read-only boundary validation against the exact signed head
+  confirmed both P2 findings by comparing accepted static discovery with
+  runtime module mutation. It also identified context-manager and match
+  bindings, compound executor aliases, enclosing-module aliases used by class
+  bodies, and `__builtins__`/`__import__("builtins")` lookup as adjacent forms.
+  The incremental red run failed six added cases with 35 controls passing.
+- The scanner now tracks qualified built-in executors and applies scoped,
+  position-preserving alias propagation to assignments, loops, eager
+  comprehensions, context managers, match captures, and class bodies. It does
+  not leak comprehension aliases into later module statements or treat an
+  unrelated positional target as the module namespace.
+- The final provenance suite passes all 84 cases, including read-only access,
+  ordinary mappings, positional destructuring, later shadowing, function-body,
+  deferred-generator, and comprehension-target controls. Strict changed-file
+  BasedPyright and Ruff pass, and Code Review reports zero findings. The full
+  changed-scope governance/security set passes all 303 tests with the writable
+  UV cache and immutable modules fixture, and strict OpenSpec validation passes.

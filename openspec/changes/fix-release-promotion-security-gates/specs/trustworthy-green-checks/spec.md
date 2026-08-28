@@ -127,8 +127,12 @@ the surrounding module global. A class body that explicitly mutates the module
 namespace through `globals()`, a `global pytest_plugins` declaration, or dynamic
 execution SHALL fail closed because class bodies execute at import time.
 Aliases derived from the active module namespace or from its namespace factory
-SHALL receive the same treatment as direct access. Read-only class-body access
-to unrelated module globals SHALL remain compatible.
+SHALL receive the same treatment as direct access, including aliases introduced
+by destructuring, loops, eager comprehensions, context-manager bindings, and
+match captures. Qualified or aliased access to the built-in dynamic executors
+SHALL receive the same treatment as a direct `exec` or `eval` call. Read-only
+class-body access to unrelated module globals and compound bindings over
+ordinary mappings SHALL remain compatible.
 
 #### Scenario: Helper function contains an inactive local assignment
 
@@ -160,6 +164,17 @@ to unrelated module globals SHALL remain compatible.
 
 - **WHEN** module or class import-time code aliases the active namespace or its factory and the alias can write `pytest_plugins`
 - **THEN** retained proof fails closed with the same result as a direct namespace mutation
+
+#### Scenario: Compound binding aliases the module namespace
+
+- **WHEN** an import-time destructuring assignment, loop, eager comprehension, context-manager binding, or match capture resolves a target to the active module namespace
+- **AND** the scoped target can write `pytest_plugins`
+- **THEN** retained proof fails closed without treating unrelated positional targets or later shadowing assignments as namespace aliases
+
+#### Scenario: Qualified built-in executor mutates plugin state
+
+- **WHEN** import-time code reaches `exec` or `eval` through `builtins`, an import alias, `getattr`, `__builtins__`, or `__import__("builtins")`
+- **THEN** retained proof fails closed with the same result as a bare dynamic-execution call
 
 #### Scenario: Class body reads unrelated module metadata
 
