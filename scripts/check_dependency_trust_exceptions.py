@@ -43,6 +43,7 @@ PROHIBITED_EXECUTABLE_WHEEL_PACKAGES = frozenset({"nodejs-wheel-binaries"})
 BLOCKED_DEPENDENCY_RELEASES = frozenset({("pycparser", "3.0")})
 PACKAGE_NAME_SEPARATOR = re.compile(r"[-_.]+")
 CODE_REVIEW_PIN_PATTERN = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)==([^\s;\\]+)(?:\s*\\)?$")
+CODE_REVIEW_HASH_PATTERN = re.compile(r"^--hash=sha256:[0-9a-fA-F]{64}(?:\s*\\)?$")
 
 
 def _canonical_package_name(value: str) -> str:
@@ -235,22 +236,36 @@ def _parse_code_review_pins(contents: str) -> tuple[dict[str, str], list[str]]:
     """Parse the fail-closed exact-pin subset emitted by the frozen compiler."""
     errors: list[str] = []
     packages: dict[str, str] = {}
+    hashed_packages: set[str] = set()
+    current_package: str | None = None
     for line_number, line in enumerate(contents.splitlines(), start=1):
         stripped = line.strip()
-        if not stripped or stripped.startswith(("#", "--hash=sha256:")):
+        if not stripped or stripped.startswith("#"):
+            continue
+        if stripped.startswith("--hash=sha256:"):
+            if current_package is not None and CODE_REVIEW_HASH_PATTERN.fullmatch(stripped) is not None:
+                hashed_packages.add(current_package)
             continue
         match = CODE_REVIEW_PIN_PATTERN.fullmatch(stripped)
         if match is None:
             errors.append(f"Code Review lock line {line_number} must be an exact name==version pin")
+            current_package = None
             continue
         package_name = _canonical_package_name(match.group(1))
         version = match.group(2)
         if package_name in packages:
             errors.append(f"Code Review lock contains duplicate normalized package identity: {package_name}")
+            current_package = None
             continue
         packages[package_name] = version
+        current_package = package_name
     if not packages:
         errors.append("Code Review lock must contain at least one exact package pin")
+    for package_name, version in packages.items():
+        if package_name not in hashed_packages:
+            errors.append(
+                f"Code Review lock package {package_name}=={version} must include at least one valid SHA-256 hash"
+            )
     return packages, errors
 
 

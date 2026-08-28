@@ -50,12 +50,19 @@ The dependency-trust pre-commit gate SHALL run when either the Code Review
 input requirements or its frozen lock changes. It SHALL bind the lock to the
 exact input and apply the blocked-release, prohibited-package, and reviewed
 security-floor policy to the isolated graph before its tools are installed.
+Every exact package pin SHALL include at least one syntactically valid SHA-256
+artifact hash so the trust decision cannot accept an unhashed graph.
 
 #### Scenario: Only a Code Review dependency file changes
 
 - **WHEN** a commit stages `requirements/code-review/requirements.in` or `requirements/code-review/locked.txt`
 - **THEN** the dependency-trust gate is selected
 - **AND** it rejects stale input binding or a policy-blocked package present only in the Code Review lock
+
+#### Scenario: A Code Review pin omits a valid artifact hash
+
+- **WHEN** an exact package pin has no SHA-256 continuation or only a malformed digest
+- **THEN** the pre-install dependency-trust gate rejects the isolated lock
 
 ### Requirement: Frozen static analysis uses a non-vulnerable MCP binding
 

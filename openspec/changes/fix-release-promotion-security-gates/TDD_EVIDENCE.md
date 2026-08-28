@@ -409,3 +409,19 @@ the authoritative failing-before evidence or the candidate design.
   zero violations. The exact staged pre-commit pipeline passed at
   `test-authored` maturity with zero Code Review findings and no contract-input
   change requiring a contract-suite rerun.
+
+**Final-head per-pin hash review proof (2026-08-28):**
+
+- CodeRabbit review of signed commit
+  `1f0160d1e1cc59c9837a16db773626123d9cd059` identified that the
+  standard-library trust parser ignored hash continuations without requiring
+  one for every exact Code Review pin. The missing-hash and malformed-hash
+  selectors both failed before implementation while the existing 22 trust
+  controls remained available.
+- The parser now associates valid 64-hex SHA-256 continuations with the current
+  exact pin and reports every package lacking a valid digest. Both focused red
+  selectors and all 24 dependency-trust tests pass after implementation; the
+  checker still passes under `python -S`, and strict changed-file BasedPyright,
+  Ruff lint, and formatting are clean. The combined owning governance/security
+  set passes all 284 tests, and the changed trust checker plus its tests produce
+  zero Code Review findings.

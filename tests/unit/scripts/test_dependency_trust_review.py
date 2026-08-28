@@ -289,6 +289,25 @@ def test_code_review_lock_must_bind_to_its_exact_input(tmp_path: Path) -> None:
     assert "Code Review lock input SHA-256 binding does not match requirements.in" in errors
 
 
+@pytest.mark.parametrize("hash_line", [None, "--hash=sha256:not-a-digest"], ids=("missing", "malformed"))
+def test_code_review_lock_requires_valid_hash_for_every_pin(tmp_path: Path, hash_line: str | None) -> None:
+    """Every isolated exact pin must bind at least one valid distribution digest."""
+    input_path, lock_path = _write_code_review_graph(tmp_path, "pylint==4.0.7")
+    input_digest = hashlib.sha256(input_path.read_bytes()).hexdigest()
+    lines = [f"# input-sha256: {input_digest}", "pylint==4.0.7 \\"]
+    if hash_line is not None:
+        lines.append(f"    {hash_line}")
+    lock_path.write_text("\n".join([*lines, ""]), encoding="utf-8")
+    checker = _load_checker()
+
+    errors = checker._validate_frozen_dependency_policy(
+        code_review_input_path=input_path,
+        code_review_lock_path=lock_path,
+    )
+
+    assert "Code Review lock package pylint==4.0.7 must include at least one valid SHA-256 hash" in errors
+
+
 @pytest.mark.parametrize(
     ("package", "locked_version", "floor"),
     [("semgrep", "1.174.0", "1.175.0"), ("mcp", "1.23.3", "1.28.1")],
