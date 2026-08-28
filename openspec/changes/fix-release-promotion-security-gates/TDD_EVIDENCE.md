@@ -656,3 +656,16 @@ the authoritative failing-before evidence or the candidate design.
   executor owner, including imported-builtins aliases; literal non-executor
   attributes remain compatible. No mapped test file changes after the retained
   red source.
+- A fresh exact-head Codex review of `1161a52afee70046c90772f34d8adbc3b892a1ee`
+  found that a builtins owner nested in a container still lost authority:
+  `owners = (builtins,)` followed by `getattr(owners[0], "exec")` was accepted,
+  while Python created the active `pytest_plugins` binding. The focused S02
+  regression run against the test-only change exited 1 with one collected test
+  and `Failed: DID NOT RAISE ValueError`, preserving failing-first evidence
+  before the implementation is changed.
+- Independent read-only boundary review reproduced the same omission for direct
+  `.exec`/`.eval`, list/dictionary/nested containers, computed indices,
+  extracted aliases, conditional and helper/lambda-returned owners, and class
+  bodies. The S02 regression corpus now covers representative tuple, nested
+  mapping, helper, lambda, computed-attribute, and class-body paths; it remains
+  red against the unchanged production scanner.

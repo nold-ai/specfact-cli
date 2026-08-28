@@ -518,6 +518,7 @@ _LEGITIMATE_NAMESPACE_ACCESS_SOURCES = (
     'match dict(ns={}):\n    case {"ns": safe}:\n        safe["pytest_plugins"] = ("tests.helpers.local",)\n',
     'match dict(safe={}, ns=globals()):\n    case {"safe": safe}:\n        safe["pytest_plugins"] = ("tests.helpers.local",)\n',
     'getattr(__import__("builtins"), "print")("ordinary payload")\n',
+    'import builtins\nowners = (builtins,)\ngetattr(owners[0], "print")("ordinary payload")\n',
     'ordinary = {}\nupdate = ordinary.update\nupdate(pytest_plugins=("tests.helpers.local",))\n',
     'namespace = globals()\nupdate = namespace.update\nupdate(unrelated="value")\n',
     "namespace = globals()\nupdate = namespace.update\n",
@@ -554,6 +555,24 @@ def test_pytest_plugin_discovery_allows_legitimate_namespace_access() -> None:
 
 
 _BUILTINS_MODULE_ALIAS_SOURCES = (
+    'import builtins\nowners = (builtins,)\ngetattr(owners[0], "exec")("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
+    'import builtins\nowners = (builtins,)\nowners[0].exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
+    (
+        'import builtins\nowners = {"runtime": [builtins]}\n'
+        'owners["runtime"][0].eval("globals().update(pytest_plugins=(\\"tests.helpers.hidden\\",))")\n'
+    ),
+    (
+        "import builtins\ndef select(owner):\n    return owner\n"
+        'select(builtins).exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n'
+    ),
+    (
+        'import builtins\nexecutor = "exec"\n'
+        'getattr((lambda: builtins)(), executor)("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n'
+    ),
+    (
+        "import builtins\nclass Plugins:\n    owners = (builtins,)\n"
+        '    owners[0].exec("global pytest_plugins; pytest_plugins = (\\"tests.helpers.hidden\\",)")\n'
+    ),
     'runtime = __import__("builtins")\nexecutor = "exec"\ngetattr(runtime, executor)("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
     'import builtins\nruntime = builtins\nruntime.exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
     'import builtins\nruntime = builtins\nagain = runtime\nagain.eval("globals().update(pytest_plugins=(\\"tests.helpers.hidden\\",))")\n',
