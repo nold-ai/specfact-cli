@@ -373,13 +373,9 @@ def _is_builtins_mapping_executor(node: ast.AST | None, dynamic_executors: set[s
     )
 
 
-def _is_imported_builtins_executor(node: ast.AST | None, dynamic_executors: set[str]) -> bool:
-    """Return whether ``__import__('builtins')`` selects an executor."""
-    return (
-        isinstance(node, ast.Attribute)
-        and node.attr in {"exec", "eval"}
-        and _is_imported_builtins_owner(node.value, dynamic_executors)
-    )
+def _is_executor_attribute(node: ast.AST | None) -> bool:
+    """Return whether an attribute access may invoke dynamic execution."""
+    return isinstance(node, ast.Attribute) and node.attr in {"exec", "eval"}
 
 
 def _is_imported_builtins_owner(node: ast.AST | None, dynamic_executors: set[str]) -> bool:
@@ -393,23 +389,14 @@ def _is_imported_builtins_owner(node: ast.AST | None, dynamic_executors: set[str
     )
 
 
-def _is_getattr_executor(node: ast.AST | None, dynamic_executors: set[str]) -> bool:
-    """Return whether a static ``getattr`` selects a tracked executor."""
+def _is_getattr_executor(node: ast.AST | None) -> bool:
+    """Fail closed when ``getattr`` may select a dynamic executor."""
     if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "getattr"):
         return False
     if len(node.args) < 2:
         return False
-    owner_node = node.args[0]
-    owner = _qualified_name(owner_node)
     attribute = node.args[1]
-    if _is_dynamic_executor_owner_reference(owner_node, dynamic_executors):
-        return not isinstance(attribute, ast.Constant) or attribute.value in {"exec", "eval"}
-    return (
-        owner is not None
-        and isinstance(attribute, ast.Constant)
-        and isinstance(attribute.value, str)
-        and f"{owner}.{attribute.value}" in dynamic_executors
-    )
+    return not isinstance(attribute, ast.Constant) or attribute.value in {"exec", "eval"}
 
 
 def _is_dynamic_executor_reference(node: ast.AST | None, dynamic_executors: set[str]) -> bool:
@@ -417,8 +404,8 @@ def _is_dynamic_executor_reference(node: ast.AST | None, dynamic_executors: set[
     return (
         _qualified_name(node) in dynamic_executors
         or _is_builtins_mapping_executor(node, dynamic_executors)
-        or _is_imported_builtins_executor(node, dynamic_executors)
-        or _is_getattr_executor(node, dynamic_executors)
+        or _is_executor_attribute(node)
+        or _is_getattr_executor(node)
     )
 
 

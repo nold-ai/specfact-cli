@@ -659,14 +659,14 @@ the authoritative failing-before evidence or the candidate design.
 - A fresh exact-head Codex review of `1161a52afee70046c90772f34d8adbc3b892a1ee`
   found that a builtins owner nested in a container still lost authority:
   `owners = (builtins,)` followed by `getattr(owners[0], "exec")` was accepted,
-  while Python created the active `pytest_plugins` binding. The focused S02
+  while Python created the active `pytest_plugins` binding. The focused S05
   regression run against the test-only change exited 1 with one collected test
   and `Failed: DID NOT RAISE ValueError`, preserving failing-first evidence
   before the implementation is changed.
 - Independent read-only boundary review reproduced the same omission for direct
   `.exec`/`.eval`, list/dictionary/nested containers, computed indices,
   extracted aliases, conditional and helper/lambda-returned owners, and class
-  bodies. The S02 regression corpus now covers representative tuple, nested
+  bodies. The S05 regression corpus now covers representative tuple, nested
   mapping, helper, lambda, computed-attribute, and class-body paths; it remains
   red against the unchanged production scanner.
 - The implementation closes the unresolved-owner class rather than enumerating
@@ -674,8 +674,10 @@ the authoritative failing-before evidence or the candidate design.
   execution, and `getattr` fails closed for `exec`, `eval`, or a non-literal
   attribute regardless of how its owner was computed. Literal non-executor
   attributes such as the container-carried `builtins.print` control remain
-  accepted. The focused P1/control pair and all 116 provenance tests pass; Ruff
-  and BasedPyright report zero findings.
+  accepted. The focused P1/control pair and all 117 provenance tests pass. Ruff
+  and an authoritative-project BasedPyright run over the changed scanner and
+  provenance test report zero errors, warnings, or information findings; the
+  full repository lint gate also exits zero.
 - Protected Requirements run `33168438206` correctly rejected reuse of the
   prior one-time bootstrap namespace before executing proof. The P1 corpus is
   therefore isolated as new mapped selector `RELEASE-692-PYTEST-S05`; its fresh
@@ -686,5 +688,21 @@ the authoritative failing-before evidence or the candidate design.
   combined mapping
   `sha256:ce0d01e3e955956ef3996903c06f833e4dd4dea41ba0f4429e031c36be540d0b`,
   and plan digest
-  `sha256:71d424b8286dbbdcd3b79ecdc09c79ba44f548b4e1d4ae23be4ba929404732db`.
-  Its current `acceptance-stale` failure is the required pre-approval control.
+  `sha256:d34f6c1fe780ff4b31a5511ef8bcf901a53fb5edbc21c7c20f823b71d62afbc9`.
+  Its initial `acceptance-stale` result was the required pre-approval control.
+- The product owner approved the S05 source mapping at
+  `sha256:ad6eb0b285116476dfcf12a4444755f6d271df34d04ecdd9a076038e0e9bfe56`
+  and the combined mapping at
+  `sha256:ce0d01e3e955956ef3996903c06f833e4dd4dea41ba0f4429e031c36be540d0b`.
+  Protected Requirements run `33183259929` at production-free test source
+  `f9aa2cb8e2060347bb2d741a91265bec493a3086` then recorded
+  `required_maturity=red`, `observed_maturity=red`,
+  `delivery_status=failing-first-proven`, and
+  `implementation_evidence=failing-first-proven` with zero findings. Its JUnit
+  artifact contains 14 collected tests and 14 failures, and binds the S05
+  provenance test file at
+  `sha256:69bb3ba4efd506c2cd43dbba0d3d3a7a434720bcf599e02998e2d2f4b0fe3c51`.
+  Earlier runs `33168438206`, `33182490771`, and `33183027534` are diagnostic
+  only: they respectively proved namespace non-reuse, rejected a
+  production-descendant source, and exposed an incomplete parametrized base
+  selector before the exact selector was corrected.
