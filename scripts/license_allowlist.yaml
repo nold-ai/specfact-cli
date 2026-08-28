@@ -37,7 +37,7 @@ exceptions:
       runtime package or a module manifest. Phase 2: replace Pylint with the
       existing Ruff/BasedPyright review path once equivalent semantic findings
       and the full-enforcement report contract are preserved.
-    scope: dev-only
+    scope: code-review-only
 
   - package: docutils
     version: "0.23"

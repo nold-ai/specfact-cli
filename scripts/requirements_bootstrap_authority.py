@@ -151,10 +151,13 @@ def _valid_commit(authority: dict[str, object], commit: dict[str, object]) -> bo
 
 def _valid_run(authority: dict[str, object], run: dict[str, object]) -> bool:
     repository = _object(run.get("repository"))
+    red_branch = authority.get("red_branch", authority.get("head_branch"))
     return (
         run.get("id") == authority.get("run_id")
         and run.get("head_sha") == authority.get("red_commit")
-        and run.get("head_branch") == authority.get("head_branch")
+        and isinstance(red_branch, str)
+        and bool(red_branch)
+        and run.get("head_branch") == red_branch
         and run.get("event") == "pull_request"
         and run.get("status") == "completed"
         and run.get("conclusion") == "failure"
@@ -259,10 +262,11 @@ def _authority_findings(paths: AuthorityPaths, context: AuthorityContext) -> lis
     """Name each failed independent binding without exposing authority contents."""
     try:
         authority = _authority_from_comment(_read_object(paths.comment), context)
-    except ValueError as error:
-        return [str(error)]
     except (OSError, UnicodeDecodeError, json.JSONDecodeError):
         return ["authority-metadata"]
+    except ValueError as error:
+        diagnostic = str(error)
+        return [diagnostic] if diagnostic.startswith("authority-comment-") else ["authority-metadata"]
     findings: list[str] = []
     checks = (
         ("artifact-files", lambda: _valid_red_artifact(authority, paths.artifact_root)),

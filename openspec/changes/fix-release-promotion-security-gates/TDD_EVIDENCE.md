@@ -605,7 +605,8 @@ the authoritative failing-before evidence or the candidate design.
   fails closed. Only a generator with a statically empty outer list, tuple, set,
   or mapping skips deferred clauses; its outer iterable is still inspected.
 - The focused challenge passes all 59 cases and the full provenance suite
-  passes all 125. Controls preserve ordinary dictionary methods, uninvoked and
+  passes all 116 collected tests after the mapped selector consolidation.
+  Controls preserve ordinary dictionary methods, uninvoked and
   unrelated-key namespace method aliases, definite method shadowing, ordinary
   imports, and empty-generator consumption. Ruff and strict BasedPyright pass
   with zero findings.
