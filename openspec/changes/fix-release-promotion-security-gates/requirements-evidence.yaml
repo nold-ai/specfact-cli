@@ -216,3 +216,13 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_requirements_proof_provenance.py::test_pytest_plugin_discovery_allows_legitimate_namespace_access
+      - case_id: RELEASE-692-PYTEST-S05
+        scenario_id: retained-proof-binds-only-active-pytest-plugin-declarations
+        method: test
+        intent: "Prove computed or opaque owners cannot hide import-time dynamic-execution authority."
+        observable: >-
+          Tuple, nested mapping, helper, lambda, computed-attribute, and
+          class-body paths to exec or eval all invalidate retained proof.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_provenance.py::test_pytest_plugin_discovery_rejects_computed_builtins_owner_expressions
