@@ -139,11 +139,13 @@ namespace through `globals()`, a `global pytest_plugins` declaration, or dynamic
 execution SHALL fail closed because class bodies execute at import time.
 Aliases derived from the active module namespace or from its namespace factory
 SHALL receive the same treatment as direct access, including aliases introduced
-by destructuring, loops, eager comprehensions, context-manager bindings, and
-match captures. Mapping-pattern captures SHALL retain their statically
-corresponding subject values. Qualified or aliased access to the built-in
-dynamic executors, including chained aliases of the imported `builtins` module,
-SHALL receive the same treatment as a direct `exec` or `eval` call. Definite
+by fixed or starred destructuring, loops, eager comprehensions, context-manager
+bindings, and match captures. Mapping-pattern captures SHALL retain their
+statically corresponding subject values and fail closed when an opaque subject
+can contain the active namespace. Qualified or aliased access to the built-in
+dynamic executors, including chained aliases and `getattr` access through an
+imported `builtins` expression, SHALL receive the same treatment as a direct
+`exec` or `eval` call. Definite
 later assignments SHALL replace earlier alias bindings in statement order,
 while conditional assignments SHALL remain fail-closed. Read-only class-body
 access to unrelated module globals and compound bindings over ordinary mappings
@@ -154,6 +156,12 @@ SHALL remain compatible.
 - **WHEN** module scope or an import-time class body applies `|=` to an alias of the active module namespace with a mapping that can bind `pytest_plugins`
 - **THEN** retained proof fails closed rather than omitting the dynamically registered plugin
 - **AND** the same operation over an ordinary mapping or with statically unrelated keys remains compatible
+
+#### Scenario: Indirect binding forms retain namespace and executor authority
+
+- **WHEN** starred destructuring binds the active module namespace, a mapping pattern captures from an opaque namespace-bearing subject, or `getattr` selects an executor from `__import__("builtins")`
+- **THEN** retained proof fails closed rather than omitting the dynamically registered plugin
+- **AND** positionally ordinary starred targets, opaque subjects without namespace authority, and non-executor builtins attributes remain compatible
 
 #### Scenario: Helper function contains an inactive local assignment
 

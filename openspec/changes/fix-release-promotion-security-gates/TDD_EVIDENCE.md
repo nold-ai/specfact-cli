@@ -544,3 +544,41 @@ the authoritative failing-before evidence or the candidate design.
   initially reported one complexity warning and then one redundant-branch info;
   both were refactored without changing behavior, and the final Code Review
   result is `PASS` with zero findings.
+
+**Final-head extended-binding review proof (2026-08-28):**
+
+- Complete review-thread readback after signed commit
+  `05de7b725172888b78a0ffddbbf381a321549680` surfaced three earlier Codex
+  comments that had not appeared in the prior unresolved-thread result:
+  starred destructuring, non-literal mapping-pattern subjects, and `getattr`
+  over `__import__("builtins")`. Direct scanner/runtime comparison reproduced
+  all three: static discovery returned no plugins while Python created the
+  active module binding.
+- Three independent read-only reviews validated the exact-head findings and
+  traced the omission through retained-proof freshness. The starred and
+  mapping cases were rated medium/P2. The imported-builtins getter was rated
+  high/P1 after a temporary Git history reproduced acceptance of stale proof;
+  its preconditions remain contributor-controlled test support plus a changed
+  plugin, rather than independent merge authority.
+- The initial focused red run failed six cases with 46 controls passing. The
+  expanded adjacent challenge failed 12 cases with the same 46 controls:
+  prefix, suffix, nested, and starred-container namespace authority; literal
+  and computed imported-builtins getters, an imported-owner alias, and a class
+  body; plus keyword, pair-list, generic-call, and prebound mapping subjects.
+- Extended-unpacking analysis now correlates fixed targets from both ends and
+  retains authority inside the starred container. Simple `dict(...)` subjects
+  are correlated by literal key; unprovable non-rest mapping captures fail
+  closed. Literal and computed executor access plus aliases of a direct
+  `__import__("builtins")` owner retain dynamic-execution authority.
+- The final challenge passes all 58 cases and the parametrized full provenance
+  suite passes all 125. Controls preserve ordinary starred values, positionally unrelated
+  namespace values, simple safe `dict(...)` captures, copied mapping rests,
+  definite shadows, and non-executor imported-builtins attributes. The full
+  owning governance/security set passes all 347 tests. Strict OpenSpec,
+  BasedPyright, Ruff, pinned Semgrep over six rules, and Bandit medium/high all
+  pass with zero findings.
+- The exact staged Code Review initially rejected the candidate for one mapping
+  parser complexity error, two helper/test-shape warnings, and one info. The
+  parser, executor-owner propagation, and compatibility controls were split
+  into focused helpers/parameters; the final staged review passes with zero
+  findings and no suppression.

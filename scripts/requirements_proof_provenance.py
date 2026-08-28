@@ -271,12 +271,40 @@ ScopeAliases = tuple[set[str], set[str], set[str]]
 _UNRESOLVED_MAPPING_KEY = object()
 
 
+def _starred_sequence_bindings(target: ast.Tuple | ast.List, value: ast.Tuple | ast.List) -> list[ScopeBinding] | None:
+    """Correlate Python extended-unpacking targets with their source values."""
+    starred_indexes = [index for index, item in enumerate(target.elts) if isinstance(item, ast.Starred)]
+    if len(starred_indexes) != 1 or len(value.elts) < len(target.elts) - 1:
+        return None
+    starred_index = starred_indexes[0]
+    suffix_count = len(target.elts) - starred_index - 1
+    bindings = [
+        binding
+        for item, source in zip(target.elts[:starred_index], value.elts[:starred_index], strict=True)
+        for binding in _target_bindings(item, source)
+    ]
+    starred_end = len(value.elts) - suffix_count
+    starred_value = ast.List(elts=value.elts[starred_index:starred_end], ctx=ast.Load())
+    bindings.extend(_target_bindings(target.elts[starred_index], starred_value))
+    if suffix_count:
+        bindings.extend(
+            binding
+            for item, source in zip(target.elts[-suffix_count:], value.elts[-suffix_count:], strict=True)
+            for binding in _target_bindings(item, source)
+        )
+    return bindings
+
+
 def _target_bindings(target: ast.AST, value: ast.AST | None) -> list[ScopeBinding]:
     """Pair destructuring targets with statically corresponding source values."""
     if isinstance(target, ast.Name):
         return [({target.id}, value)]
     if isinstance(target, ast.Starred):
         return _target_bindings(target.value, value)
+    if isinstance(target, (ast.Tuple, ast.List)) and isinstance(value, (ast.Tuple, ast.List)):
+        starred_bindings = _starred_sequence_bindings(target, value)
+        if starred_bindings is not None:
+            return starred_bindings
     if (
         isinstance(target, (ast.Tuple, ast.List))
         and isinstance(value, (ast.Tuple, ast.List))
@@ -322,15 +350,18 @@ def _is_builtins_mapping_executor(node: ast.AST | None) -> bool:
 
 def _is_imported_builtins_executor(node: ast.AST | None) -> bool:
     """Return whether ``__import__('builtins')`` selects an executor."""
+    return isinstance(node, ast.Attribute) and node.attr in {"exec", "eval"} and _is_imported_builtins_owner(node.value)
+
+
+def _is_imported_builtins_owner(node: ast.AST | None) -> bool:
+    """Return whether an expression imports the builtins module directly."""
     return (
-        isinstance(node, ast.Attribute)
-        and node.attr in {"exec", "eval"}
-        and isinstance(node.value, ast.Call)
-        and isinstance(node.value.func, ast.Name)
-        and node.value.func.id == "__import__"
-        and bool(node.value.args)
-        and isinstance(node.value.args[0], ast.Constant)
-        and node.value.args[0].value == "builtins"
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "__import__"
+        and bool(node.args)
+        and isinstance(node.args[0], ast.Constant)
+        and node.args[0].value == "builtins"
     )
 
 
@@ -340,8 +371,11 @@ def _is_getattr_executor(node: ast.AST | None, dynamic_executors: set[str]) -> b
         return False
     if len(node.args) < 2:
         return False
-    owner = _qualified_name(node.args[0])
+    owner_node = node.args[0]
+    owner = _qualified_name(owner_node)
     attribute = node.args[1]
+    if _is_imported_builtins_owner(owner_node):
+        return not isinstance(attribute, ast.Constant) or attribute.value in {"exec", "eval"}
     return (
         owner is not None
         and isinstance(attribute, ast.Constant)
@@ -362,6 +396,8 @@ def _is_dynamic_executor_reference(node: ast.AST | None, dynamic_executors: set[
 
 def _is_dynamic_executor_owner_reference(node: ast.AST | None, dynamic_executors: set[str]) -> bool:
     """Return whether an expression names a module that owns a tracked executor."""
+    if _is_imported_builtins_owner(node):
+        return True
     source_name = _qualified_name(node)
     return source_name is not None and any(
         f"{source_name}.{executor}" in dynamic_executors for executor in ("exec", "eval")
@@ -388,17 +424,30 @@ def _propagate_scope_aliases(binding: ScopeBinding, aliases: ScopeAliases) -> No
         factories.update(target_names)
     if source_name in namespaces:
         namespaces.update(target_names)
+    if _contains_namespace_authority(value, factories, namespaces):
+        namespaces.update(target_names)
     if _is_dynamic_executor_reference(value, dynamic_executors):
         dynamic_executors.update(target_names)
-    if _is_dynamic_executor_owner_reference(value, dynamic_executors):
-        dynamic_executors.update(
-            f"{target}.{executor}"
-            for target in target_names
-            for executor in ("exec", "eval")
-            if source_name is not None and f"{source_name}.{executor}" in dynamic_executors
-        )
+    _propagate_executor_owner_aliases(target_names, value, source_name, dynamic_executors)
     if _is_zero_argument_call_to(value, factories):
         namespaces.update(target_names)
+
+
+def _propagate_executor_owner_aliases(
+    target_names: set[str], value: ast.AST | None, source_name: str | None, dynamic_executors: set[str]
+) -> None:
+    """Propagate exec/eval members from one imported builtins owner."""
+    if not _is_dynamic_executor_owner_reference(value, dynamic_executors):
+        return
+    if _is_imported_builtins_owner(value):
+        owners = {"exec", "eval"}
+    else:
+        owners = {
+            executor
+            for executor in ("exec", "eval")
+            if source_name is not None and f"{source_name}.{executor}" in dynamic_executors
+        }
+    dynamic_executors.update(f"{target}.{executor}" for target in target_names for executor in owners)
 
 
 def _dynamic_executor_import_names(node: ast.AST) -> set[str]:
@@ -438,12 +487,24 @@ def _is_namespace_reference(node: ast.AST, factories: set[str], namespaces: set[
     """Return whether an expression resolves to the active module namespace."""
     if isinstance(node, ast.Name):
         return node.id in namespaces
+    if isinstance(node, ast.Subscript) and not (
+        isinstance(node.slice, ast.Constant) and isinstance(node.slice.value, str)
+    ):
+        return _is_namespace_reference(node.value, factories, namespaces)
     return (
         isinstance(node, ast.Call)
         and isinstance(node.func, ast.Name)
         and node.func.id in factories
         and not node.args
         and not node.keywords
+    )
+
+
+def _contains_namespace_authority(node: ast.AST | None, factories: set[str], namespaces: set[str]) -> bool:
+    """Return whether an expression contains a tracked namespace value."""
+    return node is not None and any(
+        child is not node and _is_namespace_reference(child, factories, namespaces)
+        for child in _same_scope_nodes([node])
     )
 
 
@@ -591,17 +652,60 @@ def _resolved_mapping_bindings(
 
 def _mapping_pattern_bindings(pattern: ast.pattern, value: ast.AST) -> list[ScopeBinding] | None:
     """Return conservative mapping captures when both AST nodes are mappings."""
-    if not isinstance(pattern, ast.MatchMapping) or not isinstance(value, ast.Dict):
+    if not isinstance(pattern, ast.MatchMapping):
         return None
+    mapping_value = value if isinstance(value, ast.Dict) else _dict_call_mapping(value)
+    if mapping_value is None:
+        capture_names = _pattern_value_capture_names(pattern)
+        if not capture_names:
+            return []
+        unresolved_namespace = ast.Call(func=ast.Name(id="globals", ctx=ast.Load()), args=[], keywords=[])
+        return [(capture_names, unresolved_namespace)]
     pattern_keys = [_literal_mapping_key(key) for key in pattern.keys]
-    value_keys = [_literal_mapping_key(key) for key in value.keys]
+    value_keys = [_literal_mapping_key(key) for key in mapping_value.keys]
     resolved = all(key is not _UNRESOLVED_MAPPING_KEY for key in [*pattern_keys, *value_keys])
     if resolved:
-        return _resolved_mapping_bindings(pattern, value, pattern_keys, value_keys)
+        return _resolved_mapping_bindings(pattern, mapping_value, pattern_keys, value_keys)
     capture_names = _pattern_value_capture_names(pattern)
     if not capture_names:
         return []
-    return [(capture_names, candidate) for candidate in _mapping_value_candidates(value)]
+    return [(capture_names, candidate) for candidate in _mapping_value_candidates(mapping_value)]
+
+
+def _dict_call_mapping(node: ast.AST) -> ast.Dict | None:
+    """Return the statically correlated mapping for a simple ``dict`` call."""
+    if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "dict"):
+        return None
+    if len(node.args) > 1 or any(keyword.arg is None for keyword in node.keywords):
+        return None
+    positional_entries = _dict_positional_entries(node.args)
+    if positional_entries is None:
+        return None
+    keys, values = positional_entries
+    keys.extend(ast.Constant(keyword.arg) for keyword in node.keywords)
+    values.extend(keyword.value for keyword in node.keywords)
+    return ast.Dict(keys=keys, values=values)
+
+
+def _dict_positional_entries(args: list[ast.expr]) -> tuple[list[ast.expr | None], list[ast.expr]] | None:
+    """Return keys and values from zero or one static ``dict`` argument."""
+    if not args:
+        return [], []
+    positional = args[0]
+    if isinstance(positional, ast.Dict):
+        return list(positional.keys), list(positional.values)
+    if not isinstance(positional, (ast.List, ast.Tuple)):
+        return None
+    pairs = [_dict_pair_entries(pair) for pair in positional.elts]
+    if any(pair is None for pair in pairs):
+        return None
+    typed_pairs = [pair for pair in pairs if pair is not None]
+    return [pair[0] for pair in typed_pairs], [pair[1] for pair in typed_pairs]
+
+
+def _dict_pair_entries(node: ast.expr) -> tuple[ast.expr, ast.expr] | None:
+    """Return one static key/value pair accepted by ``dict``."""
+    return (node.elts[0], node.elts[1]) if isinstance(node, (ast.List, ast.Tuple)) and len(node.elts) == 2 else None
 
 
 def _match_pattern_bindings(pattern: ast.pattern, value: ast.AST) -> list[ScopeBinding]:

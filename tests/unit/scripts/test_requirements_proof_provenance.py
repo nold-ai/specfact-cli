@@ -432,6 +432,10 @@ def test_pytest_plugin_discovery_ignores_function_local_assignments() -> None:
         'from builtins import exec as run\nrun("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
         'for namespace in [globals()]:\n    namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
         'namespace, = (globals(),)\nnamespace.update(pytest_plugins=("tests.helpers.hidden",))\n',
+        'namespace, *rest = [globals(), {}, {}]\nnamespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+        '*rest, namespace = [{}, {}, globals()]\nnamespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+        '(*rest, namespace), safe = ([{}, {}, globals()], {})\nnamespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+        '*rest, safe = [globals(), {}]\nrest[0]["pytest_plugins"] = ("tests.helpers.hidden",)\n',
         '[namespace.setdefault("pytest_plugins", ("tests.helpers.hidden",)) for namespace in [globals()]]\n',
         'from contextlib import nullcontext\nwith nullcontext(globals()) as namespace:\n    namespace.update(pytest_plugins=("tests.helpers.hidden",))\n',
         'for run in [exec]:\n    run("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
@@ -441,6 +445,10 @@ def test_pytest_plugin_discovery_ignores_function_local_assignments() -> None:
         'class Plugins:\n    match globals():\n        case namespace:\n            namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
         '__builtins__["exec"]("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
         '__import__("builtins").eval("globals().update(pytest_plugins=(\\"tests.helpers.hidden\\",))")\n',
+        'getattr(__import__("builtins"), "exec")("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
+        'executor = "exec"\ngetattr(__import__("builtins"), executor)("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
+        'runtime = __import__("builtins")\nruntime.exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
+        'class Plugins:\n    getattr(__import__("builtins"), "eval")("globals().update(pytest_plugins=(\\"tests.helpers.hidden\\",))")\n',
         'import builtins\ngetattr(builtins, "exec")("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
     ],
 )
@@ -461,10 +469,9 @@ def test_pytest_plugin_discovery_rejects_function_default_module_binding() -> No
         module._pytest_plugin_names(ast.parse(source))
 
 
-def test_pytest_plugin_discovery_allows_legitimate_namespace_access() -> None:
-    """Read-only and ordinary-mapping namespace patterns must remain compatible."""
-    module = _load_provenance_module()
-    sources = (
+@pytest.mark.parametrize(
+    "source",
+    [
         (
             "class Metadata:\n"
             '    module_name = globals().get("__name__")\n'
@@ -488,6 +495,11 @@ def test_pytest_plugin_discovery_allows_legitimate_namespace_access() -> None:
         'ordinary = {}\nordinary |= {"pytest_plugins": ("tests.helpers.local",)}\n',
         'namespace = globals()\nnamespace |= {"unrelated": "value"}\n',
         'namespace = globals()\nnamespace = {}\nnamespace |= {"pytest_plugins": ("tests.helpers.local",)}\n',
+        'safe, *rest = [{}, globals(), {}]\nsafe["pytest_plugins"] = ("tests.helpers.local",)\n',
+        '*rest, safe = [globals(), {}, {}]\nsafe["pytest_plugins"] = ("tests.helpers.local",)\n',
+        'match dict(ns={}):\n    case {"ns": safe}:\n        safe["pytest_plugins"] = ("tests.helpers.local",)\n',
+        'match dict(safe={}, ns=globals()):\n    case {"safe": safe}:\n        safe["pytest_plugins"] = ("tests.helpers.local",)\n',
+        'getattr(__import__("builtins"), "print")("ordinary payload")\n',
         (
             'match {"ns": {}}:\n    case {"ns": captured}:\n'
             '        captured["pytest_plugins"] = ("tests.helpers.local",)\n'
@@ -496,10 +508,13 @@ def test_pytest_plugin_discovery_allows_legitimate_namespace_access() -> None:
             "match {None: {}}:\n    case {None: captured}:\n"
             '        captured["pytest_plugins"] = ("tests.helpers.local",)\n'
         ),
-    )
+    ],
+)
+def test_pytest_plugin_discovery_allows_legitimate_namespace_access(source: str) -> None:
+    """Read-only and ordinary-mapping namespace patterns must remain compatible."""
+    module = _load_provenance_module()
 
-    for source in sources:
-        assert module._pytest_plugin_names(ast.parse(source)) == []
+    assert module._pytest_plugin_names(ast.parse(source)) == []
 
 
 @pytest.mark.parametrize(
@@ -525,6 +540,10 @@ def test_pytest_plugin_discovery_rejects_builtins_module_aliases(source: str) ->
         'match {"outer": {"ns": globals()}}:\n    case {"outer": {"ns": namespace}}:\n        namespace.setdefault("pytest_plugins", ("tests.helpers.hidden",))\n',
         'match {None: globals()}:\n    case {None: namespace}:\n        namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
         'match {**{"ns": globals()}}:\n    case {"ns": namespace}:\n        namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+        'match dict(ns=globals()):\n    case {"ns": namespace}:\n        namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+        'match make_mapping(globals()):\n    case {"ns": namespace}:\n        namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+        'subject = {"ns": globals()}\nmatch subject:\n    case {"ns": namespace}:\n        namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+        'match dict([("ns", globals())]):\n    case {"ns": namespace}:\n        namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
     ],
 )
 def test_pytest_plugin_discovery_rejects_mapping_pattern_namespace_captures(source: str) -> None:
