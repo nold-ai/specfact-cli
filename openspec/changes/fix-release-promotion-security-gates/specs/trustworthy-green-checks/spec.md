@@ -140,12 +140,16 @@ execution SHALL fail closed because class bodies execute at import time.
 Aliases derived from the active module namespace or from its namespace factory
 SHALL receive the same treatment as direct access, including aliases introduced
 by fixed or starred destructuring, loops, eager comprehensions, context-manager
-bindings, and match captures. Mapping-pattern captures SHALL retain their
+bindings, match captures, nested authority-bearing containers, and bound
+namespace-mutator methods. Mapping-pattern captures SHALL retain their
 statically corresponding subject values and fail closed when an opaque subject
 can contain the active namespace. Qualified or aliased access to the built-in
 dynamic executors, including chained aliases and `getattr` access through an
-imported `builtins` expression, SHALL receive the same treatment as a direct
-`exec` or `eval` call. Definite
+imported `builtins` expression, aliases of `__import__`, and executor lookup
+through the imported module mapping, SHALL receive the same treatment as a
+direct `exec` or `eval` call. A generator expression whose outer iterable is
+statically empty SHALL remain compatible because none of its deferred clauses
+can execute. Definite
 later assignments SHALL replace earlier alias bindings in statement order,
 while conditional assignments SHALL remain fail-closed. Read-only class-body
 access to unrelated module globals and compound bindings over ordinary mappings
@@ -162,6 +166,18 @@ SHALL remain compatible.
 - **WHEN** starred destructuring binds the active module namespace, a mapping pattern captures from an opaque namespace-bearing subject, or `getattr` selects an executor from `__import__("builtins")`
 - **THEN** retained proof fails closed rather than omitting the dynamically registered plugin
 - **AND** positionally ordinary starred targets, opaque subjects without namespace authority, and non-executor builtins attributes remain compatible
+
+#### Scenario: Indirect authority remains active through containers and bound methods
+
+- **WHEN** import-time code reaches the active namespace through a nested authority-bearing container or invokes a bound alias of `update`, `setdefault`, `__setitem__`, or `__ior__`
+- **THEN** a call that can bind `pytest_plugins` invalidates retained proof
+- **AND** ordinary mappings, uninvoked method aliases, and calls with statically unrelated keys remain compatible
+
+#### Scenario: Statically empty generator defers namespace mutation forever
+
+- **WHEN** module import creates a generator whose outer iterable is statically empty and whose deferred clauses could otherwise mutate the active namespace
+- **THEN** retained proof remains valid because no deferred clause can execute
+- **AND** mutation in the eagerly evaluated outer iterable still invalidates retained proof
 
 #### Scenario: Helper function contains an inactive local assignment
 
@@ -202,7 +218,7 @@ SHALL remain compatible.
 
 #### Scenario: Qualified built-in executor mutates plugin state
 
-- **WHEN** import-time code reaches `exec` or `eval` through `builtins`, an import alias, `getattr`, `__builtins__`, or `__import__("builtins")`
+- **WHEN** import-time code reaches `exec` or `eval` through `builtins`, an import alias, `getattr`, `__builtins__`, `__import__("builtins")`, an alias of `__import__`, or the imported module's mapping
 - **THEN** retained proof fails closed with the same result as a bare dynamic-execution call
 
 #### Scenario: Imported builtins module is re-aliased

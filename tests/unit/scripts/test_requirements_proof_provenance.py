@@ -363,6 +363,20 @@ def test_git_bound_red_proof_rejects_dynamic_pytest_plugin_binding(tmp_path: Pat
     ]
 
 
+_FINAL_REVIEW_PLUGIN_BINDINGS = (
+    '*rest, safe = [{"ns": globals()}, {}]\nrest[0]["ns"]["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+    'namespace = globals()\nupdate = namespace.update\nupdate(pytest_plugins=("tests.helpers.hidden",))\n',
+    'setter = globals().__setitem__\nsetter("pytest_plugins", ("tests.helpers.hidden",))\n',
+    'default = getattr(globals(), "setdefault")\nagain = default\nagain("pytest_plugins", ("tests.helpers.hidden",))\n',
+    'class Plugins:\n    update = globals().update\n    update(pytest_plugins=("tests.helpers.hidden",))\n',
+    'loader = __import__\nruntime = loader("builtins")\nruntime.exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
+    'module_name = "builtins"\nruntime = __import__(module_name)\nruntime.eval("globals().update(pytest_plugins=(\\"tests.helpers.hidden\\",))")\n',
+    '__import__("builtins").__dict__["exec"]("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
+    'vars(__import__("builtins"))["eval"]("globals().update(pytest_plugins=(\\"tests.helpers.hidden\\",))")\n',
+    'delayed = (value for value in globals().update(pytest_plugins=("tests.helpers.hidden",)))\n',
+)
+
+
 def test_pytest_plugin_discovery_ignores_function_local_assignments() -> None:
     """Module control flow counts, while function-local plugin assignments do not."""
     module = _load_provenance_module()
@@ -389,6 +403,8 @@ def test_pytest_plugin_discovery_ignores_function_local_assignments() -> None:
         "def helper() -> None:\n"
         '    pytest_plugins = ("tests.helpers.inactive",)\n'
         '    exec("pytest_plugins = (\\"tests.helpers.also_inactive\\",)")\n'
+        'delayed = (globals().update(pytest_plugins=("tests.helpers.deferred",)) for _ in ())\n'
+        "list(delayed)\n"
     )
 
     assert module._pytest_plugin_names(tree) == [
@@ -397,6 +413,9 @@ def test_pytest_plugin_discovery_ignores_function_local_assignments() -> None:
         ["tests", "helpers", "tried"],
         ["tests", "helpers", "annotated"],
     ]
+    for source in _FINAL_REVIEW_PLUGIN_BINDINGS:
+        with pytest.raises(ValueError, match=r"^prior-red-proof-invalid$"):
+            module._pytest_plugin_names(ast.parse(source))
 
 
 @pytest.mark.parametrize(
@@ -436,6 +455,7 @@ def test_pytest_plugin_discovery_ignores_function_local_assignments() -> None:
         '*rest, namespace = [{}, {}, globals()]\nnamespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
         '(*rest, namespace), safe = ([{}, {}, globals()], {})\nnamespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
         '*rest, safe = [globals(), {}]\nrest[0]["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+        *_FINAL_REVIEW_PLUGIN_BINDINGS,
         '[namespace.setdefault("pytest_plugins", ("tests.helpers.hidden",)) for namespace in [globals()]]\n',
         'from contextlib import nullcontext\nwith nullcontext(globals()) as namespace:\n    namespace.update(pytest_plugins=("tests.helpers.hidden",))\n',
         'for run in [exec]:\n    run("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
@@ -469,52 +489,60 @@ def test_pytest_plugin_discovery_rejects_function_default_module_binding() -> No
         module._pytest_plugin_names(ast.parse(source))
 
 
-@pytest.mark.parametrize(
-    "source",
-    [
-        (
-            "class Metadata:\n"
-            '    module_name = globals().get("__name__")\n'
-            '    module_package = globals()["__package__"]\n'
-            '    lookup = getattr(globals(), "get")\n'
-            'for namespace in [{}]:\n    namespace.update(pytest_plugins=("tests.helpers.local",))\n'
-            'namespace, = ({},)\nnamespace["pytest_plugins"] = ("tests.helpers.local",)\n'
-            '[item.setdefault("pytest_plugins", ("tests.helpers.local",)) for item in [{}]]\n'
-            "from contextlib import nullcontext\n"
-            'with nullcontext({}) as item:\n    item.update(pytest_plugins=("tests.helpers.local",))\n'
-            'match {}:\n    case item:\n        item.update(pytest_plugins=("tests.helpers.local",))\n'
-            '[item.get("__name__") for item in [globals()]]\n'
-            'item = {}\nitem.update(pytest_plugins=("tests.helpers.local",))\n'
-            'for safe, namespace in [({}, globals())]:\n    safe["pytest_plugins"] = ("tests.helpers.local",)\n'
-        ),
-        (
-            'namespace = globals()\nnamespace = {}\nnamespace["pytest_plugins"] = ("tests.helpers.local",)\n'
-            'import builtins\nruntime = builtins\nruntime = object()\nruntime.exec("ordinary payload")\n'
-            'run = exec\nrun = print\nrun("ordinary payload")\n'
-        ),
-        'ordinary = {}\nordinary |= {"pytest_plugins": ("tests.helpers.local",)}\n',
-        'namespace = globals()\nnamespace |= {"unrelated": "value"}\n',
-        'namespace = globals()\nnamespace = {}\nnamespace |= {"pytest_plugins": ("tests.helpers.local",)}\n',
-        'safe, *rest = [{}, globals(), {}]\nsafe["pytest_plugins"] = ("tests.helpers.local",)\n',
-        '*rest, safe = [globals(), {}, {}]\nsafe["pytest_plugins"] = ("tests.helpers.local",)\n',
-        'match dict(ns={}):\n    case {"ns": safe}:\n        safe["pytest_plugins"] = ("tests.helpers.local",)\n',
-        'match dict(safe={}, ns=globals()):\n    case {"safe": safe}:\n        safe["pytest_plugins"] = ("tests.helpers.local",)\n',
-        'getattr(__import__("builtins"), "print")("ordinary payload")\n',
-        (
-            'match {"ns": {}}:\n    case {"ns": captured}:\n'
-            '        captured["pytest_plugins"] = ("tests.helpers.local",)\n'
-            'match {"ns": globals()}:\n    case {"ns": _, **rest}:\n'
-            '        rest["pytest_plugins"] = ("tests.helpers.local",)\n'
-            "match {None: {}}:\n    case {None: captured}:\n"
-            '        captured["pytest_plugins"] = ("tests.helpers.local",)\n'
-        ),
-    ],
+_LEGITIMATE_NAMESPACE_ACCESS_SOURCES = (
+    (
+        "class Metadata:\n"
+        '    module_name = globals().get("__name__")\n'
+        '    module_package = globals()["__package__"]\n'
+        '    lookup = getattr(globals(), "get")\n'
+        'for namespace in [{}]:\n    namespace.update(pytest_plugins=("tests.helpers.local",))\n'
+        'namespace, = ({},)\nnamespace["pytest_plugins"] = ("tests.helpers.local",)\n'
+        '[item.setdefault("pytest_plugins", ("tests.helpers.local",)) for item in [{}]]\n'
+        "from contextlib import nullcontext\n"
+        'with nullcontext({}) as item:\n    item.update(pytest_plugins=("tests.helpers.local",))\n'
+        'match {}:\n    case item:\n        item.update(pytest_plugins=("tests.helpers.local",))\n'
+        '[item.get("__name__") for item in [globals()]]\n'
+        'item = {}\nitem.update(pytest_plugins=("tests.helpers.local",))\n'
+        'for safe, namespace in [({}, globals())]:\n    safe["pytest_plugins"] = ("tests.helpers.local",)\n'
+    ),
+    (
+        'namespace = globals()\nnamespace = {}\nnamespace["pytest_plugins"] = ("tests.helpers.local",)\n'
+        'import builtins\nruntime = builtins\nruntime = object()\nruntime.exec("ordinary payload")\n'
+        'run = exec\nrun = print\nrun("ordinary payload")\n'
+    ),
+    'ordinary = {}\nordinary |= {"pytest_plugins": ("tests.helpers.local",)}\n',
+    'namespace = globals()\nnamespace |= {"unrelated": "value"}\n',
+    'namespace = globals()\nnamespace = {}\nnamespace |= {"pytest_plugins": ("tests.helpers.local",)}\n',
+    'safe, *rest = [{}, globals(), {}]\nsafe["pytest_plugins"] = ("tests.helpers.local",)\n',
+    '*rest, safe = [globals(), {}, {}]\nsafe["pytest_plugins"] = ("tests.helpers.local",)\n',
+    'match dict(ns={}):\n    case {"ns": safe}:\n        safe["pytest_plugins"] = ("tests.helpers.local",)\n',
+    'match dict(safe={}, ns=globals()):\n    case {"safe": safe}:\n        safe["pytest_plugins"] = ("tests.helpers.local",)\n',
+    'getattr(__import__("builtins"), "print")("ordinary payload")\n',
+    'ordinary = {}\nupdate = ordinary.update\nupdate(pytest_plugins=("tests.helpers.local",))\n',
+    'namespace = globals()\nupdate = namespace.update\nupdate(unrelated="value")\n',
+    "namespace = globals()\nupdate = namespace.update\n",
+    'update = globals().update\nupdate = {}.update\nupdate(pytest_plugins=("tests.helpers.local",))\n',
+    'loader = __import__\nruntime = loader("json")\nruntime.dumps({"safe": True})\n',
+    'delayed = (globals().update(pytest_plugins=("tests.helpers.local",)) for _ in ())\nlist(delayed)\n',
+    'delayed = (value for outer in () for value in globals().update(pytest_plugins=("tests.helpers.local",)))\n',
+    'delayed = (value for value in () if globals().update(pytest_plugins=("tests.helpers.local",)))\n',
+    (
+        'match {"ns": {}}:\n    case {"ns": captured}:\n'
+        '        captured["pytest_plugins"] = ("tests.helpers.local",)\n'
+        'match {"ns": globals()}:\n    case {"ns": _, **rest}:\n'
+        '        rest["pytest_plugins"] = ("tests.helpers.local",)\n'
+        "match {None: {}}:\n    case {None: captured}:\n"
+        '        captured["pytest_plugins"] = ("tests.helpers.local",)\n'
+    ),
 )
-def test_pytest_plugin_discovery_allows_legitimate_namespace_access(source: str) -> None:
+
+
+def test_pytest_plugin_discovery_allows_legitimate_namespace_access() -> None:
     """Read-only and ordinary-mapping namespace patterns must remain compatible."""
     module = _load_provenance_module()
 
-    assert module._pytest_plugin_names(ast.parse(source)) == []
+    for source in _LEGITIMATE_NAMESPACE_ACCESS_SOURCES:
+        assert module._pytest_plugin_names(ast.parse(source)) == []
 
 
 @pytest.mark.parametrize(
