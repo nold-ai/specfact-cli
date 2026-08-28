@@ -668,3 +668,22 @@ the authoritative failing-before evidence or the candidate design.
   bodies. The S02 regression corpus now covers representative tuple, nested
   mapping, helper, lambda, computed-attribute, and class-body paths; it remains
   red against the unchanged production scanner.
+- The implementation closes the unresolved-owner class rather than enumerating
+  container syntax: any import-time `.exec`/`.eval` access is treated as dynamic
+  execution, and `getattr` fails closed for `exec`, `eval`, or a non-literal
+  attribute regardless of how its owner was computed. Literal non-executor
+  attributes such as the container-carried `builtins.print` control remain
+  accepted. The focused P1/control pair and all 116 provenance tests pass; Ruff
+  and BasedPyright report zero findings.
+- Protected Requirements run `33168438206` correctly rejected reuse of the
+  prior one-time bootstrap namespace before executing proof. The P1 corpus is
+  therefore isolated as new mapped selector `RELEASE-692-PYTEST-S05`; its fresh
+  mapping requires product-owner acceptance and a new protected red source
+  rather than rewriting or reusing any prior evidence.
+- The staged released-fixture gate derives fresh source mapping
+  `sha256:ad6eb0b285116476dfcf12a4444755f6d271df34d04ecdd9a076038e0e9bfe56`,
+  combined mapping
+  `sha256:ce0d01e3e955956ef3996903c06f833e4dd4dea41ba0f4429e031c36be540d0b`,
+  and plan digest
+  `sha256:71d424b8286dbbdcd3b79ecdc09c79ba44f548b4e1d4ae23be4ba929404732db`.
+  Its current `acceptance-stale` failure is the required pre-approval control.

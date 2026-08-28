@@ -555,24 +555,6 @@ def test_pytest_plugin_discovery_allows_legitimate_namespace_access() -> None:
 
 
 _BUILTINS_MODULE_ALIAS_SOURCES = (
-    'import builtins\nowners = (builtins,)\ngetattr(owners[0], "exec")("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-    'import builtins\nowners = (builtins,)\nowners[0].exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-    (
-        'import builtins\nowners = {"runtime": [builtins]}\n'
-        'owners["runtime"][0].eval("globals().update(pytest_plugins=(\\"tests.helpers.hidden\\",))")\n'
-    ),
-    (
-        "import builtins\ndef select(owner):\n    return owner\n"
-        'select(builtins).exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n'
-    ),
-    (
-        'import builtins\nexecutor = "exec"\n'
-        'getattr((lambda: builtins)(), executor)("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n'
-    ),
-    (
-        "import builtins\nclass Plugins:\n    owners = (builtins,)\n"
-        '    owners[0].exec("global pytest_plugins; pytest_plugins = (\\"tests.helpers.hidden\\",)")\n'
-    ),
     'runtime = __import__("builtins")\nexecutor = "exec"\ngetattr(runtime, executor)("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
     'import builtins\nruntime = builtins\nruntime.exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
     'import builtins\nruntime = builtins\nagain = runtime\nagain.eval("globals().update(pytest_plugins=(\\"tests.helpers.hidden\\",))")\n',
@@ -591,6 +573,37 @@ def test_pytest_plugin_discovery_rejects_builtins_module_aliases() -> None:
     module = _load_provenance_module()
 
     _assert_plugin_sources_rejected(module, _BUILTINS_MODULE_ALIAS_SOURCES)
+
+
+_COMPUTED_BUILTINS_OWNER_SOURCES = (
+    'import builtins\nowners = (builtins,)\ngetattr(owners[0], "exec")("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
+    'import builtins\nowners = (builtins,)\nowners[0].exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
+    (
+        'import builtins\nowners = {"runtime": [builtins]}\n'
+        'owners["runtime"][0].eval("globals().update(pytest_plugins=(\\"tests.helpers.hidden\\",))")\n'
+    ),
+    (
+        "import builtins\ndef select(owner):\n    return owner\n"
+        'select(builtins).exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n'
+    ),
+    (
+        'import builtins\nexecutor = "exec"\n'
+        'getattr((lambda: builtins)(), executor)("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n'
+    ),
+    (
+        "import builtins\nclass Plugins:\n    owners = (builtins,)\n"
+        '    owners[0].exec("global pytest_plugins; pytest_plugins = (\\"tests.helpers.hidden\\",)")\n'
+    ),
+)
+
+
+@pytest.mark.parametrize("source", _COMPUTED_BUILTINS_OWNER_SOURCES)
+def test_pytest_plugin_discovery_rejects_computed_builtins_owner_expressions(source: str) -> None:
+    """Computed owners must not hide import-time exec/eval authority."""
+    module = _load_provenance_module()
+
+    with pytest.raises(ValueError, match=r"^prior-red-proof-invalid$"):
+        module._pytest_plugin_names(ast.parse(source))
 
 
 _MAPPING_PATTERN_NAMESPACE_SOURCES = (
