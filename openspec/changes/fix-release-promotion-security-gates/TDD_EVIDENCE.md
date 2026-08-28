@@ -608,5 +608,63 @@ the authoritative failing-before evidence or the candidate design.
   passes all 125. Controls preserve ordinary dictionary methods, uninvoked and
   unrelated-key namespace method aliases, definite method shadowing, ordinary
   imports, and empty-generator consumption. Ruff and strict BasedPyright pass
-  with zero findings. Protected retained-red evidence remains pending on the
-  corrected test-only branch; no bootstrap or security gate has been weakened.
+  with zero findings.
+- The first protected retained-red run exposed three uncollected parametrized
+  selectors and one compatibility selector that passed before implementation.
+  The test-only branch was corrected without implementation changes: all four
+  mapped selectors now collect and fail against merge base
+  `3ea3d9b4492ade6ec5683fac83c5b5090b0cb547`, while the implementation branch
+  passes the same four selectors.
+- Protected Requirements run `33165899623` at signed test-only commit
+  `709b085c57a05e221936065367967fa130344218` records `required_maturity=red`,
+  `observed_maturity=red`, `delivery_status=failing-first-proven`, and no gate
+  findings. Its JUnit proof contains 13 collected failing selectors, including
+  `RELEASE-692-PYTEST-S01` through `S04`, with no `uncollected-selector` or
+  `red-proof-passed-not-failed` finding. The source mapping remains the approved
+  `sha256:ee1db17944ae22c4f127f5e0a0dcae8f7237c62b4cd98abde246088c7e2053c9`;
+  the finalized combined mapping is the separately approved
+  `sha256:a21fb7c1936f400ab5f17c286d382adecf1e0513b849f5a3aca1d64f1284e00a`.
+- Protected final Requirements run `33166767525` at signed commit
+  `bedc9e05b590cbe307463e9acec3ed99bbb52ce7` consumed that retained artifact
+  and passed with `required_maturity=verified`, `observed_maturity=verified`,
+  `implementation_evidence=passing-after-red-proven`, `proof_basis=red-junit`,
+  and zero Requirements findings. The final mapping is
+  `sha256:a21fb7c1936f400ab5f17c286d382adecf1e0513b849f5a3aca1d64f1284e00a`
+  with plan digest
+  `sha256:69132dab4dbb8e97d1df4f96b882d5cd8cb5672b7f8a54b017adc8fd620883db`.
+- The final contextual Code Review verdict is `PASS`. Its only recommendations
+  are 12 `ai-bloat.loc-vs-complexity` infos in signing-test functions last
+  changed between February and April 2026. Git diff against `origin/dev`
+  confirms #692 changes only the cache-boundary test at line 1222 of that file;
+  none of the 12 reported functions is touched. They are preserved as a narrow
+  non-regression exception because refactoring unrelated historical tests would
+  expand the security patch and invalidate the authenticated red test-file
+  digest. The changed #692 Code Review surface has zero findings.
+- A complete unresolved-thread readback then exposed one additional applicable
+  bypass from #693: `runtime = __import__("builtins")` followed by a computed
+  `getattr(runtime, executor)` call. Exact scanner/runtime reproduction accepted
+  the source while Python created the active plugin binding. The new S02 source
+  was placed first so its pre-implementation failure is unambiguous.
+- Protected Requirements run `33167193992` at signed test-only commit
+  `ebb6d12177ae81e93a16b15fc74431bb0ceb12b9` records red maturity,
+  `failing-first-proven`, the approved combined mapping and plan digests, and
+  zero gate findings. The retained S02 failure is collected and its test-file
+  digest is
+  `sha256:8269de663663700c54b63de0f382ca06f63224d6f69985f36caf06e87abb1d73`.
+- Computed `getattr` attributes now fail closed for every tracked dynamic-
+  executor owner, including imported-builtins aliases; literal non-executor
+  attributes remain compatible. No mapped test file changes after the retained
+  red source.
+- A fresh exact-head Codex review of `1161a52afee70046c90772f34d8adbc3b892a1ee`
+  found that a builtins owner nested in a container still lost authority:
+  `owners = (builtins,)` followed by `getattr(owners[0], "exec")` was accepted,
+  while Python created the active `pytest_plugins` binding. The focused S02
+  regression run against the test-only change exited 1 with one collected test
+  and `Failed: DID NOT RAISE ValueError`, preserving failing-first evidence
+  before the implementation is changed.
+- Independent read-only boundary review reproduced the same omission for direct
+  `.exec`/`.eval`, list/dictionary/nested containers, computed indices,
+  extracted aliases, conditional and helper/lambda-returned owners, and class
+  bodies. The S02 regression corpus now covers representative tuple, nested
+  mapping, helper, lambda, computed-attribute, and class-body paths; it remains
+  red against the unchanged production scanner.
