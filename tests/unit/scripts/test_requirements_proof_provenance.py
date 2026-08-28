@@ -540,46 +540,59 @@ _LEGITIMATE_NAMESPACE_ACCESS_SOURCES = (
 def test_pytest_plugin_discovery_allows_legitimate_namespace_access() -> None:
     """Read-only and ordinary-mapping namespace patterns must remain compatible."""
     module = _load_provenance_module()
+    conditional_shadow = (
+        "update = globals().update\n"
+        "if enabled:\n"
+        "    update = {}.update\n"
+        'update(pytest_plugins=("tests.helpers.hidden",))\n'
+    )
 
+    with pytest.raises(ValueError, match=r"^prior-red-proof-invalid$"):
+        module._pytest_plugin_names(ast.parse(conditional_shadow))
     for source in _LEGITIMATE_NAMESPACE_ACCESS_SOURCES:
         assert module._pytest_plugin_names(ast.parse(source)) == []
 
 
-@pytest.mark.parametrize(
-    "source",
-    [
-        'import builtins\nruntime = builtins\nruntime.exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-        'import builtins\nruntime = builtins\nagain = runtime\nagain.eval("globals().update(pytest_plugins=(\\"tests.helpers.hidden\\",))")\n',
-    ],
+_BUILTINS_MODULE_ALIAS_SOURCES = (
+    'import builtins\nruntime = builtins\nruntime.exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
+    'import builtins\nruntime = builtins\nagain = runtime\nagain.eval("globals().update(pytest_plugins=(\\"tests.helpers.hidden\\",))")\n',
 )
-def test_pytest_plugin_discovery_rejects_builtins_module_aliases(source: str) -> None:
+
+
+def _assert_plugin_sources_rejected(module: ProvenanceModule, sources: tuple[str, ...]) -> None:
+    """Assert that each import-time authority source invalidates retained proof."""
+    for source in sources:
+        with pytest.raises(ValueError, match=r"^prior-red-proof-invalid$"):
+            module._pytest_plugin_names(ast.parse(source))
+
+
+def test_pytest_plugin_discovery_rejects_builtins_module_aliases() -> None:
     """Aliases of the imported builtins owner must retain exec/eval authority."""
     module = _load_provenance_module()
 
-    with pytest.raises(ValueError, match=r"^prior-red-proof-invalid$"):
-        module._pytest_plugin_names(ast.parse(source))
+    _assert_plugin_sources_rejected(module, _BUILTINS_MODULE_ALIAS_SOURCES)
 
 
-@pytest.mark.parametrize(
-    "source",
-    [
-        'match {"ns": globals()}:\n    case {"ns": namespace}:\n        namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-        'match {"safe": {}, "ns": globals()}:\n    case {"ns": namespace, "safe": _}:\n        namespace.update(pytest_plugins=("tests.helpers.hidden",))\n',
-        'match {"outer": {"ns": globals()}}:\n    case {"outer": {"ns": namespace}}:\n        namespace.setdefault("pytest_plugins", ("tests.helpers.hidden",))\n',
-        'match {None: globals()}:\n    case {None: namespace}:\n        namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-        'match {**{"ns": globals()}}:\n    case {"ns": namespace}:\n        namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-        'match dict(ns=globals()):\n    case {"ns": namespace}:\n        namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-        'match make_mapping(globals()):\n    case {"ns": namespace}:\n        namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-        'subject = {"ns": globals()}\nmatch subject:\n    case {"ns": namespace}:\n        namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-        'match dict([("ns", globals())]):\n    case {"ns": namespace}:\n        namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-    ],
+_MAPPING_PATTERN_NAMESPACE_SOURCES = (
+    'match {"ns": globals()}:\n    case {"ns": namespace}:\n        namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+    'match {"safe": {}, "ns": globals()}:\n    case {"ns": namespace, "safe": _}:\n        namespace.update(pytest_plugins=("tests.helpers.hidden",))\n',
+    'match {"outer": {"ns": globals()}}:\n    case {"outer": {"ns": namespace}}:\n        namespace.setdefault("pytest_plugins", ("tests.helpers.hidden",))\n',
+    'match {None: globals()}:\n    case {None: namespace}:\n        namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+    'match {**{"ns": globals()}}:\n    case {"ns": namespace}:\n        namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+    'match dict(ns=globals()):\n    case {"ns": namespace}:\n        namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+    'match make_mapping(globals()):\n    case {"ns": namespace}:\n        namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+    'subject = {"ns": globals()}\nmatch subject:\n    case {"ns": namespace}:\n        namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+    'match dict([("ns", globals())]):\n    case {"ns": namespace}:\n        namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
 )
-def test_pytest_plugin_discovery_rejects_mapping_pattern_namespace_captures(source: str) -> None:
+
+
+def test_pytest_plugin_discovery_rejects_mapping_pattern_namespace_captures() -> None:
     """Mapping captures must retain their corresponding namespace subject value."""
     module = _load_provenance_module()
 
-    with pytest.raises(ValueError, match=r"^prior-red-proof-invalid$"):
-        module._pytest_plugin_names(ast.parse(source))
+    for source in _MAPPING_PATTERN_NAMESPACE_SOURCES:
+        with pytest.raises(ValueError, match=r"^prior-red-proof-invalid$"):
+            module._pytest_plugin_names(ast.parse(source))
 
 
 @pytest.mark.parametrize(
