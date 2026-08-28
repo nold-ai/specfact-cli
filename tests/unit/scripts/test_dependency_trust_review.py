@@ -308,6 +308,25 @@ def test_code_review_lock_requires_valid_hash_for_every_pin(tmp_path: Path, hash
     assert "Code Review lock package pylint==4.0.7 must include at least one valid SHA-256 hash" in errors
 
 
+def test_code_review_lock_rejects_a_hash_detached_from_the_pin(tmp_path: Path) -> None:
+    """A standalone digest must not be credited to an uncontinued package pin."""
+    input_path, lock_path = _write_code_review_graph(tmp_path, "pylint==4.0.7")
+    input_digest = hashlib.sha256(input_path.read_bytes()).hexdigest()
+    lock_path.write_text(
+        f"# input-sha256: {input_digest}\npylint==4.0.7\n    --hash=sha256:{'a' * 64}\n",
+        encoding="utf-8",
+    )
+    checker = _load_checker()
+
+    errors = checker._validate_frozen_dependency_policy(
+        code_review_input_path=input_path,
+        code_review_lock_path=lock_path,
+    )
+
+    assert "Code Review lock hash line 3 is not attached to a continued package pin" in errors
+    assert "Code Review lock package pylint==4.0.7 must include at least one valid SHA-256 hash" in errors
+
+
 @pytest.mark.parametrize(
     ("package", "locked_version", "floor"),
     [("semgrep", "1.174.0", "1.175.0"), ("mcp", "1.23.3", "1.28.1")],

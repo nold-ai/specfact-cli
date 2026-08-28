@@ -50,8 +50,9 @@ The dependency-trust pre-commit gate SHALL run when either the Code Review
 input requirements or its frozen lock changes. It SHALL bind the lock to the
 exact input and apply the blocked-release, prohibited-package, and reviewed
 security-floor policy to the isolated graph before its tools are installed.
-Every exact package pin SHALL include at least one syntactically valid SHA-256
-artifact hash so the trust decision cannot accept an unhashed graph.
+Every exact package pin SHALL continue to and include at least one syntactically
+valid SHA-256 artifact hash on the same logical requirement so the trust
+decision cannot accept an unhashed graph or credit a detached digest.
 
 #### Scenario: Only a Code Review dependency file changes
 
@@ -63,6 +64,11 @@ artifact hash so the trust decision cannot accept an unhashed graph.
 
 - **WHEN** an exact package pin has no SHA-256 continuation or only a malformed digest
 - **THEN** the pre-install dependency-trust gate rejects the isolated lock
+
+#### Scenario: A valid digest is detached from its package pin
+
+- **WHEN** an uncontinued exact pin is followed by a standalone valid SHA-256 hash line
+- **THEN** the pre-install dependency-trust gate rejects both the unhashed pin and the unattached digest
 
 ### Requirement: Frozen static analysis uses a non-vulnerable MCP binding
 

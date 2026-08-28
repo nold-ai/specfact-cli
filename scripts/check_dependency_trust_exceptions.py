@@ -232,6 +232,41 @@ def _validate_code_review_input_binding(input_bytes: bytes, contents: str) -> li
     return []
 
 
+def _register_code_review_hash(
+    stripped: str,
+    line_number: int,
+    current_package: str | None,
+    hashed_packages: set[str],
+    errors: list[str],
+) -> str | None:
+    """Credit one valid digest only to an actively continued package pin."""
+    if current_package is None:
+        errors.append(f"Code Review lock hash line {line_number} is not attached to a continued package pin")
+    elif CODE_REVIEW_HASH_PATTERN.fullmatch(stripped) is not None:
+        hashed_packages.add(current_package)
+    return current_package if stripped.endswith("\\") else None
+
+
+def _register_code_review_pin(
+    stripped: str,
+    line_number: int,
+    packages: dict[str, str],
+    errors: list[str],
+) -> str | None:
+    """Register one exact pin and return its continuation state."""
+    match = CODE_REVIEW_PIN_PATTERN.fullmatch(stripped)
+    if match is None:
+        errors.append(f"Code Review lock line {line_number} must be an exact name==version pin")
+        return None
+    package_name = _canonical_package_name(match.group(1))
+    version = match.group(2)
+    if package_name in packages:
+        errors.append(f"Code Review lock contains duplicate normalized package identity: {package_name}")
+        return None
+    packages[package_name] = version
+    return package_name if stripped.endswith("\\") else None
+
+
 def _parse_code_review_pins(contents: str) -> tuple[dict[str, str], list[str]]:
     """Parse the fail-closed exact-pin subset emitted by the frozen compiler."""
     errors: list[str] = []
@@ -243,22 +278,11 @@ def _parse_code_review_pins(contents: str) -> tuple[dict[str, str], list[str]]:
         if not stripped or stripped.startswith("#"):
             continue
         if stripped.startswith("--hash=sha256:"):
-            if current_package is not None and CODE_REVIEW_HASH_PATTERN.fullmatch(stripped) is not None:
-                hashed_packages.add(current_package)
+            current_package = _register_code_review_hash(
+                stripped, line_number, current_package, hashed_packages, errors
+            )
             continue
-        match = CODE_REVIEW_PIN_PATTERN.fullmatch(stripped)
-        if match is None:
-            errors.append(f"Code Review lock line {line_number} must be an exact name==version pin")
-            current_package = None
-            continue
-        package_name = _canonical_package_name(match.group(1))
-        version = match.group(2)
-        if package_name in packages:
-            errors.append(f"Code Review lock contains duplicate normalized package identity: {package_name}")
-            current_package = None
-            continue
-        packages[package_name] = version
-        current_package = package_name
+        current_package = _register_code_review_pin(stripped, line_number, packages, errors)
     if not packages:
         errors.append("Code Review lock must contain at least one exact package pin")
     for package_name, version in packages.items():

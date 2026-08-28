@@ -452,3 +452,19 @@ the authoritative failing-before evidence or the candidate design.
   BasedPyright and Ruff pass, and Code Review reports zero findings. The full
   changed-scope governance/security set passes all 303 tests with the writable
   UV cache and immutable modules fixture, and strict OpenSpec validation passes.
+
+**Final-head detached-hash review proof (2026-08-28):**
+
+- Codex review of signed commit
+  `87f9bd636c079fe522e752bf4c6f25ed3ffbcaba` identified that a valid
+  standalone hash line could be credited to the preceding package even when
+  that pin lacked a continuation marker. The exact detached-hash selector
+  failed before implementation because the trust checker returned no errors.
+- The parser now retains package state only across an explicit logical-line
+  continuation, rejects an unattached hash line, and still reports the package
+  as missing a valid attached digest. The focused selector and all 25
+  dependency-trust tests pass; the checker passes under `python -S`, and strict
+  changed-file typing, Ruff, and formatting are clean. The expanded changed-
+  scope set passes all 304 tests, strict OpenSpec validation passes, and Code
+  Review reports zero findings after the parser branches were split below the
+  repository complexity thresholds.
