@@ -267,6 +267,17 @@ the authoritative failing-before evidence or the candidate design.
   existing controls continue to reject symlinks, fabricated content, partial
   archives, extra files, split destinations, and non-archive authoring.
 
+## Final verification
+
+- Product-owner approval is retained in
+  `requirements-proof/review-evidence.json` for change-local mapping digest
+  `sha256:d6ef8ed0aa4623eaa8c3b74d6c85fd1a0efd91ac700c0ded7b9a8897626e20cf`.
+- The final staged Requirements delivery gate passed at `test-authored`
+  maturity with no findings. Test execution is proven separately by the
+  ordered focused and full-suite evidence above.
+- Protected GitHub PR/release gates remain pending on the follow-up commit and
+  required review.
+
 **Review-red bootstrap branch binding proof (2026-08-28):**
 
 - Signed test-only commit `2f5cb18c66b133a09a24234c982d2366f3de07d4`
@@ -287,13 +298,34 @@ the authoritative failing-before evidence or the candidate design.
   binding with backward-compatible same-branch behavior, all 13 authority
   tests passed and strict basedpyright reported zero findings.
 
-## Final verification
+**Issue #692 bootstrap authority workflow proof (2026-08-28):**
 
-- Product-owner approval is retained in
-  `requirements-proof/review-evidence.json` for change-local mapping digest
-  `sha256:d6ef8ed0aa4623eaa8c3b74d6c85fd1a0efd91ac700c0ded7b9a8897626e20cf`.
-- The final staged Requirements delivery gate passed at `test-authored`
-  maturity with no findings. Test execution is proven separately by the
-  ordered focused and full-suite evidence above.
-- Protected GitHub PR/release gates remain pending on the follow-up commit and
-  required review.
+- Repository-member comment `5448719352` was unedited and matched the approved
+  authority payload byte-for-byte. The local authority validator accepted its
+  signed red commit, failed red workflow run, immutable artifact metadata, all
+  three artifact-file digests, distinct red branch, final branch, and ancestry.
+- Test-first workflow coverage failed in two selectors before implementation:
+  the shared issue argument was still hard-coded to issue #689 and no #692
+  ledger/run/comment binding existed. The existing #689 and new #692 contracts
+  pass after selecting immutable per-change constants and using the shared
+  validated issue argument.
+
+**Post-authority final verification (2026-08-28):**
+
+- The focused authority, delivery-workflow, provenance, pre-commit, and trusted
+  green-check suite passed 146 tests. The full suite's mutually exclusive
+  module-discovery environments were verified separately: 2,978 tests passed
+  in the core environment; all 129 owning tests for environment-only failures
+  passed with a hermetic home and frozen interpreter path; and all seven
+  module-import controls passed against the immutable companion fixture.
+- The exact staged quality pipeline passed at approved `test-authored` mapping
+  digest `sha256:d6ef8ed0aa4623eaa8c3b74d6c85fd1a0efd91ac700c0ded7b9a8897626e20cf`,
+  including workflow lint, changed-file typing and linting, Requirements
+  evidence, command/documentation contracts, and Code Review with zero
+  findings. Strict OpenSpec validation and repository-wide Ruff,
+  BasedPyright, and safe-write gates also passed.
+- Both frozen pip-audit gates found no unreviewed vulnerabilities. Semgrep
+  1.175.0 and Bandit found zero findings; dependency trust, reproducible
+  delivery, version parity, and primary plus isolated Code Review license
+  scopes passed. The locked `0.55.2` wheel built without isolation and Twine
+  7.0.0 accepted its package metadata.

@@ -370,7 +370,8 @@ jobs:
                 reconciliation_arguments+=(--prior-red-proof "$prior_red_proof")
               elif [[ "$run_stage" == "final" && (
                 "$selected_change" == "requirements-07-runtime-proof-delivery" ||
-                "$selected_change" == "fix-retained-red-proof-provenance"
+                "$selected_change" == "fix-retained-red-proof-provenance" ||
+                "$selected_change" == "fix-release-promotion-security-gates"
               ) ]]; then
                 legacy_tdd_ledger="openspec/changes/${selected_change}/TDD_EVIDENCE.md"
                 if [[ "$selected_change" == "requirements-07-runtime-proof-delivery" ]]; then
@@ -383,13 +384,25 @@ jobs:
                     write_failure_reports "One-time Requirements bootstrap requires pull-request context."
                     exit 1
                   fi
-                  legacy_tdd_line_count=62
-                  legacy_tdd_ledger_digest="sha256:f948489e94966f4df144c5d83aa1caa6fe7a96f6ade9a4aef864794d8019b158"
-                  legacy_tdd_mapping_digest="sha256:6a9413ab306eb0cf0aad62661d66c5ef684b91036766acf7021953877c9b617e"
-                  legacy_tdd_plan_digest="sha256:00595739da3dd81a01032fbc2661094b8c6e2836dc38e366eae0a666e4574222"
-                  bootstrap_comment_id=5431081643
-                  bootstrap_run_id=33013274590
-                  bootstrap_red_commit="04b6c02eb63f779309d8dced48085f3ef0efe029"
+                  if [[ "$selected_change" == "fix-retained-red-proof-provenance" ]]; then
+                    legacy_tdd_line_count=62
+                    legacy_tdd_ledger_digest="sha256:f948489e94966f4df144c5d83aa1caa6fe7a96f6ade9a4aef864794d8019b158"
+                    legacy_tdd_mapping_digest="sha256:6a9413ab306eb0cf0aad62661d66c5ef684b91036766acf7021953877c9b617e"
+                    legacy_tdd_plan_digest="sha256:00595739da3dd81a01032fbc2661094b8c6e2836dc38e366eae0a666e4574222"
+                    bootstrap_comment_id=5431081643
+                    bootstrap_run_id=33013274590
+                    bootstrap_red_commit="04b6c02eb63f779309d8dced48085f3ef0efe029"
+                    bootstrap_issue=689
+                  else
+                    legacy_tdd_line_count=279
+                    legacy_tdd_ledger_digest="sha256:1e2d64027e7e80d26e51431aad70d561dc495191915adee4e193352d80552c6f"
+                    legacy_tdd_mapping_digest="sha256:31daf300f1bfeb2a6b5903567128bb100df8016dd23c3a8f5e6a8dcbfb31a202"
+                    legacy_tdd_plan_digest="sha256:01c1e0730d499e95b8164593059ffdc33ce11462da10b29f7d318257699d1975"
+                    bootstrap_comment_id=5448719352
+                    bootstrap_run_id=33124192051
+                    bootstrap_red_commit="2f5cb18c66b133a09a24234c982d2366f3de07d4"
+                    bootstrap_issue=692
+                  fi
                   bootstrap_root="${RUNNER_TEMP}/requirements-bootstrap-authority"
                   bootstrap_artifact_root="${bootstrap_root}/artifact"
                   mkdir -p "$bootstrap_artifact_root"
@@ -410,7 +423,7 @@ jobs:
                       --final-ref "$EVIDENCE_FINAL_REF" \
                       --repository "$GITHUB_REPOSITORY" \
                       --change-id "$selected_change" \
-                      --issue 689 \
+                      --issue "$bootstrap_issue" \
                       --pull-request "$EVIDENCE_PULL_REQUEST" \
                       --head-branch "$EVIDENCE_HEAD_BRANCH"; then
                     write_failure_reports "One-time Requirements bootstrap authority rejected."
