@@ -625,3 +625,19 @@ the authoritative failing-before evidence or the candidate design.
   `sha256:ee1db17944ae22c4f127f5e0a0dcae8f7237c62b4cd98abde246088c7e2053c9`;
   the finalized combined mapping is the separately approved
   `sha256:a21fb7c1936f400ab5f17c286d382adecf1e0513b849f5a3aca1d64f1284e00a`.
+- Protected final Requirements run `33166767525` at signed commit
+  `bedc9e05b590cbe307463e9acec3ed99bbb52ce7` consumed that retained artifact
+  and passed with `required_maturity=verified`, `observed_maturity=verified`,
+  `implementation_evidence=passing-after-red-proven`, `proof_basis=red-junit`,
+  and zero Requirements findings. The final mapping is
+  `sha256:a21fb7c1936f400ab5f17c286d382adecf1e0513b849f5a3aca1d64f1284e00a`
+  with plan digest
+  `sha256:69132dab4dbb8e97d1df4f96b882d5cd8cb5672b7f8a54b017adc8fd620883db`.
+- The final contextual Code Review verdict is `PASS`. Its only recommendations
+  are 12 `ai-bloat.loc-vs-complexity` infos in signing-test functions last
+  changed between February and April 2026. Git diff against `origin/dev`
+  confirms #692 changes only the cache-boundary test at line 1222 of that file;
+  none of the 12 reported functions is touched. They are preserved as a narrow
+  non-regression exception because refactoring unrelated historical tests would
+  expand the security patch and invalidate the authenticated red test-file
+  digest. The changed #692 Code Review surface has zero findings.
