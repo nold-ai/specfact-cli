@@ -300,8 +300,7 @@ def _evaluate_env_package(
         _report_unknown_env_license(name, version)
         return 0
 
-    name_lower = name.lower()
-    entries_all = allowlist.get(name_lower, [])
+    entries_all = allowlist.get(name.lower(), [])
 
     if _is_mixed_gpl_metadata(license_expr):
         return _evaluate_mixed_gpl_metadata(
@@ -315,12 +314,7 @@ def _evaluate_env_package(
     if not _is_gpl(license_expr):
         return 0
 
-    entries = _matching_allowlist_entries(
-        entries_all,
-        license_expr,
-        version,
-        allowlist_scope=allowlist_scope,
-    )
+    entries = _matching_allowlist_entries(entries_all, license_expr, version, allowlist_scope=allowlist_scope)
     if entries:
         _emit_allowlist_exception(name, version, license_expr, entries)
         return 0
