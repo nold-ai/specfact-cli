@@ -554,6 +554,7 @@ def test_pytest_plugin_discovery_allows_legitimate_namespace_access() -> None:
 
 
 _BUILTINS_MODULE_ALIAS_SOURCES = (
+    'runtime = __import__("builtins")\nexecutor = "exec"\ngetattr(runtime, executor)("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
     'import builtins\nruntime = builtins\nruntime.exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
     'import builtins\nruntime = builtins\nagain = runtime\nagain.eval("globals().update(pytest_plugins=(\\"tests.helpers.hidden\\",))")\n',
 )
