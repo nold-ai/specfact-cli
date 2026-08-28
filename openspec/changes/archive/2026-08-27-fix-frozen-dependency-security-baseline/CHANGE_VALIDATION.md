@@ -85,5 +85,5 @@ runtime dependencies, or module contracts.
 
 ## Validation Artifacts
 
-- Temporary workspace: `/private/tmp/specfact-validation-fix-frozen-dependency-security-baseline.kOyKA8`
+- Temporary workspace: `<VALIDATION_WORKSPACE>`
 - Failing audit and policy-test evidence: [TDD_EVIDENCE.md](./TDD_EVIDENCE.md)

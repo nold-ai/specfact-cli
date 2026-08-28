@@ -7,7 +7,6 @@ on:
     branches: [main, dev]
   push:
     branches: [main, dev]
-  workflow_dispatch:
   schedule:
     - cron: "17 3 * * 1"
 
@@ -1089,7 +1088,7 @@ jobs:
       - name: Run license compliance gate
         run: |
           echo "🔍 Running license compliance gate..."
-          python scripts/check_license_compliance.py --additional-python "$REVIEW_TOOLS_PYTHON"
+          python scripts/check_license_compliance.py --code-review-python "$REVIEW_TOOLS_PYTHON"
 
   dependency-trust:
     name: Dependency Trust Gate
@@ -1233,7 +1232,7 @@ jobs:
   dependency-compatibility:
     name: Dependency Compatibility (Advisory)
     runs-on: ubuntu-latest
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'schedule'
     continue-on-error: true
     permissions:
       contents: read
@@ -1248,7 +1247,9 @@ jobs:
         run: |
           set -euo pipefail
           fixture_ref="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          fixture_tree="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["tree"])')"
           echo "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"
+          echo "tree=${fixture_tree}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout module bundles repo
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -1258,16 +1259,19 @@ jobs:
           path: specfact-cli-modules
           ref: ${{ steps.compatibility-modules-fixture.outputs.ref }}
 
-      - name: Export module bundles path
-        run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
-
       - name: Verify immutable module fixture
         shell: bash
         run: |
           set -euo pipefail
           expected="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
           actual="$(git -C specfact-cli-modules rev-parse HEAD)"
+          expected_tree="${{ steps.compatibility-modules-fixture.outputs.tree }}"
+          actual_tree="$(git -C specfact-cli-modules rev-parse 'HEAD^{tree}')"
           test "$actual" = "$expected"
+          test "$actual_tree" = "$expected_tree"
+
+      - name: Export module bundles path
+        run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
 
       - name: Set up Python 3.12
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405

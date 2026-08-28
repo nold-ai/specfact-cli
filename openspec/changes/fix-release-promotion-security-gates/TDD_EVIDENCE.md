@@ -605,8 +605,23 @@ the authoritative failing-before evidence or the candidate design.
   fails closed. Only a generator with a statically empty outer list, tuple, set,
   or mapping skips deferred clauses; its outer iterable is still inspected.
 - The focused challenge passes all 59 cases and the full provenance suite
-  passes all 125. Controls preserve ordinary dictionary methods, uninvoked and
+  passes all 116 collected tests after the mapped selector consolidation.
+  Controls preserve ordinary dictionary methods, uninvoked and
   unrelated-key namespace method aliases, definite method shadowing, ordinary
   imports, and empty-generator consumption. Ruff and strict BasedPyright pass
-  with zero findings. Protected retained-red evidence remains pending on the
-  corrected test-only branch; no bootstrap or security gate has been weakened.
+  with zero findings.
+- The first protected retained-red run exposed three uncollected parametrized
+  selectors and one compatibility selector that passed before implementation.
+  The test-only branch was corrected without implementation changes: all four
+  mapped selectors now collect and fail against merge base
+  `3ea3d9b4492ade6ec5683fac83c5b5090b0cb547`, while the implementation branch
+  passes the same four selectors.
+- Protected Requirements run `33165899623` at signed test-only commit
+  `709b085c57a05e221936065367967fa130344218` records `required_maturity=red`,
+  `observed_maturity=red`, `delivery_status=failing-first-proven`, and no gate
+  findings. Its JUnit proof contains 13 collected failing selectors, including
+  `RELEASE-692-PYTEST-S01` through `S04`, with no `uncollected-selector` or
+  `red-proof-passed-not-failed` finding. The source mapping remains the approved
+  `sha256:ee1db17944ae22c4f127f5e0a0dcae8f7237c62b4cd98abde246088c7e2053c9`;
+  the finalized combined mapping is the separately approved
+  `sha256:a21fb7c1936f400ab5f17c286d382adecf1e0513b849f5a3aca1d64f1284e00a`.

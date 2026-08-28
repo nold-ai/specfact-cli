@@ -480,80 +480,78 @@ has_staged_requirements_evidence_scope() {
 is_complete_staged_archive_move() {
   local change_id="$1"
   local active_prefix="openspec/changes/${change_id}"
-  local status source_path destination_path source_relative archive_relative archive_directory archive_change_path
-  local candidate="" candidate_count=0 source_count=0 matched pair_source pair_destination
-  local status_file pairs_file candidates_file active_index_file sources_file
+  local status source_path destination_path archive_relative archive_directory archive_change_path
+  local candidate="" candidate_count=0 source_count=0 destination_count=0 archive_valid=1
+  local source_entry destination_entry source_mode destination_mode source_hash destination_hash
+  local status_file candidates_file active_index_file sources_file destinations_file
   status_file="$(mktemp)" || return 1
-  pairs_file="$(mktemp)" || {
+  candidates_file="$(mktemp)" || {
     rm -f "${status_file}"
     return 1
   }
-  candidates_file="$(mktemp)" || {
-    rm -f "${status_file}" "${pairs_file}"
-    return 1
-  }
   active_index_file="$(mktemp)" || {
-    rm -f "${status_file}" "${pairs_file}" "${candidates_file}"
+    rm -f "${status_file}" "${candidates_file}"
     return 1
   }
   sources_file="$(mktemp)" || {
-    rm -f "${status_file}" "${pairs_file}" "${candidates_file}" "${active_index_file}"
+    rm -f "${status_file}" "${candidates_file}" "${active_index_file}"
+    return 1
+  }
+  destinations_file="$(mktemp)" || {
+    rm -f "${status_file}" "${candidates_file}" "${active_index_file}" "${sources_file}"
     return 1
   }
 
-  if ! git diff --cached --name-status -z --find-renames --diff-filter=R >"${status_file}"; then
-    rm -f "${status_file}" "${pairs_file}" "${candidates_file}" "${active_index_file}" "${sources_file}"
+  if ! git diff --cached --name-status -z --find-renames=100% --diff-filter=R >"${status_file}"; then
+    rm -f "${status_file}" "${candidates_file}" "${active_index_file}" "${sources_file}" "${destinations_file}"
     return 1
   fi
   while IFS= read -r -d '' status; do
     IFS= read -r -d '' source_path || break
     IFS= read -r -d '' destination_path || break
-    [[ "${status}" == R* ]] || continue
-    [[ "${source_path}" == "${active_prefix}/"* ]] || continue
+    [[ "${status}" == "R100" && "${source_path}" == "${active_prefix}/"* ]] || continue
     [[ "${destination_path}" == openspec/changes/archive/*/* ]] || continue
-    source_relative="${source_path#${active_prefix}/}"
     archive_relative="${destination_path#openspec/changes/archive/}"
     archive_directory="${archive_relative%%/*}"
     archive_change_path="${archive_relative#*/}"
     [[ "${archive_directory}" == [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-"${change_id}" ]] || continue
-    [[ "${archive_change_path}" == "${source_relative}" ]] || continue
-    printf '%s\0%s\0' "${source_path}" "${destination_path}" >>"${pairs_file}"
+    [[ "${archive_change_path}" == "${source_path#"${active_prefix}/"}" ]] || continue
     printf '%s\n' "${archive_directory}" >>"${candidates_file}"
   done <"${status_file}"
 
-  sort -u "${candidates_file}" -o "${candidates_file}"
   while IFS= read -r archive_directory || [[ -n "${archive_directory}" ]]; do
     [[ -z "${archive_directory}" ]] && continue
     candidate="${archive_directory}"
     candidate_count=$((candidate_count + 1))
-  done <"${candidates_file}"
+  done < <(sort -u "${candidates_file}")
   git ls-files -z --cached -- "${active_prefix}" >"${active_index_file}"
   git ls-tree -r -z --name-only HEAD -- "${active_prefix}" >"${sources_file}"
+  git ls-files -z --cached -- "openspec/changes/archive/${candidate}" >"${destinations_file}"
   if [[ ${candidate_count} -ne 1 || -s "${active_index_file}" || ! -s "${sources_file}" ]]; then
-    rm -f "${status_file}" "${pairs_file}" "${candidates_file}" "${active_index_file}" "${sources_file}"
+    rm -f "${status_file}" "${candidates_file}" "${active_index_file}" "${sources_file}" "${destinations_file}"
     return 1
   fi
 
   while IFS= read -r -d '' source_path; do
     source_count=$((source_count + 1))
-    destination_path="openspec/changes/archive/${candidate}/${source_path#${active_prefix}/}"
-    matched=0
-    exec 3<"${pairs_file}"
-    while IFS= read -r -d '' pair_source <&3; do
-      IFS= read -r -d '' pair_destination <&3 || break
-      if [[ "${pair_source}" == "${source_path}" && "${pair_destination}" == "${destination_path}" ]]; then
-        matched=1
-        break
-      fi
-    done
-    exec 3<&-
-    if [[ ${matched} -ne 1 ]]; then
-      rm -f "${status_file}" "${pairs_file}" "${candidates_file}" "${active_index_file}" "${sources_file}"
-      return 1
+    destination_path="openspec/changes/archive/${candidate}/${source_path#"${active_prefix}/"}"
+    source_entry="$(git ls-tree HEAD -- "${source_path}")"
+    destination_entry="$(git ls-files --stage -- "${destination_path}")"
+    source_mode="$(awk 'NR == 1 { print $1 }' <<<"${source_entry}")"
+    source_hash="$(awk 'NR == 1 { print $3 }' <<<"${source_entry}")"
+    destination_mode="$(awk 'NR == 1 { print $1 }' <<<"${destination_entry}")"
+    destination_hash="$(awk 'NR == 1 { print $2 }' <<<"${destination_entry}")"
+    if [[ "${source_mode}" != "100644" && "${source_mode}" != "100755" ]] || \
+      [[ "${destination_mode}" != "${source_mode}" || "${source_hash}" != "${destination_hash}" ]]; then
+      archive_valid=0
+      break
     fi
   done <"${sources_file}"
-  rm -f "${status_file}" "${pairs_file}" "${candidates_file}" "${active_index_file}" "${sources_file}"
-  [[ ${source_count} -gt 0 ]]
+  while IFS= read -r -d '' destination_path; do
+    destination_count=$((destination_count + 1))
+  done <"${destinations_file}"
+  rm -f "${status_file}" "${candidates_file}" "${active_index_file}" "${sources_file}" "${destinations_file}"
+  [[ ${archive_valid} -eq 1 && ${source_count} -gt 0 && ${destination_count} -eq ${source_count} ]]
 }
 
 validate_staged_active_change_deletions() {
@@ -565,6 +563,7 @@ validate_staged_active_change_deletions() {
     return 1
   fi
   while IFS= read -r -d '' status; do
+    destination_path=""
     if ! IFS= read -r -d '' source_path; then
       error "Unable to read staged deletion source for ${status}"
       rm -f "${status_file}"
@@ -585,6 +584,13 @@ validate_staged_active_change_deletions() {
       openspec/changes/*/*)
         relative_path="${source_path#openspec/changes/}"
         change_id="${relative_path%%/*}"
+        if [[ -n "${destination_path}" && "${destination_path}" == "openspec/changes/${change_id}/"* ]]; then
+          continue
+        fi
+        if [[ "${status}" == D* ]] && \
+          git ls-files --cached --error-unmatch -- "openspec/changes/${change_id}" >/dev/null 2>&1; then
+          continue
+        fi
         if ! is_complete_staged_archive_move "${change_id}"; then
           error "❌ Block 2 — Active change deletion is not a complete native archive move: ${change_id}"
           rm -f "${status_file}"
@@ -638,19 +644,111 @@ staged_active_change_ids() {
   rm -f "${change_ids_file}"
 }
 
+is_complete_branch_archive_move() {
+  local change_id="$1" base_ref="$2"
+  local active_prefix="openspec/changes/${change_id}"
+  local status source_path destination_path archive_relative archive_directory archive_change_path
+  local candidate="" candidate_count=0 source_count=0 destination_count=0 archive_valid=1
+  local source_entry destination_entry source_mode destination_mode source_hash destination_hash
+  local status_file candidates_file sources_file destinations_file
+  status_file="$(mktemp)" || return 1
+  candidates_file="$(mktemp)" || {
+    rm -f "${status_file}"
+    return 1
+  }
+  sources_file="$(mktemp)" || {
+    rm -f "${status_file}" "${candidates_file}"
+    return 1
+  }
+  destinations_file="$(mktemp)" || {
+    rm -f "${status_file}" "${candidates_file}" "${sources_file}"
+    return 1
+  }
+
+  if ! git diff --name-status -z --find-renames=100% --diff-filter=R "${base_ref}...HEAD" >"${status_file}"; then
+    rm -f "${status_file}" "${candidates_file}" "${sources_file}" "${destinations_file}"
+    return 1
+  fi
+  while IFS= read -r -d '' status; do
+    IFS= read -r -d '' source_path || break
+    IFS= read -r -d '' destination_path || break
+    [[ "${status}" == "R100" && "${source_path}" == "${active_prefix}/"* ]] || continue
+    [[ "${destination_path}" == openspec/changes/archive/*/* ]] || continue
+    archive_relative="${destination_path#openspec/changes/archive/}"
+    archive_directory="${archive_relative%%/*}"
+    archive_change_path="${archive_relative#*/}"
+    [[ "${archive_directory}" == [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-"${change_id}" ]] || continue
+    [[ "${archive_change_path}" == "${source_path#"${active_prefix}/"}" ]] || continue
+    printf '%s\n' "${archive_directory}" >>"${candidates_file}"
+  done <"${status_file}"
+
+  while IFS= read -r archive_directory || [[ -n "${archive_directory}" ]]; do
+    [[ -z "${archive_directory}" ]] && continue
+    candidate="${archive_directory}"
+    candidate_count=$((candidate_count + 1))
+  done < <(sort -u "${candidates_file}")
+  git ls-tree -r -z --name-only "${base_ref}" -- "${active_prefix}" >"${sources_file}"
+  git ls-tree -r -z --name-only HEAD -- "openspec/changes/archive/${candidate}" >"${destinations_file}"
+  if [[ ${candidate_count} -ne 1 ]] || [[ -n "$(git ls-tree HEAD -- "${active_prefix}")" ]] || [[ ! -s "${sources_file}" ]]; then
+    rm -f "${status_file}" "${candidates_file}" "${sources_file}" "${destinations_file}"
+    return 1
+  fi
+
+  while IFS= read -r -d '' source_path; do
+    source_count=$((source_count + 1))
+    destination_path="openspec/changes/archive/${candidate}/${source_path#"${active_prefix}/"}"
+    source_entry="$(git ls-tree "${base_ref}" -- "${source_path}")"
+    destination_entry="$(git ls-tree HEAD -- "${destination_path}")"
+    source_mode="$(awk 'NR == 1 { print $1 }' <<<"${source_entry}")"
+    source_hash="$(awk 'NR == 1 { print $3 }' <<<"${source_entry}")"
+    destination_mode="$(awk 'NR == 1 { print $1 }' <<<"${destination_entry}")"
+    destination_hash="$(awk 'NR == 1 { print $3 }' <<<"${destination_entry}")"
+    if [[ "${source_mode}" != "100644" && "${source_mode}" != "100755" ]] || \
+      [[ "${destination_mode}" != "${source_mode}" || "${source_hash}" != "${destination_hash}" ]]; then
+      archive_valid=0
+      break
+    fi
+  done <"${sources_file}"
+  while IFS= read -r -d '' destination_path; do
+    destination_count=$((destination_count + 1))
+  done <"${destinations_file}"
+  rm -f "${status_file}" "${candidates_file}" "${sources_file}" "${destinations_file}"
+  [[ ${archive_valid} -eq 1 && ${source_count} -gt 0 && ${destination_count} -eq ${source_count} ]]
+}
+
+branch_change_id_for_path() {
+  local path="$1" base_ref="$2" relative_path change_id
+  case "${path}" in
+    openspec/changes/archive/*) ;;
+    openspec/changes/*/*)
+      relative_path="${path#openspec/changes/}"
+      change_id="${relative_path%%/*}"
+      if [[ -n "$(git ls-tree HEAD -- "openspec/changes/${change_id}")" ]] || \
+        ! is_complete_branch_archive_move "${change_id}" "${base_ref}"; then
+        printf '%s\n' "${change_id}"
+      fi
+      ;;
+  esac
+}
+
 branch_active_change_ids() {
-  local base_ref="origin/dev" merge_base relative_path
+  local base_ref="origin/dev" merge_base status source_path destination_path status_file
   git rev-parse --verify "${base_ref}" >/dev/null 2>&1 || base_ref="origin/main"
   merge_base="$(git merge-base HEAD "${base_ref}")" || return 1
-  while IFS= read -r relative_path; do
-    case "${relative_path}" in
-      openspec/changes/archive/*) ;;
-      openspec/changes/*/*)
-        relative_path="${relative_path#openspec/changes/}"
-        printf '%s\n' "${relative_path%%/*}"
-        ;;
-    esac
-  done < <(git diff --name-only "${merge_base}...HEAD" -- openspec/changes)
+  status_file="$(mktemp)" || return 1
+  if ! git diff --name-status -z --find-renames "${merge_base}...HEAD" -- openspec/changes >"${status_file}"; then
+    rm -f "${status_file}"
+    return 1
+  fi
+  while IFS= read -r -d '' status; do
+    IFS= read -r -d '' source_path || break
+    branch_change_id_for_path "${source_path}" "${merge_base}"
+    if [[ "${status}" == R* || "${status}" == C* ]]; then
+      IFS= read -r -d '' destination_path || break
+      branch_change_id_for_path "${destination_path}" "${merge_base}"
+    fi
+  done <"${status_file}"
+  rm -f "${status_file}"
 }
 
 require_index_bound_review_evidence() {
@@ -682,7 +780,6 @@ run_requirements_evidence_gate() {
   local review_evidence=""
   local selected_change=""
   local -a staged_change_ids=()
-  local -a review_evidence_candidates=()
   local -a evidence_arguments=()
 
   local scope_status=0
@@ -732,16 +829,9 @@ run_requirements_evidence_gate() {
         review_evidence="openspec/changes/${selected_change}/requirements-proof/review-evidence.json"
       fi
     fi
-    if [[ -z "${review_evidence}" ]]; then
-      while IFS= read -r candidate || [[ -n "${candidate}" ]]; do
-        [[ -z "${candidate}" ]] && continue
-        review_evidence_candidates+=("${candidate}")
-      done < <(find openspec/changes -path 'openspec/changes/archive' -prune -o -path '*/requirements-proof/review-evidence.json' -type f -print | sort)
-      if [[ ${#review_evidence_candidates[@]} -ne 1 ]]; then
-        error "❌ Block 2 — Requirements evidence needs exactly one active review-evidence record for ${required_maturity} planning"
-        exit 1
-      fi
-      review_evidence="${review_evidence_candidates[0]}"
+    if [[ -z "${selected_change}" || -z "${review_evidence}" ]]; then
+      error "❌ Block 2 — Requirements evidence needs exactly one changed active OpenSpec change for ${required_maturity} planning"
+      exit 1
     fi
     require_index_bound_review_evidence "${review_evidence}" || exit 1
   fi
