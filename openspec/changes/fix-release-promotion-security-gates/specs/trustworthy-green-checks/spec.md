@@ -70,6 +70,11 @@ decision cannot accept an unhashed graph or credit a detached digest.
 - **WHEN** an uncontinued exact pin is followed by a standalone valid SHA-256 hash line
 - **THEN** the pre-install dependency-trust gate rejects both the unhashed pin and the unattached digest
 
+#### Scenario: A continued pin is interrupted before its digest
+
+- **WHEN** a blank or comment-only physical line separates a continued exact pin from a valid SHA-256 hash line
+- **THEN** the pre-install dependency-trust gate follows pip logical-line semantics and rejects both the unhashed pin and the unattached digest
+
 ### Requirement: Frozen static analysis uses a non-vulnerable MCP binding
 
 The frozen development-tool graph SHALL select a Semgrep release whose declared
@@ -143,6 +148,12 @@ later assignments SHALL replace earlier alias bindings in statement order,
 while conditional assignments SHALL remain fail-closed. Read-only class-body
 access to unrelated module globals and compound bindings over ordinary mappings
 SHALL remain compatible.
+
+#### Scenario: An augmented union mutates a module-namespace alias
+
+- **WHEN** module scope or an import-time class body applies `|=` to an alias of the active module namespace with a mapping that can bind `pytest_plugins`
+- **THEN** retained proof fails closed rather than omitting the dynamically registered plugin
+- **AND** the same operation over an ordinary mapping or with statically unrelated keys remains compatible
 
 #### Scenario: Helper function contains an inactive local assignment
 

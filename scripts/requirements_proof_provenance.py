@@ -509,6 +509,16 @@ def _is_namespace_plugin_mutator(node: ast.AST, factories: set[str], namespaces:
     return mutator_name in {"update", "__ior__"} and _update_mutator_can_bind_plugin(node)
 
 
+def _is_namespace_plugin_augmented_union(node: ast.AST, factories: set[str], namespaces: set[str]) -> bool:
+    """Return whether ``|=`` can add the plugin global through a namespace alias."""
+    return (
+        isinstance(node, ast.AugAssign)
+        and isinstance(node.op, ast.BitOr)
+        and _is_namespace_reference(node.target, factories, namespaces)
+        and _mapping_can_bind_plugin(node.value)
+    )
+
+
 def _is_global_namespace_plugin_operation(
     node: ast.AST, factories: set[str], namespaces: set[str], dynamic_executors: set[str]
 ) -> bool:
@@ -520,6 +530,7 @@ def _is_global_namespace_plugin_operation(
         or dynamic_execution
         or _is_namespace_plugin_subscript(node, factories, namespaces)
         or _is_namespace_plugin_mutator(node, factories, namespaces)
+        or _is_namespace_plugin_augmented_union(node, factories, namespaces)
     )
 
 
@@ -724,6 +735,7 @@ def _direct_indirect_plugin_binding(node: ast.AST, aliases: ScopeAliases) -> boo
         or dynamic_execution
         or _is_namespace_plugin_subscript(node, factories, namespaces)
         or _is_namespace_plugin_mutator(node, factories, namespaces)
+        or _is_namespace_plugin_augmented_union(node, factories, namespaces)
     )
 
 
@@ -891,6 +903,9 @@ def _has_uncertain_authority_binding(
 def _namespace_operation_alias_name(node: ast.AST, aliases: ScopeAliases) -> str | None:
     """Return the simple alias name used by one namespace operation."""
     factories, namespaces, _ = aliases
+    augmented_alias = _augmented_namespace_alias_name(node, factories, namespaces)
+    if augmented_alias is not None:
+        return augmented_alias
     if (
         isinstance(node, ast.Subscript)
         and _is_namespace_plugin_subscript(node, factories, namespaces)
@@ -906,6 +921,17 @@ def _namespace_operation_alias_name(node: ast.AST, aliases: ScopeAliases) -> str
     else:
         return None
     return owner.id if isinstance(owner, ast.Name) else None
+
+
+def _augmented_namespace_alias_name(node: ast.AST, factories: set[str], namespaces: set[str]) -> str | None:
+    """Return the alias targeted by a plugin-relevant namespace union."""
+    return (
+        node.target.id
+        if isinstance(node, ast.AugAssign)
+        and _is_namespace_plugin_augmented_union(node, factories, namespaces)
+        and isinstance(node.target, ast.Name)
+        else None
+    )
 
 
 def _dynamic_operation_alias_name(node: ast.AST, dynamic_executors: set[str]) -> str | None:

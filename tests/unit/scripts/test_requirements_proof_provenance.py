@@ -412,6 +412,7 @@ def test_pytest_plugin_discovery_ignores_function_local_assignments() -> None:
         'globals().update({"pytest_plugins": ("tests.helpers.hidden",)})\n',
         "globals().update(dynamic_bindings)\n",
         'namespace = globals()\nnamespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+        'namespace = globals()\nnamespace |= {"pytest_plugins": ("tests.helpers.hidden",)}\n',
         'namespace = locals()\nnamespace.update(pytest_plugins=("tests.helpers.hidden",))\n',
         'namespace = vars()\nalias = namespace\nalias.setdefault("pytest_plugins", ("tests.helpers.hidden",))\n',
         'namespace_factory = globals\nnamespace_factory()["pytest_plugins"] = ("tests.helpers.hidden",)\n',
@@ -420,6 +421,7 @@ def test_pytest_plugin_discovery_ignores_function_local_assignments() -> None:
         'run = exec\nrun("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
         'class Plugins:\n    globals().update(pytest_plugins=("tests.helpers.hidden",))\n',
         'class Plugins:\n    namespace = globals()\n    namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+        'class Plugins:\n    namespace = globals()\n    namespace |= {"pytest_plugins": ("tests.helpers.hidden",)}\n',
         'class Plugins:\n    global pytest_plugins\n    pytest_plugins = ("tests.helpers.hidden",)\n',
         'class Plugins:\n    exec("global pytest_plugins; pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
         'class Plugins:\n    eval("globals().update(pytest_plugins=(\\"tests.helpers.hidden\\",))")\n',
@@ -483,6 +485,9 @@ def test_pytest_plugin_discovery_allows_legitimate_namespace_access() -> None:
             'import builtins\nruntime = builtins\nruntime = object()\nruntime.exec("ordinary payload")\n'
             'run = exec\nrun = print\nrun("ordinary payload")\n'
         ),
+        'ordinary = {}\nordinary |= {"pytest_plugins": ("tests.helpers.local",)}\n',
+        'namespace = globals()\nnamespace |= {"unrelated": "value"}\n',
+        'namespace = globals()\nnamespace = {}\nnamespace |= {"pytest_plugins": ("tests.helpers.local",)}\n',
         (
             'match {"ns": {}}:\n    case {"ns": captured}:\n'
             '        captured["pytest_plugins"] = ("tests.helpers.local",)\n'
@@ -537,6 +542,7 @@ def test_pytest_plugin_discovery_rejects_mapping_pattern_namespace_captures(sour
         'namespace = globals()\nnamespace = {}\nnamespace = globals()\nnamespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
         'namespace = globals()\nif enabled:\n    namespace = {}\nnamespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
         'namespace = {}\nif enabled:\n    namespace = globals()\nnamespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+        'namespace = {}\nif enabled:\n    namespace = globals()\nnamespace |= {"pytest_plugins": ("tests.helpers.hidden",)}\n',
         'for namespace in [globals()]:\n    pass\nnamespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
         'from contextlib import nullcontext\nwith nullcontext(globals()) as namespace:\n    pass\nnamespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
         'match globals():\n    case namespace:\n        pass\nnamespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',

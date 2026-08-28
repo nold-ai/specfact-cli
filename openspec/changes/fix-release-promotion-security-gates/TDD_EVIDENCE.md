@@ -510,3 +510,37 @@ the authoritative failing-before evidence or the candidate design.
   mapping at
   `sha256:ee1db17944ae22c4f127f5e0a0dcae8f7237c62b4cd98abde246088c7e2053c9`
   on 2026-08-28 after the final security scenarios were mapped.
+
+**Final-head logical-line and augmented-union review proof (2026-08-28):**
+
+- Codex review of signed commit
+  `a872a36fc91aa34ce3bb08dafcc8ccbb75add9e5` identified two additional
+  checker/runtime mismatches. A blank or comment-only line did not terminate
+  the dependency parser's package state as it does pip's logical requirement,
+  and `namespace = globals(); namespace |= {...}` could create an active
+  `pytest_plugins` binding without invalidating retained proof.
+- Independent read-only reviews reproduced both findings against exact signed
+  head `c518b9fd72b2fb55408498feb02c449b5a5f112c`. Pip 26.2.1 rejected both
+  interrupted hash forms, while the dependency-trust checker accepted them;
+  the provenance scanner returned no plugins for the augmented union while
+  Python mutated module globals at import time. The namespace bypass also
+  reproduced in a class body and was rated medium severity.
+- After adding the OpenSpec scenarios and tests, the focused pre-implementation
+  run failed four cases with 38 controls passing: two interrupted hash forms,
+  the module-scope augmented union, and its combined compatibility challenge.
+  No implementation changed before this red evidence was captured.
+- The dependency parser now clears continuation state at blank and comment-only
+  physical lines. The provenance scanner rejects a key-relevant `|=` operation
+  through a live active-namespace alias at module or import-time class scope,
+  while preserving ordinary mappings, unrelated literal keys, definite
+  shadows, and fail-closed conditional re-aliasing.
+- The post-implementation focused challenge passes all 53 cases, including
+  both pip-aligned interruption cases, module and class bypasses, and adjacent
+  compatibility controls.
+- The complete owning governance/security set passes all 325 tests. Strict
+  BasedPyright, Ruff, OpenSpec validation, the standard-library-only trust
+  checker control, pinned Semgrep 1.175.0 over six focused rules, and Bandit at
+  medium/high severity all pass with zero findings. The exact staged pipeline
+  initially reported one complexity warning and then one redundant-branch info;
+  both were refactored without changing behavior, and the final Code Review
+  result is `PASS` with zero findings.

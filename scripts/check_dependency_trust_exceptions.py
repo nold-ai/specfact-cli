@@ -276,6 +276,7 @@ def _parse_code_review_pins(contents: str) -> tuple[dict[str, str], list[str]]:
     for line_number, line in enumerate(contents.splitlines(), start=1):
         stripped = line.strip()
         if not stripped or stripped.startswith("#"):
+            current_package = None
             continue
         if stripped.startswith("--hash=sha256:"):
             current_package = _register_code_review_hash(
