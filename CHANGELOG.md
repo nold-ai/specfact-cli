@@ -20,7 +20,13 @@ All notable changes to this project will be documented in this file.
   baseline. Upgrade the development-only publication client to Twine 7 so
   Hatchling 1.32's Core Metadata 2.5 output remains publishable, and require
   pip-tools 7.6.1 so module dependency resolution remains compatible with pip
-  26.2.
+  26.2. Upgrade Semgrep to 1.175.0 so its fixed `mcp==1.29.0` binding removes
+  the prior exceptions for CVE-2026-52869, CVE-2026-52870, and CVE-2026-59950;
+  enforce MCP 1.28.1 as the pre-install advisory floor so a consistent lock
+  downgrade cannot restore the vulnerable binding.
+- **Release workflow isolation:** disable persistent dependency caches around
+  privileged companion-module execution and verify the immutable fixture before
+  export, while preserving the normal Requirements and review gates.
 
 ---
 

@@ -85,7 +85,7 @@
 ## Focused failing policy tests
 
 ```text
-UV_CACHE_DIR=/private/tmp/specfact-security-uv-cache .venv/bin/pytest \
+UV_CACHE_DIR=<UV_CACHE> .venv/bin/pytest \
   tests/unit/scripts/test_reproducible_delivery.py::test_reproducible_delivery_wheel_build_uses_a_locked_backend \
   tests/unit/scripts/test_reproducible_delivery.py::test_reproducible_delivery_pins_patched_pip_to_tooling_only -q
 ```

@@ -139,7 +139,7 @@ dev = [
     "pre-commit>=4.0.1",
     "mutmut>=3.3.1",  # Scheduled mutation baseline; frozen with the contributor toolchain.
     "yamllint>=1.37.1",  # GPL-3.0-or-later — dev-only exception; replace with a non-GPL YAML lint path in Phase 2.
-    "semgrep>=1.171.0",  # LGPL-2.1 — required for code analysis; invoked as subprocess (accepted exception)
+    "semgrep>=1.175.0",  # LGPL-2.1 — pins the fixed MCP dependency line; invoked as a subprocess.
 
     # Same contract exploration stack as [contracts] (extras cannot self-reference)
     "crosshair-tool>=0.0.97",
@@ -160,7 +160,7 @@ dev = [
 ]
 
 scanning = [
-    "semgrep>=1.171.0",  # Optional: Only needed for code scanning features
+    "semgrep>=1.175.0",  # Optional: Only needed for code scanning features
 ]
 
 enhanced-analysis = [
@@ -209,7 +209,7 @@ dependencies = [
     "ruff>=0.14.2",
     "radon>=6.0.1",
     "yamllint>=1.37.1",  # GPL-3.0-or-later — dev/test-only exception. Phase 2: replace with non-GPL YAML lint path.
-    "semgrep>=1.171.0",  # LGPL-2.1 — required for code analysis; invoked as subprocess (accepted exception)
+    "semgrep>=1.175.0",  # LGPL-2.1 — pins the fixed MCP dependency line; invoked as a subprocess.
     # Contract-First Development Dependencies
     "icontract>=2.7.1",
     "beartype>=0.22.4",
