@@ -399,8 +399,15 @@ def test_pytest_plugin_discovery_ignores_function_local_assignments() -> None:
         'globals().update(pytest_plugins=("tests.helpers.hidden",))\n',
         'globals().update({"pytest_plugins": ("tests.helpers.hidden",)})\n',
         "globals().update(dynamic_bindings)\n",
+        'namespace = globals()\nnamespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+        'namespace = locals()\nnamespace.update(pytest_plugins=("tests.helpers.hidden",))\n',
+        'namespace = vars()\nalias = namespace\nalias.setdefault("pytest_plugins", ("tests.helpers.hidden",))\n',
+        'namespace_factory = globals\nnamespace_factory()["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+        'getattr(globals(), "update")(pytest_plugins=("tests.helpers.hidden",))\n',
         'exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
+        'run = exec\nrun("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
         'class Plugins:\n    globals().update(pytest_plugins=("tests.helpers.hidden",))\n',
+        'class Plugins:\n    namespace = globals()\n    namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
         'class Plugins:\n    global pytest_plugins\n    pytest_plugins = ("tests.helpers.hidden",)\n',
         'class Plugins:\n    exec("global pytest_plugins; pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
         'class Plugins:\n    eval("globals().update(pytest_plugins=(\\"tests.helpers.hidden\\",))")\n',
@@ -423,6 +430,19 @@ def test_pytest_plugin_discovery_rejects_function_default_module_binding() -> No
 
     with pytest.raises(ValueError, match=r"^prior-red-proof-invalid$"):
         module._pytest_plugin_names(ast.parse(source))
+
+
+def test_pytest_plugin_discovery_allows_read_only_class_globals_access() -> None:
+    """Read-only class inspection of the module namespace must remain compatible."""
+    module = _load_provenance_module()
+    source = (
+        "class Metadata:\n"
+        '    module_name = globals().get("__name__")\n'
+        '    module_package = globals()["__package__"]\n'
+        '    lookup = getattr(globals(), "get")\n'
+    )
+
+    assert module._pytest_plugin_names(ast.parse(source)) == []
 
 
 @pytest.mark.parametrize(

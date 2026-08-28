@@ -376,3 +376,36 @@ the authoritative failing-before evidence or the candidate design.
   `69f075819be5e1ceca1446b026b0417f19e584ca`. Both frozen pip-audit runs,
   dependency trust, reproducible delivery, focused Semgrep, and focused Bandit
   passed with no findings or unreviewed vulnerabilities.
+
+**Final-head namespace-alias review proof (2026-08-28):**
+
+- Fresh review of commit `4921ca0086385885c82e1b4fb9255763e4dbe635`
+  identified a module-namespace alias bypass and an over-broad rejection of
+  read-only class-body `globals()` access. The expanded 24-case focused
+  challenge exited 1 before implementation with seven failures and 17 passing
+  controls: object aliases from `globals()`, `locals()`, and `vars()`, a chained
+  alias, a namespace-factory alias, `getattr(..., "update")`, and an `exec`
+  alias bypassed discovery, while the legitimate read-only class case failed.
+- The scanner now resolves namespace-factory, namespace-object, and dynamic-
+  execution aliases within the applicable import-time scope. It applies the
+  existing key-aware mutation policy through those aliases and `getattr`, while
+  permitting read-only `get`, subscript, and read-only `getattr` access.
+- The same focused challenge passed all 24 cases after implementation. The full
+  provenance suite passed all 65 tests, strict BasedPyright reported zero
+  errors, warnings, or notes, and Ruff lint passed before formatting the one
+  changed source file.
+- The expanded owning governance/security set passed all 282 tests. The final
+  core-environment suite passed 3,006 tests with 35 skips and only the same five
+  companion-package import failures expected when module roots are absent. The
+  five import controls and two networked runtime controls then passed against
+  immutable fixture commit `69f075819be5e1ceca1446b026b0417f19e584ca`;
+  the runtime controls required PyPI access only inside their temporary install
+  environments. Code Review reported zero findings after the alias propagation
+  helper was split below its complexity threshold.
+- Both final frozen vulnerability audits passed with no unreviewed findings. A
+  clean hash-locked primary environment replaced its venv bootstrap pip 26.1.2
+  with locked pip 26.2.1 and installed MCP 1.29.0, Semgrep 1.175.0, and Twine
+  7.0.0; the primary plus isolated Code Review license scopes then passed with
+  zero violations. The exact staged pre-commit pipeline passed at
+  `test-authored` maturity with zero Code Review findings and no contract-input
+  change requiring a contract-suite rerun.

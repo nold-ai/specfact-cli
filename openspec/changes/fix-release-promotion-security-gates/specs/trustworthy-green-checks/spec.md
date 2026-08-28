@@ -119,6 +119,9 @@ comprehension iteration targets SHALL remain excluded because they do not bind
 the surrounding module global. A class body that explicitly mutates the module
 namespace through `globals()`, a `global pytest_plugins` declaration, or dynamic
 execution SHALL fail closed because class bodies execute at import time.
+Aliases derived from the active module namespace or from its namespace factory
+SHALL receive the same treatment as direct access. Read-only class-body access
+to unrelated module globals SHALL remain compatible.
 
 #### Scenario: Helper function contains an inactive local assignment
 
@@ -145,6 +148,16 @@ execution SHALL fail closed because class bodies execute at import time.
 
 - **WHEN** an import-time class body writes through `globals()`, declares `global pytest_plugins`, or invokes dynamic execution
 - **THEN** retained proof fails closed instead of treating the operation as an ordinary class-local binding
+
+#### Scenario: Namespace alias mutates the plugin binding
+
+- **WHEN** module or class import-time code aliases the active namespace or its factory and the alias can write `pytest_plugins`
+- **THEN** retained proof fails closed with the same result as a direct namespace mutation
+
+#### Scenario: Class body reads unrelated module metadata
+
+- **WHEN** an import-time class body only reads an unrelated key through `globals()`, its subscript form, or read-only `getattr`
+- **THEN** retained proof remains valid because no module binding can be created
 
 #### Scenario: Class body stores a deferred generator
 

@@ -223,28 +223,98 @@ def _import_binds_pytest_plugins(node: ast.AST) -> bool:
     return False
 
 
-def _is_namespace_plugin_subscript(node: ast.AST) -> bool:
-    """Return whether a direct module-namespace write targets ``pytest_plugins``."""
+def _same_scope_nodes(statements: Sequence[ast.AST]) -> list[ast.AST]:
+    """Return import-time nodes without descending into nested definition bodies."""
+    discovered: list[ast.AST] = []
+    pending: list[tuple[ast.AST, ast.AST | None]] = [(node, None) for node in reversed(statements)]
+    while pending:
+        current, parent = pending.pop()
+        discovered.append(current)
+        if isinstance(current, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)):
+            nested_body = {current.body} if isinstance(current, ast.Lambda) else set(current.body)
+            children = [child for child in ast.iter_child_nodes(current) if child not in nested_body]
+        else:
+            children = _class_import_time_children(current, parent or current)
+        pending.extend((child, current) for child in reversed(children))
+    return discovered
+
+
+def _assignment_names_and_value(node: ast.AST) -> tuple[set[str], ast.AST | None]:
+    """Return simple assignment targets and their shared value."""
+    if isinstance(node, ast.Assign):
+        return {target.id for target in node.targets if isinstance(target, ast.Name)}, node.value
+    if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+        return {node.target.id}, node.value
+    if isinstance(node, ast.NamedExpr) and isinstance(node.target, ast.Name):
+        return {node.target.id}, node.value
+    return set(), None
+
+
+def _is_zero_argument_call_to(node: ast.AST | None, names: set[str]) -> bool:
+    """Return whether an expression calls one named factory without arguments."""
+    return (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id in names
+        and not node.args
+        and not node.keywords
+    )
+
+
+def _propagate_scope_aliases(
+    target_names: set[str],
+    value: ast.AST | None,
+    factories: set[str],
+    namespaces: set[str],
+    dynamic_executors: set[str],
+) -> None:
+    """Extend alias groups from one simple assignment."""
+    source_name = value.id if isinstance(value, ast.Name) else None
+    if source_name in factories:
+        factories.update(target_names)
+    if source_name in namespaces:
+        namespaces.update(target_names)
+    if source_name in dynamic_executors:
+        dynamic_executors.update(target_names)
+    if _is_zero_argument_call_to(value, factories):
+        namespaces.update(target_names)
+
+
+def _scope_aliases(statements: Sequence[ast.AST], namespace_builtins: set[str]) -> tuple[set[str], set[str], set[str]]:
+    """Resolve namespace factories, namespace objects, and dynamic-execution aliases."""
+    factories = set(namespace_builtins)
+    namespaces: set[str] = set()
+    dynamic_executors = {"exec", "eval"}
+    assignments = [_assignment_names_and_value(node) for node in _same_scope_nodes(statements)]
+    changed = True
+    while changed:
+        before = (len(factories), len(namespaces), len(dynamic_executors))
+        for target_names, value in assignments:
+            _propagate_scope_aliases(target_names, value, factories, namespaces, dynamic_executors)
+        changed = before != (len(factories), len(namespaces), len(dynamic_executors))
+    return factories, namespaces, dynamic_executors
+
+
+def _is_namespace_reference(node: ast.AST, factories: set[str], namespaces: set[str]) -> bool:
+    """Return whether an expression resolves to the active module namespace."""
+    if isinstance(node, ast.Name):
+        return node.id in namespaces
+    return (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id in factories
+        and not node.args
+        and not node.keywords
+    )
+
+
+def _is_namespace_plugin_subscript(node: ast.AST, factories: set[str], namespaces: set[str]) -> bool:
+    """Return whether a module-namespace write targets ``pytest_plugins``."""
     return (
         isinstance(node, ast.Subscript)
         and isinstance(node.ctx, (ast.Store, ast.Del))
         and (not isinstance(node.slice, ast.Constant) or node.slice.value == "pytest_plugins")
-        and isinstance(node.value, ast.Call)
-        and isinstance(node.value.func, ast.Name)
-        and node.value.func.id in {"globals", "locals", "vars"}
-        and not node.value.args
-        and not node.value.keywords
-    )
-
-
-def _bare_namespace_call(node: ast.AST) -> bool:
-    """Return whether a call exposes the current namespace without arguments."""
-    return (
-        isinstance(node, ast.Call)
-        and isinstance(node.func, ast.Name)
-        and node.func.id in {"globals", "locals", "vars"}
-        and not node.args
-        and not node.keywords
+        and _is_namespace_reference(node.value, factories, namespaces)
     )
 
 
@@ -267,26 +337,53 @@ def _update_mutator_can_bind_plugin(node: ast.Call) -> bool:
     return has_plugin_keyword or any(_mapping_can_bind_plugin(argument) for argument in node.args)
 
 
-def _is_namespace_plugin_mutator(node: ast.AST) -> bool:
+def _namespace_mutator_name(node: ast.Call, factories: set[str], namespaces: set[str]) -> str | None:
+    """Return the invoked namespace method, using ``*`` for an unresolved method name."""
+    if isinstance(node.func, ast.Attribute) and _is_namespace_reference(node.func.value, factories, namespaces):
+        return node.func.attr
+    getter = node.func
+    if not (
+        isinstance(getter, ast.Call)
+        and isinstance(getter.func, ast.Name)
+        and getter.func.id == "getattr"
+        and len(getter.args) >= 2
+        and _is_namespace_reference(getter.args[0], factories, namespaces)
+    ):
+        return None
+    attribute = getter.args[1]
+    return attribute.value if isinstance(attribute, ast.Constant) and isinstance(attribute.value, str) else "*"
+
+
+def _is_namespace_plugin_mutator(node: ast.AST, factories: set[str], namespaces: set[str]) -> bool:
     """Return whether an import-time call can create the plugin global."""
     if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "exec":
         return True
-    if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)):
+    if not isinstance(node, ast.Call):
         return False
-    if not _bare_namespace_call(node.func.value):
+    mutator_name = _namespace_mutator_name(node, factories, namespaces)
+    if mutator_name is None:
         return False
-    if node.func.attr in {"__setitem__", "setdefault"}:
+    if mutator_name == "*":
+        return True
+    if mutator_name in {"__setitem__", "setdefault"}:
         return _key_mutator_can_bind_plugin(node)
-    return node.func.attr in {"update", "__ior__"} and _update_mutator_can_bind_plugin(node)
+    return mutator_name in {"update", "__ior__"} and _update_mutator_can_bind_plugin(node)
 
 
-def _is_global_namespace_plugin_operation(node: ast.AST) -> bool:
+def _is_global_namespace_plugin_operation(
+    node: ast.AST, factories: set[str], namespaces: set[str], dynamic_executors: set[str]
+) -> bool:
     """Return whether a class-body operation can mutate the containing module."""
     global_declaration = isinstance(node, ast.Global) and "pytest_plugins" in node.names
-    sensitive_builtin = (
-        isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load) and node.id in {"globals", "exec", "eval"}
+    dynamic_execution = (
+        isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in dynamic_executors
     )
-    return global_declaration or sensitive_builtin
+    return (
+        global_declaration
+        or dynamic_execution
+        or _is_namespace_plugin_subscript(node, factories, namespaces)
+        or _is_namespace_plugin_mutator(node, factories, namespaces)
+    )
 
 
 def _class_import_time_children(current: ast.AST, parent: ast.AST) -> list[ast.AST]:
@@ -307,17 +404,20 @@ def _class_import_time_children(current: ast.AST, parent: ast.AST) -> list[ast.A
 
 def _class_body_can_bind_module_plugin(node: ast.ClassDef) -> bool:
     """Inspect import-time class code without treating class locals as module globals."""
+    factories, namespaces, dynamic_executors = _scope_aliases(node.body, {"globals"})
     pending: list[tuple[ast.AST, ast.AST]] = [(child, node) for child in reversed(node.body)]
     while pending:
         current, parent = pending.pop()
-        if _is_global_namespace_plugin_operation(current):
+        if _is_global_namespace_plugin_operation(current, factories, namespaces, dynamic_executors):
             return True
         children = _class_import_time_children(current, parent)
         pending.extend((child, current) for child in reversed(children))
     return False
 
 
-def _is_indirect_plugin_binding(node: ast.AST) -> bool:
+def _is_indirect_plugin_binding(
+    node: ast.AST, factories: set[str], namespaces: set[str], dynamic_executors: set[str]
+) -> bool:
     """Return whether an unresolved enclosing-scope operation binds the plugin global."""
     pattern_binding = (isinstance(node, (ast.MatchAs, ast.MatchStar)) and node.name == "pytest_plugins") or (
         isinstance(node, ast.MatchMapping) and node.rest == "pytest_plugins"
@@ -325,7 +425,16 @@ def _is_indirect_plugin_binding(node: ast.AST) -> bool:
     name_binding = (
         isinstance(node, ast.Name) and node.id == "pytest_plugins" and isinstance(node.ctx, (ast.Store, ast.Del))
     )
-    return pattern_binding or name_binding or _is_namespace_plugin_subscript(node) or _is_namespace_plugin_mutator(node)
+    dynamic_execution = (
+        isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in dynamic_executors
+    )
+    return (
+        pattern_binding
+        or name_binding
+        or dynamic_execution
+        or _is_namespace_plugin_subscript(node, factories, namespaces)
+        or _is_namespace_plugin_mutator(node, factories, namespaces)
+    )
 
 
 def _plugin_assignment(node: ast.AST) -> tuple[ast.Name | None, ast.AST | None]:
@@ -370,6 +479,8 @@ def _literal_plugin_names(value_node: ast.AST) -> list[list[str]]:
 def _pytest_plugin_names(tree: ast.AST) -> list[list[str]]:
     """Return literal module-scope plugins or reject an unresolved declaration."""
     plugin_names: list[list[str]] = []
+    root_statements = tree.body if isinstance(tree, ast.Module) else []
+    factories, namespaces, dynamic_executors = _scope_aliases(root_statements, {"globals", "locals", "vars"})
     scope_nodes: list[ast.AST] = list(reversed(tree.body)) if isinstance(tree, ast.Module) else []
     while scope_nodes:
         node = scope_nodes.pop()
@@ -377,7 +488,9 @@ def _pytest_plugin_names(tree: ast.AST) -> list[list[str]]:
         if definition_children is not None:
             scope_nodes.extend(reversed(definition_children))
             continue
-        if _import_binds_pytest_plugins(node) or _is_indirect_plugin_binding(node):
+        if _import_binds_pytest_plugins(node) or _is_indirect_plugin_binding(
+            node, factories, namespaces, dynamic_executors
+        ):
             raise ValueError("prior-red-proof-invalid")
         plugin_target, value_node = _plugin_assignment(node)
         scope_nodes.extend(reversed(_enclosing_scope_children(node, plugin_target)))
