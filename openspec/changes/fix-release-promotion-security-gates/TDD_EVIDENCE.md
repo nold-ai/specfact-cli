@@ -277,3 +277,336 @@ the authoritative failing-before evidence or the candidate design.
   ordered focused and full-suite evidence above.
 - Protected GitHub PR/release gates remain pending on the follow-up commit and
   required review.
+
+**Review-red bootstrap branch binding proof (2026-08-28):**
+
+- Signed test-only commit `2f5cb18c66b133a09a24234c982d2366f3de07d4`
+  was created from exact dev baseline
+  `3ea3d9b4492ade6ec5683fac83c5b5090b0cb547`. It changes only the approved
+  OpenSpec bundle and seven mapped test files; all ten mapped selectors fail
+  against the baseline.
+- Draft evidence PR #694 retained Requirements run `33124192051`, whose bounded
+  report passed at `red` maturity with all ten selectors, no findings, the
+  expected base commit, and immutable artifact digest
+  `sha256:518065784e6fcccd5aba2f39c94c4baeafc46998a8cb00debf9f69070f2c404a`.
+  The draft PR was closed without merge after the signed red commit became a
+  no-tree-change second parent of PR #693.
+- A test-first authority challenge changed only the retained run branch while
+  keeping the final PR branch bound separately. Before implementation, the
+  explicit distinct-branch acceptance selector failed and its unbound-branch
+  control passed. After the authority record gained an explicit `red_branch`
+  binding with backward-compatible same-branch behavior, all 13 authority
+  tests passed and strict basedpyright reported zero findings.
+
+**Issue #692 bootstrap authority workflow proof (2026-08-28):**
+
+- Repository-member comment `5448719352` was unedited and matched the approved
+  authority payload byte-for-byte. The local authority validator accepted its
+  signed red commit, failed red workflow run, immutable artifact metadata, all
+  three artifact-file digests, distinct red branch, final branch, and ancestry.
+- Test-first workflow coverage failed in two selectors before implementation:
+  the shared issue argument was still hard-coded to issue #689 and no #692
+  ledger/run/comment binding existed. The existing #689 and new #692 contracts
+  pass after selecting immutable per-change constants and using the shared
+  validated issue argument.
+
+**Post-authority final verification (2026-08-28):**
+
+- The focused authority, delivery-workflow, provenance, pre-commit, and trusted
+  green-check suite passed 146 tests. The full suite's mutually exclusive
+  module-discovery environments were verified separately: 2,978 tests passed
+  in the core environment; all 129 owning tests for environment-only failures
+  passed with a hermetic home and frozen interpreter path; and all seven
+  module-import controls passed against the immutable companion fixture.
+- The exact staged quality pipeline passed at approved `test-authored` mapping
+  digest `sha256:d6ef8ed0aa4623eaa8c3b74d6c85fd1a0efd91ac700c0ded7b9a8897626e20cf`,
+  including workflow lint, changed-file typing and linting, Requirements
+  evidence, command/documentation contracts, and Code Review with zero
+  findings. Strict OpenSpec validation and repository-wide Ruff,
+  BasedPyright, and safe-write gates also passed.
+- Both frozen pip-audit gates found no unreviewed vulnerabilities. Semgrep
+  1.175.0 and Bandit found zero findings; dependency trust, reproducible
+  delivery, version parity, and primary plus isolated Code Review license
+  scopes passed. The locked `0.55.2` wheel built without isolation and Twine
+  7.0.0 accepted its package metadata.
+
+**Final review-finding red proof (2026-08-28):**
+
+- The computed-key and class-body plugin challenge first collected 14 focused
+  cases and exited 1 with four failures: both end-to-end histories accepted a
+  post-red plugin change, and both direct parser controls omitted the active
+  binding. Ten literal, namespace-mutator, and local-scope controls passed.
+- The first candidate closed those direct forms, but the required independent
+  bypass/regression review reproduced indirect class-body mutation through
+  `eval`, `getattr(globals(), "update")`, and an `exec` alias, plus a legitimate
+  unconsumed generator body that was incorrectly treated as import-time code.
+  The added 26-case challenge exited 1 with five failures before the shared
+  boundary was corrected; 21 controls passed.
+- The Code Review dependency-boundary investigation proved that stale input
+  binding was caught later by reproducibility CI, while a blocked package found
+  only in the isolated review lock passed the native dependency-trust gate.
+  Four test-first isolated-graph selectors all failed before implementation.
+- The one-cycle independent trust-fix review then reproduced PEP 440-equivalent
+  `pycparser==v3.0` and `pycparser==03.0` pins accepted by pip but omitted by the
+  string comparison. The six-spelling test exited 1 with those two forms and
+  the equivalent zero-epoch form failing; the three existing spellings passed.
+
+**Final review-finding green proof (2026-08-28):**
+
+- The provenance scanner now fails closed on computed namespace keys and on
+  import-time class code that exposes `globals`, `exec`, or `eval`, while
+  retaining ordinary class-local bindings, function/method bodies, and the
+  deferred body of an unconsumed class-attribute generator. All 26 focused
+  plugin cases and all 57 provenance tests passed.
+- The standard-library pre-install trust checker now verifies the exact Code
+  Review input digest, parses every isolated exact pin fail-closed, and applies
+  the blocked-release, prohibited-wheel, and security-floor policy to both
+  frozen graphs. Numeric PEP 440 release components normalize the `v` prefix,
+  leading zeroes, and zero epoch. All 22 dependency-trust tests passed.
+- The combined authority, delivery, provenance, staged-index, workflow,
+  producer, and dependency-trust set passed 173 tests. Repository-wide strict
+  basedpyright reported zero errors, warnings, or notes; Ruff and strict
+  OpenSpec validation passed. The approved Requirements mapping and review
+  evidence were not modified. The final exact staged pipeline then passed at
+  `test-authored` maturity with zero Code Review findings and no contract-input
+  changes requiring a contract-suite rerun.
+- The final core-environment suite passed 2,997 tests with 36 skips and the same
+  five companion-package import failures expected when module roots are absent;
+  all seven owning controls passed against immutable fixture commit
+  `69f075819be5e1ceca1446b026b0417f19e584ca`. Both frozen pip-audit runs,
+  dependency trust, reproducible delivery, focused Semgrep, and focused Bandit
+  passed with no findings or unreviewed vulnerabilities.
+
+**Final-head namespace-alias review proof (2026-08-28):**
+
+- Fresh review of commit `4921ca0086385885c82e1b4fb9255763e4dbe635`
+  identified a module-namespace alias bypass and an over-broad rejection of
+  read-only class-body `globals()` access. The expanded 24-case focused
+  challenge exited 1 before implementation with seven failures and 17 passing
+  controls: object aliases from `globals()`, `locals()`, and `vars()`, a chained
+  alias, a namespace-factory alias, `getattr(..., "update")`, and an `exec`
+  alias bypassed discovery, while the legitimate read-only class case failed.
+- The scanner now resolves namespace-factory, namespace-object, and dynamic-
+  execution aliases within the applicable import-time scope. It applies the
+  existing key-aware mutation policy through those aliases and `getattr`, while
+  permitting read-only `get`, subscript, and read-only `getattr` access.
+- The same focused challenge passed all 24 cases after implementation. The full
+  provenance suite passed all 65 tests, strict BasedPyright reported zero
+  errors, warnings, or notes, and Ruff lint passed before formatting the one
+  changed source file.
+- The expanded owning governance/security set passed all 282 tests. The final
+  core-environment suite passed 3,006 tests with 35 skips and only the same five
+  companion-package import failures expected when module roots are absent. The
+  five import controls and two networked runtime controls then passed against
+  immutable fixture commit `69f075819be5e1ceca1446b026b0417f19e584ca`;
+  the runtime controls required PyPI access only inside their temporary install
+  environments. Code Review reported zero findings after the alias propagation
+  helper was split below its complexity threshold.
+- Both final frozen vulnerability audits passed with no unreviewed findings. A
+  clean hash-locked primary environment replaced its venv bootstrap pip 26.1.2
+  with locked pip 26.2.1 and installed MCP 1.29.0, Semgrep 1.175.0, and Twine
+  7.0.0; the primary plus isolated Code Review license scopes then passed with
+  zero violations. The exact staged pre-commit pipeline passed at
+  `test-authored` maturity with zero Code Review findings and no contract-input
+  change requiring a contract-suite rerun.
+
+**Final-head per-pin hash review proof (2026-08-28):**
+
+- CodeRabbit review of signed commit
+  `1f0160d1e1cc59c9837a16db773626123d9cd059` identified that the
+  standard-library trust parser ignored hash continuations without requiring
+  one for every exact Code Review pin. The missing-hash and malformed-hash
+  selectors both failed before implementation while the existing 22 trust
+  controls remained available.
+- The parser now associates valid 64-hex SHA-256 continuations with the current
+  exact pin and reports every package lacking a valid digest. Both focused red
+  selectors and all 24 dependency-trust tests pass after implementation; the
+  checker still passes under `python -S`, and strict changed-file BasedPyright,
+  Ruff lint, and formatting are clean. The combined owning governance/security
+  set passes all 284 tests, and the changed trust checker plus its tests produce
+  zero Code Review findings.
+
+**Final-head qualified-executor and compound-alias review proof (2026-08-28):**
+
+- Fresh Codex review of signed commit
+  `87f9bd636c079fe522e752bf4c6f25ed3ffbcaba` identified qualified built-in
+  dynamic execution and compound namespace bindings as two remaining ways to
+  create an active module-level `pytest_plugins` binding without adding its
+  plugin to retained-proof inputs. The first focused red run failed eight cases
+  with 27 controls passing: `builtins.exec`/`eval`, their import aliases, loop,
+  destructuring, and eager-comprehension namespace aliases all reproduced.
+- Independent read-only boundary validation against the exact signed head
+  confirmed both P2 findings by comparing accepted static discovery with
+  runtime module mutation. It also identified context-manager and match
+  bindings, compound executor aliases, enclosing-module aliases used by class
+  bodies, and `__builtins__`/`__import__("builtins")` lookup as adjacent forms.
+  The incremental red run failed six added cases with 35 controls passing.
+- The scanner now tracks qualified built-in executors and applies scoped,
+  position-preserving alias propagation to assignments, loops, eager
+  comprehensions, context managers, match captures, and class bodies. It does
+  not leak comprehension aliases into later module statements or treat an
+  unrelated positional target as the module namespace.
+- The final provenance suite passes all 84 cases, including read-only access,
+  ordinary mappings, positional destructuring, later shadowing, function-body,
+  deferred-generator, and comprehension-target controls. Strict changed-file
+  BasedPyright and Ruff pass, and Code Review reports zero findings. The full
+  changed-scope governance/security set passes all 303 tests with the writable
+  UV cache and immutable modules fixture, and strict OpenSpec validation passes.
+
+**Final-head detached-hash review proof (2026-08-28):**
+
+- Codex review of signed commit
+  `87f9bd636c079fe522e752bf4c6f25ed3ffbcaba` identified that a valid
+  standalone hash line could be credited to the preceding package even when
+  that pin lacked a continuation marker. The exact detached-hash selector
+  failed before implementation because the trust checker returned no errors.
+- The parser now retains package state only across an explicit logical-line
+  continuation, rejects an unattached hash line, and still reports the package
+  as missing a valid attached digest. The focused selector and all 25
+  dependency-trust tests pass; the checker passes under `python -S`, and strict
+  changed-file typing, Ruff, and formatting are clean. The expanded changed-
+  scope set passes all 304 tests, strict OpenSpec validation passes, and Code
+  Review reports zero findings after the parser branches were split below the
+  repository complexity thresholds.
+
+**Final-head statement-order and mapping-capture review proof (2026-08-28):**
+
+- Codex review of signed commit
+  `bb44c15b988c78bd0a2b55147747de8d96cdf667` identified aliases of the
+  imported `builtins` owner, mapping-pattern namespace captures, and an
+  add-only alias false positive after definite shadowing. Independent
+  read-only validation against exact head
+  `a872a36fc91aa34ce3bb08dafcc8ccbb75add9e5` reproduced the two retained-proof
+  bypasses and the compatibility regression by comparing static discovery
+  with import-time module mutation.
+- The first focused red run failed seven cases and passed three controls:
+  direct and chained builtins-owner aliases plus direct, reordered, and nested
+  mapping captures were silently accepted, while a definitely shadowed
+  ordinary alias was rejected. An adjacent statement-order challenge then
+  failed four cases for conditional re-aliasing and names that persist after
+  `for`, `with`, and `match`; a final mapping-unpack selector remained red after
+  the initial implementation.
+- The scanner now propagates imported-builtins owner authority, correlates
+  literal mapping keys recursively, uses a distinct unresolved-key sentinel,
+  and conservatively inspects dictionary-unpack values without treating
+  `**rest` as the original namespace. It merges persistent compound bindings
+  only for subsequent statements and permits a definite ordinary shadow only
+  when no intervening uncertain path can restore authority. Comprehension
+  targets remain local.
+- The final focused set passes all 17 cases and the full provenance suite passes
+  all 100 cases. Controls cover ordinary and `None`-key mapping values,
+  copied-rest mutation, mutation before shadow, shadow then re-alias,
+  conditional shadow/re-alias, builtins-owner shadow, and non-leaking
+  comprehension targets. Strict changed-file BasedPyright reports zero errors,
+  warnings, or notes; Ruff lint and formatting pass; and strict OpenSpec
+  validation passes.
+- The complete changed-scope governance/security set passes all 320 tests with
+  the writable UV cache and immutable modules fixture. Pinned Semgrep 1.175.0
+  ran six focused SAST rules over the changed validator with zero findings, and
+  Bandit reported no medium/high findings. The exact staged Code Review surface
+  reports zero findings after the alias helpers were split below the clean-code
+  complexity and nesting thresholds.
+- Product owner `djm81` approved the refreshed `test-authored` Requirements
+  mapping at
+  `sha256:ee1db17944ae22c4f127f5e0a0dcae8f7237c62b4cd98abde246088c7e2053c9`
+  on 2026-08-28 after the final security scenarios were mapped.
+
+**Final-head logical-line and augmented-union review proof (2026-08-28):**
+
+- Codex review of signed commit
+  `a872a36fc91aa34ce3bb08dafcc8ccbb75add9e5` identified two additional
+  checker/runtime mismatches. A blank or comment-only line did not terminate
+  the dependency parser's package state as it does pip's logical requirement,
+  and `namespace = globals(); namespace |= {...}` could create an active
+  `pytest_plugins` binding without invalidating retained proof.
+- Independent read-only reviews reproduced both findings against exact signed
+  head `c518b9fd72b2fb55408498feb02c449b5a5f112c`. Pip 26.2.1 rejected both
+  interrupted hash forms, while the dependency-trust checker accepted them;
+  the provenance scanner returned no plugins for the augmented union while
+  Python mutated module globals at import time. The namespace bypass also
+  reproduced in a class body and was rated medium severity.
+- After adding the OpenSpec scenarios and tests, the focused pre-implementation
+  run failed four cases with 38 controls passing: two interrupted hash forms,
+  the module-scope augmented union, and its combined compatibility challenge.
+  No implementation changed before this red evidence was captured.
+- The dependency parser now clears continuation state at blank and comment-only
+  physical lines. The provenance scanner rejects a key-relevant `|=` operation
+  through a live active-namespace alias at module or import-time class scope,
+  while preserving ordinary mappings, unrelated literal keys, definite
+  shadows, and fail-closed conditional re-aliasing.
+- The post-implementation focused challenge passes all 53 cases, including
+  both pip-aligned interruption cases, module and class bypasses, and adjacent
+  compatibility controls.
+- The complete owning governance/security set passes all 325 tests. Strict
+  BasedPyright, Ruff, OpenSpec validation, the standard-library-only trust
+  checker control, pinned Semgrep 1.175.0 over six focused rules, and Bandit at
+  medium/high severity all pass with zero findings. The exact staged pipeline
+  initially reported one complexity warning and then one redundant-branch info;
+  both were refactored without changing behavior, and the final Code Review
+  result is `PASS` with zero findings.
+
+**Final-head extended-binding review proof (2026-08-28):**
+
+- Complete review-thread readback after signed commit
+  `05de7b725172888b78a0ffddbbf381a321549680` surfaced three earlier Codex
+  comments that had not appeared in the prior unresolved-thread result:
+  starred destructuring, non-literal mapping-pattern subjects, and `getattr`
+  over `__import__("builtins")`. Direct scanner/runtime comparison reproduced
+  all three: static discovery returned no plugins while Python created the
+  active module binding.
+- Three independent read-only reviews validated the exact-head findings and
+  traced the omission through retained-proof freshness. The starred and
+  mapping cases were rated medium/P2. The imported-builtins getter was rated
+  high/P1 after a temporary Git history reproduced acceptance of stale proof;
+  its preconditions remain contributor-controlled test support plus a changed
+  plugin, rather than independent merge authority.
+- The initial focused red run failed six cases with 46 controls passing. The
+  expanded adjacent challenge failed 12 cases with the same 46 controls:
+  prefix, suffix, nested, and starred-container namespace authority; literal
+  and computed imported-builtins getters, an imported-owner alias, and a class
+  body; plus keyword, pair-list, generic-call, and prebound mapping subjects.
+- Extended-unpacking analysis now correlates fixed targets from both ends and
+  retains authority inside the starred container. Simple `dict(...)` subjects
+  are correlated by literal key; unprovable non-rest mapping captures fail
+  closed. Literal and computed executor access plus aliases of a direct
+  `__import__("builtins")` owner retain dynamic-execution authority.
+- The final challenge passes all 58 cases and the parametrized full provenance
+  suite passes all 125. Controls preserve ordinary starred values, positionally unrelated
+  namespace values, simple safe `dict(...)` captures, copied mapping rests,
+  definite shadows, and non-executor imported-builtins attributes. The full
+  owning governance/security set passes all 347 tests. Strict OpenSpec,
+  BasedPyright, Ruff, pinned Semgrep over six rules, and Bandit medium/high all
+  pass with zero findings.
+- The exact staged Code Review initially rejected the candidate for one mapping
+  parser complexity error, two helper/test-shape warnings, and one info. The
+  parser, executor-owner propagation, and compatibility controls were split
+  into focused helpers/parameters; the final staged review passes with zero
+  findings and no suppression.
+
+**Final namespace-authority boundary proof (2026-08-28):**
+
+- An independent read-only review of signed commit
+  `15893404fad641aabb72c367510c5a0439641b79` confirmed the three preceding
+  review findings no longer reproduced, then identified adjacent authority
+  paths through nested starred containers, bound namespace-mutator methods,
+  aliases of `__import__`, and imported-builtins module mappings. It also
+  confirmed that a module-level generator over an empty outer iterable was a
+  compatibility false positive, while mutation in the outer iterable remained
+  an eager import-time operation.
+- The pre-implementation challenge ran 59 cases: ten bypass/compatibility cases
+  failed and 49 adjacent controls passed. Exact scanner/runtime comparison
+  showed every bypass created `pytest_plugins`; the empty generator left the
+  binding absent. The expanded mapped selector also failed against the signed
+  ancestor before implementation.
+- Namespace authority now survives constant-key container lookup and bound
+  aliases of `update`, `setdefault`, `__setitem__`, and `__ior__`, including
+  chained and class-body aliases. Import-factory authority survives aliases and
+  computed module names, and executor access through `__dict__` or `vars(...)`
+  fails closed. Only a generator with a statically empty outer list, tuple, set,
+  or mapping skips deferred clauses; its outer iterable is still inspected.
+- The focused challenge passes all 59 cases and the full provenance suite
+  passes all 125. Controls preserve ordinary dictionary methods, uninvoked and
+  unrelated-key namespace method aliases, definite method shadowing, ordinary
+  imports, and empty-generator consumption. Ruff and strict BasedPyright pass
+  with zero findings. Protected retained-red evidence remains pending on the
+  corrected test-only branch; no bootstrap or security gate has been weakened.

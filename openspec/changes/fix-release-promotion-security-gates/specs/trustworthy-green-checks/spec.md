@@ -47,13 +47,33 @@ manifest scans.
 ### Requirement: Local dependency trust reacts to every frozen review input
 
 The dependency-trust pre-commit gate SHALL run when either the Code Review
-input requirements or its frozen lock changes, matching the frozen CVE audit's
-dependency surface.
+input requirements or its frozen lock changes. It SHALL bind the lock to the
+exact input and apply the blocked-release, prohibited-package, and reviewed
+security-floor policy to the isolated graph before its tools are installed.
+Every exact package pin SHALL continue to and include at least one syntactically
+valid SHA-256 artifact hash on the same logical requirement so the trust
+decision cannot accept an unhashed graph or credit a detached digest.
 
 #### Scenario: Only a Code Review dependency file changes
 
 - **WHEN** a commit stages `requirements/code-review/requirements.in` or `requirements/code-review/locked.txt`
 - **THEN** the dependency-trust gate is selected
+- **AND** it rejects stale input binding or a policy-blocked package present only in the Code Review lock
+
+#### Scenario: A Code Review pin omits a valid artifact hash
+
+- **WHEN** an exact package pin has no SHA-256 continuation or only a malformed digest
+- **THEN** the pre-install dependency-trust gate rejects the isolated lock
+
+#### Scenario: A valid digest is detached from its package pin
+
+- **WHEN** an uncontinued exact pin is followed by a standalone valid SHA-256 hash line
+- **THEN** the pre-install dependency-trust gate rejects both the unhashed pin and the unattached digest
+
+#### Scenario: A continued pin is interrupted before its digest
+
+- **WHEN** a blank or comment-only physical line separates a continued exact pin from a valid SHA-256 hash line
+- **THEN** the pre-install dependency-trust gate follows pip logical-line semantics and rejects both the unhashed pin and the unattached digest
 
 ### Requirement: Frozen static analysis uses a non-vulnerable MCP binding
 
@@ -112,8 +132,52 @@ Static proof-input discovery SHALL treat import-time module bindings of
 `pytest_plugins` as active pytest plugin declarations. Literal annotated
 assignments SHALL be included, and active declarations that cannot be resolved
 statically SHALL invalidate retained proof rather than silently omitting a
-proof input. Function/class bodies and Python 3 comprehension iteration targets
-SHALL remain excluded because they do not bind the surrounding module global.
+proof input. Function bodies, ordinary class-local bindings, and Python 3
+comprehension iteration targets SHALL remain excluded because they do not bind
+the surrounding module global. A class body that explicitly mutates the module
+namespace through `globals()`, a `global pytest_plugins` declaration, or dynamic
+execution SHALL fail closed because class bodies execute at import time.
+Aliases derived from the active module namespace or from its namespace factory
+SHALL receive the same treatment as direct access, including aliases introduced
+by fixed or starred destructuring, loops, eager comprehensions, context-manager
+bindings, match captures, nested authority-bearing containers, and bound
+namespace-mutator methods. Mapping-pattern captures SHALL retain their
+statically corresponding subject values and fail closed when an opaque subject
+can contain the active namespace. Qualified or aliased access to the built-in
+dynamic executors, including chained aliases and `getattr` access through an
+imported `builtins` expression, aliases of `__import__`, and executor lookup
+through the imported module mapping, SHALL receive the same treatment as a
+direct `exec` or `eval` call. A generator expression whose outer iterable is
+statically empty SHALL remain compatible because none of its deferred clauses
+can execute. Definite
+later assignments SHALL replace earlier alias bindings in statement order,
+while conditional assignments SHALL remain fail-closed. Read-only class-body
+access to unrelated module globals and compound bindings over ordinary mappings
+SHALL remain compatible.
+
+#### Scenario: An augmented union mutates a module-namespace alias
+
+- **WHEN** module scope or an import-time class body applies `|=` to an alias of the active module namespace with a mapping that can bind `pytest_plugins`
+- **THEN** retained proof fails closed rather than omitting the dynamically registered plugin
+- **AND** the same operation over an ordinary mapping or with statically unrelated keys remains compatible
+
+#### Scenario: Indirect binding forms retain namespace and executor authority
+
+- **WHEN** starred destructuring binds the active module namespace, a mapping pattern captures from an opaque namespace-bearing subject, or `getattr` selects an executor from `__import__("builtins")`
+- **THEN** retained proof fails closed rather than omitting the dynamically registered plugin
+- **AND** positionally ordinary starred targets, opaque subjects without namespace authority, and non-executor builtins attributes remain compatible
+
+#### Scenario: Indirect authority remains active through containers and bound methods
+
+- **WHEN** import-time code reaches the active namespace through a nested authority-bearing container or invokes a bound alias of `update`, `setdefault`, `__setitem__`, or `__ior__`
+- **THEN** a call that can bind `pytest_plugins` invalidates retained proof
+- **AND** ordinary mappings, uninvoked method aliases, and calls with statically unrelated keys remain compatible
+
+#### Scenario: Statically empty generator defers namespace mutation forever
+
+- **WHEN** module import creates a generator whose outer iterable is statically empty and whose deferred clauses could otherwise mutate the active namespace
+- **THEN** retained proof remains valid because no deferred clause can execute
+- **AND** mutation in the eagerly evaluated outer iterable still invalidates retained proof
 
 #### Scenario: Helper function contains an inactive local assignment
 
@@ -135,6 +199,55 @@ SHALL remain excluded because they do not bind the surrounding module global.
 
 - **WHEN** a function default, decorator, annotation, class base, or class keyword evaluated at import time binds `pytest_plugins`
 - **THEN** retained proof fails closed instead of treating the nested definition as an inactive body
+
+#### Scenario: Class body mutates the module namespace
+
+- **WHEN** an import-time class body writes through `globals()`, declares `global pytest_plugins`, or invokes dynamic execution
+- **THEN** retained proof fails closed instead of treating the operation as an ordinary class-local binding
+
+#### Scenario: Namespace alias mutates the plugin binding
+
+- **WHEN** module or class import-time code aliases the active namespace or its factory and the alias can write `pytest_plugins`
+- **THEN** retained proof fails closed with the same result as a direct namespace mutation
+
+#### Scenario: Compound binding aliases the module namespace
+
+- **WHEN** an import-time destructuring assignment, loop, eager comprehension, context-manager binding, or match capture resolves a target to the active module namespace
+- **AND** the scoped target can write `pytest_plugins`
+- **THEN** retained proof fails closed without treating unrelated positional targets or later shadowing assignments as namespace aliases
+
+#### Scenario: Qualified built-in executor mutates plugin state
+
+- **WHEN** import-time code reaches `exec` or `eval` through `builtins`, an import alias, `getattr`, `__builtins__`, `__import__("builtins")`, an alias of `__import__`, or the imported module's mapping
+- **THEN** retained proof fails closed with the same result as a bare dynamic-execution call
+
+#### Scenario: Imported builtins module is re-aliased
+
+- **WHEN** import-time code assigns the imported `builtins` module through one or more aliases
+- **AND** the final alias invokes `exec` or `eval`
+- **THEN** retained proof fails closed with the same result as direct `builtins.exec` or `builtins.eval`
+
+#### Scenario: Mapping pattern captures the module namespace
+
+- **WHEN** an import-time mapping pattern captures a subject value that is the active module namespace
+- **AND** the captured name can write `pytest_plugins`
+- **THEN** retained proof fails closed without treating a capture of an ordinary mapping value as the module namespace
+
+#### Scenario: Definite assignment shadows an alias
+
+- **WHEN** import-time code definitely replaces a namespace, builtins-module, or dynamic-executor alias before using that name
+- **THEN** the replacement is evaluated in statement order and an ordinary replacement remains compatible
+- **AND** mutation before the replacement, re-aliasing after it, or a merely conditional replacement remains fail-closed
+
+#### Scenario: Class body reads unrelated module metadata
+
+- **WHEN** an import-time class body only reads an unrelated key through `globals()`, its subscript form, or read-only `getattr`
+- **THEN** retained proof remains valid because no module binding can be created
+
+#### Scenario: Class body stores a deferred generator
+
+- **WHEN** a class attribute stores an unconsumed generator whose deferred body references `globals()`
+- **THEN** the deferred body is excluded while the generator's immediately evaluated outer iterable remains checked
 
 #### Scenario: Comprehension target is local
 
