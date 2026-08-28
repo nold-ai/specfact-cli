@@ -47,13 +47,15 @@ manifest scans.
 ### Requirement: Local dependency trust reacts to every frozen review input
 
 The dependency-trust pre-commit gate SHALL run when either the Code Review
-input requirements or its frozen lock changes, matching the frozen CVE audit's
-dependency surface.
+input requirements or its frozen lock changes. It SHALL bind the lock to the
+exact input and apply the blocked-release, prohibited-package, and reviewed
+security-floor policy to the isolated graph before its tools are installed.
 
 #### Scenario: Only a Code Review dependency file changes
 
 - **WHEN** a commit stages `requirements/code-review/requirements.in` or `requirements/code-review/locked.txt`
 - **THEN** the dependency-trust gate is selected
+- **AND** it rejects stale input binding or a policy-blocked package present only in the Code Review lock
 
 ### Requirement: Frozen static analysis uses a non-vulnerable MCP binding
 
@@ -112,8 +114,11 @@ Static proof-input discovery SHALL treat import-time module bindings of
 `pytest_plugins` as active pytest plugin declarations. Literal annotated
 assignments SHALL be included, and active declarations that cannot be resolved
 statically SHALL invalidate retained proof rather than silently omitting a
-proof input. Function/class bodies and Python 3 comprehension iteration targets
-SHALL remain excluded because they do not bind the surrounding module global.
+proof input. Function bodies, ordinary class-local bindings, and Python 3
+comprehension iteration targets SHALL remain excluded because they do not bind
+the surrounding module global. A class body that explicitly mutates the module
+namespace through `globals()`, a `global pytest_plugins` declaration, or dynamic
+execution SHALL fail closed because class bodies execute at import time.
 
 #### Scenario: Helper function contains an inactive local assignment
 
@@ -135,6 +140,16 @@ SHALL remain excluded because they do not bind the surrounding module global.
 
 - **WHEN** a function default, decorator, annotation, class base, or class keyword evaluated at import time binds `pytest_plugins`
 - **THEN** retained proof fails closed instead of treating the nested definition as an inactive body
+
+#### Scenario: Class body mutates the module namespace
+
+- **WHEN** an import-time class body writes through `globals()`, declares `global pytest_plugins`, or invokes dynamic execution
+- **THEN** retained proof fails closed instead of treating the operation as an ordinary class-local binding
+
+#### Scenario: Class body stores a deferred generator
+
+- **WHEN** a class attribute stores an unconsumed generator whose deferred body references `globals()`
+- **THEN** the deferred body is excluded while the generator's immediately evaluated outer iterable remains checked
 
 #### Scenario: Comprehension target is local
 

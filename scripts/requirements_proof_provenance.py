@@ -206,6 +206,8 @@ def _definition_expression_children(node: ast.AST) -> list[ast.AST] | None:
         return None
     if getattr(node, "name", None) == "pytest_plugins":
         raise ValueError("prior-red-proof-invalid")
+    if isinstance(node, ast.ClassDef) and _class_body_can_bind_module_plugin(node):
+        raise ValueError("prior-red-proof-invalid")
     nested_body = {node.body} if isinstance(node, ast.Lambda) else set(node.body)
     return [child for child in ast.iter_child_nodes(node) if child not in nested_body]
 
@@ -226,8 +228,7 @@ def _is_namespace_plugin_subscript(node: ast.AST) -> bool:
     return (
         isinstance(node, ast.Subscript)
         and isinstance(node.ctx, (ast.Store, ast.Del))
-        and isinstance(node.slice, ast.Constant)
-        and node.slice.value == "pytest_plugins"
+        and (not isinstance(node.slice, ast.Constant) or node.slice.value == "pytest_plugins")
         and isinstance(node.value, ast.Call)
         and isinstance(node.value.func, ast.Name)
         and node.value.func.id in {"globals", "locals", "vars"}
@@ -277,6 +278,43 @@ def _is_namespace_plugin_mutator(node: ast.AST) -> bool:
     if node.func.attr in {"__setitem__", "setdefault"}:
         return _key_mutator_can_bind_plugin(node)
     return node.func.attr in {"update", "__ior__"} and _update_mutator_can_bind_plugin(node)
+
+
+def _is_global_namespace_plugin_operation(node: ast.AST) -> bool:
+    """Return whether a class-body operation can mutate the containing module."""
+    global_declaration = isinstance(node, ast.Global) and "pytest_plugins" in node.names
+    sensitive_builtin = (
+        isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load) and node.id in {"globals", "exec", "eval"}
+    )
+    return global_declaration or sensitive_builtin
+
+
+def _class_import_time_children(current: ast.AST, parent: ast.AST) -> list[ast.AST]:
+    """Return class-body children that execute while the class is defined."""
+    if isinstance(current, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+        nested_body = {current.body} if isinstance(current, ast.Lambda) else set(current.body)
+        return [child for child in ast.iter_child_nodes(current) if child not in nested_body]
+    deferred_generator = (
+        isinstance(current, ast.GeneratorExp)
+        and isinstance(parent, (ast.Assign, ast.AnnAssign, ast.NamedExpr))
+        and parent.value is current
+    )
+    if deferred_generator:
+        assert isinstance(current, ast.GeneratorExp)
+        return [current.generators[0].iter] if current.generators else []
+    return list(ast.iter_child_nodes(current))
+
+
+def _class_body_can_bind_module_plugin(node: ast.ClassDef) -> bool:
+    """Inspect import-time class code without treating class locals as module globals."""
+    pending: list[tuple[ast.AST, ast.AST]] = [(child, node) for child in reversed(node.body)]
+    while pending:
+        current, parent = pending.pop()
+        if _is_global_namespace_plugin_operation(current):
+            return True
+        children = _class_import_time_children(current, parent)
+        pending.extend((child, current) for child in reversed(children))
+    return False
 
 
 def _is_indirect_plugin_binding(node: ast.AST) -> bool:

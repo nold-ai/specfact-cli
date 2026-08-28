@@ -6,6 +6,7 @@ only.  Do not add runtime contract or validation-library imports here.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import sys
@@ -19,6 +20,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_REGISTER = REPO_ROOT / "ci" / "dependency-trust-exceptions.json"
 DEFAULT_UV_LOCK = REPO_ROOT / "uv.lock"
 DEFAULT_SECURITY_TOOL_FLOORS = REPO_ROOT / "ci" / "security-tool-minimum-versions.json"
+DEFAULT_CODE_REVIEW_INPUT = REPO_ROOT / "requirements" / "code-review" / "requirements.in"
+DEFAULT_CODE_REVIEW_LOCK = REPO_ROOT / "requirements" / "code-review" / "locked.txt"
+CODE_REVIEW_INPUT_BINDING_PREFIX = "# input-sha256:"
 REQUIRED_FIELDS = frozenset(
     {
         "package",
@@ -38,6 +42,7 @@ PROHIBITED_EXECUTABLE_WHEEL_PACKAGES = frozenset({"nodejs-wheel-binaries"})
 # delivery input.
 BLOCKED_DEPENDENCY_RELEASES = frozenset({("pycparser", "3.0")})
 PACKAGE_NAME_SEPARATOR = re.compile(r"[-_.]+")
+CODE_REVIEW_PIN_PATTERN = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)==([^\s;\\]+)(?:\s*\\)?$")
 
 
 def _canonical_package_name(value: str) -> str:
@@ -45,27 +50,34 @@ def _canonical_package_name(value: str) -> str:
     return PACKAGE_NAME_SEPARATOR.sub("-", value).casefold()
 
 
+def _pep440_release_components(value: str) -> tuple[int, ...] | None:
+    """Return the normalized zero-epoch numeric release prefix without dependencies."""
+    public_version = value.casefold().split("+", maxsplit=1)[0]
+    match = re.match(r"^v?(?:(\d+)!)?(\d+(?:\.\d+)*)", public_version)
+    return (
+        tuple(int(component) for component in match.group(2).split("."))
+        if match is not None and int(match.group(1) or "0") == 0
+        else None
+    )
+
+
 def _is_blocked_release(package_name: str, version: str) -> bool:
     """Return whether a version belongs to a blocked PEP 440 release family."""
-    normalized_version = version.casefold().split("+", maxsplit=1)[0]
-    normalized_version = re.sub(r"(?<=\d)-(?=\d)", ".post", normalized_version)
+    release = _pep440_release_components(version)
+    if release is None:
+        return False
     for blocked_package, blocked_version in BLOCKED_DEPENDENCY_RELEASES:
         if package_name != blocked_package:
             continue
-        if normalized_version == blocked_version or normalized_version.startswith(f"{blocked_version}."):
-            return True
-        if any(
-            normalized_version.startswith(f"{blocked_version}{suffix}") for suffix in ("post", "rc", "a", "b", "dev")
-        ):
+        blocked_release = _pep440_release_components(blocked_version)
+        if blocked_release is not None and release[: len(blocked_release)] == blocked_release:
             return True
     return False
 
 
 def _version_components(value: str) -> tuple[int, ...] | None:
     """Parse the stable numeric version form used by the reviewed tool floor policy."""
-    if not re.fullmatch(r"\d+(?:\.\d+)*", value):
-        return None
-    return tuple(int(component) for component in value.split("."))
+    return tuple(int(component) for component in value.split(".")) if re.fullmatch(r"\d+(?:\.\d+)*", value) else None
 
 
 def _is_below_security_floor(version: str, floor: str) -> bool | None:
@@ -162,7 +174,7 @@ def _validate_dates(package_ref: str, *, reviewed_on: date, expires_on: date, cu
     return errors
 
 
-def validate_exception_register(register_path: Path, *, today: date | None = None) -> list[str]:
+def _validate_exception_register(register_path: Path, *, today: date | None = None) -> list[str]:
     """Return deterministic policy errors for a dependency-trust exception register."""
     records, errors = _read_exception_records(register_path)
     if errors:
@@ -204,6 +216,53 @@ def _read_locked_packages(lock_path: Path) -> tuple[dict[str, dict[str, object]]
             continue
         locked_packages[package_name] = package_map
     return locked_packages, errors
+
+
+def _validate_code_review_input_binding(input_bytes: bytes, contents: str) -> list[str]:
+    """Verify one exact digest binding from the review lock to its input."""
+    binding_lines = [line for line in contents.splitlines() if line.startswith(CODE_REVIEW_INPUT_BINDING_PREFIX)]
+    if len(binding_lines) != 1:
+        return ["Code Review lock must contain exactly one input SHA-256 binding"]
+    bound_digest = binding_lines[0].removeprefix(CODE_REVIEW_INPUT_BINDING_PREFIX).strip()
+    if not _is_sha256(bound_digest):
+        return ["Code Review lock input SHA-256 binding is malformed"]
+    if bound_digest != hashlib.sha256(input_bytes).hexdigest():
+        return ["Code Review lock input SHA-256 binding does not match requirements.in"]
+    return []
+
+
+def _parse_code_review_pins(contents: str) -> tuple[dict[str, str], list[str]]:
+    """Parse the fail-closed exact-pin subset emitted by the frozen compiler."""
+    errors: list[str] = []
+    packages: dict[str, str] = {}
+    for line_number, line in enumerate(contents.splitlines(), start=1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith(("#", "--hash=sha256:")):
+            continue
+        match = CODE_REVIEW_PIN_PATTERN.fullmatch(stripped)
+        if match is None:
+            errors.append(f"Code Review lock line {line_number} must be an exact name==version pin")
+            continue
+        package_name = _canonical_package_name(match.group(1))
+        version = match.group(2)
+        if package_name in packages:
+            errors.append(f"Code Review lock contains duplicate normalized package identity: {package_name}")
+            continue
+        packages[package_name] = version
+    if not packages:
+        errors.append("Code Review lock must contain at least one exact package pin")
+    return packages, errors
+
+
+def _read_code_review_locked_packages(input_path: Path, lock_path: Path) -> tuple[dict[str, str], list[str]]:
+    """Read exact pins and verify the isolated review lock's input binding."""
+    try:
+        input_bytes = input_path.read_bytes()
+        contents = lock_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        return {}, [f"could not read Code Review dependency graph: {exc}"]
+    packages, errors = _parse_code_review_pins(contents)
+    return packages, [*_validate_code_review_input_binding(input_bytes, contents), *errors]
 
 
 def _read_security_tool_floors(policy_path: Path = DEFAULT_SECURITY_TOOL_FLOORS) -> tuple[dict[str, str], list[str]]:
@@ -249,15 +308,10 @@ def _artifact_values(package: dict[str, object]) -> tuple[set[str], set[str]]:
     return urls, hashes
 
 
-def _validate_locked_package_policy(
-    locked_packages: dict[str, dict[str, object]], tool_floors: dict[str, str]
-) -> list[str]:
-    """Return policy violations intrinsic to exact frozen package records."""
+def _validate_locked_version_policy(locked_versions: dict[str, str], tool_floors: dict[str, str]) -> list[str]:
+    """Return policy violations intrinsic to exact frozen package versions."""
     errors: list[str] = []
-    for package_name, package in sorted(locked_packages.items()):
-        version = package.get("version")
-        if not isinstance(version, str):
-            continue
+    for package_name, version in sorted(locked_versions.items()):
         if package_name in PROHIBITED_EXECUTABLE_WHEEL_PACKAGES:
             errors.append(f"{package_name}=={version} is prohibited in the frozen lock")
         if _is_blocked_release(package_name, version):
@@ -271,6 +325,18 @@ def _validate_locked_package_policy(
         elif below_floor:
             errors.append(f"{package_name}=={version} is below the reviewed security floor {floor}")
     return errors
+
+
+def _validate_locked_package_policy(
+    locked_packages: dict[str, dict[str, object]], tool_floors: dict[str, str]
+) -> list[str]:
+    """Return policy violations intrinsic to exact uv frozen package records."""
+    locked_versions = {
+        package_name: version
+        for package_name, package in locked_packages.items()
+        if isinstance((version := package.get("version")), str)
+    }
+    return _validate_locked_version_policy(locked_versions, tool_floors)
 
 
 def _validate_review_record(
@@ -310,14 +376,16 @@ def _validate_review_records(register_path: Path, locked_packages: dict[str, dic
     return errors
 
 
-def validate_frozen_dependency_policy(
+def _validate_frozen_dependency_policy(
     register_path: Path = DEFAULT_REGISTER,
     lock_path: Path = DEFAULT_UV_LOCK,
     *,
     today: date | None = None,
+    code_review_input_path: Path = DEFAULT_CODE_REVIEW_INPUT,
+    code_review_lock_path: Path = DEFAULT_CODE_REVIEW_LOCK,
 ) -> list[str]:
-    """Reject blocked releases and reviews that do not bind to the frozen lock."""
-    errors = validate_exception_register(register_path, today=today)
+    """Reject blocked releases and reviews that do not bind to either frozen graph."""
+    errors = _validate_exception_register(register_path, today=today)
     locked_packages, lock_errors = _read_locked_packages(lock_path)
     errors.extend(lock_errors)
     if lock_errors:
@@ -328,12 +396,17 @@ def validate_frozen_dependency_policy(
         return errors
     errors.extend(_validate_locked_package_policy(locked_packages, tool_floors))
     errors.extend(_validate_review_records(register_path, locked_packages))
+    code_review_packages, code_review_errors = _read_code_review_locked_packages(
+        code_review_input_path, code_review_lock_path
+    )
+    errors.extend(code_review_errors)
+    errors.extend(_validate_locked_version_policy(code_review_packages, tool_floors))
     return errors
 
 
-def main() -> int:
+def _main() -> int:
     """Print register validation errors and return a CI-friendly exit status."""
-    errors = validate_frozen_dependency_policy()
+    errors = _validate_frozen_dependency_policy()
     if errors:
         for error in errors:
             sys.stderr.write(f"DEPENDENCY TRUST VIOLATION: {error}\n")
@@ -343,4 +416,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(_main())

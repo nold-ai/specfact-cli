@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import subprocess
@@ -38,6 +39,26 @@ def _load_checker():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def _write_code_review_graph(tmp_path: Path, requirement: str, *, bound_input: str | None = None) -> tuple[Path, Path]:
+    """Write one hash-locked isolated review graph with an explicit input binding."""
+    input_path = tmp_path / "requirements.in"
+    input_path.write_text(bound_input or f"{requirement}\n", encoding="utf-8")
+    input_digest = hashlib.sha256(input_path.read_bytes()).hexdigest()
+    lock_path = tmp_path / "locked.txt"
+    lock_path.write_text(
+        "\n".join(
+            [
+                f"# input-sha256: {input_digest}",
+                f"{requirement} \\",
+                f"    --hash=sha256:{'a' * 64}",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    return input_path, lock_path
 
 
 def test_checker_runs_before_site_packages_are_available() -> None:
@@ -93,7 +114,7 @@ def test_alerted_pycparser_release_is_blocked_even_with_a_review_record(tmp_path
     )
     checker = _load_checker()
 
-    errors = checker.validate_exception_register(record_path, today=date(2026, 7, 24))
+    errors = checker._validate_exception_register(record_path, today=date(2026, 7, 24))
 
     assert errors == ["pycparser==3.0 is blocked after a security-obfuscation alert"]
 
@@ -106,18 +127,20 @@ def test_alerted_pycparser_release_family_is_blocked_with_a_pep440_spelling(tmp_
     register_path.write_text(json.dumps(payload), encoding="utf-8")
     checker = _load_checker()
 
-    errors = checker.validate_exception_register(register_path, today=date(2026, 7, 24))
+    errors = checker._validate_exception_register(register_path, today=date(2026, 7, 24))
 
     assert errors == ["pycparser==3.0.post1 is blocked after a security-obfuscation alert"]
 
 
-def test_alerted_pycparser_release_family_normalizes_equivalent_pep440_spellings() -> None:
+@pytest.mark.parametrize(
+    "version",
+    ["3.0-1", "3.0.post1", "3.0+local", "v3.0", "03.0", "0!3.0"],
+)
+def test_alerted_pycparser_release_family_normalizes_equivalent_pep440_spellings(version: str) -> None:
     """Equivalent versions must not bypass the blocked 3.0 release-family policy."""
     checker = _load_checker()
 
-    assert checker._is_blocked_release("pycparser", "3.0-1")
-    assert checker._is_blocked_release("pycparser", "3.0.post1")
-    assert checker._is_blocked_release("pycparser", "3.0+local")
+    assert checker._is_blocked_release("pycparser", version)
 
 
 def test_unofficial_executable_wheel_is_not_accepted() -> None:
@@ -156,7 +179,7 @@ def test_invalid_exception_register_fails_closed(tmp_path: Path, record: dict[st
     record_path.write_text(json.dumps({"exceptions": [record]}), encoding="utf-8")
     checker = _load_checker()
 
-    errors = checker.validate_exception_register(record_path, today=date(2026, 7, 24))
+    errors = checker._validate_exception_register(record_path, today=date(2026, 7, 24))
 
     assert errors == [expected]
 
@@ -169,7 +192,7 @@ def test_reviewed_artifact_must_exist_in_the_frozen_lock(tmp_path: Path) -> None
     register_path.write_text(json.dumps(payload), encoding="utf-8")
     checker = _load_checker()
 
-    errors = checker.validate_frozen_dependency_policy(register_path, today=date(2026, 7, 24))
+    errors = checker._validate_frozen_dependency_policy(register_path, today=date(2026, 7, 24))
 
     assert errors == ["pycparser==2.22 artifact digest is absent from its frozen lock record"]
 
@@ -204,7 +227,7 @@ def test_review_evidence_must_bind_to_the_matching_lock_package(tmp_path: Path) 
     )
     checker = _load_checker()
 
-    errors = checker.validate_frozen_dependency_policy(register_path, lock_path, today=date(2026, 7, 24))
+    errors = checker._validate_frozen_dependency_policy(register_path, lock_path, today=date(2026, 7, 24))
 
     assert errors == [
         "pycparser==2.22 source artifact is absent from its frozen lock record",
@@ -223,9 +246,47 @@ def test_prohibited_executable_wheel_in_lock_fails_without_an_exception(tmp_path
     )
     checker = _load_checker()
 
-    errors = checker.validate_frozen_dependency_policy(register_path, lock_path, today=date(2026, 7, 24))
+    errors = checker._validate_frozen_dependency_policy(register_path, lock_path, today=date(2026, 7, 24))
 
     assert errors == ["nodejs-wheel-binaries==1.0.0 is prohibited in the frozen lock"]
+
+
+@pytest.mark.parametrize(
+    ("requirement", "expected"),
+    [
+        ("pycparser==3.0", "pycparser==3.0 is blocked after a security-obfuscation alert"),
+        ("NodeJS_Wheel.Binaries==1.0.0", "nodejs-wheel-binaries==1.0.0 is prohibited in the frozen lock"),
+        ("mcp==1.23.3", "mcp==1.23.3 is below the reviewed security floor 1.28.1"),
+    ],
+    ids=("blocked-release", "prohibited-wheel", "below-security-floor"),
+)
+def test_code_review_only_lock_must_follow_dependency_trust_policy(
+    tmp_path: Path, requirement: str, expected: str
+) -> None:
+    """The isolated review graph cannot bypass policy enforced on the primary lock."""
+    input_path, lock_path = _write_code_review_graph(tmp_path, requirement)
+    checker = _load_checker()
+
+    errors = checker._validate_frozen_dependency_policy(
+        code_review_input_path=input_path,
+        code_review_lock_path=lock_path,
+    )
+
+    assert expected in errors
+
+
+def test_code_review_lock_must_bind_to_its_exact_input(tmp_path: Path) -> None:
+    """The local trust gate rejects a stale isolated review lock before installation."""
+    input_path, lock_path = _write_code_review_graph(tmp_path, "pylint==4.0.7", bound_input="pylint==4.0.6\n")
+    input_path.write_text("pylint==4.0.7\n", encoding="utf-8")
+    checker = _load_checker()
+
+    errors = checker._validate_frozen_dependency_policy(
+        code_review_input_path=input_path,
+        code_review_lock_path=lock_path,
+    )
+
+    assert "Code Review lock input SHA-256 binding does not match requirements.in" in errors
 
 
 @pytest.mark.parametrize(
@@ -245,6 +306,6 @@ def test_security_tool_lock_below_reviewed_floor_fails_before_install(
     )
     checker = _load_checker()
 
-    errors = checker.validate_frozen_dependency_policy(register_path, lock_path, today=date(2026, 7, 24))
+    errors = checker._validate_frozen_dependency_policy(register_path, lock_path, today=date(2026, 7, 24))
 
     assert errors == [f"{package}=={locked_version} is below the reviewed security floor {floor}"]

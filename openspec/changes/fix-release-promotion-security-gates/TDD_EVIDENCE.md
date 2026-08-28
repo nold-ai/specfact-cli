@@ -329,3 +329,50 @@ the authoritative failing-before evidence or the candidate design.
   delivery, version parity, and primary plus isolated Code Review license
   scopes passed. The locked `0.55.2` wheel built without isolation and Twine
   7.0.0 accepted its package metadata.
+
+**Final review-finding red proof (2026-08-28):**
+
+- The computed-key and class-body plugin challenge first collected 14 focused
+  cases and exited 1 with four failures: both end-to-end histories accepted a
+  post-red plugin change, and both direct parser controls omitted the active
+  binding. Ten literal, namespace-mutator, and local-scope controls passed.
+- The first candidate closed those direct forms, but the required independent
+  bypass/regression review reproduced indirect class-body mutation through
+  `eval`, `getattr(globals(), "update")`, and an `exec` alias, plus a legitimate
+  unconsumed generator body that was incorrectly treated as import-time code.
+  The added 26-case challenge exited 1 with five failures before the shared
+  boundary was corrected; 21 controls passed.
+- The Code Review dependency-boundary investigation proved that stale input
+  binding was caught later by reproducibility CI, while a blocked package found
+  only in the isolated review lock passed the native dependency-trust gate.
+  Four test-first isolated-graph selectors all failed before implementation.
+- The one-cycle independent trust-fix review then reproduced PEP 440-equivalent
+  `pycparser==v3.0` and `pycparser==03.0` pins accepted by pip but omitted by the
+  string comparison. The six-spelling test exited 1 with those two forms and
+  the equivalent zero-epoch form failing; the three existing spellings passed.
+
+**Final review-finding green proof (2026-08-28):**
+
+- The provenance scanner now fails closed on computed namespace keys and on
+  import-time class code that exposes `globals`, `exec`, or `eval`, while
+  retaining ordinary class-local bindings, function/method bodies, and the
+  deferred body of an unconsumed class-attribute generator. All 26 focused
+  plugin cases and all 57 provenance tests passed.
+- The standard-library pre-install trust checker now verifies the exact Code
+  Review input digest, parses every isolated exact pin fail-closed, and applies
+  the blocked-release, prohibited-wheel, and security-floor policy to both
+  frozen graphs. Numeric PEP 440 release components normalize the `v` prefix,
+  leading zeroes, and zero epoch. All 22 dependency-trust tests passed.
+- The combined authority, delivery, provenance, staged-index, workflow,
+  producer, and dependency-trust set passed 173 tests. Repository-wide strict
+  basedpyright reported zero errors, warnings, or notes; Ruff and strict
+  OpenSpec validation passed. The approved Requirements mapping and review
+  evidence were not modified. The final exact staged pipeline then passed at
+  `test-authored` maturity with zero Code Review findings and no contract-input
+  changes requiring a contract-suite rerun.
+- The final core-environment suite passed 2,997 tests with 36 skips and the same
+  five companion-package import failures expected when module roots are absent;
+  all seven owning controls passed against immutable fixture commit
+  `69f075819be5e1ceca1446b026b0417f19e584ca`. Both frozen pip-audit runs,
+  dependency trust, reproducible delivery, focused Semgrep, and focused Bandit
+  passed with no findings or unreviewed vulnerabilities.

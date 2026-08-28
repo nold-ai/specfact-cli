@@ -1,7 +1,5 @@
 """Contract coverage for Git-bound Requirements red-proof provenance."""
 
-# pyright: reportUnknownMemberType=false
-
 from __future__ import annotations
 
 import ast
@@ -318,6 +316,41 @@ def test_git_bound_red_proof_rejects_changed_pytest_plugin(tmp_path: Path) -> No
     ]
 
 
+@pytest.mark.parametrize(
+    "declaration",
+    [
+        'plugin_key = "pytest_plugins"\nglobals()[plugin_key] = ("tests.helpers.fixtures",)\n',
+        'class Plugins:\n    globals().update(pytest_plugins=("tests.helpers.fixtures",))\n',
+        'class Plugins:\n    eval("globals().update(pytest_plugins=(\\"tests.helpers.fixtures\\",))")\n',
+    ],
+    ids=("computed-module-key", "class-body-module-mutation", "class-body-indirect-execution"),
+)
+def test_git_bound_red_proof_rejects_dynamic_pytest_plugin_binding(tmp_path: Path, declaration: str) -> None:
+    """Dynamic import-time plugin bindings must invalidate retained proof."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    helpers_path = tmp_path / "tests" / "helpers"
+    helpers_path.mkdir(parents=True)
+    plugin_path = helpers_path / "fixtures.py"
+    plugin_path.write_text("VALUE = False\n", encoding="utf-8")
+    (tmp_path / "tests" / "conftest.py").write_text(declaration, encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add dynamic pytest plugin")
+    test_path = tmp_path / "tests" / "test_proof.py"
+    test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    plugin_path.write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change dynamically bound pytest plugin")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "prior-red-proof-invalid"
+    ]
+
+
 def test_pytest_plugin_discovery_ignores_function_local_assignments() -> None:
     """Module control flow counts, while function-local plugin assignments do not."""
     module = _load_provenance_module()
@@ -331,6 +364,16 @@ def test_pytest_plugin_discovery_ignores_function_local_assignments() -> None:
         "    pass\n"
         'pytest_plugins: tuple[str, ...] = ("tests.helpers.annotated",)\n'
         "globals().update(unrelated_binding=True)\n"
+        "class PluginMetadata:\n"
+        '    pytest_plugins = ("tests.helpers.class_local",)\n'
+        '    locals().update(pytest_plugins=("tests.helpers.also_class_local",))\n'
+        '    vars().update(pytest_plugins=("tests.helpers.still_class_local",))\n'
+        "    delayed = (\n"
+        '        globals().update(pytest_plugins=("tests.helpers.deferred",))\n'
+        "        for _ in ()\n"
+        "    )\n"
+        "    def register_later(self) -> None:\n"
+        '        globals().update(pytest_plugins=("tests.helpers.inactive_method",))\n'
         "def helper() -> None:\n"
         '    pytest_plugins = ("tests.helpers.inactive",)\n'
         '    exec("pytest_plugins = (\\"tests.helpers.also_inactive\\",)")\n'
@@ -351,11 +394,18 @@ def test_pytest_plugin_discovery_ignores_function_local_assignments() -> None:
         "from tests.helpers import plugins as pytest_plugins\n",
         'match ("tests.helpers.matched",):\n    case pytest_plugins:\n        pass\n',
         'globals()["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+        'plugin_key = "pytest_plugins"\nglobals()[plugin_key] = ("tests.helpers.hidden",)\n',
         'globals().__setitem__("pytest_plugins", ("tests.helpers.hidden",))\n',
         'globals().update(pytest_plugins=("tests.helpers.hidden",))\n',
         'globals().update({"pytest_plugins": ("tests.helpers.hidden",)})\n',
         "globals().update(dynamic_bindings)\n",
         'exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
+        'class Plugins:\n    globals().update(pytest_plugins=("tests.helpers.hidden",))\n',
+        'class Plugins:\n    global pytest_plugins\n    pytest_plugins = ("tests.helpers.hidden",)\n',
+        'class Plugins:\n    exec("global pytest_plugins; pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
+        'class Plugins:\n    eval("globals().update(pytest_plugins=(\\"tests.helpers.hidden\\",))")\n',
+        'class Plugins:\n    getattr(globals(), "update")(pytest_plugins=("tests.helpers.hidden",))\n',
+        'class Plugins:\n    run = exec\n    run("global pytest_plugins; pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
     ],
 )
 def test_pytest_plugin_discovery_rejects_unresolved_module_bindings(source: str) -> None:
