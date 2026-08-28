@@ -468,3 +468,45 @@ the authoritative failing-before evidence or the candidate design.
   scope set passes all 304 tests, strict OpenSpec validation passes, and Code
   Review reports zero findings after the parser branches were split below the
   repository complexity thresholds.
+
+**Final-head statement-order and mapping-capture review proof (2026-08-28):**
+
+- Codex review of signed commit
+  `bb44c15b988c78bd0a2b55147747de8d96cdf667` identified aliases of the
+  imported `builtins` owner, mapping-pattern namespace captures, and an
+  add-only alias false positive after definite shadowing. Independent
+  read-only validation against exact head
+  `a872a36fc91aa34ce3bb08dafcc8ccbb75add9e5` reproduced the two retained-proof
+  bypasses and the compatibility regression by comparing static discovery
+  with import-time module mutation.
+- The first focused red run failed seven cases and passed three controls:
+  direct and chained builtins-owner aliases plus direct, reordered, and nested
+  mapping captures were silently accepted, while a definitely shadowed
+  ordinary alias was rejected. An adjacent statement-order challenge then
+  failed four cases for conditional re-aliasing and names that persist after
+  `for`, `with`, and `match`; a final mapping-unpack selector remained red after
+  the initial implementation.
+- The scanner now propagates imported-builtins owner authority, correlates
+  literal mapping keys recursively, uses a distinct unresolved-key sentinel,
+  and conservatively inspects dictionary-unpack values without treating
+  `**rest` as the original namespace. It merges persistent compound bindings
+  only for subsequent statements and permits a definite ordinary shadow only
+  when no intervening uncertain path can restore authority. Comprehension
+  targets remain local.
+- The final focused set passes all 17 cases and the full provenance suite passes
+  all 100 cases. Controls cover ordinary and `None`-key mapping values,
+  copied-rest mutation, mutation before shadow, shadow then re-alias,
+  conditional shadow/re-alias, builtins-owner shadow, and non-leaking
+  comprehension targets. Strict changed-file BasedPyright reports zero errors,
+  warnings, or notes; Ruff lint and formatting pass; and strict OpenSpec
+  validation passes.
+- The complete changed-scope governance/security set passes all 320 tests with
+  the writable UV cache and immutable modules fixture. Pinned Semgrep 1.175.0
+  ran six focused SAST rules over the changed validator with zero findings, and
+  Bandit reported no medium/high findings. The exact staged Code Review surface
+  reports zero findings after the alias helpers were split below the clean-code
+  complexity and nesting thresholds.
+- Product owner `djm81` approved the refreshed `test-authored` Requirements
+  mapping at
+  `sha256:ee1db17944ae22c4f127f5e0a0dcae8f7237c62b4cd98abde246088c7e2053c9`
+  on 2026-08-28 after the final security scenarios were mapped.

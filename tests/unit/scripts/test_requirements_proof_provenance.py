@@ -462,23 +462,94 @@ def test_pytest_plugin_discovery_rejects_function_default_module_binding() -> No
 def test_pytest_plugin_discovery_allows_legitimate_namespace_access() -> None:
     """Read-only and ordinary-mapping namespace patterns must remain compatible."""
     module = _load_provenance_module()
-    source = (
-        "class Metadata:\n"
-        '    module_name = globals().get("__name__")\n'
-        '    module_package = globals()["__package__"]\n'
-        '    lookup = getattr(globals(), "get")\n'
-        'for namespace in [{}]:\n    namespace.update(pytest_plugins=("tests.helpers.local",))\n'
-        'namespace, = ({},)\nnamespace["pytest_plugins"] = ("tests.helpers.local",)\n'
-        '[item.setdefault("pytest_plugins", ("tests.helpers.local",)) for item in [{}]]\n'
-        "from contextlib import nullcontext\n"
-        'with nullcontext({}) as item:\n    item.update(pytest_plugins=("tests.helpers.local",))\n'
-        'match {}:\n    case item:\n        item.update(pytest_plugins=("tests.helpers.local",))\n'
-        '[item.get("__name__") for item in [globals()]]\n'
-        'item = {}\nitem.update(pytest_plugins=("tests.helpers.local",))\n'
-        'for safe, namespace in [({}, globals())]:\n    safe["pytest_plugins"] = ("tests.helpers.local",)\n'
+    sources = (
+        (
+            "class Metadata:\n"
+            '    module_name = globals().get("__name__")\n'
+            '    module_package = globals()["__package__"]\n'
+            '    lookup = getattr(globals(), "get")\n'
+            'for namespace in [{}]:\n    namespace.update(pytest_plugins=("tests.helpers.local",))\n'
+            'namespace, = ({},)\nnamespace["pytest_plugins"] = ("tests.helpers.local",)\n'
+            '[item.setdefault("pytest_plugins", ("tests.helpers.local",)) for item in [{}]]\n'
+            "from contextlib import nullcontext\n"
+            'with nullcontext({}) as item:\n    item.update(pytest_plugins=("tests.helpers.local",))\n'
+            'match {}:\n    case item:\n        item.update(pytest_plugins=("tests.helpers.local",))\n'
+            '[item.get("__name__") for item in [globals()]]\n'
+            'item = {}\nitem.update(pytest_plugins=("tests.helpers.local",))\n'
+            'for safe, namespace in [({}, globals())]:\n    safe["pytest_plugins"] = ("tests.helpers.local",)\n'
+        ),
+        (
+            'namespace = globals()\nnamespace = {}\nnamespace["pytest_plugins"] = ("tests.helpers.local",)\n'
+            'import builtins\nruntime = builtins\nruntime = object()\nruntime.exec("ordinary payload")\n'
+            'run = exec\nrun = print\nrun("ordinary payload")\n'
+        ),
+        (
+            'match {"ns": {}}:\n    case {"ns": captured}:\n'
+            '        captured["pytest_plugins"] = ("tests.helpers.local",)\n'
+            'match {"ns": globals()}:\n    case {"ns": _, **rest}:\n'
+            '        rest["pytest_plugins"] = ("tests.helpers.local",)\n'
+            "match {None: {}}:\n    case {None: captured}:\n"
+            '        captured["pytest_plugins"] = ("tests.helpers.local",)\n'
+        ),
     )
 
-    assert module._pytest_plugin_names(ast.parse(source)) == []
+    for source in sources:
+        assert module._pytest_plugin_names(ast.parse(source)) == []
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        'import builtins\nruntime = builtins\nruntime.exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
+        'import builtins\nruntime = builtins\nagain = runtime\nagain.eval("globals().update(pytest_plugins=(\\"tests.helpers.hidden\\",))")\n',
+    ],
+)
+def test_pytest_plugin_discovery_rejects_builtins_module_aliases(source: str) -> None:
+    """Aliases of the imported builtins owner must retain exec/eval authority."""
+    module = _load_provenance_module()
+
+    with pytest.raises(ValueError, match=r"^prior-red-proof-invalid$"):
+        module._pytest_plugin_names(ast.parse(source))
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        'match {"ns": globals()}:\n    case {"ns": namespace}:\n        namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+        'match {"safe": {}, "ns": globals()}:\n    case {"ns": namespace, "safe": _}:\n        namespace.update(pytest_plugins=("tests.helpers.hidden",))\n',
+        'match {"outer": {"ns": globals()}}:\n    case {"outer": {"ns": namespace}}:\n        namespace.setdefault("pytest_plugins", ("tests.helpers.hidden",))\n',
+        'match {None: globals()}:\n    case {None: namespace}:\n        namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+        'match {**{"ns": globals()}}:\n    case {"ns": namespace}:\n        namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+    ],
+)
+def test_pytest_plugin_discovery_rejects_mapping_pattern_namespace_captures(source: str) -> None:
+    """Mapping captures must retain their corresponding namespace subject value."""
+    module = _load_provenance_module()
+
+    with pytest.raises(ValueError, match=r"^prior-red-proof-invalid$"):
+        module._pytest_plugin_names(ast.parse(source))
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        'namespace = globals()\nnamespace["pytest_plugins"] = ("tests.helpers.hidden",)\nnamespace = {}\n',
+        'namespace = globals()\nnamespace = {}\nnamespace = globals()\nnamespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+        'namespace = globals()\nif enabled:\n    namespace = {}\nnamespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+        'namespace = {}\nif enabled:\n    namespace = globals()\nnamespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+        'for namespace in [globals()]:\n    pass\nnamespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+        'from contextlib import nullcontext\nwith nullcontext(globals()) as namespace:\n    pass\nnamespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+        'match globals():\n    case namespace:\n        pass\nnamespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
+        'import builtins\nruntime = builtins\nruntime.exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\nruntime = object()\n',
+        'import builtins\nruntime = object()\nif enabled:\n    runtime = builtins\nruntime.exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
+    ],
+)
+def test_pytest_plugin_discovery_keeps_live_or_conditional_aliases_fail_closed(source: str) -> None:
+    """Use-before-shadow, re-alias, and conditional replacement remain unsafe."""
+    module = _load_provenance_module()
+
+    with pytest.raises(ValueError, match=r"^prior-red-proof-invalid$"):
+        module._pytest_plugin_names(ast.parse(source))
 
 
 @pytest.mark.parametrize(

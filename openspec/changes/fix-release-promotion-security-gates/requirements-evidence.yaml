@@ -192,3 +192,27 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_requirements_proof_provenance.py::test_pytest_plugin_discovery_ignores_function_local_assignments
+      - case_id: RELEASE-692-PYTEST-S02
+        scenario_id: retained-proof-binds-only-active-pytest-plugin-declarations
+        method: test
+        intent: "Prove direct and chained aliases of the imported builtins owner retain dynamic-execution authority."
+        observable: "Every alias path to builtins.exec or builtins.eval invalidates retained proof."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_provenance.py::test_pytest_plugin_discovery_rejects_builtins_module_aliases
+      - case_id: RELEASE-692-PYTEST-S03
+        scenario_id: retained-proof-binds-only-active-pytest-plugin-declarations
+        method: test
+        intent: "Prove mapping captures inherit their statically corresponding namespace subject value."
+        observable: "Direct, reordered, and nested mapping captures of globals fail closed while ordinary mapping values remain compatible."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_provenance.py::test_pytest_plugin_discovery_rejects_mapping_pattern_namespace_captures
+      - case_id: RELEASE-692-PYTEST-S04
+        scenario_id: retained-proof-binds-only-active-pytest-plugin-declarations
+        method: test
+        intent: "Prove a definite ordinary reassignment ends prior alias authority without weakening uncertain paths."
+        observable: "Ordinary replacements pass; use-before-shadow, re-alias, and conditional replacement fail closed."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_provenance.py::test_pytest_plugin_discovery_allows_legitimate_namespace_access

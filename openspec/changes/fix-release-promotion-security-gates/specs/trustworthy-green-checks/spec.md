@@ -135,10 +135,14 @@ execution SHALL fail closed because class bodies execute at import time.
 Aliases derived from the active module namespace or from its namespace factory
 SHALL receive the same treatment as direct access, including aliases introduced
 by destructuring, loops, eager comprehensions, context-manager bindings, and
-match captures. Qualified or aliased access to the built-in dynamic executors
-SHALL receive the same treatment as a direct `exec` or `eval` call. Read-only
-class-body access to unrelated module globals and compound bindings over
-ordinary mappings SHALL remain compatible.
+match captures. Mapping-pattern captures SHALL retain their statically
+corresponding subject values. Qualified or aliased access to the built-in
+dynamic executors, including chained aliases of the imported `builtins` module,
+SHALL receive the same treatment as a direct `exec` or `eval` call. Definite
+later assignments SHALL replace earlier alias bindings in statement order,
+while conditional assignments SHALL remain fail-closed. Read-only class-body
+access to unrelated module globals and compound bindings over ordinary mappings
+SHALL remain compatible.
 
 #### Scenario: Helper function contains an inactive local assignment
 
@@ -181,6 +185,24 @@ ordinary mappings SHALL remain compatible.
 
 - **WHEN** import-time code reaches `exec` or `eval` through `builtins`, an import alias, `getattr`, `__builtins__`, or `__import__("builtins")`
 - **THEN** retained proof fails closed with the same result as a bare dynamic-execution call
+
+#### Scenario: Imported builtins module is re-aliased
+
+- **WHEN** import-time code assigns the imported `builtins` module through one or more aliases
+- **AND** the final alias invokes `exec` or `eval`
+- **THEN** retained proof fails closed with the same result as direct `builtins.exec` or `builtins.eval`
+
+#### Scenario: Mapping pattern captures the module namespace
+
+- **WHEN** an import-time mapping pattern captures a subject value that is the active module namespace
+- **AND** the captured name can write `pytest_plugins`
+- **THEN** retained proof fails closed without treating a capture of an ordinary mapping value as the module namespace
+
+#### Scenario: Definite assignment shadows an alias
+
+- **WHEN** import-time code definitely replaces a namespace, builtins-module, or dynamic-executor alias before using that name
+- **THEN** the replacement is evaluated in statement order and an ordinary replacement remains compatible
+- **AND** mutation before the replacement, re-aliasing after it, or a merely conditional replacement remains fail-closed
 
 #### Scenario: Class body reads unrelated module metadata
 
