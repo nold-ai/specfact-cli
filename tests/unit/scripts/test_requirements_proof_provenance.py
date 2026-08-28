@@ -597,13 +597,19 @@ _COMPUTED_BUILTINS_OWNER_SOURCES = (
 )
 
 
-@pytest.mark.parametrize("source", _COMPUTED_BUILTINS_OWNER_SOURCES)
-def test_pytest_plugin_discovery_rejects_computed_builtins_owner_expressions(source: str) -> None:
+def test_pytest_plugin_discovery_rejects_computed_builtins_owner_expressions() -> None:
     """Computed owners must not hide import-time exec/eval authority."""
     module = _load_provenance_module()
+    accepted_sources: list[str] = []
 
-    with pytest.raises(ValueError, match=r"^prior-red-proof-invalid$"):
-        module._pytest_plugin_names(ast.parse(source))
+    for source in _COMPUTED_BUILTINS_OWNER_SOURCES:
+        try:
+            module._pytest_plugin_names(ast.parse(source))
+        except ValueError as error:
+            assert str(error) == "prior-red-proof-invalid"
+        else:
+            accepted_sources.append(source)
+    assert accepted_sources == []
 
 
 _MAPPING_PATTERN_NAMESPACE_SOURCES = (
