@@ -10,6 +10,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.55.3] - 2026-08-29
+
+### Fixed
+
+- **Module scope diagnostics:** preserve valid user-scoped module installations
+  when a project-local copy takes precedence, and replace routine uninstall
+  advice with non-destructive origin guidance.
+
+---
+
 ## [0.55.2] - 2026-08-27
 
 ### Security

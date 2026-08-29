@@ -19,13 +19,14 @@
 
 - Review-driven tests were added before the follow-up production edit for actual effective-source guidance, qualified availability, and user-only discovery outside the shadowing project.
 - Initial focused run: FAIL (`3 failed, 1 passed`). The current doctor always named project scope and both diagnostics made an unconditional availability claim. The user-only preservation scenario already passed, so it remains supplementary regression coverage rather than a retained red-proof selector.
+- Retained review red proof: Requirements Evidence run `33277091672` at signed source commit `daf05baa9303ef914f5659eafe940146d311af25` executed all three mapped selectors using the final reviewed test bytes and produced a bound `observed_maturity: red` artifact with no reconciliation findings.
 - Passing focused run after the production edit: PASS (`4 passed`).
 - Related discovery/doctor files after the review fixes: PASS (`69 passed`).
 
 ## Quality Gates
 
 - `hatch run format`: PASS (942 files unchanged).
-- `hatch run type-check`: PASS (0 errors; 1,657 existing warnings).
+- `hatch run type-check`: PASS (0 errors; 1,531 existing warnings).
 - `hatch run lint`: PASS.
 - `hatch run yaml-lint`: exit code 0; it reports only pre-existing line-length/blank-line findings in untouched Requirements R07/R08 evidence.
 - `hatch run contract-test` and `hatch run contract-test-contracts`: PASS using cached results after the full smart-test had refreshed hashes; both report no further modified contract inputs. The focused contract-sensitive discovery/doctor files pass, and the independent full suite exercised them.

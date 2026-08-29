@@ -83,38 +83,6 @@ def _module_upgrade_status(description: str) -> Iterator[None]:
         yield
 
 
-def _init_scope_nonempty(scope: str) -> bool:
-    return bool(scope)
-
-
-def _strip_nonempty(s: str) -> bool:
-    return bool(s.strip())
-
-
-def _module_name_arg_nonempty(module_name: str) -> bool:
-    return _strip_nonempty(module_name)
-
-
-def _alias_name_nonempty(alias_name: str) -> bool:
-    return _strip_nonempty(alias_name)
-
-
-def _command_name_nonempty(command_name: str) -> bool:
-    return _strip_nonempty(command_name)
-
-
-def _url_nonempty(url: str) -> bool:
-    return url.strip() != ""
-
-
-def _registry_id_nonempty(registry_id: str) -> bool:
-    return _strip_nonempty(registry_id)
-
-
-def _search_query_nonempty(query: str) -> bool:
-    return _strip_nonempty(query)
-
-
 def _module_id_optional_nonempty(module_id: str | None) -> bool:
     return module_id is None or module_id.strip() != ""
 
@@ -127,14 +95,6 @@ def _upgrade_module_names_valid(module_names: list[str] | None) -> bool:
     if module_names is None:
         return True
     return all(m.strip() != "" for m in module_names)
-
-
-def _install_module_ids_nonempty(module_ids: list[str]) -> bool:
-    return bool(module_ids) and all(m.strip() != "" for m in module_ids)
-
-
-def _uninstall_module_names_nonempty(module_names: list[str]) -> bool:
-    return bool(module_names) and all(m.strip() != "" for m in module_names)
 
 
 def _publisher_url_from_metadata(metadata: object | None) -> str:
@@ -238,35 +198,34 @@ def _enable_if_disabled(module_id: str, base_path: Path | None = None) -> bool:
 
 
 def _install_skip_if_already_satisfied(
-    scope_normalized: str,
     requested_name: str,
-    target_root: Path,
-    repo: Path | None,
-    reinstall: bool,
-    discovered_by_name: dict[str, Any],
+    params: _InstallOneParams,
 ) -> bool:
-    installed_dir = target_root / requested_name
-    if (installed_dir / "module-package.yaml").exists() and not reinstall:
+    installed_dir = params.target_root / requested_name
+    if (installed_dir / "module-package.yaml").exists() and not params.reinstall:
         module_id = _read_installed_manifest_id(installed_dir, requested_name)
-        enabled = _enable_if_disabled(module_id, base_path=repo if scope_normalized == "project" else None)
+        enabled = _enable_if_disabled(
+            module_id,
+            base_path=params.repo if params.scope_normalized == "project" else None,
+        )
         if enabled:
             console.print(
-                f"[yellow]Module '{module_id}' is already installed in {target_root}; "
+                f"[yellow]Module '{module_id}' is already installed in {params.target_root}; "
                 "enabled it in module state.[/yellow]"
             )
         else:
-            console.print(f"[yellow]Module '{module_id}' is already installed in {target_root}.[/yellow]")
+            console.print(f"[yellow]Module '{module_id}' is already installed in {params.target_root}.[/yellow]")
         return True
     skip_sources = {"builtin", "project", "user", "custom"}
-    if scope_normalized == "project":
+    if params.scope_normalized == "project":
         skip_sources.discard("user")
-    if scope_normalized == "user":
+    if params.scope_normalized == "user":
         skip_sources.discard("project")
-    existing = discovered_by_name.get(requested_name)
+    existing = params.discovered_by_name.get(requested_name)
     if existing is not None and existing.source in skip_sources:
         enabled = _enable_if_disabled(
             existing.metadata.name,
-            base_path=repo if scope_normalized == "project" else None,
+            base_path=params.repo if params.scope_normalized == "project" else None,
         )
         state_hint = " Enabled it in module state." if enabled else ""
         console.print(
@@ -307,7 +266,7 @@ def _try_install_bundled_module(
 
 @app.command(name="init")
 @beartype
-@require(_init_scope_nonempty, "scope must not be empty")
+@require(lambda scope: bool(cast(str, scope).strip()), "scope must not be empty")
 def init_modules(
     scope: str = typer.Option("user", "--scope", help="Bootstrap scope: user or project"),
     repo: Path | None = typer.Option(None, "--repo", help="Repository path for project scope (default: current dir)"),
@@ -361,12 +320,8 @@ def _install_one(module_id: str, params: _InstallOneParams) -> bool:
     """Install a single module; return True on success, False if skipped/already installed."""
     normalized, requested_name = _normalize_install_module_id(module_id)
     if _install_skip_if_already_satisfied(
-        params.scope_normalized,
         requested_name,
-        params.target_root,
-        params.repo,
-        params.reinstall,
-        params.discovered_by_name,
+        params,
     ):
         return True
     if _try_install_bundled_module(
@@ -492,7 +447,10 @@ def _install_impl(module_ids: list[str], **kwargs: Any) -> None:
 
 
 @app.command()
-@require(_install_module_ids_nonempty, "at least one non-blank module id is required")
+@require(
+    lambda module_ids: bool(module_ids) and all(module_id.strip() for module_id in cast(list[str], module_ids)),
+    "at least one non-blank module id is required",
+)
 @beartype
 def install(
     module_ids: Annotated[
@@ -634,7 +592,12 @@ def _uninstall_marketplace_default(normalized: str) -> None:
 
 
 @app.command()
-@require(_uninstall_module_names_nonempty, "at least one non-blank module name is required")
+@require(
+    lambda module_names: (
+        bool(module_names) and all(module_name.strip() for module_name in cast(list[str], module_names))
+    ),
+    "at least one non-blank module name is required",
+)
 @beartype
 def uninstall(
     module_names: Annotated[
@@ -662,8 +625,8 @@ alias_app = typer.Typer(help="Manage command aliases (map name to namespaced mod
 
 @alias_app.command(name="create")
 @beartype
-@require(_alias_name_nonempty, "alias_name must not be empty")
-@require(_command_name_nonempty, "command_name must not be empty")
+@require(lambda alias_name: bool(cast(str, alias_name).strip()), "alias_name must not be empty")
+@require(lambda command_name: bool(cast(str, command_name).strip()), "command_name must not be empty")
 def alias_create(
     alias_name: str = typer.Argument(..., help="Alias (command name) to map"),
     command_name: str = typer.Argument(..., help="Command name to invoke (e.g. backlog, module)"),
@@ -697,7 +660,7 @@ def alias_list() -> None:
 
 @alias_app.command(name="remove")
 @beartype
-@require(_alias_name_nonempty, "alias_name must not be empty")
+@require(lambda alias_name: bool(cast(str, alias_name).strip()), "alias_name must not be empty")
 def alias_remove(
     alias_name: str = typer.Argument(..., help="Alias to remove"),
 ) -> None:
@@ -712,7 +675,7 @@ if app.add_typer is not None:
 
 @app.command(name="add-registry")
 @beartype
-@require(_url_nonempty, "url must not be empty")
+@require(lambda url: bool(cast(str, url).strip()), "url must not be empty")
 def add_registry_cmd(
     url: str = typer.Argument(..., help="Registry index URL (e.g. https://company.com/index.json)"),
     id: str | None = typer.Option(None, "--id", help="Registry id (default: derived from URL)"),
@@ -758,13 +721,14 @@ def list_registries_cmd() -> None:
 
 @app.command(name="remove-registry")
 @beartype
-@require(_registry_id_nonempty, "registry_id must not be empty")
+@require(lambda registry_id: bool(cast(str, registry_id).strip()), "registry_id must not be empty")
 def remove_registry_cmd(
     registry_id: str = typer.Argument(..., help="Registry id to remove"),
 ) -> None:
     """Remove a custom registry from the config."""
-    remove_registry(registry_id.strip())
-    console.print(f"[green]Removed registry[/green] {registry_id!r}")
+    normalized_registry_id = registry_id.strip()
+    remove_registry(normalized_registry_id)
+    console.print(f"[green]Removed registry[/green] {normalized_registry_id!r}")
 
 
 @app.command()
@@ -840,7 +804,7 @@ def disable(
 
 @app.command()
 @beartype
-@require(_search_query_nonempty, "query must not be empty")
+@require(lambda query: bool(cast(str, query).strip()), "query must not be empty")
 def search(query: str = typer.Argument(..., help="Search query")) -> None:
     """Search marketplace and installed modules by id/description/tags."""
     query_l = query.lower().strip()
@@ -1119,11 +1083,29 @@ def _doctor_status(
     return "effective"
 
 
-def _print_doctor_recovery(entries: list[tuple[DiscoveredModule, str]]) -> None:
+def _print_doctor_shadowing_guidance(entries: list[tuple[DiscoveredModule, str]]) -> None:
+    effective_by_module_id = {entry.metadata.name: (entry, status) for entry, status in entries if status != "shadowed"}
     for entry, status in entries:
         if status != "shadowed" or entry.source != "user":
             continue
-        console.print(f"[yellow]Recovery:[/yellow] specfact module uninstall {entry.metadata.name} --scope user")
+        effective_entry, effective_status = effective_by_module_id[entry.metadata.name]
+        source_label = {
+            "builtin": "Built-in",
+            "marketplace": "Marketplace",
+            "project": "Project",
+            "custom": "Custom",
+            "user": "User",
+        }.get(effective_entry.source, effective_entry.source.replace("_", "-").capitalize())
+        availability = (
+            "The module is disabled in module state; enable it before use outside this workspace."
+            if effective_status == "disabled"
+            else "Availability outside this workspace depends on module state and other higher-priority copies."
+        )
+        console.print(
+            f"[blue]Info:[/blue] {source_label} scope takes precedence over the user-scoped copy of "
+            f"{entry.metadata.name}. The user copy remains installed. {availability} "
+            "No uninstall is required due to normal shadowing."
+        )
 
 
 @app.command(name="doctor")
@@ -1166,7 +1148,7 @@ def doctor(
                 str(entry.package_dir),
             )
         console.print(table)
-        _print_doctor_recovery(rows)
+        _print_doctor_shadowing_guidance(rows)
 
     dev_roots = _doctor_dev_roots()
     if not dev_roots:
@@ -1278,7 +1260,7 @@ def _build_module_details_table(module_name: str, module_row: dict[str, Any], me
 
 @app.command()
 @beartype
-@require(_module_name_arg_nonempty, "module_name must not be empty")
+@require(lambda module_name: bool(cast(str, module_name).strip()), "module_name must not be empty")
 def show(module_name: str = typer.Argument(..., help="Installed module name")) -> None:
     """Show detailed metadata for an installed module."""
     modules = get_modules_with_state()
