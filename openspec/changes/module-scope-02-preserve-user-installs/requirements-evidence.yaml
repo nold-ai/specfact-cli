@@ -37,11 +37,3 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/modules/module_registry/test_commands.py::test_doctor_shadowing_guidance_names_builtin_effective_source
-      - case_id: MSI-CORE-004
-        scenario_id: module-doctor-reports-effective-and-shadowed-module-copies
-        method: test
-        intent: "Show that preservation leaves the user copy discoverable where no project copy shadows it."
-        observable: "Discovery selects the user-scoped copy in a workspace without the project copy."
-        selector:
-          runner: pytest
-          node_id: tests/unit/registry/test_module_discovery.py::test_user_module_is_discovered_outside_shadowing_project
