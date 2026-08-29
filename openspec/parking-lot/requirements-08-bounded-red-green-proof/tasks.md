@@ -1,5 +1,11 @@
 # Tasks: Bounded Red-Green Replay
 
+> **Historical plan only — do not execute.** Issue #675 and paired modules issue
+> #414 are closed as Not Planned. This change is parked and superseded by
+> #682/#684 plus modules #431/#434. In particular, do not run the archive task:
+> no R08 behavior was implemented, so archiving would merge an unimplemented
+> delta into canonical requirements.
+
 All implementation tasks are intentionally small (target: at most two hours) and name their allowed files. No implementation begins until the paired modules schema is released.
 
 ## 0. Planning
@@ -61,7 +67,7 @@ All implementation tasks are intentionally small (target: at most two hours) and
 - [ ] 4.7 At D, run the final replay and all task B.5 gates read-only. Verify the R and D frozen-section bytes/digests are identical and retain final artifacts before enforcement. If any non-ledger or frozen-section edit is required, invalidate the checkpoint, increment and re-accept `checkpoint_attempt`, and start again with a new mapping digest, R, and tag namespace; if an allowed append-only ledger correction changes D, rerun the entire final D gate set at the new head.
 - [ ] 4.8 Run shadow, warning, then strict rollout through separately reviewed follow-up changes/epochs; record rollback instructions. A rollout change to workflow, policy, schema, fixture, or verifier is not part of H..D and cannot be authorized by this checkpoint.
 - [ ] 4.9 Merge the completed implementation to `dev` only after the paired signed module release is pinned, the final D gates pass, and every review thread is resolved.
-- [ ] 4.10 After R07 is archived and the R08 strict rollout is accepted, from the repository root in a dedicated follow-up worktree run exactly `openspec archive requirements-08-bounded-red-green-proof` and verify the canonical bounded-replay specification. Do not move a directory into `openspec/changes/archive/` manually.
+- [ ] 4.10 **SUPERSEDED — MUST NOT RUN:** the former R08 archive step is retained only as historical planning text; the change was never implemented.
 - [ ] 4.11 Merge checklist follow-up: create or update `wiki/sources/requirements-08-bounded-red-green-proof.md` (`depends-on`, `blocks`, `external-deps`, `status`, and summary) and run `python3 scripts/wiki_rebuild_graph.py` from the `specfact-cli-internal` repository root.
 - [ ] 4.12 After each implementation or archive PR merges, remove its worktree, delete its local feature branch, run `git worktree prune`, and record the worktree-policy self-check.
 

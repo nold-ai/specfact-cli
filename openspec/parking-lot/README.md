@@ -50,6 +50,7 @@ Any proposal here can be returned to `openspec/changes/` by:
 | `review-resiliency-01-contracts` | Code-review module shipped and used; resiliency gap raised by a real user |
 | `profile-02-central-config-sources` | profile-01 shipped, ≥5 users complain about config drift |
 | `profile-03-domain-overlays` | profile-02 shipped, ≥1 enterprise asking for domain-specific overlays |
+| `requirements-08-bounded-red-green-proof` | Fresh evidence that historical replay prevents materially more defects than seal-bound checkpoints at acceptable local runtime cost |
 | `cli-val-01-behavior-contract-standard` | cli-val-03 + cli-val-04 shipped; gaps require a separate behavior-contract artifact |
 | `cli-val-02-output-snapshot-stability` | A user reports a silent output regression that snapshots would have caught |
 | `cli-val-05-ci-integration` | cli-val-03 + cli-val-04 shipped and need CI gates |
