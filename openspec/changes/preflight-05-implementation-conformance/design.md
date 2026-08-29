@@ -30,9 +30,9 @@ The path-manifest matrix is normative:
 |---|---|---|---|---|---|
 | `worktree` | repository identity, full base commit ID, worktree-manifest digest | exact base to the captured working-tree state, including staged and unstaged tracked state | included with explicit `untracked` state | additions, deletions, and both rename endpoints retained | before/after modes and symlink target identity retained |
 | `index` | repository identity, full base commit ID, exact index tree ID | exact base to the captured index tree | excluded unless present in the index as an addition | additions, deletions, and both rename endpoints retained | before/after modes and symlink target identity retained |
-| `range` | repository identity, full base/head commit IDs, and base/head tree IDs | exact immutable base tree to exact immutable head tree | not representable and therefore absent | additions, deletions, and both rename endpoints retained | before/after modes and symlink target identity retained |
+| `range` | repository identity, seal-approved full base commit/tree IDs, full head commit/tree IDs, and producer/policy/toolchain-bound ancestry attestation | complete immutable seal-approved base tree to descendant head tree | not representable and therefore absent | additions, deletions, and both rename endpoints retained | before/after modes and symlink target identity retained |
 
-Every manifest record retains its change kind and byte-preserving path identity. Rename classification is deterministic under the bound producer, toolchain, and policy identities; consumers cannot reinterpret a delete/add pair under different rename settings.
+Every manifest record retains its change kind and byte-preserving path identity. Rename classification is deterministic under the bound producer, toolchain, and policy identities; consumers cannot reinterpret a delete/add pair under different rename settings. A final range whose base commit/tree differs from the seal-approved source baseline is stale, and absent or invalid base-to-head ancestry is unverifiable. A caller cannot truncate the evaluated range by choosing a later base.
 
 ### 2. Obligation mapping
 
