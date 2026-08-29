@@ -8,11 +8,13 @@ active changes should be implemented.
 
 | Bucket | Count | Location |
 |---|---:|---|
-| **Active** | 26 | [`openspec/changes/`](changes/) |
-| **Parked** | 22 | [`openspec/parking-lot/`](parking-lot/) |
+| **Active-tree entries** | 27 | [`openspec/changes/`](changes/) |
+| **Parking-lot entries** | 21 | [`openspec/parking-lot/`](parking-lot/) |
 | **Archived** | 117 | [`openspec/changes/archive/`](changes/archive/) |
 
-`openspec list` reflects the active set only. Parking-lot proposals are paused
+`openspec list` reflects the active tree, including one closed R08 proposal that
+is parked in place because repository governance prohibits manually moving a
+change and native archive would merge its unimplemented delta. Parking-lot proposals are paused
 pending external signal, such as paying customer pull, third-party publisher
 adoption, or a real evidence corpus. See
 [`parking-lot/README.md`](parking-lot/README.md) for un-park triggers.
@@ -86,7 +88,7 @@ planning workflows.
 | 4 | `requirements-04-upstream-source-readiness` | [#648](https://github.com/nold-ai/specfact-cli/issues/648) | Reject incomplete or policy-invalid native OpenSpec and Spec Kit sources before requirement normalization | openspec-01; paired modules #346 |
 | 5 | `requirements-06-evidence-enforcement` | [#657](https://github.com/nold-ai/specfact-cli/issues/657) | Enforce released Requirements evidence reports in staged pre-commit and pull-request delivery gates | released modules #361 fixture |
 | 6 | `requirements-07-runtime-proof-delivery` | [#662](https://github.com/nold-ai/specfact-cli/issues/662) | Execute exact scenario selectors and report current-run JUnit evidence independently from historical chronology | corrected modules R07 signed release |
-| Parked | `requirements-08-bounded-red-green-proof` | [#675](https://github.com/nold-ai/specfact-cli/issues/675) | Superseded by seal-bound risk/test intent plus implementation checkpoints; no B/R/H/D replay implementation planned | closed Not Planned; preserved under `openspec/parking-lot/` without archiving or canonical spec merge |
+| Parked in place | `requirements-08-bounded-red-green-proof` | [#675](https://github.com/nold-ai/specfact-cli/issues/675) | Superseded by seal-bound risk/test intent plus implementation checkpoints; no B/R/H/D replay implementation planned | closed Not Planned; retained at its governed `openspec/changes/` path without archive or canonical spec merge |
 | 8 | `architecture-01-solution-layer` | [#240](https://github.com/nold-ai/specfact-cli/issues/240) | Architecture-boundary records and drift validation | requirements input contracts |
 | Parked | `requirements-03-backlog-sync` | [#244](https://github.com/nold-ai/specfact-cli/issues/244) | Read-first drift evidence; no write-back critical path. Deprioritized 2026-07-13 behind openspec-01 | requirements-02; modules `sync-01` |
 | Gated | `architecture-02-well-architected-review` | [#524](https://github.com/nold-ai/specfact-cli/issues/524) | Architecture-boundary review findings | architecture-01 shipped plus one usage cycle |
