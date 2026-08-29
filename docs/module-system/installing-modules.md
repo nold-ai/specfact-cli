@@ -121,7 +121,7 @@ Default columns:
 
 With `--show-origin`, an additional `Origin` column is shown (`built-in`, `project`, `user`, `marketplace`, `custom`).
 
-`module doctor` keeps discovery metadata-only and reports effective vs shadowed duplicate copies, exact manifest versions, paths, enabled state, configured development source roots, and recovery commands. Use it when project-scoped modules under `<repo>/.specfact/modules` and user-scoped modules under `~/.specfact/modules` disagree.
+`module doctor` keeps discovery metadata-only and reports effective vs shadowed duplicate copies, exact manifest versions, paths, enabled state, configured development source roots, and non-destructive scope guidance. Normal shadowing does not require uninstalling the lower-priority copy. Use it when project-scoped modules under `<repo>/.specfact/modules` and user-scoped modules under `~/.specfact/modules` disagree.
 
 ## Show Detailed Module Info
 

@@ -56,7 +56,7 @@ specfact module list --show-origin
 specfact module doctor nold-ai/specfact-codebase
 ```
 
-`module doctor` additionally reports shadowed duplicate copies, exact manifest versions, paths, enabled state, configured development source roots, and recovery commands.
+`module doctor` additionally reports shadowed duplicate copies, exact manifest versions, paths, enabled state, configured development source roots, and non-destructive scope guidance. Normal shadowing does not require uninstalling the lower-priority copy.
 
 ## Security Model
 

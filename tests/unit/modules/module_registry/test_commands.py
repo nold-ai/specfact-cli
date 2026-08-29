@@ -264,8 +264,15 @@ def test_doctor_reports_effective_and_shadowed_duplicate_modules(
         lambda _repo: entries,
     )
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.read_modules_state", dict)
+    monkeypatch.setattr(
+        "specfact_cli.runtime.get_console_config",
+        lambda: {"force_terminal": False, "no_color": True, "width": 500},
+    )
 
-    result = runner.invoke(app, ["doctor", "nold-ai/specfact-codebase", "--repo", str(tmp_path / "repo")])
+    result = runner.invoke(
+        app,
+        ["doctor", "nold-ai/specfact-codebase", "--repo", str(tmp_path / "repo")],
+    )
 
     assert result.exit_code == 0
     assert "effective" in result.stdout
@@ -273,8 +280,45 @@ def test_doctor_reports_effective_and_shadowed_duplicate_modules(
     assert "0.41.0" in result.stdout
     assert "0.40.0" in result.stdout
     normalized_output = " ".join(result.stdout.split())
-    assert "remains installed and available outside this workspace" in normalized_output
-    assert "No action is required" in normalized_output
+    assert "project" in normalized_output
+    assert "user" in normalized_output
+    assert str(project_dir) in normalized_output
+    assert str(user_dir) in normalized_output
+    assert "remains installed" in normalized_output
+    assert "No uninstall is required due to normal shadowing" in normalized_output
+    assert "module uninstall" not in normalized_output
+
+
+def test_doctor_shadowing_guidance_names_builtin_effective_source(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    builtin_dir = tmp_path / "builtin" / "specfact-codebase"
+    user_dir = tmp_path / "user-modules" / "specfact-codebase"
+    entries = [
+        DiscoveredModule(
+            builtin_dir,
+            ModulePackageMetadata(name=CODEBASE_MODULE_ID, version="0.41.0", commands=["code"]),
+            "builtin",
+        ),
+        DiscoveredModule(
+            user_dir,
+            ModulePackageMetadata(name=CODEBASE_MODULE_ID, version="0.40.0", commands=["code"]),
+            "user",
+        ),
+    ]
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.discover_all_modules_for_project_with_shadowed",
+        lambda _repo: entries,
+    )
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.read_modules_state", dict)
+
+    result = runner.invoke(app, ["doctor", CODEBASE_MODULE_ID, "--repo", str(tmp_path / "repo")])
+
+    normalized_output = " ".join(result.stdout.split())
+    assert result.exit_code == 0
+    assert "Built-in scope takes precedence" in normalized_output
+    assert "Project scope takes precedence" not in normalized_output
+    assert "remains installed" in normalized_output
     assert "module uninstall" not in normalized_output
 
 

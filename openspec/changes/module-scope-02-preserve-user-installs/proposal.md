@@ -6,7 +6,7 @@ Core module discovery and `specfact module doctor` describe normal project-over-
 
 - Keep project-over-user precedence unchanged.
 - Replace user-scope uninstall recovery advice with non-destructive scope guidance in module discovery warnings and doctor output.
-- State explicitly that the user-scoped copy remains installed and available outside the current workspace and that no action is required for normal shadowing.
+- State explicitly that the user-scoped copy remains installed, normal shadowing alone does not require uninstalling it, and availability elsewhere still depends on module state and higher-priority copies.
 - Add regression tests that reject destructive user-scope uninstall recommendations while preserving origin diagnostics.
 
 ## Capabilities
@@ -19,7 +19,7 @@ Core module discovery and `specfact module doctor` describe normal project-over-
 
 - Affected code: `src/specfact_cli/registry/module_discovery.py` and `src/specfact_cli/modules/module_registry/src/commands.py`.
 - Affected tests: focused module discovery and module doctor unit tests.
-- Paired modules guidance: `nold-ai/specfact-cli-modules#452` corrects the repository bootstrap surfaces that trigger this behavior during review work.
+- Paired modules delivery: `nold-ai/specfact-cli-modules#454` corrects the repository bootstrap surfaces that trigger this behavior during review work.
 - Compatibility and data impact: none. Discovery order, module state, explicit uninstall behavior, manifests, and persistent installation data remain unchanged.
 
 ---
