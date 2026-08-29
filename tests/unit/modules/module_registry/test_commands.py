@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from typer.testing import CliRunner
+from typer.testing import CliRunner, Result
 
 from specfact_cli.models.module_package import ModulePackageMetadata, PublisherInfo
 from specfact_cli.modules.module_registry.src.commands import app
@@ -150,6 +150,53 @@ def _patch_show_module(
     )
 
 
+def _doctor_entry(path: Path, version: str, source: str) -> DiscoveredModule:
+    """Build a codebase module entry for doctor diagnostics."""
+    return DiscoveredModule(
+        path,
+        ModulePackageMetadata(name=CODEBASE_MODULE_ID, version=version, commands=["code"]),
+        source,
+    )
+
+
+def _invoke_doctor(
+    monkeypatch: pytest.MonkeyPatch,
+    repo: Path,
+    entries: list[DiscoveredModule],
+) -> Result:
+    """Invoke doctor with deterministic discovery and unwrapped output."""
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.discover_all_modules_for_project_with_shadowed",
+        lambda _repo: entries,
+    )
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.read_modules_state", dict)
+    monkeypatch.setattr(
+        "specfact_cli.runtime.get_console_config",
+        lambda: {"force_terminal": False, "no_color": True, "width": 500},
+    )
+    return runner.invoke(app, ["doctor", CODEBASE_MODULE_ID, "--repo", str(repo)])
+
+
+def _assert_duplicate_doctor_output(result: Result, project_dir: Path, user_dir: Path) -> None:
+    """Assert complete, non-destructive duplicate diagnostics."""
+    normalized_output = " ".join(result.stdout.split())
+    expected_fragments = (
+        "effective",
+        "shadowed",
+        "0.41.0",
+        "0.40.0",
+        "project",
+        "user",
+        str(project_dir),
+        str(user_dir),
+        "remains installed",
+        "No uninstall is required due to normal shadowing",
+    )
+    assert result.exit_code == 0
+    assert all(fragment in normalized_output for fragment in expected_fragments)
+    assert "module uninstall" not in normalized_output
+
+
 class _CommandInfo:
     def __init__(self, name: str, help_text: str) -> None:
         self.name = name
@@ -244,49 +291,12 @@ def test_doctor_reports_effective_and_shadowed_duplicate_modules(
 ) -> None:
     project_dir = tmp_path / "repo" / ".specfact" / "modules" / "specfact-codebase"
     user_dir = tmp_path / "user-modules" / "specfact-codebase"
-    project_dir.mkdir(parents=True)
-    user_dir.mkdir(parents=True)
     entries = [
-        DiscoveredModule(
-            project_dir,
-            ModulePackageMetadata(name="nold-ai/specfact-codebase", version="0.41.0", commands=["code"]),
-            "project",
-        ),
-        DiscoveredModule(
-            user_dir,
-            ModulePackageMetadata(name="nold-ai/specfact-codebase", version="0.40.0", commands=["code"]),
-            "user",
-        ),
+        _doctor_entry(project_dir, "0.41.0", "project"),
+        _doctor_entry(user_dir, "0.40.0", "user"),
     ]
-
-    monkeypatch.setattr(
-        "specfact_cli.modules.module_registry.src.commands.discover_all_modules_for_project_with_shadowed",
-        lambda _repo: entries,
-    )
-    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.read_modules_state", dict)
-    monkeypatch.setattr(
-        "specfact_cli.runtime.get_console_config",
-        lambda: {"force_terminal": False, "no_color": True, "width": 500},
-    )
-
-    result = runner.invoke(
-        app,
-        ["doctor", "nold-ai/specfact-codebase", "--repo", str(tmp_path / "repo")],
-    )
-
-    assert result.exit_code == 0
-    assert "effective" in result.stdout
-    assert "shadowed" in result.stdout
-    assert "0.41.0" in result.stdout
-    assert "0.40.0" in result.stdout
-    normalized_output = " ".join(result.stdout.split())
-    assert "project" in normalized_output
-    assert "user" in normalized_output
-    assert str(project_dir) in normalized_output
-    assert str(user_dir) in normalized_output
-    assert "remains installed" in normalized_output
-    assert "No uninstall is required due to normal shadowing" in normalized_output
-    assert "module uninstall" not in normalized_output
+    result = _invoke_doctor(monkeypatch, tmp_path / "repo", entries)
+    _assert_duplicate_doctor_output(result, project_dir, user_dir)
 
 
 def test_doctor_shadowing_guidance_names_builtin_effective_source(
@@ -295,24 +305,10 @@ def test_doctor_shadowing_guidance_names_builtin_effective_source(
     builtin_dir = tmp_path / "builtin" / "specfact-codebase"
     user_dir = tmp_path / "user-modules" / "specfact-codebase"
     entries = [
-        DiscoveredModule(
-            builtin_dir,
-            ModulePackageMetadata(name=CODEBASE_MODULE_ID, version="0.41.0", commands=["code"]),
-            "builtin",
-        ),
-        DiscoveredModule(
-            user_dir,
-            ModulePackageMetadata(name=CODEBASE_MODULE_ID, version="0.40.0", commands=["code"]),
-            "user",
-        ),
+        _doctor_entry(builtin_dir, "0.41.0", "builtin"),
+        _doctor_entry(user_dir, "0.40.0", "user"),
     ]
-    monkeypatch.setattr(
-        "specfact_cli.modules.module_registry.src.commands.discover_all_modules_for_project_with_shadowed",
-        lambda _repo: entries,
-    )
-    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.read_modules_state", dict)
-
-    result = runner.invoke(app, ["doctor", CODEBASE_MODULE_ID, "--repo", str(tmp_path / "repo")])
+    result = _invoke_doctor(monkeypatch, tmp_path / "repo", entries)
 
     normalized_output = " ".join(result.stdout.split())
     assert result.exit_code == 0
