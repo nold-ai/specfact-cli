@@ -6,7 +6,7 @@ Pre-implementation assurance freezes what was reviewed and approved, but it deli
 
 ## What Changes
 
-- **NEW**: Core-only specifications for `worktree`, `index`, and immutable `range` implementation snapshots with complete path manifests, exact policy-authorized current delivery-target identity, and producer/policy/toolchain/evidence identities.
+- **NEW**: Core-only specifications for `worktree`, `index`, and immutable `range` implementation snapshots with complete path manifests, role-independent public-interface observations for every policy-classified interface-capable governed path, exact policy-authorized current delivery-target identity, and producer/policy/toolchain/evidence identities.
 - **NEW**: Core-only obligation mapping that requires the canonical latest seal-lineage tip plus `DevelopmentCheckpointResult` and `ImplementationConformanceResult` contracts.
 - **NEW**: Closed finding classes for missing, unexpected, modified, violated, stale, and unverifiable implementation-to-contract evidence.
 - **NEW**: A side-effect-free assurance verifier interface that receives the upstream contract, validation result, selected seal, canonical lineage-tip identity, policy, current source and delivery-target identities, plus normalized implementation evidence; stale or mismatched upstream inputs fail closed before obligation comparison.

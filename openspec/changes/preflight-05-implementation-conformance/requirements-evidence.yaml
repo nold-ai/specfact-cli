@@ -21,7 +21,9 @@ requirements:
       - case_id: PF05C-008
         scenario_id: closed-implementation-assurance-finding-classes
         method: inspection
-        intent: "Inspect the reconciled semantic-evidence violation scenario, stable identities, and finding precedence before implementation."
+        intent: >-
+          Inspect the reconciled semantic-evidence violation scenario, stable
+          identities, and finding precedence before implementation.
         observable: *planning-observable
   openspec:preflight-05-implementation-conformance:preflight-implementation-conformance-contracts:explicit-implementation-assurance-limits:
     rationale: *planning-rationale
@@ -61,7 +63,9 @@ requirements:
       - case_id: PF05C-005
         scenario_id: versioned-implementation-snapshot
         method: inspection
-        intent: "Inspect the versioned implementation snapshot planning contract before implementation."
+        intent: >-
+          Inspect the versioned implementation snapshot and role-independent
+          public-interface observation completeness contract before implementation.
         observable: *planning-observable
   openspec:preflight-05-implementation-conformance:preflight-implementation-conformance-contracts:separate-local-checkpoint-result:
     rationale: *planning-rationale

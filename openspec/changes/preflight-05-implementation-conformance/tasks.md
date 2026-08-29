@@ -11,7 +11,7 @@ All tasks below are future implementation work. This planning change completes n
 ## 2. Specification and failing-first evidence
 
 - [ ] 2.1 Finalize snapshot kinds, complete path manifest, obligation mapping, local checkpoint authority, immutable conformance, finding, result, and verifier interfaces without adding extraction or CLI behavior.
-- [ ] 2.2 Add tests mapped to every worktree/index/range identity, implementation-lineage-origin equality across successor seals, canonical latest-seal tip/sequence/chain verification, origin-to-head ancestry and exact authoritative delivery-head equality, authority-separation, path-transition, checkpoint-subset and exhaustive final-obligation closure, protected-CI producer authorization and exact-range provenance, finding-class/precedence (including the reconciled semantic `violated` scenario), stale-seal, evidence, and assurance-limit scenario.
+- [ ] 2.2 Add tests mapped to every worktree/index/range identity, implementation-lineage-origin equality across successor seals, canonical latest-seal tip/sequence/chain verification, origin-to-head ancestry and exact authoritative delivery-head equality, authority-separation, path-transition, role-independent public-interface observation completeness for every policy-classified interface-capable governed path, checkpoint-subset and exhaustive final-obligation closure, protected-CI producer authorization and exact-range provenance, finding-class/precedence (including the reconciled semantic `violated` scenario), stale-seal, evidence, and assurance-limit scenario.
 - [ ] 2.3 Run targeted tests before production edits and record failing-first results in a newly created `TDD_EVIDENCE.md`.
 
 ## 3. Minimal core implementation

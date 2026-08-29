@@ -6,6 +6,8 @@ The system SHALL define a versioned implementation snapshot whose kind is `workt
 
 The `worktree` kind SHALL bind a full base commit ID and worktree-manifest digest and include staged, unstaged, and untracked state relative to that base. The `index` kind SHALL bind a full base commit ID and exact index tree ID and exclude untracked paths unless staged as additions. The `range` kind SHALL bind full base/head commit IDs and base/head tree IDs and SHALL NOT represent untracked paths. Every snapshot base SHALL equal the seal-bound implementation-lineage origin repository/base commit/base tree, including after refinement or reapproval. A range head SHALL be proven to descend from that origin by a producer/policy/toolchain-bound ancestry attestation, SHALL equal a separately supplied policy-authorized current delivery-target commit/tree identity, and its manifest SHALL cover the complete lineage-origin-to-delivery-head range. Every kind SHALL preserve additions, deletions, both rename endpoints, before/after modes, symlink target identity, and byte-preserving path identity where those states exist. Rename interpretation SHALL be bound to producer, policy, and toolchain identity.
 
+Every governed manifest path that policy classifies as capable of defining a public interface SHALL carry normalized base/current public-interface observations, including explicit absent-side observations for additions or deletions, regardless of whether its sealed role is `source`, `test`, `docs`, `generated`, or `evidence`. Missing, unsupported, incomplete, stale, ambiguous, wrong-snapshot, or wrong-extractor observations SHALL be `unverifiable`; a missing record or caller-supplied empty set SHALL NOT be treated as proof of no changed interface.
+
 #### Scenario: Snapshot preserves complete Git path semantics
 
 - **GIVEN** an implementation adds, deletes, renames, changes mode, symlinks, or introduces an untracked path supported by its snapshot kind
@@ -19,6 +21,13 @@ The `worktree` kind SHALL bind a full base commit ID and worktree-manifest diges
 - **WHEN** the snapshot is normalized
 - **THEN** that evidence is marked unverifiable
 - **AND** it cannot satisfy a sealed-contract obligation.
+
+#### Scenario: Generated path can define a public interface
+
+- **GIVEN** a changed governed path is classified as `generated` and policy classifies it as capable of defining a public interface
+- **WHEN** its implementation snapshot is normalized
+- **THEN** complete base/current public-interface observations are required exactly as for any other interface-capable role
+- **AND** missing or unverifiable observations produce `UNKNOWN` rather than an empty changed-interface set.
 
 #### Scenario: Final range truncates the sealed baseline
 
