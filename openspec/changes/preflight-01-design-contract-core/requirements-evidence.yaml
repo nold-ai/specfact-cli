@@ -58,6 +58,16 @@ requirements:
         method: inspection
         intent: "Inspect the normalized preflight design contract planning contract before implementation."
         observable: *planning-observable
+  openspec:preflight-01-design-contract-core:preflight-assurance-contracts:seal-bound-semantic-verification-intent:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#682"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: PF01-007
+        scenario_id: seal-bound-semantic-verification-intent
+        method: inspection
+        intent: "Inspect scope roles, risk dispositions, verification stages, and Requirements-plan references before implementation."
+        observable: *planning-observable
   openspec:preflight-01-design-contract-core:preflight-assurance-contracts:side-effect-free-verifier-interface:
     rationale: *planning-rationale
     stakeholder_refs: ["nold-ai/specfact-cli#682"]

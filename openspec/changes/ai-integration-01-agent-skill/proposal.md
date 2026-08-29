@@ -11,7 +11,7 @@ SpecFact modules can own focused agent workflows, but users need one core instal
 - **NEW**: Support canonical `.agents/skills/<skill-name>/SKILL.md` materialization plus stable metadata needed by compatible exporters.
 - **NEW**: Preserve module/version/content-digest provenance, collision policy, safe-write behavior, and an uninstall inventory.
 - **CLARIFY**: Modules own skill workflow content. This change owns only discovery, verification, installation, and export.
-- **CLARIFY**: The future `specfact-preflight` workflow is supplied by the signed preflight module after dogfood hardening; this change does not define or validate that workflow.
+- **CLARIFY**: The future preflight and implementation-check workflows are supplied by the signed modules #434 handoff; this change does not define or validate either workflow.
 
 ## Capabilities
 
@@ -32,12 +32,12 @@ SpecFact modules can own focused agent workflows, but users need one core instal
 ## Dependencies
 
 - Retains parent Feature [#372](https://github.com/nold-ai/specfact-cli/issues/372), under Epic [#257](https://github.com/nold-ai/specfact-cli/issues/257).
-- Blocked by the signed modules `preflight-03-dogfood-hardening-and-release` handoff for the first preflight skill consumer.
+- Blocked by the signed modules `preflight-05-implementation-conformance` handoff so the first installed identity includes both preflight and seal-bound implementation-check workflows.
 - Blocks `ai-integration-03-instruction-files` [#253](https://github.com/nold-ai/specfact-cli/issues/253).
 
 ## Explicit Non-Goals
 
-- No preflight workflow content, readiness validators, approval/seal behavior, or implementation conformance.
+- No preflight or implementation-check workflow content, readiness validators, approval/seal behavior, checkpoint execution, or implementation conformance.
 - No generated AGENTS.md/OpenSpec/Spec Kit instructions.
 - No Codex plugin, ECC companion, hatch3r pack, or other external harness adapter packaging.
 

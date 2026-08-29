@@ -8,25 +8,25 @@ x-planning-observable: &planning-observable >-
   Strict OpenSpec validation retains the requirement and its scenarios
   without claiming implementation or test execution.
 requirements:
-  openspec:preflight-05-implementation-conformance:preflight-implementation-conformance-contracts:closed-conformance-drift-classes:
+  openspec:preflight-05-implementation-conformance:preflight-implementation-conformance-contracts:closed-implementation-assurance-finding-classes:
     rationale: *planning-rationale
     stakeholder_refs: ["nold-ai/specfact-cli#684"]
     touchpoints: *planning-touchpoints
     verification_cases:
       - case_id: PF05C-001
-        scenario_id: closed-conformance-drift-classes
+        scenario_id: closed-implementation-assurance-finding-classes
         method: inspection
-        intent: "Inspect the closed conformance drift classes planning contract before implementation."
+        intent: "Inspect the closed implementation assurance finding classes planning contract before implementation."
         observable: *planning-observable
-  openspec:preflight-05-implementation-conformance:preflight-implementation-conformance-contracts:explicit-conformance-limits:
+  openspec:preflight-05-implementation-conformance:preflight-implementation-conformance-contracts:explicit-implementation-assurance-limits:
     rationale: *planning-rationale
     stakeholder_refs: ["nold-ai/specfact-cli#684"]
     touchpoints: *planning-touchpoints
     verification_cases:
       - case_id: PF05C-002
-        scenario_id: explicit-conformance-limits
+        scenario_id: explicit-implementation-assurance-limits
         method: inspection
-        intent: "Inspect the explicit conformance limits planning contract before implementation."
+        intent: "Inspect the explicit implementation assurance limits planning contract before implementation."
         observable: *planning-observable
   openspec:preflight-05-implementation-conformance:preflight-implementation-conformance-contracts:sealed-obligation-mapping:
     rationale: *planning-rationale
@@ -38,15 +38,15 @@ requirements:
         method: inspection
         intent: "Inspect the sealed obligation mapping planning contract before implementation."
         observable: *planning-observable
-  openspec:preflight-05-implementation-conformance:preflight-implementation-conformance-contracts:side-effect-free-conformance-verifier:
+  openspec:preflight-05-implementation-conformance:preflight-implementation-conformance-contracts:side-effect-free-implementation-assurance-verifier:
     rationale: *planning-rationale
     stakeholder_refs: ["nold-ai/specfact-cli#684"]
     touchpoints: *planning-touchpoints
     verification_cases:
       - case_id: PF05C-004
-        scenario_id: side-effect-free-conformance-verifier
+        scenario_id: side-effect-free-implementation-assurance-verifier
         method: inspection
-        intent: "Inspect the side effect free conformance verifier planning contract before implementation."
+        intent: "Inspect the side effect free implementation assurance verifier planning contract before implementation."
         observable: *planning-observable
   openspec:preflight-05-implementation-conformance:preflight-implementation-conformance-contracts:versioned-implementation-snapshot:
     rationale: *planning-rationale
@@ -57,4 +57,24 @@ requirements:
         scenario_id: versioned-implementation-snapshot
         method: inspection
         intent: "Inspect the versioned implementation snapshot planning contract before implementation."
+        observable: *planning-observable
+  openspec:preflight-05-implementation-conformance:preflight-implementation-conformance-contracts:separate-local-checkpoint-result:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#684"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: PF05C-006
+        scenario_id: separate-local-checkpoint-result
+        method: inspection
+        intent: "Inspect local checkpoint states and authority separation before implementation."
+        observable: *planning-observable
+  openspec:preflight-05-implementation-conformance:preflight-implementation-conformance-contracts:immutable-implementation-conformance-result:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#684"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: PF05C-007
+        scenario_id: immutable-implementation-conformance-result
+        method: inspection
+        intent: "Inspect immutable range requirements for final conformance before implementation."
         observable: *planning-observable

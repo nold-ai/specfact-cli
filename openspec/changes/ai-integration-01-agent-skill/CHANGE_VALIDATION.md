@@ -8,7 +8,7 @@
 
 - #251 retains Feature parent #372.
 - Scope is limited to shared discovery, integrity verification, installation, update, uninstall, and canonical `.agents/skills` export of module-owned skills.
-- The signed module owns `specfact-preflight` workflow content; #253 owns generated instructions; preflight-04 owns external adapter packages.
+- The signed modules #434 identity owns preflight and implementation-check workflow content; #253 owns generated instructions; preflight-04 owns external adapter packages.
 
 ## Planning Boundary
 
@@ -18,7 +18,7 @@
 ## Dependency Review
 
 - Parent Feature: core [#372](https://github.com/nold-ai/specfact-cli/issues/372).
-- Native blocker verified: signed modules [#432](https://github.com/nold-ai/specfact-cli-modules/issues/432).
+- Native blocker to be updated: signed modules checkpoint/conformance handoff [#434](https://github.com/nold-ai/specfact-cli-modules/issues/434).
 - Native downstream verified: core [#253](https://github.com/nold-ai/specfact-cli/issues/253).
 - GitHub readback verified the retained User Story parent #372, project `SpecFact CLI` / `Todo`, assignee `djm81`, and the required labels.
 

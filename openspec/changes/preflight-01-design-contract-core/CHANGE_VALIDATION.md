@@ -12,9 +12,9 @@
 
 ## Scope and Ownership Review
 
-- Core owns durable contract, validation-result, canonical digest, seal, and verifier interfaces.
+- Core owns durable contract, role-classified scope, component/risk/verification intent, validation-result, canonical digest, seal, and verifier interfaces.
 - Modules owns executable validators, CLI, persistence, rendering, and bundled workflow content.
-- Existing architecture, governance evidence, traceability, and OpenSpec/Spec Kit import changes remain upstream inputs.
+- Existing Requirements verification cases/selectors/plans, architecture, governance evidence, traceability, and OpenSpec/Spec Kit import changes remain upstream inputs.
 
 ## Dependency Review
 

@@ -12,9 +12,9 @@
 
 ## Scope and Ownership Review
 
-- Core owns implementation snapshot, obligation mapping, drift/result, and side-effect-free verifier interfaces.
-- The paired modules story owns evidence extraction, executable comparison, rendering, persistence, and policy orchestration.
-- This work is explicitly excluded from the preflight MVP.
+- Core owns worktree/index/range snapshot, obligation mapping, checkpoint/conformance result, finding, authority, and side-effect-free verifier interfaces.
+- The paired modules story owns Git extraction, pytest/review execution, remediation packets, bounded agent workflow, rendering, persistence, release, and policy orchestration.
+- This work follows the stable preflight release and precedes generic installation, generated instructions, and adapters.
 
 ## Dependency Review
 
@@ -32,4 +32,4 @@
 
 ## Decision
 
-The proposal is ready for review and a planning-only PR. Postimplementation conformance implementation remains explicitly unstarted.
+The proposal is ready for review and a planning-only PR. Checkpoint and final conformance implementation remain explicitly unstarted.

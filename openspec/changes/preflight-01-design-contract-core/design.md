@@ -17,6 +17,7 @@ Research reviewed on 2026-08-25:
 - Define stable contract, validation-result, seal, digest, and verifier interfaces.
 - Make every readiness decision traceable to exact input identities and validator versions.
 - Preserve explicit unknowns and unresolved findings instead of allowing optimistic inference.
+- Bind enough implementation intent to select bounded semantic evidence later without resealing unchanged design intent.
 - Keep modules and harnesses able to consume the same contract without depending on one renderer or command syntax.
 
 **Non-Goals:**
@@ -29,21 +30,29 @@ Research reviewed on 2026-08-25:
 
 ### 1. One normalized design contract
 
-The future `PreflightDesignContract` interface will include a schema version, change identity, repository identity, source records, in-scope and excluded boundaries, assumptions, unknowns, dependency edges, affected interfaces, acceptance criteria, test intent, risk/rollback records, and approval policy. Every source record carries a stable source kind, location, revision or content digest, and loader identity.
+The future `PreflightDesignContract` interface will include a schema version, change identity, repository identity, source records, role-classified scope, component ownership, assumptions, unknowns, dependency edges, affected interfaces, acceptance criteria, risk dimensions, verification stages, test intent, risk/rollback records, and approval policy. Every source record carries a stable source kind, location, revision or content digest, and loader identity.
 
-### 2. Deterministic validation result
+Scope entries use the closed roles `source`, `test`, `docs`, `generated`, `evidence`, and `excluded`. Each governed source entry identifies one component and bounded pytest targets so later local checkpoints can select a complete affected component suite without guessing from filenames.
+
+### 2. Seal-bound semantic risk and verification intent
+
+Each affected behavior or interface records applicable boundary, malformed/missing-input, state-transition/idempotency/cache, error/status/timeout/unknown-precedence, path/repository-lifecycle, and platform/compatibility risk dimensions. A dimension is either `covered`, with references to existing Requirements requirement/scenario/case identities, or `not_applicable`, with a non-empty rationale. Covered cases identify their earliest required execution stage: `slice`, `commit`, `prepush`, or `ci`.
+
+The contract binds Requirements mapping and plan digests plus their exact verification-case references. Existing Requirements contracts remain authoritative for pytest selector syntax and JUnit reconciliation.
+
+### 3. Deterministic validation result
 
 The future `PreflightValidationResult` binds to exactly one contract digest and records the validator set, validator versions, ordered findings, and readiness state. Findings use stable identifiers and distinguish blocking, advisory, and unknown outcomes. `READY` is permitted only when the policy-required validators completed and no blocking or unknown outcome remains.
 
-### 3. Seal is an approval-bound identity record
+### 4. Seal is an approval-bound identity record
 
 The future `PreflightSeal` binds the canonical contract digest, validation-result digest, source-snapshot digest, approval decision, approver identity, and approval time. Any bound-field change invalidates the seal. Cryptographic signing, if later required, is an additive implementation concern; the core semantic contract does not equate a digest with a signature or a proof of correctness.
 
-### 4. Pure verifier boundary
+### 5. Pure verifier boundary
 
 The verifier interface accepts a contract, result, seal, and current source identities and returns a structured verification outcome. It performs no network access, file writes, rendering, approval, or automatic refinement. Modules own orchestration and persistence.
 
-### 5. Canonicalization is versioned
+### 6. Canonicalization is versioned
 
 Canonical bytes use a versioned, deterministic encoding with UTF-8, normalized strings, stable field ordering, and explicit handling of absent versus empty values. Unknown extensions fail closed unless their schema version is supported. Exact serialization details are finalized with tests before production implementation.
 
@@ -53,6 +62,8 @@ Canonical bytes use a versioned, deterministic encoding with UTF-8, normalized s
 - **Schema churn before dogfood:** Mitigate with versioned canonicalization and no compatibility promise until the dogfood hardening change.
 - **Ownership leakage into core:** Mitigate by excluding CLI, persistence, validation engines, skills, and adapters from this change.
 - **Input drift after review:** Mitigate by binding exact source identities and requiring reseal after any bound change.
+- **Planning overhead:** Keep the risk vocabulary closed and reusable; require explicit non-applicability instead of speculative tests for irrelevant dimensions.
+- **Duplicate test ownership:** Reference Requirements plans and selectors by identity rather than copying their schema into preflight.
 
 ## Migration and Rollback
 

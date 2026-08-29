@@ -8,8 +8,8 @@ active changes should be implemented.
 
 | Bucket | Count | Location |
 |---|---:|---|
-| **Active** | 27 | [`openspec/changes/`](changes/) |
-| **Parked** | 21 | [`openspec/parking-lot/`](parking-lot/) |
+| **Active** | 26 | [`openspec/changes/`](changes/) |
+| **Parked** | 22 | [`openspec/parking-lot/`](parking-lot/) |
 | **Archived** | 117 | [`openspec/changes/archive/`](changes/archive/) |
 
 `openspec list` reflects the active set only. Parking-lot proposals are paused
@@ -67,7 +67,7 @@ upstream intent-engineering product.
 
 | Order | Change | Issue | Positioning | Blocked by |
 |---:|---|---|---|---|
-| 1 | `ai-integration-01-agent-skill` | [#251](https://github.com/nold-ai/specfact-cli/issues/251) | Discover, verify, install, update, uninstall, and canonically export module-owned skills under `.agents/skills`; no workflow-content ownership | signed modules preflight release [#432](https://github.com/nold-ai/specfact-cli-modules/issues/432) |
+| 1 | `ai-integration-01-agent-skill` | [#251](https://github.com/nold-ai/specfact-cli/issues/251) | Discover, verify, install, update, uninstall, and canonically export module-owned skills under `.agents/skills`; no workflow-content ownership | signed modules checkpoint/conformance release [#434](https://github.com/nold-ai/specfact-cli-modules/issues/434) |
 | 2 | `ai-integration-03-instruction-files` | [#253](https://github.com/nold-ai/specfact-cli/issues/253) | Generate compact AGENTS/OpenSpec/Spec Kit and harness gate references; no validation logic or adapter packaging | ai-integration-01 |
 | 3 | `ai-integration-02-mcp-server` | [#252](https://github.com/nold-ai/specfact-cli/issues/252) | Later thin adapter with 2-3 validation tools only | CLI pull from ai-integration-01 |
 
@@ -86,7 +86,7 @@ planning workflows.
 | 4 | `requirements-04-upstream-source-readiness` | [#648](https://github.com/nold-ai/specfact-cli/issues/648) | Reject incomplete or policy-invalid native OpenSpec and Spec Kit sources before requirement normalization | openspec-01; paired modules #346 |
 | 5 | `requirements-06-evidence-enforcement` | [#657](https://github.com/nold-ai/specfact-cli/issues/657) | Enforce released Requirements evidence reports in staged pre-commit and pull-request delivery gates | released modules #361 fixture |
 | 6 | `requirements-07-runtime-proof-delivery` | [#662](https://github.com/nold-ai/specfact-cli/issues/662) | Execute exact scenario selectors and report current-run JUnit evidence independently from historical chronology | corrected modules R07 signed release |
-| 7 | `requirements-08-bounded-red-green-proof` | [#675](https://github.com/nold-ai/specfact-cli/issues/675) | Replay B < R < H, bind delivered head D, and attest only declared implementation plus post-green evidence transitions | corrected modules R08 signed immutable B/R/H/D capsule release and fixture; R07 current-run boundary |
+| Parked | `requirements-08-bounded-red-green-proof` | [#675](https://github.com/nold-ai/specfact-cli/issues/675) | Superseded by seal-bound risk/test intent plus implementation checkpoints; no B/R/H/D replay implementation planned | closed Not Planned; preserved under `openspec/parking-lot/` without archiving or canonical spec merge |
 | 8 | `architecture-01-solution-layer` | [#240](https://github.com/nold-ai/specfact-cli/issues/240) | Architecture-boundary records and drift validation | requirements input contracts |
 | Parked | `requirements-03-backlog-sync` | [#244](https://github.com/nold-ai/specfact-cli/issues/244) | Read-first drift evidence; no write-back critical path. Deprioritized 2026-07-13 behind openspec-01 | requirements-02; modules `sync-01` |
 | Gated | `architecture-02-well-architected-review` | [#524](https://github.com/nold-ai/specfact-cli/issues/524) | Architecture-boundary review findings | architecture-01 shipped plus one usage cycle |
@@ -106,22 +106,22 @@ These changes make the CLI itself trustworthy enough to be the validation tool.
 
 Core owns durable assurance interfaces and dogfood/readiness evidence. The
 modules repository owns executable validators, CLI/workflow behavior, stable
-publication, and external adapters. Later implementation conformance remains a
-separate postimplementation phase rather than part of the preflight MVP.
+publication, checkpoints/conformance, and external adapters. Checkpoints reuse
+the approved seal during implementation; final range conformance remains a
+separate authority class.
 
 | Order | Change | Issue | Positioning | Blocked by |
 |---:|---|---|---|---|
 | 1 | `preflight-01-design-contract-core` | [#682](https://github.com/nold-ai/specfact-cli/issues/682) | Design-contract, validation-result, canonical digest, approval-seal, and side-effect-free verifier interfaces | architecture/governance/traceability/OpenSpec import are upstream inputs, not reowned blockers |
 | 2 | `preflight-03-dogfood-hardening-and-release` (core) | [#683](https://github.com/nold-ai/specfact-cli/issues/683) | Identity-bound C14 dogfood evidence and bounded readiness decision | core C14 [#680](https://github.com/nold-ai/specfact-cli/issues/680) |
-| 3 | `preflight-05-implementation-conformance` (core) | [#684](https://github.com/nold-ai/specfact-cli/issues/684) | Later implementation snapshot, obligation mapping, drift/result, and verifier interfaces; excluded from MVP | signed modules hardening/publication [#432](https://github.com/nold-ai/specfact-cli-modules/issues/432) |
+| 3 | `preflight-05-implementation-conformance` (core) | [#684](https://github.com/nold-ai/specfact-cli/issues/684) | Worktree/index/range snapshots, sealed-obligation mapping, local checkpoint/final conformance results, findings, authority, and pure verifier | signed modules hardening/publication [#432](https://github.com/nold-ai/specfact-cli-modules/issues/432) |
 
 The cross-repository dependency sequence is:
 
-`core #682 -> modules #431 -> core C14 #680 -> core #683 -> modules #432`,
-then modules #432 unblocks core #251, conformance, and modules C15 #417. Core
-Issue #251 blocks #253; #253 blocks modules adapters #433. Modules C15 #417 remains
-upstream of core C15 #679. Native GitHub relationships, not this prose alone,
-are authoritative for readiness.
+`core #682 -> modules #431 -> core C14 #680/#683 -> modules #432 -> core #684 -> modules #434 -> core #251 -> core #253 -> modules #433`.
+Modules #432 also unblocks modules C15 #417, which remains upstream of core C15
+issue #679. Native GitHub relationships, not this prose alone, are authoritative
+for readiness.
 
 ## Modify queue before implementation
 
@@ -154,7 +154,9 @@ Update each proposal first, then run strict OpenSpec validation.
 3. Complete core C14 adoption [#680](https://github.com/nold-ai/specfact-cli/issues/680).
 4. Run the exact preflight loop through core dogfood/readiness [#683](https://github.com/nold-ai/specfact-cli/issues/683).
 5. Harden, sign, and publish the stable modules release [#432](https://github.com/nold-ai/specfact-cli-modules/issues/432) from accepted dogfood evidence only.
-6. Use that release for #251 -> #253 -> external adapters #433, later conformance #684/#434, and modules C15 #417 -> core C15 #679.
+6. Implement core seal-bound checkpoint/conformance contracts [#684](https://github.com/nold-ai/specfact-cli/issues/684).
+7. Implement, dogfood, sign, and publish modules checkpoint/conformance runtime [#434](https://github.com/nold-ai/specfact-cli-modules/issues/434).
+8. Use that release for #251 -> #253 -> external adapters #433. Modules C15 #417 -> core C15 #679 may proceed from the stable #432 handoff independently.
 
 Every implementation item starts in its own issue-linked worktree and dedicated
 session. Proposal-stage preflight review may refine another pending change only
@@ -208,8 +210,9 @@ and requires a complete rerun.
   `openspec-01`; it blocks the paired modules command/persistence patch.
 - `architecture-02`, `telemetry-01`, and `ai-integration-02` only after pull
   from the validation loop exists.
-- modules `preflight-04-harness-adapters` only after #253 and the signed module
-  handoff; modules/core `preflight-05` only as a later postimplementation phase.
+- core/modules `preflight-05` after the signed #432 handoff and before generic
+  installation/instructions; modules `preflight-04-harness-adapters` only after
+  #253 and the signed #434 checkpoint/conformance handoff.
 
 ## Wave exit gates
 

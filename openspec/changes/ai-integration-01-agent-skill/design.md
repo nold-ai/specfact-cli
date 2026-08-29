@@ -35,9 +35,9 @@ Core records exactly which files it installed and their digests. Reinstall is id
 
 Two modules cannot silently claim the same canonical skill ID. Untrusted, unsigned where policy requires signing, incompatible, or digest-mismatched assets are not installed. Diagnostics identify the competing identities and remediation options.
 
-### 5. First consumer is preflight after stable publication
+### 5. First consumer follows checkpoint/conformance publication
 
-The signed preflight module supplies `specfact-preflight`. #251 discovers and exports it unchanged. This proves the generic mechanism but does not couple the installer to preflight semantics.
+The signed modules #434 identity supplies `specfact-preflight` and the bounded implementation-check workflow. #251 discovers and exports them unchanged. This proves the generic mechanism but does not couple the installer to preflight or checkpoint semantics.
 
 ## Risks / Trade-offs
 

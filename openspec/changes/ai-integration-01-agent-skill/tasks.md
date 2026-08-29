@@ -5,7 +5,7 @@ All tasks below are future implementation work. This rescope completes none of t
 ## 1. Dedicated session, worktree, and readiness
 
 - [ ] 1.1 In a dedicated issue-linked session, create `feature/ai-integration-01-agent-skill` from current `origin/dev` in a new core worktree before any implementation edit.
-- [ ] 1.2 Refresh hierarchy metadata and verify #251 retains parent #372, complete labels/project/assignee, the stable preflight-module blocker, and no concurrent `In Progress` owner.
+- [ ] 1.2 Refresh hierarchy metadata and verify #251 retains parent #372, complete labels/project/assignee, the signed modules #434 blocker, and no concurrent `In Progress` owner.
 - [ ] 1.3 Verify the released module skill descriptor and core module discovery/safe-write contracts against current repository reality.
 
 ## 2. Specification and failing-first evidence
@@ -18,7 +18,7 @@ All tasks below are future implementation work. This rescope completes none of t
 
 - [ ] 3.1 Implement module-owned skill discovery and integrity/compatibility validation.
 - [ ] 3.2 Implement canonical `.agents/skills` installation/export and inventory-backed update/uninstall.
-- [ ] 3.3 Verify `specfact-preflight` passes through from the signed module unchanged; do not add preflight validator or workflow semantics to core.
+- [ ] 3.3 Verify `specfact-preflight` and the implementation-check workflow pass through from the signed module unchanged; do not add validator, checkpoint, or workflow semantics to core.
 
 ## 4. Passing evidence and quality gates
 

@@ -2,7 +2,7 @@
 
 ### Requirement: Normalized preflight design contract
 
-The system SHALL define a versioned preflight design contract that records the exact reviewed change identity, source identities, scope, exclusions, assumptions, unknowns, dependencies, interfaces, acceptance criteria, test intent, risks, rollback intent, and approval policy.
+The system SHALL define a versioned preflight design contract that records the exact reviewed change identity, source identities, role-classified scope, component ownership, exclusions, assumptions, unknowns, dependencies, interfaces, acceptance criteria, risk dimensions, verification stages, test intent, risks, rollback intent, and approval policy.
 
 #### Scenario: Contract preserves source and scope identity
 
@@ -11,12 +11,44 @@ The system SHALL define a versioned preflight design contract that records the e
 - **THEN** every input is represented by a stable source kind, location, revision or digest, and loader identity
 - **AND** in-scope and explicitly excluded work are distinct contract fields.
 
+#### Scenario: Implementation scope is machine-selectable
+
+- **GIVEN** a planned change will modify source, tests, documentation, generated output, or evidence
+- **WHEN** the design contract is normalized
+- **THEN** every governed path pattern has one of `source`, `test`, `docs`, `generated`, `evidence`, or `excluded` roles
+- **AND** every source role identifies one component and bounded pytest targets for that component.
+
 #### Scenario: Unknown information is not silently resolved
 
 - **GIVEN** a dependency, interface, or acceptance criterion cannot be verified
 - **WHEN** the contract is created
 - **THEN** the uncertainty is recorded as an explicit unknown
 - **AND** it is not converted into an assumption or successful validation result.
+
+### Requirement: Seal-bound semantic verification intent
+
+The system SHALL bind applicable semantic risk dimensions and existing Requirements verification-plan identities without defining a second test-selector contract.
+
+#### Scenario: Applicable risk dimension is covered
+
+- **GIVEN** a behavior has an applicable boundary, malformed-input, state-transition, error/status, path-lifecycle, or platform risk
+- **WHEN** its risk record is normalized
+- **THEN** it is marked `covered` and references existing requirement, scenario, and verification-case identities
+- **AND** it declares the earliest required stage from `slice`, `commit`, `prepush`, or `ci`.
+
+#### Scenario: Risk dimension is not applicable
+
+- **GIVEN** one closed risk dimension does not apply to an affected behavior
+- **WHEN** the risk record is normalized
+- **THEN** it is marked `not_applicable` with a non-empty rationale
+- **AND** absence of a mapped test is not silently interpreted as coverage.
+
+#### Scenario: Requirements plan identity changes
+
+- **GIVEN** the contract references an existing Requirements mapping digest, plan digest, verification case, or exact pytest selector
+- **WHEN** any referenced identity changes
+- **THEN** the design-contract digest changes
+- **AND** a prior approval seal no longer verifies.
 
 ### Requirement: Deterministic validation result
 
@@ -48,7 +80,7 @@ The system SHALL define versioned canonical bytes for digesting preflight contra
 
 #### Scenario: Bound content changes
 
-- **GIVEN** a source identity, scope boundary, acceptance criterion, finding, or approval-bound value changes
+- **GIVEN** a source identity, scope boundary, component mapping, risk record, Requirements plan identity, acceptance criterion, finding, or approval-bound value changes
 - **WHEN** the digest is recomputed
 - **THEN** the affected digest changes
 - **AND** a prior seal cannot verify against the new content.
