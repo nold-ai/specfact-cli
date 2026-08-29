@@ -17,6 +17,9 @@ All notable changes to this project will be documented in this file.
 - **Module scope diagnostics:** preserve valid user-scoped module installations
   when a project-local copy takes precedence, and replace routine uninstall
   advice with non-destructive origin guidance.
+- **Module registry package:** advance the bundled `module-registry` package to
+  `0.1.35` and refresh its manifest integrity metadata for the updated
+  diagnostics.
 
 ---
 
