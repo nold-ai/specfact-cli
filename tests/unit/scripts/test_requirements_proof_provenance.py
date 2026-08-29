@@ -20,6 +20,9 @@ PROVENANCE_SCRIPT = REPO_ROOT / "scripts" / "requirements_proof_provenance.py"
 class ProvenanceModule(Protocol):
     """Minimal public surface for validating a committed red-proof report."""
 
+    def bind_red_proof(self, red_proof_path: Path, repo_root: Path, *, base_ref: str) -> None:
+        raise NotImplementedError
+
     def validate_prior_red_proof(
         self, red_proof_path: Path, repo_root: Path, *, base_ref: str, final_ref: str
     ) -> list[str]:
@@ -82,7 +85,11 @@ def _red_proof(
 def _write_red_proof(path: Path, repo_root: Path, source_ref: str, merge_base: str) -> None:
     junit = (
         b'<testsuite><testcase><properties><property name="specfact.selector" '
-        b'value="tests/test_proof.py::test_selected"/></properties><failure/></testcase></testsuite>'
+        b'value="tests/test_proof.py::test_selected"/>'
+        b'<property name="specfact.runner" value="pytest"/>'
+        b'<property name="specfact.python" value="3.12"/>'
+        b'<property name="specfact.pytest" value="9.1"/>'
+        b"</properties><failure/></testcase></testsuite>"
     )
     path.with_suffix(".xml").write_bytes(junit)
     digest = f"sha256:{hashlib.sha256(junit).hexdigest()}"
@@ -102,6 +109,73 @@ def _write_red_proof(path: Path, repo_root: Path, source_ref: str, merge_base: s
         test_file_digest=test_file_digest,
     )
     path.write_text(json.dumps(report), encoding="utf-8")
+
+
+def _write_unbound_red_proof(path: Path, source_ref: str) -> None:
+    """Write the exact incomplete report shape produced by released reconciliation."""
+    selector = "tests/test_proof.py::test_selected"
+    junit = (
+        "<testsuite><testcase><properties>"
+        f'<property name="specfact.selector" value="{selector}"/>'
+        '<property name="specfact.runner" value="pytest"/>'
+        '<property name="specfact.python" value="3.13.7"/>'
+        '<property name="specfact.pytest" value="8.4.1"/>'
+        "</properties><failure/></testcase></testsuite>"
+    ).encode()
+    path.with_suffix(".xml").write_bytes(junit)
+    path.write_text(
+        json.dumps(
+            {
+                "gate_decision": "pass",
+                "observed_maturity": "red",
+                "mapping_digest": f"sha256:{'a' * 64}",
+                "plan_digest": f"sha256:{'b' * 64}",
+                "execution_proof": {
+                    "run_stage": "red",
+                    "source_ref": source_ref,
+                    "selectors": [selector],
+                    "junit_digest": f"sha256:{hashlib.sha256(junit).hexdigest()}",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_bind_red_proof_records_validator_complete_immutable_provenance(tmp_path: Path) -> None:
+    """The producer must fill every validator-required fact from the red execution boundary."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / "README.md").write_text("# proof\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "chore: base")
+    test_path = tmp_path / "tests" / "test_proof.py"
+    test_path.parent.mkdir()
+    test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_unbound_red_proof(red_proof_path, red_ref)
+
+    module.bind_red_proof(red_proof_path, tmp_path, base_ref=base_ref)
+
+    report = json.loads(red_proof_path.read_text(encoding="utf-8"))
+    execution_proof = report["execution_proof"]
+    assert execution_proof["source_tree"] == _git(tmp_path, "rev-parse", f"{red_ref}^{{tree}}")
+    assert execution_proof["merge_base"] == base_ref
+    assert execution_proof["test_file_digests"] == {
+        "tests/test_proof.py": f"sha256:{hashlib.sha256(test_path.read_bytes()).hexdigest()}"
+    }
+    assert execution_proof["toolchain_identity"] == {
+        "runner": "pytest",
+        "python": "3.13.7",
+        "pytest": "8.4.1",
+    }
+
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "delivery.py").write_text("VALUE = 1\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: deliver behavior")
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
 
 
 def test_git_bound_red_proof_requires_test_only_ancestor_and_unchanged_selector_files(tmp_path: Path) -> None:
@@ -434,6 +508,33 @@ def test_git_bound_red_proof_rejects_base_commit_as_red_source(tmp_path: Path) -
     ) == ["tdd-order-unproven"]
 
 
+def _assert_renamed_governed_path_is_rejected(rename_root: Path, module: ProvenanceModule) -> None:
+    """Exercise the rename-source half of the governed-history boundary."""
+    rename_root.mkdir()
+    _git(rename_root, "init")
+    _git(rename_root, "config", "user.email", "requirements@example.test")
+    _git(rename_root, "config", "user.name", "Requirements proof")
+    (rename_root / "src").mkdir()
+    (rename_root / "src" / "delivery.py").write_text("VALUE = 0\n", encoding="utf-8")
+    rename_base_ref = _commit(rename_root, "chore: base")
+    (rename_root / "docs").mkdir()
+    _git(rename_root, "mv", "src/delivery.py", "docs/delivery.py")
+    _commit(rename_root, "docs: relocate delivery notes")
+    rename_test_path = rename_root / "tests" / "test_proof.py"
+    rename_test_path.parent.mkdir()
+    rename_test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    rename_red_ref = _commit(rename_root, "test: add red proof")
+    rename_proof_path = rename_root / ".git" / "red.json"
+    _write_red_proof(rename_proof_path, rename_root, rename_red_ref, rename_base_ref)
+    (rename_root / "src").mkdir(exist_ok=True)
+    (rename_root / "src" / "replacement.py").write_text("VALUE = 1\n", encoding="utf-8")
+    rename_final_ref = _commit(rename_root, "feat: replace delivery")
+
+    assert module.validate_prior_red_proof(
+        rename_proof_path, rename_root, base_ref=rename_base_ref, final_ref=rename_final_ref
+    ) == ["tdd-order-unproven"]
+
+
 def test_git_bound_red_proof_rejects_replayed_or_renamed_production_history(tmp_path: Path) -> None:
     """Red evidence must follow the current base and retain governed rename sources."""
     module = _load_provenance_module()
@@ -458,30 +559,7 @@ def test_git_bound_red_proof_rejects_replayed_or_renamed_production_history(tmp_
         red_proof_path, tmp_path, base_ref=current_base_ref, final_ref=final_ref
     ) == ["tdd-order-unproven"]
 
-    rename_root = tmp_path / "rename"
-    rename_root.mkdir()
-    _git(rename_root, "init")
-    _git(rename_root, "config", "user.email", "requirements@example.test")
-    _git(rename_root, "config", "user.name", "Requirements proof")
-    (rename_root / "src").mkdir()
-    (rename_root / "src" / "delivery.py").write_text("VALUE = 0\n", encoding="utf-8")
-    rename_base_ref = _commit(rename_root, "chore: base")
-    (rename_root / "docs").mkdir()
-    _git(rename_root, "mv", "src/delivery.py", "docs/delivery.py")
-    _commit(rename_root, "docs: relocate delivery notes")
-    rename_test_path = rename_root / "tests" / "test_proof.py"
-    rename_test_path.parent.mkdir()
-    rename_test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
-    rename_red_ref = _commit(rename_root, "test: add red proof")
-    rename_proof_path = rename_root / ".git" / "red.json"
-    _write_red_proof(rename_proof_path, rename_root, rename_red_ref, rename_base_ref)
-    (rename_root / "src").mkdir(exist_ok=True)
-    (rename_root / "src" / "replacement.py").write_text("VALUE = 1\n", encoding="utf-8")
-    rename_final_ref = _commit(rename_root, "feat: replace delivery")
-
-    assert module.validate_prior_red_proof(
-        rename_proof_path, rename_root, base_ref=rename_base_ref, final_ref=rename_final_ref
-    ) == ["tdd-order-unproven"]
+    _assert_renamed_governed_path_is_rejected(tmp_path / "rename", module)
 
 
 def test_git_bound_red_proof_rejects_governed_path_with_tab(tmp_path: Path) -> None:

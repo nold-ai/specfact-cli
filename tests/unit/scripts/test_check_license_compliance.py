@@ -90,6 +90,14 @@ class TestCleanEnvironmentPasses:
         captured = capsys.readouterr()
         assert "checked" in captured.out or "scan" in captured.out.lower()
 
+    def test_scan_installed_env_targets_an_additional_python(self, mod, tmp_path: Path) -> None:
+        """The root pip-licenses tool can inspect a separately locked tool environment."""
+        target_python = tmp_path / "review-tools" / "bin" / "python"
+        with patch.object(mod, "_run_pip_licenses", return_value=_CLEAN_PIP_LICENSES) as run_pip_licenses:
+            exit_code = mod.scan_installed_environment(allowlist={}, python_executable=target_python)
+        assert exit_code == 0
+        run_pip_licenses.assert_called_once_with(target_python)
+
 
 class TestGplViolationDetected:
     """Scenario: Module manifest pip_dependency is GPL — gate fails."""
@@ -198,6 +206,16 @@ class TestGplViolationDetected:
 
 class TestAllowlistAccepted:
     """Scenario: Allowlist entry accepted in both env and manifest scan."""
+
+    def test_repository_allowlist_binds_the_locked_pylint_release(self, mod) -> None:
+        """The isolated review tool exception is exact and carries its removal plan."""
+        entries = mod._load_allowlist()["pylint"]
+        assert len(entries) == 1
+        entry = entries[0]
+        assert entry["version"] == "4.0.7"
+        assert entry["license"] == "GPL-2.0-or-later"
+        assert entry["scope"] == "dev-only"
+        assert "Phase 2" in entry["reason"]
 
     def test_allowlist_entry_suppresses_gpl_failure(self, mod) -> None:
         """GPL package in allowlist must not cause exit 1."""

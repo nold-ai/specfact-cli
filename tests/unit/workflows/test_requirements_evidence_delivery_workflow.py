@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -13,6 +15,48 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 APPROVED_MODULE_COMMIT = "69f075819be5e1ceca1446b026b0417f19e584ca"
+EVIDENCE_COMMAND_FRAGMENTS = (
+    "uv run --locked --no-sync specfact requirements evidence",
+    '--base-ref "origin/${EVIDENCE_BASE_BRANCH}"',
+    "required_maturity=planned",
+    "required_maturity=test-authored",
+    "requirements/*|pyproject.toml|setup.py|uv.lock",
+    "resources/templates/*|resources/schemas/*|resources/mappings/*|resources/keys/*|modules/bundle-mapper/*",
+    ".github/*|ci/*|scripts/*|src/*|tools/*",
+    "planning_maturity=test-authored",
+    'if [[ "$exit_code" -eq 0 && "$required_maturity" != "planned" ]]; then',
+    "run_stage=red",
+    'if [[ "$required_maturity" == "verified" ]]; then',
+    "run_stage=final",
+    '--required-maturity "$planning_maturity"',
+    'review_evidence="openspec/changes/${selected_change}/requirements-proof/review-evidence.json"',
+    "openspec/changes/archive/*",
+    "find openspec/changes -path 'openspec/changes/archive' -prune -o -path '*/requirements-proof/review-evidence.json' -type f -print",
+    "write_failure_reports()",
+    'write_failure_reports "Invalid evidence base branch: $EVIDENCE_BASE_BRANCH"',
+    'changed_status_file="${RUNNER_TEMP}/requirements-evidence-changed-status.z"',
+    'if ! git diff --name-status -z --find-renames "origin/${EVIDENCE_BASE_BRANCH}...HEAD" > "$changed_status_file"; then',
+    "while IFS= read -r -d '' status; do",
+    'done < "$changed_status_file"',
+    'write_failure_reports "Unable to derive changed paths for $EVIDENCE_BASE_BRANCH"',
+    "--plan-output artifacts/requirements-evidence/requirements-evidence-plan.json",
+    '--review-evidence "$review_evidence"',
+    "python scripts/requirements_proof_executor.py",
+    "if [[ ! -s artifacts/requirements-evidence/requirements-proof.xml ]]; then",
+    "--junit artifacts/requirements-evidence/requirements-proof.xml",
+    "python scripts/requirements_proof_provenance.py",
+    '--final-ref "$EVIDENCE_FINAL_REF"',
+    '--final-ref "$EVIDENCE_FINAL_REF" 2>&1)',
+    "uv run --locked --no-sync specfact requirements reconcile",
+    "rm -f artifacts/requirements-evidence/requirements-evidence.json artifacts/requirements-evidence/requirements-evidence.md",
+    '--run-stage "$run_stage"',
+    '--source-ref "$EVIDENCE_FINAL_REF"',
+    '--prior-red-proof "$prior_red_proof"',
+    "fallback_required=0",
+    "fallback_required=1",
+    'if [[ "$fallback_required" -eq 1 ]]; then',
+    "exit 1",
+)
 
 
 def _step_by_name(workflow: dict[str, object], name: str) -> dict[str, object]:
@@ -35,6 +79,32 @@ def _run_evidence_command() -> str:
     return command
 
 
+def _bash_with_associative_arrays() -> Path:
+    candidates = [Path(candidate) for candidate in (shutil.which("bash"), "/opt/homebrew/bin/bash") if candidate]
+    for candidate in candidates:
+        if not candidate.is_file():
+            continue
+        version = subprocess.run(
+            [candidate, "--version"], capture_output=True, text=True, check=True
+        ).stdout.splitlines()[0]
+        if "version 3." not in version:
+            return candidate
+    pytest.skip("Bash 4+ is required for associative-array workflow coverage")
+
+
+def _selection_script(command: str, source_path: str, archive_path: str) -> str:
+    selection = command.split("declare -A changed_change_ids=()", maxsplit=1)[1].split(
+        'if [[ "${#changed_change_ids[@]}" -eq 1 ]]', maxsplit=1
+    )[0]
+    return f"""
+changed_paths=({source_path} {archive_path})
+declare -A archived_source_paths=([{source_path}]=1)
+declare -A changed_change_ids=()
+{selection}
+printf '%s\\n' "${{!changed_change_ids[@]}}"
+"""
+
+
 def _assert_fixture_contract(workflow: dict[str, object]) -> None:
     read_fixture = _step_by_name(workflow, "Read immutable module fixture")
     verify_fixture = _step_by_name(workflow, "Verify immutable module fixture")
@@ -53,50 +123,7 @@ def _assert_fixture_contract(workflow: dict[str, object]) -> None:
 def _assert_command_contract(workflow: dict[str, object]) -> None:
     run_evidence = _step_by_name(workflow, "Run Requirements evidence gate")
     assert run_evidence["id"] == "run-evidence"  # type: ignore[index]
-    required_fragments = (
-        "uv run --locked --no-sync specfact requirements evidence",
-        '--base-ref "origin/${EVIDENCE_BASE_BRANCH}"',
-        "required_maturity=planned",
-        "required_maturity=test-authored",
-        "pyproject.toml|setup.py|uv.lock|requirements/ci/locked.txt",
-        "resources/templates/*|resources/schemas/*|resources/mappings/*|resources/keys/*|modules/bundle-mapper/*",
-        ".github/*|ci/*|scripts/*|src/*|tools/*",
-        "planning_maturity=test-authored",
-        'if [[ "$exit_code" -eq 0 && "$required_maturity" != "planned" ]]; then',
-        "run_stage=red",
-        'if [[ "$required_maturity" == "verified" ]]; then',
-        "run_stage=final",
-        '--required-maturity "$planning_maturity"',
-        'review_evidence="openspec/changes/${selected_change}/requirements-proof/review-evidence.json"',
-        "openspec/changes/archive/*",
-        "find openspec/changes -path 'openspec/changes/archive' -prune -o -path '*/requirements-proof/review-evidence.json' -type f -print",
-        "write_failure_reports()",
-        'write_failure_reports "Invalid evidence base branch: $EVIDENCE_BASE_BRANCH"',
-        'changed_status_file="${RUNNER_TEMP}/requirements-evidence-changed-status.z"',
-        'if ! git diff --name-status -z --find-renames "origin/${EVIDENCE_BASE_BRANCH}...HEAD" > "$changed_status_file"; then',
-        "while IFS= read -r -d '' status; do",
-        'done < "$changed_status_file"',
-        'write_failure_reports "Unable to derive changed paths for $EVIDENCE_BASE_BRANCH"',
-        "--plan-output artifacts/requirements-evidence/requirements-evidence-plan.json",
-        '--review-evidence "$review_evidence"',
-        "python scripts/requirements_proof_executor.py",
-        "if [[ ! -s artifacts/requirements-evidence/requirements-proof.xml ]]; then",
-        "--junit artifacts/requirements-evidence/requirements-proof.xml",
-        "python scripts/requirements_proof_provenance.py",
-        '--base-ref "origin/${EVIDENCE_BASE_BRANCH}"',
-        '--final-ref "$EVIDENCE_FINAL_REF"',
-        '--final-ref "$EVIDENCE_FINAL_REF" 2>&1)',
-        "uv run --locked --no-sync specfact requirements reconcile",
-        "rm -f artifacts/requirements-evidence/requirements-evidence.json artifacts/requirements-evidence/requirements-evidence.md",
-        '--run-stage "$run_stage"',
-        '--source-ref "$EVIDENCE_FINAL_REF"',
-        '--prior-red-proof "$prior_red_proof"',
-        "fallback_required=0",
-        "fallback_required=1",
-        'if [[ "$fallback_required" -eq 1 ]]; then',
-        "exit 1",
-    )
-    assert all(fragment in run_evidence["run"] for fragment in required_fragments)  # type: ignore[index]
+    assert all(fragment in run_evidence["run"] for fragment in EVIDENCE_COMMAND_FRAGMENTS)  # type: ignore[index]
     assert 'if [[ "$execution_exit" -ne 0 ]]; then' not in run_evidence["run"]  # type: ignore[index]
     assert run_evidence["env"]["EVIDENCE_BASE_BRANCH"]  # type: ignore[index]
     assert "workflow_dispatch" in workflow["on"]  # type: ignore[operator]
@@ -277,14 +304,58 @@ def test_requirements_evidence_workflow_fails_when_executor_omits_junit(tmp_path
 
 
 def test_requirements_evidence_workflow_ignores_archived_review_evidence() -> None:
-    """Only active change records may supply CI planning and reconciliation evidence."""
+    """Archived moves are ignored without allowing deletion-only evidence bypasses."""
     command = _run_evidence_command()
 
     assert "openspec/changes/archive/*" in command
+    assert "declare -A archived_source_paths=()" in command
+    assert 'archived_source_paths["$source_path"]=1' in command
+    assert '[[ "$status" == R*' in command
+    assert '[[ "$source_change_id" == "$archived_change_id" ]]' in command
+    assert '[[ "$source_change_path" == "$archive_change_path" ]]' in command
+    assert (
+        '[[ -e "$changed_path" || -d "openspec/changes/$change_id" '
+        '|| -z "${archived_source_paths[$changed_path]:-}" ]]' in command
+    )
+    assert '[[ -e "$changed_path" ]] || continue' not in command
     assert (
         "find openspec/changes -path 'openspec/changes/archive' -prune -o "
         "-path '*/requirements-proof/review-evidence.json' -type f -print"
     ) in command
+
+
+def test_requirements_evidence_workflow_rejects_partial_exact_archive_move(tmp_path: Path) -> None:
+    """One exact rename cannot hide an otherwise active change directory."""
+    command = _run_evidence_command()
+    source_path = "openspec/changes/example/proposal.md"
+    archive_path = "openspec/changes/archive/2026-08-27-example/proposal.md"
+    script = _selection_script(command, source_path, archive_path)
+    bash = _bash_with_associative_arrays()
+    active_directory = tmp_path / "openspec" / "changes" / "example"
+    active_directory.mkdir(parents=True)
+    (active_directory / "tasks.md").write_text("# still active\n", encoding="utf-8")
+
+    partial = subprocess.run([bash, "-c", script], cwd=tmp_path, capture_output=True, text=True, check=True)
+    assert partial.stdout.strip() == "example"
+
+    (active_directory / "tasks.md").unlink()
+    active_directory.rmdir()
+    complete = subprocess.run([bash, "-c", script], cwd=tmp_path, capture_output=True, text=True, check=True)
+    assert complete.stdout.strip() == ""
+
+
+def test_requirements_bootstrap_authority_is_pull_request_only() -> None:
+    """Manual dispatch must not infer a PR identity for the one-time authority."""
+    workflow_path = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"
+    workflow = yaml.load(workflow_path.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    run_evidence = _step_by_name(workflow, "Run Requirements evidence gate")
+    command = run_evidence["run"]
+    assert isinstance(command, str)
+    assert run_evidence["env"]["EVIDENCE_EVENT_NAME"] == "${{ github.event_name }}"  # type: ignore[index]
+    context_guard = 'if [[ "$EVIDENCE_EVENT_NAME" != "pull_request" ]]; then'
+    assert context_guard in command
+    assert command.index(context_guard) < command.index("bootstrap_comment_id=5431081643")
+    assert "One-time Requirements bootstrap requires pull-request context." in command
 
 
 def test_requirements_evidence_workflow_uses_digest_bound_legacy_tdd_ledger_for_r07() -> None:
@@ -295,11 +366,16 @@ def test_requirements_evidence_workflow_uses_digest_bound_legacy_tdd_ledger_for_
     assert isinstance(command, str)
 
     legacy_tdd_mapping_digest = "sha256:eccdf006792d8910c54a773e30967886063b4e30c99c180bc36d7372b1bbd9ef"
+    legacy_tdd_ledger = (
+        REPO_ROOT / "openspec" / "changes" / "requirements-07-runtime-proof-delivery" / "TDD_EVIDENCE.md"
+    )
+    approved_prefix = b"".join(legacy_tdd_ledger.read_bytes().splitlines(keepends=True)[:1143])
+    legacy_tdd_ledger_digest = f"sha256:{hashlib.sha256(approved_prefix).hexdigest()}"
     required_fragments = (
         'selected_change" == "requirements-07-runtime-proof-delivery"',
         "TDD_EVIDENCE.md",
         "legacy_tdd_line_count=1143",
-        'legacy_tdd_ledger_digest="sha256:1df90efd2402f14879da7705ab8afbf054eafc0fa71ff7a788df9f3db97b428c"',
+        f'legacy_tdd_ledger_digest="{legacy_tdd_ledger_digest}"',
         f'legacy_tdd_mapping_digest="{legacy_tdd_mapping_digest}"',
         'legacy_tdd_plan_digest="sha256:27ea6e6bcea0d68d68688b89fc8f89315d213b96918f4f76979484756fd8335e"',
         "read_bytes().splitlines(keepends=True)",
@@ -336,6 +412,39 @@ def _assert_code_review_handoff_command(command: object) -> None:
     assert all(fragment in command for fragment in expected_fragments)
 
 
+def _assert_frozen_code_review_python_tools(command: object) -> None:
+    """Validate the isolated Python resolver input and its reviewed license note."""
+    assert isinstance(command, str)
+    assert "uv pip install" in command
+    assert "--require-hashes" in command
+    assert "requirements/code-review/locked.txt" in command
+    lock = (REPO_ROOT / "requirements" / "code-review" / "locked.txt").read_text(encoding="utf-8")
+    requirement = (REPO_ROOT / "requirements" / "code-review" / "requirements.in").read_text(encoding="utf-8")
+    assert requirement.split("#", maxsplit=1)[0].strip() == "pylint==4.0.7"
+    assert "GPL-2.0-or-later" in requirement
+    assert "Phase 2" in requirement
+    assert "pylint==4.0.7" in lock
+
+
+def test_requirements_code_review_uses_frozen_external_tools() -> None:
+    """Code Review must run its declared Pylint and BasedPyright checks from locks."""
+    workflow = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"
+    parsed = yaml.load(workflow.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    setup_node = _step_by_name(parsed, "Set up reviewed Code Review Node runtime")
+    install_tools = _step_by_name(parsed, "Install frozen Code Review tools")
+
+    assert setup_node["uses"] == "actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e"
+    assert setup_node["with"]["node-version"] == "24.16.0"  # type: ignore[index]
+    assert setup_node["if"] == "steps.run-evidence.outcome == 'success'"
+    command = install_tools["run"]
+    assert "npm ci --ignore-scripts --prefix tools/basedpyright" in command  # type: ignore[operator]
+    assert "tools/basedpyright/node_modules/.bin" in command  # type: ignore[operator]
+    assert _step_index(parsed, "Install frozen Code Review tools") < _step_index(
+        parsed, "Run Code Review with finalized Requirements context"
+    )
+    _assert_frozen_code_review_python_tools(command)
+
+
 def test_requirements_evidence_workflow_hands_final_proof_to_code_review() -> None:
     """Code Review receives finalized proof context without owning its verdict."""
     workflow = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"
@@ -351,6 +460,22 @@ def test_requirements_evidence_workflow_hands_final_proof_to_code_review() -> No
     assert _step_index(parsed, "Run Code Review with finalized Requirements context") < _step_index(
         parsed, "Upload requirements evidence artifact"
     )
+
+
+def test_requirements_evidence_workflow_binds_red_proof_before_publication() -> None:
+    """Only a successfully reconciled red report may receive producer provenance before upload."""
+    command = _run_evidence_command()
+    binding = "--bind-red-proof artifacts/requirements-evidence/requirements-evidence.json"
+
+    assert 'if [[ "$run_stage" == "red" && "$exit_code" -eq 0 ]]; then' in command
+    assert "python scripts/requirements_proof_provenance.py" in command
+    assert binding in command
+    assert '--base-ref "origin/${EVIDENCE_BASE_BRANCH}"' in command
+    assert 'write_failure_reports "Red proof binding rejected:' in command
+    assert 'selected_change" == "fix-retained-red-proof-provenance"' in command
+    assert "printf 'Red proof retained; final reconciliation is required.\\n'" in command
+    assert "exit_code=1" in command[command.index(binding) : command.index("fallback_required=0")]
+    assert command.index(binding) < command.index("fallback_required=0")
 
 
 def _review_and_enforcement_steps() -> tuple[dict[str, object], dict[str, object]]:

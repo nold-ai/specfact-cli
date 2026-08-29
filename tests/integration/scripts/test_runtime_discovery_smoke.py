@@ -94,9 +94,12 @@ def test_local_runtime_registry_includes_transitive_bundle_dependencies(tmp_path
     _write_module_manifest(modules_repo, "specfact-requirements")
 
     index_path = smoke._build_local_registry(tmp_path / "workspace", modules_repo)
-    module_ids = {entry["id"] for entry in yaml.safe_load(index_path.read_text(encoding="utf-8"))["modules"]}
+    registry = yaml.safe_load(index_path.read_text(encoding="utf-8"))
+    module_ids = {entry["id"] for entry in registry["modules"]}
 
     assert module_ids == {*smoke.MODULE_IDS, "nold-ai/specfact-requirements"}
+    assert registry["registry_base_url"] == str(index_path.parent.resolve())
+    assert all(entry["download_url"].startswith("modules/") for entry in registry["modules"])
 
 
 def test_local_runtime_registry_rejects_traversal_in_manifest_version(tmp_path: Path) -> None:

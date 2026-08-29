@@ -1,0 +1,42 @@
+schema_version: "2"
+requirements:
+  openspec:fix-retained-red-proof-provenance:requirements-runtime-proof-delivery:producer-bound-retained-red-proof:
+    rationale: "A retained red proof must contain every core-owned provenance binding required by later validation."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#689"
+      - "nold-ai/specfact-cli#686"
+    touchpoints:
+      - id: pytest-proof-plugin
+        kind: source_file
+        locator: "scripts/requirements_proof_pytest_plugin.py"
+      - id: retained-proof-provenance
+        kind: source_file
+        locator: "scripts/requirements_proof_provenance.py"
+      - id: requirements-evidence-workflow
+        kind: ci_workflow
+        locator: ".github/workflows/requirements-evidence.yml"
+    verification_cases:
+      - case_id: REQUIREMENTS-689-S01
+        scenario_id: producer-bound-retained-red-proof
+        method: test
+        intent: "Prove core binds immutable Git/test/JUnit/toolchain facts to a reconciled red report."
+        observable: "A report lacking producer bindings becomes complete and validates on an eligible descendant."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_provenance.py::test_bind_red_proof_records_validator_complete_immutable_provenance
+      - case_id: REQUIREMENTS-689-S02
+        scenario_id: producer-bound-retained-red-proof
+        method: test
+        intent: "Prove toolchain identity comes from each case produced by the actual proof process."
+        observable: "JUnit contains canonical runner, Python, and pytest properties alongside the selector."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_executor.py::test_executor_records_proof_toolchain_identity_in_junit
+      - case_id: REQUIREMENTS-689-S03
+        scenario_id: producer-bound-retained-red-proof
+        method: test
+        intent: "Prove the workflow binds red evidence before upload without retrofitting final evidence."
+        observable: "The red reconciliation branch invokes fail-closed binding before artifact fallback and terminal enforcement."
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_binds_red_proof_before_publication

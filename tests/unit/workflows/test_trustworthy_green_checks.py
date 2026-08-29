@@ -464,8 +464,14 @@ def test_advisory_dependency_compatibility_lane_cannot_block_delivery() -> None:
     job = _load_jobs()["dependency-compatibility"]
     assert job.get("continue-on-error") is True
     assert "schedule" in str(job.get("if", ""))
-    raw = "\n".join(str(step.get("run", "")) for step in _load_job_steps("dependency-compatibility"))
+    steps = _load_job_steps("dependency-compatibility")
+    raw = "\n".join(str(step.get("run", "")) for step in steps)
     assert "uv lock --upgrade" in raw
+    assert "uv sync --locked --all-extras --resolution lowest-direct" in raw
+    assert any(step.get("name") == "Checkout module bundles repo" for step in steps)
+    assert "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" in raw
+    assert "--deselect=tests/unit/scripts/test_dependency_trust_review.py" in raw
+    assert "--deselect=tests/unit/scripts/test_reproducible_delivery.py" in raw
 
 
 def test_package_runtime_matrix_proves_all_declared_python_versions() -> None:
@@ -657,6 +663,18 @@ def test_pr_orchestrator_package_validation_waits_for_dependency_gates() -> None
     assert "dependency-trust" in needs
 
 
+def test_license_gate_audits_the_frozen_code_review_environment() -> None:
+    """Isolated review tools remain inside the blocking GPL/AGPL policy boundary."""
+    workflow = PR_ORCHESTRATOR.read_text(encoding="utf-8")
+    assert "requirements/code-review/requirements.in" in workflow
+    assert "requirements/code-review/locked.txt" in workflow
+    steps = _load_job_steps("license-check")
+    commands = "\n".join(str(step.get("run", "")) for step in steps)
+    assert "uv pip install" in commands
+    assert "requirements/code-review/locked.txt" in commands
+    assert "--additional-python" in commands
+
+
 def test_dependency_trust_is_a_standalone_ci_and_pre_commit_gate() -> None:
     """Known alerted releases must be blocked locally and by a visible CI status."""
     jobs = _load_jobs()
@@ -679,10 +697,11 @@ def test_dependency_trust_is_a_standalone_ci_and_pre_commit_gate() -> None:
 
 
 def test_frozen_cve_audit_is_a_standalone_ci_and_pre_commit_gate() -> None:
-    """The advisory database must audit the committed requirements graph, not an ambient environment."""
+    """The advisory database must audit every committed frozen requirements graph."""
     steps = _load_job_steps("security-audit")
     commands = "\n".join(str(step.get("run", "")) for step in steps)
     assert "scripts/security_audit_gate.py" in commands
+    assert "--requirement requirements/code-review/locked.txt" in commands
 
     hooks = _load_hooks()
     by_id = {str(hook["id"]): hook for hook in hooks}
@@ -690,7 +709,10 @@ def test_frozen_cve_audit_is_a_standalone_ci_and_pre_commit_gate() -> None:
     assert cve_hook.get("pass_filenames") is False
     assert cve_hook.get("entry") == "hatch run security-audit"
     assert "requirements/ci/locked" in str(cve_hook.get("files", ""))
+    assert "requirements/code-review/" in str(cve_hook.get("files", ""))
     assert "vulnerability-audit-exceptions" in str(cve_hook.get("files", ""))
+    hatch_scripts = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))["tool"]["hatch"]["envs"]["default"]["scripts"]
+    assert "--requirement requirements/code-review/locked.txt" in hatch_scripts["security-audit"]
 
 
 def _assert_docs_dependabot_monitoring() -> None:
