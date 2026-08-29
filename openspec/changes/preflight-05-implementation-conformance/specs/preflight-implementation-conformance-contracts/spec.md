@@ -22,7 +22,7 @@ The `worktree` kind SHALL bind a full base commit ID and worktree-manifest diges
 
 ### Requirement: Sealed obligation mapping
 
-The system SHALL map approved scope roles, component ownership, interfaces, acceptance criteria, risk rows, Requirements-plan references, test intent, verification stages, and exclusions from one valid preflight seal to normalized implementation evidence. A checkpoint MAY carry the deterministic affected subset for its sealed stage/profile. A final range result SHALL bind the obligation-map digest and SHALL require the exhaustive transitive closure for every changed governed path/interface and every applicable sealed component, acceptance criterion, risk row, Requirements case, component target, stage including `ci`, and exclusion.
+The system SHALL map approved scope roles, component ownership, interfaces, acceptance criteria, risk rows, Requirements-plan references, test intent, verification stages, and exclusions from one valid preflight seal to normalized implementation evidence. A checkpoint MAY carry the deterministic affected subset for its sealed stage/profile. A final range result SHALL bind the obligation-map digest and SHALL require the exhaustive transitive closure for every changed governed path/interface and every applicable sealed component, acceptance criterion, risk row, Requirements case, component target, stage including `ci`, and exclusion. Every evidence record SHALL carry a producer authority class and verifiable provenance bound to its exact snapshot or range. An obligation whose earliest stage is `ci` SHALL be satisfiable only by evidence from a seal/policy-authorized protected-CI producer with authenticated provenance bound to the exact immutable range; local or caller-asserted producer identity SHALL NOT satisfy it.
 
 #### Scenario: Approved acceptance criterion has no evidence
 
@@ -37,6 +37,13 @@ The system SHALL map approved scope roles, component ownership, interfaces, acce
 - **WHEN** its final obligation map omits, duplicates, cannot deterministically resolve, or selects no member of the exhaustive applicable closure
 - **THEN** the verifier returns an `unverifiable` finding and `UNKNOWN`
 - **AND** final conformance cannot pass by supplying a smaller obligation map.
+
+#### Scenario: CI-stage evidence lacks protected provenance
+
+- **GIVEN** an exhaustive final range map contains an applicable obligation whose earliest verification stage is `ci`
+- **WHEN** evidence is absent, locally produced, caller-asserted, unauthenticated, or bound to a different range
+- **THEN** the verifier returns an `unverifiable` finding and `UNKNOWN`
+- **AND** final conformance cannot pass until authorized protected-CI evidence for the exact range is supplied.
 
 ### Requirement: Separate local checkpoint result
 
