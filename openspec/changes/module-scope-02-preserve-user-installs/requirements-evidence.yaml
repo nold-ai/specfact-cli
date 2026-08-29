@@ -1,0 +1,31 @@
+schema_version: "2"
+requirements:
+  openspec:module-scope-02-preserve-user-installs:module-scope-diagnostics:module-doctor-reports-effective-and-shadowed-module-copies:
+    rationale: "Module diagnostics must explain project precedence without treating valid user installations as stale."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#699"
+      - "nold-ai/specfact-cli-modules#452"
+    touchpoints:
+      - id: discovery-shadow-warning
+        kind: source_file
+        locator: "src/specfact_cli/registry/module_discovery.py"
+      - id: module-doctor-guidance
+        kind: source_file
+        locator: "src/specfact_cli/modules/module_registry/src/commands.py"
+    verification_cases:
+      - case_id: MSI-CORE-001
+        scenario_id: module-doctor-reports-effective-and-shadowed-module-copies
+        method: test
+        intent: "Report both copies and preserve the user-scoped installation."
+        observable: "Doctor states that no action is required and emits no uninstall advice."
+        selector:
+          runner: pytest
+          node_id: tests/unit/modules/module_registry/test_commands.py::test_doctor_reports_effective_and_shadowed_duplicate_modules
+      - case_id: MSI-CORE-002
+        scenario_id: module-doctor-reports-effective-and-shadowed-module-copies
+        method: test
+        intent: "Keep runtime precedence diagnostics non-destructive."
+        observable: "Discovery states that the user copy remains installed and emits no uninstall advice."
+        selector:
+          runner: pytest
+          node_id: tests/unit/registry/test_module_discovery.py::test_project_shadow_warning_is_actionable_and_emitted_once

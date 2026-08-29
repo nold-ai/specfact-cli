@@ -172,7 +172,9 @@ def test_project_shadow_warning_is_actionable_and_emitted_once(tmp_path: Path, m
     assert len(warnings) == 1
     assert "takes precedence over user-scoped module" in warnings[0]
     assert "specfact module list --show-origin" in warnings[0]
-    assert "specfact module uninstall backlog-core --scope user" in warnings[0]
+    assert "remains installed and available outside this workspace" in warnings[0]
+    assert "No action is required" in warnings[0]
+    assert "module uninstall" not in warnings[0]
 
 
 def test_discover_all_modules_with_explicit_user_root_preserves_project_scope(

@@ -7,17 +7,18 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from specfact_cli.models.module_package import ModulePackageMetadata
+from specfact_cli.models.module_package import ModulePackageMetadata, PublisherInfo
 from specfact_cli.modules.module_registry.src.commands import app
 from specfact_cli.registry.module_discovery import DiscoveredModule
 from specfact_cli.registry.module_installer import USER_MODULES_ROOT, InstallModuleOptions
 
 
 runner = CliRunner()
+CODEBASE_MODULE_ID = "nold-ai/specfact-codebase"
 
 
 @pytest.fixture(autouse=True)
-def _isolate_user_modules_root(monkeypatch, tmp_path: Path) -> None:
+def isolate_user_modules_root(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Isolate user module root so tests do not depend on machine-local installs."""
     user_root = tmp_path / "user-modules"
     user_root.mkdir(parents=True, exist_ok=True)
@@ -25,11 +26,178 @@ def _isolate_user_modules_root(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr("specfact_cli.registry.module_installer.USER_MODULES_ROOT", user_root, raising=False)
 
 
-def test_install_command_integration(monkeypatch, tmp_path: Path) -> None:
+def _write_disabled_codebase(install_root: Path) -> None:
+    installed_module = install_root / "specfact-codebase"
+    installed_module.mkdir(parents=True)
+    (installed_module / "module-package.yaml").write_text(
+        f"name: {CODEBASE_MODULE_ID}\nversion: '0.1.0'\ncommands: [analyze]\n",
+        encoding="utf-8",
+    )
+
+
+def _patch_user_reenable_state(
+    monkeypatch: pytest.MonkeyPatch,
+    install_root: Path,
+    enabled: list[list[str]],
+    captured_state: list[list[dict[str, object]]],
+) -> None:
+    def discover_state(*, enable_ids: list[str], **_kwargs: object) -> list[dict[str, object]]:
+        enabled.append(list(enable_ids))
+        return [
+            {"id": CODEBASE_MODULE_ID, "version": "0.1.0", "enabled": True},
+            {"id": "unrelated-module", "version": "9.9.9", "enabled": False},
+        ]
+
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.USER_MODULES_ROOT", install_root)
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules", list)
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.read_modules_state",
+        lambda: {CODEBASE_MODULE_ID: {"version": "0.1.0", "enabled": False}},
+    )
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.get_discovered_modules_for_state",
+        discover_state,
+    )
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.write_modules_state",
+        lambda modules: captured_state.append(modules),
+    )
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.run_discovery_and_write_cache",
+        lambda _version: None,
+    )
+
+
+def _patch_project_reenable_state(
+    monkeypatch: pytest.MonkeyPatch,
+    base_paths: list[Path | None],
+    state_by_id: dict[str, dict[str, object]],
+) -> None:
+    def discover_state(*, base_path: Path | None = None, **_kwargs: object) -> list[dict[str, object]]:
+        base_paths.append(base_path)
+        return [{"id": CODEBASE_MODULE_ID, "version": "0.1.0", "enabled": True}]
+
+    def write_state(modules: list[dict[str, object]]) -> None:
+        for row in modules:
+            state_by_id[str(row["id"])] = {
+                "version": str(row["version"]),
+                "enabled": bool(row["enabled"]),
+            }
+
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.discover_all_modules_for_project",
+        lambda _path: [],
+    )
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.read_modules_state",
+        lambda: dict(state_by_id),
+    )
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.get_discovered_modules_for_state",
+        discover_state,
+    )
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.write_modules_state", write_state)
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.run_discovery_and_write_cache",
+        lambda _version: None,
+    )
+
+
+def _module_registry_metadata(
+    *,
+    name: str = "module-registry",
+    commands: list[str] | None = None,
+    command_help: dict[str, str] | None = None,
+) -> ModulePackageMetadata:
+    return ModulePackageMetadata(
+        name=name,
+        description="Manage modules",
+        license="Apache-2.0",
+        tier="community",
+        commands=commands or [],
+        command_help=command_help,
+        core_compatibility=">=0.28.0,<1.0.0",
+        publisher=PublisherInfo(
+            name="nold-ai",
+            email="opensource@nold.ai",
+            attributes={"url": "https://github.com/nold-ai/specfact-cli-modules"},
+        ),
+    )
+
+
+def _patch_show_module(
+    monkeypatch: pytest.MonkeyPatch,
+    metadata: ModulePackageMetadata,
+    *,
+    source: str = "builtin",
+) -> None:
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.get_modules_with_state",
+        lambda: [
+            {
+                "id": metadata.name,
+                "version": metadata.version,
+                "enabled": True,
+                "source": source,
+                "official": True,
+                "publisher": "nold-ai",
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.discover_all_modules",
+        lambda: [DiscoveredModule(Path("/modules") / metadata.name, metadata, source)],
+    )
+
+
+class _CommandInfo:
+    def __init__(self, name: str, help_text: str) -> None:
+        self.name = name
+        self.help = help_text
+        self.callback = None
+
+
+class _GroupInfo:
+    def __init__(self, name: str, typer_instance: object) -> None:
+        self.name = name
+        self.typer_instance = typer_instance
+
+
+class _FakeTyper:
+    def __init__(self, commands: list[tuple[str, str]], groups: list[object]) -> None:
+        self.registered_commands = [_CommandInfo(name, help_text) for name, help_text in commands]
+        self.registered_groups = groups
+
+
+def _version_state_trust_rows() -> list[dict[str, object]]:
+    return [
+        {
+            "id": "init",
+            "version": "0.1.0",
+            "enabled": True,
+            "source": "builtin",
+            "official": True,
+            "publisher": "nold-ai",
+        },
+        {
+            "id": "backlog",
+            "version": "0.2.0",
+            "enabled": False,
+            "source": "marketplace",
+            "official": False,
+            "publisher": "community-dev",
+        },
+    ]
+
+
+def test_install_command_integration(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def install_module_stub(module_id: str, _options: InstallModuleOptions, **_kwargs: object) -> Path:
+        return tmp_path / module_id.split("/")[-1]
+
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules", list)
     monkeypatch.setattr(
         "specfact_cli.modules.module_registry.src.commands.install_module",
-        lambda module_id, options=None, **_kwargs: tmp_path / module_id.split("/")[-1],
+        install_module_stub,
     )
 
     result = runner.invoke(app, ["install", "specfact/backlog"])
@@ -39,10 +207,10 @@ def test_install_command_integration(monkeypatch, tmp_path: Path) -> None:
     assert "specfact/backlog" in result.stdout
 
 
-def test_install_command_accepts_bare_module_name(monkeypatch, tmp_path: Path) -> None:
+def test_install_command_accepts_bare_module_name(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     captured: dict[str, str | None] = {"module_id": None}
 
-    def _install(module_id: str, options: InstallModuleOptions | None = None, **_kwargs):
+    def _install(module_id: str, options: InstallModuleOptions, **_kwargs):
         captured["module_id"] = module_id
         return tmp_path / module_id.split("/")[-1]
 
@@ -60,7 +228,7 @@ def test_install_command_accepts_bare_module_name(monkeypatch, tmp_path: Path) -
     assert "Installed" in result.stdout
 
 
-def test_install_command_rejects_invalid_module_id(monkeypatch) -> None:
+def test_install_command_rejects_invalid_module_id(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "specfact_cli.modules.module_registry.src.commands.install_module", lambda *_args, **_kwargs: None
     )
@@ -71,7 +239,9 @@ def test_install_command_rejects_invalid_module_id(monkeypatch) -> None:
     assert "Invalid module id" in result.stdout
 
 
-def test_doctor_reports_effective_and_shadowed_duplicate_modules(monkeypatch, tmp_path: Path) -> None:
+def test_doctor_reports_effective_and_shadowed_duplicate_modules(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     project_dir = tmp_path / "repo" / ".specfact" / "modules" / "specfact-codebase"
     user_dir = tmp_path / "user-modules" / "specfact-codebase"
     project_dir.mkdir(parents=True)
@@ -102,10 +272,15 @@ def test_doctor_reports_effective_and_shadowed_duplicate_modules(monkeypatch, tm
     assert "shadowed" in result.stdout
     assert "0.41.0" in result.stdout
     assert "0.40.0" in result.stdout
-    assert "specfact module uninstall nold-ai/specfact-codebase --scope user" in result.stdout
+    normalized_output = " ".join(result.stdout.split())
+    assert "remains installed and available outside this workspace" in normalized_output
+    assert "No action is required" in normalized_output
+    assert "module uninstall" not in normalized_output
 
 
-def test_doctor_fully_qualified_module_id_matches_exact_namespace(monkeypatch, tmp_path: Path) -> None:
+def test_doctor_fully_qualified_module_id_matches_exact_namespace(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     entries = [
         DiscoveredModule(
             tmp_path / "repo" / ".specfact" / "modules" / "foo",
@@ -134,7 +309,7 @@ def test_doctor_fully_qualified_module_id_matches_exact_namespace(monkeypatch, t
     assert "2.0.0" not in result.stdout
 
 
-def test_doctor_reports_configured_development_source_roots(monkeypatch, tmp_path: Path) -> None:
+def test_doctor_reports_configured_development_source_roots(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     modules_repo = tmp_path / "specfact-cli-modules"
     extra_root = tmp_path / "extra-modules"
     monkeypatch.setenv("SPECFACT_MODULES_REPO", str(modules_repo))
@@ -153,7 +328,9 @@ def test_doctor_reports_configured_development_source_roots(monkeypatch, tmp_pat
     assert "extra-modules" in result.stdout
 
 
-def test_install_command_skips_when_module_already_available_locally(monkeypatch, tmp_path: Path) -> None:
+def test_install_command_skips_when_module_already_available_locally(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     class _Meta:
         name = "bundle-mapper"
 
@@ -163,7 +340,7 @@ def test_install_command_skips_when_module_already_available_locally(monkeypatch
 
     called = {"install": False}
 
-    def _install(module_id: str, options: InstallModuleOptions | None = None, **_kwargs):
+    def _install(module_id: str, options: InstallModuleOptions, **_kwargs):
         called["install"] = True
         return tmp_path / module_id.split("/")[-1]
 
@@ -177,111 +354,53 @@ def test_install_command_skips_when_module_already_available_locally(monkeypatch
     assert "already installed" in result.stdout or "already available" in result.stdout
 
 
-def test_install_command_existing_disabled_module_enables_state(monkeypatch, tmp_path: Path) -> None:
+def test_install_command_existing_disabled_module_enables_state(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     install_root = tmp_path / "user-modules"
-    installed_module = install_root / "specfact-codebase"
-    installed_module.mkdir(parents=True)
-    (installed_module / "module-package.yaml").write_text(
-        "name: nold-ai/specfact-codebase\nversion: '0.1.0'\ncommands: [analyze]\n",
-        encoding="utf-8",
-    )
     enabled: list[list[str]] = []
     captured_state: list[list[dict[str, object]]] = []
 
-    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.USER_MODULES_ROOT", install_root)
-    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules", list)
-    monkeypatch.setattr(
-        "specfact_cli.modules.module_registry.src.commands.install_module", lambda *_args, **_kwargs: None
-    )
-    monkeypatch.setattr(
-        "specfact_cli.modules.module_registry.src.commands.read_modules_state",
-        lambda: {"nold-ai/specfact-codebase": {"version": "0.1.0", "enabled": False}},
-    )
-    monkeypatch.setattr(
-        "specfact_cli.modules.module_registry.src.commands.get_discovered_modules_for_state",
-        lambda *, enable_ids, disable_ids, base_path=None, preserve_existing: (
-            enabled.append(list(enable_ids))
-            or [
-                {"id": "nold-ai/specfact-codebase", "version": "0.1.0", "enabled": True},
-                {"id": "unrelated-module", "version": "9.9.9", "enabled": False},
-            ]
-        ),
-    )
-    monkeypatch.setattr(
-        "specfact_cli.modules.module_registry.src.commands.write_modules_state",
-        lambda modules: captured_state.append(modules),
-    )
-    monkeypatch.setattr(
-        "specfact_cli.modules.module_registry.src.commands.run_discovery_and_write_cache", lambda _: None
-    )
-
-    result = runner.invoke(app, ["install", "nold-ai/specfact-codebase"])
+    _write_disabled_codebase(install_root)
+    _patch_user_reenable_state(monkeypatch, install_root, enabled, captured_state)
+    result = runner.invoke(app, ["install", CODEBASE_MODULE_ID])
 
     assert result.exit_code == 0
-    assert enabled == [["nold-ai/specfact-codebase"]]
+    assert enabled == [[CODEBASE_MODULE_ID]]
     assert captured_state == [
         [
-            {"id": "nold-ai/specfact-codebase", "version": "0.1.0", "enabled": True},
+            {"id": CODEBASE_MODULE_ID, "version": "0.1.0", "enabled": True},
             {"id": "unrelated-module", "version": "9.9.9", "enabled": False},
         ]
     ]
     assert "enabled" in result.stdout.lower()
 
 
-def test_install_command_project_scope_reenable_uses_selected_repo(monkeypatch, tmp_path: Path) -> None:
+def test_install_command_project_scope_reenable_uses_selected_repo(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     repo_path = tmp_path / "repo"
     install_root = repo_path / ".specfact" / "modules"
-    installed_module = install_root / "specfact-codebase"
-    installed_module.mkdir(parents=True)
-    (installed_module / "module-package.yaml").write_text(
-        "name: nold-ai/specfact-codebase\nversion: '0.1.0'\ncommands: [analyze]\n",
-        encoding="utf-8",
-    )
     base_paths: list[Path | None] = []
-    state_by_id = {"nold-ai/specfact-codebase": {"version": "0.1.0", "enabled": False}}
+    state_by_id = {CODEBASE_MODULE_ID: {"version": "0.1.0", "enabled": False}}
 
-    monkeypatch.setattr(
-        "specfact_cli.modules.module_registry.src.commands.discover_all_modules_for_project", lambda path: []
-    )
-    monkeypatch.setattr(
-        "specfact_cli.modules.module_registry.src.commands.install_module", lambda *_args, **_kwargs: None
-    )
+    _write_disabled_codebase(install_root)
+    _patch_project_reenable_state(monkeypatch, base_paths, state_by_id)
 
-    def _read_state():
-        return dict(state_by_id)
-
-    def _discover_state(*, enable_ids, disable_ids, base_path=None, preserve_existing):
-        base_paths.append(base_path)
-        return [{"id": "nold-ai/specfact-codebase", "version": "0.1.0", "enabled": True}]
-
-    def _write_state(modules):
-        for row in modules:
-            state_by_id[str(row["id"])] = {"version": str(row["version"]), "enabled": bool(row["enabled"])}
-
-    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.read_modules_state", _read_state)
-    monkeypatch.setattr(
-        "specfact_cli.modules.module_registry.src.commands.get_discovered_modules_for_state",
-        _discover_state,
-    )
-    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.write_modules_state", _write_state)
-    monkeypatch.setattr(
-        "specfact_cli.modules.module_registry.src.commands.run_discovery_and_write_cache", lambda _: None
-    )
-
-    result = runner.invoke(
-        app, ["install", "nold-ai/specfact-codebase", "--scope", "project", "--repo", str(repo_path)]
-    )
+    result = runner.invoke(app, ["install", CODEBASE_MODULE_ID, "--scope", "project", "--repo", str(repo_path)])
 
     assert result.exit_code == 0
     assert base_paths == [repo_path]
-    assert state_by_id["nold-ai/specfact-codebase"]["enabled"] is True
+    assert state_by_id[CODEBASE_MODULE_ID]["enabled"] is True
     assert "enabled" in result.stdout.lower()
 
 
-def test_install_command_project_scope_installs_to_project_modules_root(monkeypatch, tmp_path: Path) -> None:
+def test_install_command_project_scope_installs_to_project_modules_root(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     captured: dict[str, object] = {"install_root": None, "module_id": None}
 
-    def _install(module_id: str, options: InstallModuleOptions | None = None, **_kwargs):
+    def _install(module_id: str, options: InstallModuleOptions, **_kwargs):
         o = options or InstallModuleOptions()
         captured["module_id"] = module_id
         captured["install_root"] = o.install_root
@@ -304,14 +423,16 @@ def test_install_command_project_scope_installs_to_project_modules_root(monkeypa
     assert captured["install_root"] == repo_path / ".specfact" / "modules"
 
 
-def test_install_command_project_scope_normalizes_nested_repo_path(monkeypatch, tmp_path: Path) -> None:
+def test_install_command_project_scope_normalizes_nested_repo_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     captured: dict[str, object] = {"install_root": None, "discovery_repo": None}
     repo_root = tmp_path / "repo"
     nested_dir = repo_root / "services" / "api"
     nested_dir.mkdir(parents=True)
     (repo_root / ".git").mkdir()
 
-    def _install(module_id: str, options: InstallModuleOptions | None = None, **_kwargs):
+    def _install(module_id: str, options: InstallModuleOptions, **_kwargs):
         o = options or InstallModuleOptions()
         captured["install_root"] = o.install_root
         return tmp_path / module_id.split("/")[-1]
@@ -335,7 +456,7 @@ def test_install_command_project_scope_normalizes_nested_repo_path(monkeypatch, 
     assert captured["install_root"] == repo_root / ".specfact" / "modules"
 
 
-def test_install_command_prefers_bundled_source_when_available(monkeypatch, tmp_path: Path) -> None:
+def test_install_command_prefers_bundled_source_when_available(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules", list)
     monkeypatch.setattr(
         "specfact_cli.modules.module_registry.src.commands.get_bundled_module_metadata",
@@ -373,7 +494,9 @@ def test_install_command_prefers_bundled_source_when_available(monkeypatch, tmp_
     assert called["marketplace"] is False
 
 
-def test_install_command_project_scope_does_not_skip_when_user_scope_module_exists(monkeypatch, tmp_path: Path) -> None:
+def test_install_command_project_scope_does_not_skip_when_user_scope_module_exists(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     class _Meta:
         name = "bundle-mapper"
 
@@ -385,7 +508,7 @@ def test_install_command_project_scope_does_not_skip_when_user_scope_module_exis
 
     called = {"marketplace": False}
 
-    def _install_marketplace(module_id: str, options: InstallModuleOptions | None = None, **_kwargs):
+    def _install_marketplace(module_id: str, options: InstallModuleOptions, **_kwargs):
         called["marketplace"] = True
         return tmp_path / module_id.split("/")[-1]
 
@@ -403,7 +526,9 @@ def test_install_command_project_scope_does_not_skip_when_user_scope_module_exis
     assert called["marketplace"] is True
 
 
-def test_install_command_source_marketplace_skips_bundled_resolution(monkeypatch, tmp_path: Path) -> None:
+def test_install_command_source_marketplace_skips_bundled_resolution(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules", list)
     monkeypatch.setattr(
         "specfact_cli.modules.module_registry.src.commands.get_bundled_module_metadata",
@@ -416,7 +541,7 @@ def test_install_command_source_marketplace_skips_bundled_resolution(monkeypatch
         called["bundled"] = True
         return True
 
-    def _marketplace(module_id: str, options: InstallModuleOptions | None = None, **_kwargs):
+    def _marketplace(module_id: str, options: InstallModuleOptions, **_kwargs):
         called["marketplace"] = True
         return tmp_path / module_id.split("/")[-1]
 
@@ -431,12 +556,12 @@ def test_install_command_source_marketplace_skips_bundled_resolution(monkeypatch
 
 
 def test_install_command_requires_explicit_trust_for_non_official_in_non_interactive(
-    monkeypatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules", list)
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.is_non_interactive", lambda: True)
 
-    def _install(module_id: str, options: InstallModuleOptions | None = None, **_kwargs):
+    def _install(module_id: str, options: InstallModuleOptions, **_kwargs):
         o = options or InstallModuleOptions()
         if not o.trust_non_official and o.non_interactive:
             raise ValueError("requires --trust-non-official")
@@ -455,12 +580,14 @@ def test_install_command_requires_explicit_trust_for_non_official_in_non_interac
     assert "--trust-non-official" in result.stdout
 
 
-def test_install_command_passes_trust_flag_to_marketplace_installer(monkeypatch, tmp_path: Path) -> None:
+def test_install_command_passes_trust_flag_to_marketplace_installer(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules", list)
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.is_non_interactive", lambda: True)
     captured: dict[str, bool | None] = {"trust_non_official": None, "non_interactive": None}
 
-    def _install(module_id: str, options: InstallModuleOptions | None = None, **_kwargs):
+    def _install(module_id: str, options: InstallModuleOptions, **_kwargs):
         o = options or InstallModuleOptions()
         captured["trust_non_official"] = o.trust_non_official
         captured["non_interactive"] = o.non_interactive
@@ -480,7 +607,7 @@ def test_install_command_passes_trust_flag_to_marketplace_installer(monkeypatch,
     assert captured["non_interactive"] is True
 
 
-def test_module_init_passes_trust_flag_and_non_interactive(monkeypatch, tmp_path: Path) -> None:
+def test_module_init_passes_trust_flag_and_non_interactive(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     captured: dict[str, object] = {"trust_non_official": None, "non_interactive": None}
 
     def _sync(*, target_root, trust_non_official=False, non_interactive=False):
@@ -498,7 +625,7 @@ def test_module_init_passes_trust_flag_and_non_interactive(monkeypatch, tmp_path
     assert captured["non_interactive"] is True
 
 
-def test_uninstall_command_with_source_validation(monkeypatch) -> None:
+def test_uninstall_command_with_source_validation(monkeypatch: pytest.MonkeyPatch) -> None:
     called = {"ok": False}
 
     class _Meta:
@@ -520,7 +647,9 @@ def test_uninstall_command_with_source_validation(monkeypatch) -> None:
     assert called["ok"] is True
 
 
-def test_uninstall_command_requires_scope_when_module_exists_in_user_and_project(monkeypatch, tmp_path: Path) -> None:
+def test_uninstall_command_requires_scope_when_module_exists_in_user_and_project(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     repo_path = tmp_path / "repo"
     project_modules = repo_path / ".specfact" / "modules" / "bundle-mapper"
     user_modules = tmp_path / "user-modules" / "bundle-mapper"
@@ -544,7 +673,7 @@ def test_uninstall_command_requires_scope_when_module_exists_in_user_and_project
     assert "project" in result.stdout
 
 
-def test_uninstall_command_custom_module_has_clear_guidance(monkeypatch, tmp_path: Path) -> None:
+def test_uninstall_command_custom_module_has_clear_guidance(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     class _Meta:
         name = "bundle-mapper"
 
@@ -562,7 +691,7 @@ def test_uninstall_command_custom_module_has_clear_guidance(monkeypatch, tmp_pat
     assert "local module roots" in result.stdout
 
 
-def test_uninstall_command_namespace_input_normalizes_name(monkeypatch, tmp_path: Path) -> None:
+def test_uninstall_command_namespace_input_normalizes_name(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     class _Meta:
         name = "bundle-mapper"
 
@@ -579,7 +708,7 @@ def test_uninstall_command_namespace_input_normalizes_name(monkeypatch, tmp_path
     assert "Cannot uninstall custom module 'bundle-mapper'" in result.stdout
 
 
-def test_uninstall_command_unknown_module_has_clear_guidance(monkeypatch) -> None:
+def test_uninstall_command_unknown_module_has_clear_guidance(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules", list)
 
     result = runner.invoke(app, ["uninstall", "specfact/missing-module"])
@@ -589,7 +718,7 @@ def test_uninstall_command_unknown_module_has_clear_guidance(monkeypatch) -> Non
     assert "module list --show-origin" in result.stdout
 
 
-def test_search_command_filters_registry(monkeypatch) -> None:
+def test_search_command_filters_registry(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "specfact_cli.modules.module_registry.src.commands.fetch_all_indexes",
         lambda: [
@@ -625,7 +754,7 @@ def test_search_command_filters_registry(monkeypatch) -> None:
     assert "specfact/policy" not in result.stdout
 
 
-def test_search_command_sorts_results_alphabetically(monkeypatch) -> None:
+def test_search_command_sorts_results_alphabetically(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "specfact_cli.modules.module_registry.src.commands.fetch_all_indexes",
         lambda: [
@@ -663,7 +792,7 @@ def test_search_command_sorts_results_alphabetically(monkeypatch) -> None:
     assert pos_alpha < pos_zeta
 
 
-def test_search_command_finds_installed_module_when_not_in_registry(monkeypatch) -> None:
+def test_search_command_finds_installed_module_when_not_in_registry(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "specfact_cli.modules.module_registry.src.commands.fetch_all_indexes", lambda: [("official", {"modules": []})]
     )
@@ -688,7 +817,7 @@ def test_search_command_finds_installed_module_when_not_in_registry(monkeypatch)
     assert "installed" in result.stdout
 
 
-def test_search_command_reports_no_results_with_query_context(monkeypatch) -> None:
+def test_search_command_reports_no_results_with_query_context(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "specfact_cli.modules.module_registry.src.commands.fetch_all_indexes", lambda: [("official", {"modules": []})]
     )
@@ -700,7 +829,7 @@ def test_search_command_reports_no_results_with_query_context(monkeypatch) -> No
     assert "No modules found for query 'does-not-exist'" in result.stdout
 
 
-def test_list_command_sorts_modules_alphabetically(monkeypatch) -> None:
+def test_list_command_sorts_modules_alphabetically(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "specfact_cli.modules.module_registry.src.commands.get_modules_with_state",
         lambda: [
@@ -729,7 +858,7 @@ def test_list_command_sorts_modules_alphabetically(monkeypatch) -> None:
     assert result.stdout.index("alpha") < result.stdout.index("zeta")
 
 
-def test_enable_command_message_sorts_module_ids(monkeypatch) -> None:
+def test_enable_command_message_sorts_module_ids(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.is_non_interactive", lambda: False)
     monkeypatch.setattr(
         "specfact_cli.modules.module_registry.src.commands.get_modules_with_state",
@@ -754,46 +883,32 @@ def test_enable_command_message_sorts_module_ids(monkeypatch) -> None:
     assert "alpha, zeta" in result.stdout
 
 
-def test_list_command_shows_version_state_and_trust(monkeypatch) -> None:
+def test_list_command_shows_version_state_and_trust(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "specfact_cli.modules.module_registry.src.commands.get_modules_with_state",
-        lambda: [
-            {
-                "id": "init",
-                "version": "0.1.0",
-                "enabled": True,
-                "source": "builtin",
-                "official": True,
-                "publisher": "nold-ai",
-            },
-            {
-                "id": "backlog",
-                "version": "0.2.0",
-                "enabled": False,
-                "source": "marketplace",
-                "official": False,
-                "publisher": "community-dev",
-            },
-        ],
+        _version_state_trust_rows,
     )
 
     result = runner.invoke(app, ["list"])
 
     assert result.exit_code == 0
-    assert "Trust" in result.stdout
-    assert "Publisher" in result.stdout
-    assert "init" in result.stdout
-    assert "0.1.0" in result.stdout
-    assert "enabled" in result.stdout
-    assert "official" in result.stdout
-    assert "backlog" in result.stdout
-    assert "disabled" in result.stdout
-    assert "community" in result.stdout
-    assert "nold-ai" in result.stdout
-    assert "community-dev" in result.stdout
+    expected_values = (
+        "Trust",
+        "Publisher",
+        "init",
+        "0.1.0",
+        "enabled",
+        "official",
+        "backlog",
+        "disabled",
+        "community",
+        "nold-ai",
+        "community-dev",
+    )
+    assert all(value in result.stdout for value in expected_values)
 
 
-def test_list_command_marketplace_option_shows_registry_modules(monkeypatch) -> None:
+def test_list_command_marketplace_option_shows_registry_modules(monkeypatch: pytest.MonkeyPatch) -> None:
     """specfact module list --marketplace shows modules from the registry index."""
     monkeypatch.setattr(
         "specfact_cli.modules.module_registry.src.commands.fetch_registry_index",
@@ -815,7 +930,7 @@ def test_list_command_marketplace_option_shows_registry_modules(monkeypatch) -> 
     assert "specfact module install" in result.stdout
 
 
-def test_list_command_marketplace_option_offline_shows_warning(monkeypatch) -> None:
+def test_list_command_marketplace_option_offline_shows_warning(monkeypatch: pytest.MonkeyPatch) -> None:
     """specfact module list --marketplace when registry unavailable shows friendly message."""
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.fetch_registry_index", lambda **_: None)
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.get_modules_with_state", list)
@@ -826,7 +941,7 @@ def test_list_command_marketplace_option_offline_shows_warning(monkeypatch) -> N
     assert "unavailable" in result.stdout.lower() or "offline" in result.stdout.lower()
 
 
-def test_list_command_shows_official_label_when_marked(monkeypatch) -> None:
+def test_list_command_shows_official_label_when_marked(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "specfact_cli.modules.module_registry.src.commands.get_modules_with_state",
         lambda: [
@@ -848,7 +963,7 @@ def test_list_command_shows_official_label_when_marked(monkeypatch) -> None:
     assert "custom" not in result.stdout
 
 
-def test_list_command_show_origin_includes_origin_column(monkeypatch) -> None:
+def test_list_command_show_origin_includes_origin_column(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "specfact_cli.modules.module_registry.src.commands.get_modules_with_state",
         lambda: [
@@ -883,7 +998,7 @@ def test_list_command_show_origin_includes_origin_column(monkeypatch) -> None:
     assert "marketplace" in result.stdout
 
 
-def test_list_command_source_filter(monkeypatch) -> None:
+def test_list_command_source_filter(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "specfact_cli.modules.module_registry.src.commands.get_modules_with_state",
         lambda: [
@@ -905,7 +1020,7 @@ def test_list_command_source_filter(monkeypatch) -> None:
     assert "init" not in result.stdout
 
 
-def test_list_command_bundled_available_uses_unfiltered_installed_set(monkeypatch) -> None:
+def test_list_command_bundled_available_uses_unfiltered_installed_set(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "specfact_cli.modules.module_registry.src.commands.get_modules_with_state",
         lambda: [
@@ -943,7 +1058,7 @@ def test_list_command_bundled_available_uses_unfiltered_installed_set(monkeypatc
     assert "All bundled modules are already installed" in result.stdout
 
 
-def test_list_command_show_bundled_available_separate_section_with_hints(monkeypatch) -> None:
+def test_list_command_show_bundled_available_separate_section_with_hints(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "specfact_cli.modules.module_registry.src.commands.get_modules_with_state",
         lambda: [
@@ -979,7 +1094,7 @@ def test_list_command_show_bundled_available_separate_section_with_hints(monkeyp
     assert "specfact module init --scope project" in result.stdout
 
 
-def test_list_command_show_bundled_available_empty_when_all_installed(monkeypatch) -> None:
+def test_list_command_show_bundled_available_empty_when_all_installed(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "specfact_cli.modules.module_registry.src.commands.get_modules_with_state",
         lambda: [
@@ -1008,7 +1123,7 @@ def test_list_command_show_bundled_available_empty_when_all_installed(monkeypatc
     assert "All bundled modules are already installed" in result.stdout
 
 
-def test_list_command_without_flag_shows_hint_when_bundled_available(monkeypatch) -> None:
+def test_list_command_without_flag_shows_hint_when_bundled_available(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "specfact_cli.modules.module_registry.src.commands.get_modules_with_state",
         lambda: [
@@ -1036,7 +1151,7 @@ def test_list_command_without_flag_shows_hint_when_bundled_available(monkeypatch
     assert "--show-bundled-available" in result.stdout
 
 
-def test_list_command_fetches_module_state_once(monkeypatch) -> None:
+def test_list_command_fetches_module_state_once(monkeypatch: pytest.MonkeyPatch) -> None:
     calls = {"count": 0}
 
     def _get_modules_with_state() -> list[dict[str, object]]:
@@ -1068,39 +1183,13 @@ def test_list_command_fetches_module_state_once(monkeypatch) -> None:
     assert calls["count"] == 1
 
 
-def test_show_command_displays_module_details(monkeypatch) -> None:
-    monkeypatch.setattr(
-        "specfact_cli.modules.module_registry.src.commands.get_modules_with_state",
-        lambda: [
-            {
-                "id": "bundle-mapper",
-                "version": "0.1.0",
-                "enabled": True,
-                "source": "custom",
-                "official": True,
-                "publisher": "nold-ai",
-            }
-        ],
+def test_show_command_displays_module_details(monkeypatch: pytest.MonkeyPatch) -> None:
+    metadata = _module_registry_metadata(
+        name="bundle-mapper",
+        commands=["backlog"],
     )
-
-    class _Meta:
-        name = "bundle-mapper"
-        description = "Maps backlog items to modules using confidence heuristics"
-        license = "Apache-2.0"
-        tier = "community"
-        commands = ["backlog"]
-        core_compatibility = ">=0.28.0,<1.0.0"
-
-        class publisher:  # noqa: N801
-            attributes = {"url": "https://github.com/nold-ai/specfact-cli-modules"}
-
-    class _Entry:
-        metadata = _Meta()
-
-    monkeypatch.setattr(
-        "specfact_cli.modules.module_registry.src.commands.discover_all_modules",
-        lambda: [_Entry()],
-    )
+    metadata.description = "Maps backlog items to modules using confidence heuristics"
+    _patch_show_module(monkeypatch, metadata, source="custom")
 
     result = runner.invoke(app, ["show", "bundle-mapper"])
 
@@ -1114,7 +1203,7 @@ def test_show_command_displays_module_details(monkeypatch) -> None:
     assert "official" in result.stdout
 
 
-def test_show_command_uses_command_help_keys_when_commands_missing(monkeypatch) -> None:
+def test_show_command_uses_command_help_keys_when_commands_missing(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "specfact_cli.modules.module_registry.src.commands.get_modules_with_state",
         lambda: [
@@ -1154,54 +1243,11 @@ def test_show_command_uses_command_help_keys_when_commands_missing(monkeypatch) 
     assert "show" in result.stdout
 
 
-def test_show_command_derives_full_command_paths_with_subcommands(monkeypatch) -> None:
-    monkeypatch.setattr(
-        "specfact_cli.modules.module_registry.src.commands.get_modules_with_state",
-        lambda: [
-            {
-                "id": "module-registry",
-                "version": "0.35.0",
-                "enabled": True,
-                "source": "builtin",
-                "official": True,
-                "publisher": "nold-ai",
-            }
-        ],
+def test_show_command_derives_full_command_paths_with_subcommands(monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_show_module(
+        monkeypatch,
+        _module_registry_metadata(commands=["module"], command_help={"module": "Manage modules"}),
     )
-
-    class _Meta:
-        name = "module-registry"
-        description = "Manage modules"
-        license = "Apache-2.0"
-        tier = "community"
-        commands = ["module"]
-        command_help = {"module": "Manage modules"}
-        core_compatibility = ">=0.28.0,<1.0.0"
-
-        class publisher:  # noqa: N801
-            attributes = {"url": "https://github.com/nold-ai/specfact-cli-modules"}
-
-    class _Entry:
-        metadata = _Meta()
-
-    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules", lambda: [_Entry()])
-
-    class _CmdInfo:
-        def __init__(self, name: str, help_text: str) -> None:
-            self.name = name
-            self.help = help_text
-            self.callback = None
-
-    class _GroupInfo:
-        def __init__(self, name: str, typer_instance: object) -> None:
-            self.name = name
-            self.typer_instance = typer_instance
-
-    class _FakeTyper:
-        def __init__(self, commands: list[tuple[str, str]], groups: list[object]) -> None:
-            self.registered_commands = [_CmdInfo(name, help_text) for name, help_text in commands]
-            self.registered_groups = groups
-
     delta_app = _FakeTyper([("status", "Show delta status")], [])
     root_app = _FakeTyper([("list", "List modules"), ("show", "Show module details")], [_GroupInfo("delta", delta_app)])
 
@@ -1218,7 +1264,7 @@ def test_show_command_derives_full_command_paths_with_subcommands(monkeypatch) -
     assert "module delta status - Show delta status" in result.stdout
 
 
-def test_show_command_fails_for_unknown_module(monkeypatch) -> None:
+def test_show_command_fails_for_unknown_module(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.get_modules_with_state", list)
 
     result = runner.invoke(app, ["show", "missing-module"])
@@ -1227,7 +1273,7 @@ def test_show_command_fails_for_unknown_module(monkeypatch) -> None:
     assert "is not installed" in result.stdout
 
 
-def test_upgrade_command(monkeypatch, tmp_path: Path) -> None:
+def test_upgrade_command(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     captured: dict[str, bool | None] = {"reinstall": None}
 
     def _install(module_id: str, options: InstallModuleOptions | None = None, **_kwargs):
@@ -1251,7 +1297,7 @@ def test_upgrade_command(monkeypatch, tmp_path: Path) -> None:
     assert "Upgraded" in result.stdout
 
 
-def test_upgrade_without_module_name_upgrades_all_marketplace(monkeypatch, tmp_path: Path) -> None:
+def test_upgrade_without_module_name_upgrades_all_marketplace(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     installed: list[str] = []
     reinstall_flags: list[bool] = []
 
@@ -1278,10 +1324,12 @@ def test_upgrade_without_module_name_upgrades_all_marketplace(monkeypatch, tmp_p
     assert "Upgraded" in result.stdout
 
 
-def test_upgrade_without_module_name_reports_one_line_per_module_with_versions(monkeypatch, tmp_path: Path) -> None:
+def test_upgrade_without_module_name_reports_one_line_per_module_with_versions(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     installed: list[str] = []
 
-    def _install(module_id: str, options: InstallModuleOptions | None = None, **_kwargs):
+    def _install(module_id: str, options: InstallModuleOptions, **_kwargs):
         installed.append(module_id)
         module_dir = tmp_path / module_id.split("/")[-1]
         module_dir.mkdir(parents=True, exist_ok=True)
@@ -1310,7 +1358,7 @@ def test_upgrade_without_module_name_reports_one_line_per_module_with_versions(m
     assert "nold-ai/specfact-project: 0.4.0 -> 0.5.0" in result.stdout
 
 
-def test_upgrade_rejects_non_marketplace_source(monkeypatch) -> None:
+def test_upgrade_rejects_non_marketplace_source(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "specfact_cli.modules.module_registry.src.commands.get_modules_with_state",
         lambda: [{"id": "bundle-mapper", "version": "0.1.0", "enabled": True, "source": "custom"}],
@@ -1322,11 +1370,11 @@ def test_upgrade_rejects_non_marketplace_source(monkeypatch) -> None:
     assert "marketplace modules" in result.stdout and "upgradeable" in result.stdout
 
 
-def test_upgrade_rejects_multi_segment_module_id(monkeypatch, tmp_path: Path) -> None:
+def test_upgrade_rejects_multi_segment_module_id(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Malformed owner/repo/extra must not resolve via last-segment fallback to a different module."""
     installed: list[str] = []
 
-    def _install(module_id: str, options: InstallModuleOptions | None = None, **_kwargs):
+    def _install(module_id: str, options: InstallModuleOptions, **_kwargs):
         installed.append(module_id)
         return tmp_path / module_id.split("/")[-1]
 
@@ -1363,7 +1411,7 @@ def test_full_marketplace_module_id_for_install_rejects_multi_segment_path() -> 
         _full_marketplace_module_id_for_install("foo/bar/backlog")
 
 
-def test_enable_command_updates_state_with_dependency_checks(monkeypatch) -> None:
+def test_enable_command_updates_state_with_dependency_checks(monkeypatch: pytest.MonkeyPatch) -> None:
     captured = {"enable_ids": None, "disable_ids": None, "force": None}
 
     def _apply(*, enable_ids, disable_ids, force):
@@ -1383,7 +1431,7 @@ def test_enable_command_updates_state_with_dependency_checks(monkeypatch) -> Non
     assert "Enabled" in result.stdout
 
 
-def test_disable_command_respects_force_cascade(monkeypatch) -> None:
+def test_disable_command_respects_force_cascade(monkeypatch: pytest.MonkeyPatch) -> None:
     captured = {"enable_ids": None, "disable_ids": None, "force": None}
 
     def _apply(*, enable_ids, disable_ids, force):
@@ -1403,7 +1451,7 @@ def test_disable_command_respects_force_cascade(monkeypatch) -> None:
     assert "Disabled" in result.stdout
 
 
-def test_enable_command_interactive_mode_selection(monkeypatch) -> None:
+def test_enable_command_interactive_mode_selection(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.is_non_interactive", lambda: False)
     monkeypatch.setattr(
         "specfact_cli.modules.module_registry.src.commands.get_modules_with_state",
@@ -1440,7 +1488,7 @@ def test_enable_command_interactive_mode_selection(monkeypatch) -> None:
     assert captured["enable_ids"] == ["backlog"]
 
 
-def test_disable_command_non_interactive_requires_module_id(monkeypatch) -> None:
+def test_disable_command_non_interactive_requires_module_id(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.is_non_interactive", lambda: True)
 
     result = runner.invoke(app, ["disable"])
@@ -1449,7 +1497,7 @@ def test_disable_command_non_interactive_requires_module_id(monkeypatch) -> None
     assert "Non-interactive mode requires explicit module id value" in result.stdout
 
 
-def test_module_init_bootstraps_user_modules(monkeypatch) -> None:
+def test_module_init_bootstraps_user_modules(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "specfact_cli.modules.module_registry.src.commands.sync_bundled_modules_to_user_root",
         lambda **_kwargs: 2,
@@ -1462,7 +1510,7 @@ def test_module_init_bootstraps_user_modules(monkeypatch) -> None:
     assert str(USER_MODULES_ROOT) in result.stdout or "user-modules" in result.stdout
 
 
-def test_module_init_project_scope_defaults_to_cwd_repo(monkeypatch, tmp_path: Path) -> None:
+def test_module_init_project_scope_defaults_to_cwd_repo(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.chdir(tmp_path)
     captured: dict[str, Path | None] = {"target_root": None}
 
@@ -1480,7 +1528,7 @@ def test_module_init_project_scope_defaults_to_cwd_repo(monkeypatch, tmp_path: P
     assert str(tmp_path / ".specfact" / "modules") in result.stdout.replace("\n", "")
 
 
-def test_module_init_project_scope_supports_explicit_repo(monkeypatch, tmp_path: Path) -> None:
+def test_module_init_project_scope_supports_explicit_repo(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     explicit_repo = tmp_path / "customer-a"
     explicit_repo.mkdir(parents=True)
     captured: dict[str, Path | None] = {"target_root": None}
