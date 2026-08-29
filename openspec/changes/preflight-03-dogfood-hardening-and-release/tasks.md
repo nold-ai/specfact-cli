@@ -32,4 +32,4 @@ All tasks below are future dogfood work. This planning change completes none of 
 
 - [ ] 5.1 Verify the paired modules hardening scope contains only evidence-backed items and remains blocked on a no-go decision.
 - [ ] 5.2 Open the core dogfood PR to `dev` as the final pre-merge task, linking C14 and the paired modules issue.
-- [ ] 5.3 After merge, run `openspec archive preflight-03-dogfood-hardening-and-release`, update ordering/wiki source state, and remove the dedicated worktree and merged branch.
+- [ ] 5.3 Before archive, hand accepted hardening evidence to modules #432 and verify that modules-owned signing/stable publication remains pending or complete there; then, from the repository root after merge, run `openspec archive preflight-03-dogfood-hardening-and-release`, update ordering/wiki source state, and remove the dedicated worktree and merged branch.

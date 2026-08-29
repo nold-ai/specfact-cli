@@ -31,4 +31,4 @@ All tasks below are future implementation work. This planning change completes n
 
 - [ ] 5.1 Reconfirm the diff contains only issue-approved scope and that downstream modules contracts reference the released core interface identity.
 - [ ] 5.2 Open the implementation PR to `dev` as the final pre-merge task, linking the issue and evidence.
-- [ ] 5.3 After merge, run `openspec archive preflight-01-design-contract-core`, update ordering/source mirrors, and remove the dedicated worktree and merged branch.
+- [ ] 5.3 Before archive, verify the released core identity was handed to modules #431 and that modules-owned signing/publication remains assigned to #432; then, from the repository root after merge, run `openspec archive preflight-01-design-contract-core`, update ordering/source mirrors, and remove the dedicated worktree and merged branch.

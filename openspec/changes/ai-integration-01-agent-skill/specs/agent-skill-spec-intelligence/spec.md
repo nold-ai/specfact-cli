@@ -2,7 +2,7 @@
 
 ### Requirement: Discover module-owned skills
 
-The system SHALL discover versioned skill descriptors and assets from installed trusted SpecFact modules without defining their workflow content in core.
+The system SHALL discover versioned skill descriptors and assets through the same effective module discovery roots, priority, collision handling, and persisted enablement state used by command registration and `specfact init`, without defining module workflow content in core. Discovery SHALL include workspace modules and existing configured `SPECFACT_MODULES_ROOTS` entries and SHALL exclude disabled modules.
 
 #### Scenario: Signed preflight module exposes a skill
 
@@ -11,9 +11,23 @@ The system SHALL discover versioned skill descriptors and assets from installed 
 - **THEN** the skill is listed with module, version, workflow, compatibility, and content-digest provenance
 - **AND** core does not replace or reinterpret the workflow body.
 
+#### Scenario: Workspace module exposes a skill
+
+- **GIVEN** an enabled trusted module under the nearest workspace `.specfact/modules` root exposes a valid skill descriptor
+- **WHEN** skill discovery runs for that workspace
+- **THEN** the skill is discovered through the shared module discovery contract
+- **AND** its root priority and provenance match command registration and `specfact init`.
+
+#### Scenario: Configured module root exposes a skill
+
+- **GIVEN** an enabled trusted module under an existing root configured in `SPECFACT_MODULES_ROOTS` exposes a valid skill descriptor
+- **WHEN** skill discovery runs
+- **THEN** the skill is discovered through the shared module discovery contract
+- **AND** a disabled module at that root is not exposed.
+
 ### Requirement: Canonical `.agents/skills` export
 
-The system SHALL support canonical project export under `.agents/skills/<skill-id>/` with `SKILL.md` as the entrypoint and all supporting assets contained within the skill directory.
+The system SHALL support canonical project export under `.agents/skills/<skill-id>/` with `SKILL.md` as the entrypoint and all supporting assets contained within the skill directory. Before materialization or inventory mutation, it SHALL reject absolute skill IDs or asset paths and any parent traversal, resolve the selected skill root, and verify every asset and inventory path remains within that root.
 
 #### Scenario: Skill is exported to a project
 
@@ -21,6 +35,13 @@ The system SHALL support canonical project export under `.agents/skills/<skill-i
 - **WHEN** canonical export is approved
 - **THEN** the exact verified assets are materialized under `.agents/skills/<skill-id>/`
 - **AND** the install inventory records every path and digest.
+
+#### Scenario: Descriptor path escapes the selected skill root
+
+- **GIVEN** a descriptor contains an absolute skill ID or asset path, parent traversal, or a resolved asset/inventory path outside `.agents/skills/<skill-id>/`
+- **WHEN** install, update, or uninstall validates the descriptor
+- **THEN** the operation fails before any project or inventory write or removal
+- **AND** unrelated project files remain unchanged.
 
 ### Requirement: Deterministic install and update
 

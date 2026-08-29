@@ -11,14 +11,15 @@ All tasks below are future implementation work. This planning change completes n
 ## 2. Specification and failing-first evidence
 
 - [ ] 2.1 Finalize snapshot kinds, complete path manifest, obligation mapping, local checkpoint authority, immutable conformance, finding, result, and verifier interfaces without adding extraction or CLI behavior.
-- [ ] 2.2 Add tests mapped to every worktree/index/range identity, authority-separation, path-transition, obligation, stale-seal, evidence, and assurance-limit scenario.
+- [ ] 2.2 Add tests mapped to every worktree/index/range identity, authority-separation, path-transition, obligation, finding-class/precedence (including the reconciled semantic `violated` scenario), stale-seal, evidence, and assurance-limit scenario.
 - [ ] 2.3 Run targeted tests before production edits and record failing-first results in a newly created `TDD_EVIDENCE.md`.
 
 ## 3. Minimal core implementation
 
 - [ ] 3.1 Implement the normalized implementation snapshot and evidence-reference models for worktree, index, and range identities.
 - [ ] 3.2 Implement obligation mapping, `DevelopmentCheckpointResult`, `ImplementationConformanceResult`, and closed finding contracts.
-- [ ] 3.3 Implement the side-effect-free verifier, reject local-authority promotion, and preserve explicit assurance limits.
+- [ ] 3.3 Implement the side-effect-free verifier over supplied upstream verification inputs, obligations, and evidence, preserving explicit assurance limits without applicability or policy orchestration.
+- [ ] 3.4 Implement result validation that rejects local-authority promotion and enforces deterministic status aggregation.
 
 ## 4. Passing evidence and quality gates
 
@@ -31,4 +32,4 @@ All tasks below are future implementation work. This planning change completes n
 
 - [ ] 5.1 Hand the exact released core implementation-assurance interface identity to paired modules #434 before #251/#253/#433 begin.
 - [ ] 5.2 Open the implementation PR to `dev` as the final pre-merge task, linking the paired modules issue and evidence.
-- [ ] 5.3 After merge, run `openspec archive preflight-05-implementation-conformance`, update ordering/source mirrors, and remove the dedicated worktree and merged branch.
+- [ ] 5.3 Before archive, verify the released core identity was handed to modules #434 and that modules-owned signing/stable publication remains assigned there; then, from the repository root after merge, run `openspec archive preflight-05-implementation-conformance`, update ordering/source mirrors, and remove the dedicated worktree and merged branch.

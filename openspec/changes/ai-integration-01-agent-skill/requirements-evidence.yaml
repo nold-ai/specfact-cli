@@ -18,6 +18,11 @@ requirements:
         method: inspection
         intent: "Inspect the canonical agents skills export planning contract before implementation."
         observable: *planning-observable
+      - case_id: AI01-008
+        scenario_id: canonical-agents-skills-export
+        method: inspection
+        intent: "Inspect absolute-path, parent-traversal, and resolved-root containment rejection before materialization."
+        observable: *planning-observable
   openspec:ai-integration-01-agent-skill:agent-skill-spec-intelligence:deterministic-install-and-update:
     rationale: *planning-rationale
     stakeholder_refs: ["nold-ai/specfact-cli#251"]
@@ -37,6 +42,11 @@ requirements:
         scenario_id: discover-module-owned-skills
         method: inspection
         intent: "Inspect the discover module owned skills planning contract before implementation."
+        observable: *planning-observable
+      - case_id: AI01-007
+        scenario_id: discover-module-owned-skills
+        method: inspection
+        intent: "Inspect shared workspace and SPECFACT_MODULES_ROOTS discovery, priority, provenance, and enablement behavior."
         observable: *planning-observable
   openspec:ai-integration-01-agent-skill:agent-skill-spec-intelligence:distribution-only-ownership:
     rationale: *planning-rationale

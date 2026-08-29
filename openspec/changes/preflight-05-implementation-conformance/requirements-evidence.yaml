@@ -18,6 +18,11 @@ requirements:
         method: inspection
         intent: "Inspect the closed implementation assurance finding classes planning contract before implementation."
         observable: *planning-observable
+      - case_id: PF05C-008
+        scenario_id: closed-implementation-assurance-finding-classes
+        method: inspection
+        intent: "Inspect the reconciled semantic-evidence violation scenario, stable identities, and finding precedence before implementation."
+        observable: *planning-observable
   openspec:preflight-05-implementation-conformance:preflight-implementation-conformance-contracts:explicit-implementation-assurance-limits:
     rationale: *planning-rationale
     stakeholder_refs: ["nold-ai/specfact-cli#684"]

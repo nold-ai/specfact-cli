@@ -22,7 +22,17 @@ The preflight seal binds an approved plan and source snapshot. Implementation ne
 
 ### 1. Snapshot kinds and exact identity
 
-The future `ImplementationSnapshot` records `snapshot_kind` as `worktree`, `index`, or `range`, the exact base identity, the worktree-manifest digest, index-tree identity, or full base/head object IDs required by that kind, a complete changed-path manifest, public-interface records, test/evidence references, and producer/policy/toolchain identities. Path manifests preserve additions, deletions, both rename endpoints, modes, symlinks, and untracked paths where the snapshot kind permits them. It does not mutate the original design contract.
+The future `ImplementationSnapshot` records `snapshot_kind` as `worktree`, `index`, or `range`, repository identity, exact kind-specific Git identity, a complete changed-path manifest, public-interface records, test/evidence references, and producer/policy/toolchain identities. It does not mutate the original design contract.
+
+The path-manifest matrix is normative:
+
+| Snapshot kind | Required identity | Manifest boundary | Untracked paths | Add/delete/rename | Modes and symlinks |
+|---|---|---|---|---|---|
+| `worktree` | repository identity, full base commit ID, worktree-manifest digest | exact base to the captured working-tree state, including staged and unstaged tracked state | included with explicit `untracked` state | additions, deletions, and both rename endpoints retained | before/after modes and symlink target identity retained |
+| `index` | repository identity, full base commit ID, exact index tree ID | exact base to the captured index tree | excluded unless present in the index as an addition | additions, deletions, and both rename endpoints retained | before/after modes and symlink target identity retained |
+| `range` | repository identity, full base/head commit IDs, and base/head tree IDs | exact immutable base tree to exact immutable head tree | not representable and therefore absent | additions, deletions, and both rename endpoints retained | before/after modes and symlink target identity retained |
+
+Every manifest record retains its change kind and byte-preserving path identity. Rename classification is deterministic under the bound producer, toolchain, and policy identities; consumers cannot reinterpret a delete/add pair under different rename settings.
 
 ### 2. Obligation mapping
 
@@ -34,11 +44,20 @@ The `ImplementationObligationMap` normalizes obligations from approved scope rol
 
 ### 4. Closed finding classes
 
-Initial finding classes are `missing`, `unexpected`, `modified`, `violated`, `stale`, and `unverifiable`. Findings retain the sealed contract path, implementation evidence identity, extractor/verifier identity, and blocking/advisory policy outcome.
+Finding classes are `missing`, `unexpected`, `modified`, `violated`, `stale`, and `unverifiable`. Each candidate is assigned the first matching class in this precedence order so classes are mutually exclusive:
+
+1. `stale`: a seal-bound contract/result/policy/source or selected Requirements identity differs from the supplied current identity.
+2. `unverifiable`: required identity or evidence is absent, ambiguous, unsupported, or cannot be reconciled deterministically.
+3. `unexpected`: a governed implementation path or public interface has no sealed scope/obligation mapping or accepted exclusion.
+4. `missing`: a sealed required path, interface, obligation, or evidence record has no implementation counterpart.
+5. `modified`: the counterpart exists, but its captured path, mode, symlink, interface, selector, or other structural identity differs from the sealed expectation.
+6. `violated`: identities reconcile and required evidence ran, but the observed semantic outcome differs from the sealed acceptance or risk-case observable.
+
+Findings retain the sealed contract path, implementation evidence identity, extractor/verifier identity, and blocking/advisory policy outcome. `stale` and `unverifiable` are blocking `UNKNOWN`; `unexpected` is blocking `FAIL`; required `missing`, `modified`, and `violated` findings are blocking `FAIL`. Only an obligation already marked non-required by the sealed policy may make `missing`, `modified`, or `violated` advisory. Deterministic aggregation returns `FAIL` when any determinate blocking failure exists, otherwise `UNKNOWN` when any blocking uncertainty exists, otherwise `PASS`; `NOT_APPLICABLE` is constructed only by the caller-owned applicability boundary.
 
 ### 5. Side-effect-free verifier
 
-Core comparison operates only on supplied normalized records. Modules owns repository extraction, test evidence import, rendering, policy, and persistence. A contract-changing drift requires a new preflight review and approval, not mutation of the existing seal.
+Core comparison operates only on supplied normalized records. Its input preserves the upstream verifier boundary by supplying the design contract, validation result, seal, policy, and current source identities. Those inputs are verified before obligation comparison; a digest or identity mismatch produces `stale`, while an unavailable identity produces `unverifiable`. Modules owns repository extraction, test evidence import, rendering, applicability decisions, and persistence. A contract-changing drift requires a new preflight review and approval, not mutation of the existing seal.
 
 ### 6. Independent assurance statement
 

@@ -31,7 +31,8 @@ The preflight loop should not be stabilized or distributed based only on its own
 ## Dependencies
 
 - Parent Feature: core [#681](https://github.com/nold-ai/specfact-cli/issues/681).
-- Blocked by core C14 adoption [#680](https://github.com/nold-ai/specfact-cli/issues/680), which is blocked by modules `preflight-02-assurance-runtime` in the new ordering.
+- Upstream prerequisites are core `preflight-01-design-contract-core` [#682](https://github.com/nold-ai/specfact-cli/issues/682) and modules `preflight-02-assurance-runtime` [#431](https://github.com/nold-ai/specfact-cli-modules/issues/431).
+- Blocked by core C14 adoption [#680](https://github.com/nold-ai/specfact-cli/issues/680), which consumes those prerequisites in the ordering recorded by `openspec/CHANGE_ORDER.md`; operators verify the exact issue identities and native blocker readback before dogfood.
 - Blocks the paired modules `preflight-03-dogfood-hardening-and-release` story [#432](https://github.com/nold-ai/specfact-cli-modules/issues/432).
 
 ## Explicit Non-Goals

@@ -17,7 +17,7 @@ Research reviewed on 2026-08-25:
 - Define stable contract, validation-result, seal, digest, and verifier interfaces.
 - Make every readiness decision traceable to exact input identities and validator versions.
 - Preserve explicit unknowns and unresolved findings instead of allowing optimistic inference.
-- Bind enough implementation intent to select bounded semantic evidence later without resealing unchanged design intent.
+- Bind enough implementation intent to select bounded semantic evidence later from identities already approved by the seal.
 - Keep modules and harnesses able to consume the same contract without depending on one renderer or command syntax.
 
 **Non-Goals:**
@@ -36,9 +36,9 @@ Scope entries use the closed roles `source`, `test`, `docs`, `generated`, `evide
 
 ### 2. Seal-bound semantic risk and verification intent
 
-Each affected behavior or interface records applicable boundary, malformed/missing-input, state-transition/idempotency/cache, error/status/timeout/unknown-precedence, path/repository-lifecycle, and platform/compatibility risk dimensions. A dimension is either `covered`, with references to existing Requirements requirement/scenario/case identities, or `not_applicable`, with a non-empty rationale. Covered cases identify their earliest required execution stage: `slice`, `commit`, `prepush`, or `ci`.
+Each affected behavior or interface records the closed risk dimensions `boundary`, `malformed_or_missing_input`, `state_transition`, `idempotency`, `cache`, `error`, `status`, `timeout`, `unknown_precedence`, `path`, `repository_lifecycle`, `platform`, and `compatibility`. Every dimension is either `covered`, with references to existing Requirements requirement/scenario/case identities, or `not_applicable`, with a non-empty rationale. Covered cases identify their earliest required execution stage: `slice`, `commit`, `prepush`, or `ci`.
 
-The contract binds Requirements mapping and plan digests plus their exact verification-case references. Existing Requirements contracts remain authoritative for pytest selector syntax and JUnit reconciliation.
+The contract binds Requirements mapping and plan digests plus their exact requirement, scenario, verification-case, and pytest-selector identities. A later checkpoint may select a subset of those already bound identities without resealing. Adding, removing, replacing, or changing any bound identity changes the design contract and requires validation, approval, and a new seal. Existing Requirements contracts remain authoritative for pytest selector syntax and JUnit reconciliation.
 
 ### 3. Deterministic validation result
 

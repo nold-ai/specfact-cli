@@ -27,11 +27,11 @@ The system SHALL define a versioned preflight design contract that records the e
 
 ### Requirement: Seal-bound semantic verification intent
 
-The system SHALL bind applicable semantic risk dimensions and existing Requirements verification-plan identities without defining a second test-selector contract.
+The system SHALL bind the closed semantic risk dimensions `boundary`, `malformed_or_missing_input`, `state_transition`, `idempotency`, `cache`, `error`, `status`, `timeout`, `unknown_precedence`, `path`, `repository_lifecycle`, `platform`, and `compatibility` plus existing Requirements verification-plan identities without defining a second test-selector contract. Every affected behavior or interface SHALL contain every closed dimension.
 
 #### Scenario: Applicable risk dimension is covered
 
-- **GIVEN** a behavior has an applicable boundary, malformed-input, state-transition, error/status, path-lifecycle, or platform risk
+- **GIVEN** one of the closed risk dimensions applies to an affected behavior or interface
 - **WHEN** its risk record is normalized
 - **THEN** it is marked `covered` and references existing requirement, scenario, and verification-case identities
 - **AND** it declares the earliest required stage from `slice`, `commit`, `prepush`, or `ci`.
@@ -49,6 +49,13 @@ The system SHALL bind applicable semantic risk dimensions and existing Requireme
 - **WHEN** any referenced identity changes
 - **THEN** the design-contract digest changes
 - **AND** a prior approval seal no longer verifies.
+
+#### Scenario: Checkpoint selects already sealed evidence
+
+- **GIVEN** a valid seal binds Requirements mapping and plan digests plus exact requirement, scenario, verification-case, and pytest-selector identities
+- **WHEN** a checkpoint selects a subset of those identities for its affected implementation slice
+- **THEN** the selection does not change the sealed design contract
+- **AND** adding, removing, replacing, or changing a bound identity requires a newly validated and approved seal.
 
 ### Requirement: Deterministic validation result
 

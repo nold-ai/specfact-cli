@@ -25,10 +25,10 @@
 
 ## Validation Record
 
-- `openspec status --change preflight-05-implementation-conformance --json`: PASS on 2026-08-25; all required proposal artifacts reported complete.
-- `openspec validate preflight-05-implementation-conformance --strict`: PASS on 2026-08-25.
-- Markdown lint limited to changed planning Markdown: PASS on 2026-08-25.
-- Staged schema-v2 Requirements planning evidence: PASS on 2026-08-25 with inspection-only cases and no test selectors or execution claims.
+- `gh issue view 684 --repo nold-ai/specfact-cli --json number,title,state,updatedAt,url`: PASS on 2026-08-29; source identity was `nold-ai/specfact-cli#684`, open, updated `2026-08-29T19:56:04Z`.
+- `openspec status --change preflight-05-implementation-conformance --json` and `openspec validate preflight-05-implementation-conformance --strict`: PASS on 2026-08-29 for this change only.
+- `SPECFACT_MODULES_REPO=/private/tmp/specfact-modules-fixture-69f07581 hatch run pre-commit run`: PASS on 2026-08-29 against the complete staged planning diff. This command ran the repository YAML, Markdown fix/lint, schema-v2 Requirements planning-evidence, diff-scope, contract, and code-review gates; the sidecar remained inspection-only and claimed no test execution.
+- `git diff --check`: PASS on 2026-08-29 for the complete planning diff.
 
 ## Decision
 

@@ -2,7 +2,9 @@
 
 ### Requirement: Versioned implementation snapshot
 
-The system SHALL define a versioned implementation snapshot whose kind is `worktree`, `index`, or `range` and which contains the exact base plus kind-specific identity, complete changed-path manifest, public-interface records, test/evidence references, and producer, policy, toolchain, and extractor identities.
+The system SHALL define a versioned implementation snapshot whose kind is `worktree`, `index`, or `range` and which contains repository identity, exact kind-specific Git identity, complete changed-path manifest, public-interface records, test/evidence references, and producer, policy, toolchain, and extractor identities.
+
+The `worktree` kind SHALL bind a full base commit ID and worktree-manifest digest and include staged, unstaged, and untracked state relative to that base. The `index` kind SHALL bind a full base commit ID and exact index tree ID and exclude untracked paths unless staged as additions. The `range` kind SHALL bind full base/head commit IDs and base/head tree IDs and SHALL NOT represent untracked paths. Every kind SHALL preserve additions, deletions, both rename endpoints, before/after modes, symlink target identity, and byte-preserving path identity where those states exist. Rename interpretation SHALL be bound to producer, policy, and toolchain identity.
 
 #### Scenario: Snapshot preserves complete Git path semantics
 
@@ -49,7 +51,7 @@ The system SHALL define a `DevelopmentCheckpointResult` with `PASS`, `FAIL`, `UN
 
 ### Requirement: Immutable implementation conformance result
 
-The system SHALL define an `ImplementationConformanceResult` that accepts only an explicit immutable base/head range identity.
+The system SHALL define an `ImplementationConformanceResult` that accepts only an explicit immutable range identity containing repository identity, full base and head commit IDs, and base and head tree identities. Its complete path manifest and tree attestations SHALL bind to that exact repository and base/head range.
 
 #### Scenario: Worktree evidence is supplied as final conformance
 
@@ -60,7 +62,9 @@ The system SHALL define an `ImplementationConformanceResult` that accepts only a
 
 ### Requirement: Closed implementation assurance finding classes
 
-Checkpoint and conformance results SHALL distinguish missing, unexpected, modified, violated, stale, and unverifiable findings with stable source and evidence identities.
+Checkpoint and conformance results SHALL distinguish mutually exclusive `missing`, `unexpected`, `modified`, `violated`, `stale`, and `unverifiable` findings with stable source and evidence identities. Classification precedence SHALL be `stale`, `unverifiable`, `unexpected`, `missing`, `modified`, then `violated`: stale identifies changed seal-bound inputs; unverifiable identifies absent, ambiguous, unsupported, or unreconciled required identity/evidence; unexpected identifies implementation without a sealed mapping; missing identifies a sealed required counterpart with no implementation/evidence; modified identifies a counterpart whose structural identity differs; violated identifies reconciled identities and executed evidence whose semantic observable differs from the sealed expectation.
+
+`stale` and `unverifiable` SHALL be blocking uncertainty, `unexpected` SHALL be blocking failure, and required `missing`, `modified`, and `violated` SHALL be blocking failure. Only sealed policy that already marks an obligation non-required may make `missing`, `modified`, or `violated` advisory. Aggregation SHALL return `FAIL` when any determinate blocking failure exists, otherwise `UNKNOWN` when blocking uncertainty exists, otherwise `PASS`. Caller-owned applicability MAY construct `NOT_APPLICABLE`; the verifier SHALL NOT infer it.
 
 #### Scenario: Implementation adds work outside approved scope
 
@@ -76,15 +80,23 @@ Checkpoint and conformance results SHALL distinguish missing, unexpected, modifi
 - **THEN** the result is stale
 - **AND** comparison cannot pass until a new preflight review and approval exist.
 
+#### Scenario: Reconciled semantic evidence violates an observable
+
+- **GIVEN** a governed implementation path and its evidence reconcile to stable sealed scope, requirement, risk-case, selector, producer, and current-run evidence identities
+- **AND** the implementation counterpart is present and its structural identity matches the sealed expectation
+- **WHEN** the executed evidence reports an observed semantic outcome different from the sealed acceptance or risk-case observable
+- **THEN** the finding is `violated`, not `unexpected`, `missing`, or `modified`
+- **AND** it carries the stable sealed source identity and current implementation/evidence identities.
+
 ### Requirement: Side-effect-free implementation assurance verifier
 
-The core verifier SHALL compare supplied sealed obligations and implementation evidence without executing code, tests, extractors, network calls, persistence, rendering, or automatic contract edits.
+The core verifier SHALL accept the upstream design contract, validation result, seal, policy, and current source identities plus supplied sealed obligations and implementation evidence. It SHALL verify the upstream inputs before comparing obligations and SHALL execute no code, tests, extractors, network calls, persistence, rendering, applicability policy, or automatic contract edits.
 
 #### Scenario: Caller requests comparison
 
-- **GIVEN** a valid seal and normalized implementation snapshot
+- **GIVEN** a design contract, validation result, seal, policy, current source identities, and normalized implementation snapshot
 - **WHEN** the core conformance verifier runs
-- **THEN** it returns deterministic findings and limits for those inputs
+- **THEN** it rejects stale or mismatched upstream identities before obligation comparison and otherwise returns deterministic findings and limits for those inputs
 - **AND** all evidence collection and policy orchestration remain caller-owned.
 
 ### Requirement: Explicit implementation assurance limits
