@@ -41,7 +41,7 @@ requirements:
       - case_id: PF05C-003
         scenario_id: sealed-obligation-mapping
         method: inspection
-        intent: "Inspect the sealed obligation mapping planning contract before implementation."
+        intent: "Inspect checkpoint subset and exhaustive result-bound final range obligation mapping before implementation."
         observable: *planning-observable
   openspec:preflight-05-implementation-conformance:preflight-implementation-conformance-contracts:side-effect-free-implementation-assurance-verifier:
     rationale: *planning-rationale

@@ -36,7 +36,7 @@ Every manifest record retains its change kind and byte-preserving path identity.
 
 ### 2. Obligation mapping
 
-The `ImplementationObligationMap` normalizes obligations from approved scope roles, component ownership, interfaces, acceptance criteria, risk rows, Requirements plan identities, test intent, verification stages, and explicit exclusions. Each obligation maps to zero or more evidence records with an explicit relationship and confidence class. Missing evidence remains missing or unknown; it is never guessed from filenames alone.
+The `ImplementationObligationMap` normalizes obligations from approved scope roles, component ownership, interfaces, acceptance criteria, risk rows, Requirements plan identities, test intent, verification stages, and explicit exclusions. A checkpoint map may contain the deterministic affected subset for its sealed stage/profile. A final range map must contain the exhaustive transitive closure for every changed governed path/interface and every applicable sealed component, acceptance criterion, risk row, Requirements case, component target, stage including `ci`, and exclusion. The map and its digest are result-bound. Omitted, duplicate, empty-for-an-affected-range, or ambiguously resolved closure members produce `unverifiable`/`UNKNOWN`; a caller cannot make final conformance pass by supplying a smaller map. Each obligation maps to zero or more evidence records with an explicit relationship and confidence class. Missing evidence remains missing or unknown; it is never guessed from filenames alone.
 
 ### 3. Separate checkpoint and conformance results
 

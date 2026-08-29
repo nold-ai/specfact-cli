@@ -22,7 +22,7 @@ The `worktree` kind SHALL bind a full base commit ID and worktree-manifest diges
 
 ### Requirement: Sealed obligation mapping
 
-The system SHALL map approved scope roles, component ownership, interfaces, acceptance criteria, risk rows, Requirements-plan references, test intent, verification stages, and exclusions from one valid preflight seal to normalized implementation evidence.
+The system SHALL map approved scope roles, component ownership, interfaces, acceptance criteria, risk rows, Requirements-plan references, test intent, verification stages, and exclusions from one valid preflight seal to normalized implementation evidence. A checkpoint MAY carry the deterministic affected subset for its sealed stage/profile. A final range result SHALL bind the obligation-map digest and SHALL require the exhaustive transitive closure for every changed governed path/interface and every applicable sealed component, acceptance criterion, risk row, Requirements case, component target, stage including `ci`, and exclusion.
 
 #### Scenario: Approved acceptance criterion has no evidence
 
@@ -30,6 +30,13 @@ The system SHALL map approved scope roles, component ownership, interfaces, acce
 - **WHEN** no matching test or evidence record is supplied
 - **THEN** conformance includes a missing or unverifiable finding
 - **AND** the criterion is not inferred satisfied from an overall test exit code.
+
+#### Scenario: Final range obligation map is incomplete
+
+- **GIVEN** an immutable range affects one or more sealed obligations
+- **WHEN** its final obligation map omits, duplicates, cannot deterministically resolve, or selects no member of the exhaustive applicable closure
+- **THEN** the verifier returns an `unverifiable` finding and `UNKNOWN`
+- **AND** final conformance cannot pass by supplying a smaller obligation map.
 
 ### Requirement: Separate local checkpoint result
 
