@@ -29,4 +29,4 @@
 - [x] 5.1 Add red-first coverage for actual effective-source guidance and user-only discovery outside a shadowing project.
 - [x] 5.2 Qualify availability claims using module state and other higher-priority copies.
 - [x] 5.3 Align module-system documentation, paired PR references, and the active-change count with the delivered behavior.
-- [ ] 5.4 Re-run requirements evidence, review, signatures, and CI on the review-fix head; resolve verified review threads.
+- [x] 5.4 Re-run requirements evidence, review, signatures, and CI on the review-fix head; resolve verified review threads.
