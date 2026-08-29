@@ -10,13 +10,13 @@ All tasks below are future implementation work. This planning change completes n
 
 ## 2. Specification and failing-first evidence
 
-- [ ] 2.1 Finalize the delta scenarios and exact public interface names for role-classified scope, component ownership, risk disposition, execution stages, and Requirements-plan references without widening into CLI, persistence, validators, skills, or adapters.
-- [ ] 2.2 Add tests mapped to every contract, risk-matrix, planned-to-test-authored Requirements lifecycle, selector reconciliation, implementation-lineage/predecessor seal, canonicalization, seal, and verifier scenario.
+- [ ] 2.1 Finalize the delta scenarios and exact public interface names for role-classified scope, component ownership, per-input influence/no-impact disposition, risk disposition, execution stages, and Requirements-plan references without widening into CLI, persistence, validators, skills, or adapters.
+- [ ] 2.2 Add tests mapped to every contract, influence/no-impact completeness, risk-matrix, planned-to-test-authored Requirements lifecycle, selector reconciliation, implementation-lineage/predecessor seal, canonicalization, seal, and verifier scenario.
 - [ ] 2.3 Run the targeted tests before production edits, capture expected failures, and create `TDD_EVIDENCE.md` with the red evidence.
 
 ## 3. Minimal core implementation
 
-- [ ] 3.1 Implement only the approved reusable contract and result models, including closed scope roles, risk dispositions, verification stages, and immutable implementation-lineage origin/predecessor identities.
+- [ ] 3.1 Implement only the approved reusable contract and result models, including closed scope roles, influence/no-impact dispositions, risk dispositions, verification stages, and immutable implementation-lineage origin/predecessor identities.
 - [ ] 3.2 Implement versioned canonicalization and digest behavior proved by the tests.
 - [ ] 3.3 Implement the side-effect-free verifier interface, Requirements-plan identity binding, and explicit assurance-limit semantics.
 

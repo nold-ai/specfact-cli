@@ -2,7 +2,7 @@
 
 ### Requirement: Normalized preflight design contract
 
-The system SHALL define a versioned preflight design contract that records the exact reviewed change identity, source identities, implementation-lineage identity and origin baseline, role-classified scope, component ownership, exclusions, assumptions, unknowns, dependencies, interfaces, acceptance criteria, risk dimensions, verification stages, test intent, risks, rollback intent, and approval policy. The first approved seal in an implementation lineage SHALL set the immutable origin repository plus full base commit/tree identities. Every successor seal for refinement or reapproval SHALL bind its predecessor seal and preserve that origin baseline even when its current reviewed source snapshot changes.
+The system SHALL define a versioned preflight design contract that records the exact reviewed change identity, source identities, implementation-lineage identity and origin baseline, role-classified scope, component ownership, approved influence relationships or explicit no-impact dispositions, exclusions, assumptions, unknowns, dependencies, interfaces, acceptance criteria, risk dimensions, verification stages, test intent, risks, rollback intent, and approval policy. The first approved seal in an implementation lineage SHALL set the immutable origin repository plus full base commit/tree identities. Every successor seal for refinement or reapproval SHALL bind its predecessor seal and preserve that origin baseline even when its current reviewed source snapshot changes.
 
 #### Scenario: Contract preserves source and scope identity
 
@@ -16,7 +16,14 @@ The system SHALL define a versioned preflight design contract that records the e
 - **GIVEN** a planned change will modify source, tests, documentation, generated output, or evidence
 - **WHEN** the design contract is normalized
 - **THEN** every governed path pattern has one of `source`, `test`, `docs`, `generated`, `evidence`, or `excluded` roles
-- **AND** every source role identifies one component and bounded pytest targets for that component.
+- **AND** every source role identifies one component, bounded pytest targets for that component, and its approved influence relationships.
+
+#### Scenario: Every non-excluded sealed input has an influence disposition
+
+- **GIVEN** a contract includes a non-excluded `source`, `test`, `docs`, `generated`, or `evidence` path or a seal-bound test, dependency, policy, toolchain, or relevant configuration input
+- **WHEN** the design contract is normalized
+- **THEN** the input maps through approved influence relationships to every acceptance, risk, Requirements case, component target, review/evidence, and execution-stage obligation it can affect, or carries an explicit no-impact disposition with a non-empty rationale
+- **AND** an absent, ambiguous, or contradictory mapping/disposition prevents the contract from becoming ready for approval.
 
 #### Scenario: Reapproval preserves the implementation origin
 
@@ -108,7 +115,7 @@ The system SHALL define versioned canonical bytes for digesting preflight contra
 
 #### Scenario: Bound content changes
 
-- **GIVEN** a source identity, scope boundary, component mapping, risk record, Requirements plan identity, acceptance criterion, finding, or approval-bound value changes
+- **GIVEN** a source identity, scope boundary, component or influence mapping, no-impact disposition, risk record, Requirements plan identity, acceptance criterion, finding, or approval-bound value changes
 - **WHEN** the digest is recomputed
 - **THEN** the affected digest changes
 - **AND** a prior seal cannot verify against the new content.

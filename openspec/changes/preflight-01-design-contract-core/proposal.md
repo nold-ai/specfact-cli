@@ -6,7 +6,7 @@ Implementation can start from change artifacts that are individually plausible b
 
 ## What Changes
 
-- **NEW**: Core-only specifications for a normalized pre-implementation design contract, including source identities, role-classified implementation scope, component ownership, assumptions, unknowns, dependencies, interfaces, acceptance criteria, risk dimensions, verification stages, test intent, and rollback intent.
+- **NEW**: Core-only specifications for a normalized pre-implementation design contract, including source identities, role-classified implementation scope, component ownership, approved influence mappings or justified no-impact dispositions for every non-excluded sealed input, assumptions, unknowns, dependencies, interfaces, acceptance criteria, risk dimensions, verification stages, test intent, and rollback intent.
 - **NEW**: Seal-bound references to the existing Requirements maturity, verification-case, exact pytest-selector when test-authored, plan-digest, and evidence contracts; planned cases remain sealable before selectors exist and no second selector schema is defined.
 - **NEW**: Core-only specifications for deterministic validation results with stable finding identity, severity, ownership, and readiness semantics.
 - **NEW**: Core-only specifications for canonical digests and an approval seal that binds one exact contract, validation result, source snapshot, and immutable implementation-lineage origin preserved across successor seals.
