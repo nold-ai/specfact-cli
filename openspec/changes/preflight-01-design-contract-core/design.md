@@ -46,7 +46,7 @@ The future `PreflightValidationResult` binds to exactly one contract digest and 
 
 ### 4. Seal is an approval-bound identity record
 
-The future `PreflightSeal` binds the canonical contract digest, validation-result digest, source-snapshot digest, implementation-lineage identity, immutable origin repository/base commit/base tree, optional predecessor-seal digest, approval decision, approver identity, and approval time. Any bound-field change invalidates the seal. A successor cannot reset the origin while retaining implementation work. Cryptographic signing, if later required, is an additive implementation concern; the core semantic contract does not equate a digest with a signature or a proof of correctness.
+The future `PreflightSeal` binds the canonical contract digest, validation-result digest, source-snapshot digest, implementation-lineage identity, immutable origin repository/base commit/base tree, monotonic lineage sequence, optional predecessor-seal digest, approval decision, approver identity, and approval time. Any bound-field change invalidates the seal. A successor advances the sequence exactly once and cannot reset the origin while retaining implementation work. Cryptographic signing, if later required, is an additive implementation concern; the core semantic contract does not equate a digest with a signature or a proof of correctness.
 
 ### 5. Pure verifier boundary
 

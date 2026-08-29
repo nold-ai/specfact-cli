@@ -122,7 +122,7 @@ The system SHALL define versioned canonical bytes for digesting preflight contra
 
 ### Requirement: Approval seal contract
 
-The system SHALL define a seal that binds an exact contract digest, validation-result digest, source-snapshot digest, implementation-lineage identity, immutable origin repository/base commit/base tree, optional predecessor-seal digest, approval decision, approver identity, and approval time.
+The system SHALL define a seal that binds an exact contract digest, validation-result digest, source-snapshot digest, implementation-lineage identity, immutable origin repository/base commit/base tree, monotonic lineage sequence, optional predecessor-seal digest, approval decision, approver identity, and approval time.
 
 #### Scenario: Approved and unchanged contract verifies
 
@@ -144,6 +144,13 @@ The system SHALL define a seal that binds an exact contract digest, validation-r
 - **WHEN** a proposed successor changes the origin repository, base commit, or base tree
 - **THEN** seal validation fails closed
 - **AND** retained implementation work cannot be compared from the later source snapshot alone.
+
+#### Scenario: Successor seal advances the lineage sequence
+
+- **GIVEN** a valid predecessor seal is refined and reapproved
+- **WHEN** its successor seal is normalized
+- **THEN** the successor binds the predecessor digest and advances the lineage sequence exactly once
+- **AND** duplicate, skipped, reset, or ambiguous sequence identity is unverifiable.
 
 ### Requirement: Side-effect-free verifier interface
 

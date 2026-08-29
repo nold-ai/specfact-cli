@@ -6,10 +6,10 @@ Pre-implementation assurance freezes what was reviewed and approved, but it deli
 
 ## What Changes
 
-- **NEW**: Core-only specifications for `worktree`, `index`, and immutable `range` implementation snapshots with complete path manifests and producer/policy/toolchain/evidence identities.
-- **NEW**: Core-only obligation mapping plus `DevelopmentCheckpointResult` and `ImplementationConformanceResult` contracts.
+- **NEW**: Core-only specifications for `worktree`, `index`, and immutable `range` implementation snapshots with complete path manifests, exact policy-authorized current delivery-target identity, and producer/policy/toolchain/evidence identities.
+- **NEW**: Core-only obligation mapping that requires the canonical latest seal-lineage tip plus `DevelopmentCheckpointResult` and `ImplementationConformanceResult` contracts.
 - **NEW**: Closed finding classes for missing, unexpected, modified, violated, stale, and unverifiable implementation-to-contract evidence.
-- **NEW**: A side-effect-free assurance verifier interface that receives the upstream contract, validation result, seal, policy, and current source identities plus normalized implementation evidence; stale or mismatched upstream inputs fail closed before obligation comparison.
+- **NEW**: A side-effect-free assurance verifier interface that receives the upstream contract, validation result, selected seal, canonical lineage-tip identity, policy, current source and delivery-target identities, plus normalized implementation evidence; stale or mismatched upstream inputs fail closed before obligation comparison.
 - **CLARIFY**: Local worktree/index checkpoints have only local authority and can never be promoted or described as protected PR-range evidence.
 - **CLARIFY**: Passing tests are evidence inputs; the contract does not infer semantic correctness or complete requirement coverage from exit code alone.
 

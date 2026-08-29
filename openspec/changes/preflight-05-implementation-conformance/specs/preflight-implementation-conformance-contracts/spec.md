@@ -4,7 +4,7 @@
 
 The system SHALL define a versioned implementation snapshot whose kind is `worktree`, `index`, or `range` and which contains repository identity, exact kind-specific Git identity, complete changed-path manifest, public-interface records, test/evidence references, and producer, policy, toolchain, and extractor identities.
 
-The `worktree` kind SHALL bind a full base commit ID and worktree-manifest digest and include staged, unstaged, and untracked state relative to that base. The `index` kind SHALL bind a full base commit ID and exact index tree ID and exclude untracked paths unless staged as additions. The `range` kind SHALL bind full base/head commit IDs and base/head tree IDs and SHALL NOT represent untracked paths. Every snapshot base SHALL equal the seal-bound implementation-lineage origin repository/base commit/base tree, including after refinement or reapproval. A range head SHALL be proven to descend from that origin by a producer/policy/toolchain-bound ancestry attestation, and its manifest SHALL cover the complete lineage-origin-to-head range. Every kind SHALL preserve additions, deletions, both rename endpoints, before/after modes, symlink target identity, and byte-preserving path identity where those states exist. Rename interpretation SHALL be bound to producer, policy, and toolchain identity.
+The `worktree` kind SHALL bind a full base commit ID and worktree-manifest digest and include staged, unstaged, and untracked state relative to that base. The `index` kind SHALL bind a full base commit ID and exact index tree ID and exclude untracked paths unless staged as additions. The `range` kind SHALL bind full base/head commit IDs and base/head tree IDs and SHALL NOT represent untracked paths. Every snapshot base SHALL equal the seal-bound implementation-lineage origin repository/base commit/base tree, including after refinement or reapproval. A range head SHALL be proven to descend from that origin by a producer/policy/toolchain-bound ancestry attestation, SHALL equal a separately supplied policy-authorized current delivery-target commit/tree identity, and its manifest SHALL cover the complete lineage-origin-to-delivery-head range. Every kind SHALL preserve additions, deletions, both rename endpoints, before/after modes, symlink target identity, and byte-preserving path identity where those states exist. Rename interpretation SHALL be bound to producer, policy, and toolchain identity.
 
 #### Scenario: Snapshot preserves complete Git path semantics
 
@@ -27,9 +27,23 @@ The `worktree` kind SHALL bind a full base commit ID and worktree-manifest diges
 - **THEN** the baseline mismatch is `stale` or the unresolved ancestry is `unverifiable`, and the result is `UNKNOWN`
 - **AND** no current-seal or caller-selected shorter range can omit implementation retained from an earlier seal and pass.
 
+#### Scenario: Final range head is not the current delivery target
+
+- **GIVEN** a range head descends from the implementation-lineage origin but differs from the supplied policy-authorized current delivery-target commit or tree identity
+- **WHEN** the snapshot is validated for final conformance
+- **THEN** the head mismatch is `stale` and the result is `UNKNOWN`
+- **AND** an older ancestral head cannot pass while later delivery changes remain unevaluated.
+
 ### Requirement: Sealed obligation mapping
 
-The system SHALL map approved scope roles, component ownership, interfaces, acceptance criteria, risk rows, Requirements-plan references, test intent, verification stages, and exclusions from one valid preflight seal to normalized implementation evidence. A checkpoint MAY carry the deterministic affected subset for its sealed stage/profile. A final range result SHALL bind the obligation-map digest and SHALL require the exhaustive transitive closure for every changed governed path/interface and every applicable sealed component, acceptance criterion, risk row, Requirements case, component target, stage including `ci`, and exclusion. Every evidence record SHALL carry a producer authority class and verifiable provenance bound to its exact snapshot or range. An obligation whose earliest stage is `ci` SHALL be satisfiable only by evidence from a seal/policy-authorized protected-CI producer with authenticated provenance bound to the exact immutable range; local or caller-asserted producer identity SHALL NOT satisfy it.
+The system SHALL map approved scope roles, component ownership, interfaces, acceptance criteria, risk rows, Requirements-plan references, test intent, verification stages, and exclusions from the canonical latest valid preflight seal to normalized implementation evidence. The verifier SHALL accept a separately supplied policy-authorized canonical lineage-tip identity binding the change/lineage, latest seal digest and monotonic sequence, complete predecessor-chain digest, and authority/source identity; the selected seal SHALL equal that tip. A checkpoint MAY carry the deterministic affected subset for its sealed stage/profile. A final range result SHALL bind the obligation-map digest and SHALL require the exhaustive transitive closure for every changed governed path/interface and every applicable sealed component, acceptance criterion, risk row, Requirements case, component target, stage including `ci`, and exclusion. Every evidence record SHALL carry a producer authority class and verifiable provenance bound to its exact snapshot or range. An obligation whose earliest stage is `ci` SHALL be satisfiable only by evidence from a seal/policy-authorized protected-CI producer with authenticated provenance bound to the exact immutable range; local or caller-asserted producer identity SHALL NOT satisfy it.
+
+#### Scenario: Selected seal is not the canonical lineage tip
+
+- **GIVEN** a supplied seal and predecessor chain are internally valid but the selected seal digest/sequence differs from the supplied policy-authorized canonical lineage tip, or that tip cannot be verified
+- **WHEN** checkpoint or final obligation mapping runs
+- **THEN** the mismatch is `stale` or the unavailable/ambiguous tip is `unverifiable`, and the result is `UNKNOWN`
+- **AND** an older ancestor seal cannot omit obligations introduced by a later approved successor and pass.
 
 #### Scenario: Approved acceptance criterion has no evidence
 
@@ -72,7 +86,7 @@ The system SHALL define a `DevelopmentCheckpointResult` with `PASS`, `FAIL`, `UN
 
 ### Requirement: Immutable implementation conformance result
 
-The system SHALL define an `ImplementationConformanceResult` that accepts only an explicit immutable range identity containing repository identity, full base and head commit IDs, and base and head tree identities. Its complete path manifest and tree attestations SHALL bind to that exact repository and base/head range.
+The system SHALL define an `ImplementationConformanceResult` that accepts only an explicit immutable range identity containing repository identity, full base and head commit IDs, base and head tree identities, the policy-authorized canonical seal-lineage tip identity, and the policy-authorized current delivery-target identity. Its complete path manifest and tree attestations SHALL bind to that exact repository, lineage-origin/current-delivery-head range, and selected latest seal.
 
 #### Scenario: Worktree evidence is supplied as final conformance
 
@@ -111,11 +125,11 @@ Checkpoint and conformance results SHALL distinguish mutually exclusive `missing
 
 ### Requirement: Side-effect-free implementation assurance verifier
 
-The core verifier SHALL accept the upstream design contract, validation result, seal, policy, and current source identities plus supplied sealed obligations and implementation evidence. It SHALL verify the upstream inputs before comparing obligations and SHALL execute no code, tests, extractors, network calls, persistence, rendering, applicability policy, or automatic contract edits.
+The core verifier SHALL accept the upstream design contract, validation result, selected seal, policy, current source identities, policy-authorized canonical lineage-tip identity, and current delivery-target identity plus supplied sealed obligations and implementation evidence. It SHALL verify the upstream inputs and exact selected-seal/tip and range-head/delivery-target equality before comparing obligations and SHALL execute no code, tests, extractors, network calls, persistence, rendering, applicability policy, or automatic contract edits.
 
 #### Scenario: Caller requests comparison
 
-- **GIVEN** a design contract, validation result, seal, policy, current source identities, and normalized implementation snapshot
+- **GIVEN** a design contract, validation result, selected seal, policy, current source identities, canonical lineage-tip identity, current delivery-target identity, and normalized implementation snapshot
 - **WHEN** the core conformance verifier runs
 - **THEN** it rejects stale or mismatched upstream identities before obligation comparison and otherwise returns deterministic findings and limits for those inputs
 - **AND** all evidence collection and policy orchestration remain caller-owned.

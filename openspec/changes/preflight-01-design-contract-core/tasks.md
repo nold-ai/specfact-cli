@@ -11,7 +11,7 @@ All tasks below are future implementation work. This planning change completes n
 ## 2. Specification and failing-first evidence
 
 - [ ] 2.1 Finalize the delta scenarios and exact public interface names for role-classified scope, component ownership, per-input influence/no-impact disposition, risk disposition, execution stages, and Requirements-plan references without widening into CLI, persistence, validators, skills, or adapters.
-- [ ] 2.2 Add tests mapped to every contract, influence/no-impact completeness, risk-matrix, planned-to-test-authored Requirements lifecycle, selector reconciliation, implementation-lineage/predecessor seal, canonicalization, seal, and verifier scenario.
+- [ ] 2.2 Add tests mapped to every contract, influence/no-impact completeness, risk-matrix, planned-to-test-authored Requirements lifecycle, selector reconciliation, implementation-lineage/predecessor seal and monotonic sequence, canonicalization, seal, and verifier scenario.
 - [ ] 2.3 Run the targeted tests before production edits, capture expected failures, and create `TDD_EVIDENCE.md` with the red evidence.
 
 ## 3. Minimal core implementation
