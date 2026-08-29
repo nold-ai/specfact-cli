@@ -2,7 +2,7 @@
 
 ### Requirement: Normalized preflight design contract
 
-The system SHALL define a versioned preflight design contract that records the exact reviewed change identity, source identities, role-classified scope, component ownership, exclusions, assumptions, unknowns, dependencies, interfaces, acceptance criteria, risk dimensions, verification stages, test intent, risks, rollback intent, and approval policy.
+The system SHALL define a versioned preflight design contract that records the exact reviewed change identity, source identities, implementation-lineage identity and origin baseline, role-classified scope, component ownership, exclusions, assumptions, unknowns, dependencies, interfaces, acceptance criteria, risk dimensions, verification stages, test intent, risks, rollback intent, and approval policy. The first approved seal in an implementation lineage SHALL set the immutable origin repository plus full base commit/tree identities. Every successor seal for refinement or reapproval SHALL bind its predecessor seal and preserve that origin baseline even when its current reviewed source snapshot changes.
 
 #### Scenario: Contract preserves source and scope identity
 
@@ -17,6 +17,13 @@ The system SHALL define a versioned preflight design contract that records the e
 - **WHEN** the design contract is normalized
 - **THEN** every governed path pattern has one of `source`, `test`, `docs`, `generated`, `evidence`, or `excluded` roles
 - **AND** every source role identifies one component and bounded pytest targets for that component.
+
+#### Scenario: Reapproval preserves the implementation origin
+
+- **GIVEN** implementation or failing-first test work has begun under an approved seal and a refinement requires reapproval
+- **WHEN** a successor contract and seal are normalized
+- **THEN** they bind the predecessor seal and retain the original implementation-lineage repository, base commit, and base tree
+- **AND** the later reviewed source snapshot cannot reset or truncate the cumulative implementation comparison.
 
 #### Scenario: Unknown information is not silently resolved
 
@@ -36,6 +43,13 @@ The system SHALL bind the closed semantic risk dimensions `boundary`, `malformed
 - **THEN** it is marked `covered` and references existing requirement, scenario, and verification-case identities
 - **AND** it declares the earliest required stage from `slice`, `commit`, `prepush`, or `ci`.
 
+#### Scenario: Planned verification case is sealable before test authoring
+
+- **GIVEN** an applicable risk references a complete existing Requirements case at `planned` maturity with stable requirement/scenario/case identity, method, intent, observable, and declared touchpoints but no authored test
+- **WHEN** the pre-implementation contract is normalized
+- **THEN** it binds the existing Requirements planned mapping/plan and case identities without inventing an exact selector
+- **AND** it records that test-authored maturity and selector reconciliation are required at the declared execution stage before production implementation proceeds.
+
 #### Scenario: Risk dimension is not applicable
 
 - **GIVEN** one closed risk dimension does not apply to an affected behavior
@@ -45,14 +59,21 @@ The system SHALL bind the closed semantic risk dimensions `boundary`, `malformed
 
 #### Scenario: Requirements plan identity changes
 
-- **GIVEN** the contract references an existing Requirements mapping digest, plan digest, verification case, or exact pytest selector
+- **GIVEN** the contract references an existing Requirements mapping digest, plan digest, verification case, or exact pytest selector when test-authored maturity has been reached
 - **WHEN** any referenced identity changes
 - **THEN** the design-contract digest changes
 - **AND** a prior approval seal no longer verifies.
 
+#### Scenario: Planned case becomes test-authored
+
+- **GIVEN** an initial seal binds a Requirements case at `planned` maturity without a selector
+- **WHEN** failing-first test creation produces the Requirements-owned exact pytest selector and test-authored plan
+- **THEN** preflight validates the same requirement/scenario/case, method, intent, observable, touchpoints, and declared stage against the new mapping/plan identities
+- **AND** production implementation waits for explicit approval of a successor seal that preserves the implementation-lineage origin baseline.
+
 #### Scenario: Checkpoint selects already sealed evidence
 
-- **GIVEN** a valid seal binds Requirements mapping and plan digests plus exact requirement, scenario, verification-case, and pytest-selector identities
+- **GIVEN** a valid test-authored successor seal binds Requirements mapping and plan digests plus exact requirement, scenario, verification-case, and pytest-selector identities
 - **WHEN** a checkpoint selects a subset of those identities for its affected implementation slice
 - **THEN** the selection does not change the sealed design contract
 - **AND** adding, removing, replacing, or changing a bound identity requires a newly validated and approved seal.
@@ -94,7 +115,7 @@ The system SHALL define versioned canonical bytes for digesting preflight contra
 
 ### Requirement: Approval seal contract
 
-The system SHALL define a seal that binds an exact contract digest, validation-result digest, source-snapshot digest, approval decision, approver identity, and approval time.
+The system SHALL define a seal that binds an exact contract digest, validation-result digest, source-snapshot digest, implementation-lineage identity, immutable origin repository/base commit/base tree, optional predecessor-seal digest, approval decision, approver identity, and approval time.
 
 #### Scenario: Approved and unchanged contract verifies
 
@@ -109,6 +130,13 @@ The system SHALL define a seal that binds an exact contract digest, validation-r
 - **WHEN** the verifier evaluates the seal
 - **THEN** verification is not successful
 - **AND** the reason is returned as structured evidence.
+
+#### Scenario: Successor seal attempts to reset the baseline
+
+- **GIVEN** a predecessor seal exists for an active implementation lineage
+- **WHEN** a proposed successor changes the origin repository, base commit, or base tree
+- **THEN** seal validation fails closed
+- **AND** retained implementation work cannot be compared from the later source snapshot alone.
 
 ### Requirement: Side-effect-free verifier interface
 

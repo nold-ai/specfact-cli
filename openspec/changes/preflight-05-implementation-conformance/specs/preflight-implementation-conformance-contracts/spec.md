@@ -4,7 +4,7 @@
 
 The system SHALL define a versioned implementation snapshot whose kind is `worktree`, `index`, or `range` and which contains repository identity, exact kind-specific Git identity, complete changed-path manifest, public-interface records, test/evidence references, and producer, policy, toolchain, and extractor identities.
 
-The `worktree` kind SHALL bind a full base commit ID and worktree-manifest digest and include staged, unstaged, and untracked state relative to that base. The `index` kind SHALL bind a full base commit ID and exact index tree ID and exclude untracked paths unless staged as additions. The `range` kind SHALL bind full base/head commit IDs and base/head tree IDs and SHALL NOT represent untracked paths. Its base commit and tree SHALL equal the seal-approved source baseline, its head SHALL be proven to descend from that base by a producer/policy/toolchain-bound ancestry attestation, and its manifest SHALL cover that complete sealed-base-to-head range. Every kind SHALL preserve additions, deletions, both rename endpoints, before/after modes, symlink target identity, and byte-preserving path identity where those states exist. Rename interpretation SHALL be bound to producer, policy, and toolchain identity.
+The `worktree` kind SHALL bind a full base commit ID and worktree-manifest digest and include staged, unstaged, and untracked state relative to that base. The `index` kind SHALL bind a full base commit ID and exact index tree ID and exclude untracked paths unless staged as additions. The `range` kind SHALL bind full base/head commit IDs and base/head tree IDs and SHALL NOT represent untracked paths. Every snapshot base SHALL equal the seal-bound implementation-lineage origin repository/base commit/base tree, including after refinement or reapproval. A range head SHALL be proven to descend from that origin by a producer/policy/toolchain-bound ancestry attestation, and its manifest SHALL cover the complete lineage-origin-to-head range. Every kind SHALL preserve additions, deletions, both rename endpoints, before/after modes, symlink target identity, and byte-preserving path identity where those states exist. Rename interpretation SHALL be bound to producer, policy, and toolchain identity.
 
 #### Scenario: Snapshot preserves complete Git path semantics
 
@@ -22,10 +22,10 @@ The `worktree` kind SHALL bind a full base commit ID and worktree-manifest diges
 
 #### Scenario: Final range truncates the sealed baseline
 
-- **GIVEN** a range snapshot starts from a commit or tree other than the seal-approved source baseline, or its head ancestry from that baseline is absent or invalid
+- **GIVEN** a range snapshot starts from a commit or tree other than the seal-bound implementation-lineage origin baseline, or its head ancestry from that origin is absent or invalid
 - **WHEN** the snapshot is validated for final conformance
 - **THEN** the baseline mismatch is `stale` or the unresolved ancestry is `unverifiable`, and the result is `UNKNOWN`
-- **AND** no manifest or obligation closure over the caller-selected shorter range can pass.
+- **AND** no current-seal or caller-selected shorter range can omit implementation retained from an earlier seal and pass.
 
 ### Requirement: Sealed obligation mapping
 

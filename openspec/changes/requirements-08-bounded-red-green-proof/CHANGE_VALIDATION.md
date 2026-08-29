@@ -23,7 +23,8 @@ No core or modules behavior implements this change.
   and its strict health check passes.
 - Un-parking requires fresh evidence, an explicit roadmap decision, and strict
   revalidation against current architecture. Do not use `openspec archive`
-  unless the behavior is first implemented and verified.
+  unless the behavior is first implemented, verified, shipped, merged, and its
+  canonical specification promotion is explicitly approved.
 
 ## Supersession record
 
