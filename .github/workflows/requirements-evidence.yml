@@ -100,12 +100,15 @@ jobs:
           authority_file="${authority_root}/authority.json"
           external_authority_file=""
           external_authority_digest=""
+          external_green_ref="ca2543bd85fbc92911efdb60845580cc211a6889"
           external_proof_root="${RUNNER_TEMP}/external-prior-red-proof"
           proof_root="${RUNNER_TEMP}/prior-red-proof"
           rm -rf "$authority_root"
           mkdir -p "$authority_root"
 
-          if [[ "$EVIDENCE_PULL_REQUEST" == "698" && "$GITHUB_HEAD_REF" == "codex/692-computed-owner-red-proof-v2" ]]; then
+          if [[ "$EVIDENCE_PULL_REQUEST" == "698" \
+            && "$GITHUB_HEAD_REF" == "codex/692-computed-owner-red-proof-v2" ]] \
+            && git merge-base --is-ancestor "$external_green_ref" "$current_head"; then
             external_authority_file="${authority_root}/external-authority.json"
             bootstrap_root="${RUNNER_TEMP}/requirements-amendment-bootstrap"
             red_root="${bootstrap_root}/red"
@@ -250,7 +253,7 @@ jobs:
             mkdir -p "$proof_root"
             cp "${external_proof_root}/red.json" "${proof_root}/red.json"
             cp "${external_proof_root}/red.xml" "${proof_root}/red.xml"
-            printf "source-ref=%s\n" "ca2543bd85fbc92911efdb60845580cc211a6889" >> "$GITHUB_OUTPUT"
+            printf "source-ref=%s\n" "$external_green_ref" >> "$GITHUB_OUTPUT"
             printf "authority=%s\n" "$external_authority_file" >> "$GITHUB_OUTPUT"
           fi
           exit 0

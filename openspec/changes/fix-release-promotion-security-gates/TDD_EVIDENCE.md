@@ -1059,3 +1059,19 @@ the authoritative failing-before evidence or the candidate design.
   `140` tests. The independent clean-code review's five actionable warnings
   were remediated; its explicit-validator-argv observation remains an
   intentional auditable security allowlist rather than a hidden mapper.
+
+## 2026-08-30 post-push reconstructed-history pipeline control
+
+- GitHub Requirements run `33297997048` failed before evidence execution in
+  `Locate verified amendment cycle base`. The reconstructed branch no longer
+  contains the superseded externally approved green
+  `ca2543bd85fbc92911efdb60845580cc211a6889`; the unconditionally attempted
+  one-time bootstrap therefore correctly rejected its ancestry but `set -e`
+  prevented the ordinary authoritative red search from running.
+- The special bootstrap is now attempted only when its exact approved green is
+  an ancestor of the current head. When the history is reconstructed from
+  current `dev`, the workflow continues to the ordinary red/final path and must
+  authenticate red commit `4300f6a08084b05d528748186328238c452bf065` and
+  its GitHub artifact. The guard does not relax receipt, live revalidation,
+  expiry, ancestry, linear-history, artifact, digest, or test-only checks when
+  that external capability is applicable.
