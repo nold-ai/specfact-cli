@@ -11,7 +11,16 @@ All tasks below are future implementation work. This planning change completes n
 ## 2. Specification and failing-first evidence
 
 - [ ] 2.1 Finalize snapshot kinds, complete path manifest, obligation mapping, local checkpoint authority, immutable conformance, finding, result, and verifier interfaces without adding extraction or CLI behavior.
-- [ ] 2.2 Add tests mapped to every worktree/index/range identity, including local checkpoint verification without a delivery-target input and final-range rejection without exact authoritative delivery-head identity; implementation-lineage-origin equality across successor seals; canonical latest-seal tip/sequence/chain verification; origin-to-head ancestry; authority separation; path transitions; role-independent public-interface observation completeness for every policy-classified interface-capable governed path; provenance-bound absent tombstones for additions, deletions, and both rename endpoints plus invalid-absence `unverifiable` findings that aggregate to `UNKNOWN`; checkpoint-subset and exhaustive final-obligation closure; protected-CI producer authorization and exact-range provenance; finding-class/precedence (including the reconciled semantic `violated` scenario); stale-seal; evidence; and assurance-limit scenarios.
+- [ ] 2.2 Add table-driven tests that independently cover worktree, index, and range snapshot boundaries. The path-manifest
+  matrix must include untracked paths where applicable, additions, deletions, both rename endpoints, file-mode changes,
+  symlink targets, byte-preserving path identity, provenance-bound absent tombstones, and invalid-absence `unverifiable`
+  findings that aggregate to `UNKNOWN`. Also cover local checkpoints without a delivery-target input; final-range
+  rejection without exact authoritative delivery-head identity; implementation-lineage-origin equality across successor
+  seals; canonical latest-seal tip/sequence/chain verification; origin-to-head ancestry; authority separation;
+  role-independent public-interface observation completeness for every policy-classified interface-capable governed
+  path; checkpoint-subset and exhaustive final-obligation closure; protected-CI producer authorization and exact-range
+  provenance; finding-class/precedence, including the reconciled semantic `violated` scenario; stale-seal; evidence; and
+  assurance-limit scenarios.
 - [ ] 2.3 Run targeted tests before production edits and record failing-first results in a newly created `TDD_EVIDENCE.md`.
 
 ## 3. Minimal core implementation

@@ -35,7 +35,7 @@ the unimplemented deltas were not merged into canonical specifications.
 ## Historical validation before archival
 
 - Timestamp and context: 2026-08-30 02:07 CEST (`Europe/Berlin`), dedicated
-  worktree `/private/tmp/specfact-core-preflight-assurance-20260829`, branch
+  worktree `[dedicated-core-planning-worktree]`, branch
   `feature/preflight-assurance-planning`, based on reviewed commit
   `ecc4a7d7bd0ecab585a5fe8754486ab838da1be6` with the review corrections in the
   working tree.
@@ -45,12 +45,12 @@ the unimplemented deltas were not merged into canonical specifications.
 - Exact command: `openspec validate requirements-08-bounded-red-green-proof --strict`.
   Result: PASS (`Change 'requirements-08-bounded-red-green-proof' is valid`).
 - Exact quality command:
-  `SPECFACT_MODULES_REPO=/private/tmp/specfact-modules-fixture-69f07581 pre-commit run --all-files`.
+  `SPECFACT_MODULES_REPO=[repo-pinned-modules-fixture] pre-commit run --all-files`.
   Result: environment-limited before later hooks because the mandatory
   `frozen-cve-audit` could not resolve PyPI in the restricted run and timed out
   against PyPI in the approved-network retry. This is not recorded as PASS;
   the isolated repository-local rerun used the exact command
-  `SKIP=frozen-cve-audit SPECFACT_MODULES_REPO=/private/tmp/specfact-modules-fixture-69f07581 pre-commit run --all-files`
+  `SKIP=frozen-cve-audit SPECFACT_MODULES_REPO=[repo-pinned-modules-fixture] pre-commit run --all-files`
   at 2026-08-30 02:22 CEST and PASSed every remaining hook, including Markdown,
   Requirements evidence, and documentation ownership.
 - Dependencies: no R08 implementation or paired module release is required to

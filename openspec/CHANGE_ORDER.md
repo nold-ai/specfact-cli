@@ -25,7 +25,7 @@ publisher adoption, or a real evidence corpus. See
 
 | Change | GitHub issue | Archive status |
 |---|---|---|
-| [`requirements-08-bounded-red-green-proof`](changes/archive/2026-08-30-requirements-08-bounded-red-green-proof/) | [#675](https://github.com/nold-ai/specfact-cli/issues/675) | Closed Not Planned; never implemented; manually relocated on 2026-08-30 without `openspec archive`; canonical specs unchanged |
+| [`requirements-08-bounded-red-green-proof`](changes/archive/2026-08-30-requirements-08-bounded-red-green-proof/) | [#675](https://github.com/nold-ai/specfact-cli/issues/675) / modules [#414](https://github.com/nold-ai/specfact-cli-modules/issues/414) | Closed Not Planned; never implemented; manually relocated on 2026-08-30 without `openspec archive`; canonical specs unchanged |
 
 This is a bounded exception for an abandoned, never-implemented proposal. It is
 not precedent for completed work, which must still use `openspec archive` so
