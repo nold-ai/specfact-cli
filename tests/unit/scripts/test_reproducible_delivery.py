@@ -19,6 +19,46 @@ from packaging.requirements import Requirement
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
+def _load_json(relative_path: str) -> dict[str, Any]:
+    """Load one repository JSON policy document."""
+    return json.loads((REPO_ROOT / relative_path).read_text(encoding="utf-8"))
+
+
+def _locked_package_versions() -> dict[str, str]:
+    """Return the exact package versions selected by the frozen lock."""
+    lock = tomllib.loads((REPO_ROOT / "uv.lock").read_text(encoding="utf-8"))
+    return {package["name"]: package["version"] for package in lock["package"]}
+
+
+def _runtime_dependency_names(project: dict[str, Any]) -> set[str]:
+    """Return normalized base runtime dependency names from pyproject.toml."""
+    return {Requirement(dependency).name.casefold() for dependency in project["project"]["dependencies"]}
+
+
+def _assert_semgrep_declarations(project: dict[str, Any]) -> None:
+    """Assert every static-analysis tool group selects the reviewed Semgrep floor."""
+    optional_dependencies = project["project"]["optional-dependencies"]
+    hatch_dependencies = project["tool"]["hatch"]["envs"]["default"]["dependencies"]
+    assert "semgrep>=1.175.0" in optional_dependencies["dev"]
+    assert "semgrep>=1.175.0" in optional_dependencies["scanning"]
+    assert "semgrep>=1.175.0" in hatch_dependencies
+
+
+def _assert_fixed_semgrep_snapshot(locked_packages: dict[str, str], locked_export: str) -> None:
+    """Assert the frozen lock and export select the compatible fixed pair."""
+    assert locked_packages["semgrep"] == "1.175.0"
+    assert locked_packages["mcp"] == "1.29.0"
+    assert "semgrep==1.175.0" in locked_export
+    assert "mcp==1.29.0" in locked_export
+
+
+def _assert_semgrep_security_policy(security_floors: dict[str, Any], exception_register: dict[str, Any]) -> None:
+    """Assert vulnerable Semgrep/MCP versions cannot be waived or installed."""
+    assert security_floors["minimum_versions"]["semgrep"] == "1.175.0"
+    assert security_floors["minimum_versions"]["mcp"] == "1.28.1"
+    assert all(item["package"].casefold() != "mcp" for item in exception_register["exceptions"])
+
+
 def _write_invalid_binding_fixture(module: Any, tmp_path: Path, binding_state: str) -> tuple[Path, Path]:
     """Create an isolated input/lock pair with the requested invalid binding."""
     requirements = tmp_path / "repository" / "requirements" / "code-review"
@@ -238,6 +278,22 @@ def test_reproducible_delivery_pins_patched_pip_to_tooling_only() -> None:
     assert "pip-tools>=7.6.1" in hatch_dependencies
     assert "pip" not in runtime_names
     assert "pip" not in _setup_runtime_dependency_names()
+
+
+def test_reproducible_delivery_pins_semgrep_with_fixed_mcp_without_waiver() -> None:
+    """A compatible Semgrep must replace, rather than extend, the vulnerable MCP waiver."""
+    project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    locked_packages = _locked_package_versions()
+    locked_export = (REPO_ROOT / "requirements" / "ci" / "locked.txt").read_text(encoding="utf-8")
+    exception_register = _load_json("ci/vulnerability-audit-exceptions.json")
+    security_floors = _load_json("ci/security-tool-minimum-versions.json")
+    runtime_names = _runtime_dependency_names(project)
+
+    _assert_semgrep_declarations(project)
+    _assert_fixed_semgrep_snapshot(locked_packages, locked_export)
+    _assert_semgrep_security_policy(security_floors, exception_register)
+    assert {"semgrep", "mcp"}.isdisjoint(runtime_names)
+    assert {"semgrep", "mcp"}.isdisjoint(_setup_runtime_dependency_names())
 
 
 def test_reproducible_delivery_pins_pycg_consistently_across_tool_groups() -> None:

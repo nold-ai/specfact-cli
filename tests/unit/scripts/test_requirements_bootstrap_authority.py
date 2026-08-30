@@ -7,8 +7,9 @@ import importlib.util
 import json
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, cast
+from typing import Protocol, cast
 
 import pytest
 
@@ -17,14 +18,24 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 AUTHORITY_SCRIPT = REPO_ROOT / "scripts" / "requirements_bootstrap_authority.py"
 
 
-def _load_authority_module() -> Any:
+class _AuthorityModule(Protocol):
+    """Typed boundary for the dynamically loaded authority validator."""
+
+    AuthorityPaths: Callable[..., object]
+    AuthorityContext: Callable[..., object]
+    validate_bootstrap_authority: Callable[[object, object], bool]
+    _authority_findings: Callable[[object, object], list[str]]
+    _git: Callable[..., object]
+
+
+def _load_authority_module() -> _AuthorityModule:
     spec = importlib.util.spec_from_file_location("requirements_bootstrap_authority", AUTHORITY_SCRIPT)
     if spec is None or spec.loader is None:
         raise AssertionError("Requirements bootstrap authority validator must be importable")
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
-    return module
+    return cast(_AuthorityModule, module)
 
 
 def _git(repo_root: Path, *arguments: str) -> str:
@@ -195,7 +206,7 @@ def _authority_fixture(tmp_path: Path, *, governed_red_path: bool = False) -> di
     }
 
 
-def _validate(module: Any, fixture: dict[str, object], *, final_ref: str | None = None) -> bool:
+def _validate(module: _AuthorityModule, fixture: dict[str, object], *, final_ref: str | None = None) -> bool:
     paths = module.AuthorityPaths(
         comment=fixture["comment_path"],
         commit=fixture["commit_path"],
@@ -214,10 +225,30 @@ def _validate(module: Any, fixture: dict[str, object], *, final_ref: str | None 
         pull_request=690,
         head_branch="bugfix/689-retained-red-proof-provenance",
     )
-    return cast(
-        bool,
-        module.validate_bootstrap_authority(paths, context),
+    return module.validate_bootstrap_authority(paths, context)
+
+
+def _authority_findings_for_fixture(module: _AuthorityModule, fixture: dict[str, object]) -> list[str]:
+    """Return the validator's non-sensitive diagnostic classes for regression checks."""
+    paths = module.AuthorityPaths(
+        comment=fixture["comment_path"],
+        commit=fixture["commit_path"],
+        run=fixture["run_path"],
+        artifacts=fixture["artifacts_path"],
+        artifact_root=fixture["artifact_root"],
+        repo_root=fixture["repo_root"],
     )
+    context = module.AuthorityContext(
+        comment_id=33,
+        base_ref=cast(str, fixture["base_ref"]),
+        final_ref=cast(str, fixture["final_ref"]),
+        repository="nold-ai/specfact-cli",
+        change_id="fix-retained-red-proof-provenance",
+        issue=689,
+        pull_request=690,
+        head_branch="bugfix/689-retained-red-proof-provenance",
+    )
+    return module._authority_findings(paths, context)
 
 
 def _mutate_authority(fixture: dict[str, object], **updates: object) -> None:
@@ -231,12 +262,29 @@ def _mutate_authority(fixture: dict[str, object], **updates: object) -> None:
     _write_json(comment_path, comment)
 
 
+def _mutate_run(fixture: dict[str, object], **updates: object) -> None:
+    """Update bounded run metadata without repeating fixture plumbing."""
+    run_path = cast(Path, fixture["run_path"])
+    run = json.loads(run_path.read_text(encoding="utf-8"))
+    run.update(updates)
+    _write_json(run_path, run)
+
+
 def test_bootstrap_authority_accepts_exact_owner_bound_red_history(tmp_path: Path) -> None:
     """Every external and local identity must agree for the one-time bootstrap."""
     module = _load_authority_module()
     fixture = _authority_fixture(tmp_path)
 
     assert _validate(module, fixture)
+
+
+def test_bootstrap_authority_routes_invalid_utf8_to_input_finding(tmp_path: Path) -> None:
+    """Decode failures must reach the metadata diagnostic instead of comment validation."""
+    module = _load_authority_module()
+    fixture = _authority_fixture(tmp_path)
+    cast(Path, fixture["comment_path"]).write_bytes(b"\xff")
+
+    assert _authority_findings_for_fixture(module, fixture) == ["authority-metadata"]
 
 
 def test_bootstrap_authority_accepts_exact_collaborator_bound_red_history(tmp_path: Path) -> None:
@@ -249,6 +297,26 @@ def test_bootstrap_authority_accepts_exact_collaborator_bound_red_history(tmp_pa
     _write_json(comment_path, comment)
 
     assert _validate(module, fixture)
+
+
+def test_bootstrap_authority_accepts_explicit_distinct_red_branch(tmp_path: Path) -> None:
+    """A separately retained red run must bind both its branch and the final PR branch."""
+    module = _load_authority_module()
+    fixture = _authority_fixture(tmp_path)
+    red_branch = "codex/692-review-red-proof"
+    _mutate_authority(fixture, red_branch=red_branch)
+    _mutate_run(fixture, head_branch=red_branch)
+
+    assert _validate(module, fixture)
+
+
+def test_bootstrap_authority_rejects_unbound_red_branch(tmp_path: Path) -> None:
+    """A run from a different branch must be named by the owner authority."""
+    module = _load_authority_module()
+    fixture = _authority_fixture(tmp_path)
+    _mutate_run(fixture, head_branch="codex/unbound-red-proof")
+
+    assert not _validate(module, fixture)
 
 
 def test_bootstrap_authority_rejects_same_evidence_without_authorized_red_ancestor(tmp_path: Path) -> None:
@@ -282,10 +350,7 @@ def test_bootstrap_authority_rejects_nonfailing_red_run(tmp_path: Path) -> None:
     """Only a completed failing red run can authorize green delivery."""
     module = _load_authority_module()
     fixture = _authority_fixture(tmp_path)
-    run_path = cast(Path, fixture["run_path"])
-    run = json.loads(run_path.read_text(encoding="utf-8"))
-    run["conclusion"] = "success"
-    _write_json(run_path, run)
+    _mutate_run(fixture, conclusion="success")
 
     assert not _validate(module, fixture)
 

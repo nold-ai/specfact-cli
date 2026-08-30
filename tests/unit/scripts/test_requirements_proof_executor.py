@@ -41,6 +41,8 @@ class ProofCommand(Protocol):
 class ExecutorModule(Protocol):
     """Minimal typed surface of the proof-execution boundary."""
 
+    PROOF_PYTEST_BOOTSTRAP: str
+
     def selectors_from_plan(self, plan: dict[str, object], repo_root: Path) -> list[str]:
         raise NotImplementedError
 
@@ -95,8 +97,10 @@ def _assert_argument_contract(command: ProofCommand, junit_path: Path) -> None:
     assert command.shell is False
     assert command.arguments == [
         sys.executable,
-        "-m",
-        "pytest",
+        "-P",
+        "-c",
+        _load_executor_module().PROOF_PYTEST_BOOTSTRAP,
+        str(command.cwd.resolve()),
         "--junitxml",
         str(junit_path),
         "-p",
@@ -104,6 +108,28 @@ def _assert_argument_contract(command: ProofCommand, junit_path: Path) -> None:
         "--",
         "tests/test_proof.py::test_selected",
     ]
+
+
+def test_executor_uses_safe_path_before_resolving_installed_pytest(tmp_path: Path) -> None:
+    """A repository-root pytest module must not replace the installed runner."""
+    module = _load_executor_module()
+    _write_selected_test(tmp_path)
+    marker = tmp_path / "shadow-executed"
+    (tmp_path / "pytest.py").write_text(
+        f"from pathlib import Path\nPath({str(marker)!r}).write_text('shadowed', encoding='utf-8')\n",
+        encoding="utf-8",
+    )
+    plugin = tmp_path / "scripts" / "requirements_proof_pytest_plugin.py"
+    plugin.parent.mkdir()
+    plugin.write_text(
+        (REPO_ROOT / "scripts" / "requirements_proof_pytest_plugin.py").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    junit_path = tmp_path / "proof.xml"
+
+    assert module.execute_plan(_plan("tests/test_proof.py::test_selected"), tmp_path, junit_path) == 0
+    assert not marker.exists()
+    assert junit_path.is_file()
 
 
 def _assert_environment_contract(command: ProofCommand) -> None:
@@ -315,7 +341,7 @@ def test_executor_records_proof_toolchain_identity_in_junit(tmp_path: Path) -> N
     expected_properties = {
         "specfact.runner": "pytest",
         "specfact.python": platform.python_version(),
-        "specfact.pytest": pytest.__version__,
+        "specfact.pytest": pytest_runtime.__version__,
     }
     for name, value in expected_properties.items():
         assert root.find(f".//property[@name='{name}'][@value='{value}']") is not None
