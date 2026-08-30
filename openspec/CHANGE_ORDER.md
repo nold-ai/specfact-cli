@@ -8,7 +8,7 @@ active changes should be implemented.
 
 | Bucket | Count | Location |
 |---|---:|---|
-| **Active** | 20 | [`openspec/changes/`](changes/) |
+| **Active** | 21 | [`openspec/changes/`](changes/) |
 | **Parked** | 21 | [`openspec/parking-lot/`](parking-lot/) |
 | **Archived** | 115 | [`openspec/changes/archive/`](changes/archive/) |
 
@@ -38,7 +38,7 @@ brownfield delivery. The active roadmap should make that thesis stronger:
 
 ## Active tracks
 
-The 20 active changes group into three product tracks plus one reliability lane.
+The 21 active changes group into three product tracks plus one reliability lane.
 Tracks can run in parallel; within a track, follow the order column.
 
 ### Track A - Validation Evidence Spine
@@ -98,6 +98,7 @@ These changes make the CLI itself trustworthy enough to be the validation tool.
 
 | Order | Change | Issue | Positioning | Blocked by |
 |---:|---|---|---|---|
+| 0 | `module-scope-02-preserve-user-installs` | [#699](https://github.com/nold-ai/specfact-cli/issues/699) | Preserve user-scoped modules when project copies shadow them; remove destructive discovery/doctor guidance | none; paired modules [#452](https://github.com/nold-ai/specfact-cli-modules/issues/452) is coordinated but independently mergeable |
 | 1 | `cli-val-03-misuse-safety-proof` | [#281](https://github.com/nold-ai/specfact-cli/issues/281) | Misuse safety proof for user-facing commands | - |
 | 2 | `cli-val-04-acceptance-test-runner` | [#282](https://github.com/nold-ai/specfact-cli/issues/282) | Acceptance-test runner for CLI behavior proof | cli-val-03 |
 | 3 | `cli-val-05-ci-integration` | [#643](https://github.com/nold-ai/specfact-cli/issues/643) | Fail-closed documentation accountability and CI validation enforcement | cli-val-02, cli-val-03, cli-val-04 |
