@@ -1,12 +1,12 @@
 # Tasks: Bounded Red-Green Replay
 
-> **Historical plan only — do not execute.** Issue #675 and paired modules issue
-> #414 are closed as Not Planned. This change is parked and superseded by
-> #682/#684 plus modules #431/#434. In particular, do not run the archive task:
-> no R08 behavior was implemented, so archiving would merge an unimplemented
-> delta into canonical requirements.
+> **Archived historical plan only — do not execute.** Issue #675 and paired
+> modules issue #414 are closed as Not Planned. This change is superseded by
+> #682/#684 plus modules #431/#434. The folder was relocated without running
+> `openspec archive`, so its unimplemented deltas were not promoted into
+> canonical requirements.
 
-Every unchecked item below is retained historical planning text and is non-executable while parked. Un-parking requires a new explicit roadmap decision, fresh dependency/readiness evidence, strict revalidation, and an accepted replacement task list before any implementation or archive action.
+Every unchecked item below is retained historical planning text and is non-executable. Reopening requires a new issue, a new active change, fresh dependency/readiness evidence, strict revalidation, and an accepted replacement task list.
 
 ## 0. Planning
 
