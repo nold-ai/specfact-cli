@@ -6,7 +6,7 @@ The system SHALL define a versioned implementation snapshot whose kind is `workt
 
 The `worktree` kind SHALL bind a full base commit ID and worktree-manifest digest and include staged, unstaged, and untracked state relative to that base. The `index` kind SHALL bind a full base commit ID and exact index tree ID and exclude untracked paths unless staged as additions. The `range` kind SHALL bind full base/head commit IDs and base/head tree IDs and SHALL NOT represent untracked paths. Every snapshot base SHALL equal the seal-bound implementation-lineage origin repository/base commit/base tree, including after refinement or reapproval. A range head SHALL be proven to descend from that origin by a producer/policy/toolchain-bound ancestry attestation, SHALL equal a separately supplied policy-authorized current delivery-target commit/tree identity, and its manifest SHALL cover the complete lineage-origin-to-delivery-head range. Every kind SHALL preserve additions, deletions, both rename endpoints, before/after modes, symlink target identity, and byte-preserving path identity where those states exist. Rename interpretation SHALL be bound to producer, policy, and toolchain identity.
 
-Every governed manifest path that policy classifies as capable of defining a public interface SHALL carry normalized base/current public-interface observations, including explicit absent-side observations for additions or deletions, regardless of whether its sealed role is `source`, `test`, `docs`, `generated`, or `evidence`. Missing, unsupported, incomplete, stale, ambiguous, wrong-snapshot, or wrong-extractor observations SHALL be `unverifiable`; a missing record or caller-supplied empty set SHALL NOT be treated as proof of no changed interface.
+Every governed manifest path that policy classifies as capable of defining a public interface SHALL carry normalized base/current public-interface observations regardless of whether its sealed role is `source`, `test`, `docs`, `generated`, or `evidence`. A side that does not exist by construction for an addition, deletion, or rename endpoint SHALL be represented by a normalized `absent` record/tombstone rather than omitted. The tombstone SHALL bind the same path, role, exact snapshot, extractor identity/version/configuration, policy/toolchain, and Git-transition provenance required of a present observation and SHALL contain no fabricated interface members. Deterministic comparison of `absent` with `present` SHALL derive interface additions/removals, including both rename endpoints. Missing, unsupported, incomplete, stale, ambiguous, wrong-snapshot, wrong-extractor, or unverifiable-absence observations SHALL be `unverifiable`; an omitted record, an `absent` record for an existing path, or a caller-supplied empty set SHALL NOT prove no changed interface.
 
 #### Scenario: Snapshot preserves complete Git path semantics
 
@@ -14,6 +14,13 @@ Every governed manifest path that policy classifies as capable of defining a pub
 - **WHEN** the snapshot is normalized
 - **THEN** the complete transition, including both rename endpoints, is retained
 - **AND** quoted, Unicode, and trailing-character paths are not collapsed or silently omitted.
+
+#### Scenario: Public-interface transition has a nonexistent side
+
+- **GIVEN** an interface-capable path is added, deleted, or renamed and one side of a path/endpoint does not exist in the exact snapshot
+- **WHEN** its base/current observations are normalized
+- **THEN** the nonexistent side is a provenance-bound `absent` tombstone and the existing side is a provenance-bound `present` observation
+- **AND** comparison derives the interface addition/removal instead of classifying expected absence as missing evidence.
 
 #### Scenario: Snapshot evidence lacks identity
 

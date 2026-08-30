@@ -22,7 +22,7 @@ The preflight seal binds an approved plan and source snapshot. Implementation ne
 
 ### 1. Snapshot kinds and exact identity
 
-The future `ImplementationSnapshot` records `snapshot_kind` as `worktree`, `index`, or `range`, repository identity, exact kind-specific Git identity, a complete changed-path manifest, public-interface records, test/evidence references, and producer/policy/toolchain identities. Every governed manifest path that policy classifies as interface-capable requires normalized base/current public-interface observations regardless of whether its role is `source`, `test`, `docs`, `generated`, or `evidence`; an unavailable required observation is `unverifiable`, not an empty interface delta. It does not mutate the original design contract.
+The future `ImplementationSnapshot` records `snapshot_kind` as `worktree`, `index`, or `range`, repository identity, exact kind-specific Git identity, a complete changed-path manifest, public-interface records, test/evidence references, and producer/policy/toolchain identities. Every governed manifest path that policy classifies as interface-capable requires normalized base/current public-interface observations regardless of whether its role is `source`, `test`, `docs`, `generated`, or `evidence`. A nonexistent side of an addition, deletion, or rename endpoint is represented by a provenance-bound `absent` record/tombstone carrying no fabricated interface members; deterministic `absent`/`present` comparison derives interface addition or removal. An unavailable required observation, omitted tombstone, or absence claimed for an existing path is `unverifiable`, not an empty interface delta. It does not mutate the original design contract.
 
 The path-manifest matrix is normative:
 

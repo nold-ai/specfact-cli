@@ -72,8 +72,9 @@ requirements:
         scenario_id: versioned-implementation-snapshot
         method: inspection
         intent: >-
-          Inspect the versioned implementation snapshot and role-independent
-          public-interface observation completeness contract before implementation.
+          Inspect the versioned implementation snapshot, role-independent
+          public-interface observation completeness, and provenance-bound absent
+          tombstones for additions/deletions/rename endpoints before implementation.
         observable: *planning-observable
   openspec:preflight-05-implementation-conformance:preflight-implementation-conformance-contracts:separate-local-checkpoint-result:
     rationale: *planning-rationale
