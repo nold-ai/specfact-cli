@@ -46,7 +46,10 @@ requirements:
       - case_id: AI01-007
         scenario_id: discover-module-owned-skills
         method: inspection
-        intent: "Inspect shared workspace and SPECFACT_MODULES_ROOTS discovery, priority, provenance, and enablement behavior."
+        intent: >-
+          Inspect shared effective workspace-root resolution and
+          SPECFACT_MODULES_ROOTS discovery, priority, provenance, and enablement
+          behavior without defining a competing concrete workspace path.
         observable: *planning-observable
   openspec:ai-integration-01-agent-skill:agent-skill-spec-intelligence:distribution-only-ownership:
     rationale: *planning-rationale

@@ -13,10 +13,10 @@ The system SHALL discover versioned skill descriptors and assets through the sam
 
 #### Scenario: Workspace module exposes a skill
 
-- **GIVEN** an enabled trusted module under the nearest workspace `.specfact/modules` root exposes a valid skill descriptor
+- **GIVEN** an enabled trusted module exposed by the shared effective workspace-module-root resolver provides a valid skill descriptor
 - **WHEN** skill discovery runs for that workspace
 - **THEN** the skill is discovered through the shared module discovery contract
-- **AND** its root priority and provenance match command registration and `specfact init`.
+- **AND** the resolved root, priority, and provenance exactly match command registration and `specfact init` without this skill contract naming a competing workspace path.
 
 #### Scenario: Configured module root exposes a skill
 

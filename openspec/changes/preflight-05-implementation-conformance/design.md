@@ -57,7 +57,7 @@ Findings retain the sealed contract path, implementation evidence identity, extr
 
 ### 5. Side-effect-free verifier
 
-Core comparison operates only on supplied normalized records. Its input preserves the upstream verifier boundary by supplying the design contract, validation result, seal, policy, and current source identities. Those inputs are verified before obligation comparison; a digest or identity mismatch produces `stale`, while an unavailable identity produces `unverifiable`. Modules owns repository extraction, test evidence import, rendering, applicability decisions, and persistence. A contract-changing drift requires a new preflight review and approval, not mutation of the existing seal.
+Core comparison operates only on supplied normalized records. Its input preserves the upstream verifier boundary by supplying the design contract, validation result, seal, policy, current source identities, and kind-specific snapshot identity. Final-range verification additionally requires a separately supplied policy-authorized current delivery-target identity and exact range-head equality; worktree/index checkpoint verification neither requires nor compares that range-only input. The applicable inputs are verified before obligation comparison; a digest or identity mismatch produces `stale`, while an unavailable required identity produces `unverifiable`. Modules owns repository extraction, test evidence import, rendering, applicability decisions, and persistence. A contract-changing drift requires a new preflight review and approval, not mutation of the existing seal.
 
 ### 6. Independent assurance statement
 

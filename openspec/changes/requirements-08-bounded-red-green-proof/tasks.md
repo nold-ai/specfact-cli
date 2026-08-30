@@ -6,7 +6,7 @@
 > no R08 behavior was implemented, so archiving would merge an unimplemented
 > delta into canonical requirements.
 
-All implementation tasks are intentionally small (target: at most two hours) and name their allowed files. No implementation begins until the paired modules schema is released.
+Every unchecked item below is retained historical planning text and is non-executable while parked. Un-parking requires a new explicit roadmap decision, fresh dependency/readiness evidence, strict revalidation, and an accepted replacement task list before any implementation or archive action.
 
 ## 0. Planning
 
@@ -18,7 +18,7 @@ All implementation tasks are intentionally small (target: at most two hours) and
 
 - [ ] B.1 Create a dedicated implementation worktree and feature branch from current `origin/dev`; do not implement from the primary, `dev`, or `main` checkout.
 - [ ] B.2 Run `hatch env create`, then `hatch run smart-test-status` and `hatch run contract-test-status` in the worktree; record and resolve unexpected baseline failures before edits.
-- [ ] B.3 Read and apply `openspec/config.yaml`, `docs/agent-rules/60-github-change-governance.md`, and their artifact/readiness rules. Refresh and consult `.specfact/backlog/github_hierarchy_cache.md` when available; otherwise use a fresh live GitHub read and record why the cache path was unavailable. Verify issue #675 remains open as a User Story under Feature #374 with required labels, assignee, and project assignment/status; verify its blocker and blocked-by relationships are complete and explicitly include the corrected R07 current-run prerequisite (#662) and the paired signed modules R08 release tracked by modules issue #414/PR #412; and rule out concurrent in-progress work. Stop before implementation if type, parent, project/status/concurrency, or either dependency relationship is missing, unavailable, or ambiguous. If the sibling `specfact-cli-internal` checkout exists, consult its applicable wiki guidance. Record the sources, timestamped facts, and constraints in `CHANGE_VALIDATION.md`. Then run exactly `openspec validate requirements-08-bounded-red-green-proof --strict`; require success before tests or source edits and rerun it after every validation-artifact fix. Confirm the accepted specs/dependencies, signed-module prerequisites, and both repository-specific closed allowlists still match repository reality. Verify a repository administrator has established the external checkpoint issuer/trust set, protected non-rewritable tag ruleset, canonical annotation schema, and checkpoint-policy epoch; record their immutable identities in the pre-R `CHANGE_VALIDATION.md` readiness section and stop if any is missing or candidate-controlled.
+- [ ] B.3 **HISTORICAL — NON-EXECUTABLE:** the former readiness step assumed issue #675 and modules #414 were open and is invalid after their `not planned` closure. A future accepted replacement plan must refresh governance and dependency facts rather than reuse those assumptions.
 - [ ] B.4 Follow `spec -> tests -> failing evidence -> code -> passing evidence`; in `TDD_EVIDENCE.md`, record separate failing-before and passing-after sections with exact commands, timestamps, actual results, behavioral summaries, environment limitations, and artifact identities. Record passing evidence only after implementation.
 - [ ] B.5 Before PR finalization, rerun exactly `openspec validate requirements-08-bounded-red-green-proof --strict` plus the required format, type, lint, YAML, contract, focused/full test, workflow, independent-analysis, signature, and explicit base/head Code Review gates. Update `CHANGE_VALIDATION.md` with validation scope/impact, affected files, exact commands, actual results and test counts, focused/full tests, skipped or unavailable tests/dependencies with reasons, artifact locations/identities, environment limitations, and release hygiene. Keep planning evidence, failing-before evidence, and H..D passing/implementation evidence separate; rerun affected validation after every artifact fix and resolve every finding or document an approved exception.
 - [ ] B.6 After each merge, remove the implementation worktree, delete its local feature branch, run `git worktree prune`, and complete an explicit `AGENTS.md` worktree/policy self-check. Archive only from a dedicated follow-up worktree when the stated dependency, release, and rollout gates are complete.
@@ -81,7 +81,7 @@ All implementation tasks are intentionally small (target: at most two hours) and
 - Do not give the pull-request workflow checkpoint-tag write authority or let it self-issue R/H; issuance is an external approved-signer ceremony under the pre-established ruleset/epoch.
 - Do not allow test/config/harness changes after R; require a new R.
 - Do not emit pass/no-impact for missing or unresolved mandatory facts.
-- Do not manually move directories into `openspec/changes/archive/`; use the exact repository-root archive command above.
+- Do not manually move directories into `openspec/changes/archive/`. No archive command is authorized while this change is parked; after an explicit un-parking decision and completed implementation, use the then-current governed repository-root archive procedure.
 
 ## Closed implementation allowlist
 

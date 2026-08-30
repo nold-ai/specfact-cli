@@ -55,6 +55,14 @@ requirements:
         method: inspection
         intent: "Inspect the side effect free implementation assurance verifier planning contract before implementation."
         observable: *planning-observable
+      - case_id: PF05C-009
+        scenario_id: side-effect-free-implementation-assurance-verifier
+        method: inspection
+        intent: >-
+          Inspect kind-specific verifier inputs so local checkpoints omit
+          range-only delivery-target identity while final range comparison
+          requires it.
+        observable: *planning-observable
   openspec:preflight-05-implementation-conformance:preflight-implementation-conformance-contracts:versioned-implementation-snapshot:
     rationale: *planning-rationale
     stakeholder_refs: ["nold-ai/specfact-cli#684"]

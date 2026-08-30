@@ -134,14 +134,22 @@ Checkpoint and conformance results SHALL distinguish mutually exclusive `missing
 
 ### Requirement: Side-effect-free implementation assurance verifier
 
-The core verifier SHALL accept the upstream design contract, validation result, selected seal, policy, current source identities, policy-authorized canonical lineage-tip identity, and current delivery-target identity plus supplied sealed obligations and implementation evidence. It SHALL verify the upstream inputs and exact selected-seal/tip and range-head/delivery-target equality before comparing obligations and SHALL execute no code, tests, extractors, network calls, persistence, rendering, applicability policy, or automatic contract edits.
+The core verifier SHALL accept the upstream design contract, validation result, selected seal, policy, current source identities, policy-authorized canonical lineage-tip identity, kind-specific normalized implementation snapshot, supplied sealed obligations, and implementation evidence. For a final `range` snapshot/result it SHALL additionally require a policy-authorized current delivery-target identity and verify exact range-head/delivery-target equality. For a local `worktree` or `index` checkpoint it SHALL neither require nor validate that range-only delivery-target identity. It SHALL verify every input applicable to the snapshot/result kind and exact selected-seal/tip equality before comparing obligations and SHALL execute no code, tests, extractors, network calls, persistence, rendering, applicability policy, or automatic contract edits.
 
 #### Scenario: Caller requests comparison
 
-- **GIVEN** a design contract, validation result, selected seal, policy, current source identities, canonical lineage-tip identity, current delivery-target identity, and normalized implementation snapshot
+- **GIVEN** a design contract, validation result, selected seal, policy, current source identities, canonical lineage-tip identity, normalized range snapshot, and current delivery-target identity
 - **WHEN** the core conformance verifier runs
 - **THEN** it rejects stale or mismatched upstream identities before obligation comparison and otherwise returns deterministic findings and limits for those inputs
 - **AND** all evidence collection and policy orchestration remain caller-owned.
+
+#### Scenario: Caller requests local checkpoint comparison
+
+- **GIVEN** a design contract, validation result, selected seal, policy, current source identities, canonical lineage-tip identity, and normalized worktree or index snapshot
+- **AND** no current delivery-target identity is supplied
+- **WHEN** the core checkpoint verifier runs
+- **THEN** it verifies the applicable local and upstream identities without requiring or synthesizing a range delivery target
+- **AND** the result retains only `local_worktree` or `local_index` authority.
 
 ### Requirement: Explicit implementation assurance limits
 
