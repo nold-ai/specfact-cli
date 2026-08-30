@@ -13,10 +13,10 @@
       "latest_version": "0.1.21"
     },
     {
-      "checksum_sha256": "b184cd178a0f659ba701713f1b0fa5765b2dec86564cfa731c2773c637316732",
-      "download_url": "https://github.com/nold-ai/specfact-cli/releases/download/module-registry-0.1.33.tar.gz",
+      "checksum_sha256": "8a3013299190286d2c48d87a6a605686ee3880d6acdc92119b466724d9db6f70",
+      "download_url": "https://github.com/nold-ai/specfact-cli/releases/download/module-registry-0.1.35.tar.gz",
       "id": "module-registry",
-      "latest_version": "0.1.33"
+      "latest_version": "0.1.35"
     },
     {
       "id": "bundle-mapper",
