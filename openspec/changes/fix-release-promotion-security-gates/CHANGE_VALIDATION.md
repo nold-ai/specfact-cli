@@ -1,17 +1,18 @@
 # Change Validation Report: fix-release-promotion-security-gates
 
-**Validation Date**: 2026-08-27 (Europe/Berlin)
+**Validation Date**: 2026-08-30 (Europe/Berlin)
 **Change Proposal**: [proposal.md](./proposal.md)
-**Validation Method**: repository/GitHub boundary analysis against `origin/dev` at `3ea3d9b4492ade6ec5683fac83c5b5090b0cb547`
+**Validation Method**: repository/GitHub boundary analysis against `origin/dev` at `4fd96d6d804da70cc7ceca83b8adce21f7da561c`
 
 ## Executive summary
 
 - Breaking changes: 0 detected.
 - Impact: release-blocking CI security and evidence behavior only.
 - Strict OpenSpec validation: pass before tests.
-- Current release version remains 0.55.2. The only additional dependency change
-  is the targeted Semgrep 1.175.0 / MCP 1.29.0 security update authorized by
-  #692 after the prior exception premise became obsolete.
+- Current dev version is 0.55.3 after the intervening module-scope patch. This
+  change advances exactly the next patch, 0.55.4. The only additional dependency
+  change is the targeted Semgrep 1.175.0 / MCP 1.29.0 security update authorized
+  by #692 after the prior exception premise became obsolete.
 
 ## GitHub readiness
 
@@ -21,7 +22,7 @@
 - Project: SpecFact CLI #1, status In Progress.
 - Parent/sub-issues: none; correct for this release-blocking bugfix.
 - Blocked-by/blocking: none.
-- Linked branch: `bugfix/692-release-promotion-security-gates`.
+- Linked branch: `codex/692-computed-owner-red-proof-v2` (PR #698).
 - Concurrent implementation: no other issue-linked branch or worktree for #692 was found.
 - Hierarchy cache: refresh command completed successfully and reported unchanged content; live issue readback supplied current state.
 
@@ -65,12 +66,14 @@
 
 - Frozen/hash-locked synchronization remains `uv sync --locked --all-extras`.
 - The only expected compatibility cost is slower CI downloads.
-- No public CLI/API, package metadata, dependency version, user guide, README, docs index, or navigation behavior changes.
+- No public CLI/API, runtime dependency membership, user guide, README, docs index,
+  or navigation behavior changes. Core package metadata advances from 0.55.3 to
+  0.55.4 and the development/scanning toolchain advances only Semgrep/MCP.
 - The internal wiki was consulted read-only. Internal wiki PR #38 and its branch remain untouched; status synchronization is a post-merge follow-up.
 
 ## Rollback
 
-Revert the issue-linked PR before release. If 0.55.2 has already shipped, publish a normal forward patch for a regression; do not rewrite the tag or published history. Yank only a demonstrably unsafe PyPI artifact under normal release policy.
+Revert the issue-linked PR before release. If 0.55.4 has already shipped, publish a normal forward patch for a regression; do not rewrite the tag or published history. Yank only a demonstrably unsafe PyPI artifact under normal release policy.
 
 ## Validation record
 
@@ -78,7 +81,8 @@ Revert the issue-linked PR before release. If 0.55.2 has already shipped, publis
 - Authoritative initial failing-before run: exit 1 with 2 expected failures and 2 legitimate passing controls; see `TDD_EVIDENCE.md`.
 - Review/bypass failing-before runs reproduced all applicable PR findings, including the final annotated/computed/import-bound P1.
 - Changed-scope passing-after run: 211 passed; focused workflow/provenance owners: 96 passed; workflow lint: pass.
-- Final full repository and pinned-fixture suite: 3066 passed, 10 skipped;
+- Final current-dev-rebased repository and pinned-fixture suite: 3191 passed,
+  10 skipped;
   repository lint/type checks,
   Semgrep, Bandit, frozen dependency audits, license checks, reproducible
   delivery, strict module signatures, wheel build, and Twine artifact checks
@@ -95,6 +99,6 @@ Revert the issue-linked PR before release. If 0.55.2 has already shipped, publis
   regressions and their Git fixtures were simplified without changing behavior.
 - A targeted no-write solve changed only Semgrep 1.171.0 -> 1.175.0 and MCP
   1.23.3 -> 1.29.0 in the 184-package graph. The six-rule repository SAST scan
-  then passed over 297 Python targets with zero findings.
+  then passed over 299 Python targets with zero findings.
 - Python 3.11, 3.12, and 3.13 frozen environments all resolved the fixed
   Semgrep/MCP pair; the policy selector passed in each tested interpreter.

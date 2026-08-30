@@ -986,3 +986,76 @@ the authoritative failing-before evidence or the candidate design.
   DNS lookup and denied user-metadata fixture write. Rerunning exactly those two
   tests with normal network and home access passed both, yielding the same
   effective `3189 passed`, `10 skipped` result as the earlier clean run.
+
+## 2026-08-30 authoritative current-dev rebase and red proof
+
+- The earlier proof and review runs in this document remain useful historical
+  reproduction evidence, but their candidate commits are superseded because
+  protected `dev` advanced while PR #698 was under review. They are not the
+  release baseline and must not be used to omit the final rebased gates.
+- The authoritative parent is refreshed `origin/dev` commit
+  `4fd96d6d804da70cc7ceca83b8adce21f7da561c`. This preserves the intervening
+  planning merge from PR #685, module-scope correction from PR #700, and bundled
+  module snapshot from PR #701.
+- The authoritative spec/test-only red commit is
+  `4300f6a08084b05d528748186328238c452bf065`. Its exact 30-case plan failed
+  locally with `30 failed, 0 passed` before production changes were applied.
+- The test-authored Requirements mapping has `30` cases, combined mapping
+  digest `sha256:a86d87fe36bfb79d740788f849fed9a0c307aed7f46dcb48b6b59760e9664bb3`,
+  and plan digest
+  `sha256:4b15b245d26cc88ea4cfd49ddbf0c95f55fb3b5311d5df80e449491e2d0c9e24`.
+  Its source approval remains the unedited repository MEMBER comment
+  `5467009208` on issue #692, binding source digest
+  `sha256:a63a34f67aac2e893580ffd8c98135b29358ad42cd41a78016725a6785485524`.
+- GitHub Requirements run `33297150129`, job `99218679579`, failed at the
+  intended red enforcement step against the exact red commit. Artifact
+  `9727771400` was unexpired when downloaded and has digest
+  `sha256:3264a201731703d9288cebcba8b4e3a242369eca7885b6c6bdaed15f31ad0c69`.
+  The artifact's plan, report, summary, and JUnit digests are respectively
+  `8d369db089c92e3caa66ea2bb5bcc7feacdb6f5b767e68c428ac1e5843ee4c1f`,
+  `e96c03f0d36c16041661eccf98dfbb7be429c996df8a8b5e2e99bcb330949947`,
+  `c17464b8cc296613896045b3cc80121f4c9f783b3f6c42dc207738769d8db8ae`,
+  and `2359b643154a904aee71c98b76d25aa80c1b6e5f3033f92a810b0fd5818be2e7`.
+  The report binds the exact source commit, all 30 selectors, and the mapping
+  and plan digests above, with no provenance findings.
+- The green implementation and all release/security gates must run as a linear
+  descendant of this red commit. No earlier reconstructed or bootstrap commit
+  is an acceptable final proof substitute.
+
+## 2026-08-30 current-dev-rebased passing evidence
+
+- The exact approved 30-case `test-authored` plan passed after implementation:
+  `30 passed`. The broader Requirements, provenance, workflow, dependency, and
+  signing surface passed `383` tests with `4` skips that require the released
+  fixture lane.
+- The exact PR Orchestrator full-suite owner ran against immutable modules
+  fixture commit `69f075819be5e1ceca1446b026b0417f19e584ca`, tree
+  `5d0b8e66c6cd467e6b1ad9d582e24c66b907e205`, and completed with
+  `3191 passed, 10 skipped`, two third-party Lark deprecation warnings, and
+  `64%` aggregate coverage.
+- Ruff format and lint passed over `960` files. Full-project BasedPyright
+  reported `0 errors, 0 warnings, 0 notes`; the safe-project-write guard passed.
+- Strict OpenSpec validation passed all `176` specs/changes. Native
+  `openspec archive fix-retained-red-proof-provenance` created
+  `2026-08-30-fix-retained-red-proof-provenance`; canonical specs were already
+  synchronized, so the command changed only the active/archive location.
+- Actionlint, version-source synchronization from `0.55.3` to exactly `0.55.4`,
+  `uv lock --check`, strict verification of all four signed module manifests,
+  wheel build, and Twine validation passed.
+- Dependency trust and frozen export reproducibility passed. Strict pip-audit
+  passed both `requirements/ci/locked.txt` and
+  `requirements/code-review/locked.txt` with no unreviewed vulnerabilities.
+  The installed and isolated Code Review license scopes and all four module
+  manifests passed with zero violations.
+- Independent Semgrep ran six rules over `299` Python targets with zero
+  findings and no accepted-baseline delta. Bandit reported no blocking
+  medium/high findings.
+- Full-enforcement SpecFact Code Review examined every Python path changed from
+  refreshed `origin/dev`, including tests and the two new production helpers,
+  with bug-hunt enabled. It reported `0` findings and score `115`.
+- Independent semantic/security review found no actionable regression:
+  differential analysis covered `237` staged/current import and pytest-plugin
+  discovery cases with zero differences, and its focused control suite passed
+  `140` tests. The independent clean-code review's five actionable warnings
+  were remediated; its explicit-validator-argv observation remains an
+  intentional auditable security allowlist rather than a hidden mapper.

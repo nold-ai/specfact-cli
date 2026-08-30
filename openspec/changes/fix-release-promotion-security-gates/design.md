@@ -107,4 +107,4 @@ future review amendments stale and prevents an updateable non-default-branch PR.
 1. Merge the issue-linked fix through protected `dev` after focused and full gates pass.
 2. Close PR #691 only after the replacement release branch is prepared and its exact selected-file provenance is recorded.
 3. Run the full protected-main gates on the focused release PR and merge only when policy permits, then verify the main-push package, PyPI, and GitHub release jobs.
-4. Roll back by reverting the security-fix PR; if 0.55.2 is already published, use a normal follow-up patch release rather than rewriting history.
+4. Roll back by reverting the security-fix PR; if 0.55.4 is already published, use a normal follow-up patch release rather than rewriting history or replacing the published artifact.

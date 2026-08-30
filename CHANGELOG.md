@@ -10,6 +10,27 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.55.4] - 2026-08-30
+
+### Security
+
+- **Requirements proof authority:** bind same-pull-request amendment cycles to
+  the exact live external receipt, immutable run and artifact identities,
+  linear test-first history, and the complete executable pytest input graph.
+- **Frozen security tooling:** upgrade Semgrep to 1.175.0 and MCP to 1.29.0,
+  remove the superseded MCP vulnerability exceptions, and enforce the reviewed
+  dependency floors before synchronization.
+- **Release workflow isolation:** disable persistent Python and Node dependency
+  caches around privileged companion-module execution and verify the immutable
+  fixture before its paths are exported.
+
+### Fixed
+
+- Preserve repeatable red-to-green review cycles on non-default pull requests
+  without weakening Requirements evidence, Code Review, or release gates.
+
+---
+
 ## [0.55.3] - 2026-08-29
 
 ### Fixed

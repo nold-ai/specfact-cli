@@ -33,6 +33,13 @@ PROOF_ENVIRONMENT_KEYS = frozenset(
         "VIRTUAL_ENV",
     }
 )
+PROOF_PYTEST_BOOTSTRAP = (
+    "import sys\n"
+    "import pytest\n"
+    "repo_root = sys.argv.pop(1)\n"
+    "sys.path.append(repo_root)\n"
+    "raise SystemExit(pytest.main(sys.argv[1:]))\n"
+)
 
 
 @runtime_checkable
@@ -169,8 +176,10 @@ def execute_plan(
     junit_path.unlink(missing_ok=True)
     arguments = [
         sys.executable,
-        "-m",
-        "pytest",
+        "-P",
+        "-c",
+        PROOF_PYTEST_BOOTSTRAP,
+        str(repo_root.resolve()),
         "--junitxml",
         str(junit_path),
         "-p",

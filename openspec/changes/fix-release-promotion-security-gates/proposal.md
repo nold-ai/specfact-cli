@@ -1,12 +1,12 @@
 ## Why
 
-The protected `dev` head for the 0.55.2 security release is blocked by a cache-persistence dataflow, while the broad `dev -> main` PR correctly rejects accumulated planning-only OpenSpec changes without acceptance evidence. The release must remove the cache sink and use a focused patch-release promotion rather than weakening the Requirements gate.
+The protected `dev` head now contains the intervening 0.55.3 module-scope changes, while release promotion remains blocked by cache-persistence and Requirements-proof authority findings. The security release must remove those sinks, preserve the newer dev work, and use a focused 0.55.4 promotion rather than weakening the Requirements gate.
 
 ## What Changes
 
 - Disable both restore and save behavior for shared uv and npm caches after companion-module fixture code can execute in privileged jobs.
 - Remove the PR Orchestrator manual-dispatch entrypoint so a branch-selected workflow definition cannot authorize its own fixture execution; retain the schedule-only compatibility lane and exact commit/tree verification.
-- Keep the Requirements evidence and finalized Code Review gates unchanged; replace the over-broad release PR with the smallest `main`-based patch-release PR containing only the already-validated 0.55.2 security delta.
+- Keep the Requirements evidence and finalized Code Review gates fail-closed; replace the over-broad release PR with the smallest `main`-based patch-release PR containing only the dev-validated 0.55.4 security delta.
 - Add a focused regression for the cache boundary before changing the shared action.
 - Correct the two actionable PR #691 code-quality findings without changing public behavior.
 - Bind local dependency-trust triggers and license exceptions to the exact frozen Code Review environment.
@@ -25,8 +25,9 @@ The protected `dev` head for the 0.55.2 security release is blocked by a cache-p
   pins fixed `mcp==1.29.0`;
   refresh only the frozen dependency artifacts affected by that solve, and
   enforce `mcp>=1.28.1` before synchronization.
-- Do not change public CLI/API behavior, runtime dependency membership, package
-  contents, or the 0.55.2 version.
+- Do not change public CLI/API behavior, runtime dependency membership, or package
+  contents; advance the four synchronized core version sources only from 0.55.3
+  to the next patch, 0.55.4.
 
 ## Capabilities
 
