@@ -1040,6 +1040,11 @@ the authoritative failing-before evidence or the candidate design.
   sources as accepted. The five earlier higher-order namespace cases remained
   rejected, proving this is a two-case amendment rather than a regression in
   the already-pushed fix.
+- The first implementation candidate passed both reported P1 sources and the
+  legitimate namespace controls. An adjacent manual challenge then proved that
+  assigning the local binder to an alias and using that alias as a decorator
+  remained accepted; the same S17 selector was expanded before alias
+  propagation was implemented.
 
 ## 2026-08-30 current-dev-rebased passing evidence
 

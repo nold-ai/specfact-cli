@@ -172,6 +172,14 @@ def test_higher_order_plugin_namespace_mutator_fails_closed() -> None:
         "@bind\n"
         "def target():\n"
         "    pass\n",
+        "def bind(function):\n"
+        "    global pytest_plugins\n"
+        '    pytest_plugins = ("tests.helpers.hidden",)\n'
+        "    return function\n"
+        "alias = bind\n"
+        "@alias\n"
+        "def target():\n"
+        "    pass\n",
         "from tests.helpers.binder import bind\nbind(globals())\n",
     )
     ordinary_source = 'import functools\nfunctools.partial(setattr, target, "ordinary", 1)()\n'
