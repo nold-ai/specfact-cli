@@ -81,7 +81,7 @@ Every unchecked item below is retained historical planning text and is non-execu
 - Do not give the pull-request workflow checkpoint-tag write authority or let it self-issue R/H; issuance is an external approved-signer ceremony under the pre-established ruleset/epoch.
 - Do not allow test/config/harness changes after R; require a new R.
 - Do not emit pass/no-impact for missing or unresolved mandatory facts.
-- Do not manually move directories into `openspec/changes/archive/`. No archive command is authorized while this change is parked; after an explicit un-parking decision and completed implementation, use the then-current governed repository-root archive procedure.
+- Do not manually move directories into `openspec/changes/archive/`. No archive command is authorized while this change is parked. Only after explicit un-parking, completed implementation, verification, shipment, merge, and explicit approval for canonical-specification promotion may the then-current governed repository-root archive procedure be used.
 
 ## Closed implementation allowlist
 

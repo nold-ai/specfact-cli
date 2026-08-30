@@ -30,6 +30,7 @@
 - `SPECFACT_MODULES_REPO=/private/tmp/specfact-modules-fixture-69f07581 hatch run pre-commit run`: PASS on 2026-08-29 against the complete staged planning diff. This command ran the repository YAML, Markdown fix/lint, schema-v2 Requirements planning-evidence, diff-scope, contract, and code-review gates; the sidecar remained inspection-only and claimed no test execution.
 - `git diff --check`: PASS on 2026-08-29 for the complete planning diff.
 - Review follow-up on 2026-08-30: interface additions, deletions, and both rename endpoints now require provenance-bound absent-side tombstones so expected nonexistence is distinguishable from missing evidence.
+- Second review follow-up on 2026-08-30: the planning evidence explicitly covers immutable lineage origin, origin-to-head ancestry, and exact delivery-head observables; invalid absence aggregates through `unverifiable` to `UNKNOWN`; the parked R08 archive gate now repeats its complete implementation-through-approved-promotion prerequisite.
 
 ## Decision
 
