@@ -1022,6 +1022,25 @@ the authoritative failing-before evidence or the candidate design.
   descendant of this red commit. No earlier reconstructed or bootstrap commit
   is an acceptable final proof substitute.
 
+## 2026-08-30 completed-head PR review amendment red proof
+
+- Two unresolved P1 review comments on the completed red head were reproduced
+  against pushed green commit `22041cacdd8c34f26f09bccc91499e51e21545a8`:
+  comment `3888913273` demonstrated an import-time local decorator that binds
+  `pytest_plugins`, and comment `3888913276` demonstrated an imported callable
+  receiving the active module namespace through `globals()`.
+- Both cases are already governed by the accepted scenario “A higher-order
+  callable performs a plugin namespace mutation” and its exact S17 selector;
+  the OpenSpec sidecar and approved source mapping digest
+  `sha256:0829a9ce09ef987f7f9253c0d9427824c49d31672743a041ba2cb247ec097b9b`
+  remain unchanged.
+- Failing-before command:
+  `uv run --locked --no-sync pytest -q tests/unit/scripts/test_requirements_proof_provenance_review_regressions_v2.py::test_higher_order_plugin_namespace_mutator_fails_closed`.
+- Failing-before result: one selected test failed while reporting both hostile
+  sources as accepted. The five earlier higher-order namespace cases remained
+  rejected, proving this is a two-case amendment rather than a regression in
+  the already-pushed fix.
+
 ## 2026-08-30 current-dev-rebased passing evidence
 
 - The exact approved 30-case `test-authored` plan passed after implementation:

@@ -23,13 +23,15 @@ def _load_provenance_module() -> ModuleType:
 
 
 def _assert_plugin_discovery_rejected(module: ModuleType, sources: tuple[str, ...]) -> None:
+    accepted_sources: list[str] = []
     for source in sources:
         try:
             module._pytest_plugin_names(ast.parse(source))
         except ValueError as error:
             assert str(error) == "prior-red-proof-invalid"
         else:
-            raise AssertionError(f"hostile plugin discovery source was accepted: {source}")
+            accepted_sources.append(source)
+    assert not accepted_sources, "hostile plugin discovery sources were accepted:\n" + "\n---\n".join(accepted_sources)
 
 
 def test_object_setattr_current_module_binding_fails_closed() -> None:
@@ -163,6 +165,14 @@ def test_higher_order_plugin_namespace_mutator_fails_closed() -> None:
         "import operator\n"
         'operator.methodcaller("__setitem__", "pytest_plugins", ("tests.helpers.hidden",))(globals())\n',
         'import operator\noperator.attrgetter("__setitem__")(globals())("pytest_plugins", ("tests.helpers.hidden",))\n',
+        "def bind(function):\n"
+        "    global pytest_plugins\n"
+        '    pytest_plugins = ("tests.helpers.hidden",)\n'
+        "    return function\n"
+        "@bind\n"
+        "def target():\n"
+        "    pass\n",
+        "from tests.helpers.binder import bind\nbind(globals())\n",
     )
     ordinary_source = 'import functools\nfunctools.partial(setattr, target, "ordinary", 1)()\n'
 
