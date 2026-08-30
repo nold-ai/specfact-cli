@@ -250,6 +250,67 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_requirements_proof_provenance_review_regressions_v2.py::test_object_setattr_current_module_binding_fails_closed
+      - case_id: RELEASE-692-PYTEST-S13
+        scenario_id: retained-proof-binds-only-active-pytest-plugin-declarations
+        method: test
+        intent: "Prove a custom current-module type cannot synthesize a hidden pytest plugin binding."
+        observable: >-
+          Assigning a custom ModuleType subclass to the executing module's
+          __class__ fails closed, while an unrelated object's class assignment
+          remains compatible.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_provenance_review_regressions_v2.py::test_custom_current_module_type_fails_closed
+      - case_id: RELEASE-692-PYTEST-S14
+        scenario_id: retained-proof-binds-only-active-pytest-plugin-declarations
+        method: test
+        intent: "Prove module-registry replacement cannot substitute hidden pytest plugin declarations."
+        observable: >-
+          Import-time sys.modules mutations fail closed, while read-only access to
+          the active module registry remains compatible.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_provenance_review_regressions_v2.py::test_current_module_registry_replacement_fails_closed
+      - case_id: RELEASE-692-PYTEST-S15
+        scenario_id: retained-proof-binds-only-active-pytest-plugin-declarations
+        method: test
+        intent: "Prove builtin attribute lookup cannot synthesize a hidden pytest plugin binding."
+        observable: >-
+          Mutating builtins.getattr through an attribute or mapping view fails
+          closed, while an unrelated builtins attribute assignment remains compatible.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_provenance_review_regressions_v2.py::test_builtins_getattr_mutation_fails_closed
+      - case_id: RELEASE-692-PYTEST-S16
+        scenario_id: retained-proof-binds-only-active-pytest-plugin-declarations
+        method: test
+        intent: "Prove imperative pytest plugin-manager imports remain frozen proof inputs."
+        observable: >-
+          A literal config.pluginmanager.import_plugin target is retained as a
+          repository dependency, while an unresolved target fails closed.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_provenance_review_regressions_v2.py::test_pytest_configure_import_plugin_is_retained_or_rejected
+      - case_id: RELEASE-692-PYTEST-S17
+        scenario_id: retained-proof-binds-only-active-pytest-plugin-declarations
+        method: test
+        intent: "Prove eagerly invoked higher-order callables cannot hide active pytest plugin writes."
+        observable: >-
+          Passing active-module authority to a higher-order setter or callable
+          factory fails closed, while an unrelated-object wrapper remains compatible.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_provenance_review_regressions_v2.py::test_higher_order_plugin_namespace_mutator_fails_closed
+      - case_id: RELEASE-692-PYTEST-S18
+        scenario_id: retained-proof-binds-only-active-pytest-plugin-declarations
+        method: test
+        intent: "Prove higher-order callables cannot escape frozen import-loader authority."
+        observable: >-
+          A higher-order callable using a literal loader target retains the
+          repository module, while a dynamic wrapped target fails closed.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_provenance_review_regressions_v2.py::test_higher_order_import_factory_is_retained_or_rejected
   openspec:fix-release-promotion-security-gates:trustworthy-green-checks:retained-proof-binds-the-complete-executable-pytest-harness:
     rationale: "Retained red evidence must bind every repository-controlled input that can alter selected pytest execution."
     stakeholder_refs:

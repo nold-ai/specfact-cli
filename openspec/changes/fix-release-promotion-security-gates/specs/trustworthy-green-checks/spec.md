@@ -268,6 +268,42 @@ mappings SHALL remain compatible.
 - **WHEN** an applicable pytest support module defines or assigns module-level `__getattr__` that can synthesize `pytest_plugins`
 - **THEN** retained proof fails closed instead of treating the function body as an inactive local scope
 
+#### Scenario: Custom module type can synthesize a plugin declaration
+
+- **WHEN** an applicable pytest support module replaces its current module `__class__` with a custom type that can override attribute lookup
+- **THEN** retained proof fails closed before the custom `__getattribute__` or descriptor path can synthesize `pytest_plugins`
+- **AND** an unrelated object's class assignment remains compatible when it cannot change the executing support module
+
+#### Scenario: Module registry replacement can substitute plugin declarations
+
+- **WHEN** an applicable pytest support module mutates `sys.modules` during import
+- **THEN** retained proof fails closed because the mutation can substitute the executing module or another executable proof input
+- **AND** read-only access to `sys.modules` remains compatible
+
+#### Scenario: Builtin attribute lookup can synthesize a plugin declaration
+
+- **WHEN** an applicable pytest support module mutates `builtins.getattr` through an attribute or mapping view
+- **THEN** retained proof fails closed before pytest can observe a hidden `pytest_plugins` value through the modified lookup function
+- **AND** an unrelated builtins attribute assignment remains compatible
+
+#### Scenario: A pytest hook loads a plugin imperatively
+
+- **WHEN** an applicable pytest support module calls `config.pluginmanager.import_plugin` with a literal repository module
+- **THEN** that module remains a frozen executable proof input
+- **AND** retained proof fails closed when the plugin target cannot be resolved statically
+
+#### Scenario: A higher-order callable performs a plugin namespace mutation
+
+- **WHEN** an applicable pytest support module passes active-module namespace authority to an eagerly invoked higher-order setter or callable factory
+- **THEN** retained proof fails closed instead of treating the higher-order call as unrelated
+- **AND** a higher-order setter bound only to an unrelated object remains compatible
+
+#### Scenario: A higher-order callable performs a repository import
+
+- **WHEN** an applicable pytest support module passes import-loader authority to an eagerly invoked higher-order callable using a literal repository target
+- **THEN** the imported repository module remains a frozen executable proof input
+- **AND** retained proof fails closed when the wrapped import target cannot be resolved statically
+
 #### Scenario: Pytest configuration changes after red proof
 
 - **WHEN** a repository pytest configuration file is added, removed, renamed, or changed after the retained red source

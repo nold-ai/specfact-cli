@@ -98,7 +98,21 @@ HOSTILE_SOURCES = (
 
 def _commit(repo_root: Path, message: str) -> str:
     subprocess.run(["git", "add", "."], cwd=repo_root, check=True)
-    subprocess.run(["git", "commit", "--no-gpg-sign", "-m", message], cwd=repo_root, check=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Requirements proof",
+            "-c",
+            "user.email=requirements@example.test",
+            "commit",
+            "--no-gpg-sign",
+            "-m",
+            message,
+        ],
+        cwd=repo_root,
+        check=True,
+    )
     result = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo_root, check=True, capture_output=True, text=True)
     return result.stdout.strip()
 
