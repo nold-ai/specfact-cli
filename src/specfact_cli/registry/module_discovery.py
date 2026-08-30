@@ -158,9 +158,10 @@ def _maybe_warn_user_shadowed_by_project(
     _SHADOW_HINT_KEYS.add(warning_key)
     print_warning(
         f"Module '{module_name}' from project scope ({existing.package_dir}) takes precedence over "
-        f"user-scoped module ({package_dir}) in this workspace. The user copy is ignored here. "
-        f"Inspect origins with `specfact module list --show-origin`; if stale, clean user scope "
-        f"with `specfact module uninstall {module_name} --scope user`."
+        f"user-scoped module ({package_dir}) in this workspace. The user copy remains installed; "
+        "availability outside this workspace depends on module state and other higher-priority copies. "
+        "No uninstall is required due to normal shadowing. Inspect origins with "
+        "`specfact module list --show-origin`."
     )
 
 

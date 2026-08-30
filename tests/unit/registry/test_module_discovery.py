@@ -172,7 +172,30 @@ def test_project_shadow_warning_is_actionable_and_emitted_once(tmp_path: Path, m
     assert len(warnings) == 1
     assert "takes precedence over user-scoped module" in warnings[0]
     assert "specfact module list --show-origin" in warnings[0]
-    assert "specfact module uninstall backlog-core --scope user" in warnings[0]
+    assert "remains installed" in warnings[0]
+    assert "availability outside this workspace depends on module state" in warnings[0]
+    assert "available outside this workspace" not in warnings[0]
+    assert "module uninstall" not in warnings[0]
+
+
+def test_user_module_is_discovered_outside_shadowing_project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A preserved user copy is discoverable where no project copy shadows it."""
+    repo_root = tmp_path / "other-repo"
+    builtin_root = tmp_path / "builtin"
+    user_root = tmp_path / "user-modules"
+    repo_root.mkdir()
+    _write_manifest(builtin_root, "init")
+    _write_manifest(user_root, "backlog-core")
+    monkeypatch.chdir(repo_root)
+
+    discovered = discover_all_modules(
+        builtin_root=builtin_root,
+        user_root=user_root,
+        include_legacy_roots=False,
+    )
+
+    backlog = next(entry for entry in discovered if entry.metadata.name == "backlog-core")
+    assert backlog.source == "user"
 
 
 def test_discover_all_modules_with_explicit_user_root_preserves_project_scope(
