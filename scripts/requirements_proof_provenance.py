@@ -147,6 +147,8 @@ class DynamicImportAliases:
     """Fixed-point state for direct and namespace-backed import loaders."""
 
     direct_loaders: set[str]
+    partial_factories: set[str]
+    higher_order_factories: dict[str, set[str]]
     importlib: ImportNamespaceAliases
     builtins: ImportNamespaceAliases
 
@@ -154,6 +156,8 @@ class DynamicImportAliases:
         """Return the monotonic state size used to detect convergence."""
         return (
             len(self.direct_loaders),
+            len(self.partial_factories),
+            sum(len(names) for names in self.higher_order_factories.values()),
             len(self.importlib.owners),
             len(self.importlib.mappings),
             len(self.importlib.mapping_methods),
@@ -890,7 +894,10 @@ _UNRESOLVED_MAPPING_KEY = object()
 _IMPORT_FACTORY_PREFIX = "__specfact_import_factory__:"
 _BUILTINS_MAPPING_PREFIX = "__specfact_builtins_mapping__:"
 _MODULE_MAPPING_PREFIX = "__specfact_module_mapping__:"
+_PARTIAL_FACTORY_PREFIX = "__specfact_partial_factory__:"
+_OPERATOR_FACTORY_PREFIX = "__specfact_operator_factory__:"
 _NAMESPACE_MUTATORS = {"update", "setdefault", "__setitem__", "__ior__"}
+_OPERATOR_FACTORIES = {"methodcaller", "attrgetter", "itemgetter"}
 
 
 def _starred_sequence_bindings(target: ast.Tuple | ast.List, value: ast.Tuple | ast.List) -> list[ScopeBinding] | None:
@@ -1169,7 +1176,7 @@ def _propagate_scope_aliases(binding: ScopeBinding, aliases: ScopeAliases) -> No
     factories, namespaces, dynamic_executors, namespace_mutators = aliases
     source_name = _qualified_name(value)
     _propagate_namespace_aliases(target_names, value, source_name, factories, namespaces)
-    _propagate_dynamic_aliases(target_names, value, source_name, dynamic_executors)
+    _propagate_dynamic_aliases(target_names, value, source_name, aliases)
     _propagate_executor_owner_aliases(target_names, value, source_name, dynamic_executors)
     for method in _namespace_mutator_references(value, factories, namespaces, namespace_mutators):
         namespace_mutators.update(f"{target}.{method}" for target in target_names)
@@ -1183,6 +1190,7 @@ def _propagate_namespace_aliases(
     """Propagate namespace factories and objects through one assignment."""
     if source_name in factories:
         factories.update(targets)
+    _propagate_callable_factory_aliases(targets, source_name, factories)
     if value is not None and _is_module_mapping_reference(value, factories):
         factories.update(_authority_marker(_MODULE_MAPPING_PREFIX, target) for target in targets)
     if (
@@ -1193,13 +1201,29 @@ def _propagate_namespace_aliases(
         namespaces.update(targets)
 
 
+def _propagate_callable_factory_aliases(targets: set[str], source_name: str | None, factories: set[str]) -> None:
+    """Propagate partial and operator callable-factory authority."""
+    if source_name is None:
+        return
+    if _authority_marker(_PARTIAL_FACTORY_PREFIX, source_name) in factories:
+        factories.update(_authority_marker(_PARTIAL_FACTORY_PREFIX, target) for target in targets)
+    for factory in _OPERATOR_FACTORIES:
+        marker = _authority_marker(_OPERATOR_FACTORY_PREFIX, f"{factory}:{source_name}")
+        if marker in factories:
+            factories.update(_authority_marker(_OPERATOR_FACTORY_PREFIX, f"{factory}:{target}") for target in targets)
+
+
 def _propagate_dynamic_aliases(
-    targets: set[str], value: ast.AST | None, source_name: str | None, dynamic_executors: set[str]
+    targets: set[str],
+    value: ast.AST | None,
+    source_name: str | None,
+    aliases: ScopeAliases,
 ) -> None:
     """Propagate dynamic executors, module mappings, and import factories."""
+    factories, namespaces, dynamic_executors, _ = aliases
     if _is_dynamic_executor_reference(value, dynamic_executors):
         dynamic_executors.update(targets)
-    if _is_builtins_mapping(value, dynamic_executors):
+    if value is not None and _is_active_builtins_mapping(value, factories, namespaces, dynamic_executors):
         dynamic_executors.update(_authority_marker(_BUILTINS_MAPPING_PREFIX, target) for target in targets)
     if source_name is not None and _is_import_factory(source_name, dynamic_executors):
         dynamic_executors.update(_authority_marker(_IMPORT_FACTORY_PREFIX, target) for target in targets)
@@ -1295,10 +1319,51 @@ def _imported_module_mappings(statements: Sequence[ast.AST]) -> set[str]:
     return mappings
 
 
+def _imported_partial_factories(statements: Sequence[ast.AST]) -> set[str]:
+    """Return authority markers for imported functools partial factories."""
+    return {
+        _authority_marker(_PARTIAL_FACTORY_PREFIX, name)
+        for name in _partial_factory_import_names(_same_scope_nodes(statements))
+    }
+
+
+def _partial_factory_import_names(nodes: Iterator[ast.AST] | Sequence[ast.AST]) -> set[str]:
+    """Return qualified and direct names imported for functools.partial."""
+    names: set[str] = set()
+    for node in nodes:
+        if isinstance(node, ast.Import):
+            names.update(f"{alias.asname or alias.name}.partial" for alias in node.names if alias.name == "functools")
+        elif isinstance(node, ast.ImportFrom) and node.module == "functools":
+            names.update(alias.asname or alias.name for alias in node.names if alias.name == "partial")
+    return names
+
+
+def _imported_operator_factories(statements: Sequence[ast.AST]) -> set[str]:
+    """Return authority markers for imported operator callable factories."""
+    factories: set[str] = set()
+    for node in _same_scope_nodes(statements):
+        if isinstance(node, ast.Import):
+            factories.update(
+                _authority_marker(_OPERATOR_FACTORY_PREFIX, f"{factory}:{alias.asname or alias.name}.{factory}")
+                for alias in node.names
+                if alias.name == "operator"
+                for factory in _OPERATOR_FACTORIES
+            )
+        elif isinstance(node, ast.ImportFrom) and node.module == "operator":
+            factories.update(
+                _authority_marker(_OPERATOR_FACTORY_PREFIX, f"{alias.name}:{alias.asname or alias.name}")
+                for alias in node.names
+                if alias.name in _OPERATOR_FACTORIES
+            )
+    return factories
+
+
 def _scope_aliases(statements: Sequence[ast.AST], namespace_builtins: set[str]) -> ScopeAliases:
     """Resolve namespace factories, namespace objects, and dynamic-execution aliases."""
     factories = set(namespace_builtins)
     factories.update(_imported_module_mappings(statements))
+    factories.update(_imported_partial_factories(statements))
+    factories.update(_imported_operator_factories(statements))
     namespaces: set[str] = set()
     dynamic_executors = _imported_dynamic_executors(statements)
     namespace_mutators = _imported_namespace_mutators(statements)
@@ -1349,6 +1414,57 @@ def _is_module_mapping_reference(node: ast.AST, factories: set[str]) -> bool:
     return name == "sys.modules" or (name is not None and _authority_marker(_MODULE_MAPPING_PREFIX, name) in factories)
 
 
+def _is_module_mapping_mutation(node: ast.AST, factories: set[str], namespace_mutators: set[str]) -> bool:
+    """Return whether import-time code can replace an entry in ``sys.modules``."""
+    if isinstance(node, ast.Subscript) and isinstance(node.ctx, (ast.Store, ast.Del)):
+        return _is_module_mapping_reference(node.value, factories)
+    if isinstance(node, ast.AugAssign):
+        return _is_module_mapping_reference(node.target, factories)
+    if not isinstance(node, ast.Call):
+        return False
+    reference = _literal_callable_reference(node.func)
+    if isinstance(reference, ast.Attribute) and reference.attr in {
+        "__setitem__",
+        "update",
+        "setdefault",
+        "pop",
+        "popitem",
+        "clear",
+        "__ior__",
+    }:
+        return _is_module_mapping_reference(reference.value, factories)
+    if _is_computed_module_mapping_mutator(reference, factories):
+        return True
+    setters = _computed_setter_references(reference) | _namespace_mutator_references(
+        reference, factories, set(), namespace_mutators
+    )
+    return bool(setters & {"setitem", "__setitem__"}) and bool(
+        node.args and _is_module_mapping_reference(node.args[0], factories)
+    )
+
+
+def _is_computed_module_mapping_mutator(node: ast.AST | None, factories: set[str]) -> bool:
+    """Return whether getattr selects a bound mutator from ``sys.modules``."""
+    if not (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "getattr"
+        and len(node.args) >= 2
+        and _is_module_mapping_reference(node.args[0], factories)
+    ):
+        return False
+    selected = node.args[1]
+    return not isinstance(selected, ast.Constant) or selected.value in {
+        "__setitem__",
+        "update",
+        "setdefault",
+        "pop",
+        "popitem",
+        "clear",
+        "__ior__",
+    }
+
+
 def _is_current_module_lookup(node: ast.AST, factories: set[str]) -> bool:
     """Return whether a sys.modules lookup can select the executing module."""
     if isinstance(node, ast.Subscript) and _is_module_mapping_reference(node.value, factories):
@@ -1392,8 +1508,18 @@ def _is_namespace_plugin_attribute(node: ast.AST, factories: set[str], namespace
     )
 
 
-def _setattr_can_bind_plugin(node: ast.Call, factories: set[str], namespaces: set[str]) -> bool:
-    """Return whether setattr can create the current module plugin attribute."""
+def _is_current_module_class_attribute(node: ast.AST, factories: set[str], namespaces: set[str]) -> bool:
+    """Return whether a direct write can replace the executing module's type."""
+    return (
+        isinstance(node, ast.Attribute)
+        and isinstance(node.ctx, (ast.Store, ast.Del))
+        and node.attr == "__class__"
+        and _is_namespace_reference(node.value, factories, namespaces)
+    )
+
+
+def _setattr_can_bind_name(node: ast.Call, factories: set[str], namespaces: set[str], attribute_name: str) -> bool:
+    """Return whether a setter can create one active-module attribute."""
     if any(isinstance(argument, ast.Starred) for argument in node.args):
         return True
     bound_to_namespace = isinstance(node.func, ast.Attribute) and _is_namespace_reference(
@@ -1405,7 +1531,7 @@ def _setattr_can_bind_plugin(node: ast.Call, factories: set[str], namespaces: se
     if namespace_index is not None and not _is_namespace_reference(node.args[namespace_index], factories, namespaces):
         return False
     attribute = node.args[attribute_index]
-    return not isinstance(attribute, ast.Constant) or attribute.value == "pytest_plugins"
+    return not isinstance(attribute, ast.Constant) or attribute.value == attribute_name
 
 
 def _mapping_can_bind_plugin(node: ast.AST) -> bool:
@@ -1413,6 +1539,13 @@ def _mapping_can_bind_plugin(node: ast.AST) -> bool:
     if not isinstance(node, ast.Dict):
         return True
     return any(not isinstance(key, ast.Constant) or key.value == "pytest_plugins" for key in node.keys)
+
+
+def _mapping_can_bind_name(node: ast.AST, name: str) -> bool:
+    """Return whether a mapping expression can bind one security-sensitive name."""
+    if not isinstance(node, ast.Dict):
+        return True
+    return any(not isinstance(key, ast.Constant) or key.value == name for key in node.keys)
 
 
 def _key_mutator_can_bind_plugin(node: ast.Call) -> bool:
@@ -1495,6 +1628,102 @@ def _computed_setter_references(node: ast.AST | None) -> set[str]:
     return {name} if name in {"setattr", "__setattr__", "setitem", "__setitem__"} else set()
 
 
+def _is_partial_factory_reference(node: ast.AST | None, factories: set[str]) -> bool:
+    """Return whether an expression names an imported functools partial factory."""
+    name = _qualified_name(node)
+    return name is not None and _authority_marker(_PARTIAL_FACTORY_PREFIX, name) in factories
+
+
+def _is_operator_factory_reference(node: ast.AST | None, factories: set[str], factory: str) -> bool:
+    """Return whether an expression names an imported operator factory."""
+    name = _qualified_name(node)
+    return name is not None and _authority_marker(_OPERATOR_FACTORY_PREFIX, f"{factory}:{name}") in factories
+
+
+def _partial_namespace_mutator_can_bind_plugin(
+    node: ast.Call, factories: set[str], namespaces: set[str], namespace_mutators: set[str]
+) -> bool:
+    """Resolve a partial-bound namespace mutator without executing the wrapper."""
+    if not _is_partial_factory_reference(node.func, factories) or not node.args:
+        return False
+    if any(isinstance(argument, ast.Starred) for argument in node.args):
+        return True
+    wrapped = ast.Call(func=node.args[0], args=list(node.args[1:]), keywords=list(node.keywords))
+    return _is_namespace_plugin_mutator(wrapped, factories, namespaces, namespace_mutators)
+
+
+def _higher_order_namespace_mutator_can_bind_plugin(
+    node: ast.Call, factories: set[str], namespaces: set[str], namespace_mutators: set[str]
+) -> bool:
+    """Resolve operator callable factories that receive active-module authority."""
+    return _methodcaller_namespace_mutator_can_bind_plugin(
+        node, factories, namespaces, namespace_mutators
+    ) or _attrgetter_namespace_mutator_can_bind_plugin(node, factories, namespaces, namespace_mutators)
+
+
+def _methodcaller_namespace_mutator_can_bind_plugin(
+    node: ast.Call, factories: set[str], namespaces: set[str], namespace_mutators: set[str]
+) -> bool:
+    """Resolve an imported operator.methodcaller invocation."""
+    if not isinstance(node.func, ast.Call) or not _is_operator_factory_reference(
+        node.func.func, factories, "methodcaller"
+    ):
+        return False
+    factory = node.func
+    if not factory.args or not node.args:
+        return False
+    method = factory.args[0]
+    if not isinstance(method, ast.Constant) or method.value not in {"__setitem__", "setdefault", "update"}:
+        return False
+    wrapped = ast.Call(
+        func=ast.Attribute(value=node.args[0], attr=str(method.value), ctx=ast.Load()),
+        args=list(factory.args[1:]),
+        keywords=list(factory.keywords),
+    )
+    return _is_namespace_plugin_mutator(wrapped, factories, namespaces, namespace_mutators)
+
+
+def _attrgetter_namespace_mutator_can_bind_plugin(
+    node: ast.Call, factories: set[str], namespaces: set[str], namespace_mutators: set[str]
+) -> bool:
+    """Resolve an imported operator.attrgetter invocation."""
+    if not (
+        isinstance(node.func, ast.Call)
+        and isinstance(node.func.func, ast.Call)
+        and _is_operator_factory_reference(node.func.func.func, factories, "attrgetter")
+        and node.func.func.args
+        and node.func.args
+    ):
+        return False
+    method = node.func.func.args[0]
+    if not isinstance(method, ast.Constant) or method.value not in {"__setitem__", "setdefault", "update"}:
+        return False
+    wrapped = ast.Call(
+        func=ast.Attribute(value=node.func.args[0], attr=str(method.value), ctx=ast.Load()),
+        args=list(node.args),
+        keywords=list(node.keywords),
+    )
+    return _is_namespace_plugin_mutator(wrapped, factories, namespaces, namespace_mutators)
+
+
+def _higher_order_namespace_authority_can_bind_plugin(
+    node: ast.Call, factories: set[str], namespaces: set[str], namespace_mutators: set[str]
+) -> bool:
+    """Fail closed when an unknown eager wrapper receives setter and module authority."""
+    values = [*node.args, *(keyword.value for keyword in node.keywords)]
+    carries_mutator = any(
+        _namespace_mutator_references(candidate, factories, namespaces, namespace_mutators)
+        for value in values
+        for candidate in ast.walk(value)
+    )
+    carries_namespace = any(
+        _is_namespace_reference(value, factories, namespaces)
+        or _contains_namespace_authority(value, factories, namespaces)
+        for value in values
+    )
+    return carries_mutator and carries_namespace
+
+
 def _is_namespace_plugin_mutator(
     node: ast.AST, factories: set[str], namespaces: set[str], namespace_mutators: set[str]
 ) -> bool:
@@ -1503,16 +1732,50 @@ def _is_namespace_plugin_mutator(
         return True
     if not isinstance(node, ast.Call):
         return False
+    if _higher_order_namespace_can_bind_plugin(node, factories, namespaces, namespace_mutators):
+        return True
     mutator_names = _namespace_mutator_names(node, factories, namespaces, namespace_mutators)
     if not mutator_names:
         return False
-    if mutator_names & {"setattr", "__setattr__"} and _setattr_can_bind_plugin(node, factories, namespaces):
+    return _mutator_names_can_bind_plugin(node, factories, namespaces, mutator_names)
+
+
+def _mutator_names_can_bind_plugin(
+    node: ast.Call, factories: set[str], namespaces: set[str], mutator_names: set[str]
+) -> bool:
+    """Apply key-aware plugin binding policy to resolved namespace mutators."""
+    if mutator_names & {"setattr", "__setattr__"} and _setattr_can_bind_name(
+        node, factories, namespaces, "pytest_plugins"
+    ):
         return True
     if "*" in mutator_names:
         return True
     if mutator_names & {"setitem", "__setitem__", "setdefault"} and _key_mutator_can_bind_plugin(node):
         return True
     return bool(mutator_names & {"update", "__ior__"}) and _update_mutator_can_bind_plugin(node)
+
+
+def _higher_order_namespace_can_bind_plugin(
+    node: ast.Call, factories: set[str], namespaces: set[str], namespace_mutators: set[str]
+) -> bool:
+    """Return whether a higher-order call receives active-module setter authority."""
+    return (
+        _partial_namespace_mutator_can_bind_plugin(node, factories, namespaces, namespace_mutators)
+        or _higher_order_namespace_mutator_can_bind_plugin(node, factories, namespaces, namespace_mutators)
+        or _higher_order_namespace_authority_can_bind_plugin(node, factories, namespaces, namespace_mutators)
+    )
+
+
+def _is_current_module_class_mutator(
+    node: ast.AST, factories: set[str], namespaces: set[str], namespace_mutators: set[str]
+) -> bool:
+    """Return whether a setter call can replace the executing module's class."""
+    if not isinstance(node, ast.Call):
+        return False
+    mutator_names = _namespace_mutator_names(node, factories, namespaces, namespace_mutators)
+    return bool(mutator_names & {"setattr", "__setattr__"}) and _setattr_can_bind_name(
+        node, factories, namespaces, "__class__"
+    )
 
 
 def _is_namespace_plugin_augmented_union(node: ast.AST, factories: set[str], namespaces: set[str]) -> bool:
@@ -1532,8 +1795,139 @@ def _is_namespace_plugin_binding_operation(
     return (
         _is_namespace_plugin_subscript(node, factories, namespaces)
         or _is_namespace_plugin_attribute(node, factories, namespaces)
+        or _is_current_module_class_attribute(node, factories, namespaces)
+        or _is_current_module_class_mutator(node, factories, namespaces, namespace_mutators)
+        or _is_module_mapping_mutation(node, factories, namespace_mutators)
         or _is_namespace_plugin_mutator(node, factories, namespaces, namespace_mutators)
         or _is_namespace_plugin_augmented_union(node, factories, namespaces)
+    )
+
+
+def _is_builtins_lookup_mutation(
+    node: ast.AST,
+    factories: set[str],
+    namespaces: set[str],
+    dynamic_executors: set[str],
+    namespace_mutators: set[str],
+) -> bool:
+    """Return whether import-time code can replace builtin ``getattr``."""
+    return _is_direct_builtins_lookup_mutation(
+        node, factories, namespaces, dynamic_executors
+    ) or _call_mutates_builtins_lookup(node, factories, namespaces, dynamic_executors, namespace_mutators)
+
+
+def _is_active_builtins_mapping(
+    node: ast.AST, factories: set[str], namespaces: set[str], dynamic_executors: set[str]
+) -> bool:
+    """Return whether an expression exposes the active builtins mapping."""
+    if _is_builtins_mapping(node, dynamic_executors):
+        return True
+    return (
+        isinstance(node, ast.Subscript)
+        and _is_namespace_reference(node.value, factories, namespaces)
+        and (not isinstance(node.slice, ast.Constant) or node.slice.value == "__builtins__")
+    )
+
+
+def _is_active_builtins_owner(
+    node: ast.AST, factories: set[str], namespaces: set[str], dynamic_executors: set[str]
+) -> bool:
+    """Return whether an expression may expose the active builtins module."""
+    return _is_dynamic_executor_owner_reference(node, dynamic_executors) or _is_active_builtins_mapping(
+        node, factories, namespaces, dynamic_executors
+    )
+
+
+def _is_direct_builtins_lookup_mutation(
+    node: ast.AST, factories: set[str], namespaces: set[str], dynamic_executors: set[str]
+) -> bool:
+    """Recognize direct attribute, subscript, and union writes to builtin getattr."""
+    if isinstance(node, ast.Attribute) and isinstance(node.ctx, (ast.Store, ast.Del)):
+        return node.attr == "getattr" and _is_active_builtins_owner(
+            node.value, factories, namespaces, dynamic_executors
+        )
+    if isinstance(node, ast.Subscript) and isinstance(node.ctx, (ast.Store, ast.Del)):
+        return _is_active_builtins_mapping(node.value, factories, namespaces, dynamic_executors) and (
+            not isinstance(node.slice, ast.Constant) or node.slice.value == "getattr"
+        )
+    return (
+        isinstance(node, ast.AugAssign)
+        and isinstance(node.op, ast.BitOr)
+        and _is_active_builtins_mapping(node.target, factories, namespaces, dynamic_executors)
+        and _mapping_can_bind_name(node.value, "getattr")
+    )
+
+
+def _call_mutates_builtins_lookup(
+    node: ast.AST,
+    factories: set[str],
+    namespaces: set[str],
+    dynamic_executors: set[str],
+    namespace_mutators: set[str],
+) -> bool:
+    """Recognize external setters and mapping methods that replace builtin getattr."""
+    if not isinstance(node, ast.Call):
+        return False
+    reference = _literal_callable_reference(node.func)
+    setters = _computed_setter_references(reference) | _namespace_mutator_references(
+        reference, factories, namespaces, namespace_mutators
+    )
+    aliases = (factories, namespaces, dynamic_executors, namespace_mutators)
+    return _external_builtins_setter_mutates_lookup(
+        node, reference, setters, aliases
+    ) or _builtins_mapping_method_mutates_lookup(node, reference, factories, namespaces, dynamic_executors)
+
+
+def _external_builtins_setter_mutates_lookup(
+    node: ast.Call,
+    reference: ast.AST | None,
+    setters: set[str],
+    aliases: ScopeAliases,
+) -> bool:
+    """Recognize unbound setattr and setitem calls targeting active builtins."""
+    factories, namespaces, dynamic_executors, _ = aliases
+    qualified = _qualified_name(reference)
+    if qualified in {"setattr", "builtins.setattr", "object.__setattr__"} or setters & {
+        "setattr",
+        "__setattr__",
+    }:
+        owner_matches = bool(node.args) and _is_active_builtins_owner(
+            node.args[0], factories, namespaces, dynamic_executors
+        )
+    elif setters & {"setitem", "__setitem__"}:
+        owner_matches = bool(node.args) and _is_active_builtins_mapping(
+            node.args[0], factories, namespaces, dynamic_executors
+        )
+    else:
+        return False
+    return owner_matches and _positional_name_can_match(node.args, 1, "getattr")
+
+
+def _positional_name_can_match(arguments: Sequence[ast.AST], index: int, name: str) -> bool:
+    """Return whether a positional key or attribute may equal one protected name."""
+    if len(arguments) <= index:
+        return False
+    selected = arguments[index]
+    return not isinstance(selected, ast.Constant) or selected.value == name
+
+
+def _builtins_mapping_method_mutates_lookup(
+    node: ast.Call,
+    reference: ast.AST | None,
+    factories: set[str],
+    namespaces: set[str],
+    dynamic_executors: set[str],
+) -> bool:
+    """Recognize bound mapping mutators targeting active builtins."""
+    if not isinstance(reference, ast.Attribute) or not _is_active_builtins_mapping(
+        reference.value, factories, namespaces, dynamic_executors
+    ):
+        return False
+    if reference.attr in {"__setitem__", "setdefault"}:
+        return _positional_name_can_match(node.args, 0, "getattr")
+    return reference.attr in {"update", "__ior__"} and (
+        any(keyword.arg in {None, "getattr"} for keyword in node.keywords)
+        or any(_mapping_can_bind_name(argument, "getattr") for argument in node.args)
     )
 
 
@@ -1550,6 +1944,7 @@ def _is_global_namespace_plugin_operation(
     return (
         global_declaration
         or dynamic_execution
+        or _is_builtins_lookup_mutation(node, factories, namespaces, dynamic_executors, namespace_mutators)
         or _is_namespace_plugin_binding_operation(node, factories, namespaces, namespace_mutators)
     )
 
@@ -1800,6 +2195,7 @@ def _direct_indirect_plugin_binding(node: ast.AST, aliases: ScopeAliases) -> boo
         pattern_binding
         or name_binding
         or dynamic_execution
+        or _is_builtins_lookup_mutation(node, factories, namespaces, dynamic_executors, namespace_mutators)
         or _is_namespace_plugin_binding_operation(node, factories, namespaces, namespace_mutators)
     )
 
@@ -2171,6 +2567,8 @@ def _assignment_value_is_proven_safe(
     """Return whether the latest definite replacement has no tracked authority."""
     if _alias_authority_value(value, aliases) is AliasAuthority.PROVEN_SAFE:
         return True
+    if _assigned_simple_namespace_value_is_proven_safe(value, statements, aliases):
+        return True
     if isinstance(value, ast.Name) and value.id == "print" and _name_is_unbound_before(statements, value.id, value):
         return True
     if _assigned_simple_namespace_is_proven_safe(value, operation, statements, aliases):
@@ -2183,6 +2581,22 @@ def _assignment_value_is_proven_safe(
         and _simple_namespace_import_is_unshadowed(statements, constructor, value)
         and not value.args
         and not value.keywords
+    )
+
+
+def _assigned_simple_namespace_value_is_proven_safe(
+    value: ast.AST, statements: Sequence[ast.AST], aliases: ScopeAliases
+) -> bool:
+    """Prove that an assigned SimpleNamespace contains only inert values."""
+    if not isinstance(value, ast.Call) or value.args or any(keyword.arg is None for keyword in value.keywords):
+        return False
+    constructor = _qualified_name(value.func)
+    return (
+        constructor is not None
+        and _simple_namespace_import_is_unshadowed(statements, constructor, value)
+        and all(
+            _alias_authority_value(keyword.value, aliases) is AliasAuthority.PROVEN_SAFE for keyword in value.keywords
+        )
     )
 
 
@@ -2241,6 +2655,17 @@ def _without_alias_name(aliases: ScopeAliases, name: str) -> ScopeAliases:
     factories.discard(name)
     module_mapping_marker = _authority_marker(_MODULE_MAPPING_PREFIX, name)
     factories.difference_update({entry for entry in factories if entry.startswith(module_mapping_marker)})
+    partial_marker = _authority_marker(_PARTIAL_FACTORY_PREFIX, name)
+    operator_markers = tuple(
+        _authority_marker(_OPERATOR_FACTORY_PREFIX, f"{factory}:{name}") for factory in _OPERATOR_FACTORIES
+    )
+    factories.difference_update(
+        {
+            entry
+            for entry in factories
+            if entry.startswith(partial_marker) or any(entry.startswith(marker) for marker in operator_markers)
+        }
+    )
     namespaces.discard(name)
     dynamic_executors.discard(name)
     dynamic_executors.discard(f"{name}.exec")
@@ -2366,9 +2791,51 @@ def _dynamic_operation_alias_name(node: ast.AST, dynamic_executors: set[str]) ->
 
 def _operation_alias_names(node: ast.AST, aliases: ScopeAliases) -> set[str]:
     """Return simple alias names whose authority makes an operation unsafe."""
+    factories, _, dynamic_executors, _ = aliases
     namespace_name = _namespace_operation_alias_name(node, aliases)
-    dynamic_name = _dynamic_operation_alias_name(node, aliases[2])
-    return {name for name in (namespace_name, dynamic_name) if name is not None}
+    dynamic_name = _dynamic_operation_alias_name(node, dynamic_executors)
+    names = {name for name in (namespace_name, dynamic_name) if name is not None}
+    names.update(_module_mapping_operation_alias_names(node, factories))
+    names.update(_callable_factory_operation_alias_names(node, factories))
+    names.update(
+        _authority_operation_root_names(
+            node, lambda candidate: _is_dynamic_executor_owner_reference(candidate, dynamic_executors)
+        )
+    )
+    return names
+
+
+def _qualified_root_name(node: ast.AST) -> str | None:
+    """Return the root name of one qualified expression."""
+    name = _qualified_name(node)
+    return name.split(".", maxsplit=1)[0] if name is not None else None
+
+
+def _module_mapping_operation_alias_names(node: ast.AST, factories: set[str]) -> set[str]:
+    """Return imported aliases that expose ``sys.modules`` to an operation."""
+    return _authority_operation_root_names(node, lambda candidate: _is_module_mapping_reference(candidate, factories))
+
+
+def _callable_factory_operation_alias_names(node: ast.AST, factories: set[str]) -> set[str]:
+    """Return partial or operator factory aliases used by an operation."""
+    names: set[str] = set()
+    for candidate in ast.walk(node):
+        is_factory = _is_partial_factory_reference(candidate, factories) or any(
+            _is_operator_factory_reference(candidate, factories, factory) for factory in _OPERATOR_FACTORIES
+        )
+        if is_factory and (root := _qualified_root_name(candidate)) is not None:
+            names.add(root)
+    return names
+
+
+def _authority_operation_root_names(node: ast.AST, predicate: Callable[[ast.AST], bool]) -> set[str]:
+    """Return root names of authority-bearing expressions in one operation."""
+    return {
+        root
+        for candidate in ast.walk(node)
+        if predicate(candidate)
+        if (root := _qualified_root_name(candidate)) is not None
+    }
 
 
 def _operation_uses_definitely_shadowed_alias(
@@ -2510,6 +2977,8 @@ def _initial_dynamic_import_aliases(tree: ast.AST) -> DynamicImportAliases:
     """Collect import statements that introduce dynamic-loader authority."""
     return DynamicImportAliases(
         direct_loaders={"__import__", *_direct_loader_aliases(tree)},
+        partial_factories=_partial_factory_aliases(tree),
+        higher_order_factories=_higher_order_factory_aliases(tree),
         importlib=ImportNamespaceAliases("import_module", _module_owner_aliases(tree, "importlib"), set(), set()),
         builtins=ImportNamespaceAliases("__import__", _module_owner_aliases(tree, "builtins"), set(), set()),
     )
@@ -2538,6 +3007,46 @@ def _direct_loader_aliases(tree: ast.AST) -> set[str]:
     }
 
 
+def _partial_factory_aliases(tree: ast.AST) -> set[str]:
+    """Return qualified and direct aliases of supported higher-order factories."""
+    return _partial_factory_import_names(ast.walk(tree))
+
+
+def _higher_order_factory_aliases(tree: ast.AST) -> dict[str, set[str]]:
+    """Return imported aliases of supported eager higher-order factories."""
+    aliases: dict[str, set[str]] = {factory: set() for factory in (*sorted(_OPERATOR_FACTORIES), "starmap")}
+    aliases["map"] = {"map"}
+    for node in ast.walk(tree):
+        _record_higher_order_import_aliases(node, aliases)
+    return aliases
+
+
+def _record_higher_order_import_aliases(node: ast.AST, aliases: dict[str, set[str]]) -> None:
+    """Record callable factories introduced by one import statement."""
+    if isinstance(node, ast.Import):
+        for imported in node.names:
+            _record_higher_order_module_alias(imported, aliases)
+    elif isinstance(node, ast.ImportFrom) and node.module in {"operator", "itertools"}:
+        _record_direct_higher_order_aliases(node.names, aliases)
+
+
+def _record_direct_higher_order_aliases(imported_names: Sequence[ast.alias], aliases: dict[str, set[str]]) -> None:
+    """Record direct imports of supported higher-order factories."""
+    for imported in imported_names:
+        if imported.name in aliases:
+            aliases[imported.name].add(imported.asname or imported.name)
+
+
+def _record_higher_order_module_alias(imported: ast.alias, aliases: dict[str, set[str]]) -> None:
+    """Record qualified factory names exposed by one module import."""
+    owner = imported.asname or imported.name
+    if imported.name == "operator":
+        for factory in _OPERATOR_FACTORIES:
+            aliases[factory].add(f"{owner}.{factory}")
+    elif imported.name == "itertools":
+        aliases["starmap"].add(f"{owner}.starmap")
+
+
 def _simple_dynamic_import_bindings(statements: Sequence[ast.AST]) -> Iterator[tuple[str, ast.AST]]:
     """Yield simple one-name assignments eligible for alias propagation."""
     for statement in statements:
@@ -2549,28 +3058,56 @@ def _simple_dynamic_import_bindings(statements: Sequence[ast.AST]) -> Iterator[t
 def _record_dynamic_import_alias(target: str, value: ast.AST, aliases: DynamicImportAliases) -> None:
     """Propagate one assignment across the two loader namespaces."""
     qualified_value = _qualified_name(value)
+    if qualified_value in aliases.partial_factories:
+        aliases.partial_factories.add(target)
+        return
+    if _record_higher_order_factory_alias(target, qualified_value, aliases.higher_order_factories):
+        return
     if qualified_value in aliases.direct_loaders:
         aliases.direct_loaders.add(target)
         return
     namespaces = (aliases.importlib, aliases.builtins)
+    if _record_import_namespace_alias(target, value, qualified_value, namespaces):
+        return
+    if any(_is_importlib_loader_reference(value, namespace) for namespace in namespaces):
+        aliases.direct_loaders.add(target)
+
+
+def _record_import_namespace_alias(
+    target: str,
+    value: ast.AST,
+    qualified_value: str | None,
+    namespaces: Sequence[ImportNamespaceAliases],
+) -> bool:
+    """Propagate owner, mapping, and mapping-method aliases for loader modules."""
     for namespace in namespaces:
         if qualified_value in namespace.owners:
             namespace.owners.add(target)
-            return
+            return True
     for namespace in namespaces:
         if qualified_value in namespace.mappings or _is_importlib_mapping_reference(
             value, namespace.owners, namespace.mappings
         ):
             namespace.mappings.add(target)
-            return
+            return True
     for namespace in namespaces:
         if qualified_value in namespace.mapping_methods or _is_importlib_mapping_method_reference(
             value, namespace.owners, namespace.mappings, namespace.mapping_methods
         ):
             namespace.mapping_methods.add(target)
-            return
-    if any(_is_importlib_loader_reference(value, namespace) for namespace in namespaces):
-        aliases.direct_loaders.add(target)
+            return True
+    return False
+
+
+def _record_higher_order_factory_alias(
+    target: str, qualified_value: str | None, factories: dict[str, set[str]]
+) -> bool:
+    """Propagate one assigned higher-order factory alias."""
+    matched = next((aliases for aliases in factories.values() if qualified_value in aliases), None)
+    if matched is None:
+        return False
+    matched.add(target)
+    return True
 
 
 def _propagate_dynamic_import_aliases(statements: Sequence[ast.AST], aliases: DynamicImportAliases) -> None:
@@ -2719,7 +3256,8 @@ def _dynamic_import_name(
     owner_call = _is_importlib_loader_reference(node.func, aliases.importlib) or _is_importlib_loader_reference(
         node.func, aliases.builtins
     )
-    if not (direct_call or owner_call):
+    dynamic_owner_call = _is_dynamic_importlib_loader_reference(node.func, aliases, literal_bindings)
+    if not (direct_call or owner_call or dynamic_owner_call):
         return None
     if not node.args:
         raise ValueError("prior-red-proof-invalid")
@@ -2735,16 +3273,218 @@ def _dynamic_import_name(
     return module_name
 
 
+def _is_dynamic_importlib_loader_reference(
+    node: ast.AST, aliases: DynamicImportAliases, literal_bindings: dict[str, str]
+) -> bool:
+    """Return whether a loader is selected from dynamically imported importlib."""
+    reference = _literal_callable_reference(node)
+    if isinstance(reference, ast.Attribute):
+        owner, selected = reference.value, reference.attr
+    elif (
+        isinstance(reference, ast.Call)
+        and isinstance(reference.func, ast.Name)
+        and reference.func.id == "getattr"
+        and len(reference.args) >= 2
+    ):
+        owner, attribute = reference.args[0], reference.args[1]
+        if not isinstance(attribute, ast.Constant) or not isinstance(attribute.value, str):
+            raise ValueError("prior-red-proof-invalid")
+        selected = attribute.value
+    else:
+        return False
+    return (
+        selected == aliases.importlib.loader_name
+        and isinstance(owner, ast.Call)
+        and _dynamic_import_name(owner, aliases, literal_bindings) == "importlib"
+    )
+
+
+def _loader_reference(node: ast.AST, aliases: DynamicImportAliases) -> bool:
+    """Return whether an expression retains repository import authority."""
+    reference = _literal_callable_reference(node)
+    return bool(
+        (isinstance(reference, ast.Name) and reference.id in aliases.direct_loaders)
+        or _is_importlib_loader_reference(node, aliases.importlib)
+        or _is_importlib_loader_reference(node, aliases.builtins)
+    )
+
+
+def _literal_import_target(node: ast.AST, literal_bindings: dict[str, str]) -> str:
+    """Return one validated literal module name or reject ambiguity."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        module_name = node.value
+    elif isinstance(node, ast.Name) and node.id in literal_bindings:
+        module_name = literal_bindings[node.id]
+    else:
+        raise ValueError("prior-red-proof-invalid")
+    if PYTHON_MODULE_PATTERN.fullmatch(module_name) is None:
+        raise ValueError("prior-red-proof-invalid")
+    return module_name
+
+
+def _partial_import_names(node: ast.Call, aliases: DynamicImportAliases, literal_bindings: dict[str, str]) -> list[str]:
+    """Resolve a partial-bound loader at construction or eager invocation."""
+    candidate = node.func if isinstance(node.func, ast.Call) else node
+    if not isinstance(candidate, ast.Call) or _qualified_name(candidate.func) not in aliases.partial_factories:
+        return []
+    if not candidate.args or any(isinstance(argument, ast.Starred) for argument in candidate.args):
+        raise ValueError("prior-red-proof-invalid")
+    if not _loader_reference(candidate.args[0], aliases):
+        return []
+    bound_arguments = list(candidate.args[1:])
+    invocation_arguments = list(node.args) if candidate is node.func else []
+    arguments = [*bound_arguments, *invocation_arguments]
+    if not arguments:
+        raise ValueError("prior-red-proof-invalid")
+    return [_literal_import_target(arguments[0], literal_bindings)]
+
+
+def _operator_import_names(
+    node: ast.Call, aliases: DynamicImportAliases, literal_bindings: dict[str, str]
+) -> list[str]:
+    """Resolve loader selection through supported operator callable factories."""
+    names = _methodcaller_import_names(node, aliases, literal_bindings)
+    return names or _getter_import_names(node, aliases, literal_bindings)
+
+
+def _methodcaller_import_names(
+    node: ast.Call, aliases: DynamicImportAliases, literal_bindings: dict[str, str]
+) -> list[str]:
+    """Resolve an imported operator.methodcaller loader invocation."""
+    if (
+        isinstance(node.func, ast.Call)
+        and _qualified_name(node.func.func) in aliases.higher_order_factories["methodcaller"]
+    ):
+        factory = node.func
+        if not factory.args or not node.args:
+            return []
+        method = factory.args[0]
+        owner = node.args[0]
+        if (
+            isinstance(method, ast.Constant)
+            and method.value == aliases.importlib.loader_name
+            and _qualified_name(owner) in aliases.importlib.owners
+        ):
+            if len(factory.args) < 2:
+                raise ValueError("prior-red-proof-invalid")
+            return [_literal_import_target(factory.args[1], literal_bindings)]
+    return []
+
+
+def _getter_import_names(node: ast.Call, aliases: DynamicImportAliases, literal_bindings: dict[str, str]) -> list[str]:
+    """Resolve operator attrgetter or itemgetter loader selection."""
+    if not (
+        isinstance(node.func, ast.Call)
+        and isinstance(node.func.func, ast.Call)
+        and node.func.func.args
+        and node.func.args
+    ):
+        return []
+    factory = node.func.func
+    selected = factory.args[0]
+    if not isinstance(selected, ast.Constant) or selected.value != aliases.importlib.loader_name:
+        return []
+    factory_name = _qualified_name(factory.func)
+    owner = node.func.args[0]
+    owner_matches = (
+        factory_name in aliases.higher_order_factories["attrgetter"]
+        and _qualified_name(owner) in aliases.importlib.owners
+    )
+    mapping_matches = factory_name in aliases.higher_order_factories["itemgetter"] and _is_importlib_mapping_reference(
+        owner, aliases.importlib.owners, aliases.importlib.mappings
+    )
+    if not (owner_matches or mapping_matches):
+        return []
+    if not node.args:
+        raise ValueError("prior-red-proof-invalid")
+    return [_literal_import_target(node.args[0], literal_bindings)]
+
+
+def _iterable_import_names(
+    node: ast.Call, aliases: DynamicImportAliases, literal_bindings: dict[str, str]
+) -> list[str]:
+    """Resolve built-in map and itertools.starmap over a tracked loader."""
+    name = _qualified_name(node.func)
+    kind = next(
+        (candidate for candidate in ("map", "starmap") if name in aliases.higher_order_factories[candidate]), None
+    )
+    if kind is None or len(node.args) < 2 or not _loader_reference(node.args[0], aliases):
+        return []
+    iterable = node.args[1]
+    if not isinstance(iterable, (ast.List, ast.Tuple)):
+        raise ValueError("prior-red-proof-invalid")
+    targets: list[str] = []
+    for item in iterable.elts:
+        target = item
+        if kind == "starmap":
+            if not isinstance(item, (ast.List, ast.Tuple)) or not item.elts:
+                raise ValueError("prior-red-proof-invalid")
+            target = item.elts[0]
+        targets.append(_literal_import_target(target, literal_bindings))
+    return targets
+
+
+def _pytest_import_plugin_name(
+    node: ast.Call, literal_bindings: dict[str, str], manager_aliases: set[str]
+) -> str | None:
+    """Return an imperative pytest plugin-manager target when statically bound."""
+    reference = _literal_callable_reference(node.func)
+    if not isinstance(reference, ast.Attribute) or reference.attr != "import_plugin":
+        return None
+    owner = _qualified_name(reference.value)
+    if owner is None or (not owner.endswith(".pluginmanager") and owner not in manager_aliases):
+        return None
+    if not node.args:
+        raise ValueError("prior-red-proof-invalid")
+    return _literal_import_target(node.args[0], literal_bindings)
+
+
+def _pytest_plugin_manager_aliases(tree: ast.AST) -> set[str]:
+    """Return aliases assigned from a pytest config plugin manager."""
+    aliases: set[str] = set()
+    assignments = [binding for node in ast.walk(tree) for binding in _assignment_bindings(node)]
+    while True:
+        before = len(aliases)
+        for target_names, value in assignments:
+            source = _qualified_name(value)
+            if source is not None and (source.endswith(".pluginmanager") or source in aliases):
+                aliases.update(target_names)
+        if len(aliases) == before:
+            return aliases
+
+
+def _higher_order_import_names(
+    node: ast.Call, aliases: DynamicImportAliases, literal_bindings: dict[str, str]
+) -> list[str]:
+    """Return repository imports reached through supported eager higher-order calls."""
+    for resolver in (_partial_import_names, _operator_import_names, _iterable_import_names):
+        names = resolver(node, aliases, literal_bindings)
+        if names:
+            return names
+    if _loader_reference(node, aliases):
+        return []
+    values = [*node.args, *(keyword.value for keyword in node.keywords)]
+    if any(_loader_reference(argument, aliases) for argument in values):
+        raise ValueError("prior-red-proof-invalid")
+    return []
+
+
 def _import_module_names(tree: ast.AST, current_path: str) -> list[list[str]]:
     """Return imported module names, including relative import candidates."""
     current_package = list(PurePosixPath(current_path).parent.parts)
     module_names = _pytest_plugin_names(tree)
     aliases = _dynamic_import_aliases(tree)
     literal_bindings = _literal_module_bindings(tree)
+    manager_aliases = _pytest_plugin_manager_aliases(tree)
     for node in ast.walk(tree):
         module_names.extend(_static_import_names(node, current_package))
-        if isinstance(node, ast.Call) and (dynamic_name := _dynamic_import_name(node, aliases, literal_bindings)):
+        if not isinstance(node, ast.Call):
+            continue
+        if dynamic_name := _dynamic_import_name(node, aliases, literal_bindings):
             module_names.append(dynamic_name.split("."))
+        if plugin_name := _pytest_import_plugin_name(node, literal_bindings, manager_aliases):
+            module_names.append(plugin_name.split("."))
+        module_names.extend(name.split(".") for name in _higher_order_import_names(node, aliases, literal_bindings))
     return module_names
 
 
