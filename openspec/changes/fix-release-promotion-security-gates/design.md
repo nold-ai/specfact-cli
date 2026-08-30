@@ -81,12 +81,16 @@ dynamic imports. Unresolved dynamic imports and unresolved module-scope writes t
 `pytest_plugins` fail closed; a provably ordinary `SimpleNamespace` remains a
 compatibility control.
 
-The live-revalidated external amendment receipt may bypass only the producer
-self-authorship predicate for the exact verified green artifact that binds its
-digest. That green can then serve as the normal cycle base for a later test-only
-red commit. Repository, issue, pull request, branch, expiry, ancestry,
-linear-history, test-only, artifact, and digest checks remain mandatory. The
-fixed external red/green pair is retained only as the final bootstrap fallback.
+The live-revalidated external amendment receipt may replace only the stale
+producer-authorship and verified-final producer-verdict predicates for one exact
+raw green/red pair. Both reports must fail only with the bound
+`stale-red-proof` diagnostic; each immutable plan is validated independently,
+the green JUnit must show every green-plan selector passing, and the red JUnit
+must show only the approved failures with all other red-plan selectors passing.
+Repository, issue, pull request, branch, expiry, ancestry,
+linear-history, test-only, artifact, plan, JUnit, and digest checks remain
+mandatory. The fixed external pair is retained only as the final bootstrap
+fallback.
 
 Resolving pytest through `python -m pytest` after entering the repository was
 rejected because a root-level `pytest.py` can shadow the installed package.

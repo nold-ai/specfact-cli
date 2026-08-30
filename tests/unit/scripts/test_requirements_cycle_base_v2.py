@@ -67,8 +67,12 @@ def test_public_external_digest_cannot_authenticate_self_authored_candidate(tmp_
     )
 
 
-def _receipt(fixtures: ModuleType, repository: Path, root_green: str, red_ref: str) -> dict[str, object]:
+def _receipt(
+    module: ModuleType, fixtures: ModuleType, repository: Path, root_green: str, red_ref: str
+) -> dict[str, object]:
     authority: dict[str, object] = {
+        "authority_version": 3,
+        "producer_bypass": "stale-red-proof-only",
         "repository": "nold-ai/specfact-cli",
         "change_id": "fix-release-promotion-security-gates",
         "issue": 692,
@@ -90,7 +94,7 @@ def _receipt(fixtures: ModuleType, repository: Path, root_green: str, red_ref: s
     return {
         **authority,
         "kind": "externally-approved-amendment-bootstrap",
-        "comment_id": 5464938148,
+        "comment_id": module.EXTERNAL_AUTHORITY_COMMENT_ID,
         "cycle_base": root_green,
         "red_ref": red_ref,
         "authority_digest": digest,
@@ -139,7 +143,7 @@ def test_exact_live_receipt_authenticates_bound_descendant_candidate(tmp_path: P
     repository, base_ref, root_green, approved_red = fixtures._initialize_history(
         tmp_path, self_authored_authority=True
     )
-    receipt = _receipt(fixtures, repository, root_green, approved_red)
+    receipt = _receipt(module, fixtures, repository, root_green, approved_red)
     authority_digest = cast(str, receipt["authority_digest"])
     implementation = repository / "src" / "implementation.py"
     implementation.parent.mkdir(exist_ok=True)

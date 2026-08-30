@@ -1045,6 +1045,33 @@ the authoritative failing-before evidence or the candidate design.
   assigning the local binder to an alias and using that alias as a decorator
   remained accepted; the same S17 selector was expanded before alias
   propagation was implemented.
+- Passing-after evidence: the completed S17 selector passes for direct and
+  aliased local decorators, imported direct callables, imported-module owners,
+  and imported-callable aliases. Proven-safe callable shadows and the reviewed
+  `contextlib.nullcontext` namespace carrier remain accepted.
+- The full provenance regression surface passes `139` tests. The exact approved
+  Requirements plan passes all `36` selectors; Ruff passes and strict
+  BasedPyright reports `0` errors, warnings, or notes on the scanner.
+
+## 2026-08-30 consolidated final-review amendment red proof
+
+- A fresh PR-style review and independent bypass pass reproduced residual
+  higher-order authority laundering through stored `partial`, `methodcaller`,
+  `attrgetter`, and `itemgetter` callables; literal callable-container
+  selection; local binders passed to `map` or `operator.call`; and loader
+  authority nested in an unrecognized dispatcher argument.
+- The same S17 selectors were expanded before implementation. The namespace
+  selector reported seven newly accepted hostile sources and the loader
+  selector reported the stored and nested loader omissions before the scanner
+  changes were applied locally.
+- The stale-producer bootstrap specification and mapped S10 test were added
+  before implementation. Its failing-before run rejected the unimplemented V3
+  semantic and the exact capability requires independently bound plans,
+  all-pass green outcomes, the approved red pass/fail partition, and rejection of
+  changed diagnostics or skipped cases.
+- These specification and test inputs require a new immutable test-only red
+  commit. They are intentionally not covered by the earlier `75fadec2` red
+  artifact; proof freshness must continue rejecting post-red governed tests.
 
 ## 2026-08-30 current-dev-rebased passing evidence
 

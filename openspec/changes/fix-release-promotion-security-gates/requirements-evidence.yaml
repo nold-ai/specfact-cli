@@ -505,3 +505,14 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_requirements_amendment_bootstrap_v2.py::test_v2_bootstrap_derives_red_subset_from_raw_case_outcomes
+      - case_id: RELEASE-692-CYCLE-S10
+        scenario_id: requirements-proof-supports-verified-pull-request-amendment-cycles
+        method: test
+        intent: "Prove the stale-producer capability accepts only the exact bound raw green/red outcome boundary."
+        observable: >-
+          Exact independently bound all-passing green and approved red outcomes
+          pass; changed diagnostics, superseded authority, skipped green cases,
+          and skipped red cases fail closed.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_amendment_bootstrap_v2.py::test_v3_bootstrap_accepts_only_the_exact_stale_producer_boundary

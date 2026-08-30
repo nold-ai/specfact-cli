@@ -71,5 +71,5 @@
 - [x] 8.1 Complete an exact `origin/dev...PR #698` security and clean-code review with independent security-boundary, provenance, dependency, and bypass passes.
 - [x] 8.2 Add specification scenarios and failing regressions for every validated finding plus the later-cycle workflow defect; record the seven-test failing-before run.
 - [x] 8.3 Bind installed pytest resolution, fixed proof producers, frozen dependencies, package initializers, and dynamic imports at the shared proof boundary; fail closed on unresolved module-level plugin authority.
-- [x] 8.4 Let the live-revalidated external receipt authorize only the matching verified-green producer predicate so later same-PR cycles use ordinary red/final controls.
+- [x] 8.4 Let the live-revalidated external receipt replace only the exact stale producer-authorship and verified-final verdict predicates with immutable raw plan/JUnit outcomes so later same-PR cycles use ordinary red/final controls.
 - [x] 8.5 Correct the two behavior-neutral clean-code review observations, run one independent candidate bypass/regression review, and complete focused and repository-wide gates before pushing.

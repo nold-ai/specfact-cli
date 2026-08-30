@@ -474,6 +474,8 @@ def test_ordinary_cycle_revalidates_the_live_external_capability(tmp_path: Path)
             {
                 "kind": module.EXTERNAL_AMENDMENT_KIND,
                 "comment_id": module.EXTERNAL_AMENDMENT_COMMENT_ID,
+                "authority_version": 3,
+                "producer_bypass": "stale-red-proof-only",
                 "repository": context.repository,
                 "pull_request": context.pull_request,
                 "head_branch": context.head_branch,

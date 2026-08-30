@@ -112,11 +112,22 @@ def test_current_module_registry_replacement_fails_closed() -> None:
         "modules = sys.modules\nmodules[__name__] = Replacement()\n",
         "sys.modules.__setitem__(__name__, Replacement())\n",
         "sys.modules.update({__name__: Replacement()})\n",
+        'getattr(sys, "modules")[__name__] = Replacement()\n',
+        'vars(sys)["modules"][__name__] = Replacement()\n',
     )
     read_only = "import sys\nmodule = sys.modules[__name__]\nvalue = sys.modules.get('unrelated')\n"
 
     _assert_plugin_discovery_rejected(module, tuple(replacement + operation for operation in hostile_operations))
     assert module._pytest_plugin_names(ast.parse(read_only)) == []
+    assert (
+        module._pytest_plugin_names(
+            ast.parse(
+                'import sys\nsys.modules["ordinary_cache_key"] = object()\n'
+                'sys.modules.pop("ordinary_cache_key", None)\n'
+            )
+        )
+        == []
+    )
 
 
 def test_builtins_getattr_mutation_fails_closed() -> None:
@@ -127,6 +138,11 @@ def test_builtins_getattr_mutation_fails_closed() -> None:
         'import builtins\nsetattr(builtins, "getattr", replacement)\n',
         'import builtins\nbuiltins.__dict__["getattr"] = replacement\n',
         'import builtins\nvars(builtins).update({"getattr": replacement})\n',
+        'getattr(globals()["__builtins__"], "__setitem__")("getattr", replacement)\n',
+        'getattr(globals()["__builtins__"], "update")({"getattr": replacement})\n',
+        'import builtins\ngetattr(builtins.__dict__, "__setitem__")("getattr", replacement)\n',
+        "import builtins\nimport operator\n"
+        'operator.methodcaller("__setitem__", "getattr", replacement)(vars(builtins))\n',
     )
     unrelated = "import builtins\nbuiltins.ordinary = object()\n"
 
@@ -139,8 +155,22 @@ def test_pytest_configure_import_plugin_is_retained_or_rejected() -> None:
     module = _load_provenance_module()
     literal_source = 'def pytest_configure(config):\n    config.pluginmanager.import_plugin("tests.helpers.hidden")\n'
     dynamic_source = "def pytest_configure(config):\n    config.pluginmanager.import_plugin(plugin_name)\n"
+    indirect_literals = (
+        'def pytest_configure(config):\n    load = config.pluginmanager.import_plugin\n    load("tests.helpers.hidden")\n',
+        'def pytest_configure(config):\n    load = getattr(config.pluginmanager, "import_plugin")\n'
+        '    load("tests.helpers.hidden")\n',
+        "import functools\ndef pytest_configure(config):\n"
+        '    functools.partial(config.pluginmanager.import_plugin, "tests.helpers.hidden")()\n',
+        "import operator\ndef pytest_configure(config):\n"
+        '    operator.methodcaller("import_plugin", "tests.helpers.hidden")(config.pluginmanager)\n',
+        'def pytest_configure(config):\n    list(map(config.pluginmanager.import_plugin, ["tests.helpers.hidden"]))\n',
+    )
 
     assert ["tests", "helpers", "hidden"] in module._import_module_names(ast.parse(literal_source), "tests/conftest.py")
+    for source in indirect_literals:
+        assert ["tests", "helpers", "hidden"] in module._import_module_names(ast.parse(source), "tests/conftest.py"), (
+            source
+        )
     try:
         module._import_module_names(ast.parse(dynamic_source), "tests/conftest.py")
     except ValueError as error:
@@ -181,11 +211,50 @@ def test_higher_order_plugin_namespace_mutator_fails_closed() -> None:
         "def target():\n"
         "    pass\n",
         "from tests.helpers.binder import bind\nbind(globals())\n",
+        "from functools import partial\nimport sys\n"
+        'bind = partial(setattr)\nbind(sys.modules[__name__], "pytest_plugins", ("tests.helpers.hidden",))\n',
+        "import operator\n"
+        'call = operator.methodcaller("__setitem__", "pytest_plugins", ("tests.helpers.hidden",))\n'
+        "call(globals())\n",
+        "import operator\n"
+        'call = operator.attrgetter("__setitem__")\n'
+        'call(globals())("pytest_plugins", ("tests.helpers.hidden",))\n',
+        "import operator\n"
+        'method = "__setitem__"\n'
+        'operator.methodcaller(method, "pytest_plugins", ("tests.helpers.hidden",))(globals())\n',
+        'import sys\n(setattr,)[0](sys.modules[__name__], "pytest_plugins", ("tests.helpers.hidden",))\n',
+        "def bind(namespace):\n"
+        '    namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n'
+        "list(map(bind, [globals()]))\n",
+        "import operator\n"
+        "def bind(namespace):\n"
+        '    namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n'
+        "operator.call(bind, globals())\n",
+        '(lambda namespace: namespace.__setitem__("pytest_plugins", ("tests.helpers.hidden",)))(globals())\n',
+        "def factory():\n"
+        "    def bind(namespace):\n"
+        '        namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n'
+        "    return bind\n"
+        "factory()(globals())\n",
+        "import operator\n"
+        'getattr(operator, "methodcaller")('
+        '"__setitem__", "pytest_plugins", ("tests.helpers.hidden",))(globals())\n',
+        "import operator\n"
+        'operator.__dict__["attrgetter"]("__setitem__")(globals())('
+        '"pytest_plugins", ("tests.helpers.hidden",))\n',
     )
-    ordinary_source = 'import functools\nfunctools.partial(setattr, target, "ordinary", 1)()\n'
+    ordinary_sources = (
+        'import functools\nfunctools.partial(setattr, target, "ordinary", 1)()\n',
+        "import types\ntypes.MappingProxyType(globals())\n",
+        "import copy\ncopy.copy(globals())\n",
+        "import pprint\npprint.pformat(globals())\n",
+        "from functools import partial\npartial = lambda *values: values\npartial(globals())\n",
+        "import functools\nclass Safe:\n    value = functools.partialmethod(str.upper)\n",
+    )
 
     _assert_plugin_discovery_rejected(module, hostile_sources)
-    assert module._pytest_plugin_names(ast.parse(ordinary_source)) == []
+    for source in ordinary_sources:
+        assert module._pytest_plugin_names(ast.parse(source)) == [], source
 
 
 def test_higher_order_import_factory_is_retained_or_rejected() -> None:
@@ -203,10 +272,32 @@ def test_higher_order_import_factory_is_retained_or_rejected() -> None:
         'import importlib\nlist(map(importlib.import_module, ["tests.helpers.hidden"]))\n',
         "import importlib\nimport itertools\n"
         'list(itertools.starmap(importlib.import_module, [("tests.helpers.hidden",)]))\n',
+        "import importlib\nimport operator\n"
+        'call = operator.methodcaller("import_module", "tests.helpers.hidden")\ncall(importlib)\n',
+        "import importlib\nimport operator\n"
+        'call = operator.attrgetter("import_module")\ncall(importlib)("tests.helpers.hidden")\n',
+        "import importlib\nimport operator\n"
+        'call = operator.itemgetter("import_module")\ncall(vars(importlib))("tests.helpers.hidden")\n',
+        "import importlib\nimport operator\n"
+        'method = "import_module"\noperator.methodcaller(method, "tests.helpers.hidden")(importlib)\n',
+        'import importlib\n(importlib.import_module,)[0]("tests.helpers.hidden")\n',
+        'import operator\noperator.attrgetter("import_module")(__import__("importlib"))("tests.helpers.hidden")\n',
+        'load = getattr(__import__("importlib"), "import_module")\nload("tests.helpers.hidden")\n',
     )
     dynamic_sources = (
         "import functools\nfunctools.partial(__import__, module_name)()\n",
         "import importlib\nlist(map(importlib.import_module, module_names))\n",
+        "import importlib\nimport operator\n"
+        'call = operator.methodcaller("import_module", module_name)\ncall(importlib)\n',
+        "import importlib\nimport operator\n"
+        'call = operator.attrgetter("import_module")\ncall(importlib)(module_name)\n',
+        "import importlib\nimport operator\n"
+        'call = operator.itemgetter("import_module")\ncall(vars(importlib))(module_name)\n',
+        'import importlib\ninvoke((importlib.import_module,), "tests.helpers.hidden")\n',
+        "import importlib\ninvoke((importlib.import_module,), module_name)\n",
+        'import importlib\n(lambda load: load("tests.helpers.hidden"))(importlib.import_module)\n',
+        'import importlib\ndef factory():\n    return importlib.import_module\nfactory()("tests.helpers.hidden")\n',
+        'import importlib\nloaders = {"load": importlib.import_module}\nloaders["load"]("tests.helpers.hidden")\n',
     )
 
     for source in literal_sources:

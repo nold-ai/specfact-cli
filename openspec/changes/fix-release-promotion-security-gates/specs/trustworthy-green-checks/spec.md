@@ -408,12 +408,14 @@ authored production SHALL NOT establish test-first order.
 - **AND** production changes between the accepted cycle base and the red source still invalidate retained proof
 - **AND** a merge that combines an independently authored production parent with a red-proof parent is rejected
 
-#### Scenario: Exact external amendment authority permits one self-authored producer boundary
+#### Scenario: Exact external amendment authority permits one stale-producer boundary
 
-- **WHEN** unedited repository MEMBER comment `5464938148` is unexpired and binds the exact repository, issue, pull request, branch, green commit and tree, red commit and tree, workflow runs, artifacts, content digests, mapping, plan, selectors, and expected outcomes for pull request `#698`
-- **THEN** the workflow may accept that exact green commit even though it changed an evidence producer
-- **AND** the capability bypasses only the self-authored evidence-producer predicate
-- **AND** live comment, expiry, run, artifact, digest, ancestry, linear-history, verified-green, and test-only red-prefix checks remain mandatory before binding and before reuse
+- **WHEN** an unedited repository MEMBER comment at the configured immutable locator is unexpired and binds the exact repository, issue, pull request, branch, green commit and tree, red commit and tree, workflow runs, artifacts, content digests, mapping, plan, selectors, and expected outcomes for pull request `#698`
+- **AND** both bound producer reports fail only with the exact `Red proof provenance rejected: stale-red-proof` diagnostic after the evidence producer changed
+- **AND** each bound plan is validated independently, the green raw JUnit has every green-plan selector passing, and the red raw JUnit has only the exact approved failures with all remaining red-plan selectors passing
+- **THEN** the workflow may use that exact raw green/red boundary even though its producer is self-authored and did not emit a verified-final successful report
+- **AND** the capability replaces only those stale producer-authorship and producer-verdict predicates with the exact bound raw plan and JUnit outcomes
+- **AND** live comment, expiry, run, artifact, digest, ancestry, linear-history, raw plan and JUnit integrity, and test-only red-prefix checks remain mandatory before binding and before reuse
 - **AND** an edited, expired, mismatched, raw, or differently located authority remains rejected
 
 #### Scenario: Externally authorized green starts a later ordinary amendment cycle

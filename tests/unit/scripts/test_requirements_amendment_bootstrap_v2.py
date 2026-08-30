@@ -1,4 +1,4 @@
-"""V2 amendment bootstrap regressions for raw red-run outcome integrity."""
+"""Amendment bootstrap regressions for raw run outcome integrity."""
 
 from __future__ import annotations
 
@@ -129,3 +129,92 @@ def test_v2_bootstrap_derives_red_subset_from_raw_case_outcomes(tmp_path: Path) 
     selector = normalized[0].find("./properties/property[@name='specfact.selector']")
     assert selector is not None and selector.get("value") == "tests/test_proof.py::test_fail"
     assert normalized[0].find("failure") is not None
+
+
+def test_v3_bootstrap_accepts_only_the_exact_stale_producer_boundary(tmp_path: Path) -> None:
+    """V3 bypasses only the stale producer verdict while retaining raw outcome proof."""
+    module = _load_bootstrap_module()
+    plan = _plan_report()
+    green_junit = tmp_path / "green.xml"
+    green_junit.write_text(
+        """<testsuite tests="2" failures="0">
+<testcase><properties><property name="specfact.selector" value="tests/test_proof.py::test_pass"/></properties></testcase>
+<testcase><properties><property name="specfact.selector" value="tests/test_proof.py::test_fail"/></properties></testcase>
+</testsuite>""",
+        encoding="utf-8",
+    )
+    red_junit = tmp_path / "red.xml"
+    _raw_junit(red_junit)
+    stale_report = {
+        "schema_version": 1,
+        "verdict": "failed",
+        "diagnostic": "Red proof provenance rejected: stale-red-proof",
+    }
+    authority = {
+        "authority_version": 3,
+        "producer_bypass": "stale-red-proof-only",
+        "prior_green_report_diagnostic": stale_report["diagnostic"],
+        "red_report_diagnostic": stale_report["diagnostic"],
+        "expected_failed_cases": 1,
+        "expected_passing_cases": 1,
+        "prior_green_expected_passing_cases": 2,
+    }
+    green_report = tmp_path / "green.json"
+    green_plan = tmp_path / "green-plan.json"
+    red_report = tmp_path / "red.json"
+    red_plan = tmp_path / "red-plan.json"
+    for path, payload in (
+        (green_report, stale_report),
+        (green_plan, plan),
+        (red_report, stale_report),
+        (red_plan, plan),
+    ):
+        path.write_text(json.dumps(payload), encoding="utf-8")
+    files = module._ArtifactFiles(red_report, red_junit, red_plan, green_report, green_junit, green_plan)
+
+    assert module._stale_producer_evidence_matches(authority, files)
+
+    tampered = {**stale_report, "diagnostic": "Red proof provenance rejected: another-reason"}
+    green_report.write_text(json.dumps(tampered), encoding="utf-8")
+    assert not module._stale_producer_evidence_matches(authority, files)
+    green_report.write_text(json.dumps(stale_report), encoding="utf-8")
+
+    skipped = green_junit.read_text(encoding="utf-8").replace(
+        "</properties></testcase>", "</properties><skipped/></testcase>", 1
+    )
+    green_junit.write_text(skipped, encoding="utf-8")
+    assert not module._stale_producer_evidence_matches(authority, files)
+    green_junit.write_text(skipped.replace("<skipped/>", "", 1), encoding="utf-8")
+    red_junit.write_text(
+        red_junit.read_text(encoding="utf-8").replace("<failure/>", "<skipped/>", 1),
+        encoding="utf-8",
+    )
+    assert not module._stale_producer_evidence_matches(authority, files)
+
+    wrong_version = {**authority, "authority_version": 2}
+    assert not module._stale_producer_evidence_matches(wrong_version, files)
+    wrong_bypass = {**authority, "producer_bypass": "anything-else"}
+    assert not module._stale_producer_evidence_matches(wrong_bypass, files)
+
+    old_comment = {
+        "id": module.APPROVED_BOOTSTRAP_LOCATOR["comment_id"],
+        "issue_url": "https://api.github.com/repos/nold-ai/specfact-cli/issues/692",
+        "author_association": "MEMBER",
+        "created_at": "2026-08-30T10:14:02Z",
+        "updated_at": "2026-08-30T10:14:02Z",
+        "user": {"login": "djm81"},
+        "body": "SPECFACT_REQUIREMENTS_AMENDMENT_BOOTSTRAP_V2\n" + json.dumps({"signer_login": "djm81"}),
+    }
+    comment_path = tmp_path / "comment.json"
+    comment_path.write_text(json.dumps(old_comment), encoding="utf-8")
+    try:
+        module._authority(
+            comment_path,
+            comment_id=module.APPROVED_BOOTSTRAP_LOCATOR["comment_id"],
+            repository="nold-ai/specfact-cli",
+            issue=692,
+        )
+    except ValueError as error:
+        assert str(error) == "amendment-bootstrap-invalid"
+    else:
+        raise AssertionError("superseded V2 authority was accepted")
