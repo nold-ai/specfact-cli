@@ -44,9 +44,9 @@ SpecFact can prove a smaller and stronger statement mechanically: exact declared
 ## Source Tracking
 
 - **GitHub Issue**: #675
-- **Issue URL**: https://github.com/nold-ai/specfact-cli/issues/675
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/675>
 - **Repository**: nold-ai/specfact-cli
-- **Last Synced Status**: open
+- **Last Synced Status**: closed-not-planned; archived without spec promotion; superseded 2026-08-30
 - **Parent Feature**: #374 — End-to-End Integration Proof
 - **Parent Epic**: #258 — Integration Governance and Dogfooding
 - **Paired Modules Change**: nold-ai/specfact-cli-modules#412

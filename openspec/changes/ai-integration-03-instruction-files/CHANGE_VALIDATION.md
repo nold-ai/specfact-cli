@@ -1,28 +1,34 @@
 # Change Validation: ai-integration-03-instruction-files
 
-- **Validated on (UTC):** 2026-03-22T22:28:26+00:00
-- **Workflow:** /wf-validate-change (proposal-stage dry-run validation)
-- **Strict command:** `openspec validate ai-integration-03-instruction-files --strict`
-- **Result:** PASS
+## Status
 
-## Scope Summary
+**PROPOSAL READY; IMPLEMENTATION NOT STARTED.**
 
-- **Primary capability:** `cross-platform-instructions`
-- **Clean-code delta:** generated aliases now reference the canonical clean-code skill without inlining the charter
-- **Declared dependencies:** `ai-integration-01-agent-skill`; downstream clean-code charter consumers
+## Rescope Decision
 
-## Breaking-Change Analysis (Dry-Run)
+- #253 retains Feature parent #372.
+- Scope is limited to generated AGENTS/OpenSpec/Spec Kit and command-harness gate references with owned, idempotent sections.
+- The signed module owns workflow content and validators; #251 owns installation/export; preflight-04 owns external adapter packages.
 
-- The delta narrows alias content and preserves the existing generation surface.
-- No new command or file-format breakage was identified at proposal stage.
+## Planning Boundary
 
-## Dependency and Integration Review
+- No production code, tests, AGENTS.md section, OpenSpec/Spec Kit file, prompt, skill, plugin, adapter, hook, workflow, manifest, signature, version, or dependency is changed.
+- No `TDD_EVIDENCE.md` exists because implementation has not started.
 
-- The alias-only approach matches the 2026-03-22 plan and avoids conflict with the token-budget constraints of the instruction-file change.
-- No broader scope expansion was required.
+## Dependency Review
 
-## Validation Outcome
+- Parent Feature: core [#372](https://github.com/nold-ai/specfact-cli/issues/372).
+- Native blocker verified: core [#251](https://github.com/nold-ai/specfact-cli/issues/251).
+- Native downstream verified: modules [#433](https://github.com/nold-ai/specfact-cli-modules/issues/433).
+- GitHub readback verified the retained User Story parent #372, project `SpecFact CLI` / `Todo`, assignee `djm81`, and the required labels.
 
-- Required artifacts are present and parseable.
-- Strict OpenSpec validation passed.
-- Change is ready to consume the clean-code skill reference during implementation.
+## Validation Record
+
+- `openspec status --change ai-integration-03-instruction-files --json`: PASS on 2026-08-25; all required proposal artifacts reported complete.
+- `openspec validate ai-integration-03-instruction-files --strict`: PASS on 2026-08-25.
+- Markdown lint limited to changed planning Markdown: PASS on 2026-08-25.
+- Staged schema-v2 Requirements planning evidence: PASS on 2026-08-25 with inspection-only cases and no test selectors or execution claims.
+
+## Decision
+
+The rescope is decision-complete and ready for a planning-only PR. Implementation remains explicitly unstarted.

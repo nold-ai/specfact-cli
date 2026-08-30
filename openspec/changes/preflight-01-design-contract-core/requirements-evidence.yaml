@@ -1,0 +1,80 @@
+schema_version: "2"
+x-planning-rationale: &planning-rationale "The proposal must make this requirement reviewable before implementation begins."
+x-planning-touchpoints: &planning-touchpoints
+  - id: openspec-source-spec
+    kind: config_file
+    locator: "openspec/changes/preflight-01-design-contract-core/specs/preflight-assurance-contracts/spec.md"
+x-planning-observable: &planning-observable >-
+  Strict OpenSpec validation retains the requirement and its scenarios
+  without claiming implementation or test execution.
+requirements:
+  openspec:preflight-01-design-contract-core:preflight-assurance-contracts:approval-seal-contract:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#682"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: PF01-001
+        scenario_id: approval-seal-contract
+        method: inspection
+        intent: "Inspect the approval seal contract planning contract before implementation."
+        observable: *planning-observable
+  openspec:preflight-01-design-contract-core:preflight-assurance-contracts:canonical-digest-semantics:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#682"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: PF01-002
+        scenario_id: canonical-digest-semantics
+        method: inspection
+        intent: "Inspect the canonical digest semantics planning contract before implementation."
+        observable: *planning-observable
+  openspec:preflight-01-design-contract-core:preflight-assurance-contracts:deterministic-validation-result:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#682"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: PF01-003
+        scenario_id: deterministic-validation-result
+        method: inspection
+        intent: "Inspect the deterministic validation result planning contract before implementation."
+        observable: *planning-observable
+  openspec:preflight-01-design-contract-core:preflight-assurance-contracts:explicit-assurance-limits:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#682"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: PF01-004
+        scenario_id: explicit-assurance-limits
+        method: inspection
+        intent: "Inspect the explicit assurance limits planning contract before implementation."
+        observable: *planning-observable
+  openspec:preflight-01-design-contract-core:preflight-assurance-contracts:normalized-preflight-design-contract:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#682"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: PF01-005
+        scenario_id: normalized-preflight-design-contract
+        method: inspection
+        intent: "Inspect the normalized preflight design contract planning contract before implementation."
+        observable: *planning-observable
+  openspec:preflight-01-design-contract-core:preflight-assurance-contracts:seal-bound-semantic-verification-intent:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#682"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: PF01-007
+        scenario_id: seal-bound-semantic-verification-intent
+        method: inspection
+        intent: "Inspect scope roles, risk dispositions, verification stages, and Requirements-plan references before implementation."
+        observable: *planning-observable
+  openspec:preflight-01-design-contract-core:preflight-assurance-contracts:side-effect-free-verifier-interface:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#682"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: PF01-006
+        scenario_id: side-effect-free-verifier-interface
+        method: inspection
+        intent: "Inspect the side effect free verifier interface planning contract before implementation."
+        observable: *planning-observable
