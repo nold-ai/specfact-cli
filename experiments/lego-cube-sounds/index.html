@@ -1,0 +1,926 @@
+<title>Lavawürfel-Synth</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+  :root {
+    --ground: #131013;
+    --panel: #1D181B;
+    --panel-hi: #2A2226;
+    --edge: #3A2E32;
+    --brick: #A63A32;
+    --brick-deep: #7E2328;
+    --coal: #262125;
+    --lava: #F2661F;
+    --glow: #FFC53D;
+    --ink: #F3E7DC;
+    --ink-dim: #A2928C;
+    --ok: #7FBF6A;
+
+    --stud: 14px;
+    --f-display: "Bungee", "Arial Black", system-ui, sans-serif;
+    --f-body: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    --f-data: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--f-body);
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior: none;
+  }
+
+  .app {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    height: 100dvh;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 10px 12px 14px;
+  }
+
+  /* ---------- Kopfzeile ---------- */
+
+  .bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 0 0 auto;
+  }
+
+  .mark {
+    width: 30px;
+    height: 30px;
+    flex: 0 0 auto;
+    border-radius: 5px;
+    background:
+      linear-gradient(135deg, var(--brick) 0 50%, var(--brick-deep) 50% 100%);
+    box-shadow: inset 0 0 0 2px #171214, 0 0 18px rgba(242, 102, 31, .25);
+    position: relative;
+    overflow: hidden;
+  }
+  .mark::before,
+  .mark::after {
+    content: "";
+    position: absolute;
+    background: var(--coal);
+  }
+  .mark::before { inset: 0 55% 55% 0; }
+  .mark::after {
+    inset: 52% 0 0 58%;
+    background: var(--lava);
+    box-shadow: 0 -6px 0 0 var(--glow);
+  }
+
+  h1 {
+    font-family: var(--f-display);
+    font-size: 17px;
+    line-height: 1;
+    margin: 0;
+    letter-spacing: .01em;
+    color: var(--ink);
+  }
+
+  .pill {
+    margin-left: auto;
+    font-family: var(--f-data);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    padding: 5px 9px;
+    border-radius: 999px;
+    background: var(--panel-hi);
+    border: 1px solid var(--edge);
+    color: var(--ink-dim);
+    white-space: nowrap;
+  }
+  .pill[data-tone="live"] { color: var(--ok); border-color: #33472F; }
+  .pill[data-tone="hot"] { color: var(--glow); border-color: #4A3A1C; }
+
+  /* ---------- Sucher ---------- */
+
+  .stage {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #0B090A;
+    border: 1px solid var(--edge);
+  }
+
+  video, canvas.overlay {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  video { object-fit: contain; background: #0B090A; }
+  canvas.overlay { pointer-events: none; }
+
+  /* ---------- Startbildschirm / Fehler ---------- */
+
+  .curtain {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 14px;
+    padding: 24px;
+    background:
+      radial-gradient(120% 90% at 70% 15%, rgba(242, 102, 31, .16), transparent 60%),
+      var(--panel);
+    text-align: left;
+    overflow-y: auto;
+  }
+  .curtain[hidden] { display: none; }
+
+  .curtain h2 {
+    font-family: var(--f-display);
+    font-size: clamp(24px, 8vw, 38px);
+    line-height: 1.05;
+    margin: 0;
+    text-wrap: balance;
+    color: var(--ink);
+  }
+  .curtain h2 em {
+    font-style: normal;
+    color: var(--lava);
+  }
+  .curtain p {
+    margin: 0;
+    max-width: 34em;
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--ink-dim);
+  }
+  .curtain ol {
+    margin: 0;
+    padding-left: 1.1em;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--ink-dim);
+    display: grid;
+    gap: 4px;
+  }
+  .curtain ol b { color: var(--ink); font-weight: 600; }
+
+  .err {
+    font-family: var(--f-data);
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--glow);
+    background: #2A1A12;
+    border: 1px solid #4A3A1C;
+    border-radius: 8px;
+    padding: 10px 12px;
+    white-space: pre-wrap;
+  }
+  .err[hidden] { display: none; }
+
+  /* ---------- Knöpfe im Stein-Look ---------- */
+
+  button {
+    font-family: var(--f-body);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+    background: var(--panel-hi);
+    border: 1px solid var(--edge);
+    border-bottom-width: 3px;
+    border-radius: 8px;
+    padding: 12px 14px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform .06s ease, background-color .15s ease;
+  }
+  button:active { transform: translateY(1px); border-bottom-width: 2px; }
+  button:focus-visible { outline: 2px solid var(--glow); outline-offset: 2px; }
+
+  button.primary {
+    align-self: flex-start;
+    font-family: var(--f-display);
+    font-size: 16px;
+    letter-spacing: .02em;
+    padding: 15px 22px;
+    background: linear-gradient(180deg, var(--brick) 0%, var(--brick-deep) 100%);
+    border-color: #571719;
+    color: #FFF1E4;
+  }
+  button.hot {
+    background: linear-gradient(180deg, var(--lava) 0%, #C34A12 100%);
+    border-color: #7A2E0B;
+    color: #22120A;
+  }
+  button[aria-pressed="true"] {
+    background: var(--brick-deep);
+    border-color: #571719;
+  }
+  button:disabled { opacity: .45; cursor: default; }
+
+  /* ---------- Messwerte ---------- */
+
+  .hud {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--edge);
+    border: 1px solid var(--edge);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .hud div {
+    background: var(--panel);
+    padding: 7px 8px;
+    display: grid;
+    gap: 2px;
+  }
+  .hud dt {
+    font-family: var(--f-data);
+    font-size: 9.5px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin: 0;
+  }
+  .hud dd {
+    margin: 0;
+    font-family: var(--f-data);
+    font-weight: 600;
+    font-size: 15px;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+  }
+  .hud dd[data-live="1"] { color: var(--glow); }
+
+  /* ---------- Steuerpult ---------- */
+
+  .deck {
+    flex: 0 0 auto;
+    display: grid;
+    gap: 10px;
+    background: var(--panel);
+    border: 1px solid var(--edge);
+    border-radius: 10px;
+    padding: 10px;
+  }
+  .row { display: flex; gap: 8px; }
+  .row > button { flex: 1 1 0; }
+
+  .sliders { display: grid; gap: 9px; }
+  label.slider {
+    display: grid;
+    grid-template-columns: 8.5em 1fr auto;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--f-data);
+    font-size: 10.5px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+  label.slider output {
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+    min-width: 3.2em;
+    text-align: right;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 22px;
+    background: transparent;
+    margin: 0;
+  }
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--brick-deep), var(--lava));
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: var(--stud);
+    height: var(--stud);
+    margin-top: -4px;
+    border-radius: 3px;
+    background: var(--ink);
+    border: 1px solid #0B090A;
+  }
+  input[type="range"]::-moz-range-track {
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--brick-deep), var(--lava));
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: var(--stud);
+    height: var(--stud);
+    border-radius: 3px;
+    background: var(--ink);
+    border: 1px solid #0B090A;
+  }
+  input[type="range"]:focus-visible { outline: 2px solid var(--glow); outline-offset: 4px; }
+
+  .hint {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--ink-dim);
+  }
+  .hint b { color: var(--ink); font-weight: 600; }
+
+  .toast {
+    position: absolute;
+    left: 50%;
+    bottom: 14px;
+    transform: translateX(-50%) translateY(6px);
+    background: #17120F;
+    border: 1px solid var(--edge);
+    color: var(--ink);
+    font-family: var(--f-data);
+    font-size: 12px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    opacity: 0;
+    transition: opacity .2s ease, transform .2s ease;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition-duration: .01ms !important; }
+  }
+</style>
+
+<div class="app">
+  <header class="bar">
+    <div class="mark" aria-hidden="true"></div>
+    <h1>Lavawürfel-Synth</h1>
+    <span class="pill" id="status">Kamera aus</span>
+  </header>
+
+  <div class="stage" id="stage">
+    <video id="video" playsinline autoplay muted></video>
+    <canvas class="overlay" id="overlay"></canvas>
+    <div class="toast" id="toast"></div>
+
+    <section class="curtain" id="curtain">
+      <h2>Der Würfel<br><em>macht Musik.</em></h2>
+      <p>Halte deinen Lego-Würfel vor die Rückkamera. Die App merkt sich seine Farbe und verwandelt jede Bewegung in Klang: links/rechts ändert die Tonhöhe, hoch/runter macht ihn heller, näher zur Kamera macht ihn lauter — und ein schneller Ruck gibt einen Stein-Klack.</p>
+      <ol>
+        <li><b>Kamera starten</b> antippen und Zugriff erlauben.</li>
+        <li>Würfel in das orange Zielquadrat halten, <b>Farbe merken</b> drücken.</li>
+        <li>Würfel bewegen, drehen, näher holen.</li>
+      </ol>
+      <button class="primary" id="start">Kamera starten</button>
+      <p class="err" id="err" hidden></p>
+    </section>
+  </div>
+
+  <dl class="hud">
+    <div><dt>Links/Rechts</dt><dd id="hX">—</dd></div>
+    <div><dt>Hoch/Runter</dt><dd id="hY">—</dd></div>
+    <div><dt>Größe</dt><dd id="hA">—</dd></div>
+    <div><dt>Tempo</dt><dd id="hS">—</dd></div>
+  </dl>
+
+  <div class="deck">
+    <div class="row">
+      <button id="calib" disabled>Farbe merken</button>
+      <button id="modeBtn" disabled>Modus: Bewegung</button>
+      <button id="mute" aria-pressed="false" disabled>Ton an</button>
+    </div>
+    <div class="sliders">
+      <label class="slider">Farbtoleranz
+        <input type="range" id="tol" min="20" max="130" value="60">
+        <output id="tolOut">0.060</output>
+      </label>
+      <label class="slider">Lautstärke
+        <input type="range" id="vol" min="0" max="100" value="70">
+        <output id="volOut">70 %</output>
+      </label>
+    </div>
+    <p class="hint" id="hint"><b>Tipp:</b> Bei Sonnenlicht oder dunkler Küche einmal neu kalibrieren — die Farbe des Würfels sieht für die Kamera dann anders aus.</p>
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  const $ = (id) => document.getElementById(id);
+  const video = $("video"), overlay = $("overlay"), stage = $("stage");
+  const octx = overlay.getContext("2d");
+  const statusPill = $("status"), curtain = $("curtain"), errBox = $("err"), toast = $("toast");
+  const btnStart = $("start"), btnCalib = $("calib"), btnMode = $("modeBtn"), btnMute = $("mute");
+  const sTol = $("tol"), sVol = $("vol"), oTol = $("tolOut"), oVol = $("volOut");
+  const hX = $("hX"), hY = $("hY"), hA = $("hA"), hS = $("hS");
+
+  // Analysebild: klein halten, damit jedes Videobild in Ruhe durchgerechnet werden kann.
+  const W = 160;
+  let H = 120;
+  const work = document.createElement("canvas");
+  const wctx = work.getContext("2d", { willReadFrequently: true });
+
+  const state = {
+    running: false,
+    mode: "motion",          // "motion" bis der Würfel kalibriert ist, dann "block"
+    target: null,            // gemerkte Farbe als Chromatizität {rn, gn}
+    tol2: 0.06 * 0.06,
+    muted: false,
+    volume: 0.7,
+    // geglättete Messwerte
+    x: 0.5, y: 0.5, area: 0, speed: 0, energy: 0, seen: false,
+    lastX: 0.5, lastY: 0.5, lastArea: 0
+  };
+
+  let prev = null, vidRect = null, rafId = 0, dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+  /* ------------------------------------------------------------------ Klang */
+
+  const audio = {
+    ctx: null, master: null, voice: null, voiceGain: null, filter: null,
+    sub: null, subGain: null, bed: null, bedGain: null, noise: null, lastBubble: 0
+  };
+
+  const SCALE = [0, 3, 5, 7, 10];       // Moll-Pentatonik: klingt in jeder Kombination gut
+  const BASE = 138.6;                    // C#3
+
+  function makeNoise(ctx) {
+    const buf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    return buf;
+  }
+
+  function buildAudio() {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    const ctx = new Ctx();
+    audio.ctx = ctx;
+    audio.noise = makeNoise(ctx);
+
+    const master = ctx.createGain();
+    master.gain.value = state.volume;
+    master.connect(ctx.destination);
+    audio.master = master;
+
+    // Hauptstimme: Sägezahn durch ein Tiefpassfilter — Tonhöhe = links/rechts.
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = 900;
+    filter.Q.value = 6;
+    filter.connect(master);
+    audio.filter = filter;
+
+    const vGain = ctx.createGain();
+    vGain.gain.value = 0;
+    vGain.connect(filter);
+    audio.voiceGain = vGain;
+
+    const osc = ctx.createOscillator();
+    osc.type = "sawtooth";
+    osc.frequency.value = BASE;
+    osc.connect(vGain);
+    osc.start();
+    audio.voice = osc;
+
+    // Sub-Sinus eine Oktave tiefer: gibt dem Block Gewicht, wenn er nah dran ist.
+    const sGain = ctx.createGain();
+    sGain.gain.value = 0;
+    sGain.connect(master);
+    audio.subGain = sGain;
+
+    const sub = ctx.createOscillator();
+    sub.type = "sine";
+    sub.frequency.value = BASE / 2;
+    sub.connect(sGain);
+    sub.start();
+    audio.sub = sub;
+
+    // Lava-Teppich: gefiltertes Rauschen, das mit der Bewegung im Bild atmet.
+    const bedGain = ctx.createGain();
+    bedGain.gain.value = 0;
+    const bedFilter = ctx.createBiquadFilter();
+    bedFilter.type = "bandpass";
+    bedFilter.frequency.value = 320;
+    bedFilter.Q.value = 0.8;
+    bedGain.connect(bedFilter);
+    bedFilter.connect(master);
+    audio.bedGain = bedGain;
+
+    const bed = ctx.createBufferSource();
+    bed.buffer = audio.noise;
+    bed.loop = true;
+    bed.connect(bedGain);
+    bed.start();
+    audio.bed = bed;
+  }
+
+  function quantize(x) {
+    const steps = SCALE.length * 3;                       // drei Oktaven
+    const i = Math.max(0, Math.min(steps - 1, Math.floor(x * steps)));
+    const semi = SCALE[i % SCALE.length] + 12 * Math.floor(i / SCALE.length);
+    return BASE * Math.pow(2, semi / 12);
+  }
+
+  // Kurzer Rauschimpuls — der „Stein-Klack" beim Rucken und Drehen.
+  function hit(freq, dur, gain, type) {
+    const ctx = audio.ctx;
+    if (!ctx || state.muted) return;
+    const t = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = audio.noise;
+    src.playbackRate.value = 0.8 + Math.random() * 0.5;
+
+    const bp = ctx.createBiquadFilter();
+    bp.type = type || "bandpass";
+    bp.frequency.setValueAtTime(freq, t);
+    bp.frequency.exponentialRampToValueAtTime(Math.max(80, freq * 0.35), t + dur);
+    bp.Q.value = 3;
+
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(gain, t + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+
+    src.connect(bp); bp.connect(g); g.connect(audio.master);
+    src.start(t); src.stop(t + dur + 0.02);
+  }
+
+  // Blubbernde Lavablase, wenn der Würfel ruhig im Bild liegt.
+  function bubble(freq) {
+    const ctx = audio.ctx;
+    if (!ctx || state.muted) return;
+    const t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = "sine";
+    o.frequency.setValueAtTime(freq * 0.5, t);
+    o.frequency.exponentialRampToValueAtTime(freq * 1.6, t + 0.12);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.16, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+    o.connect(g); g.connect(audio.master);
+    o.start(t); o.stop(t + 0.2);
+  }
+
+  function updateSound() {
+    const ctx = audio.ctx;
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const glide = 0.06;
+
+    const tracking = state.mode === "block" && state.seen;
+    const loud = state.muted ? 0 : 1;
+
+    if (tracking) {
+      const pitch = quantize(state.x);
+      const cutoff = 260 + Math.pow(1 - state.y, 2) * 4200;   // oben = heller
+      const level = Math.min(0.30, 0.045 + state.area * 3.4); // näher = lauter
+
+      audio.voice.frequency.setTargetAtTime(pitch, t, glide);
+      audio.sub.frequency.setTargetAtTime(pitch / 2, t, glide);
+      audio.filter.frequency.setTargetAtTime(cutoff, t, glide);
+      audio.voiceGain.gain.setTargetAtTime(level * loud, t, 0.08);
+      audio.subGain.gain.setTargetAtTime(Math.min(0.22, state.area * 2.2) * loud, t, 0.12);
+      audio.bedGain.gain.setTargetAtTime(Math.min(0.10, state.speed * 1.2) * loud, t, 0.10);
+
+      if (state.speed < 0.006 && t - audio.lastBubble > 0.55 + Math.random() * 0.9) {
+        audio.lastBubble = t;
+        bubble(quantize(state.x) * 2);
+      }
+    } else if (state.mode === "motion") {
+      // Ohne kalibrierten Würfel reagiert die App auf Bewegung im ganzen Bild.
+      const level = Math.min(0.24, state.energy * 2.6);
+      audio.voice.frequency.setTargetAtTime(quantize(Math.min(0.99, state.energy * 6)), t, 0.12);
+      audio.filter.frequency.setTargetAtTime(400 + state.energy * 6000, t, 0.10);
+      audio.voiceGain.gain.setTargetAtTime(level * loud, t, 0.10);
+      audio.subGain.gain.setTargetAtTime(0, t, 0.2);
+      audio.bedGain.gain.setTargetAtTime(Math.min(0.12, state.energy * 1.8) * loud, t, 0.10);
+    } else {
+      audio.voiceGain.gain.setTargetAtTime(0, t, 0.15);
+      audio.subGain.gain.setTargetAtTime(0, t, 0.2);
+      audio.bedGain.gain.setTargetAtTime(0, t, 0.2);
+    }
+  }
+
+  /* -------------------------------------------------------------- Bildanalyse */
+
+  function analyze() {
+    wctx.drawImage(video, 0, 0, W, H);
+    const img = wctx.getImageData(0, 0, W, H);
+    const d = img.data;
+    const t = state.target;
+    const tol2 = state.tol2;
+
+    let diff = 0, sx = 0, sy = 0, n = 0, i = 0;
+
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++, i += 4) {
+        const r = d[i], g = d[i + 1], b = d[i + 2];
+
+        if (prev) {
+          diff += Math.abs(r - prev[i]) + Math.abs(g - prev[i + 1]) + Math.abs(b - prev[i + 2]);
+        }
+
+        if (t) {
+          const sum = r + g + b;
+          if (sum > 70) {
+            const dr = r / sum - t.rn, dg = g / sum - t.gn;
+            if (dr * dr + dg * dg < tol2) { sx += x; sy += y; n++; }
+          }
+        }
+      }
+    }
+
+    prev = new Uint8ClampedArray(d);
+
+    const total = W * H;
+    state.energy = state.energy * 0.7 + (diff / (total * 3 * 255)) * 0.3;
+
+    const found = n > 18;
+    if (found) {
+      const nx = sx / n / W, ny = sy / n / H, na = n / total;
+      if (!state.seen) { state.x = nx; state.y = ny; state.area = na; hit(1500, 0.09, 0.22); }
+      state.x += (nx - state.x) * 0.35;
+      state.y += (ny - state.y) * 0.35;
+      state.area += (na - state.area) * 0.25;
+    } else if (state.seen && state.target) {
+      state.area += (0 - state.area) * 0.3;
+    }
+
+    const dx = state.x - state.lastX, dy = state.y - state.lastY;
+    const inst = Math.hypot(dx, dy);
+    state.speed = state.speed * 0.6 + inst * 0.4;
+
+    // Ruck = Stein-Klack, plötzlicher Größensprung = der Würfel wurde gedreht.
+    if (found && state.seen) {
+      if (inst > 0.035 && state.speed > 0.02) {
+        hit(600 + state.area * 3000, 0.10, Math.min(0.34, 0.10 + inst * 3));
+      }
+      const dA = state.area - state.lastArea;
+      if (Math.abs(dA) > 0.012) {
+        hit(dA > 0 ? 320 : 1100, 0.22, 0.18, "lowpass");
+      }
+    }
+
+    state.lastX = state.x; state.lastY = state.y; state.lastArea = state.area;
+    state.seen = found;
+  }
+
+  /* ------------------------------------------------------------------ Anzeige */
+
+  function layout() {
+    const r = stage.getBoundingClientRect();
+    const va = (video.videoWidth && video.videoHeight) ? video.videoWidth / video.videoHeight : 4 / 3;
+    let w = r.width, h = w / va;
+    if (h > r.height) { h = r.height; w = h * va; }
+    vidRect = { x: (r.width - w) / 2, y: (r.height - h) / 2, w, h };
+
+    overlay.width = Math.round(r.width * dpr);
+    overlay.height = Math.round(r.height * dpr);
+    overlay.style.width = r.width + "px";
+    overlay.style.height = r.height + "px";
+    octx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    if (video.videoWidth) H = Math.max(60, Math.round(W * video.videoHeight / video.videoWidth));
+    work.width = W; work.height = H;
+    prev = null;
+  }
+
+  function toView(nx, ny) {
+    return { x: vidRect.x + nx * vidRect.w, y: vidRect.y + ny * vidRect.h };
+  }
+
+  function draw(ts) {
+    octx.clearRect(0, 0, overlay.width, overlay.height);
+    if (!vidRect) return;
+
+    if (!state.target) {
+      // Zielquadrat für die Kalibrierung
+      const c = toView(0.5, 0.5);
+      const s = Math.min(vidRect.w, vidRect.h) * 0.22;
+      const pulse = 0.55 + 0.45 * Math.abs(Math.sin(ts / 620));
+      octx.strokeStyle = `rgba(242, 102, 31, ${pulse.toFixed(2)})`;
+      octx.lineWidth = 3;
+      octx.setLineDash([10, 8]);
+      octx.strokeRect(c.x - s / 2, c.y - s / 2, s, s);
+      octx.setLineDash([]);
+      octx.fillStyle = "rgba(243, 231, 220, .85)";
+      octx.font = "600 13px 'IBM Plex Sans', system-ui, sans-serif";
+      octx.textAlign = "center";
+      octx.fillText("Würfel hier hinein halten", c.x, c.y + s / 2 + 22);
+      return;
+    }
+
+    if (!state.seen) {
+      octx.fillStyle = "rgba(162, 146, 140, .9)";
+      octx.font = "600 13px 'IBM Plex Sans', system-ui, sans-serif";
+      octx.textAlign = "center";
+      octx.fillText("Würfel nicht im Bild", vidRect.x + vidRect.w / 2, vidRect.y + 26);
+      return;
+    }
+
+    const p = toView(state.x, state.y);
+    const rad = Math.max(18, Math.sqrt(state.area) * Math.min(vidRect.w, vidRect.h) * 1.15);
+
+    octx.strokeStyle = "#FFC53D";
+    octx.lineWidth = 2.5;
+    octx.strokeRect(p.x - rad, p.y - rad, rad * 2, rad * 2);
+
+    octx.strokeStyle = "rgba(242, 102, 31, .85)";
+    octx.lineWidth = 1.5;
+    octx.beginPath();
+    octx.moveTo(p.x - rad - 14, p.y); octx.lineTo(p.x - rad - 4, p.y);
+    octx.moveTo(p.x + rad + 4, p.y); octx.lineTo(p.x + rad + 14, p.y);
+    octx.moveTo(p.x, p.y - rad - 14); octx.lineTo(p.x, p.y - rad - 4);
+    octx.moveTo(p.x, p.y + rad + 4); octx.lineTo(p.x, p.y + rad + 14);
+    octx.stroke();
+  }
+
+  function updateHud() {
+    const live = state.mode === "block" && state.seen ? "1" : "0";
+    [hX, hY, hA, hS].forEach((el) => el.setAttribute("data-live", live));
+    if (state.mode === "block") {
+      hX.textContent = state.seen ? state.x.toFixed(2) : "—";
+      hY.textContent = state.seen ? state.y.toFixed(2) : "—";
+      hA.textContent = state.seen ? (state.area * 100).toFixed(1) + "%" : "—";
+      hS.textContent = state.seen ? (state.speed * 100).toFixed(1) : "—";
+    } else {
+      hX.textContent = "—"; hY.textContent = "—"; hA.textContent = "—";
+      hS.textContent = (state.energy * 100).toFixed(1);
+    }
+  }
+
+  let lastFrame = 0;
+  function loop(ts) {
+    rafId = requestAnimationFrame(loop);
+    if (!state.running || video.readyState < 2) return;
+    lastFrame = ts;
+
+    analyze();
+    updateSound();
+    draw(ts);
+    updateHud();
+
+    statusPill.textContent = state.mode === "block"
+      ? (state.seen ? "Würfel erfasst" : "Suche Würfel")
+      : "Bewegungsmodus";
+    statusPill.dataset.tone = state.seen && state.mode === "block" ? "hot" : "live";
+  }
+
+  /* -------------------------------------------------------------- Bedienung */
+
+  function say(msg) {
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(say._t);
+    say._t = setTimeout(() => toast.classList.remove("show"), 1800);
+  }
+
+  function fail(text) {
+    errBox.hidden = false;
+    errBox.textContent = text;
+    curtain.hidden = false;
+    btnStart.disabled = false;
+    btnStart.textContent = "Nochmal versuchen";
+    statusPill.textContent = "Kamera aus";
+    delete statusPill.dataset.tone;
+  }
+
+  async function start() {
+    btnStart.disabled = true;
+    errBox.hidden = true;
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      fail("Diese Seite darf nicht auf die Kamera zugreifen.\nÖffne den Link direkt in Safari (nicht in einem eingebetteten Fenster) und stelle sicher, dass die Adresse mit https:// beginnt.");
+      return;
+    }
+
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false
+      });
+    } catch (e) {
+      const name = e && e.name;
+      if (name === "NotAllowedError" || name === "SecurityError") {
+        fail("Kamerazugriff wurde abgelehnt.\nIn Safari: „aA\" in der Adressleiste → Website-Einstellungen → Kamera → Erlauben. Läuft die Seite in einem eingebetteten Fenster, öffne den Link direkt in Safari.");
+      } else if (name === "NotFoundError" || name === "OverconstrainedError") {
+        fail("Keine passende Kamera gefunden.");
+      } else {
+        fail("Die Kamera konnte nicht gestartet werden: " + (e && e.message ? e.message : String(e)));
+      }
+      return;
+    }
+
+    video.srcObject = stream;
+    try { await video.play(); } catch (_) { /* iOS startet gelegentlich verzögert */ }
+
+    if (!audio.ctx) buildAudio();
+    if (audio.ctx.state === "suspended") await audio.ctx.resume();
+
+    state.running = true;
+    curtain.hidden = true;
+    btnCalib.disabled = false;
+    btnMode.disabled = false;
+    btnMute.disabled = false;
+
+    layout();
+    cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(loop);
+    say("Kamera läuft");
+  }
+
+  function calibrate() {
+    if (!state.running || video.readyState < 2) return;
+    wctx.drawImage(video, 0, 0, W, H);
+    const box = Math.round(Math.min(W, H) * 0.22);
+    const x0 = Math.round(W / 2 - box / 2), y0 = Math.round(H / 2 - box / 2);
+    const d = wctx.getImageData(x0, y0, box, box).data;
+
+    // Nur farbige, ausreichend helle Bildpunkte zählen: schwarze Flächen des
+    // Würfels und Schatten würden den Mittelwert sonst ins Graue ziehen.
+    let rn = 0, gn = 0, n = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      const r = d[i], g = d[i + 1], b = d[i + 2];
+      const sum = r + g + b;
+      if (sum < 110) continue;
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+      if (mx - mn < 22) continue;
+      rn += r / sum; gn += g / sum; n++;
+    }
+
+    if (n < box * box * 0.04) {
+      say("Zu dunkel oder zu grau — näher ans Licht");
+      return;
+    }
+
+    state.target = { rn: rn / n, gn: gn / n };
+    state.mode = "block";
+    btnMode.textContent = "Modus: Würfel";
+    btnCalib.textContent = "Farbe neu merken";
+    btnCalib.classList.add("hot");
+    say("Farbe gemerkt");
+    hit(900, 0.14, 0.26);
+  }
+
+  btnStart.addEventListener("click", start);
+  btnCalib.addEventListener("click", calibrate);
+
+  btnMode.addEventListener("click", () => {
+    if (state.mode === "block") {
+      state.mode = "motion";
+      btnMode.textContent = "Modus: Bewegung";
+    } else if (state.target) {
+      state.mode = "block";
+      btnMode.textContent = "Modus: Würfel";
+    } else {
+      say("Erst die Würfelfarbe merken");
+    }
+  });
+
+  btnMute.addEventListener("click", () => {
+    state.muted = !state.muted;
+    btnMute.setAttribute("aria-pressed", String(state.muted));
+    btnMute.textContent = state.muted ? "Ton aus" : "Ton an";
+  });
+
+  sTol.addEventListener("input", () => {
+    const tol = Number(sTol.value) / 1000;
+    state.tol2 = tol * tol;
+    oTol.textContent = tol.toFixed(3);
+  });
+
+  sVol.addEventListener("input", () => {
+    state.volume = Number(sVol.value) / 100;
+    oVol.textContent = sVol.value + " %";
+    if (audio.master) audio.master.gain.setTargetAtTime(state.volume, audio.ctx.currentTime, 0.05);
+  });
+
+  video.addEventListener("loadedmetadata", layout);
+  window.addEventListener("resize", () => { if (state.running) layout(); });
+  window.addEventListener("orientationchange", () => setTimeout(() => { if (state.running) layout(); }, 300));
+
+  document.addEventListener("visibilitychange", () => {
+    if (!audio.ctx) return;
+    if (document.hidden) audio.ctx.suspend();
+    else if (state.running) audio.ctx.resume();
+  });
+
+  sTol.dispatchEvent(new Event("input"));
+  sVol.dispatchEvent(new Event("input"));
+})();
+</script>
