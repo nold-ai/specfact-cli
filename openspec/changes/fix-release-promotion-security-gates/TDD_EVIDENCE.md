@@ -1454,3 +1454,55 @@ the authoritative failing-before evidence or the candidate design.
   `https://github.com/nold-ai/specfact-cli/issues/692#issuecomment-5499622967`,
   created at `2026-09-01T19:57:33Z`, bound to source mapping digest
   `sha256:101a5b0747b5caed6011bb7c154eda5c5885d3d927df6653bf49675e666c9d87`.
+- A final independent review then found that the external final-producer
+  classifier still included the broad `src/specfact_cli/` application prefix.
+  Its exact reproducer showed that a MEMBER-approved application blob could be
+  presented as a producer and bypass the stock-pytest mutation denial.
+- The committed-red command selected the path-policy suite plus the exact
+  producer-separation and producer-scope regressions. It failed as intended with
+  `5 failed, 29 passed`: three same-process mutable/plugin cases remained open,
+  the application producer path was not rejected, and no producer-only
+  classifier existed.
+- The implementation now separates the broad evidence-authority classification
+  from a finite final-producer allowlist. Only the two Requirements workflows,
+  three named evidence-policy scripts, and eight named Requirements producer
+  scripts are eligible; `src/specfact_cli/**`, `pyproject.toml`, `uv.lock`,
+  unknown `scripts/requirements_*` paths, and every other path remain frozen.
+  Provenance independently rejects a receipt carrying a path outside that
+  producer-only policy.
+- Final-producer blob identity also requires Git mode `100644` or `100755` at
+  both the approved and final commits. A named producer symlink remains a Git
+  blob but is rejected even when its symlink blob stays unchanged while an
+  unlisted application target changes.
+- Provenance also rejects any producer path reused as an exact pytest selector
+  file or mapped `test_file`. This preserves the external capability for its
+  finite, named evidence producers without letting that exception relabel a red
+  test or harness input as a producer.
+- Selector and mapped-test collision checks reject non-canonical path spellings,
+  including a leading `./`, so a Git/pytest alias cannot miss comparison with a
+  canonical producer receipt path.
+- Passing-after evidence: the provenance, path-policy, cycle-authority,
+  executor, security, review-regression, and explicit-plugin slice passed
+  `114/114`. Targeted Ruff and formatting passed, strict OpenSpec validation
+  passed, and BasedPyright completed with no errors after declaring the exact
+  producer-policy callable in the loaded cycle-module protocol.
+- Clean-code review's parameter-count warning was fixed by removing the obsolete
+  mutable-path arguments from the red-proof test builders. Two reported warnings
+  are documented exceptions: `process` in the private regression selector is the
+  precise security-domain term rather than a generic public API name, and the
+  existing final-producer authority lifecycle regression intentionally keeps its
+  comment, commit/tree/blob identities, descendant drift, and edit controls in
+  one test so those coupled security facts cannot silently diverge across helper
+  fixtures.
+- Final bypass review found one external trust-boundary blocker that cannot be
+  closed by more PR-head validation: this `pull_request` job checks out and
+  executes the final-head workflow, local setup action, dependency inputs, and
+  validator before the validator can authenticate itself. A descendant can
+  therefore alter the setup action and overwrite trusted worktree bytes before
+  Git-blob checks run. The finite producer, regular-mode, and collision fixes
+  above remain necessary, but PR #698 MUST NOT merge until an organization
+  required workflow or equivalent base-controlled verifier runs immutable
+  trusted bytes outside the PR checkout. The current `dev` ruleset has no such
+  workflow or required reviewer, and `@repo-owners` currently has only the PR
+  author, so ordinary Code Owner approval cannot supply that independent
+  boundary.

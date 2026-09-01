@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import ast
 import hashlib
 import importlib.util
 import json
@@ -46,15 +45,6 @@ ALLOWED_RED_OPEN_SPEC_FILES = {
     "requirements-evidence.yaml",
     "requirements-proof/review-evidence.json",
     "tasks.md",
-}
-PYTEST_CONFIGURATION_PATHS = {
-    ".pytest.ini",
-    ".pytest.toml",
-    "pyproject.toml",
-    "pytest.ini",
-    "pytest.toml",
-    "setup.cfg",
-    "tox.ini",
 }
 NON_TRANSITIVE_PROOF_INPUTS = {
     "scripts/requirements_amendment_bootstrap.py",
@@ -141,18 +131,6 @@ class BindingContext:
 
 
 @dataclass(frozen=True)
-class _MutablePathPolicy:
-    """Inputs shared while validating exact mutable SUT touchpoints."""
-
-    repo_root: Path
-    source_ref: str
-    frozen: set[str]
-    support_roots: set[str]
-    accepted: set[str]
-    producer_paths: frozenset[str]
-
-
-@dataclass(frozen=True)
 class _RedHistoryBoundary:
     """Authenticated Git range and approved producer paths for one red proof."""
 
@@ -192,6 +170,7 @@ class _CycleModule(Protocol):
 
     validated_cycle_base: Callable[..., _TrustedCycle | None]
     _external_receipt_history_matches: Callable[[object, object, str, Mapping[str, object]], bool]
+    _is_final_producer_path: Callable[[str], bool]
 
 
 T = TypeVar("T")
@@ -776,120 +755,16 @@ def _selector_paths(report: dict[str, object]) -> tuple[str, list[str]]:
             raise ValueError("prior-red-proof-invalid")
         test_path, separator, _ = selector.partition("::")
         path = PurePosixPath(test_path)
-        if not separator or path.is_absolute() or ".." in path.parts or not test_path.endswith(".py"):
+        if (
+            not separator
+            or path.is_absolute()
+            or ".." in path.parts
+            or path.as_posix() != test_path
+            or not test_path.endswith(".py")
+        ):
             raise ValueError("prior-red-proof-invalid")
         paths.add(test_path)
     return source_ref, sorted(paths)
-
-
-def _applicable_conftest_paths(test_path: str) -> set[str]:
-    """Return root and ancestor pytest support files that can affect a selected test."""
-    parent = PurePosixPath(test_path).parent
-    paths = {"conftest.py"}
-    while parent != PurePosixPath("."):
-        paths.add((parent / "conftest.py").as_posix())
-        parent = parent.parent
-    return paths
-
-
-def _applicable_pytest_configuration_paths(test_path: str) -> set[str]:
-    """Return every config location pytest searches from a selected test to root."""
-    parent = PurePosixPath(test_path).parent
-    paths = set(PYTEST_CONFIGURATION_PATHS)
-    while parent != PurePosixPath("."):
-        paths.update((parent / name).as_posix() for name in PYTEST_CONFIGURATION_PATHS)
-        parent = parent.parent
-    return paths
-
-
-def _python_module_paths(module_parts: Sequence[str]) -> set[str]:
-    """Return possible paths for a repository-local module, including an absent target."""
-    if not module_parts:
-        return set()
-    module_path = PurePosixPath(*module_parts)
-    paths = {module_path.with_suffix(".py").as_posix(), (module_path / "__init__.py").as_posix()}
-    for parent_depth in range(1, len(module_parts)):
-        parent_path = PurePosixPath(*module_parts[:parent_depth])
-        paths.add((parent_path / "__init__.py").as_posix())
-    return paths
-
-
-def _blob_text_at_ref(repo_root: Path, source_ref: str, path: str) -> str | None:
-    """Read one bounded regular Git blob without consulting mutable worktree bytes."""
-    if not _test_path_is_regular_at_ref(repo_root, source_ref, path):
-        return None
-    size_result = _git(repo_root, "cat-file", "-s", f"{source_ref}:{path}")
-    try:
-        blob_size = int(size_result.stdout.strip())
-    except ValueError:
-        return None
-    if size_result.returncode != 0 or blob_size > MAX_TEST_BLOB_BYTES:
-        return None
-    result = _git(repo_root, "show", f"{source_ref}:{path}")
-    return result.stdout if result.returncode == 0 else None
-
-
-def _pytest_plugins_value(statement: ast.stmt) -> ast.expr | None:
-    """Return a direct module-scope pytest_plugins value when present."""
-    if isinstance(statement, ast.Assign):
-        return (
-            statement.value
-            if any(isinstance(target, ast.Name) and target.id == "pytest_plugins" for target in statement.targets)
-            else None
-        )
-    if isinstance(statement, ast.AnnAssign):
-        return (
-            statement.value
-            if isinstance(statement.target, ast.Name) and statement.target.id == "pytest_plugins"
-            else None
-        )
-    return None
-
-
-def _literal_module_names(value: ast.expr) -> tuple[str, ...]:
-    """Return one valid literal string or sequence of module names."""
-    try:
-        declared = ast.literal_eval(value)
-    except (ValueError, TypeError) as error:
-        raise ValueError("prior-red-proof-invalid") from error
-    if isinstance(declared, str):
-        declared = (declared,)
-    if not isinstance(declared, (tuple, list)) or not all(isinstance(module, str) and module for module in declared):
-        raise ValueError("prior-red-proof-invalid")
-    return tuple(declared)
-
-
-def _literal_pytest_plugin_modules(source: str) -> tuple[str, ...]:
-    """Return literal module names from module-scope pytest_plugins declarations."""
-    try:
-        tree = ast.parse(source)
-    except (SyntaxError, ValueError) as error:
-        raise ValueError("prior-red-proof-invalid") from error
-    return tuple(
-        module
-        for statement in tree.body
-        if (value := _pytest_plugins_value(statement)) is not None
-        for module in _literal_module_names(value)
-    )
-
-
-def _conftest_plugin_paths(
-    repo_root: Path,
-    source_ref: str,
-    conftest_paths: Sequence[str],
-) -> set[str]:
-    """Return repository paths named by literal red-time conftest plugins."""
-    plugin_paths: set[str] = set()
-    for conftest_path in conftest_paths:
-        source = _blob_text_at_ref(repo_root, source_ref, conftest_path)
-        if source is None:
-            continue
-        for module_name in _literal_pytest_plugin_modules(source):
-            parts = module_name.split(".")
-            if any(not part.isidentifier() for part in parts):
-                raise ValueError("prior-red-proof-invalid")
-            plugin_paths.update(_python_module_paths(parts))
-    return plugin_paths
 
 
 def _validate_retained_red_junit(
@@ -1416,14 +1291,6 @@ def validate_prior_red_proof(
     )
 
 
-def _parent_package_initializers(path: str) -> set[str]:
-    """Return candidate package initializers executed while importing one path."""
-    parent_parts = PurePosixPath(path).parent.parts
-    return {
-        (PurePosixPath(*parent_parts[:depth]) / "__init__.py").as_posix() for depth in range(1, len(parent_parts) + 1)
-    }
-
-
 def _validated_plan_cases(report: dict[str, object]) -> list[Mapping[str, object]]:
     """Return digest-bound plan cases from the retained reconciliation report."""
     plan = report.get("plan")
@@ -1458,100 +1325,6 @@ def _touchpoints_by_requirement(report: dict[str, object]) -> list[list[Mapping[
     return list(grouped.values())
 
 
-def _test_support_roots(selector_paths: Sequence[str]) -> set[str]:
-    """Return the repository roots containing selected pytest support bytes."""
-    roots: set[str] = set()
-    for selector_path in selector_paths:
-        parts = PurePosixPath(selector_path).parts
-        test_index = next((index for index, part in enumerate(parts[:-1]) if part in {"test", "tests"}), None)
-        if test_index is not None:
-            roots.add(PurePosixPath(*parts[: test_index + 1]).as_posix())
-        elif len(parts) > 1:
-            roots.add(PurePosixPath(*parts[:-1]).as_posix())
-    return roots
-
-
-def _frozen_proof_paths(repo_root: Path, source_ref: str, selector_paths: Sequence[str]) -> set[str]:
-    """Return exact proof-authority paths that mapping content cannot unfreeze."""
-    configurations = {path for selector in selector_paths for path in _applicable_pytest_configuration_paths(selector)}
-    conftests = {path for selector in selector_paths for path in _applicable_conftest_paths(selector)}
-    plugin_paths = {
-        *_python_module_paths(("scripts", "requirements_proof_pytest_plugin")),
-        *_conftest_plugin_paths(repo_root, source_ref, sorted(conftests)),
-    }
-    initializers = {
-        initializer for path in {*selector_paths, *plugin_paths} for initializer in _parent_package_initializers(path)
-    }
-    return {
-        *configurations,
-        *conftests,
-        *plugin_paths,
-        *initializers,
-        *NON_TRANSITIVE_PROOF_INPUTS,
-        "scripts/requirements_proof_executor.py",
-        "uv.lock",
-    }
-
-
-def _canonical_mutable_locator(locator: object) -> str:
-    """Return one literal repository path or reject aliases and broad patterns."""
-    if not isinstance(locator, str) or not locator or any(character in locator for character in "*?[]{}\\"):
-        raise ValueError("prior-red-proof-invalid")
-    if any(ord(character) < 32 for character in locator):
-        raise ValueError("prior-red-proof-invalid")
-    path = PurePosixPath(locator)
-    if path.is_absolute() or ".." in path.parts or path.as_posix() != locator:
-        raise ValueError("prior-red-proof-invalid")
-    return locator
-
-
-def _path_is_under(path: str, roots: set[str]) -> bool:
-    """Return whether an exact path belongs to one frozen support tree."""
-    return any(path == root or path.startswith(f"{root}/") for root in roots)
-
-
-def _mutable_marker_enabled(touchpoint: Mapping[str, object]) -> bool:
-    """Return whether one touchpoint explicitly permits post-red SUT edits."""
-    mutable = touchpoint.get("mutable_after_red")
-    if mutable is not None and not isinstance(mutable, bool):
-        raise ValueError("prior-red-proof-invalid")
-    return mutable is True
-
-
-def _mutable_identity_is_valid(touchpoint: Mapping[str, object]) -> bool:
-    """Return whether one mutable touchpoint has literal non-empty identity fields."""
-    identifier = touchpoint.get("id")
-    kind = touchpoint.get("kind")
-    return isinstance(identifier, str) and bool(identifier) and isinstance(kind, str) and bool(kind)
-
-
-def _mutable_locator_is_valid(locator: str, kind: object, policy: _MutablePathPolicy) -> bool:
-    """Return whether one locator is an exact, unique, regular SUT path."""
-    immutable_role = (
-        kind in {"test_file", "lockfile"} or locator in policy.frozen or _path_is_under(locator, policy.support_roots)
-    )
-    return (
-        not immutable_role
-        and locator not in policy.accepted
-        and _test_path_is_regular_at_ref(policy.repo_root, policy.source_ref, locator)
-    )
-
-
-def _approved_mutable_locator(touchpoint: Mapping[str, object], policy: _MutablePathPolicy) -> str | None:
-    """Return one valid mutable locator, or None for an immutable touchpoint."""
-    if not _mutable_marker_enabled(touchpoint):
-        return None
-    kind = touchpoint.get("kind")
-    locator = _canonical_mutable_locator(touchpoint.get("locator"))
-    if not _mutable_identity_is_valid(touchpoint):
-        raise ValueError("prior-red-proof-invalid")
-    if locator in policy.producer_paths:
-        return None
-    if not _mutable_locator_is_valid(locator, kind, policy):
-        raise ValueError("prior-red-proof-invalid")
-    return locator
-
-
 def _mutable_sut_paths(
     report: dict[str, object],
     repo_root: Path,
@@ -1559,17 +1332,16 @@ def _mutable_sut_paths(
     selector_paths: Sequence[str],
     producer_paths: frozenset[str] = frozenset(),
 ) -> set[str]:
-    """Return exact owner-approved post-red SUT paths from the bound plan."""
-    frozen = _frozen_proof_paths(repo_root, source_ref, selector_paths)
-    support_roots = _test_support_roots(selector_paths)
-    mutable_paths: set[str] = set()
-    policy = _MutablePathPolicy(repo_root, source_ref, frozen, support_roots, mutable_paths, producer_paths)
+    """Reject post-red mutation until an explicit process-separated runner exists."""
+    del repo_root, source_ref, selector_paths, producer_paths
     for touchpoints in _touchpoints_by_requirement(report):
         for touchpoint in touchpoints:
-            locator = _approved_mutable_locator(touchpoint, policy)
-            if locator is not None:
-                mutable_paths.add(locator)
-    return mutable_paths
+            mutable = touchpoint.get("mutable_after_red")
+            if mutable is not None and not isinstance(mutable, bool):
+                raise ValueError("prior-red-proof-invalid")
+            if mutable is True:
+                raise ValueError("prior-red-proof-invalid")
+    return set()
 
 
 def _red_history_boundary(values: tuple[object, ...]) -> _RedHistoryBoundary:
@@ -1597,7 +1369,21 @@ def _validate_red_history_freshness(
 ) -> list[str]:
     """Reject production-before-red and every unapproved path touched after red."""
     boundary = _red_history_boundary(boundary_values)
+    cycle = _cycle_module()
+    if any(not cycle._is_final_producer_path(path) for path in boundary.producer_paths):
+        return ["prior-red-proof-invalid"]
     _, selector_paths = _selector_paths(report)
+    test_input_paths = set(selector_paths)
+    for touchpoints in _touchpoints_by_requirement(report):
+        for touchpoint in touchpoints:
+            if touchpoint.get("kind") != "test_file":
+                continue
+            locator = touchpoint.get("locator")
+            if not isinstance(locator, str) or not locator or PurePosixPath(locator).as_posix() != locator:
+                return ["prior-red-proof-invalid"]
+            test_input_paths.add(locator)
+    if boundary.producer_paths.intersection(test_input_paths):
+        return ["prior-red-proof-invalid"]
     paths_before_red = _changed_paths_in_history(repo_root, boundary.base_ref, boundary.source_ref)
     if paths_before_red is None or _has_governed_production_path(paths_before_red, boundary.change_id):
         return ["tdd-order-unproven"]

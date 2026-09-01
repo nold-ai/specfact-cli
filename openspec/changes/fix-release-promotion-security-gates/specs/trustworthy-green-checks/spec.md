@@ -149,7 +149,26 @@ digest, and Git blob identity of every changed evidence producer path. A
 descendant may reuse that authority only while the approved commit remains its
 ancestor and the complete changed producer-path set and every approved blob
 remain identical. This exception SHALL NOT create a fifth anchor or authorize
-any SUT, test, non-producer configuration, or unlisted producer path.
+any selected test, mapped `test_file`, non-producer configuration, application
+SUT, or unlisted producer path.
+
+Eligible producer paths SHALL be limited to these exact regular Git files:
+`.github/workflows/pr-orchestrator.yml`,
+`.github/workflows/requirements-evidence.yml`,
+`scripts/check_doc_frontmatter.py`, `scripts/check_license_compliance.py`,
+`scripts/license_scope_policy.py`, `scripts/requirements_amendment_bootstrap.py`,
+`scripts/requirements_bootstrap_authority.py`,
+`scripts/requirements_cycle_base.py`,
+`scripts/requirements_evidence_delivery_gate.py`,
+`scripts/requirements_proof_executor.py`,
+`scripts/requirements_proof_provenance.py`,
+`scripts/requirements_proof_pytest_plugin.py`, and
+`scripts/requirements_red_run_normalizer.py`. Each SHALL have Git mode `100644`
+or `100755` at both the approved and final commit. A symlink, gitlink, tree,
+unknown `scripts/requirements_*` path, or any other path SHALL fail closed.
+Selector and mapped `test_file` locators SHALL use their canonical repository
+path spelling; aliases such as a leading `./` SHALL fail closed before producer
+collision comparison.
 
 #### Scenario: Same-process mutable SUT authority fails closed
 
@@ -176,6 +195,7 @@ any SUT, test, non-producer configuration, or unlisted producer path.
 - **WHEN** one live, unedited, unexpired repository MEMBER comment binds the exact approved commit and tree, external capability digest, and complete changed producer-path blob map
 - **THEN** only those exact producer bytes may cross the retained-red boundary
 - **AND** a missing, edited, expired, mismatched, additional, or subsequently modified producer path fails closed
+- **AND** a non-regular producer mode or path outside the finite producer set fails closed
 
 #### Scenario: Any mutable mapping authority fails closed
 

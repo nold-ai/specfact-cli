@@ -76,22 +76,10 @@ def _red_proof(
     source_tree: str,
     merge_base: str,
     test_file_digest: str,
-    mutable_paths: tuple[str, ...] = (),
 ) -> dict[str, object]:
     mapping_digest = f"sha256:{'a' * 64}"
     plan_digest = f"sha256:{'b' * 64}"
-    touchpoints: list[dict[str, object]] = [
-        {"id": "selected-test", "kind": "test_file", "locator": "tests/test_proof.py"},
-        *(
-            {
-                "id": f"sut-{index}",
-                "kind": "source_file",
-                "locator": path,
-                "mutable_after_red": True,
-            }
-            for index, path in enumerate(mutable_paths)
-        ),
-    ]
+    touchpoints = [{"id": "selected-test", "kind": "test_file", "locator": "tests/test_proof.py"}]
     return {
         "gate_decision": "pass",
         "observed_maturity": "red",
@@ -115,7 +103,7 @@ def _red_proof(
             "merge_base": merge_base,
             "selectors": ["tests/test_proof.py::test_selected"],
             "test_file_digests": {"tests/test_proof.py": test_file_digest},
-            "mutable_sut_paths": sorted(mutable_paths),
+            "mutable_sut_paths": [],
             "junit_digest": junit_digest,
             "toolchain_identity": {"runner": "pytest", "python": "3.12", "pytest": "9.1"},
         },
@@ -127,8 +115,6 @@ def _write_red_proof(
     repo_root: Path,
     source_ref: str,
     merge_base: str,
-    *,
-    mutable_paths: tuple[str, ...] = (),
 ) -> None:
     junit = (
         b'<testsuite><testcase><properties><property name="specfact.selector" '
@@ -154,12 +140,11 @@ def _write_red_proof(
         source_tree=source_tree,
         merge_base=merge_base,
         test_file_digest=test_file_digest,
-        mutable_paths=mutable_paths,
     )
     path.write_text(json.dumps(report), encoding="utf-8")
 
 
-def _write_unbound_red_proof(path: Path, source_ref: str, *, mutable_paths: tuple[str, ...] = ()) -> None:
+def _write_unbound_red_proof(path: Path, source_ref: str) -> None:
     """Write the exact incomplete report shape produced by released reconciliation."""
     selector = "tests/test_proof.py::test_selected"
     junit = (
@@ -173,18 +158,7 @@ def _write_unbound_red_proof(path: Path, source_ref: str, *, mutable_paths: tupl
     path.with_suffix(".xml").write_bytes(junit)
     mapping_digest = f"sha256:{'a' * 64}"
     plan_digest = f"sha256:{'b' * 64}"
-    touchpoints: list[dict[str, object]] = [
-        {"id": "selected-test", "kind": "test_file", "locator": "tests/test_proof.py"},
-        *(
-            {
-                "id": f"sut-{index}",
-                "kind": "source_file",
-                "locator": mutable_path,
-                "mutable_after_red": True,
-            }
-            for index, mutable_path in enumerate(mutable_paths)
-        ),
-    ]
+    touchpoints = [{"id": "selected-test", "kind": "test_file", "locator": "tests/test_proof.py"}]
     path.write_text(
         json.dumps(
             {
@@ -318,6 +292,57 @@ def test_exact_producer_authority_is_separate_from_mutable_sut_policy(tmp_path: 
         == []
     )
 
+    selected_producer_report = json.loads(json.dumps(report))
+    selected_producer_report["execution_proof"]["selectors"] = [
+        "scripts/requirements_proof_provenance.py::test_selected"
+    ]
+    assert module._validate_red_history_freshness(
+        selected_producer_report,
+        tmp_path,
+        base_ref,
+        red_ref,
+        producer_ref,
+        None,
+        producer_paths,
+    ) == ["prior-red-proof-invalid"]
+
+    alias_selector_report = json.loads(json.dumps(report))
+    alias_selector_report["execution_proof"]["selectors"] = [
+        "./scripts/requirements_proof_provenance.py::test_selected"
+    ]
+    with pytest.raises(ValueError, match="prior-red-proof-invalid"):
+        module._validate_red_history_freshness(
+            alias_selector_report,
+            tmp_path,
+            base_ref,
+            red_ref,
+            producer_ref,
+            None,
+            producer_paths,
+        )
+
+    for test_touchpoint in (
+        "scripts/requirements_proof_provenance.py",
+        "./scripts/requirements_proof_provenance.py",
+    ):
+        test_touchpoint_report = json.loads(json.dumps(report))
+        test_touchpoint_report["plan"]["cases"][0]["touchpoints"].append(
+            {
+                "id": "producer-as-test-input",
+                "kind": "test_file",
+                "locator": test_touchpoint,
+            }
+        )
+        assert module._validate_red_history_freshness(
+            test_touchpoint_report,
+            tmp_path,
+            base_ref,
+            red_ref,
+            producer_ref,
+            None,
+            producer_paths,
+        ) == ["prior-red-proof-invalid"]
+
     adjacent_path = tmp_path / "docs" / "adjacent.md"
     adjacent_path.parent.mkdir()
     adjacent_path.write_text("not authorized\n", encoding="utf-8")
@@ -333,17 +358,19 @@ def test_exact_producer_authority_is_separate_from_mutable_sut_policy(tmp_path: 
         producer_paths,
     ) == ["stale-red-proof"]
 
-    application_paths = frozenset({"src/specfact_cli/delivery.py"})
-
-    assert module._validate_red_history_freshness(
-        report,
-        tmp_path,
-        base_ref,
-        red_ref,
-        adjacent_ref,
-        None,
-        application_paths,
-    ) == ["prior-red-proof-invalid"]
+    for unauthorized_producer in (
+        "src/specfact_cli/delivery.py",
+        "scripts/requirements_unlisted_plugin.py",
+    ):
+        assert module._validate_red_history_freshness(
+            report,
+            tmp_path,
+            base_ref,
+            red_ref,
+            adjacent_ref,
+            None,
+            frozenset({unauthorized_producer}),
+        ) == ["prior-red-proof-invalid"]
 
 
 @pytest.mark.parametrize("support_path", ["conftest.py", "tests/conftest.py"])

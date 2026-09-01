@@ -104,6 +104,6 @@
 - [ ] 8.11 Run focused adversarial and legitimate controls, hosted-runner smoke
   evidence, all applicable quality/security gates, and one fresh independent
   bypass/regression review before requesting final mapping/producer authority.
-- [ ] 8.12 Reject every `mutable_after_red` claim under stock pytest, remove
+- [x] 8.12 Reject every `mutable_after_red` claim under stock pytest, remove
   construct-specific plugin discovery, and reserve post-red mutation for a
   future explicit process-separated SUT runner.

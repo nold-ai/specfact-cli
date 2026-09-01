@@ -48,6 +48,21 @@ EVIDENCE_AUTHORITY_FILES = {
     "uv.lock",
 }
 EVIDENCE_AUTHORITY_PREFIXES = ("requirements/", "scripts/requirements_", "src/specfact_cli/")
+FINAL_PRODUCER_AUTHORITY_FILES = {
+    ".github/workflows/pr-orchestrator.yml",
+    ".github/workflows/requirements-evidence.yml",
+    "scripts/check_doc_frontmatter.py",
+    "scripts/check_license_compliance.py",
+    "scripts/license_scope_policy.py",
+    "scripts/requirements_amendment_bootstrap.py",
+    "scripts/requirements_bootstrap_authority.py",
+    "scripts/requirements_cycle_base.py",
+    "scripts/requirements_evidence_delivery_gate.py",
+    "scripts/requirements_proof_executor.py",
+    "scripts/requirements_proof_provenance.py",
+    "scripts/requirements_proof_pytest_plugin.py",
+    "scripts/requirements_red_run_normalizer.py",
+}
 EXTERNAL_AUTHORITY_KIND = "externally-approved-amendment-bootstrap"
 EXTERNAL_AUTHORITY_COMMENT_ID = 5468600336
 EXTERNAL_AUTHORITY_REPOSITORY = "nold-ai/specfact-cli"
@@ -189,12 +204,17 @@ def _is_evidence_authority_path(path: str) -> bool:
     return path in EVIDENCE_AUTHORITY_FILES or path.startswith(EVIDENCE_AUTHORITY_PREFIXES)
 
 
-def _changed_evidence_authority_paths(repo_root: Path, start_ref: str, end_ref: str) -> set[str] | None:
-    """Return the complete evidence-authority path set changed in one range."""
+def _is_final_producer_path(path: str) -> bool:
+    """Limit final-byte authority to the exact Requirements evidence producers."""
+    return path in FINAL_PRODUCER_AUTHORITY_FILES
+
+
+def _changed_final_producer_paths(repo_root: Path, start_ref: str, end_ref: str) -> set[str] | None:
+    """Return the complete final-producer path set changed in one range."""
     changed = _git(repo_root, "diff", "--name-only", "--find-renames", start_ref, end_ref)
     if changed.returncode:
         return None
-    return {path for path in changed.stdout.splitlines() if _is_evidence_authority_path(path)}
+    return {path for path in changed.stdout.splitlines() if _is_final_producer_path(path)}
 
 
 def _blob_identity(repo_root: Path, commit: str, path: str) -> str | None:
@@ -203,8 +223,20 @@ def _blob_identity(repo_root: Path, commit: str, path: str) -> str | None:
     blob = identity.stdout.strip()
     if identity.returncode or GIT_OBJECT_PATTERN.fullmatch(blob) is None:
         return None
-    object_type = _git(repo_root, "cat-file", "-t", blob)
-    return blob if object_type.returncode == 0 and object_type.stdout.strip() == "blob" else None
+    entry = _git(repo_root, "ls-tree", "-z", commit, "--", path)
+    header, separator, listed_path = entry.stdout.partition("\t")
+    fields = header.split()
+    return (
+        blob
+        if entry.returncode == 0
+        and separator == "\t"
+        and listed_path == f"{path}\0"
+        and len(fields) == 3
+        and fields[0] in {"100644", "100755"}
+        and fields[1] == "blob"
+        and fields[2] == blob
+        else None
+    )
 
 
 def _comment_objects(path: Path) -> list[dict[str, object]]:
@@ -283,11 +315,9 @@ def _final_authority_matches(
     approved_commit = authority.get("approved_commit")
     producer_blobs = _producer_blob_map(authority.get("producer_blobs"))
     changed_at_approval = (
-        _changed_evidence_authority_paths(repo_root, red_ref, approved_commit)
-        if isinstance(approved_commit, str)
-        else None
+        _changed_final_producer_paths(repo_root, red_ref, approved_commit) if isinstance(approved_commit, str) else None
     )
-    changed_now = _changed_evidence_authority_paths(repo_root, red_ref, context.final_ref)
+    changed_now = _changed_final_producer_paths(repo_root, red_ref, context.final_ref)
     identity_matches = all(
         (
             authority.get("authority_version") == 1,

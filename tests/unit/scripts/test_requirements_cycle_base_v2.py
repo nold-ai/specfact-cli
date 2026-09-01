@@ -317,13 +317,38 @@ def test_final_producer_authority_binds_exact_complete_blob_set(tmp_path: Path) 
     )
 
 
-def test_final_producer_scope_excludes_application_and_dependency_inputs() -> None:
-    """Final-byte authority must not convert application or resolution inputs into producers."""
+def test_final_producer_scope_excludes_application_and_dependency_inputs(tmp_path: Path) -> None:
+    """Final-byte authority accepts only named regular evidence producers."""
     module = _load(CYCLE_BASE_SCRIPT, "requirements_cycle_base_v2_producer_scope")
+    fixtures = _load(FIXTURE_MODULE, "requirements_cycle_base_v2_producer_scope_fixtures")
 
     assert module._is_evidence_authority_path("src/specfact_cli/delivery.py")
     assert not module._is_final_producer_path("src/specfact_cli/delivery.py")
     assert not module._is_final_producer_path("pyproject.toml")
     assert not module._is_final_producer_path("uv.lock")
+    assert not module._is_final_producer_path("scripts/requirements_unlisted_plugin.py")
     assert module._is_final_producer_path("scripts/requirements_proof_provenance.py")
     assert module._is_final_producer_path(".github/workflows/requirements-evidence.yml")
+
+    repository = tmp_path / "repository"
+    target = repository / "src" / "specfact_cli" / "producer_target.py"
+    target.parent.mkdir(parents=True)
+    target.write_text("VALUE = 'approved'\n", encoding="utf-8")
+    producer = repository / "scripts" / "requirements_proof_provenance.py"
+    producer.parent.mkdir()
+    producer.symlink_to("../src/specfact_cli/producer_target.py")
+    fixtures._git(repository, "init")
+    fixtures._git(repository, "config", "user.email", "requirements@example.test")
+    fixtures._git(repository, "config", "user.name", "Requirements proof")
+    approved_ref = fixtures._commit(repository, "approve symlink producer")
+    symlink_blob = fixtures._git(repository, "rev-parse", f"{approved_ref}:scripts/requirements_proof_provenance.py")
+
+    assert module._blob_identity(repository, approved_ref, "scripts/requirements_proof_provenance.py") is None
+
+    target.write_text("VALUE = 'unapproved'\n", encoding="utf-8")
+    final_ref = fixtures._commit(repository, "change only symlink target")
+
+    assert (
+        fixtures._git(repository, "rev-parse", f"{final_ref}:scripts/requirements_proof_provenance.py") == symlink_blob
+    )
+    assert module._blob_identity(repository, final_ref, "scripts/requirements_proof_provenance.py") is None
