@@ -55,26 +55,40 @@ requirements:
       - id: license-policy
         kind: config
         locator: "scripts/license_allowlist.yaml"
+      - id: license-scope-policy
+        kind: source_file
+        locator: "scripts/license_scope_policy.py"
       - id: license-regressions
         kind: test_file
         locator: "tests/unit/scripts/test_check_license_compliance.py"
+      - id: license-workflow-regressions
+        kind: test_file
+        locator: "tests/unit/workflows/test_trustworthy_green_checks.py"
     verification_cases:
       - case_id: RELEASE-692-LICENSE-S01
         scenario_id: dependency-review-exceptions-remain-bound-to-their-declared-environment
         method: test
-        intent: "Prove the primary environment rejects the Code Review-only Pylint exception."
-        observable: "Exact Pylint 4.0.7 GPL metadata produces a violation under the default environment role."
+        intent: "Prove the primary environment cannot select the Code Review-only Pylint exception."
+        observable: "The exact Pylint exception remains code-review-only while the primary scan defaults to dev-only."
         selector:
           runner: pytest
-          node_id: tests/unit/scripts/test_check_license_compliance.py::TestAllowlistAccepted::test_code_review_only_exception_is_rejected_by_primary_environment
+          node_id: tests/unit/scripts/test_reproducible_delivery.py::test_primary_license_scope_excludes_the_code_review_exception
       - case_id: RELEASE-692-LICENSE-S02
         scenario_id: dependency-review-exceptions-remain-bound-to-their-declared-environment
         method: test
-        intent: "Prove only the dedicated frozen Code Review role accepts the exact reviewed metadata."
-        observable: "The exact Pylint release passes only with code-review-only scope."
+        intent: "Prove only the dedicated frozen Code Review path selects the exact reviewed metadata."
+        observable: "Exactly one scan path selects code-review-only scope for Pylint 4.0.7 with the reviewed GPL metadata."
         selector:
           runner: pytest
-          node_id: tests/unit/scripts/test_check_license_compliance.py::TestAllowlistAccepted::test_code_review_only_exception_is_accepted_only_for_review_environment
+          node_id: tests/unit/scripts/test_reproducible_delivery.py::test_code_review_license_scope_is_exactly_version_and_environment_bound
+      - case_id: RELEASE-692-LICENSE-S03
+        scenario_id: dependency-review-exceptions-remain-bound-to-their-declared-environment
+        method: test
+        intent: "Prove every frozen dependency-policy input selects the blocking license gate."
+        observable: "Changes to the lock, allowlist, scanner, or shared scope policy all trigger the exact blocking workflow job."
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_trustworthy_green_checks.py::test_license_gate_runs_for_every_frozen_dependency_graph_change
   openspec:fix-release-promotion-security-gates:trustworthy-green-checks:local-dependency-trust-reacts-to-every-frozen-review-input:
     rationale: "Local trust and CVE gates must select the same frozen Code Review inputs."
     stakeholder_refs:
@@ -168,220 +182,114 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_reproducible_delivery.py::test_reproducible_delivery_pins_semgrep_with_fixed_mcp_without_waiver
-  openspec:fix-release-promotion-security-gates:trustworthy-green-checks:retained-proof-binds-only-active-pytest-plugin-declarations:
-    rationale: "Inactive local assignments must not create false stale-proof dependencies."
-    stakeholder_refs:
-      - "nold-ai/specfact-cli#692"
-      - "nold-ai/specfact-cli#691"
-    touchpoints:
-      - id: proof-provenance
-        kind: source_file
-        locator: "scripts/requirements_proof_provenance.py"
-      - id: plugin-discovery-regression
-        kind: test_file
-        locator: "tests/unit/scripts/test_requirements_proof_provenance.py"
-      - id: plugin-discovery-review-regression
-        kind: test_file
-        locator: "tests/unit/scripts/test_requirements_proof_provenance_review_regressions_v2.py"
-    verification_cases:
-      - case_id: RELEASE-692-PYTEST-S01
-        scenario_id: retained-proof-binds-only-active-pytest-plugin-declarations
-        method: test
-        intent: "Prove active module plugin declarations are bound or fail closed while local assignments are ignored."
-        observable: >-
-          Literal direct, conditional, and annotated declarations are returned;
-          computed and indirect import-time bindings are rejected; nested bodies
-          and comprehension iteration targets are ignored.
-        selector:
-          runner: pytest
-          node_id: tests/unit/scripts/test_requirements_proof_provenance.py::test_pytest_plugin_discovery_ignores_function_local_assignments
-      - case_id: RELEASE-692-PYTEST-S02
-        scenario_id: retained-proof-binds-only-active-pytest-plugin-declarations
-        method: test
-        intent: "Prove direct and chained aliases of the imported builtins owner retain dynamic-execution authority."
-        observable: "Every alias path to builtins.exec or builtins.eval invalidates retained proof."
-        selector:
-          runner: pytest
-          node_id: tests/unit/scripts/test_requirements_proof_provenance.py::test_pytest_plugin_discovery_rejects_builtins_module_aliases
-      - case_id: RELEASE-692-PYTEST-S03
-        scenario_id: retained-proof-binds-only-active-pytest-plugin-declarations
-        method: test
-        intent: "Prove mapping captures inherit their statically corresponding namespace subject value."
-        observable: "Direct, reordered, and nested mapping captures of globals fail closed while ordinary mapping values remain compatible."
-        selector:
-          runner: pytest
-          node_id: tests/unit/scripts/test_requirements_proof_provenance.py::test_pytest_plugin_discovery_rejects_mapping_pattern_namespace_captures
-      - case_id: RELEASE-692-PYTEST-S04
-        scenario_id: retained-proof-binds-only-active-pytest-plugin-declarations
-        method: test
-        intent: "Prove a definite ordinary reassignment ends prior alias authority without weakening uncertain paths."
-        observable: "Ordinary replacements pass; use-before-shadow, re-alias, and conditional replacement fail closed."
-        selector:
-          runner: pytest
-          node_id: tests/unit/scripts/test_requirements_proof_provenance.py::test_pytest_plugin_discovery_allows_legitimate_namespace_access
-      - case_id: RELEASE-692-PYTEST-S05
-        scenario_id: retained-proof-binds-only-active-pytest-plugin-declarations
-        method: test
-        intent: "Prove computed or opaque owners cannot hide import-time dynamic-execution authority."
-        observable: >-
-          Tuple, nested mapping, helper, lambda, computed-attribute, and
-          class-body paths to exec or eval all invalidate retained proof.
-        selector:
-          runner: pytest
-          node_id: tests/unit/scripts/test_requirements_proof_provenance.py::test_pytest_plugin_discovery_rejects_computed_builtins_owner_expressions
-      - case_id: RELEASE-692-PYTEST-S06
-        scenario_id: retained-proof-binds-only-active-pytest-plugin-declarations
-        method: test
-        intent: "Prove assigning an unresolved computed owner cannot turn dynamic-execution authority into a definite safe shadow."
-        observable: >-
-          Container, helper-returned, conditional, and class-body owner
-          assignments that reach exec or eval all invalidate retained proof.
-        selector:
-          runner: pytest
-          node_id: tests/unit/scripts/test_requirements_proof_provenance.py::test_pytest_plugin_discovery_rejects_assigned_computed_owner_expressions
-      - case_id: RELEASE-692-PYTEST-S11
-        scenario_id: retained-proof-binds-only-active-pytest-plugin-declarations
-        method: test
-        intent: "Prove object-level setters cannot hide a current-module pytest plugin binding."
-        observable: >-
-          Direct, computed, bound, and dynamic-name object.__setattr__ forms on
-          the current module fail closed while ordinary object mutations and
-          unrelated module attributes remain compatible.
-        selector:
-          runner: pytest
-          node_id: tests/unit/scripts/test_requirements_proof_provenance_review_regressions_v2.py::test_object_setattr_current_module_binding_fails_closed
-      - case_id: RELEASE-692-PYTEST-S13
-        scenario_id: retained-proof-binds-only-active-pytest-plugin-declarations
-        method: test
-        intent: "Prove a custom current-module type cannot synthesize a hidden pytest plugin binding."
-        observable: >-
-          Assigning a custom ModuleType subclass to the executing module's
-          __class__ fails closed, while an unrelated object's class assignment
-          remains compatible.
-        selector:
-          runner: pytest
-          node_id: tests/unit/scripts/test_requirements_proof_provenance_review_regressions_v2.py::test_custom_current_module_type_fails_closed
-      - case_id: RELEASE-692-PYTEST-S14
-        scenario_id: retained-proof-binds-only-active-pytest-plugin-declarations
-        method: test
-        intent: "Prove module-registry replacement cannot substitute hidden pytest plugin declarations."
-        observable: >-
-          Import-time sys.modules mutations fail closed, while read-only access to
-          the active module registry remains compatible.
-        selector:
-          runner: pytest
-          node_id: tests/unit/scripts/test_requirements_proof_provenance_review_regressions_v2.py::test_current_module_registry_replacement_fails_closed
-      - case_id: RELEASE-692-PYTEST-S15
-        scenario_id: retained-proof-binds-only-active-pytest-plugin-declarations
-        method: test
-        intent: "Prove builtin attribute lookup cannot synthesize a hidden pytest plugin binding."
-        observable: >-
-          Mutating builtins.getattr through an attribute or mapping view fails
-          closed, while an unrelated builtins attribute assignment remains compatible.
-        selector:
-          runner: pytest
-          node_id: tests/unit/scripts/test_requirements_proof_provenance_review_regressions_v2.py::test_builtins_getattr_mutation_fails_closed
-      - case_id: RELEASE-692-PYTEST-S16
-        scenario_id: retained-proof-binds-only-active-pytest-plugin-declarations
-        method: test
-        intent: "Prove imperative pytest plugin-manager imports remain frozen proof inputs."
-        observable: >-
-          A literal config.pluginmanager.import_plugin target is retained as a
-          repository dependency, while an unresolved target fails closed.
-        selector:
-          runner: pytest
-          node_id: tests/unit/scripts/test_requirements_proof_provenance_review_regressions_v2.py::test_pytest_configure_import_plugin_is_retained_or_rejected
-      - case_id: RELEASE-692-PYTEST-S17
-        scenario_id: retained-proof-binds-only-active-pytest-plugin-declarations
-        method: test
-        intent: "Prove eagerly invoked higher-order callables cannot hide active pytest plugin writes."
-        observable: >-
-          Passing active-module authority to a higher-order setter or callable
-          factory fails closed, while an unrelated-object wrapper remains compatible.
-        selector:
-          runner: pytest
-          node_id: tests/unit/scripts/test_requirements_proof_provenance_review_regressions_v2.py::test_higher_order_plugin_namespace_mutator_fails_closed
-      - case_id: RELEASE-692-PYTEST-S18
-        scenario_id: retained-proof-binds-only-active-pytest-plugin-declarations
-        method: test
-        intent: "Prove higher-order callables cannot escape frozen import-loader authority."
-        observable: >-
-          A higher-order callable using a literal loader target retains the
-          repository module, while a dynamic wrapped target fails closed.
-        selector:
-          runner: pytest
-          node_id: tests/unit/scripts/test_requirements_proof_provenance_review_regressions_v2.py::test_higher_order_import_factory_is_retained_or_rejected
-  openspec:fix-release-promotion-security-gates:trustworthy-green-checks:retained-proof-binds-the-complete-executable-pytest-harness:
-    rationale: "Retained red evidence must bind every repository-controlled input that can alter selected pytest execution."
+  openspec:fix-release-promotion-security-gates:trustworthy-green-checks:retained-red-proof-uses-an-exact-owner-approved-sut-path-policy:
+    rationale: "Retained red evidence permits only exact owner-approved regular-file SUT paths to change after red."
     stakeholder_refs:
       - "nold-ai/specfact-cli#692"
       - "nold-ai/specfact-cli#698"
     touchpoints:
+      - id: requirements-mapping
+        kind: config
+        locator: "openspec/changes/fix-release-promotion-security-gates/requirements-evidence.yaml"
+      - id: proof-provenance-anchor
+        kind: source_file
+        locator: "scripts/requirements_proof_provenance.py"
       - id: proof-executor
         kind: source_file
         locator: "scripts/requirements_proof_executor.py"
-      - id: proof-provenance
+      - id: explicit-proof-plugin
         kind: source_file
-        locator: "scripts/requirements_proof_provenance.py"
+        locator: "scripts/requirements_proof_pytest_plugin.py"
       - id: frozen-resolution
         kind: lockfile
         locator: "uv.lock"
-      - id: executor-regression
+      - id: path-policy-regression
         kind: test_file
-        locator: "tests/unit/scripts/test_requirements_proof_executor.py"
-      - id: provenance-regression
-        kind: test_file
-        locator: "tests/unit/scripts/test_requirements_proof_provenance_review_regressions.py"
-      - id: provenance-review-regression-v2
-        kind: test_file
-        locator: "tests/unit/scripts/test_requirements_proof_provenance_review_regressions_v2.py"
+        locator: "tests/unit/scripts/test_requirements_proof_path_policy.py"
     verification_cases:
-      - case_id: RELEASE-692-PYTEST-S07
-        scenario_id: retained-proof-binds-the-complete-executable-pytest-harness
+      - case_id: RELEASE-692-PATH-S01
+        scenario_id: retained-red-proof-uses-an-exact-owner-approved-sut-path-policy
         method: test
-        intent: "Prove repository-root shadow files cannot replace the installed pytest package."
-        observable: "The executor resolves installed pytest under safe-path startup before adding the repository root for the bound plugin."
+        intent: "Prove an exact owner-approved regular-file SUT touchpoint can change after red."
+        observable: "Only the exact literal locator marked mutable_after_red true is accepted."
         selector:
           runner: pytest
-          node_id: tests/unit/scripts/test_requirements_proof_executor.py::test_executor_uses_safe_path_before_resolving_installed_pytest
-      - case_id: RELEASE-692-PYTEST-S08
-        scenario_id: retained-proof-binds-the-complete-executable-pytest-harness
+          node_id: tests/unit/scripts/test_requirements_proof_path_policy.py::test_exact_mutable_sut_path_is_allowed_after_red
+      - case_id: RELEASE-692-PATH-S02
+        scenario_id: retained-red-proof-uses-an-exact-owner-approved-sut-path-policy
         method: test
-        intent: "Prove unresolved current-module plugin writes cannot evade retained-input discovery."
-        observable: "Current-module import and attribute-write forms fail closed while a proven ordinary namespace remains compatible."
+        intent: "Prove complete commit history retains restored paths and both move endpoints."
+        observable: "Changed-then-restored, renamed, and copied paths each require exact authority."
         selector:
           runner: pytest
-          node_id: tests/unit/scripts/test_requirements_proof_provenance_review_regressions.py::test_review_bypasses_fail_closed
-      - case_id: RELEASE-692-PYTEST-S09
-        scenario_id: retained-proof-binds-the-complete-executable-pytest-harness
+          node_id: tests/unit/scripts/test_requirements_proof_path_policy.py::test_complete_history_retains_restored_rename_and_copy_paths
+      - case_id: RELEASE-692-PATH-S03
+        scenario_id: retained-red-proof-uses-an-exact-owner-approved-sut-path-policy
         method: test
-        intent: "Prove literal dynamic repository imports are retained and unresolved loader arguments fail closed."
+        intent: "Prove tests, harness inputs, and fixed trust anchors cannot become mutable SUT."
+        observable: "Every frozen role remains stale even when mapping content requests mutable_after_red."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_path_policy.py::test_frozen_proof_inputs_cannot_be_authorized_as_mutable
+      - case_id: RELEASE-692-PATH-S04
+        scenario_id: retained-red-proof-uses-an-exact-owner-approved-sut-path-policy
+        method: test
+        intent: "Prove ambiguous or over-broad mapping authority fails closed."
         observable: >-
-          Importlib, builtin loader, aliased-loader, callable-wrapper, and
-          namespace-mapping forms resolve repository modules; opaque loader,
-          selector, key, or target expressions are rejected.
+          Globs, prefixes, directories, collisions, duplicates, role
+          mismatches, missing paths, and non-regular files are rejected.
         selector:
           runner: pytest
-          node_id: tests/unit/scripts/test_requirements_proof_provenance_review_regressions.py::test_dynamic_repository_imports_are_retained_or_fail_closed
-      - case_id: RELEASE-692-PYTEST-S10
-        scenario_id: retained-proof-binds-the-complete-executable-pytest-harness
+          node_id: tests/unit/scripts/test_requirements_proof_path_policy.py::test_ambiguous_mutable_sut_mapping_fails_closed
+      - case_id: RELEASE-692-PATH-S05
+        scenario_id: retained-red-proof-uses-an-exact-owner-approved-sut-path-policy
         method: test
-        intent: "Prove fixed producers, the frozen graph, and implicit selected-package initializers remain freshness-bound."
-        observable: "Changing any fixed producer, uv.lock, or the selected package initializer after red makes the proof stale."
+        intent: "Prove unmapped production changes remain stale."
+        observable: "Any touched path without eligible exact mutable authority yields stale-red-proof."
         selector:
           runner: pytest
-          node_id: tests/unit/scripts/test_requirements_proof_provenance_review_regressions.py::test_core_proof_inputs_and_selected_package_initializers_are_retained
-      - case_id: RELEASE-692-PYTEST-S12
-        scenario_id: retained-proof-binds-the-complete-executable-pytest-harness
+          node_id: tests/unit/scripts/test_requirements_proof_path_policy.py::test_unmapped_changed_path_remains_stale
+      - case_id: RELEASE-692-PATH-S06
+        scenario_id: retained-red-proof-uses-an-exact-owner-approved-sut-path-policy
         method: test
-        intent: "Prove builtins-qualified and callable-wrapped import factories cannot hide repository proof inputs."
+        intent: "Prove ancestor conftests and root-level test support cannot be mapped as mutable SUT."
         observable: >-
-          Direct, getattr, alias, __call__, mapping, and mapping-method forms
-          retain a literal repository helper; computed factory or target names
-          fail closed.
+          Every applicable conftest remains frozen for nested and root-level
+          selectors even when it is mislabeled as source_file.
         selector:
           runner: pytest
-          node_id: tests/unit/scripts/test_requirements_proof_provenance_review_regressions_v2.py::test_builtins_dynamic_import_forms_are_retained_or_rejected
+          node_id: tests/unit/scripts/test_requirements_proof_path_policy.py::test_applicable_conftests_cannot_be_authorized_as_mutable
+      - case_id: RELEASE-692-PATH-S07
+        scenario_id: retained-red-proof-uses-an-exact-owner-approved-sut-path-policy
+        method: test
+        intent: "Prove copy detection retains an unchanged frozen source endpoint."
+        observable: >-
+          A delete and byte-identical recreation at an approved destination is
+          reported as a copy from the frozen test source and remains stale.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_path_policy.py::test_copy_from_unchanged_frozen_source_is_retained
+  openspec:fix-release-promotion-security-gates:trustworthy-green-checks:repository-path-operands-cannot-become-command-options:
+    rationale: "Repository filenames must not be interpreted as ripgrep options or preprocessors."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#692"
+      - "nold-ai/specfact-cli#698"
+    touchpoints:
+      - id: document-frontmatter-scan
+        kind: source_file
+        locator: "scripts/check_doc_frontmatter.py"
+      - id: document-frontmatter-regression
+        kind: test_file
+        locator: "tests/unit/scripts/test_doc_frontmatter/test_validation.py"
+    verification_cases:
+      - case_id: RELEASE-692-DOC-S01
+        scenario_id: repository-path-operands-cannot-become-command-options
+        method: test
+        intent: "Prove ripgrep option parsing ends before repository-controlled path operands."
+        observable: "The document-owner scan inserts an exact -- separator before every file path."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_doc_frontmatter/test_validation.py::TestMissingDocOwnerDetection::test_repository_paths_follow_option_terminator
   openspec:fix-release-promotion-security-gates:trustworthy-green-checks:requirements-proof-supports-verified-pull-request-amendment-cycles:
     rationale: "Late review fixes need another authenticated red-to-green cycle on the same pull request."
     stakeholder_refs:
@@ -415,6 +323,15 @@ requirements:
       - id: amendment-bootstrap-regression-v2
         kind: test_file
         locator: "tests/unit/scripts/test_requirements_amendment_bootstrap_v2.py"
+      - id: bootstrap-authority-regression
+        kind: test_file
+        locator: "tests/unit/scripts/test_requirements_bootstrap_authority.py"
+      - id: cycle-review-regression
+        kind: test_file
+        locator: "tests/unit/scripts/test_requirements_cycle_base_review_regressions.py"
+      - id: proof-review-regression-v2
+        kind: test_file
+        locator: "tests/unit/scripts/test_requirements_proof_provenance_review_regressions_v2.py"
     verification_cases:
       - case_id: RELEASE-692-CYCLE-S01
         scenario_id: requirements-proof-supports-verified-pull-request-amendment-cycles
@@ -436,7 +353,7 @@ requirements:
           red binding, and retains origin/dev for complete change planning.
         selector:
           runner: pytest
-          node_id: tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_supports_verified_amendment_cycles
+          node_id: tests/unit/workflows/test_requirements_evidence_amendment_review_regressions.py::test_amendment_workflow_supports_verified_cycle_selection
       - case_id: RELEASE-692-CYCLE-S03
         scenario_id: requirements-proof-supports-verified-pull-request-amendment-cycles
         method: test
@@ -516,3 +433,58 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_requirements_amendment_bootstrap_v2.py::test_v3_bootstrap_accepts_only_the_exact_stale_producer_boundary
+      - case_id: RELEASE-692-CYCLE-S11
+        scenario_id: requirements-proof-supports-verified-pull-request-amendment-cycles
+        method: test
+        intent: "Prove bootstrap red history accepts only the exact authenticated OpenSpec change scope."
+        observable: >-
+          A future explicit change ID is accepted while mismatched or additional
+          change directories and unknown production paths are rejected.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_change_scope_review_regressions.py::test_bootstrap_red_history_uses_a_positive_test_and_change_artifact_allowlist
+      - case_id: RELEASE-692-CYCLE-S12
+        scenario_id: requirements-proof-supports-verified-pull-request-amendment-cycles
+        method: test
+        intent: "Prove amendment-cycle red history accepts only its authenticated OpenSpec change scope."
+        observable: "The exact declared change passes; a mismatched or second change directory fails closed."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_change_scope_review_regressions.py::test_red_history_accepts_one_authenticated_change_scope_and_rejects_two
+      - case_id: RELEASE-692-CYCLE-S13
+        scenario_id: requirements-proof-supports-verified-pull-request-amendment-cycles
+        method: test
+        intent: "Prove retained-proof red history accepts only its authenticated OpenSpec change scope."
+        observable: "The exact declared change passes while unknown, mismatched, or additional change paths fail closed."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_provenance_review_regressions_v2.py::test_red_history_uses_a_positive_test_and_change_artifact_allowlist
+      - case_id: RELEASE-692-CYCLE-S14
+        scenario_id: requirements-proof-supports-verified-pull-request-amendment-cycles
+        method: test
+        intent: "Prove the workflow binds cycle validators to one preselected active change."
+        observable: >-
+          A zero-delimited branch diff yields one active valid change ID, and
+          every early cycle/provenance invocation receives that exact value.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_requirements_evidence_amendment_review_regressions.py::test_amendment_cycle_binds_one_preselected_active_change
+      - case_id: RELEASE-692-CYCLE-S15
+        scenario_id: requirements-proof-supports-verified-pull-request-amendment-cycles
+        method: test
+        intent: "Prove the V3 bootstrap carries its approved change ID into cycle-base validation."
+        observable: "The exact repository, PR, branch, and change ID form the runtime cycle context."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_amendment_bootstrap_v2.py::test_cycle_boundary_binds_the_approved_change_id
+      - case_id: RELEASE-692-CYCLE-S16
+        scenario_id: requirements-proof-supports-verified-pull-request-amendment-cycles
+        method: test
+        intent: "Prove post-red evidence-producer bytes require one exact live final authority."
+        observable: >-
+          The authority binds the approved commit/tree, external digest, and
+          complete producer blob map; missing, edited, stale, or changed bytes
+          fail closed.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_cycle_base_v2.py::test_final_producer_authority_binds_exact_complete_blob_set

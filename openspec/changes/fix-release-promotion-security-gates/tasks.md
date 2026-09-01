@@ -39,12 +39,13 @@
 ## 5. Passing evidence and security challenge
 
 - [x] 5.1 Run the focused cache, Requirements controls, and review-finding tests; record passing-after results in `TDD_EVIDENCE.md`.
-- [x] 5.2 Challenge the candidate against alternate cache/provenance paths, then obtain an independent read-only bypass/regression review and address every confirmed concrete finding.
-- [x] 5.3 Run workflow/YAML lint, exact module-signature verification, CodeQL-equivalent static controls, dependency trust, Socket, pip-audit against frozen inputs, and focused package/release checks.
-- [x] 5.4 Run repository format, lint, type, contract, focused/full pytest, code-review JSON, and all applicable quality gates; resolve every warning/finding or document an approved exception.
-- [x] 5.5 Retain an S06 red proof for computed-owner assignment, implement
-  proof-positive safe shadowing, and complete a fresh independent bypass and
-  compatibility review on the exact final head.
+- [x] 5.2 Challenge the final candidate against alternate cache/provenance paths, then obtain an independent read-only bypass/regression review and address every confirmed concrete finding.
+- [x] 5.3 Run workflow/YAML lint, exact module-signature verification, CodeQL-equivalent static controls, dependency trust, Socket, pip-audit against frozen inputs, and focused package/release checks on the final tree.
+- [ ] 5.4 Run repository format, lint, type, contract, focused/full pytest, code-review JSON, and all applicable quality gates on the final tree; resolve every warning/finding or document an approved exception.
+- [ ] 5.5 Retain failing-before proof for the exact SUT path-policy scenarios,
+  implement the compact validator without changing the four frozen anchors
+  after the authenticated red source, and complete a fresh independent bypass
+  and compatibility review on the exact final head.
 - [x] 5.6 Retain an amendment-cycle red proof without opening another pull
   request, authenticate the prior verified #698 head, and prove later review
   findings can complete red-to-green on the same non-default-branch PR.
@@ -55,8 +56,10 @@
 - [x] 6.2 Confirm GitHub/PyPI still publish 0.55.1 while current dev sources are
   0.55.3; bump exactly the next repository patch to 0.55.4 and limit added
   dependency metadata to the targeted Semgrep/MCP remediation.
-- [x] 6.3 Record the internal-wiki status follow-up without modifying internal wiki PR #38 or its branch.
-- [x] 6.4 Record product-owner approval for the exact change-local Requirements
+- [ ] 6.3 After merge, update the internal wiki mirror summary for the compact
+  path-policy scope and rebuild its graph without modifying internal wiki PR #38
+  or its branch.
+- [ ] 6.4 Record product-owner approval for the exact final change-local Requirements
   mapping digest and pass the staged gate at `test-authored` maturity.
 
 ## 7. Pull request and release continuation
@@ -69,7 +72,23 @@
 ## 8. Consolidated PR #698 review remediation
 
 - [x] 8.1 Complete an exact `origin/dev...PR #698` security and clean-code review with independent security-boundary, provenance, dependency, and bypass passes.
-- [x] 8.2 Add specification scenarios and failing regressions for every validated finding plus the later-cycle workflow defect; record the seven-test failing-before run.
-- [x] 8.3 Bind installed pytest resolution, fixed proof producers, frozen dependencies, package initializers, and dynamic imports at the shared proof boundary; fail closed on unresolved module-level plugin authority.
-- [x] 8.4 Let the live-revalidated external receipt replace only the exact stale producer-authorship and verified-final verdict predicates with immutable raw plan/JUnit outcomes so later same-PR cycles use ordinary red/final controls.
-- [x] 8.5 Correct the two behavior-neutral clean-code review observations, run one independent candidate bypass/regression review, and complete focused and repository-wide gates before pushing.
+- [x] 8.2 Record the review-driven compact SUT path-policy delta before changing
+  tests or implementation; preserve external authority, linear ancestry,
+  test-only red, exact archive protocol, and repeatable amendment cycles.
+- [ ] 8.3 Derive focused regressions from each compact path-policy scenario,
+  including exact mutable SUT success, restored/renamed/copied paths, frozen
+  harness and anchor rejection, ambiguous mapping rejection, and unmapped-path
+  rejection; record failing-before evidence before implementation.
+- [ ] 8.4 Update the exact regular-file Requirements mapping, mark only genuine
+  SUT touchpoints `mutable_after_red: true`, leave tests and frozen proof
+  authority immutable, obtain product-owner approval of the resulting digest,
+  and capture acceptance before implementation.
+- [ ] 8.5 Replace the oversized construct-by-construct interpreter with the
+  compact complete-history path validator at the externally authenticated red
+  boundary; do not add a fifth trust anchor or general mutable/process bypass.
+- [ ] 8.6 Record passing-after evidence, run focused and repository-wide gates,
+  and require the mandatory clean-code review to pass with no unresolved
+  warning or error before pushing.
+- [ ] 8.7 Run one independent candidate bypass/regression review against the
+  exact final tree and resolve every applicable PR review thread with commit and
+  verification evidence.

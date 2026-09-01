@@ -283,8 +283,8 @@ def test_executor_accepts_module_valid_pytest_node_ids(tmp_path: Path) -> None:
         assert module.selectors_from_plan(_plan(selector), tmp_path) == [selector]
 
 
-def test_executor_cli_reads_plan_and_forwards_no_shell_junit_path(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
-    """The command-line adapter parses a plan and sends validated arguments without a shell."""
+def test_executor_cli_reads_plan_and_forwards_resolved_paths(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+    """The command-line adapter parses a plan and forwards resolved execution paths."""
     module = _load_executor_module()
     test_file = tmp_path / "tests" / "test_proof.py"
     test_file.parent.mkdir()
@@ -292,19 +292,18 @@ def test_executor_cli_reads_plan_and_forwards_no_shell_junit_path(tmp_path: Path
     plan_path = tmp_path / "plan.json"
     plan_path.write_text(json.dumps(_plan("tests/test_proof.py::test_selected")), encoding="utf-8")
     junit_path = tmp_path / "artifacts" / "proof.xml"
-    captured: ProofCommand | None = None
+    captured: tuple[dict[str, object], Path, Path] | None = None
 
-    def run_command(command: ProofCommand) -> int:
+    def execute_plan(plan: dict[str, object], repo_root: Path, output_path: Path) -> int:
         nonlocal captured
-        captured = command
+        captured = (plan, repo_root, output_path)
         return 0
 
-    monkeypatch.setattr(module, "_run_command", run_command)
+    monkeypatch.setattr(module, "execute_plan", execute_plan)
 
     assert module.main(["--plan", str(plan_path), "--repo-root", str(tmp_path), "--junit", str(junit_path)]) == 0
     assert captured is not None
-    assert captured.cwd == tmp_path
-    _assert_argument_contract(captured, junit_path)
+    assert captured == (_plan("tests/test_proof.py::test_selected"), tmp_path, junit_path)
 
 
 def test_executor_cli_rejects_malformed_plan_before_spawning(tmp_path: Path) -> None:

@@ -9,7 +9,7 @@ import json
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 from typing import cast
 
 
@@ -218,3 +218,56 @@ def test_v3_bootstrap_accepts_only_the_exact_stale_producer_boundary(tmp_path: P
         assert str(error) == "amendment-bootstrap-invalid"
     else:
         raise AssertionError("superseded V2 authority was accepted")
+
+
+def test_cycle_boundary_binds_the_approved_change_id(tmp_path: Path) -> None:
+    """The V3 bootstrap must pass its exact change id into cycle-base validation."""
+    module = _load_bootstrap_module()
+    captured: list[tuple[object, ...]] = []
+
+    def cycle_base_context(*values: object) -> tuple[object, ...]:
+        captured.append(values)
+        return values
+
+    cycle_module = SimpleNamespace(
+        CycleBasePaths=lambda *values: values,
+        CycleBaseContext=cycle_base_context,
+        _common_history_matches=lambda *_values: True,
+    )
+
+    module.__dict__["_load_cycle_base"] = lambda: cycle_module
+    arguments = argparse.Namespace(
+        green_run=tmp_path / "green-run.json",
+        green_artifacts=tmp_path / "green-artifacts.json",
+        repo_root=tmp_path,
+        base_ref="base",
+        final_ref="final",
+        repository="nold-ai/specfact-cli",
+        pull_request=698,
+        head_branch="codex/692-computed-owner-red-proof-v2",
+        change_id="fix-release-promotion-security-gates",
+    )
+    files = module._ArtifactFiles(
+        tmp_path / "red.json",
+        tmp_path / "red.xml",
+        tmp_path / "red-plan.json",
+        tmp_path / "green.json",
+        tmp_path / "green.xml",
+        tmp_path / "green-plan.json",
+    )
+
+    assert module._cycle_boundary_matches(
+        arguments,
+        {"cycle_base_commit": "cycle", "red_commit": "red"},
+        files,
+    )
+    assert captured == [
+        (
+            "base",
+            "final",
+            "nold-ai/specfact-cli",
+            698,
+            "codex/692-computed-owner-red-proof-v2",
+            "fix-release-promotion-security-gates",
+        )
+    ]

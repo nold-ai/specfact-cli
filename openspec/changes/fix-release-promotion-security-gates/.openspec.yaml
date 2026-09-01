@@ -1,4 +1,4 @@
 schema: spec-driven
 created: 2026-08-27
-goal: "Deliver issue #692 as the secure 0.55.2 baseline on dev without weakening
+goal: "Deliver issue #692 as the secure 0.55.4 baseline on dev without weakening
   immutable fixture, Requirements-evidence, or release-safety controls."

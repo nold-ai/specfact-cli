@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import ast
 import tempfile
 from pathlib import Path
 
@@ -88,6 +89,20 @@ class TestMissingDocOwnerDetection:
             files = [docs_dir / "file1.md", docs_dir / "file2.md"]
             missing_owner = rg_missing_doc_owner(files)
             assert len(missing_owner) == 0
+
+    def test_repository_paths_follow_option_terminator(self) -> None:
+        """Repository filenames cannot be interpreted as ripgrep options."""
+        script = Path(__file__).resolve().parents[4] / "scripts" / "check_doc_frontmatter.py"
+        tree = ast.parse(script.read_text(encoding="utf-8"))
+        invocation = next(
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call) and ast.unparse(node).startswith("subprocess.run(['rg'")
+        )
+
+        command = invocation.args[0]
+        assert isinstance(command, ast.List)
+        assert ast.unparse(command) == "['rg', '--files-without-match', '^\\\\s*doc_owner\\\\s*:', '--', *file_args]"
 
 
 class TestValidationMainFunction:

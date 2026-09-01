@@ -11,9 +11,11 @@ The protected `dev` head now contains the intervening 0.55.3 module-scope change
 - Correct the two actionable PR #691 code-quality findings without changing public behavior.
 - Bind local dependency-trust triggers and license exceptions to the exact frozen Code Review environment.
 - Correct review-confirmed false positives in active OpenSpec authoring and retained pytest-plugin proof discovery.
-- Bind retained proof to the installed pytest entrypoint, frozen dependency graph,
-  fixed proof producers, package initializers, and statically discoverable
-  repository imports; fail closed when module-scope plugin authority is unresolved.
+- Replace construct-by-construct Python interpretation with an exact,
+  owner-approved `mutable_after_red` SUT path policy over every red-to-final
+  commit. Freeze selected test/support inputs, pytest configuration, proof
+  producers, `uv.lock`, package initializers, and the four existing trust
+  anchors; fail closed on ambiguous or unmapped paths.
 - Preserve the externally authorized verified green as an ordinary amendment
   cycle base so later review fixes can complete fresh red-to-green proof on the
   same non-default-branch pull request.
@@ -42,15 +44,19 @@ None.
 ## Impact
 
 - **Affected surfaces**: the shared frozen setup action, frozen development-tool
-  graph, dependency/license gates, Requirements proof executor, provenance and
-  amendment authority, OpenSpec pre-commit helpers, the staged Markdown hook,
-  focused tests, and OpenSpec evidence.
+  graph, dependency/license gates, Requirements proof provenance and amendment
+  authority, OpenSpec pre-commit helpers, the staged Markdown hook, focused
+  tests, and OpenSpec evidence.
 - **Security**: removes the persistent cache sink reported by CodeQL and replaces
   the obsolete MCP waiver with a fixed transitive release plus a pre-install MCP
   floor while retaining exact module repository, commit, and tree verification.
   No alert is dismissed.
 - **Compatibility**: frozen and hash-locked dependency synchronization remains unchanged; CI may take longer because uv artifacts are downloaded without a persistent Actions cache.
-- **Release safety**: Requirements and finalized Code Review remain fail-closed. The broad PR is replaced by a focused patch-release PR so unrelated planning changes are not promoted or used to justify a gate exception.
+- **Release safety**: Requirements and finalized Code Review remain fail-closed.
+  Only exact, regular-file mapping touchpoints explicitly approved as mutable
+  may change after red; all proof authority and harness inputs remain frozen.
+  The broad PR is replaced by a focused patch-release PR so unrelated planning
+  changes are not promoted or used to justify a gate exception.
 - **Documentation**: no user-facing CLI/API or documentation behavior changes. Repository governance and release evidence are recorded in the change and PR.
 - **Rollback**: revert the security-fix PR. If a published release later needs rollback, use the normal follow-up patch release; yank only a demonstrably unsafe PyPI artifact and never rewrite the tag or published history.
 

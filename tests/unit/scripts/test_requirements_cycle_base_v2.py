@@ -55,6 +55,7 @@ def test_public_external_digest_cannot_authenticate_self_authored_candidate(tmp_
         "nold-ai/specfact-cli",
         698,
         "codex/692-computed-owner-red-proof-v2",
+        "fix-release-promotion-security-gates",
     )
 
     assert (
@@ -169,6 +170,7 @@ def test_exact_live_receipt_authenticates_bound_descendant_candidate(tmp_path: P
         "nold-ai/specfact-cli",
         698,
         "codex/692-computed-owner-red-proof-v2",
+        "fix-release-promotion-security-gates",
     )
     paths = _paths(module, tmp_path, repository)
 
@@ -193,3 +195,124 @@ def test_exact_live_receipt_authenticates_bound_descendant_candidate(tmp_path: P
     report["execution_proof"]["prior_green_artifact_id"] = 23
     report_path.write_text(json.dumps(report), encoding="utf-8")
     assert _validated_receipt(module, paths, context, current_red, receipt) is None
+
+
+def test_final_producer_authority_binds_exact_complete_blob_set(tmp_path: Path) -> None:
+    """Only one live comment can authorize the exact post-red producer bytes."""
+    module = _load(CYCLE_BASE_SCRIPT, "requirements_cycle_base_v2_final_producer")
+    fixtures = _load(FIXTURE_MODULE, "requirements_cycle_base_v2_fixtures_final_producer")
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    fixtures._git(repository, "init")
+    fixtures._git(repository, "config", "user.email", "requirements@example.test")
+    fixtures._git(repository, "config", "user.name", "Requirements proof")
+    (repository / "README.md").write_text("# base\n", encoding="utf-8")
+    root_green = fixtures._commit(repository, "approved green")
+    test_path = repository / "tests" / "test_review.py"
+    test_path.parent.mkdir()
+    test_path.write_text("def test_review(): assert False\n", encoding="utf-8")
+    red_ref = fixtures._commit(repository, "approved red")
+    workflow = repository / ".github" / "workflows" / "requirements-evidence.yml"
+    workflow.parent.mkdir(parents=True)
+    workflow.write_text("approved final producer\n", encoding="utf-8")
+    final_ref = fixtures._commit(repository, "final producer fix")
+    external_digest = f"sha256:{'d' * 64}"
+    approved_at = datetime.now(UTC)
+    producer_blobs = {
+        ".github/workflows/requirements-evidence.yml": fixtures._git(
+            repository,
+            "rev-parse",
+            f"{final_ref}:.github/workflows/requirements-evidence.yml",
+        )
+    }
+    authority = {
+        "authority_version": 1,
+        "capability": "requirements-final-producer",
+        "repository": "nold-ai/specfact-cli",
+        "issue": 692,
+        "pull_request": 698,
+        "head_branch": "codex/692-computed-owner-red-proof-v2",
+        "change_id": "fix-release-promotion-security-gates",
+        "approved_commit": final_ref,
+        "approved_tree": fixtures._git(repository, "rev-parse", f"{final_ref}^{{tree}}"),
+        "external_authority_digest": external_digest,
+        "producer_blobs": producer_blobs,
+        "expires_at": (approved_at + timedelta(days=1)).isoformat().replace("+00:00", "Z"),
+        "signer_login": "owner",
+    }
+    comment = {
+        "id": 99,
+        "issue_url": "https://api.github.com/repos/nold-ai/specfact-cli/issues/692",
+        "author_association": "MEMBER",
+        "created_at": approved_at.isoformat().replace("+00:00", "Z"),
+        "updated_at": approved_at.isoformat().replace("+00:00", "Z"),
+        "user": {"login": "owner"},
+        "body": (
+            module.FINAL_PRODUCER_AUTHORITY_HEADER + "\n" + json.dumps(authority, sort_keys=True, separators=(",", ":"))
+        ),
+    }
+    comments_path = tmp_path / "comments.json"
+    comments_path.write_text(json.dumps([[comment]]), encoding="utf-8")
+    context = module.CycleBaseContext(
+        root_green,
+        final_ref,
+        "nold-ai/specfact-cli",
+        698,
+        "codex/692-computed-owner-red-proof-v2",
+        "fix-release-promotion-security-gates",
+    )
+
+    receipt = module._validated_final_producer_authority(
+        comments_path,
+        repository,
+        context,
+        red_ref,
+        external_digest,
+    )
+    assert receipt["producer_blobs"] == producer_blobs
+    external_receipt = {
+        "cycle_base": root_green,
+        "red_ref": red_ref,
+        "cycle_base_commit": root_green,
+        "red_commit": red_ref,
+        "cycle_base_tree": fixtures._git(repository, "rev-parse", f"{root_green}^{{tree}}"),
+        "red_tree": fixtures._git(repository, "rev-parse", f"{red_ref}^{{tree}}"),
+        "final_producer_authority": receipt,
+        "authority_digest": external_digest,
+    }
+    paths = module.CycleBasePaths(Path(), Path(), Path(), repository)
+    assert module._external_receipt_history_matches(paths, context, final_ref, external_receipt)
+
+    workflow.write_text("unapproved later producer\n", encoding="utf-8")
+    later_ref = fixtures._commit(repository, "unapproved producer change")
+    later_context = module.CycleBaseContext(
+        red_ref,
+        later_ref,
+        context.repository,
+        context.pull_request,
+        context.head_branch,
+        context.change_id,
+    )
+    assert (
+        module._validated_final_producer_authority(
+            comments_path,
+            repository,
+            later_context,
+            red_ref,
+            external_digest,
+        )
+        is None
+    )
+
+    edited = {**comment, "updated_at": (approved_at + timedelta(seconds=1)).isoformat().replace("+00:00", "Z")}
+    comments_path.write_text(json.dumps([[edited]]), encoding="utf-8")
+    assert (
+        module._validated_final_producer_authority(
+            comments_path,
+            repository,
+            context,
+            red_ref,
+            external_digest,
+        )
+        is None
+    )

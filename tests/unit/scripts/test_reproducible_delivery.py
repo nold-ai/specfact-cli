@@ -13,15 +13,42 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import yaml
 from packaging.requirements import Requirement
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
+def _load_license_scope_policy() -> Any:
+    """Load the pure scope predicate from its exact repository path."""
+    policy_path = REPO_ROOT / "scripts" / "license_scope_policy.py"
+    spec = importlib.util.spec_from_file_location("license_scope_policy_test", policy_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def _load_json(relative_path: str) -> dict[str, Any]:
     """Load one repository JSON policy document."""
     return json.loads((REPO_ROOT / relative_path).read_text(encoding="utf-8"))
+
+
+def _license_allowlist_entry(package: str) -> dict[str, str]:
+    """Load one package's unique reviewed entry from repository policy."""
+    policy = yaml.safe_load((REPO_ROOT / "scripts" / "license_allowlist.yaml").read_text(encoding="utf-8"))
+    entries = [entry for entry in policy["exceptions"] if entry["package"].casefold() == package.casefold()]
+    assert len(entries) == 1
+    return entries[0]
+
+
+def _assert_license_scope_predicate_is_used_by_the_gate() -> None:
+    checker = (REPO_ROOT / "scripts" / "check_license_compliance.py").read_text(encoding="utf-8")
+    matcher = checker[
+        checker.index("def _matching_allowlist_entries(") : checker.index("def _emit_allowlist_exception(")
+    ]
+    assert "environment_allowlist_entry_matches(" in matcher
 
 
 def _locked_package_versions() -> dict[str, str]:
@@ -99,6 +126,46 @@ def test_reproducible_delivery_checker_is_versioned() -> None:
     """The lock/export/fixture verifier must be available to local and CI callers."""
     checker = REPO_ROOT / "scripts" / "check_reproducible_delivery.py"
     assert checker.is_file()
+
+
+def test_primary_license_scope_excludes_the_code_review_exception() -> None:
+    """The primary environment behavior rejects the exact Code Review-only exception."""
+    entry = _license_allowlist_entry("pylint")
+    policy = _load_license_scope_policy()
+
+    assert not policy.environment_allowlist_entry_matches(
+        entry,
+        "GPL-2.0-or-later",
+        "4.0.7",
+        allowlist_scope="dev-only",
+    )
+    _assert_license_scope_predicate_is_used_by_the_gate()
+
+
+def test_code_review_license_scope_is_exactly_version_and_environment_bound() -> None:
+    """The dedicated Code Review behavior accepts only its exact scoped metadata."""
+    entry = _license_allowlist_entry("pylint")
+    policy = _load_license_scope_policy()
+
+    assert policy.environment_allowlist_entry_matches(
+        entry,
+        "GPL-2.0-or-later",
+        "4.0.7",
+        allowlist_scope="code-review-only",
+    )
+    assert not policy.environment_allowlist_entry_matches(
+        entry,
+        "GPL-2.0-or-later",
+        "4.0.8",
+        allowlist_scope="code-review-only",
+    )
+    assert not policy.environment_allowlist_entry_matches(
+        entry,
+        "MIT",
+        "4.0.7",
+        allowlist_scope="code-review-only",
+    )
+    _assert_license_scope_predicate_is_used_by_the_gate()
 
 
 def test_reproducible_delivery_checker_verifies_hashed_export() -> None:

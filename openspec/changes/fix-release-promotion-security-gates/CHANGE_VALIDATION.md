@@ -1,6 +1,6 @@
 # Change Validation Report: fix-release-promotion-security-gates
 
-**Validation Date**: 2026-08-30 (Europe/Berlin)
+**Validation Date**: 2026-09-01 (Europe/Berlin)
 **Change Proposal**: [proposal.md](./proposal.md)
 **Validation Method**: repository/GitHub boundary analysis against `origin/dev` at `4fd96d6d804da70cc7ceca83b8adce21f7da561c`
 
@@ -45,17 +45,24 @@
   identity or redirect approval to another change.
 - The PR Orchestrator has no manual-dispatch trigger; its advisory fixture lane is schedule-only, verifies both commit and tree, and exports the module path only after verification.
 - The Requirements workflow no longer registers an npm cache hook after module-owned evidence execution.
-- Retained proof now includes literal annotated and conditional module-scope plugin declarations and fails closed on computed or import-bound declarations.
+- Retained proof is specified as a complete-history path policy: every touched
+  path is stale unless an exact owner-approved regular-file mapping touchpoint
+  declares `mutable_after_red: true`. Restored paths and both rename/copy
+  endpoints remain touched; globs, prefixes, collisions, duplicates, role
+  mismatches, missing paths, and non-regular files fail closed.
+- Selected tests/support roots, pytest configuration, proof executor/plugin,
+  `uv.lock`, package initializers, and exactly the four existing non-transitive
+  trust anchors remain frozen and cannot be authorized as mutable. The
+  provenance producer is one of those anchors, so final bytes must match the
+  authenticated red source; no fifth anchor or self-mutable exception is added.
 - The independent review reproduced a pre-install MCP-floor P1 after the first
   candidate: an internally consistent lock/export downgrade to MCP 1.23.3
   bypassed a floor map that covered only Semgrep. The final candidate adds an
   independent `mcp>=1.28.1` floor and downgrade regression; independent
   re-review confirmed the original reproducer now fails before synchronization
-  and found no surviving concrete bypass. Exhaustive proof
-  against arbitrary runtime namespace or plugin-manager mutation would require
-  a separately bootstrapped runtime plugin-path/digest attestation design; that
-  architectural hardening is not represented as completed by this bounded AST
-  fix.
+  and found no surviving concrete bypass. The compact complete-history policy
+  supersedes the rejected construct-level interpreter; it does not claim to
+  model arbitrary Python runtime behavior.
 - Alerts remain open until GitHub observes the corrected default branch; none will be dismissed.
 - Dependabot's six MCP alert instances are now validated and remediated through
   Semgrep 1.175.0's exact `mcp==1.29.0` binding. The exception register is empty;
@@ -89,14 +96,20 @@ Revert the issue-linked PR before release. If 0.55.4 has already shipped, publis
   passed.
 - The exact PR Orchestrator smart-test-full command also passed with 64%
   aggregate coverage against the configured 50% threshold.
-- Final staged Requirements evidence passed at `test-authored` maturity against
-  the product-owner-approved change-local mapping digest.
+- The compact path-policy mapping replaces the superseded construct-level test
+  matrix. Its new digest requires product-owner approval before implementation;
+  the prior mapping approval does not authorize these changed bytes.
+- Compact path-policy failing-before evidence is `24 failed, 1 passed`: every
+  new authority/freshness case fails under the old implementation, while the
+  independent document-path option-termination regression passes.
 - YAML lint no longer reports the #692 change. It still prints inherited R07/R08
   planning findings while exiting zero; those protected planning changes remain
   outside this patch and are recorded as a baseline limitation rather than
   silently treated as clean.
-- Final staged Code Review reports zero findings after the PR pipeline
-  regressions and their Git fixtures were simplified without changing behavior.
+- The prior construct-by-construct provenance candidate failed the mandatory
+  clean-code review. The compact replacement remains incomplete until focused
+  tests, failing-before evidence, implementation, passing-after evidence, and a
+  clean final Code Review all complete in that order.
 - A targeted no-write solve changed only Semgrep 1.171.0 -> 1.175.0 and MCP
   1.23.3 -> 1.29.0 in the 184-package graph. The six-rule repository SAST scan
   then passed over 299 Python targets with zero findings.

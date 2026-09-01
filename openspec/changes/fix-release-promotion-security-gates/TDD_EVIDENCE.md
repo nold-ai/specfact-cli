@@ -833,13 +833,13 @@ the authoritative failing-before evidence or the candidate design.
 
 ## 2026-08-29 external amendment authority and final P1 regressions
 
-- Approval: the product owner approved one expiring external amendment-authority capability bound to unedited MEMBER comment `5454967690` and its exact PR `#698` green/red commits, trees, runs, artifacts, and digests. The approval permits bypassing only the self-authored evidence-producer predicate; all live revalidation and proof-boundary checks remain mandatory.
+- Approval: the product owner posted the current expiring V3 external amendment-authority capability as unedited MEMBER comment `5468600336`, superseding the earlier V1 bootstrap at comment `5454967690`. The V3 capability binds exact PR `#698` green commit `22041cacdd8c34f26f09bccc91499e51e21545a8`, red commit `6f2e40a484fa44dc6802e43799e88ce55098c991`, their trees, runs `33303840056` and `33310489582`, artifacts `9729808758` and `9731827551`, and all recorded digests. It permits bypassing only the self-authored evidence-producer predicate; all live revalidation and proof-boundary checks remain mandatory.
 - Spec-first: added scenarios for the exact external capability, module-level `__getattr__` plugin synthesis, and post-red pytest-configuration freshness.
 - Failing-before command: `python -m pytest -q tests/unit/scripts/test_requirements_cycle_base_review_regressions.py tests/unit/scripts/test_requirements_proof_provenance_review_regressions.py tests/unit/workflows/test_requirements_evidence_amendment_review_regressions.py`.
 - Failing-before result: `4 failed, 6 passed` on Python `3.12.13` / pytest `9.1.1`. Missing behavior was independently exposed as: no common history predicate separated from self-authorship; a newly added `pytest.ini` was accepted; module `__getattr__` synthesis was accepted; and the PR bootstrap did not emit or bind an external authority receipt.
 - Independent post-patch bypass review identified two additional P1 variants. The added regressions failed before implementation: assignment-form module `__getattr__` was accepted, and a red-time repository plugin loaded through compact pytest `-pMODULE` syntax could change after red without returning `stale-red-proof` (`2 failed, 4 passed`). The same regression covers pytest's `-p=MODULE` spelling.
 - Passing-after result: the adjacent authorization and bypass surface passes all `12` tests. The broader Requirements proof and workflow surface passes `211` tests with four released-fixture-dependent skips. Compact pytest plugin options now retain repository plugin inputs, and every module-scope binding of `__getattr__` fails closed while existing inert controls remain accepted.
-- Live capability controls passed against comment `5454967690`: the exact current-head bootstrap, red-source bind, and final reuse paths accepted the digest-bound receipt; tampered, edited, and expired copies were each rejected. The normalized capability digest is `sha256:bb853e56145dfc7dfb5c30a690d63539cc09765a2287d8527c5c93ee305ad4eb`.
+- Live readback on 2026-08-31 confirmed comment `5468600336` is an unedited MEMBER-authored V3 capability expiring on 2026-09-06 at 12:15 UTC. Its normalized capability digest is `sha256:058283cb1bd56d5ccd0b28b3b214f3a8b3ad4bb39494618c1142fc967b1b442b`; the validator must still re-fetch and authenticate the comment, artifacts, ancestry, linear history, trees, and digests at use time.
 - Final local gates: strict OpenSpec validation, Ruff formatting/lint, actionlint, strict changed-surface BasedPyright (`0` errors and `0` warnings), frozen delivery reproducibility, `uv lock --check`, Bandit (no medium/high findings), Semgrep (`0` findings), and both frozen pip-audit graphs pass. The full sandboxed suite reached `3162 passed, 22 skipped`; its only two failures were unrelated local-home write restrictions for the uv cache and `~/.specfact/metadata.json`, while the affected Requirements surface remained green. Canonical repository-wide YAML lint still reports only the pre-existing Requirements 07/08 files outside this change; the changed workflow lint passes.
 - The staged Code Review passed with two informational length heuristics reviewed as non-actionable. `_external_validator_command` intentionally keeps every security-bound CLI argument explicit and auditable rather than hiding the exact capability binding in a generic mapper. `_initialize_bound_red_proof` keeps one cohesive fixture builder so each synthetic Git proof is created in the same order as production binding; splitting it would move rather than remove the setup and obscure the red-proof lifecycle. Neither advisory reports a correctness, warning-level, or clean-code regression.
 
@@ -1126,3 +1126,232 @@ the authoritative failing-before evidence or the candidate design.
   its GitHub artifact. The guard does not relax receipt, live revalidation,
   expiry, ancestry, linear-history, artifact, digest, or test-only checks when
   that external capability is applicable.
+
+## 2026-08-31 authenticated change-scope review amendment
+
+- Independent review found that three red-history validators hardcoded this
+  change's OpenSpec directory. A future issue-linked amendment would therefore
+  reject its own declarative change artifacts even when every other authority
+  binding was valid.
+- Failing-before evidence covered bootstrap, cycle-base, and provenance
+  validators: the next explicit change ID was rejected, while two distinct
+  change directories had to remain rejected.
+- The implementation now carries the selected change ID from the workflow into
+  the bootstrap/cycle/provenance contexts. Only the exact syntactically valid
+  `openspec/changes/<change-id>/` prefix is eligible; missing, malformed,
+  mismatched, or additional change paths fail closed. External PR #698
+  authority additionally requires the receipt and runtime context to equal the
+  existing immutable `fix-release-promotion-security-gates` locator.
+- Focused passing-after evidence: all `204` bootstrap, amendment-cycle,
+  retained-proof, security, and review-regression tests passed on Python 3.12.
+- A later exact review reproduced four eager-dispatch omissions, one cwd-based
+  file-input misbinding, one missing V3 `change_id` constructor argument, and
+  uncontrolled analysis recursion on the existing bundle-mapper history
+  module. The hostile forms failed before implementation; the legitimate
+  mapped workflow and bundle-mapper controls reproduced the corresponding
+  false rejections and recursion.
+- The bounded implementation reuses authenticated dispatcher and literal
+  carrier helpers, retains `linecache` and unbound `pathlib` reads, rejects cwd
+  mutation, passes the exact change ID into cycle validation, and limits
+  dynamic-class analysis to authenticated or syntactically class-shaped calls.
+  The focused final surface passes `230` tests; Ruff passes and strict
+  BasedPyright reports `0` errors, warnings, or notes.
+- A final independent bypass review reproduced seven adjacent retained-proof
+  gaps: selected-test alternate loaders, mapping-selected plugin/process/file
+  callables, `linecache.getlines` and aliases, aliased or dispatched cwd
+  mutation, and rebound eager dispatchers. The seven existing mapped regression
+  selectors all failed before the correction. The bounded fix preserves exact
+  pytest entrypoints, reuses literal mapping and dispatcher authentication,
+  rejects ambiguous rebinding or cwd state, and does not broaden the four
+  non-transitive trust anchors. All seven selectors then passed, and the full
+  provenance/change-scope surface passed `182` tests. Final closure added two
+  narrow controls: literal loader arguments passed through an already-reached
+  local helper remain bound while dynamic arguments fail closed, and
+  authenticated `patch.object` use is distinguished from the string-importing
+  `patch(...)` API. The complete changed security surface then passed `215`
+  tests, including the exact six failures from the last PR run.
+- Repository-wide gates, the exact final Requirements mapping digest, and fresh
+  independent reviews remain pending for the final tree; earlier completed-head
+  results above are historical evidence and are not claimed for this amendment.
+
+## 2026-08-31 final independent bypass-review amendment
+
+- Two independent reviews of the frozen candidate reproduced three remaining
+  P1 families: selected pytest entrypoints omitted fixture/lifecycle execution,
+  stored sensitive `__dict__` callables lost loader/process/file authority, and
+  nested authenticated eager dispatch stopped after one level. The three new
+  regression tests failed before implementation. A P2 profile also measured
+  `500` harmless calls at `7.727s` before the bounded analysis changes.
+- The correction remains inside the existing retained-proof boundary. It seeds
+  only applicable same-module fixtures and pytest/xunit lifecycle callbacks,
+  rejects selected decorators that are not proven mark-only, rejects stored
+  sensitive mapping callables, and recursively expands only the
+  already-authenticated eager dispatchers under the existing depth and
+  carrier-value limits. Dormant sibling tests remain excluded.
+- Repeated scope/protocol discovery is cached per analyzed tree, operator
+  authentication is hoisted out of the per-call loop, and sources above the
+  existing `2048` local call-pair budget fail closed before expensive analysis.
+  The same `500`-call control completed in `2.27s`; the new budget regression
+  and all three P1 regressions pass.
+- Adjacent review cases also cover multi-hop module mappings, unsupported
+  higher-order file/process dispatch, literal pytest fixture dependencies,
+  module/class `usefixtures`, xunit module callbacks, and alternate loaders in
+  transitively imported fixture support. Unsupported or ambiguous forms fail
+  closed; direct authenticated controls continue to pass. The two mapped
+  license cases assert the frozen policy and its single dedicated CLI scope
+  directly, avoiding execution through a dynamically loaded policy module.
+- Passing-after evidence: all `198` focused provenance, amendment-bootstrap,
+  reproducible-delivery, and mapped license tests passed. The Requirements
+  mapping contains `50` exact selectors with digest
+  `sha256:c79c2ce3068c8c9edc59cdb0abbb19737614b6de92128f2b93557bda8553e212`.
+  Product-owner acceptance, the exact staged delivery gate, repository-wide
+  gates, and fresh post-fix independent reviews remain pending for the frozen
+  tree.
+
+## 2026-09-01 final archive and retained-input closure
+
+- The user-authorized archive exception remains limited to the one mapped
+  `test_pre_commit_selects_deleted_active_change_unless_fully_archived`
+  protocol. Its regression now authenticates every Bash/Git command, argument,
+  keyword, working directory, helper, source reader, direct
+  `subprocess.run` binding, module mapping, and callable object. Assignment,
+  destructuring, `setattr`, mapping mutation (including `__ior__`), and
+  callable-code replacement all fail closed.
+- Two independent read-only reviews reproduced four retained-proof families on
+  the frozen candidate: conditional/default-bound `exec` or `eval`, computed
+  standard-library readers, indirect `multiprocessing.Process` constructors,
+  and late/mapping archive-executor mutation. The first expanded four-selector
+  run failed all four tests before the shared-boundary correction. Equivalent
+  operator, mapping, context, partial, subclass, and callable-default forms
+  were then incorporated into the same four selectors rather than creating a
+  new policy surface.
+- The correction preserves the existing four non-transitive proof inputs and
+  does not add a general process exception. Reachable local functions,
+  methods, fixture/protocol callbacks, alternate loaders, repository readers,
+  and process targets remain analyzed; only proven dormant definitions remain
+  excluded. Immutable multiprocessing authority is cached per visible AST
+  scope so the existing 1,000-call performance control stays below its
+  five-second limit without relaxing the node or call-pair budgets.
+- Passing-after evidence on Python 3.13: the four security selectors passed,
+  then the complete V2 provenance surface plus the mapped archive selector
+  passed `71` tests in `24.47s`. Targeted Ruff and BasedPyright passed with
+  zero findings. The full repository test run passed `3,240` tests with `27`
+  expected skips; its six remaining failures were independently reproduced as
+  local environment setup constraints (missing frozen modules fixture,
+  sandboxed uv cache, and sandboxed user metadata), while the corresponding
+  fixture/cache-aware changed-test slice passed `460/460`.
+- Repository gates passed for formatting, error-level lint, strict OpenSpec,
+  actionlint, version-source synchronization, PR module signatures,
+  dependency-trust policy, reproducible delivery, `uv lock --check`, Bandit,
+  Semgrep SAST (zero findings), both frozen pip-audit graphs (zero unreviewed
+  vulnerabilities), and the isolated primary plus Code Review license scopes.
+  The normalized 66-case plan has source mapping digest
+  `sha256:d55eb796c1ce2442146d74e23d6034bb1ac13a60003860a568d985989b5a5ed4`,
+  combined mapping digest
+  `sha256:1136559278e4398b20f957a2c8f7aa76f10505fdfd5c8fac1d34af5bb1142a0f`,
+  and plan digest
+  `sha256:582ef9af2119c108f4c445b5f67f80549784d1989dbd6fdd6aa3f53035fdbafa`.
+- The first exact 66-selector proof-input closure authenticated `1,694` inputs
+  in `429.137s`. Profiling showed that each selector re-expanded the complete
+  selected module even though authority is the union of the same import-time
+  scope and the selected entrypoint scopes. The bounded correction analyzes
+  the import-time scope once, groups selected entrypoints in sets of four, and
+  does not requeue an already-selected test module merely because another
+  selected fixture name becomes reachable. It does not omit any selected
+  entrypoint, fixture, lifecycle callback, loader, file reader, process target,
+  or freshness-bound source byte. The exact closure then authenticated the
+  same `1,694` inputs in `157.818s` with no new trust anchor or process bypass.
+- A final narrow independent review then exercised adjacent equivalents of the
+  same mapped families. Six fail-first cases reproduced direct and aliased
+  mutation of `subprocess.run`'s `Popen` dependency or function object,
+  assigned conditional `exec` carriers, conditional stdlib readers,
+  conditional `multiprocessing.Process` constructors, and a module first
+  analyzed as an ordinary import before a later `pytest_plugins` declaration
+  made its fixture executable. The bounded correction authenticates the exact
+  `Popen` dependency and aliases of the same function object, propagates only
+  statically retained conditional callable values, and requeues only a module
+  whose pytest-plugin analysis mode changes. All six cases and the complete
+  71-test focused surface passed; targeted Ruff and BasedPyright again reported
+  zero findings.
+- Product-owner acceptance is the unedited MEMBER comment
+  `https://github.com/nold-ai/specfact-cli/issues/692#issuecomment-5491946302`,
+  bound to source mapping digest
+  `sha256:d55eb796c1ce2442146d74e23d6034bb1ac13a60003860a568d985989b5a5ed4`.
+  The acceptance-bound delivery gate passed at `test-authored`, and its exact
+  normalized 66-selector plan passed `66/66`. The frozen proof-input closure
+  retained `1,694` repository inputs. Final commit-bound reconciliation, Code
+  Review, and protected GitHub checks remain pending on the pushed commit.
+
+## 2026-09-01 compact exact-SUT path-policy redesign
+
+- Mandatory Code Review rejected the construct-by-construct retained-input
+  interpreter: the candidate had grown the provenance module to `17,812` lines
+  and produced `66` changed-line blockers. An independent boundary analysis
+  confirmed the same security property can be expressed as a complete-history,
+  default-deny path policy without interpreting Python runtime behavior.
+- Product direction classifies only exact, owner-approved, digest-bound
+  `mutable_after_red: true` touchpoints as SUT. Selected tests and support
+  roots, pytest configuration, the fixed executor and plugin, `uv.lock`,
+  package initializers, and exactly the four existing non-transitive trust
+  anchors remain frozen. The current mapping grants no live mutable path: the
+  only pending implementation is the frozen provenance anchor and therefore
+  requires the existing exact external bootstrap.
+- Failing-before command:
+  `env UV_CACHE_DIR=/private/tmp/specfact-uv-cache uv run pytest -q tests/unit/scripts/test_requirements_proof_path_policy.py tests/unit/scripts/test_doc_frontmatter/test_validation.py::TestMissingDocOwnerDetection::test_repository_paths_follow_option_terminator`
+- Failing-before result: `24 failed, 1 passed`. The exact-path success and all
+  invalid/frozen-authority cases fail because `_mutable_sut_paths` does not yet
+  exist; restored/rename/copy endpoints and an unmapped changed path are still
+  incorrectly accepted by the old freshness predicate. The independent
+  document-path option-termination regression already passes and remains
+  mapped separately.
+- Implementation, passing-after evidence, final mapping acceptance, and the
+  required independent bypass/regression review remain pending.
+- Product-owner acceptance is the unedited repository MEMBER comment
+  `https://github.com/nold-ai/specfact-cli/issues/692#issuecomment-5493693136`,
+  created and last edited at `2026-09-01T12:08:09Z`, bound to source mapping
+  digest
+  `sha256:01a25cc8117b123bee66b0c61f4c367127c611a428dc986d5152396406f2e22e`.
+- Passing-after evidence on Python 3.13.14: the compact path-policy and adjacent
+  provenance regressions passed `38/38`; the complete focused security,
+  amendment, executor, workflow, release-delivery, and document-path surface
+  passed `286/286`. Targeted Ruff format and lint checks passed for all 26
+  changed Python files.
+- The acceptance-bound staged Requirements gate passed at `test-authored`
+  maturity with no findings. Its source plan retained `31` selectors, source
+  plan digest
+  `sha256:821adc9c9aec4d2183437660325f951f37283ccb8409631e8a5ee5fb92aa69dc`,
+  and the unchanged approved source mapping digest above. The safe executor
+  ran the normalized parameterized surface as `50/50` passing cases.
+- Repository-wide quality gates, mandatory Code Review, and the required final
+  independent bypass/regression review remain pending for the exact candidate.
+
+## 2026-09-01 final producer-boundary and path regressions
+
+- Specification and mapping were updated first to require applicable ancestor
+  `conftest.py` inputs, unchanged-source copy endpoints, and an exact expiring
+  final-producer authority bound to the approved commit/tree and complete Git
+  blob map of changed evidence-producer paths.
+- Failing-before command:
+  `uv run pytest -q tests/unit/scripts/test_requirements_proof_path_policy.py::test_applicable_conftests_cannot_be_authorized_as_mutable tests/unit/scripts/test_requirements_proof_path_policy.py::test_copy_from_unchanged_frozen_source_is_retained tests/unit/scripts/test_requirements_cycle_base_v2.py::test_final_producer_authority_binds_exact_complete_blob_set`.
+- Failing-before result: `4 failed, 1 passed`. Repository-root and root-level
+  selector `conftest.py` inputs were accepted as mutable SUT, Git history
+  omitted the unchanged frozen source of a detected copy, and no final-producer
+  authority protocol existed.
+- A separate retained-boundary regression changed the Requirements workflow
+  after the approved red source and proved that the existing V3 receipt still
+  returned true without any final-byte authority.
+- Passing-after result for the reproduced security findings: `5 passed` for
+  the exact command above and `2 passed` for the retained-boundary negative and
+  exact-authority controls.
+- The obsolete construct-by-construct AST interpreter and its exclusive
+  white-box tests were removed; the provenance validator is now `1,524` lines
+  and retains the complete-history path policy, Git/JUnit bindings, and live
+  external authority checks.
+- Broad focused passing-after result: `147 passed` across path policy, cycle
+  authority, provenance, amendment bootstrap, and Requirements workflow tests.
+- Final test-authored mapping acceptance is the unedited repository MEMBER
+  comment
+  `https://github.com/nold-ai/specfact-cli/issues/692#issuecomment-5495657934`,
+  created and last edited at `2026-09-01T14:39:22Z`, bound to source mapping
+  digest
+  `sha256:a1332aa22b90bff9e2894b45df958eb220c3a9fcbb6426228aa526e8c4e95311`.

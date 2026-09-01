@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import ast
 import hashlib
 import importlib.util
 import json
-import subprocess
+import shutil
 import sys
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
@@ -25,95 +24,21 @@ def _load_provenance_module() -> ModuleType:
     return module
 
 
-HOSTILE_SOURCES = (
-    "def __getattr__(name):\n    if name == 'pytest_plugins':\n        return ('tests.helpers.hidden',)\n    raise AttributeError(name)\n",
-    "__getattr__ = lambda name: ('tests.helpers.hidden',) if name == 'pytest_plugins' else None\n",
-    'import sys\nsys.modules[__name__].__dict__["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-    'import sys\nvars(sys.modules[__name__])["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-    "def bind():\n    global pytest_plugins\n    pytest_plugins = ('tests.helpers.hidden',)\nbind()\n",
-    'import sys as runtime\nruntime.modules[__name__].pytest_plugins = ("tests.helpers.hidden",)\n',
-    'import sys\nmodules = sys.modules\nmodules[__name__].pytest_plugins = ("tests.helpers.hidden",)\n',
-    'from sys import modules\nmodules[__name__].pytest_plugins = ("tests.helpers.hidden",)\n',
-    'import builtins, sys\nbuiltins.setattr(sys.modules[__name__], "pytest_plugins", ("tests.helpers.hidden",))\n',
-    'import sys\nfrom builtins import setattr as assign\nassign(sys.modules[__name__], "pytest_plugins", '
-    '("tests.helpers.hidden",))\n',
-    'import sys\nassign = setattr\nassign(sys.modules[__name__], "pytest_plugins", ("tests.helpers.hidden",))\n',
-    "import sys\nmodule = sys.modules.setdefault(__name__, object())\n"
-    'module.pytest_plugins = ("tests.helpers.hidden",)\n',
-    'import sys\nmodule = sys.modules.get(__name__)\nmodule.pytest_plugins = ("tests.helpers.hidden",)\n',
-    'import sys\nmodule = sys.modules.__getitem__(__name__)\nmodule.pytest_plugins = ("tests.helpers.hidden",)\n',
-    "import sys\nmodule_name = __name__\nmodule = sys.modules.get(module_name)\n"
-    'module.pytest_plugins = ("tests.helpers.hidden",)\n',
-    'import sys\nsys.modules[__name__].pytest_plugins = ("tests.helpers.hidden",)\n',
-    'import sys\nsetattr(sys.modules[__name__], "pytest_plugins", ("tests.helpers.hidden",))\n',
-    'import sys\nmodule = sys.modules[__name__]\nmodule.pytest_plugins = ("tests.helpers.hidden",)\n',
-    'import sys\nmodule = sys.modules[__name__]\nsetattr(module, "pytest_plugins", ("tests.helpers.hidden",))\n',
-    'import importlib\nmodule = importlib.import_module(__name__)\nmodule.pytest_plugins = ("tests.helpers.hidden",)\n',
-    'module = __import__(__name__, fromlist=("pytest_plugins",))\nmodule.pytest_plugins = ("tests.helpers.hidden",)\n',
-    'import importlib as loader\nmodule = loader.import_module(__name__)\nmodule.pytest_plugins = ("tests.helpers.hidden",)\n',
-    'module_name = __name__\nmodule = __import__(module_name, fromlist=("pytest_plugins",))\nmodule.pytest_plugins = ("tests.helpers.hidden",)\n',
-    'import builtins\nruntime = builtins.__dict__\nruntime["exec"]("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-    'import operator\noperator.setitem(globals(), "pytest_plugins", ("tests.helpers.hidden",))\n',
-    'from operator import setitem as bind\nbind(globals(), "pytest_plugins", ("tests.helpers.hidden",))\n',
-    'import operator\nput = operator.setitem\nput(globals(), "pytest_plugins", ("tests.helpers.hidden",))\n',
-    'import operator\noperator.setitem(*(globals(), "pytest_plugins", ("tests.helpers.hidden",)))\n',
-    'import operator\noperator.setitem.__call__(globals(), "pytest_plugins", ("tests.helpers.hidden",))\n',
-    'import operator\ngetattr(operator.setitem, "__call__")(globals(), "pytest_plugins", ("tests.helpers.hidden",))\n',
-    'import operator\ngetattr(getattr(operator, "setitem"), "__call__")('
-    'globals(), "pytest_plugins", ("tests.helpers.hidden",))\n',
-    'dict.__setitem__(*(globals(), "pytest_plugins", ("tests.helpers.hidden",)))\n',
-    'import operator\ngetattr(operator, "setitem")(globals(), "pytest_plugins", ("tests.helpers.hidden",))\n',
-    'getattr(dict, "__setitem__")(globals(), "pytest_plugins", ("tests.helpers.hidden",))\n',
-    'import operator\noperator.__dict__["setitem"](globals(), "pytest_plugins", ("tests.helpers.hidden",))\n',
-    'import operator\nvars(operator)["setitem"](globals(), "pytest_plugins", ("tests.helpers.hidden",))\n',
-    'dict.__setitem__(globals(), "pytest_plugins", ("tests.helpers.hidden",))\n',
-    'import builtins\nruntime = builtins.__dict__\nruntime.get("exec")('
-    '"pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-    'import builtins\nruntime = builtins.__dict__\nruntime.__getitem__("exec")('
-    '"pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-    'import builtins\nruntime = builtins.__dict__\nruntime.setdefault("exec")('
-    '"pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-    'import builtins\nruntime = builtins.__dict__\nruntime.pop("exec")('
-    '"pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-    'exec.__call__("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-    'import builtins\nruntime = builtins.__dict__\nruntime["exec"].__call__('
-    '"pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-    'getattr(exec, "__call__")("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-    'import builtins\nruntime = builtins.__dict__.copy()\nruntime["exec"]('
-    '"pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-    'import builtins\nruntime = dict(builtins.__dict__)\nruntime["exec"]('
-    '"pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-    'import builtins\nruntime = {**builtins.__dict__}\nruntime["exec"]('
-    '"pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-    'import builtins\nruntime = builtins.__dict__\ngetattr(runtime, "get")("exec")('
-    '"pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-    'import builtins\nruntime = builtins.__dict__\ngetattr(runtime, "__getitem__")("exec")('
-    '"pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-    'if enabled:\n    print = exec\nrun = print\nrun("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-    "from types import SimpleNamespace\nif enabled:\n    SimpleNamespace = factory\n"
-    "runtime = SimpleNamespace(exec=lambda value: None)\n"
-    'runtime.exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-)
-
-
-def _commit(repo_root: Path, message: str) -> str:
-    subprocess.run(["git", "add", "."], cwd=repo_root, check=True)
-    subprocess.run(
-        [
-            "git",
-            "-c",
-            "user.name=Requirements proof",
-            "-c",
-            "user.email=requirements@example.test",
-            "commit",
-            "--no-gpg-sign",
-            "-m",
-            message,
-        ],
-        cwd=repo_root,
-        check=True,
-    )
-    result = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo_root, check=True, capture_output=True, text=True)
+def _commit(module: ModuleType, repo_root: Path, message: str) -> str:
+    module._git(repo_root, "add", ".").check_returncode()
+    module._git(
+        repo_root,
+        "-c",
+        "user.name=Requirements proof",
+        "-c",
+        "user.email=requirements@example.test",
+        "commit",
+        "--no-gpg-sign",
+        "-m",
+        message,
+    ).check_returncode()
+    result = module._git(repo_root, "rev-parse", "HEAD")
+    result.check_returncode()
     return result.stdout.strip()
 
 
@@ -124,9 +49,9 @@ def _initialize_bound_red_proof(
     pytest_configuration: tuple[str, str] | None = None,
     initial_files: dict[str, str] | None = None,
 ) -> tuple[Path, str]:
-    subprocess.run(["git", "init"], cwd=repo_root, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.email", "requirements@example.test"], cwd=repo_root, check=True)
-    subprocess.run(["git", "config", "user.name", "Requirements proof"], cwd=repo_root, check=True)
+    module._git(repo_root, "init").check_returncode()
+    module._git(repo_root, "config", "user.email", "requirements@example.test").check_returncode()
+    module._git(repo_root, "config", "user.name", "Requirements proof").check_returncode()
     (repo_root / "README.md").write_text("# proof\n", encoding="utf-8")
     if pytest_configuration is not None:
         config_path, content = pytest_configuration
@@ -135,11 +60,11 @@ def _initialize_bound_red_proof(
         target = repo_root / relative_path
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
-    base_ref = _commit(repo_root, "base")
+    base_ref = _commit(module, repo_root, "base")
     test_path = repo_root / "tests" / "test_proof.py"
     test_path.parent.mkdir(exist_ok=True)
     test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
-    red_ref = _commit(repo_root, "red test")
+    red_ref = _commit(module, repo_root, "red test")
     proof_path = repo_root / ".git" / "red.json"
     junit = (
         b'<testsuite><testcase><properties><property name="specfact.selector" '
@@ -148,13 +73,32 @@ def _initialize_bound_red_proof(
         b"</properties><failure/></testcase></testsuite>"
     )
     proof_path.with_suffix(".xml").write_bytes(junit)
+    mapping_digest = f"sha256:{'a' * 64}"
+    plan_digest = f"sha256:{'b' * 64}"
     proof_path.write_text(
         json.dumps(
             {
                 "gate_decision": "pass",
                 "observed_maturity": "red",
-                "mapping_digest": f"sha256:{'a' * 64}",
-                "plan_digest": f"sha256:{'b' * 64}",
+                "mapping_digest": mapping_digest,
+                "plan_digest": plan_digest,
+                "plan": {
+                    "mapping_digest": mapping_digest,
+                    "plan_digest": plan_digest,
+                    "cases": [
+                        {
+                            "requirement_id": "openspec:test:capability:requirement",
+                            "case_id": "CASE-S01",
+                            "touchpoints": [
+                                {
+                                    "id": "selected-test",
+                                    "kind": "test_file",
+                                    "locator": "tests/test_proof.py",
+                                }
+                            ],
+                        }
+                    ],
+                },
                 "execution_proof": {
                     "run_stage": "red",
                     "source_ref": red_ref,
@@ -183,7 +127,7 @@ def test_pytest_configuration_plugin_changed_after_red_invalidates_proof(tmp_pat
         plugin_path = repository / "tests" / "helpers" / "hidden.py"
         plugin_path.parent.mkdir()
         plugin_path.write_text("VALUE = True\n", encoding="utf-8")
-        final_ref = _commit(repository, "add configured pytest plugin")
+        final_ref = _commit(module, repository, "add configured pytest plugin")
         assert module.validate_prior_red_proof(proof_path, repository, base_ref=base_ref, final_ref=final_ref) == [
             "stale-red-proof"
         ]
@@ -203,7 +147,7 @@ def test_compact_pytest_plugin_options_changed_after_red_invalidate_proof(tmp_pa
         )
         plugin_path = repository / "tests" / "helpers" / "hidden.py"
         plugin_path.write_text("VALUE = 'final'\n", encoding="utf-8")
-        final_ref = _commit(repository, "change configured pytest plugin")
+        final_ref = _commit(module, repository, "change configured pytest plugin")
         assert module.validate_prior_red_proof(proof_path, repository, base_ref=base_ref, final_ref=final_ref) == [
             "stale-red-proof"
         ]
@@ -227,95 +171,10 @@ def test_pytest_configuration_added_after_red_invalidates_proof(tmp_path: Path) 
         repository.mkdir()
         proof_path, base_ref = _initialize_bound_red_proof(module, repository)
         (repository / config_path).write_text("[pytest]\naddopts = -p tests.helpers.hidden\n", encoding="utf-8")
-        final_ref = _commit(repository, "inject pytest plugin")
+        final_ref = _commit(module, repository, "inject pytest plugin")
         assert module.validate_prior_red_proof(proof_path, repository, base_ref=base_ref, final_ref=final_ref) == [
             "stale-red-proof"
         ]
-
-
-def test_review_bypasses_fail_closed() -> None:
-    """Every reviewed import-time namespace binding remains authoritative."""
-    for source in HOSTILE_SOURCES:
-        module = _load_provenance_module()
-        try:
-            module._pytest_plugin_names(ast.parse(source))
-        except ValueError as error:
-            assert str(error) == "prior-red-proof-invalid"
-        else:
-            raise AssertionError(f"review bypass was accepted: {source}")
-
-
-SAFE_SOURCES = (
-    'import sys\nmodule = sys.modules.get("unrelated")\nmodule.ordinary = ("ordinary",)\n',
-    'run = exec\nrun = print\nrun("ordinary payload")\n',
-    'update = globals().update\nupdate = {}.update\nupdate(value="ordinary payload")\n',
-    "from types import SimpleNamespace\nruntime = SimpleNamespace(exec=lambda value: None)\n"
-    'runtime.exec("ordinary payload")\n',
-    "from types import SimpleNamespace\nruntime = SimpleNamespace(exec=lambda value: None)\n"
-    'runtime.exec.__call__("ordinary payload")\n',
-)
-
-
-DYNAMIC_IMPORT_SOURCES = (
-    'import importlib\nimportlib.import_module("tests.helpers.hidden")\n',
-    '__import__("tests.helpers.hidden", fromlist=("VALUE",))\n',
-    'import importlib as loader\nload = loader.import_module\nload("tests.helpers.hidden")\n',
-    'import importlib\ngetattr(importlib, "import_module")("tests.helpers.hidden")\n',
-    'import importlib\nload = getattr(importlib, "import_module")\nload("tests.helpers.hidden")\n',
-    'import importlib\ngetattr(importlib, "import_module").__call__("tests.helpers.hidden")\n',
-    'import importlib\nload = getattr(importlib, "import_module").__call__\nload("tests.helpers.hidden")\n',
-    'import importlib\ngetattr(getattr(importlib, "import_module"), "__call__")("tests.helpers.hidden")\n',
-    'import importlib\nvars(importlib)["import_module"]("tests.helpers.hidden")\n',
-    'import importlib\nimportlib.__dict__["import_module"]("tests.helpers.hidden")\n',
-    'import importlib\nnamespace = vars(importlib)\nnamespace["import_module"]("tests.helpers.hidden")\n',
-    'import importlib\nnamespace = importlib.__dict__\nnamespace["import_module"]("tests.helpers.hidden")\n',
-    'import importlib\nvars(importlib).get("import_module")("tests.helpers.hidden")\n',
-    'import importlib\nimportlib.__dict__.__getitem__("import_module")("tests.helpers.hidden")\n',
-    "import importlib\nnamespace = vars(importlib)\nlookup = namespace.get\n"
-    'lookup("import_module")("tests.helpers.hidden")\n',
-    "import importlib\nnamespace = importlib.__dict__\nlookup = namespace.__getitem__\n"
-    'lookup("import_module")("tests.helpers.hidden")\n',
-    'import importlib\nnamespace = vars(importlib)\nnamespace.get.__call__("import_module")("tests.helpers.hidden")\n',
-)
-
-AMBIGUOUS_DYNAMIC_IMPORT_SOURCES = (
-    "import importlib\nimportlib.import_module(module_name)\n",
-    "import importlib\ngetattr(importlib, loader_name)('tests.helpers.hidden')\n",
-    'import importlib\nnamespace = vars(importlib)\nnamespace[loader_name]("tests.helpers.hidden")\n',
-    'import importlib\nnamespace = importlib.__dict__\nnamespace.get(loader_name)("tests.helpers.hidden")\n',
-    'import importlib\nnamespace = vars(importlib)\ngetattr(namespace, selector)("import_module")('
-    '"tests.helpers.hidden")\n',
-    "import importlib\nnamespace = vars(importlib)\nlookup = namespace.get\n"
-    'lookup(loader_name)("tests.helpers.hidden")\n',
-)
-
-
-def _assert_dynamic_import_retained(module: ModuleType, source: str) -> None:
-    imported = module._import_module_names(ast.parse(source), "tests/test_proof.py")
-    assert ["tests", "helpers", "hidden"] in imported
-
-
-def _assert_dynamic_import_rejected(module: ModuleType, source: str) -> None:
-    try:
-        module._import_module_names(ast.parse(source), "tests/test_proof.py")
-    except ValueError as error:
-        assert str(error) == "prior-red-proof-invalid"
-    else:
-        raise AssertionError("ambiguous dynamic import was accepted")
-
-
-def test_dynamic_repository_imports_are_retained_or_fail_closed(tmp_path: Path) -> None:
-    """Dynamic import APIs must retain literal targets and reject ambiguity."""
-    del tmp_path
-    module = _load_provenance_module()
-    for source in DYNAMIC_IMPORT_SOURCES:
-        _assert_dynamic_import_retained(module, source)
-    assert ["json"] in module._import_module_names(
-        ast.parse('import importlib\nimportlib.import_module("json")\n'),
-        "tests/test_proof.py",
-    )
-    for source in AMBIGUOUS_DYNAMIC_IMPORT_SOURCES:
-        _assert_dynamic_import_rejected(module, source)
 
 
 def test_dynamic_repository_import_change_after_red_invalidates_proof(tmp_path: Path) -> None:
@@ -333,7 +192,7 @@ def test_dynamic_repository_import_change_after_red_invalidates_proof(tmp_path: 
     )
     helper = repository / "tests" / "helpers" / "hidden.py"
     helper.write_text("VALUE = 'final'\n", encoding="utf-8")
-    final_ref = _commit(repository, "change dynamically imported helper")
+    final_ref = _commit(module, repository, "change dynamically imported helper")
     assert module.validate_prior_red_proof(
         proof_path,
         repository,
@@ -369,10 +228,10 @@ def test_core_proof_inputs_and_selected_package_initializers_are_retained(tmp_pa
         )
     ):
         checkout = repository.parent / f"candidate-{index}"
-        subprocess.run(["git", "clone", "--quiet", str(repository), str(checkout)], check=True)
+        shutil.copytree(repository, checkout)
         target = checkout / path
         target.write_text(target.read_text(encoding="utf-8") + "VALUE = 'final'\n", encoding="utf-8")
-        final_ref = _commit(checkout, f"change {path}")
+        final_ref = _commit(module, checkout, f"change {path}")
         candidate_proof = checkout / ".git" / "red.json"
         candidate_proof.write_bytes(proof_path.read_bytes())
         candidate_proof.with_suffix(".xml").write_bytes(proof_path.with_suffix(".xml").read_bytes())
@@ -382,28 +241,6 @@ def test_core_proof_inputs_and_selected_package_initializers_are_retained(tmp_pa
             base_ref=base_ref,
             final_ref=final_ref,
         ) == ["stale-red-proof"]
-
-
-def test_review_controls_preserve_proven_safe_shadows() -> None:
-    """Definite inert replacements remain compatible after fail-closed review fixes."""
-    for source in SAFE_SOURCES:
-        module = _load_provenance_module()
-        assert module._pytest_plugin_names(ast.parse(source)) == []
-    module = _load_provenance_module()
-    assert (
-        module._pytest_plugin_names(
-            ast.parse(
-                'from types import SimpleNamespace\nmodule = SimpleNamespace()\nmodule.pytest_plugins = ("ordinary",)\n'
-            )
-        )
-        == []
-    )
-    assert (
-        module._pytest_plugin_names(
-            ast.parse("class Box:\n    pass\nbox = Box()\nbox.pytest_plugins = ('ordinary',)\n")
-        )
-        == []
-    )
 
 
 def test_external_digest_is_forwarded_during_ordinary_cycle_revalidation(tmp_path: Path) -> None:
@@ -417,8 +254,8 @@ def test_external_digest_is_forwarded_during_ordinary_cycle_revalidation(tmp_pat
     )()
 
     class CycleModule:
-        CycleBasePaths = staticmethod(lambda *arguments: arguments)
-        CycleBaseContext = staticmethod(lambda *arguments: arguments)
+        CycleBasePaths = staticmethod(lambda **arguments: arguments)
+        CycleBaseContext = staticmethod(lambda **arguments: arguments)
 
         @staticmethod
         def validated_cycle_base(*_arguments: object, **keywords: object) -> object:
@@ -434,6 +271,7 @@ def test_external_digest_is_forwarded_during_ordinary_cycle_revalidation(tmp_pat
         "nold-ai/specfact-cli",
         698,
         "codex/692-computed-owner-red-proof-v2",
+        "fix-release-promotion-security-gates",
     )
     external_digest = f"sha256:{'f' * 64}"
     external_receipt = {"authority_digest": external_digest}
@@ -465,6 +303,7 @@ def test_ordinary_cycle_revalidates_the_live_external_capability(tmp_path: Path)
         "nold-ai/specfact-cli",
         698,
         "codex/692-computed-owner-red-proof-v2",
+        "fix-release-promotion-security-gates",
     )
     authority_path = tmp_path / "authority.json"
     authority_path.write_text("{}", encoding="utf-8")
@@ -477,6 +316,7 @@ def test_ordinary_cycle_revalidates_the_live_external_capability(tmp_path: Path)
                 "authority_version": 3,
                 "producer_bypass": "stale-red-proof-only",
                 "repository": context.repository,
+                "change_id": context.change_id,
                 "pull_request": context.pull_request,
                 "head_branch": context.head_branch,
                 "authority_digest": external_digest,
@@ -525,23 +365,3 @@ def test_ordinary_cycle_revalidates_the_live_external_capability(tmp_path: Path)
 
     assert module._read_cycle_authority(authority_path, context) is not None
     assert observed == [external_digest]
-
-
-def test_nested_compound_review_avoids_exponential_rescanning() -> None:
-    """Nested compound review remains bounded well below its former exponential cost."""
-    module = _load_provenance_module()
-    original = module._compound_binding_regions
-    calls = 0
-
-    def counted(node: ast.AST, aliases: object) -> object:
-        nonlocal calls
-        calls += 1
-        return original(node, aliases)
-
-    module.__dict__["_compound_binding_regions"] = counted
-    nested = 'globals()["ordinary"] = 1\n'
-    for index in range(20):
-        nested = f"for item_{index} in [{{}}]:\n" + "\n".join(f"    {line}" for line in nested.splitlines()) + "\n"
-
-    assert module._pytest_plugin_names(ast.parse(nested)) == []
-    assert calls < 500

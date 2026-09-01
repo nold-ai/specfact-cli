@@ -460,6 +460,7 @@ def test_license_gate_runs_for_every_frozen_dependency_graph_change() -> None:
     assert "license_inputs:" in raw
     assert "uv.lock" in raw
     assert "requirements/ci/locked.txt" in raw
+    assert "scripts/license_scope_policy.py" in raw
 
 
 def test_pr_orchestrator_uses_frozen_resolution_for_blocking_jobs() -> None:

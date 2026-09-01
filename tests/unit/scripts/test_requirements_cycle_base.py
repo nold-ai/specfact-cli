@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import subprocess
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -29,6 +28,7 @@ class CycleBaseContextLike(Protocol):
     repository: str
     pull_request: int
     head_branch: str
+    change_id: str
 
 
 def _load_cycle_base_module() -> ModuleType:
@@ -45,7 +45,8 @@ def _load_cycle_base_module() -> ModuleType:
 
 
 def _git(repo_root: Path, *arguments: str) -> str:
-    result = subprocess.run(["git", *arguments], cwd=repo_root, check=True, capture_output=True, text=True)
+    result = _load_cycle_base_module()._git(repo_root, *arguments)
+    assert result.returncode == 0, result.stderr
     return result.stdout.strip()
 
 
@@ -58,7 +59,8 @@ def _commit(repo_root: Path, message: str) -> str:
 def _initialize_history(root: Path, *, self_authored_authority: bool = False) -> tuple[Path, str, str, str]:
     repository = root / "repository"
     repository.mkdir()
-    _git(repository, "init")
+    _git(repository, "-c", "init.templateDir=", "init")
+    _git(repository, "config", "core.hooksPath", "/dev/null")
     _git(repository, "config", "user.email", "requirements@example.test")
     _git(repository, "config", "user.name", "Requirements proof")
     (repository / "README.md").write_text("# base\n", encoding="utf-8")
@@ -161,19 +163,23 @@ def _assert_parallel_merge_rejected(
     (repository / "src" / "parallel.py").write_text("VALUE = 2\n", encoding="utf-8")
     parallel_ref = _commit(repository, "parallel production")
     _git(repository, "checkout", "--detach", context.final_ref)
-    subprocess.run(
-        ["git", "merge", "--no-ff", "--no-gpg-sign", "-m", "merge parallel production", parallel_ref],
-        cwd=repository,
-        check=True,
-        capture_output=True,
-        text=True,
+    merge = module._git(
+        repository,
+        "merge",
+        "--no-ff",
+        "--no-gpg-sign",
+        "-m",
+        "merge parallel production",
+        parallel_ref,
     )
+    assert merge.returncode == 0, merge.stderr
     merged_context = module.CycleBaseContext(
         base_ref=context.base_ref,
         final_ref=_git(repository, "rev-parse", "HEAD"),
         repository=context.repository,
         pull_request=context.pull_request,
         head_branch=context.head_branch,
+        change_id=context.change_id,
     )
     assert module.validated_cycle_base(paths, merged_context) is None
 
@@ -194,6 +200,7 @@ def test_cycle_base_accepts_only_matching_verified_pull_request_history(tmp_path
         repository="nold-ai/specfact-cli",
         pull_request=698,
         head_branch="codex/692-computed-owner-red-proof-v2",
+        change_id="fix-release-promotion-security-gates",
     )
 
     cycle_ref = json.loads(paths.run.read_text(encoding="utf-8"))["head_sha"]
@@ -223,6 +230,7 @@ def test_cycle_base_accepts_self_authored_green_only_with_matching_external_auth
         repository="nold-ai/specfact-cli",
         pull_request=698,
         head_branch="codex/692-computed-owner-red-proof-v2",
+        change_id="fix-release-promotion-security-gates",
     )
 
     assert module.validated_cycle_base(paths, context) is None
@@ -256,6 +264,8 @@ def test_cycle_base_accepts_self_authored_green_only_with_matching_external_auth
                 authority_digest,
                 "--repository",
                 context.repository,
+                "--change-id",
+                context.change_id,
                 "--pull-request",
                 str(context.pull_request),
                 "--head-branch",

@@ -31,6 +31,23 @@ def _retained_red_command() -> str:
     return command
 
 
+def _amendment_selection_command() -> str:
+    workflow = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"
+    parsed = yaml.load(workflow.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    steps = parsed["jobs"]["requirements-evidence"]["steps"]
+    step = next(item for item in steps if item.get("name") == "Select amendment OpenSpec change")
+    command = step["run"]
+    assert isinstance(command, str)
+    return command
+
+
+def _workflow_steps() -> list[dict[str, object]]:
+    """Return the Requirements workflow steps for focused static assertions."""
+    workflow = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"
+    parsed = yaml.load(workflow.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    return parsed["jobs"]["requirements-evidence"]["steps"]
+
+
 def test_amendment_cycle_recovers_the_authenticated_red_source() -> None:
     """Later fixes validate the prior green against the retained red commit, not final HEAD."""
     command = _cycle_command()
@@ -52,6 +69,49 @@ def test_amendment_cycle_authenticates_proof_before_exporting_authority() -> Non
     assert verification < export
 
 
+def test_amendment_cycle_binds_one_preselected_active_change() -> None:
+    """Cycle validators receive one exact active change ID before trusting red history."""
+    selection = _amendment_selection_command()
+    cycle = _cycle_command()
+    retained = _retained_red_command()
+
+    assert 'git diff --name-only -z "origin/${GITHUB_BASE_REF}...HEAD"' in selection
+    assert '[[ "${#active_change_ids[@]}" -eq 1 ]]' in selection
+    assert 'git ls-tree -d HEAD -- "openspec/changes/${change_id}"' in selection
+    assert "printf 'change-id=%s\\n' \"$selected_change\"" in selection
+    assert cycle.count('--change-id "$EVIDENCE_CHANGE_ID"') == 4
+    assert '--change-id "$EVIDENCE_CHANGE_ID"' in retained
+
+
+def test_amendment_workflow_supports_verified_cycle_selection() -> None:
+    """The workflow binds a verified cycle source without replacing the PR base."""
+    steps = _workflow_steps()
+    cycle = next(item for item in steps if item.get("name") == "Locate verified amendment cycle base")
+    evidence = next(item for item in steps if item.get("name") == "Run Requirements evidence gate")
+    cycle_command = cycle["run"]
+    evidence_command = evidence["run"]
+    environment = evidence["env"]
+
+    assert isinstance(cycle_command, str)
+    assert isinstance(evidence_command, str)
+    assert isinstance(environment, dict)
+    assert 'git merge-base --is-ancestor "$head_sha" "$current_head"' in cycle_command
+    assert '--pull-request "$EVIDENCE_PULL_REQUEST"' in cycle_command
+    assert environment["EVIDENCE_CYCLE_BASE"] == "${{ steps.cycle-base.outputs.source-ref }}"
+    assert 'cycle_base_ref="${EVIDENCE_CYCLE_BASE:-origin/${EVIDENCE_BASE_BRANCH}}"' in evidence_command
+    assert '--base-ref "origin/${EVIDENCE_BASE_BRANCH}"' in evidence_command
+
+
+def test_amendment_workflow_code_review_node_setup_has_no_persistent_cache() -> None:
+    """The reviewed Node setup must not restore or save a persistent npm cache."""
+    setup = next(item for item in _workflow_steps() if item.get("name") == "Set up reviewed Code Review Node runtime")
+    inputs = setup.get("with", {})
+
+    assert isinstance(inputs, dict)
+    assert "cache" not in inputs
+    assert "cache-dependency-path" not in inputs
+
+
 def test_exact_external_amendment_bootstraps_later_generic_cycle_selection() -> None:
     """A verified external green must remain usable for later same-PR review cycles."""
     command = _cycle_command()
@@ -61,6 +121,8 @@ def test_exact_external_amendment_bootstraps_later_generic_cycle_selection() -> 
 
     bootstrap_controls = (
         '--authority-output "$external_authority_file"',
+        '"repos/${GITHUB_REPOSITORY}/issues/692/comments?per_page=100"',
+        '--producer-comments "${bootstrap_root}/producer-comments.json"',
         "python scripts/requirements_proof_provenance.py",
         '--bind-red-proof "${external_proof_root}/red.json"',
         '--cycle-authority "$external_authority_file"',

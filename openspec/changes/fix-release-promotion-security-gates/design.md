@@ -12,8 +12,9 @@ See [proposal.md](proposal.md). The shared frozen-environment action enables set
 - Promote only the focused patch-release delta to `main` so unrelated active planning remains on `dev`.
 - Remove the three exact MCP advisory exceptions now that an upstream-compatible
   Semgrep release resolves the fixed MCP line.
-- Close the retained-proof executable-input boundary and preserve repeatable
-  same-PR amendment cycles after the externally authorized bootstrap.
+- Close the retained-proof boundary with an exact owner-approved SUT path policy
+  and preserve repeatable same-PR amendment cycles after the externally
+  authorized bootstrap.
 
 **Non-Goals:**
 
@@ -71,15 +72,26 @@ Installing MCP directly or overriding Semgrep metadata was rejected because it
 would create an unsupported resolver state. Retaining the waiver was rejected
 because its factual premise is no longer true.
 
-### Bind the executable proof harness and retain repeatable amendment cycles
+### Bind retained proof with an exact SUT path policy
 
-Resolve the installed pytest package before adding the repository root to the
-interpreter path, then load the repository's explicitly bound proof plugin.
-Freshness analysis includes the fixed executor and plugin, `uv.lock`, applicable
-package initializers, and repository modules reached through statically resolvable
-dynamic imports. Unresolved dynamic imports and unresolved module-scope writes to
-`pytest_plugins` fail closed; a provably ordinary `SimpleNamespace` remains a
-compatibility control.
+Evaluate the complete linear commit history from the authenticated red source
+through the final source. Every touched repository path is stale by default,
+including both rename/copy endpoints and paths whose bytes are later restored.
+Permit a path only when the owner-approved Requirements mapping contains that
+exact literal regular-file touchpoint with `mutable_after_red: true`. Reject
+globs, prefixes, directories, missing/non-regular paths, duplicate or normalized
+locator collisions, and touchpoint-role mismatches before granting authority.
+
+Selected tests and support roots, including additions, pytest configuration,
+the fixed proof executor and explicit plugin, `uv.lock`, applicable package
+initializers, and exactly the four existing `NON_TRANSITIVE_PROOF_INPUTS` trust
+anchors remain frozen regardless of mapping content. The archive regression's
+exact Bash/Git fixture protocol remains freshness-bound; it is not a general
+external-process bypass. Because the provenance implementation is itself one of
+the four anchors, its final bytes must equal the authenticated red source. The
+replacement validator therefore needs the existing externally authenticated
+bootstrap at the red boundary; no fifth anchor or mutable self-exception is
+introduced.
 
 The live-revalidated external amendment receipt may replace only the stale
 producer-authorship and verified-final producer-verdict predicates for one exact
@@ -92,10 +104,13 @@ linear-history, test-only, artifact, plan, JUnit, and digest checks remain
 mandatory. The fixed external pair is retained only as the final bootstrap
 fallback.
 
-Resolving pytest through `python -m pytest` after entering the repository was
-rejected because a root-level `pytest.py` can shadow the installed package.
-Always reusing the fixed external red/green pair was rejected because it makes
-future review amendments stale and prevents an updateable non-default-branch PR.
+Continuing construct-by-construct Python interpretation was rejected because it
+creates an oversized security parser whose completeness cannot be defended and
+whose clean-code regressions block the mandatory review gate. Inferring SUT
+paths from imports, runtime behavior, directories, or globs was rejected because
+it makes authority implicit or over-broad. Always reusing the fixed external
+red/green pair was rejected because it makes future review amendments stale and
+prevents an updateable non-default-branch PR.
 
 ## Risks / Trade-offs
 
@@ -105,6 +120,10 @@ future review amendments stale and prevents an updateable non-default-branch PR.
 - **Semgrep 1.175 changes scan behavior** → Run the repository SAST configuration,
   dependency audit, full test suite, and Python 3.11–3.13 package matrix; rollback
   by reverting the issue-linked PR if the tool upgrade regresses the gates.
+- **An approved SUT path can influence pytest indirectly** → Keep authorization
+  exact, digest-bound, owner-approved, and limited to regular-file mapping
+  touchpoints; freeze every declared harness and proof-authority class and reject
+  collisions or role mismatches.
 
 ## Migration Plan
 

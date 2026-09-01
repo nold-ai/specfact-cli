@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import ast
 import hashlib
 import importlib.util
 import json
@@ -20,9 +19,6 @@ PROVENANCE_SCRIPT = REPO_ROOT / "scripts" / "requirements_proof_provenance.py"
 
 class ProvenanceModule(Protocol):
     """Minimal public surface for validating a committed red-proof report."""
-
-    def _pytest_plugin_names(self, tree: ast.AST) -> list[list[str]]:
-        raise NotImplementedError
 
     def bind_red_proof(self, red_proof_path: Path, repo_root: Path, *, base_ref: str) -> None:
         raise NotImplementedError
@@ -67,12 +63,38 @@ def _red_proof(
     source_tree: str,
     merge_base: str,
     test_file_digest: str,
+    mutable_paths: tuple[str, ...] = (),
 ) -> dict[str, object]:
+    mapping_digest = f"sha256:{'a' * 64}"
+    plan_digest = f"sha256:{'b' * 64}"
+    touchpoints: list[dict[str, object]] = [
+        {"id": "selected-test", "kind": "test_file", "locator": "tests/test_proof.py"},
+        *(
+            {
+                "id": f"sut-{index}",
+                "kind": "source_file",
+                "locator": path,
+                "mutable_after_red": True,
+            }
+            for index, path in enumerate(mutable_paths)
+        ),
+    ]
     return {
         "gate_decision": "pass",
         "observed_maturity": "red",
-        "mapping_digest": f"sha256:{'a' * 64}",
-        "plan_digest": f"sha256:{'b' * 64}",
+        "mapping_digest": mapping_digest,
+        "plan_digest": plan_digest,
+        "plan": {
+            "mapping_digest": mapping_digest,
+            "plan_digest": plan_digest,
+            "cases": [
+                {
+                    "requirement_id": "openspec:test:capability:requirement",
+                    "case_id": "CASE-S01",
+                    "touchpoints": touchpoints,
+                }
+            ],
+        },
         "execution_proof": {
             "run_stage": "red",
             "source_ref": source_ref,
@@ -80,13 +102,21 @@ def _red_proof(
             "merge_base": merge_base,
             "selectors": ["tests/test_proof.py::test_selected"],
             "test_file_digests": {"tests/test_proof.py": test_file_digest},
+            "mutable_sut_paths": sorted(mutable_paths),
             "junit_digest": junit_digest,
             "toolchain_identity": {"runner": "pytest", "python": "3.12", "pytest": "9.1"},
         },
     }
 
 
-def _write_red_proof(path: Path, repo_root: Path, source_ref: str, merge_base: str) -> None:
+def _write_red_proof(
+    path: Path,
+    repo_root: Path,
+    source_ref: str,
+    merge_base: str,
+    *,
+    mutable_paths: tuple[str, ...] = (),
+) -> None:
     junit = (
         b'<testsuite><testcase><properties><property name="specfact.selector" '
         b'value="tests/test_proof.py::test_selected"/>'
@@ -111,11 +141,12 @@ def _write_red_proof(path: Path, repo_root: Path, source_ref: str, merge_base: s
         source_tree=source_tree,
         merge_base=merge_base,
         test_file_digest=test_file_digest,
+        mutable_paths=mutable_paths,
     )
     path.write_text(json.dumps(report), encoding="utf-8")
 
 
-def _write_unbound_red_proof(path: Path, source_ref: str) -> None:
+def _write_unbound_red_proof(path: Path, source_ref: str, *, mutable_paths: tuple[str, ...] = ()) -> None:
     """Write the exact incomplete report shape produced by released reconciliation."""
     selector = "tests/test_proof.py::test_selected"
     junit = (
@@ -127,13 +158,38 @@ def _write_unbound_red_proof(path: Path, source_ref: str) -> None:
         "</properties><failure/></testcase></testsuite>"
     ).encode()
     path.with_suffix(".xml").write_bytes(junit)
+    mapping_digest = f"sha256:{'a' * 64}"
+    plan_digest = f"sha256:{'b' * 64}"
+    touchpoints: list[dict[str, object]] = [
+        {"id": "selected-test", "kind": "test_file", "locator": "tests/test_proof.py"},
+        *(
+            {
+                "id": f"sut-{index}",
+                "kind": "source_file",
+                "locator": mutable_path,
+                "mutable_after_red": True,
+            }
+            for index, mutable_path in enumerate(mutable_paths)
+        ),
+    ]
     path.write_text(
         json.dumps(
             {
                 "gate_decision": "pass",
                 "observed_maturity": "red",
-                "mapping_digest": f"sha256:{'a' * 64}",
-                "plan_digest": f"sha256:{'b' * 64}",
+                "mapping_digest": mapping_digest,
+                "plan_digest": plan_digest,
+                "plan": {
+                    "mapping_digest": mapping_digest,
+                    "plan_digest": plan_digest,
+                    "cases": [
+                        {
+                            "requirement_id": "openspec:test:capability:requirement",
+                            "case_id": "CASE-S01",
+                            "touchpoints": touchpoints,
+                        }
+                    ],
+                },
                 "execution_proof": {
                     "run_stage": "red",
                     "source_ref": source_ref,
@@ -153,13 +209,16 @@ def test_bind_red_proof_records_validator_complete_immutable_provenance(tmp_path
     _git(tmp_path, "config", "user.email", "requirements@example.test")
     _git(tmp_path, "config", "user.name", "Requirements proof")
     (tmp_path / "README.md").write_text("# proof\n", encoding="utf-8")
+    delivery_path = tmp_path / "src" / "delivery.py"
+    delivery_path.parent.mkdir()
+    delivery_path.write_text("VALUE = 0\n", encoding="utf-8")
     base_ref = _commit(tmp_path, "chore: base")
     test_path = tmp_path / "tests" / "test_proof.py"
     test_path.parent.mkdir()
     test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
     red_ref = _commit(tmp_path, "test: add red proof")
     red_proof_path = tmp_path / ".git" / "red.json"
-    _write_unbound_red_proof(red_proof_path, red_ref)
+    _write_unbound_red_proof(red_proof_path, red_ref, mutable_paths=("src/delivery.py",))
 
     module.bind_red_proof(red_proof_path, tmp_path, base_ref=base_ref)
 
@@ -175,9 +234,9 @@ def test_bind_red_proof_records_validator_complete_immutable_provenance(tmp_path
         "python": "3.13.7",
         "pytest": "8.4.1",
     }
+    assert execution_proof["mutable_sut_paths"] == ["src/delivery.py"]
 
-    (tmp_path / "src").mkdir()
-    (tmp_path / "src" / "delivery.py").write_text("VALUE = 1\n", encoding="utf-8")
+    delivery_path.write_text("VALUE = 1\n", encoding="utf-8")
     final_ref = _commit(tmp_path, "fix: deliver behavior")
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
 
@@ -189,15 +248,17 @@ def test_git_bound_red_proof_requires_test_only_ancestor_and_unchanged_selector_
     _git(tmp_path, "config", "user.email", "requirements@example.test")
     _git(tmp_path, "config", "user.name", "Requirements proof")
     (tmp_path / "README.md").write_text("# proof\n", encoding="utf-8")
+    delivery_path = tmp_path / "src" / "delivery.py"
+    delivery_path.parent.mkdir()
+    delivery_path.write_text("VALUE = 0\n", encoding="utf-8")
     base_ref = _commit(tmp_path, "chore: base")
     test_path = tmp_path / "tests" / "test_proof.py"
     test_path.parent.mkdir()
     test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
     red_ref = _commit(tmp_path, "test: add red proof")
     red_proof_path = tmp_path / ".git" / "red.json"
-    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
-    (tmp_path / "src").mkdir()
-    (tmp_path / "src" / "delivery.py").write_text("VALUE = 1\n", encoding="utf-8")
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref, mutable_paths=("src/delivery.py",))
+    delivery_path.write_text("VALUE = 1\n", encoding="utf-8")
     final_ref = _commit(tmp_path, "feat: delivery")
 
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
@@ -261,6 +322,38 @@ def test_git_bound_red_proof_rejects_changed_imported_test_support(tmp_path: Pat
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
         "stale-red-proof"
     ]
+
+
+@pytest.mark.parametrize(
+    ("support_path", "expected"),
+    (
+        ("tests/fixtures/expected.txt", ["stale-red-proof"]),
+        ("docs/unrelated.md", ["stale-red-proof"]),
+    ),
+)
+def test_git_bound_red_proof_tracks_non_python_test_support(
+    tmp_path: Path, support_path: str, expected: list[str]
+) -> None:
+    """Every unapproved repository path remains frozen after red."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    support = tmp_path / support_path
+    support.parent.mkdir(parents=True)
+    support.write_text("red\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add support input")
+    test_path = tmp_path / "tests" / "test_proof.py"
+    test_path.parent.mkdir(exist_ok=True)
+    test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    support.write_text("green\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: update support input")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == expected
 
 
 def test_git_bound_red_proof_rejects_changed_support_imported_by_conftest(tmp_path: Path) -> None:
@@ -338,7 +431,7 @@ def test_git_bound_red_proof_rejects_changed_pytest_plugin(tmp_path: Path) -> No
     ),
 )
 def test_git_bound_red_proof_rejects_dynamic_pytest_plugin_binding(tmp_path: Path, declaration: str) -> None:
-    """Dynamic import-time plugin bindings must invalidate retained proof."""
+    """Changed pytest support remains stale without interpreting its runtime behavior."""
     module = _load_provenance_module()
     _git(tmp_path, "init")
     _git(tmp_path, "config", "user.email", "requirements@example.test")
@@ -359,378 +452,8 @@ def test_git_bound_red_proof_rejects_dynamic_pytest_plugin_binding(tmp_path: Pat
     final_ref = _commit(tmp_path, "fix: change dynamically bound pytest plugin")
 
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
-        "prior-red-proof-invalid"
+        "stale-red-proof"
     ]
-
-
-_FINAL_REVIEW_PLUGIN_BINDINGS = (
-    '*rest, safe = [{"ns": globals()}, {}]\nrest[0]["ns"]["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-    'namespace = globals()\nupdate = namespace.update\nupdate(pytest_plugins=("tests.helpers.hidden",))\n',
-    'setter = globals().__setitem__\nsetter("pytest_plugins", ("tests.helpers.hidden",))\n',
-    'default = getattr(globals(), "setdefault")\nagain = default\nagain("pytest_plugins", ("tests.helpers.hidden",))\n',
-    'class Plugins:\n    update = globals().update\n    update(pytest_plugins=("tests.helpers.hidden",))\n',
-    'loader = __import__\nruntime = loader("builtins")\nruntime.exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-    'module_name = "builtins"\nruntime = __import__(module_name)\nruntime.eval("globals().update(pytest_plugins=(\\"tests.helpers.hidden\\",))")\n',
-    '__import__("builtins").__dict__["exec"]("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-    'vars(__import__("builtins"))["eval"]("globals().update(pytest_plugins=(\\"tests.helpers.hidden\\",))")\n',
-    'delayed = (value for value in globals().update(pytest_plugins=("tests.helpers.hidden",)))\n',
-)
-
-
-def test_pytest_plugin_discovery_ignores_function_local_assignments() -> None:
-    """Module control flow counts, while function-local plugin assignments do not."""
-    module = _load_provenance_module()
-    tree = ast.parse(
-        'pytest_plugins = ("tests.helpers.active",)\n'
-        "if True:\n"
-        '    pytest_plugins = ("tests.helpers.conditional",)\n'
-        "try:\n"
-        '    pytest_plugins = ("tests.helpers.tried",)\n'
-        "except RuntimeError:\n"
-        "    pass\n"
-        'pytest_plugins: tuple[str, ...] = ("tests.helpers.annotated",)\n'
-        "globals().update(unrelated_binding=True)\n"
-        "class PluginMetadata:\n"
-        '    pytest_plugins = ("tests.helpers.class_local",)\n'
-        '    locals().update(pytest_plugins=("tests.helpers.also_class_local",))\n'
-        '    vars().update(pytest_plugins=("tests.helpers.still_class_local",))\n'
-        "    delayed = (\n"
-        '        globals().update(pytest_plugins=("tests.helpers.deferred",))\n'
-        "        for _ in ()\n"
-        "    )\n"
-        "    def register_later(self) -> None:\n"
-        '        globals().update(pytest_plugins=("tests.helpers.inactive_method",))\n'
-        "def helper() -> None:\n"
-        '    pytest_plugins = ("tests.helpers.inactive",)\n'
-        '    exec("pytest_plugins = (\\"tests.helpers.also_inactive\\",)")\n'
-        'delayed = (globals().update(pytest_plugins=("tests.helpers.deferred",)) for _ in ())\n'
-        "list(delayed)\n"
-    )
-
-    assert module._pytest_plugin_names(tree) == [
-        ["tests", "helpers", "active"],
-        ["tests", "helpers", "conditional"],
-        ["tests", "helpers", "tried"],
-        ["tests", "helpers", "annotated"],
-    ]
-    for source in _FINAL_REVIEW_PLUGIN_BINDINGS:
-        with pytest.raises(ValueError, match=r"^prior-red-proof-invalid$"):
-            module._pytest_plugin_names(ast.parse(source))
-
-
-@pytest.mark.parametrize(
-    "source",
-    [
-        "pytest_plugins = discover_plugins()\n",
-        "from tests.helpers import plugins as pytest_plugins\n",
-        'match ("tests.helpers.matched",):\n    case pytest_plugins:\n        pass\n',
-        'globals()["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-        'plugin_key = "pytest_plugins"\nglobals()[plugin_key] = ("tests.helpers.hidden",)\n',
-        'globals().__setitem__("pytest_plugins", ("tests.helpers.hidden",))\n',
-        'globals().update(pytest_plugins=("tests.helpers.hidden",))\n',
-        'globals().update({"pytest_plugins": ("tests.helpers.hidden",)})\n',
-        "globals().update(dynamic_bindings)\n",
-        'namespace = globals()\nnamespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-        'namespace = globals()\nnamespace |= {"pytest_plugins": ("tests.helpers.hidden",)}\n',
-        'namespace = locals()\nnamespace.update(pytest_plugins=("tests.helpers.hidden",))\n',
-        'namespace = vars()\nalias = namespace\nalias.setdefault("pytest_plugins", ("tests.helpers.hidden",))\n',
-        'namespace_factory = globals\nnamespace_factory()["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-        'getattr(globals(), "update")(pytest_plugins=("tests.helpers.hidden",))\n',
-        'exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-        'run = exec\nrun("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-        'class Plugins:\n    globals().update(pytest_plugins=("tests.helpers.hidden",))\n',
-        'class Plugins:\n    namespace = globals()\n    namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-        'class Plugins:\n    namespace = globals()\n    namespace |= {"pytest_plugins": ("tests.helpers.hidden",)}\n',
-        'class Plugins:\n    global pytest_plugins\n    pytest_plugins = ("tests.helpers.hidden",)\n',
-        'class Plugins:\n    exec("global pytest_plugins; pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-        'class Plugins:\n    eval("globals().update(pytest_plugins=(\\"tests.helpers.hidden\\",))")\n',
-        'class Plugins:\n    getattr(globals(), "update")(pytest_plugins=("tests.helpers.hidden",))\n',
-        'class Plugins:\n    run = exec\n    run("global pytest_plugins; pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-        'import builtins\nbuiltins.exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-        'import builtins as runtime\nruntime.eval("globals().update(pytest_plugins=(\\"tests.helpers.hidden\\",))")\n',
-        'from builtins import exec as run\nrun("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-        'for namespace in [globals()]:\n    namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-        'namespace, = (globals(),)\nnamespace.update(pytest_plugins=("tests.helpers.hidden",))\n',
-        'namespace, *rest = [globals(), {}, {}]\nnamespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-        '*rest, namespace = [{}, {}, globals()]\nnamespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-        '(*rest, namespace), safe = ([{}, {}, globals()], {})\nnamespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-        '*rest, safe = [globals(), {}]\nrest[0]["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-        *_FINAL_REVIEW_PLUGIN_BINDINGS,
-        '[namespace.setdefault("pytest_plugins", ("tests.helpers.hidden",)) for namespace in [globals()]]\n',
-        'from contextlib import nullcontext\nwith nullcontext(globals()) as namespace:\n    namespace.update(pytest_plugins=("tests.helpers.hidden",))\n',
-        'for run in [exec]:\n    run("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-        'match globals():\n    case namespace:\n        namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-        'namespace = globals()\nclass Plugins:\n    namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-        'import builtins\nclass Plugins:\n    builtins.exec("global pytest_plugins; pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-        'class Plugins:\n    match globals():\n        case namespace:\n            namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-        '__builtins__["exec"]("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-        '__import__("builtins").eval("globals().update(pytest_plugins=(\\"tests.helpers.hidden\\",))")\n',
-        'getattr(__import__("builtins"), "exec")("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-        'executor = "exec"\ngetattr(__import__("builtins"), executor)("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-        'runtime = __import__("builtins")\nruntime.exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-        'class Plugins:\n    getattr(__import__("builtins"), "eval")("globals().update(pytest_plugins=(\\"tests.helpers.hidden\\",))")\n',
-        'import builtins\ngetattr(builtins, "exec")("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-    ],
-)
-def test_pytest_plugin_discovery_rejects_unresolved_module_bindings(source: str) -> None:
-    """Computed, imported, captured, and namespace bindings must fail closed."""
-    module = _load_provenance_module()
-
-    with pytest.raises(ValueError, match=r"^prior-red-proof-invalid$"):
-        module._pytest_plugin_names(ast.parse(source))
-
-
-def test_pytest_plugin_discovery_rejects_function_default_module_binding() -> None:
-    """Function defaults execute at module import and may bind the active global."""
-    module = _load_provenance_module()
-    source = 'def helper(bound=(pytest_plugins := ("tests.helpers.default_bound",))):\n    pass\n'
-
-    with pytest.raises(ValueError, match=r"^prior-red-proof-invalid$"):
-        module._pytest_plugin_names(ast.parse(source))
-
-
-_LEGITIMATE_NAMESPACE_ACCESS_SOURCES = (
-    (
-        "class Metadata:\n"
-        '    module_name = globals().get("__name__")\n'
-        '    module_package = globals()["__package__"]\n'
-        '    lookup = getattr(globals(), "get")\n'
-        'for namespace in [{}]:\n    namespace.update(pytest_plugins=("tests.helpers.local",))\n'
-        'namespace, = ({},)\nnamespace["pytest_plugins"] = ("tests.helpers.local",)\n'
-        '[item.setdefault("pytest_plugins", ("tests.helpers.local",)) for item in [{}]]\n'
-        "from contextlib import nullcontext\n"
-        'with nullcontext({}) as item:\n    item.update(pytest_plugins=("tests.helpers.local",))\n'
-        'match {}:\n    case item:\n        item.update(pytest_plugins=("tests.helpers.local",))\n'
-        '[item.get("__name__") for item in [globals()]]\n'
-        'item = {}\nitem.update(pytest_plugins=("tests.helpers.local",))\n'
-        'for safe, namespace in [({}, globals())]:\n    safe["pytest_plugins"] = ("tests.helpers.local",)\n'
-    ),
-    (
-        'namespace = globals()\nnamespace = {}\nnamespace["pytest_plugins"] = ("tests.helpers.local",)\n'
-        'import builtins\nruntime = builtins\nruntime = object()\nruntime.exec("ordinary payload")\n'
-        'run = exec\nrun = print\nrun("ordinary payload")\n'
-    ),
-    'ordinary = {}\nordinary |= {"pytest_plugins": ("tests.helpers.local",)}\n',
-    'namespace = globals()\nnamespace |= {"unrelated": "value"}\n',
-    'namespace = globals()\nnamespace = {}\nnamespace |= {"pytest_plugins": ("tests.helpers.local",)}\n',
-    'safe, *rest = [{}, globals(), {}]\nsafe["pytest_plugins"] = ("tests.helpers.local",)\n',
-    '*rest, safe = [globals(), {}, {}]\nsafe["pytest_plugins"] = ("tests.helpers.local",)\n',
-    'match dict(ns={}):\n    case {"ns": safe}:\n        safe["pytest_plugins"] = ("tests.helpers.local",)\n',
-    'match dict(safe={}, ns=globals()):\n    case {"safe": safe}:\n        safe["pytest_plugins"] = ("tests.helpers.local",)\n',
-    'getattr(__import__("builtins"), "print")("ordinary payload")\n',
-    'import builtins\nowners = (builtins,)\ngetattr(owners[0], "print")("ordinary payload")\n',
-    'ordinary = {}\nupdate = ordinary.update\nupdate(pytest_plugins=("tests.helpers.local",))\n',
-    'namespace = globals()\nupdate = namespace.update\nupdate(unrelated="value")\n',
-    "namespace = globals()\nupdate = namespace.update\n",
-    'update = globals().update\nupdate = {}.update\nupdate(pytest_plugins=("tests.helpers.local",))\n',
-    'loader = __import__\nruntime = loader("json")\nruntime.dumps({"safe": True})\n',
-    'delayed = (globals().update(pytest_plugins=("tests.helpers.local",)) for _ in ())\nlist(delayed)\n',
-    'delayed = (value for outer in () for value in globals().update(pytest_plugins=("tests.helpers.local",)))\n',
-    'delayed = (value for value in () if globals().update(pytest_plugins=("tests.helpers.local",)))\n',
-    (
-        'match {"ns": {}}:\n    case {"ns": captured}:\n'
-        '        captured["pytest_plugins"] = ("tests.helpers.local",)\n'
-        'match {"ns": globals()}:\n    case {"ns": _, **rest}:\n'
-        '        rest["pytest_plugins"] = ("tests.helpers.local",)\n'
-        "match {None: {}}:\n    case {None: captured}:\n"
-        '        captured["pytest_plugins"] = ("tests.helpers.local",)\n'
-    ),
-)
-
-
-def test_pytest_plugin_discovery_allows_legitimate_namespace_access() -> None:
-    """Read-only and ordinary-mapping namespace patterns must remain compatible."""
-    module = _load_provenance_module()
-    conditional_shadow = (
-        "update = globals().update\n"
-        "if enabled:\n"
-        "    update = {}.update\n"
-        'update(pytest_plugins=("tests.helpers.hidden",))\n'
-    )
-
-    with pytest.raises(ValueError, match=r"^prior-red-proof-invalid$"):
-        module._pytest_plugin_names(ast.parse(conditional_shadow))
-    for source in _LEGITIMATE_NAMESPACE_ACCESS_SOURCES:
-        assert module._pytest_plugin_names(ast.parse(source)) == []
-
-
-_BUILTINS_MODULE_ALIAS_SOURCES = (
-    'runtime = __import__("builtins")\nexecutor = "exec"\ngetattr(runtime, executor)("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-    'import builtins\nruntime = builtins\nruntime.exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-    'import builtins\nruntime = builtins\nagain = runtime\nagain.eval("globals().update(pytest_plugins=(\\"tests.helpers.hidden\\",))")\n',
-)
-
-
-def _assert_plugin_sources_rejected(module: ProvenanceModule, sources: tuple[str, ...]) -> None:
-    """Assert that each import-time authority source invalidates retained proof."""
-    for source in sources:
-        with pytest.raises(ValueError, match=r"^prior-red-proof-invalid$"):
-            module._pytest_plugin_names(ast.parse(source))
-
-
-def test_pytest_plugin_discovery_rejects_builtins_module_aliases() -> None:
-    """Aliases of the imported builtins owner must retain exec/eval authority."""
-    module = _load_provenance_module()
-
-    _assert_plugin_sources_rejected(module, _BUILTINS_MODULE_ALIAS_SOURCES)
-
-
-_COMPUTED_BUILTINS_OWNER_SOURCES = (
-    'import builtins\nowners = (builtins,)\ngetattr(owners[0], "exec")("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-    'import builtins\nowners = (builtins,)\nowners[0].exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-    (
-        'import builtins\nowners = {"runtime": [builtins]}\n'
-        'owners["runtime"][0].eval("globals().update(pytest_plugins=(\\"tests.helpers.hidden\\",))")\n'
-    ),
-    (
-        "import builtins\ndef select(owner):\n    return owner\n"
-        'select(builtins).exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n'
-    ),
-    (
-        'import builtins\nexecutor = "exec"\n'
-        'getattr((lambda: builtins)(), executor)("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n'
-    ),
-    (
-        "import builtins\nclass Plugins:\n    owners = (builtins,)\n"
-        '    owners[0].exec("global pytest_plugins; pytest_plugins = (\\"tests.helpers.hidden\\",)")\n'
-    ),
-)
-
-
-def _assert_pytest_plugin_sources_rejected(module: ProvenanceModule, sources: tuple[str, ...]) -> None:
-    accepted_sources: list[str] = []
-    for source in sources:
-        try:
-            module._pytest_plugin_names(ast.parse(source))
-        except ValueError as error:
-            assert str(error) == "prior-red-proof-invalid"
-        else:
-            accepted_sources.append(source)
-    assert accepted_sources == []
-
-
-def test_pytest_plugin_discovery_rejects_computed_builtins_owner_expressions() -> None:
-    """Computed owners must not hide import-time exec/eval authority."""
-    _assert_pytest_plugin_sources_rejected(_load_provenance_module(), _COMPUTED_BUILTINS_OWNER_SOURCES)
-
-
-_ASSIGNED_COMPUTED_OWNER_SOURCES = (
-    (
-        "import builtins\nowners = (builtins,)\nruntime = owners[0]\n"
-        'runtime.exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n'
-    ),
-    (
-        "import builtins\ndef select_owner():\n    return builtins\n"
-        "runtime = select_owner()\n"
-        'getattr(runtime, "exec")("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n'
-    ),
-    (
-        "import builtins\nruntime = builtins if enabled else object()\n"
-        'runtime.eval("globals().update(pytest_plugins=(\\"tests.helpers.hidden\\",))")\n'
-    ),
-    (
-        "import builtins\nclass Plugins:\n    owners = (builtins,)\n    runtime = owners[0]\n"
-        '    runtime.exec("global pytest_plugins; pytest_plugins = (\\"tests.helpers.hidden\\",)")\n'
-    ),
-    (
-        "import builtins\nowners = (builtins,)\nruntime = object()\n"
-        "if True:\n    runtime = owners[0]\n"
-        'runtime.exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n'
-    ),
-    (
-        "import builtins\nowners = (builtins,)\nfor runtime in [owners[0]]:\n    pass\n"
-        'runtime.exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n'
-    ),
-    (
-        "from types import SimpleNamespace\n"
-        "runtime = SimpleNamespace(exec=exec)\n"
-        'runtime.exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n'
-    ),
-    (
-        "from types import SimpleNamespace\n"
-        "runtime = SimpleNamespace(exec=lambda payload: exec(payload))\n"
-        'runtime.exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n'
-    ),
-)
-
-
-def test_pytest_plugin_discovery_rejects_assigned_computed_owner_expressions() -> None:
-    """Unknown assigned owners must not become definite non-authority shadows."""
-    assert len(_ASSIGNED_COMPUTED_OWNER_SOURCES) == 8
-    _assert_pytest_plugin_sources_rejected(_load_provenance_module(), _ASSIGNED_COMPUTED_OWNER_SOURCES)
-
-
-def test_pytest_plugin_discovery_allows_statically_safe_executor_owners() -> None:
-    """Provably safe stdlib owners may retain unrelated exec/eval methods."""
-    module = _load_provenance_module()
-    safe_sources = (
-        ('from types import SimpleNamespace\nSimpleNamespace(exec=lambda value: None).exec("ordinary payload")\n'),
-        ('import types\ntypes.SimpleNamespace(eval=lambda value: None).eval("ordinary payload")\n'),
-    )
-
-    for source in safe_sources:
-        assert module._pytest_plugin_names(ast.parse(source)) == []
-
-
-_MAPPING_PATTERN_NAMESPACE_SOURCES = (
-    'match {"ns": globals()}:\n    case {"ns": namespace}:\n        namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-    'match {"safe": {}, "ns": globals()}:\n    case {"ns": namespace, "safe": _}:\n        namespace.update(pytest_plugins=("tests.helpers.hidden",))\n',
-    'match {"outer": {"ns": globals()}}:\n    case {"outer": {"ns": namespace}}:\n        namespace.setdefault("pytest_plugins", ("tests.helpers.hidden",))\n',
-    'match {None: globals()}:\n    case {None: namespace}:\n        namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-    'match {**{"ns": globals()}}:\n    case {"ns": namespace}:\n        namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-    'match dict(ns=globals()):\n    case {"ns": namespace}:\n        namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-    'match make_mapping(globals()):\n    case {"ns": namespace}:\n        namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-    'subject = {"ns": globals()}\nmatch subject:\n    case {"ns": namespace}:\n        namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-    'match dict([("ns", globals())]):\n    case {"ns": namespace}:\n        namespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-)
-
-
-def test_pytest_plugin_discovery_rejects_mapping_pattern_namespace_captures() -> None:
-    """Mapping captures must retain their corresponding namespace subject value."""
-    module = _load_provenance_module()
-
-    for source in _MAPPING_PATTERN_NAMESPACE_SOURCES:
-        with pytest.raises(ValueError, match=r"^prior-red-proof-invalid$"):
-            module._pytest_plugin_names(ast.parse(source))
-
-
-@pytest.mark.parametrize(
-    "source",
-    [
-        'namespace = globals()\nnamespace["pytest_plugins"] = ("tests.helpers.hidden",)\nnamespace = {}\n',
-        'namespace = globals()\nnamespace = {}\nnamespace = globals()\nnamespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-        'namespace = globals()\nif enabled:\n    namespace = {}\nnamespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-        'namespace = {}\nif enabled:\n    namespace = globals()\nnamespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-        'namespace = {}\nif enabled:\n    namespace = globals()\nnamespace |= {"pytest_plugins": ("tests.helpers.hidden",)}\n',
-        'for namespace in [globals()]:\n    pass\nnamespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-        'from contextlib import nullcontext\nwith nullcontext(globals()) as namespace:\n    pass\nnamespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-        'match globals():\n    case namespace:\n        pass\nnamespace["pytest_plugins"] = ("tests.helpers.hidden",)\n',
-        'import builtins\nruntime = builtins\nruntime.exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\nruntime = object()\n',
-        'import builtins\nruntime = object()\nif enabled:\n    runtime = builtins\nruntime.exec("pytest_plugins = (\\"tests.helpers.hidden\\",)")\n',
-    ],
-)
-def test_pytest_plugin_discovery_keeps_live_or_conditional_aliases_fail_closed(source: str) -> None:
-    """Use-before-shadow, re-alias, and conditional replacement remain unsafe."""
-    module = _load_provenance_module()
-
-    with pytest.raises(ValueError, match=r"^prior-red-proof-invalid$"):
-        module._pytest_plugin_names(ast.parse(source))
-
-
-@pytest.mark.parametrize(
-    "source",
-    [
-        '[pytest_plugins for pytest_plugins in [("tests.helpers.local",)]]\n',
-        '{pytest_plugins for pytest_plugins in [("tests.helpers.local",)]}\n',
-        '{pytest_plugins: True for pytest_plugins in [("tests.helpers.local",)]}\n',
-        '(pytest_plugins for pytest_plugins in [("tests.helpers.local",)])\n',
-    ],
-)
-def test_pytest_plugin_discovery_ignores_comprehension_iteration_targets(source: str) -> None:
-    """Python 3 comprehension targets do not bind the surrounding module namespace."""
-    module = _load_provenance_module()
-
-    assert module._pytest_plugin_names(ast.parse(source)) == []
 
 
 def test_git_bound_red_proof_rejects_import_target_added_after_red(tmp_path: Path) -> None:
@@ -843,6 +566,9 @@ def test_git_bound_red_proof_accepts_executable_regular_selector(tmp_path: Path)
     _git(tmp_path, "config", "user.email", "requirements@example.test")
     _git(tmp_path, "config", "user.name", "Requirements proof")
     (tmp_path / "README.md").write_text("# proof\n", encoding="utf-8")
+    feature_path = tmp_path / "src" / "feature.py"
+    feature_path.parent.mkdir()
+    feature_path.write_text("VALUE = 1\n", encoding="utf-8")
     base_ref = _commit(tmp_path, "chore: base")
     test_path = tmp_path / "tests" / "test_proof.py"
     test_path.parent.mkdir()
@@ -851,9 +577,14 @@ def test_git_bound_red_proof_accepts_executable_regular_selector(tmp_path: Path)
     _git(tmp_path, "update-index", "--chmod=+x", "tests/test_proof.py")
     executable_ref = _commit(tmp_path, "test: add executable red selector")
     red_proof_path = tmp_path / ".git" / "red.json"
-    _write_red_proof(red_proof_path, tmp_path, executable_ref, base_ref)
-    (tmp_path / "src").mkdir()
-    (tmp_path / "src" / "feature.py").write_text("VALUE = 2\n", encoding="utf-8")
+    _write_red_proof(
+        red_proof_path,
+        tmp_path,
+        executable_ref,
+        base_ref,
+        mutable_paths=("src/feature.py",),
+    )
+    feature_path.write_text("VALUE = 2\n", encoding="utf-8")
     final_ref = _commit(tmp_path, "fix: implement after executable red selector")
 
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
@@ -882,8 +613,8 @@ def test_git_bound_red_proof_rejects_symlink_selector(tmp_path: Path) -> None:
     ]
 
 
-def test_git_bound_red_proof_accepts_base_merge_after_red(tmp_path: Path) -> None:
-    """Imported base changes must not make an unchanged red selector stale."""
+def test_git_bound_red_proof_rejects_unapproved_base_merge_after_red(tmp_path: Path) -> None:
+    """A merge cannot introduce an unapproved path after the retained red source."""
     module = _load_provenance_module()
     _git(tmp_path, "init")
     _git(tmp_path, "config", "user.email", "requirements@example.test")
@@ -904,7 +635,9 @@ def test_git_bound_red_proof_accepts_base_merge_after_red(tmp_path: Path) -> Non
     _git(tmp_path, "merge", "--no-ff", "base-update", "-m", "merge: update base")
     final_ref = _git(tmp_path, "rev-parse", "HEAD")
 
-    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
 
 
 def test_git_bound_red_proof_rejects_base_commit_as_red_source(tmp_path: Path) -> None:

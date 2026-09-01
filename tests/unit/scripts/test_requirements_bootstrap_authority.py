@@ -25,6 +25,7 @@ class _AuthorityModule(Protocol):
     AuthorityContext: Callable[..., object]
     validate_bootstrap_authority: Callable[[object, object], bool]
     _authority_findings: Callable[[object, object], list[str]]
+    _has_governed_production_path: Callable[[list[str], str], bool]
     _git: Callable[..., object]
 
 
