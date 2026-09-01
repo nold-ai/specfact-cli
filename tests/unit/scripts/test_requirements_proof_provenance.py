@@ -7,6 +7,7 @@ import importlib.util
 import json
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol, cast
 
@@ -189,6 +190,86 @@ def _write_unbound_red_proof(path: Path, source_ref: str) -> None:
     )
 
 
+@dataclass(frozen=True)
+class _ProducerHistory:
+    module: ProvenanceModule
+    repo_root: Path
+    base_ref: str
+    red_ref: str
+    producer_ref: str
+    report: dict[str, object]
+    producer_paths: frozenset[str]
+
+
+def _producer_history(repo_root: Path) -> _ProducerHistory:
+    module = _load_provenance_module()
+    _git(repo_root, "init")
+    _git(repo_root, "config", "user.email", "requirements@example.test")
+    _git(repo_root, "config", "user.name", "Requirements proof")
+    (repo_root / "README.md").write_text("# proof\n", encoding="utf-8")
+    producer_path = repo_root / "scripts" / "requirements_proof_provenance.py"
+    producer_path.parent.mkdir()
+    producer_path.write_text("VALUE = 'red'\n", encoding="utf-8")
+    base_ref = _commit(repo_root, "chore: base")
+    test_path = repo_root / "tests" / "test_proof.py"
+    test_path.parent.mkdir()
+    test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(repo_root, "test: add red proof")
+    red_proof_path = repo_root / ".git" / "red.json"
+    _write_red_proof(red_proof_path, repo_root, red_ref, base_ref)
+    report = json.loads(red_proof_path.read_text(encoding="utf-8"))
+    producer_path.write_text("VALUE = 'green'\n", encoding="utf-8")
+    producer_ref = _commit(repo_root, "fix: update exact producer")
+    return _ProducerHistory(
+        module,
+        repo_root,
+        base_ref,
+        red_ref,
+        producer_ref,
+        report,
+        frozenset({"scripts/requirements_proof_provenance.py"}),
+    )
+
+
+def _validate_history(
+    history: _ProducerHistory,
+    *,
+    report: dict[str, object] | None = None,
+    final_ref: str | None = None,
+    producer_paths: frozenset[str] | None = None,
+) -> list[str]:
+    return history.module._validate_red_history_freshness(
+        history.report if report is None else report,
+        history.repo_root,
+        history.base_ref,
+        history.red_ref,
+        final_ref or history.producer_ref,
+        None,
+        history.producer_paths if producer_paths is None else producer_paths,
+    )
+
+
+def _assert_producer_test_collisions_fail_closed(history: _ProducerHistory) -> None:
+    selected = json.loads(json.dumps(history.report))
+    selected["execution_proof"]["selectors"] = ["scripts/requirements_proof_provenance.py::test_selected"]
+    assert _validate_history(history, report=selected) == ["prior-red-proof-invalid"]
+
+    alias = json.loads(json.dumps(history.report))
+    alias["execution_proof"]["selectors"] = ["./scripts/requirements_proof_provenance.py::test_selected"]
+    with pytest.raises(ValueError, match="prior-red-proof-invalid"):
+        _validate_history(history, report=alias)
+
+    for locator in (
+        "scripts/requirements_proof_provenance.py",
+        "./scripts/requirements_proof_provenance.py",
+    ):
+        mapped_test = json.loads(json.dumps(history.report))
+        mapped_test["plan"]["cases"][0]["touchpoints"].append(
+            {"id": "producer-as-test-input", "kind": "test_file", "locator": locator}
+        )
+        assert _validate_history(history, report=mapped_test) == ["prior-red-proof-invalid"]
+
+
 def test_bind_red_proof_records_validator_complete_immutable_provenance(tmp_path: Path) -> None:
     """The producer must fill every validator-required fact from the red execution boundary."""
     module = _load_provenance_module()
@@ -258,118 +339,24 @@ def test_git_bound_red_proof_requires_test_only_ancestor_and_unchanged_selector_
 
 def test_exact_producer_authority_is_separate_from_mutable_sut_policy(tmp_path: Path) -> None:
     """Only the exact externally authenticated producer path may cross red."""
-    module = _load_provenance_module()
-    _git(tmp_path, "init")
-    _git(tmp_path, "config", "user.email", "requirements@example.test")
-    _git(tmp_path, "config", "user.name", "Requirements proof")
-    (tmp_path / "README.md").write_text("# proof\n", encoding="utf-8")
-    producer_path = tmp_path / "scripts" / "requirements_proof_provenance.py"
-    producer_path.parent.mkdir()
-    producer_path.write_text("VALUE = 'red'\n", encoding="utf-8")
-    base_ref = _commit(tmp_path, "chore: base")
-    test_path = tmp_path / "tests" / "test_proof.py"
-    test_path.parent.mkdir()
-    test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
-    red_ref = _commit(tmp_path, "test: add red proof")
-    red_proof_path = tmp_path / ".git" / "red.json"
-    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
-    report = json.loads(red_proof_path.read_text(encoding="utf-8"))
-
-    producer_path.write_text("VALUE = 'green'\n", encoding="utf-8")
-    producer_ref = _commit(tmp_path, "fix: update exact producer")
-    producer_paths = frozenset({"scripts/requirements_proof_provenance.py"})
-
-    assert (
-        module._validate_red_history_freshness(
-            report,
-            tmp_path,
-            base_ref,
-            red_ref,
-            producer_ref,
-            None,
-            producer_paths,
-        )
-        == []
-    )
-
-    selected_producer_report = json.loads(json.dumps(report))
-    selected_producer_report["execution_proof"]["selectors"] = [
-        "scripts/requirements_proof_provenance.py::test_selected"
-    ]
-    assert module._validate_red_history_freshness(
-        selected_producer_report,
-        tmp_path,
-        base_ref,
-        red_ref,
-        producer_ref,
-        None,
-        producer_paths,
-    ) == ["prior-red-proof-invalid"]
-
-    alias_selector_report = json.loads(json.dumps(report))
-    alias_selector_report["execution_proof"]["selectors"] = [
-        "./scripts/requirements_proof_provenance.py::test_selected"
-    ]
-    with pytest.raises(ValueError, match="prior-red-proof-invalid"):
-        module._validate_red_history_freshness(
-            alias_selector_report,
-            tmp_path,
-            base_ref,
-            red_ref,
-            producer_ref,
-            None,
-            producer_paths,
-        )
-
-    for test_touchpoint in (
-        "scripts/requirements_proof_provenance.py",
-        "./scripts/requirements_proof_provenance.py",
-    ):
-        test_touchpoint_report = json.loads(json.dumps(report))
-        test_touchpoint_report["plan"]["cases"][0]["touchpoints"].append(
-            {
-                "id": "producer-as-test-input",
-                "kind": "test_file",
-                "locator": test_touchpoint,
-            }
-        )
-        assert module._validate_red_history_freshness(
-            test_touchpoint_report,
-            tmp_path,
-            base_ref,
-            red_ref,
-            producer_ref,
-            None,
-            producer_paths,
-        ) == ["prior-red-proof-invalid"]
+    history = _producer_history(tmp_path)
+    assert _validate_history(history) == []
+    _assert_producer_test_collisions_fail_closed(history)
 
     adjacent_path = tmp_path / "docs" / "adjacent.md"
     adjacent_path.parent.mkdir()
     adjacent_path.write_text("not authorized\n", encoding="utf-8")
     adjacent_ref = _commit(tmp_path, "docs: add adjacent path")
-
-    assert module._validate_red_history_freshness(
-        report,
-        tmp_path,
-        base_ref,
-        red_ref,
-        adjacent_ref,
-        None,
-        producer_paths,
-    ) == ["stale-red-proof"]
+    assert _validate_history(history, final_ref=adjacent_ref) == ["stale-red-proof"]
 
     for unauthorized_producer in (
         "src/specfact_cli/delivery.py",
         "scripts/requirements_unlisted_plugin.py",
     ):
-        assert module._validate_red_history_freshness(
-            report,
-            tmp_path,
-            base_ref,
-            red_ref,
-            adjacent_ref,
-            None,
-            frozenset({unauthorized_producer}),
+        assert _validate_history(
+            history,
+            final_ref=adjacent_ref,
+            producer_paths=frozenset({unauthorized_producer}),
         ) == ["prior-red-proof-invalid"]
 
 

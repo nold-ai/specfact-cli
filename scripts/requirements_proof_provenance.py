@@ -1362,17 +1362,13 @@ def _red_history_boundary(values: tuple[object, ...]) -> _RedHistoryBoundary:
     return _RedHistoryBoundary(base_ref, source_ref, final_ref, change_id, producer_paths)
 
 
-def _validate_red_history_freshness(
-    report: dict[str, object],
-    repo_root: Path,
-    *boundary_values: object,
-) -> list[str]:
-    """Reject production-before-red and every unapproved path touched after red."""
-    boundary = _red_history_boundary(boundary_values)
+def _producer_test_inputs_are_valid(
+    report: dict[str, object], selector_paths: Sequence[str], producer_paths: frozenset[str]
+) -> bool:
+    """Reject producer authority that aliases a selected or mapped test input."""
     cycle = _cycle_module()
-    if any(not cycle._is_final_producer_path(path) for path in boundary.producer_paths):
-        return ["prior-red-proof-invalid"]
-    _, selector_paths = _selector_paths(report)
+    if any(not cycle._is_final_producer_path(path) for path in producer_paths):
+        return False
     test_input_paths = set(selector_paths)
     for touchpoints in _touchpoints_by_requirement(report):
         for touchpoint in touchpoints:
@@ -1380,9 +1376,20 @@ def _validate_red_history_freshness(
                 continue
             locator = touchpoint.get("locator")
             if not isinstance(locator, str) or not locator or PurePosixPath(locator).as_posix() != locator:
-                return ["prior-red-proof-invalid"]
+                return False
             test_input_paths.add(locator)
-    if boundary.producer_paths.intersection(test_input_paths):
+    return producer_paths.isdisjoint(test_input_paths)
+
+
+def _validate_red_history_freshness(
+    report: dict[str, object],
+    repo_root: Path,
+    *boundary_values: object,
+) -> list[str]:
+    """Reject production-before-red and every unapproved path touched after red."""
+    boundary = _red_history_boundary(boundary_values)
+    _, selector_paths = _selector_paths(report)
+    if not _producer_test_inputs_are_valid(report, selector_paths, boundary.producer_paths):
         return ["prior-red-proof-invalid"]
     paths_before_red = _changed_paths_in_history(repo_root, boundary.base_ref, boundary.source_ref)
     if paths_before_red is None or _has_governed_production_path(paths_before_red, boundary.change_id):
