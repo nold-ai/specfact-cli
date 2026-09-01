@@ -134,6 +134,11 @@ jobs:
           external_authority_file=""
           external_authority_digest=""
           external_green_ref="22041cacdd8c34f26f09bccc91499e51e21545a8"
+          external_red_ref="0c90e969d27c7f45dada2e30509e0f68c7bb5581"
+          external_red_run_id="33525621061"
+          external_red_artifact_id="9807549807"
+          external_red_artifact_digest="sha256:8522383a5e3cd0e9bac50e7dd4132ca77556b5d757db05dffbd4f502ae78b1bd"
+          external_red_branch="codex/692-proof-red-0c90e969"
           external_proof_root="${RUNNER_TEMP}/external-prior-red-proof"
           proof_root="${RUNNER_TEMP}/prior-red-proof"
           rm -rf "$authority_root"
@@ -146,8 +151,9 @@ jobs:
             bootstrap_root="${RUNNER_TEMP}/requirements-amendment-bootstrap"
             red_root="${bootstrap_root}/red"
             green_root="${bootstrap_root}/green"
+            refreshed_red_root="${bootstrap_root}/refreshed-red"
             rm -rf "$external_proof_root"
-            mkdir -p "$red_root" "$green_root" "$external_proof_root"
+            mkdir -p "$red_root" "$green_root" "$refreshed_red_root" "$external_proof_root"
             gh api "repos/${GITHUB_REPOSITORY}/issues/comments/5468600336" > "${bootstrap_root}/comment.json"
             gh api --paginate --slurp \
               "repos/${GITHUB_REPOSITORY}/issues/692/comments?per_page=100" > "${bootstrap_root}/producer-comments.json"
@@ -155,8 +161,11 @@ jobs:
             gh api "repos/${GITHUB_REPOSITORY}/actions/runs/33310489582/artifacts" > "${bootstrap_root}/red-artifacts.json"
             gh api "repos/${GITHUB_REPOSITORY}/actions/runs/33303840056" > "${bootstrap_root}/green-run.json"
             gh api "repos/${GITHUB_REPOSITORY}/actions/runs/33303840056/artifacts" > "${bootstrap_root}/green-artifacts.json"
+            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${external_red_run_id}" > "${bootstrap_root}/refreshed-red-run.json"
+            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${external_red_run_id}/artifacts" > "${bootstrap_root}/refreshed-red-artifacts.json"
             gh run download 33310489582 --name requirements-evidence --dir "$red_root"
             gh run download 33303840056 --name requirements-evidence --dir "$green_root"
+            gh run download "$external_red_run_id" --name requirements-evidence --dir "$refreshed_red_root"
             python scripts/requirements_amendment_bootstrap.py \
               --comment "${bootstrap_root}/comment.json" \
               --comment-id 5468600336 \
@@ -177,6 +186,20 @@ jobs:
               --final-ref "$current_head" \
               --output "${external_proof_root}/red.json" \
               --authority-output "$external_authority_file"
+            python scripts/requirements_red_run_normalizer.py \
+              --run "${bootstrap_root}/refreshed-red-run.json" \
+              --run-id "$external_red_run_id" \
+              --artifacts "${bootstrap_root}/refreshed-red-artifacts.json" \
+              --artifact-root "$refreshed_red_root" \
+              --artifact-id "$external_red_artifact_id" \
+              --artifact-digest "$external_red_artifact_digest" \
+              --repo-root "$GITHUB_WORKSPACE" \
+              --repository "$GITHUB_REPOSITORY" \
+              --base-ref "$external_green_ref" \
+              --source-ref "$external_red_ref" \
+              --head-branch "$external_red_branch" \
+              --change-id fix-release-promotion-security-gates \
+              --output "${external_proof_root}/red.json"
             # Producer authority was fetched live from
             # "repos/${GITHUB_REPOSITORY}/issues/692/comments?per_page=100".
             python scripts/requirements_proof_provenance.py \
@@ -184,6 +207,7 @@ jobs:
               --junit "${external_proof_root}/red.xml" \
               --repo-root "$GITHUB_WORKSPACE" \
               --base-ref "origin/${GITHUB_BASE_REF}" \
+              --final-ref "$current_head" \
               --change-id "$EVIDENCE_CHANGE_ID" \
               --cycle-authority "$external_authority_file" \
               --repository "$GITHUB_REPOSITORY" \
@@ -233,6 +257,7 @@ jobs:
                   --junit "${proof_root}/red.xml" \
                   --repo-root "$GITHUB_WORKSPACE" \
                   --base-ref "origin/${GITHUB_BASE_REF}" \
+                  --final-ref "$current_head" \
                   --change-id "$EVIDENCE_CHANGE_ID" \
                   --cycle-authority "$authority_file" \
                   --repository "$GITHUB_REPOSITORY" \
@@ -262,9 +287,38 @@ jobs:
                 -f per_page=100 \
                 --jq '.workflow_runs[].id'
             )
+            if [[ "$candidate_red_ref" == "$external_red_ref" \
+              && "$proof_mode" == "bind" \
+              && -n "$red_proof" \
+              && -n "$external_authority_file" ]]; then
+              python scripts/requirements_proof_provenance.py \
+                --prior-red-proof "$red_proof" \
+                --repo-root "$GITHUB_WORKSPACE" \
+                --base-ref "origin/${GITHUB_BASE_REF}" \
+                --final-ref "$current_head" \
+                --change-id fix-release-promotion-security-gates \
+                --cycle-authority "$external_authority_file" \
+                --repository "$GITHUB_REPOSITORY" \
+                --pull-request "$EVIDENCE_PULL_REQUEST" \
+                --head-branch "$GITHUB_HEAD_REF" || return 1
+              printf "source-ref=%s\n" "$external_green_ref" >> "$GITHUB_OUTPUT"
+              printf "authority=%s\n" "$external_authority_file" >> "$GITHUB_OUTPUT"
+              return 0
+            fi
             return 1
           }
 
+          if [[ -n "$external_authority_file" \
+            && -s "${external_proof_root}/red.json" \
+            && -s "${external_proof_root}/red.xml" ]]; then
+            rm -rf "$proof_root"
+            mkdir -p "$proof_root"
+            cp "${external_proof_root}/red.json" "${proof_root}/red.json"
+            cp "${external_proof_root}/red.xml" "${proof_root}/red.xml"
+            if try_cycle_base "$external_red_ref" "${proof_root}/red.json" bind; then
+              exit 0
+            fi
+          fi
           if try_cycle_base "$current_head"; then
             exit 0
           fi
@@ -290,14 +344,6 @@ jobs:
               -f per_page=100 \
               --jq '.workflow_runs[] | select(.conclusion == "failure") | [.id, .head_sha] | @tsv'
           )
-          if [[ -n "$external_authority_file" && -s "${external_proof_root}/red.json" && -s "${external_proof_root}/red.xml" ]]; then
-            rm -rf "$proof_root"
-            mkdir -p "$proof_root"
-            cp "${external_proof_root}/red.json" "${proof_root}/red.json"
-            cp "${external_proof_root}/red.xml" "${proof_root}/red.xml"
-            printf "source-ref=%s\n" "$external_green_ref" >> "$GITHUB_OUTPUT"
-            printf "authority=%s\n" "$external_authority_file" >> "$GITHUB_OUTPUT"
-          fi
           exit 0
 
       - name: Locate retained red proof run

@@ -624,6 +624,20 @@ def _common_history_matches(paths: CycleBasePaths, context: CycleBaseContext, cy
     )
 
 
+@beartype
+@ensure(lambda result: isinstance(result, bool))
+def red_history_is_test_only(repo_root: Path, cycle_base: str, red_ref: str, change_id: str) -> bool:
+    """Return whether one linear red extension changes only tests and its bound OpenSpec artifacts."""
+    return (
+        GIT_OBJECT_PATTERN.fullmatch(cycle_base) is not None
+        and GIT_OBJECT_PATTERN.fullmatch(red_ref) is not None
+        and cycle_base != red_ref
+        and _is_ancestor(repo_root, cycle_base, red_ref)
+        and _history_is_linear(repo_root, cycle_base, red_ref)
+        and not _has_governed_cycle_change(repo_root, cycle_base, red_ref, change_id)
+    )
+
+
 def _history_matches(
     paths: CycleBasePaths,
     context: CycleBaseContext,

@@ -148,6 +148,7 @@ class _MutablePathPolicy:
     frozen: set[str]
     support_roots: set[str]
     accepted: set[str]
+    producer_paths: frozenset[str]
 
 
 @dataclass(frozen=True)
@@ -335,8 +336,16 @@ def _external_locator_matches(hint: dict[str, object], context: CycleAuthorityCo
 
 
 def _external_hint_matches(hint: dict[str, object], context: CycleAuthorityContext) -> bool:
-    """Restrict external capability routing to its approved red source."""
-    return _external_locator_matches(hint, context) and hint.get("red_ref") == context.red_ref
+    """Allow only a test/spec-only red extension beyond the approved red source."""
+    approved_red = hint.get("red_ref")
+    if not _external_locator_matches(hint, context) or not isinstance(approved_red, str):
+        return False
+    changed_paths = _changed_paths_in_history(context.repo_root, approved_red, context.red_ref)
+    return (
+        changed_paths is not None
+        and _is_ancestor(context.repo_root, approved_red, context.red_ref)
+        and not _has_governed_production_path(changed_paths, context.change_id)
+    )
 
 
 def _cycle_module() -> _CycleModule:
@@ -1158,7 +1167,7 @@ def bind_red_proof(
         CycleAuthorityContext(
             repo_root,
             settings.base_ref,
-            source_ref,
+            settings.final_ref or source_ref,
             source_ref,
             settings.repository,
             settings.pull_request,
@@ -1174,7 +1183,10 @@ def bind_red_proof(
         execution_proof,
         authority,
     )
-    bindings["mutable_sut_paths"] = sorted(_mutable_sut_paths(report, repo_root, source_ref, selector_paths))
+    producer_paths = authority.producer_paths if authority is not None else frozenset()
+    bindings["mutable_sut_paths"] = sorted(
+        _mutable_sut_paths(report, repo_root, source_ref, selector_paths, producer_paths)
+    )
     _merge_execution_bindings(execution_proof, bindings)
     _validate_execution_bindings(report, repo_root, provenance_base, junit_root=root, cycle_authority=authority)
     _write_report_atomically(red_proof_path, report)
@@ -1252,7 +1264,8 @@ def _validate_execution_bindings(
         raise ValueError("prior-red-proof-invalid")
     actual_tree = _git(repo_root, "rev-parse", f"{source_ref}^{{tree}}").stdout.strip()
     actual_merge_base = _git(repo_root, "merge-base", base_ref, source_ref).stdout.strip()
-    mutable_paths = sorted(_mutable_sut_paths(report, repo_root, source_ref, selector_paths))
+    producer_paths = cycle_authority.producer_paths if cycle_authority is not None else frozenset()
+    mutable_paths = sorted(_mutable_sut_paths(report, repo_root, source_ref, selector_paths, producer_paths))
     if (
         not _valid_report_digests(report)
         or source_tree != actual_tree
@@ -1448,7 +1461,11 @@ def _approved_mutable_locator(touchpoint: Mapping[str, object], policy: _Mutable
         return None
     kind = touchpoint.get("kind")
     locator = _canonical_mutable_locator(touchpoint.get("locator"))
-    if not _mutable_identity_is_valid(touchpoint) or not _mutable_locator_is_valid(locator, kind, policy):
+    if not _mutable_identity_is_valid(touchpoint):
+        raise ValueError("prior-red-proof-invalid")
+    if locator in policy.producer_paths:
+        return None
+    if not _mutable_locator_is_valid(locator, kind, policy):
         raise ValueError("prior-red-proof-invalid")
     return locator
 
@@ -1458,12 +1475,13 @@ def _mutable_sut_paths(
     repo_root: Path,
     source_ref: str,
     selector_paths: Sequence[str],
+    producer_paths: frozenset[str] = frozenset(),
 ) -> set[str]:
     """Return exact owner-approved post-red SUT paths from the bound plan."""
     frozen = _frozen_proof_paths(selector_paths)
     support_roots = _test_support_roots(selector_paths)
     mutable_paths: set[str] = set()
-    policy = _MutablePathPolicy(repo_root, source_ref, frozen, support_roots, mutable_paths)
+    policy = _MutablePathPolicy(repo_root, source_ref, frozen, support_roots, mutable_paths, producer_paths)
     for touchpoints in _touchpoints_by_requirement(report):
         for touchpoint in touchpoints:
             locator = _approved_mutable_locator(touchpoint, policy)
@@ -1505,7 +1523,13 @@ def _validate_red_history_freshness(
     if paths_after_red is None:
         return ["tdd-order-unproven"]
     try:
-        mutable_paths = _mutable_sut_paths(report, repo_root, boundary.source_ref, selector_paths)
+        mutable_paths = _mutable_sut_paths(
+            report,
+            repo_root,
+            boundary.source_ref,
+            selector_paths,
+            boundary.producer_paths,
+        )
     except ValueError as error:
         return [str(error)]
     if any(path not in mutable_paths and path not in boundary.producer_paths for path in paths_after_red):
@@ -1548,6 +1572,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 arguments.bind_red_proof,
                 arguments.repo_root.resolve(),
                 base_ref=arguments.base_ref,
+                final_ref=arguments.final_ref,
                 junit_path=arguments.junit,
                 cycle_authority=arguments.cycle_authority,
                 repository=arguments.repository,

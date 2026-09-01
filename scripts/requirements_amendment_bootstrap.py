@@ -224,16 +224,33 @@ def _test_case_selectors(cases: list[object]) -> list[str]:
     return sorted(cast(list[str], selectors))
 
 
+def _planned_selector(raw_selector: str, expected: Sequence[str]) -> str:
+    """Map one concrete pytest parameter case to exactly one planned selector."""
+    matches = [selector for selector in expected if raw_selector == selector or raw_selector.startswith(f"{selector}[")]
+    if len(matches) != 1:
+        raise ValueError("amendment-bootstrap-invalid")
+    return matches[0]
+
+
 def _raw_selector_outcomes(plan_report: dict[str, object], raw_junit: Path) -> tuple[dict[str, str], list[str]]:
-    """Return exact per-selector raw JUnit outcomes for an approved plan."""
+    """Return fail-dominant outcomes for every exact planned selector."""
     expected, _, _ = _plan_selectors(plan_report)
     parsed = _load_provenance()._parse_junit(raw_junit.read_bytes())
-    observed: dict[str, str] = {}
+    concrete: set[str] = set()
+    outcomes_by_selector: dict[str, list[str]] = {selector: [] for selector in expected}
     for properties, outcome in zip(parsed.cases, parsed.outcomes, strict=True):
         selectors = properties.get("specfact.selector", ())
-        if len(selectors) != 1 or selectors[0] in observed:
+        if len(selectors) != 1 or selectors[0] in concrete:
             raise ValueError("amendment-bootstrap-invalid")
-        observed[selectors[0]] = outcome
+        concrete.add(selectors[0])
+        outcomes_by_selector[_planned_selector(selectors[0], expected)].append(outcome)
+    if any(not outcomes for outcomes in outcomes_by_selector.values()):
+        raise ValueError("amendment-bootstrap-invalid")
+    observed = {
+        selector: "failed" if "failed" in outcomes else outcomes[0]
+        for selector, outcomes in outcomes_by_selector.items()
+        if len(set(outcomes)) == 1 or set(outcomes) == {"failed", "passed"}
+    }
     if set(observed) != set(expected):
         raise ValueError("amendment-bootstrap-invalid")
     return observed, expected
@@ -247,18 +264,24 @@ def _raw_failed_selectors(plan_report: dict[str, object], raw_junit: Path) -> tu
 
 
 def _normalized_junit(raw_junit: Path, failed: Sequence[str]) -> bytes:
+    """Return one canonical raw failure case for every failed planned selector."""
     parsed = _load_provenance()._parse_junit(raw_junit.read_bytes())
     cases: list[str] = []
-    for properties, outcome in zip(parsed.cases, parsed.outcomes, strict=True):
-        selectors = properties.get("specfact.selector", ())
-        if len(selectors) != 1 or selectors[0] not in failed:
-            continue
-        if outcome != "failed":
+    for planned_selector in failed:
+        matching = [
+            properties
+            for properties, outcome in zip(parsed.cases, parsed.outcomes, strict=True)
+            if outcome == "failed"
+            and len(properties.get("specfact.selector", ())) == 1
+            and _planned_selector(properties["specfact.selector"][0], failed) == planned_selector
+        ]
+        if not matching:
             raise ValueError("amendment-bootstrap-invalid")
+        properties = matching[0]
         encoded = "".join(
             f'<property name="{escape(name, quote=True)}" value="{escape(value, quote=True)}"/>'
             for name, values in sorted(properties.items())
-            for value in values
+            for value in ((planned_selector,) if name == "specfact.selector" else values)
         )
         cases.append(f"<testcase><properties>{encoded}</properties><failure/></testcase>")
     if len(cases) != len(failed):
