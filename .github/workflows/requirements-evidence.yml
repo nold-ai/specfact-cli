@@ -133,7 +133,7 @@ jobs:
           authority_file="${authority_root}/authority.json"
           external_authority_file=""
           external_authority_digest=""
-          external_green_ref="22041cacdd8c34f26f09bccc91499e51e21545a8"
+          external_green_ref="7dada001df7df1096af94b80ace8a21c772b6a9b"
           external_red_ref="48684541089bb29d7a99bb847dc32c8552f8794f"
           external_red_run_id="33555329859"
           external_red_artifact_id="9819081991"
