@@ -1417,3 +1417,40 @@ the authoritative failing-before evidence or the candidate design.
 - The acceptance-bound planner then passed at `test-authored` maturity with no
   findings, `39` exact selectors, and plan digest
   `sha256:dcecc631490312e035f7735c78421fae19da87cd9b5c86c73b476ab50a1fdd6e`.
+
+## 2026-09-01 same-process mutable-SUT boundary
+
+- The completed-head review found that a computed current-module
+  `pytest_plugins` binding could load a mapping-authorized source path as pytest
+  harness code while literal-only discovery omitted it. A runtime-registration
+  manifest was prototyped locally and rejected before push after two independent
+  reviewers reproduced deletion of its child-owned registry and forged plugin
+  origins. Host digest validation can authenticate reported entries but cannot
+  prove that hostile Python reported every entry.
+- Three independent architecture reviews confirmed that arbitrary existing
+  pytest selectors cannot transparently split their test harness and SUT across
+  processes. Direct imports, fixtures, monkeypatching, callbacks, object
+  identity, source reads, and subprocess behavior require an explicit bounded
+  SUT-client contract. The patch-release boundary therefore rejects every
+  `mutable_after_red: true` claim under stock pytest and reserves mutation for a
+  future opt-in process-separated runner.
+- Specification, design, validation notes, tasks, and Requirements mapping were
+  updated before the regression tests. Strict OpenSpec validation passed.
+- Failing-before command:
+  `UV_CACHE_DIR=/private/tmp/specfact-uv-cache uv run --locked pytest -q -p no:cacheprovider tests/unit/scripts/test_requirements_proof_path_policy.py`.
+- Failing-before result: `3 failed, 29 passed`. Stock code accepted an ordinary
+  exact mutable path, the matching exact-path control, and the computed
+  `pytest_plugins` bypass; literal plugin and malformed/ambiguous controls
+  remained rejected.
+- The implementation removes construct-specific plugin discovery and returns no
+  mutable SUT paths. Any true or non-boolean `mutable_after_red` value fails with
+  `prior-red-proof-invalid`; exact externally authenticated evidence-producer
+  paths remain governed by their separate expiring capability.
+- Passing-after evidence: the focused path-policy suite passed `32/32`; the
+  executor, provenance, security, path-policy, review-regression, and explicit
+  plugin slice passed `103/103`. Targeted Ruff and BasedPyright completed with
+  zero findings.
+- Product-owner acceptance is the unedited repository MEMBER comment
+  `https://github.com/nold-ai/specfact-cli/issues/692#issuecomment-5499622967`,
+  created at `2026-09-01T19:57:33Z`, bound to source mapping digest
+  `sha256:101a5b0747b5caed6011bb7c154eda5c5885d3d927df6653bf49675e666c9d87`.

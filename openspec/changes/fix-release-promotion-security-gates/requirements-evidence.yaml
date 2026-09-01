@@ -182,8 +182,8 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_reproducible_delivery.py::test_reproducible_delivery_pins_semgrep_with_fixed_mcp_without_waiver
-  openspec:fix-release-promotion-security-gates:trustworthy-green-checks:retained-red-proof-uses-an-exact-owner-approved-sut-path-policy:
-    rationale: "Retained red evidence permits only exact owner-approved regular-file SUT paths to change after red."
+  openspec:fix-release-promotion-security-gates:trustworthy-green-checks:retained-red-proof-denies-same-process-post-red-mutation:
+    rationale: "Stock pytest cannot safely authorize post-red SUT mutation inside its evidence-producing interpreter."
     stakeholder_refs:
       - "nold-ai/specfact-cli#692"
       - "nold-ai/specfact-cli#698"
@@ -194,6 +194,9 @@ requirements:
       - id: proof-provenance-anchor
         kind: source_file
         locator: "scripts/requirements_proof_provenance.py"
+      - id: final-producer-authority
+        kind: source_file
+        locator: "scripts/requirements_cycle_base.py"
       - id: proof-executor
         kind: source_file
         locator: "scripts/requirements_proof_executor.py"
@@ -206,25 +209,31 @@ requirements:
       - id: path-policy-regression
         kind: test_file
         locator: "tests/unit/scripts/test_requirements_proof_path_policy.py"
+      - id: provenance-regression
+        kind: test_file
+        locator: "tests/unit/scripts/test_requirements_proof_provenance.py"
+      - id: producer-authority-regression
+        kind: test_file
+        locator: "tests/unit/scripts/test_requirements_cycle_base_v2.py"
     verification_cases:
       - case_id: RELEASE-692-PATH-S01
-        scenario_id: retained-red-proof-uses-an-exact-owner-approved-sut-path-policy
+        scenario_id: retained-red-proof-denies-same-process-post-red-mutation
         method: test
-        intent: "Prove an exact owner-approved regular-file SUT touchpoint can change after red."
-        observable: "Only the exact literal locator marked mutable_after_red true is accepted."
+        intent: "Prove stock pytest cannot authorize post-red mutable SUT."
+        observable: "Any literal locator marked mutable_after_red true is rejected until process separation exists."
         selector:
           runner: pytest
-          node_id: tests/unit/scripts/test_requirements_proof_path_policy.py::test_exact_mutable_sut_path_is_allowed_after_red
+          node_id: tests/unit/scripts/test_requirements_proof_path_policy.py::test_mutable_sut_path_is_rejected_without_process_separation
       - case_id: RELEASE-692-PATH-S02
-        scenario_id: retained-red-proof-uses-an-exact-owner-approved-sut-path-policy
+        scenario_id: retained-red-proof-denies-same-process-post-red-mutation
         method: test
         intent: "Prove complete commit history retains restored paths and both move endpoints."
-        observable: "Changed-then-restored, renamed, and copied paths each require exact authority."
+        observable: "Changed-then-restored, renamed, and copied paths all remain stale."
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_requirements_proof_path_policy.py::test_complete_history_retains_restored_rename_and_copy_paths
       - case_id: RELEASE-692-PATH-S03
-        scenario_id: retained-red-proof-uses-an-exact-owner-approved-sut-path-policy
+        scenario_id: retained-red-proof-denies-same-process-post-red-mutation
         method: test
         intent: "Prove tests, harness inputs, and fixed trust anchors cannot become mutable SUT."
         observable: "Every frozen role remains stale even when mapping content requests mutable_after_red."
@@ -232,17 +241,17 @@ requirements:
           runner: pytest
           node_id: tests/unit/scripts/test_requirements_proof_path_policy.py::test_frozen_proof_inputs_cannot_be_authorized_as_mutable
       - case_id: RELEASE-692-PATH-S04
-        scenario_id: retained-red-proof-uses-an-exact-owner-approved-sut-path-policy
+        scenario_id: retained-red-proof-denies-same-process-post-red-mutation
         method: test
-        intent: "Prove ambiguous or over-broad mapping authority fails closed."
+        intent: "Prove every same-process mutable mapping authority fails closed."
         observable: >-
-          Globs, prefixes, directories, collisions, duplicates, role
-          mismatches, missing paths, and non-regular files are rejected.
+          Exact paths, globs, prefixes, directories, collisions, duplicates,
+          role mismatches, missing paths, and non-regular files are rejected.
         selector:
           runner: pytest
-          node_id: tests/unit/scripts/test_requirements_proof_path_policy.py::test_ambiguous_mutable_sut_mapping_fails_closed
+          node_id: tests/unit/scripts/test_requirements_proof_path_policy.py::test_any_mutable_sut_mapping_fails_closed
       - case_id: RELEASE-692-PATH-S05
-        scenario_id: retained-red-proof-uses-an-exact-owner-approved-sut-path-policy
+        scenario_id: retained-red-proof-denies-same-process-post-red-mutation
         method: test
         intent: "Prove unmapped production changes remain stale."
         observable: "Any touched path without eligible exact mutable authority yields stale-red-proof."
@@ -250,7 +259,7 @@ requirements:
           runner: pytest
           node_id: tests/unit/scripts/test_requirements_proof_path_policy.py::test_unmapped_changed_path_remains_stale
       - case_id: RELEASE-692-PATH-S06
-        scenario_id: retained-red-proof-uses-an-exact-owner-approved-sut-path-policy
+        scenario_id: retained-red-proof-denies-same-process-post-red-mutation
         method: test
         intent: "Prove ancestor conftests and root-level test support cannot be mapped as mutable SUT."
         observable: >-
@@ -260,7 +269,7 @@ requirements:
           runner: pytest
           node_id: tests/unit/scripts/test_requirements_proof_path_policy.py::test_applicable_conftests_cannot_be_authorized_as_mutable
       - case_id: RELEASE-692-PATH-S07
-        scenario_id: retained-red-proof-uses-an-exact-owner-approved-sut-path-policy
+        scenario_id: retained-red-proof-denies-same-process-post-red-mutation
         method: test
         intent: "Prove copy detection retains an unchanged frozen source endpoint."
         observable: >-
@@ -270,15 +279,35 @@ requirements:
           runner: pytest
           node_id: tests/unit/scripts/test_requirements_proof_path_policy.py::test_copy_from_unchanged_frozen_source_is_retained
       - case_id: RELEASE-692-PATH-S08
-        scenario_id: retained-red-proof-uses-an-exact-owner-approved-sut-path-policy
+        scenario_id: retained-red-proof-denies-same-process-post-red-mutation
         method: test
-        intent: "Prove a repository plugin declared by an applicable conftest remains frozen harness input."
+        intent: "Prove literal and computed repository-plugin bindings cannot reopen mutable SUT authority."
         observable: >-
-          A literal pytest_plugins module cannot be relabeled as mutable SUT,
-          including when its path is outside the selected test support tree.
+          Any plugin path remains immutable because stock pytest rejects all
+          mutable_after_red authority without interpreting conftest behavior.
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_requirements_proof_path_policy.py::test_conftest_declared_repository_plugin_cannot_be_authorized_as_mutable
+      - case_id: RELEASE-692-PATH-S09
+        scenario_id: retained-red-proof-denies-same-process-post-red-mutation
+        method: test
+        intent: "Prove final-producer authority cannot classify application or dependency inputs as producers."
+        observable: >-
+          Application source, pyproject.toml, and uv.lock remain outside the
+          exact final-producer allowlist while Requirements producer paths remain eligible.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_cycle_base_v2.py::test_final_producer_scope_excludes_application_and_dependency_inputs
+      - case_id: RELEASE-692-PATH-S10
+        scenario_id: retained-red-proof-denies-same-process-post-red-mutation
+        method: test
+        intent: "Prove producer authority is separate from mutable-SUT policy and rejects application-path collisions."
+        observable: >-
+          One exact eligible producer path may cross red, an adjacent unlisted
+          path is stale, and an application path presented as a producer is invalid.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_provenance.py::test_exact_producer_authority_is_separate_from_mutable_sut_policy
   openspec:fix-release-promotion-security-gates:trustworthy-green-checks:repository-path-operands-cannot-become-command-options:
     rationale: "Repository filenames must not be interpreted as ripgrep options or preprocessors."
     stakeholder_refs:

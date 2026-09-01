@@ -49,15 +49,14 @@
 - The PR Orchestrator has no manual-dispatch trigger; its advisory fixture lane is schedule-only, verifies both commit and tree, and exports the module path only after verification.
 - The Requirements workflow no longer registers an npm cache hook after module-owned evidence execution.
 - Retained proof is specified as a complete-history path policy: every touched
-  path is stale unless an exact owner-approved regular-file mapping touchpoint
-  declares `mutable_after_red: true`. Restored paths and both rename/copy
-  endpoints remain touched; globs, prefixes, collisions, duplicates, role
-  mismatches, missing paths, and non-regular files fail closed.
-- Selected tests/support roots, pytest configuration, proof executor/plugin,
-  `uv.lock`, package initializers, and exactly the four existing non-transitive
-  trust anchors remain frozen and cannot be authorized as mutable. The
-  provenance producer is one of those anchors, so final bytes must match the
-  authenticated red source; no fifth anchor or self-mutable exception is added.
+  path is stale under stock pytest, and any `mutable_after_red: true` claim
+  fails closed until an explicit process-separated SUT runner exists. Restored
+  paths and both rename/copy endpoints remain touched.
+- All repository paths remain frozen under stock pytest. The provenance
+  producer is one of those anchors, so final bytes must match the authenticated
+  red source unless an exact final-producer authority authenticates the complete
+  changed producer set and final blobs; no fifth anchor or self-mutable
+  exception is added.
 - The independent review reproduced a pre-install MCP-floor P1 after the first
   candidate: an internally consistent lock/export downgrade to MCP 1.23.3
   bypassed a floor map that covered only Semgrep. The final candidate adds an

@@ -79,10 +79,10 @@
   including exact mutable SUT success, restored/renamed/copied paths, frozen
   harness and anchor rejection, ambiguous mapping rejection, and unmapped-path
   rejection; record failing-before evidence before implementation.
-- [x] 8.4 Update the exact regular-file Requirements mapping, mark only genuine
-  SUT touchpoints `mutable_after_red: true`, leave tests and frozen proof
-  authority immutable, obtain product-owner approval of the resulting digest,
-  and capture acceptance before implementation.
+- [x] 8.4 Update the exact regular-file Requirements mapping, leave every
+  touchpoint immutable under stock pytest, obtain product-owner approval of the
+  resulting digest, and capture acceptance before implementation. The later
+  boundary review superseded the proposed same-process mutable-SUT authority.
 - [x] 8.5 Replace the oversized construct-by-construct interpreter with the
   compact complete-history path validator at the externally authenticated red
   boundary; do not add a fifth trust anchor or general mutable/process bypass.
@@ -104,6 +104,6 @@
 - [ ] 8.11 Run focused adversarial and legitimate controls, hosted-runner smoke
   evidence, all applicable quality/security gates, and one fresh independent
   bypass/regression review before requesting final mapping/producer authority.
-- [x] 8.12 Freeze literal repository-local pytest plugins declared by
-  applicable conftests, with failing-before and passing-after proof for the
-  review-reported mutable-SUT bypass.
+- [ ] 8.12 Reject every `mutable_after_red` claim under stock pytest, remove
+  construct-specific plugin discovery, and reserve post-red mutation for a
+  future explicit process-separated SUT runner.

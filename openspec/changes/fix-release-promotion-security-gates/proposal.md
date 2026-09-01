@@ -11,11 +11,10 @@ The protected `dev` head now contains the intervening 0.55.3 module-scope change
 - Correct the two actionable PR #691 code-quality findings without changing public behavior.
 - Bind local dependency-trust triggers and license exceptions to the exact frozen Code Review environment.
 - Correct review-confirmed false positives in active OpenSpec authoring and retained pytest-plugin proof discovery.
-- Replace construct-by-construct Python interpretation with an exact,
-  owner-approved `mutable_after_red` SUT path policy over every red-to-final
-  commit. Freeze selected test/support inputs, pytest configuration, proof
-  producers, `uv.lock`, package initializers, and the four existing trust
-  anchors; fail closed on ambiguous or unmapped paths.
+- Replace construct-by-construct Python interpretation with a complete-history
+  policy that rejects every post-red repository mutation under stock pytest.
+  Reject `mutable_after_red` until an explicit process-separated SUT runner
+  exists; retain only exact, externally authenticated evidence-producer changes.
 - Preserve the externally authorized verified green as an ordinary amendment
   cycle base so later review fixes can complete fresh red-to-green proof on the
   same non-default-branch pull request.
@@ -23,8 +22,8 @@ The protected `dev` head now contains the intervening 0.55.3 module-scope change
   evidence producer with a transient unprivileged Linux service, read-only
   proof inputs, private scratch space, and cgroup-bounded teardown before the
   trusted host canonicalizes the raw JUnit handoff.
-- Keep repository-local pytest plugins named by applicable conftests frozen;
-  mapping metadata cannot relabel those harness modules as mutable SUT.
+- Treat every repository path visible to stock pytest as frozen; mapping
+  metadata cannot relabel an undiscovered plugin or other harness input as SUT.
 - Run the staged-index Markdown auto-fixer once per pre-commit invocation so
   multiple filename batches cannot race on the Git index lock.
 - Finalize the completed retained-red-proof bugfix with the normal OpenSpec archive command when strict validation confirms it is complete.

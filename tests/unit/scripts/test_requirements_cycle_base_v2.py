@@ -303,7 +303,6 @@ def test_final_producer_authority_binds_exact_complete_blob_set(tmp_path: Path) 
         )
         is None
     )
-
     edited = {**comment, "updated_at": (approved_at + timedelta(seconds=1)).isoformat().replace("+00:00", "Z")}
     comments_path.write_text(json.dumps([[edited]]), encoding="utf-8")
     assert (
@@ -316,3 +315,15 @@ def test_final_producer_authority_binds_exact_complete_blob_set(tmp_path: Path) 
         )
         is None
     )
+
+
+def test_final_producer_scope_excludes_application_and_dependency_inputs() -> None:
+    """Final-byte authority must not convert application or resolution inputs into producers."""
+    module = _load(CYCLE_BASE_SCRIPT, "requirements_cycle_base_v2_producer_scope")
+
+    assert module._is_evidence_authority_path("src/specfact_cli/delivery.py")
+    assert not module._is_final_producer_path("src/specfact_cli/delivery.py")
+    assert not module._is_final_producer_path("pyproject.toml")
+    assert not module._is_final_producer_path("uv.lock")
+    assert module._is_final_producer_path("scripts/requirements_proof_provenance.py")
+    assert module._is_final_producer_path(".github/workflows/requirements-evidence.yml")

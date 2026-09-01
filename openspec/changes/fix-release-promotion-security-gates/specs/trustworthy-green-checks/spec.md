@@ -126,30 +126,20 @@ index SHALL execute once per hook run rather than once per filename batch.
 - **AND** one hook process discovers and safely updates the staged Markdown set
 - **AND** concurrent hook processes cannot contend for the Git index lock
 
-### Requirement: Retained red proof uses an exact owner-approved SUT path policy
+### Requirement: Retained red proof denies same-process post-red mutation
 
 Retained red proof SHALL inspect the path changes made by every commit from the
 red source through the final source, rather than attempting to interpret the
-runtime behavior of selected Python. A path touched anywhere in that history
-SHALL make the retained proof stale unless it is an exact regular-file
-touchpoint in the approved Requirements mapping with `mutable_after_red: true`.
+runtime behavior of selected Python. Every repository path touched anywhere in
+that history SHALL make the retained proof stale unless it is an exact evidence
+producer authenticated by the existing external producer authority.
 The history SHALL include both endpoints of renames and copies and paths changed
-and later restored. Authorization SHALL use literal repository-relative paths;
-globs, prefixes, directories, normalization collisions, duplicate locators,
-role mismatches, missing paths, and non-regular files SHALL fail closed.
-
-Selected tests and support roots, including additions and every applicable
-ancestor `conftest.py`, repository pytest configuration, repository-local
-plugin modules named by literal `pytest_plugins` declarations in those
-conftests, the proof executor and explicit plugin, `uv.lock`, applicable
-package initializers, and the four existing `NON_TRANSITIVE_PROOF_INPUTS` trust
-anchors SHALL remain frozen and SHALL NOT be authorized as mutable SUT paths.
-The literal boolean `mutable_after_red: true` SHALL itself classify a
-touchpoint as SUT mutation authority. Touchpoints declared as tests or
-lockfiles, locators under a test tree, and every frozen path class SHALL be role
-mismatches even when they carry that boolean. Other configuration, workflow,
-and source-file touchpoints SHALL remain immutable unless the approved mapping
-marks their exact locator with that boolean.
+and later restored. Any `mutable_after_red: true` mapping value SHALL fail closed
+with `prior-red-proof-invalid` while execution uses stock pytest, because tests,
+conftests, fixtures, plugins, and imported SUT share one interpreter. A future
+runner MAY authorize mutation only after it places an immutable harness and the
+mutable SUT in separate process and filesystem domains and exposes a bounded,
+non-executable protocol.
 The exact archive-regression Bash/Git protocol SHALL remain freshness-bound and
 SHALL NOT create a general external-process exception. Because the provenance
 producer is one of the four frozen anchors, replacement validator bytes after
@@ -159,26 +149,26 @@ digest, and Git blob identity of every changed evidence producer path. A
 descendant may reuse that authority only while the approved commit remains its
 ancestor and the complete changed producer-path set and every approved blob
 remain identical. This exception SHALL NOT create a fifth anchor or authorize
-any SUT, test, configuration, or unlisted producer path.
+any SUT, test, non-producer configuration, or unlisted producer path.
 
-#### Scenario: Exact mapped SUT changes after red
+#### Scenario: Same-process mutable SUT authority fails closed
 
 - **GIVEN** an owner-approved mapping marks an existing exact regular-file SUT touchpoint `mutable_after_red: true`
-- **WHEN** a linear red-to-final commit changes that exact path
-- **THEN** retained proof permits the SUT change while preserving all other proof checks
+- **WHEN** retained proof uses the stock pytest execution model
+- **THEN** validation fails with `prior-red-proof-invalid` before granting path authority
 
 #### Scenario: A path is restored or moved after red
 
 - **GIVEN** a red-to-final history changes a path and later restores its red bytes, or renames or copies a path
 - **WHEN** retained proof evaluates the complete commit history
 - **THEN** the original path and every rename or copy endpoint remain touched
-- **AND** each path requires its own eligible exact mutable SUT touchpoint
+- **AND** retained proof fails with `stale-red-proof`
 
 #### Scenario: Proof authority and test inputs remain frozen
 
-- **GIVEN** a selected test or support input, pytest configuration, repository-local plugin loaded by an applicable conftest, proof executor or explicit plugin, `uv.lock`, package initializer, or one of the four fixed trust anchors
+- **GIVEN** any repository test, support input, non-authorized configuration, plugin, SUT, proof producer, lockfile, or package initializer
 - **WHEN** that path is added, removed, renamed, copied, or changed after red
-- **THEN** retained proof fails with `stale-red-proof` even if a mapping attempts to mark it mutable
+- **THEN** retained proof fails with `stale-red-proof`, or `prior-red-proof-invalid` if a mapping attempts to mark it mutable, unless the path is an exact evidence producer covered by the final-producer authority
 
 #### Scenario: Exact final producer bytes receive external authority
 
@@ -187,9 +177,9 @@ any SUT, test, configuration, or unlisted producer path.
 - **THEN** only those exact producer bytes may cross the retained-red boundary
 - **AND** a missing, edited, expired, mismatched, additional, or subsequently modified producer path fails closed
 
-#### Scenario: Ambiguous mapping authority fails closed
+#### Scenario: Any mutable mapping authority fails closed
 
-- **GIVEN** a mapping uses a glob, prefix, directory, duplicate or colliding locator, mismatched touchpoint role, missing path, or non-regular-file target
+- **GIVEN** any mapping touchpoint declares `mutable_after_red: true`
 - **WHEN** retained proof evaluates mutable SUT authority
 - **THEN** the mapping is rejected without authorizing any path
 

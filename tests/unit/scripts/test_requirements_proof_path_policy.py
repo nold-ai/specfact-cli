@@ -105,13 +105,14 @@ def _freshness(module: ModuleType, report: dict[str, object], changed_paths: lis
         )
 
 
-def test_exact_mutable_sut_path_is_allowed_after_red() -> None:
-    """Only an exact owner-approved regular-file SUT locator is mutable."""
+def test_mutable_sut_path_is_rejected_without_process_separation() -> None:
+    """Stock pytest cannot authorize a mutable path in its own address space."""
     module = _load_provenance_module()
     report = _report(_touchpoint("src/specfact_cli/delivery.py"))
 
-    assert _mutable_paths(module, report) == {"src/specfact_cli/delivery.py"}
-    assert _freshness(module, report, ["src/specfact_cli/delivery.py"]) == []
+    with pytest.raises(ValueError, match="prior-red-proof-invalid"):
+        _mutable_paths(module, report)
+    assert _freshness(module, report, ["src/specfact_cli/delivery.py"]) == ["prior-red-proof-invalid"]
 
 
 @pytest.mark.parametrize(
@@ -125,7 +126,7 @@ def test_exact_mutable_sut_path_is_allowed_after_red() -> None:
 def test_complete_history_retains_restored_rename_and_copy_paths(changed_paths: list[str]) -> None:
     """Every path reported anywhere in the commit walk needs exact authority."""
     module = _load_provenance_module()
-    report = _report(_touchpoint("src/specfact_cli/delivery.py"))
+    report = _report(_touchpoint("src/specfact_cli/delivery.py", mutable=False))
 
     assert _freshness(module, report, changed_paths) == ["stale-red-proof"]
 
@@ -155,6 +156,7 @@ def test_frozen_proof_inputs_cannot_be_authorized_as_mutable(locator: str, kind:
 @pytest.mark.parametrize(
     "touchpoints",
     [
+        (_touchpoint("src/specfact_cli/delivery.py"),),
         (_touchpoint("src/**/*.py"),),
         (_touchpoint("src/specfact_cli/"),),
         (_touchpoint("./src/specfact_cli/delivery.py"),),
@@ -168,8 +170,8 @@ def test_frozen_proof_inputs_cannot_be_authorized_as_mutable(locator: str, kind:
         ),
     ],
 )
-def test_ambiguous_mutable_sut_mapping_fails_closed(touchpoints: tuple[dict[str, object], ...]) -> None:
-    """Over-broad, aliased, mistyped, or duplicate authority is invalid."""
+def test_any_mutable_sut_mapping_fails_closed(touchpoints: tuple[dict[str, object], ...]) -> None:
+    """Exact, over-broad, aliased, mistyped, and duplicate authority is invalid."""
     module = _load_provenance_module()
 
     with pytest.raises(ValueError, match="prior-red-proof-invalid"):
@@ -202,8 +204,15 @@ def test_applicable_conftests_cannot_be_authorized_as_mutable(selector: str, loc
         module._mutable_sut_paths(_report(_touchpoint(locator)), Path(), "a" * 40, [selector])
 
 
-def test_conftest_declared_repository_plugin_cannot_be_authorized_as_mutable(tmp_path: Path) -> None:
-    """A conftest-loaded plugin is test harness, even below a production-looking path."""
+@pytest.mark.parametrize(
+    "registration",
+    [
+        'pytest_plugins = ("src.hidden_plugin",)\n',
+        'import sys\nsetattr(sys.modules[__name__], "pytest_" + "plugins", ("src.hidden_plugin",))\n',
+    ],
+)
+def test_conftest_declared_repository_plugin_cannot_be_authorized_as_mutable(tmp_path: Path, registration: str) -> None:
+    """Literal and computed plugin bindings cannot reopen stock-pytest mutability."""
     module = _load_provenance_module()
     _git(tmp_path, "init")
     _git(tmp_path, "config", "user.email", "requirements@example.test")
@@ -214,7 +223,7 @@ def test_conftest_declared_repository_plugin_cannot_be_authorized_as_mutable(tmp
     plugin_path.parent.mkdir(parents=True)
     test_path.write_text("def test_delivery() -> None: assert False\n", encoding="utf-8")
     plugin_path.write_text("VALUE = 'red'\n", encoding="utf-8")
-    (tmp_path / "conftest.py").write_text('pytest_plugins = ("src.hidden_plugin",)\n', encoding="utf-8")
+    (tmp_path / "conftest.py").write_text(registration, encoding="utf-8")
     red_ref = _commit(tmp_path, "red proof inputs")
 
     with pytest.raises(ValueError, match="prior-red-proof-invalid"):

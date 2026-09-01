@@ -28,6 +28,14 @@ class ProvenanceModule(Protocol):
     ) -> list[str]:
         raise NotImplementedError
 
+    def _validate_red_history_freshness(
+        self,
+        report: dict[str, object],
+        repo_root: Path,
+        *boundary_values: object,
+    ) -> list[str]:
+        raise NotImplementedError
+
 
 def _load_provenance_module() -> ProvenanceModule:
     spec = importlib.util.spec_from_file_location("requirements_proof_provenance", PROVENANCE_SCRIPT)
@@ -53,6 +61,11 @@ def _git(repo_root: Path, *arguments: str) -> str:
 def _commit(repo_root: Path, message: str) -> str:
     _git(repo_root, "add", ".")
     _git(repo_root, "commit", "--no-gpg-sign", "-m", message)
+    return _git(repo_root, "rev-parse", "HEAD")
+
+
+def _empty_commit(repo_root: Path, message: str) -> str:
+    _git(repo_root, "commit", "--allow-empty", "--no-gpg-sign", "-m", message)
     return _git(repo_root, "rev-parse", "HEAD")
 
 
@@ -218,7 +231,7 @@ def test_bind_red_proof_records_validator_complete_immutable_provenance(tmp_path
     test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
     red_ref = _commit(tmp_path, "test: add red proof")
     red_proof_path = tmp_path / ".git" / "red.json"
-    _write_unbound_red_proof(red_proof_path, red_ref, mutable_paths=("src/delivery.py",))
+    _write_unbound_red_proof(red_proof_path, red_ref)
 
     module.bind_red_proof(red_proof_path, tmp_path, base_ref=base_ref)
 
@@ -234,10 +247,9 @@ def test_bind_red_proof_records_validator_complete_immutable_provenance(tmp_path
         "python": "3.13.7",
         "pytest": "8.4.1",
     }
-    assert execution_proof["mutable_sut_paths"] == ["src/delivery.py"]
+    assert execution_proof["mutable_sut_paths"] == []
 
-    delivery_path.write_text("VALUE = 1\n", encoding="utf-8")
-    final_ref = _commit(tmp_path, "fix: deliver behavior")
+    final_ref = _empty_commit(tmp_path, "chore: retain immutable proof")
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
 
 
@@ -257,9 +269,8 @@ def test_git_bound_red_proof_requires_test_only_ancestor_and_unchanged_selector_
     test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
     red_ref = _commit(tmp_path, "test: add red proof")
     red_proof_path = tmp_path / ".git" / "red.json"
-    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref, mutable_paths=("src/delivery.py",))
-    delivery_path.write_text("VALUE = 1\n", encoding="utf-8")
-    final_ref = _commit(tmp_path, "feat: delivery")
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+    final_ref = _empty_commit(tmp_path, "chore: retain immutable proof")
 
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
 
@@ -269,6 +280,70 @@ def test_git_bound_red_proof_requires_test_only_ancestor_and_unchanged_selector_
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=stale_ref) == [
         "stale-red-proof"
     ]
+
+
+def test_exact_producer_authority_is_separate_from_mutable_sut_policy(tmp_path: Path) -> None:
+    """Only the exact externally authenticated producer path may cross red."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / "README.md").write_text("# proof\n", encoding="utf-8")
+    producer_path = tmp_path / "scripts" / "requirements_proof_provenance.py"
+    producer_path.parent.mkdir()
+    producer_path.write_text("VALUE = 'red'\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "chore: base")
+    test_path = tmp_path / "tests" / "test_proof.py"
+    test_path.parent.mkdir()
+    test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+    report = json.loads(red_proof_path.read_text(encoding="utf-8"))
+
+    producer_path.write_text("VALUE = 'green'\n", encoding="utf-8")
+    producer_ref = _commit(tmp_path, "fix: update exact producer")
+    producer_paths = frozenset({"scripts/requirements_proof_provenance.py"})
+
+    assert (
+        module._validate_red_history_freshness(
+            report,
+            tmp_path,
+            base_ref,
+            red_ref,
+            producer_ref,
+            None,
+            producer_paths,
+        )
+        == []
+    )
+
+    adjacent_path = tmp_path / "docs" / "adjacent.md"
+    adjacent_path.parent.mkdir()
+    adjacent_path.write_text("not authorized\n", encoding="utf-8")
+    adjacent_ref = _commit(tmp_path, "docs: add adjacent path")
+
+    assert module._validate_red_history_freshness(
+        report,
+        tmp_path,
+        base_ref,
+        red_ref,
+        adjacent_ref,
+        None,
+        producer_paths,
+    ) == ["stale-red-proof"]
+
+    application_paths = frozenset({"src/specfact_cli/delivery.py"})
+
+    assert module._validate_red_history_freshness(
+        report,
+        tmp_path,
+        base_ref,
+        red_ref,
+        adjacent_ref,
+        None,
+        application_paths,
+    ) == ["prior-red-proof-invalid"]
 
 
 @pytest.mark.parametrize("support_path", ["conftest.py", "tests/conftest.py"])
@@ -577,15 +652,8 @@ def test_git_bound_red_proof_accepts_executable_regular_selector(tmp_path: Path)
     _git(tmp_path, "update-index", "--chmod=+x", "tests/test_proof.py")
     executable_ref = _commit(tmp_path, "test: add executable red selector")
     red_proof_path = tmp_path / ".git" / "red.json"
-    _write_red_proof(
-        red_proof_path,
-        tmp_path,
-        executable_ref,
-        base_ref,
-        mutable_paths=("src/feature.py",),
-    )
-    feature_path.write_text("VALUE = 2\n", encoding="utf-8")
-    final_ref = _commit(tmp_path, "fix: implement after executable red selector")
+    _write_red_proof(red_proof_path, tmp_path, executable_ref, base_ref)
+    final_ref = _empty_commit(tmp_path, "chore: retain executable red selector")
 
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
 

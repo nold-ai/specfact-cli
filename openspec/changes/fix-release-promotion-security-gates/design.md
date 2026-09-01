@@ -72,27 +72,25 @@ Installing MCP directly or overriding Semgrep metadata was rejected because it
 would create an unsupported resolver state. Retaining the waiver was rejected
 because its factual premise is no longer true.
 
-### Bind retained proof with an exact SUT path policy
+### Deny same-process post-red mutation
 
 Evaluate the complete linear commit history from the authenticated red source
 through the final source. Every touched repository path is stale by default,
 including both rename/copy endpoints and paths whose bytes are later restored.
-Permit a path only when the owner-approved Requirements mapping contains that
-exact literal regular-file touchpoint with `mutable_after_red: true`. Reject
-globs, prefixes, directories, missing/non-regular paths, duplicate or normalized
-locator collisions, and touchpoint-role mismatches before granting authority.
+Stock pytest executes selected tests, conftests, fixtures, plugins, and imported
+SUT in one Python interpreter, so it cannot prove that a mapping-classified SUT
+path did not also influence the harness or raw JUnit. Reject every
+`mutable_after_red: true` touchpoint as `prior-red-proof-invalid` until an
+explicit process-separated SUT runner exists.
 
-Selected tests and support roots, including additions, pytest configuration,
-repository-local plugins named by literal `pytest_plugins` declarations in
-applicable conftests, the fixed proof executor and explicit plugin, `uv.lock`, applicable package
-initializers, and exactly the four existing `NON_TRANSITIVE_PROOF_INPUTS` trust
-anchors remain frozen regardless of mapping content. The archive regression's
-exact Bash/Git fixture protocol remains freshness-bound; it is not a general
-external-process bypass. Because the provenance implementation is itself one of
-the four anchors, its final bytes must equal the authenticated red source. The
-replacement validator therefore needs the existing externally authenticated
-bootstrap at the red boundary; no fifth anchor or mutable self-exception is
-introduced.
+Every repository path therefore remains frozen regardless of mapping content.
+The archive regression's exact Bash/Git fixture protocol remains
+freshness-bound; it is not a general external-process bypass. Because the
+provenance implementation is itself one of the four anchors, its final bytes
+must equal the authenticated red source unless the existing exact final-producer
+authority authenticates the complete changed producer set and final blobs. That
+externally authenticated bootstrap crosses the red boundary without introducing
+a fifth anchor or mutable self-exception.
 
 The live-revalidated external amendment receipt may replace only the stale
 producer-authorship and verified-final producer-verdict predicates for one exact
@@ -105,11 +103,18 @@ linear-history, test-only, artifact, plan, JUnit, and digest checks remain
 mandatory. The fixed external pair is retained only as the final bootstrap
 fallback.
 
-Continuing construct-by-construct Python interpretation was rejected because it
+Continuing construct-by-construct Python interpretation and a child-authored
+runtime plugin manifest were rejected because neither can prove completeness
+against Python running inside pytest. Construct interpretation also
 creates an oversized security parser whose completeness cannot be defended and
 whose clean-code regressions block the mandatory review gate. Inferring SUT
 paths from imports, runtime behavior, directories, or globs was rejected because
-it makes authority implicit or over-broad. Always reusing the fixed external
+it makes authority implicit or over-broad. A transparent subprocess proxy was
+rejected for this patch because arbitrary pytest fixtures, monkeypatches,
+callbacks, object identity, and in-process imports are not semantics-preserving
+over a bounded protocol. A future opt-in runner must keep a frozen harness and
+mutable SUT in separate services and expose only a bounded non-executable
+protocol. Always reusing the fixed external
 red/green pair was rejected because it makes future review amendments stale and
 prevents an updateable non-default-branch PR.
 
@@ -153,10 +158,9 @@ reproducible compatibility contract.
 - **Semgrep 1.175 changes scan behavior** → Run the repository SAST configuration,
   dependency audit, full test suite, and Python 3.11–3.13 package matrix; rollback
   by reverting the issue-linked PR if the tool upgrade regresses the gates.
-- **An approved SUT path can influence pytest indirectly** → Keep authorization
-  exact, digest-bound, owner-approved, and limited to regular-file mapping
-  touchpoints; freeze every declared harness and proof-authority class and reject
-  collisions or role mismatches.
+- **Stock pytest cannot distinguish mutable SUT from harness code** → Reject all
+  same-process post-red mutation; re-enable it only through an explicit
+  process-separated runner with a frozen harness and bounded protocol.
 - **Hosted-runner isolation primitives drift or are unavailable** → Pin the
   workflow to the supported hosted Linux class, validate every required service
   property before execution, and fail closed without producing canonical proof.
