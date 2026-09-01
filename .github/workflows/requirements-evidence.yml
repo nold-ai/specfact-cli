@@ -86,10 +86,43 @@ jobs:
       - name: Prepare Requirements evidence artifact directory
         run: mkdir -p artifacts/requirements-evidence
 
+      - name: Select amendment OpenSpec change
+        id: amendment-change
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed_paths_file="$(mktemp)"
+          trap 'rm -f "$changed_paths_file"' EXIT
+          git diff --name-only -z "origin/${GITHUB_BASE_REF}...HEAD" -- openspec/changes/ > "$changed_paths_file"
+          declare -A active_change_ids=()
+          while IFS= read -r -d '' changed_path; do
+            case "$changed_path" in
+              openspec/changes/archive/*)
+                ;;
+              openspec/changes/*/*)
+                relative_change_path="${changed_path#openspec/changes/}"
+                change_id="${relative_change_path%%/*}"
+                if [[ "$change_id" =~ ^[a-z0-9][a-z0-9-]*$ ]] \
+                  && [[ -n "$(git ls-tree -d HEAD -- "openspec/changes/${change_id}")" ]]; then
+                  active_change_ids["$change_id"]=1
+                fi
+                ;;
+            esac
+          done < "$changed_paths_file"
+          selected_change=""
+          if [[ "${#active_change_ids[@]}" -eq 1 ]]; then
+            for selected_change in "${!active_change_ids[@]}"; do
+              :
+            done
+          fi
+          printf 'change-id=%s\n' "$selected_change" >> "$GITHUB_OUTPUT"
+
       - name: Locate verified amendment cycle base
         id: cycle-base
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && steps.amendment-change.outputs.change-id != ''
         env:
+          EVIDENCE_CHANGE_ID: ${{ steps.amendment-change.outputs.change-id }}
           GH_TOKEN: ${{ github.token }}
           EVIDENCE_PULL_REQUEST: ${{ github.event.pull_request.number }}
         shell: bash
@@ -100,7 +133,7 @@ jobs:
           authority_file="${authority_root}/authority.json"
           external_authority_file=""
           external_authority_digest=""
-          external_green_ref="ca2543bd85fbc92911efdb60845580cc211a6889"
+          external_green_ref="22041cacdd8c34f26f09bccc91499e51e21545a8"
           external_proof_root="${RUNNER_TEMP}/external-prior-red-proof"
           proof_root="${RUNNER_TEMP}/prior-red-proof"
           rm -rf "$authority_root"
@@ -115,16 +148,19 @@ jobs:
             green_root="${bootstrap_root}/green"
             rm -rf "$external_proof_root"
             mkdir -p "$red_root" "$green_root" "$external_proof_root"
-            gh api "repos/${GITHUB_REPOSITORY}/issues/comments/5464938148" > "${bootstrap_root}/comment.json"
-            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/33274773197" > "${bootstrap_root}/red-run.json"
-            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/33274773197/artifacts" > "${bootstrap_root}/red-artifacts.json"
-            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/33270463697" > "${bootstrap_root}/green-run.json"
-            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/33270463697/artifacts" > "${bootstrap_root}/green-artifacts.json"
-            gh run download 33274773197 --name requirements-evidence --dir "$red_root"
-            gh run download 33270463697 --name requirements-evidence --dir "$green_root"
+            gh api "repos/${GITHUB_REPOSITORY}/issues/comments/5468600336" > "${bootstrap_root}/comment.json"
+            gh api --paginate --slurp \
+              "repos/${GITHUB_REPOSITORY}/issues/692/comments?per_page=100" > "${bootstrap_root}/producer-comments.json"
+            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/33310489582" > "${bootstrap_root}/red-run.json"
+            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/33310489582/artifacts" > "${bootstrap_root}/red-artifacts.json"
+            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/33303840056" > "${bootstrap_root}/green-run.json"
+            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/33303840056/artifacts" > "${bootstrap_root}/green-artifacts.json"
+            gh run download 33310489582 --name requirements-evidence --dir "$red_root"
+            gh run download 33303840056 --name requirements-evidence --dir "$green_root"
             python scripts/requirements_amendment_bootstrap.py \
               --comment "${bootstrap_root}/comment.json" \
-              --comment-id 5464938148 \
+              --comment-id 5468600336 \
+              --producer-comments "${bootstrap_root}/producer-comments.json" \
               --red-run "${bootstrap_root}/red-run.json" \
               --red-artifacts "${bootstrap_root}/red-artifacts.json" \
               --red-artifact-root "$red_root" \
@@ -141,11 +177,14 @@ jobs:
               --final-ref "$current_head" \
               --output "${external_proof_root}/red.json" \
               --authority-output "$external_authority_file"
+            # Producer authority was fetched live from
+            # "repos/${GITHUB_REPOSITORY}/issues/692/comments?per_page=100".
             python scripts/requirements_proof_provenance.py \
               --bind-red-proof "${external_proof_root}/red.json" \
               --junit "${external_proof_root}/red.xml" \
               --repo-root "$GITHUB_WORKSPACE" \
               --base-ref "origin/${GITHUB_BASE_REF}" \
+              --change-id "$EVIDENCE_CHANGE_ID" \
               --cycle-authority "$external_authority_file" \
               --repository "$GITHUB_REPOSITORY" \
               --pull-request "$EVIDENCE_PULL_REQUEST" \
@@ -183,6 +222,7 @@ jobs:
                 --red-ref "$candidate_red_ref" \
                 --final-ref "$current_head" \
                 --repository "$GITHUB_REPOSITORY" \
+                --change-id "$EVIDENCE_CHANGE_ID" \
                 --pull-request "$EVIDENCE_PULL_REQUEST" \
                 --head-branch "$GITHUB_HEAD_REF" \
                 "${external_authority_arguments[@]}" \
@@ -193,6 +233,7 @@ jobs:
                   --junit "${proof_root}/red.xml" \
                   --repo-root "$GITHUB_WORKSPACE" \
                   --base-ref "origin/${GITHUB_BASE_REF}" \
+                  --change-id "$EVIDENCE_CHANGE_ID" \
                   --cycle-authority "$authority_file" \
                   --repository "$GITHUB_REPOSITORY" \
                   --pull-request "$EVIDENCE_PULL_REQUEST" \
@@ -202,6 +243,7 @@ jobs:
                   --prior-red-proof "$red_proof" \
                   --repo-root "$GITHUB_WORKSPACE" \
                   --base-ref "origin/${GITHUB_BASE_REF}" \
+                  --change-id "$EVIDENCE_CHANGE_ID" \
                   --cycle-authority "$authority_file" \
                   --repository "$GITHUB_REPOSITORY" \
                   --pull-request "$EVIDENCE_PULL_REQUEST" \
@@ -260,8 +302,9 @@ jobs:
 
       - name: Locate retained red proof run
         id: prior-red-run
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && steps.amendment-change.outputs.change-id != ''
         env:
+          EVIDENCE_CHANGE_ID: ${{ steps.amendment-change.outputs.change-id }}
           EVIDENCE_CYCLE_AUTHORITY: ${{ steps.cycle-base.outputs.authority }}
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -293,6 +336,7 @@ jobs:
                 --repo-root . \
                 --base-ref "origin/${GITHUB_BASE_REF}" \
                 --final-ref "$current_head" \
+                --change-id "$EVIDENCE_CHANGE_ID" \
                 "${cycle_authority_arguments[@]}" \
                 --repository "$GITHUB_REPOSITORY" \
                 --pull-request "${{ github.event.pull_request.number }}" \
@@ -566,6 +610,7 @@ jobs:
                   --prior-red-proof "$prior_red_proof" \
                   --repo-root "$GITHUB_WORKSPACE" \
                   --base-ref "origin/${EVIDENCE_BASE_BRANCH}" \
+                  --change-id "$selected_change" \
                   "${cycle_authority_arguments[@]}" \
                   --final-ref "$EVIDENCE_FINAL_REF" 2>&1)"; then
                   write_failure_reports "Red proof provenance rejected: ${red_proof_findings:-tdd-order-unproven}"
@@ -702,6 +747,7 @@ jobs:
                   --junit artifacts/requirements-evidence/requirements-proof.xml \
                   --repo-root "$GITHUB_WORKSPACE" \
                   --base-ref "origin/${EVIDENCE_BASE_BRANCH}" \
+                  --change-id "$selected_change" \
                   "${cycle_authority_arguments[@]}" 2>&1)"; then
                   write_failure_reports "Red proof binding rejected: ${binding_error:-prior-red-proof-invalid}"
                   exit 1

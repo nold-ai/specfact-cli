@@ -10,7 +10,7 @@ import subprocess
 import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import cast
 
@@ -20,35 +20,58 @@ from icontract import ensure
 
 GIT_OBJECT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 DIGEST_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
-GOVERNED_PRODUCTION_PREFIXES = (
-    ".github/",
-    "ci/",
-    "scripts/",
-    "src/",
-    "tools/",
-    "resources/templates/",
-    "resources/schemas/",
-    "resources/mappings/",
-    "resources/keys/",
-    "requirements/",
-    "modules/bundle-mapper/",
+ALLOWED_RED_HISTORY_PREFIXES = (
+    "test/",
+    "tests/",
 )
-GOVERNED_PRODUCTION_FILES = {"pyproject.toml", "setup.py", "uv.lock"}
+CHANGE_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+ALLOWED_RED_OPEN_SPEC_FILES = {
+    ".openspec.yaml",
+    "CHANGE_VALIDATION.md",
+    "README.md",
+    "TDD_EVIDENCE.md",
+    "design.md",
+    "proposal.md",
+    "requirements-evidence.yaml",
+    "requirements-proof/review-evidence.json",
+    "tasks.md",
+}
 EVIDENCE_AUTHORITY_FILES = {
     ".github/actions/setup-frozen-python/action.yml",
+    ".github/workflows/pr-orchestrator.yml",
     ".github/workflows/requirements-evidence.yml",
     "ci/module-fixture.lock.json",
     "pyproject.toml",
+    "scripts/check_doc_frontmatter.py",
+    "scripts/check_license_compliance.py",
+    "scripts/license_scope_policy.py",
     "uv.lock",
 }
 EVIDENCE_AUTHORITY_PREFIXES = ("requirements/", "scripts/requirements_", "src/specfact_cli/")
 EXTERNAL_AUTHORITY_KIND = "externally-approved-amendment-bootstrap"
-EXTERNAL_AUTHORITY_COMMENT_ID = 5464938148
+EXTERNAL_AUTHORITY_COMMENT_ID = 5468600336
 EXTERNAL_AUTHORITY_REPOSITORY = "nold-ai/specfact-cli"
 EXTERNAL_AUTHORITY_CHANGE_ID = "fix-release-promotion-security-gates"
 EXTERNAL_AUTHORITY_ISSUE = 692
 EXTERNAL_AUTHORITY_PULL_REQUEST = 698
 EXTERNAL_AUTHORITY_BRANCH = "codex/692-computed-owner-red-proof-v2"
+FINAL_PRODUCER_AUTHORITY_HEADER = "SPECFACT_REQUIREMENTS_FINAL_PRODUCER_AUTHORITY_V1"
+FINAL_PRODUCER_AUTHORITY_KIND = "requirements-final-producer-authority"
+FINAL_PRODUCER_AUTHORITY_FIELDS = {
+    "authority_version",
+    "capability",
+    "repository",
+    "issue",
+    "pull_request",
+    "head_branch",
+    "change_id",
+    "approved_commit",
+    "approved_tree",
+    "external_authority_digest",
+    "producer_blobs",
+    "expires_at",
+    "signer_login",
+}
 
 
 @dataclass(frozen=True)
@@ -70,6 +93,7 @@ class CycleBaseContext:
     repository: str
     pull_request: int
     head_branch: str
+    change_id: str
 
 
 @dataclass(frozen=True)
@@ -88,6 +112,16 @@ class _ExternalAuthority:
 
     digest: str
     receipt: Mapping[str, object]
+
+
+@dataclass(frozen=True)
+class _FinalAuthorityBoundary:
+    """Git and capability inputs for final producer-byte validation."""
+
+    repo_root: Path
+    context: CycleBaseContext
+    red_ref: str
+    external_authority_digest: str
 
 
 def _read_object(path: Path) -> dict[str, object]:
@@ -110,13 +144,35 @@ def _history_is_linear(repo_root: Path, start_ref: str, end_ref: str) -> bool:
     return merges.returncode == 0 and not merges.stdout.strip()
 
 
-def _has_governed_cycle_change(repo_root: Path, start_ref: str, end_ref: str) -> bool:
-    changed = _git(repo_root, "diff", "--name-only", f"{start_ref}...{end_ref}")
+def _has_governed_cycle_change(repo_root: Path, start_ref: str, end_ref: str, change_id: str) -> bool:
+    """Return whether the proposed red segment contains a non-allowlisted path."""
+    changed = _git(
+        repo_root,
+        "log",
+        "--format=",
+        "--name-only",
+        "--no-renames",
+        "-z",
+        "--end-of-options",
+        f"{start_ref}..{end_ref}",
+    )
     if changed.returncode:
         return True
-    return any(
-        path in GOVERNED_PRODUCTION_FILES or path.startswith(GOVERNED_PRODUCTION_PREFIXES)
-        for path in changed.stdout.splitlines()
+    return any(not _red_history_path_is_allowed(path, change_id) for path in changed.stdout.split("\0") if path)
+
+
+def _red_history_path_is_allowed(path: str, change_id: str) -> bool:
+    """Allow test roots and declarative artifacts for the linked OpenSpec change."""
+    if path.startswith(ALLOWED_RED_HISTORY_PREFIXES):
+        return True
+    if CHANGE_ID_PATTERN.fullmatch(change_id) is None:
+        return False
+    change_prefix = f"openspec/changes/{change_id}/"
+    if not path.startswith(change_prefix):
+        return False
+    relative = path.removeprefix(change_prefix)
+    return relative in ALLOWED_RED_OPEN_SPEC_FILES or (
+        relative.startswith("specs/") and Path(relative).name == "spec.md"
     )
 
 
@@ -125,10 +181,182 @@ def _has_self_authored_evidence_authority(repo_root: Path, base_ref: str, cycle_
     changed = _git(repo_root, "diff", "--name-only", f"{base_ref}...{cycle_base}")
     if changed.returncode:
         return True
-    return any(
-        path in EVIDENCE_AUTHORITY_FILES or path.startswith(EVIDENCE_AUTHORITY_PREFIXES)
-        for path in changed.stdout.splitlines()
+    return any(_is_evidence_authority_path(path) for path in changed.stdout.splitlines())
+
+
+def _is_evidence_authority_path(path: str) -> bool:
+    """Return whether one repository path can influence Requirements evidence."""
+    return path in EVIDENCE_AUTHORITY_FILES or path.startswith(EVIDENCE_AUTHORITY_PREFIXES)
+
+
+def _changed_evidence_authority_paths(repo_root: Path, start_ref: str, end_ref: str) -> set[str] | None:
+    """Return the complete evidence-authority path set changed in one range."""
+    changed = _git(repo_root, "diff", "--name-only", "--find-renames", start_ref, end_ref)
+    if changed.returncode:
+        return None
+    return {path for path in changed.stdout.splitlines() if _is_evidence_authority_path(path)}
+
+
+def _blob_identity(repo_root: Path, commit: str, path: str) -> str | None:
+    """Return an exact regular Git blob identity at one commit."""
+    identity = _git(repo_root, "rev-parse", f"{commit}:{path}")
+    blob = identity.stdout.strip()
+    if identity.returncode or GIT_OBJECT_PATTERN.fullmatch(blob) is None:
+        return None
+    object_type = _git(repo_root, "cat-file", "-t", blob)
+    return blob if object_type.returncode == 0 and object_type.stdout.strip() == "blob" else None
+
+
+def _comment_objects(path: Path) -> list[dict[str, object]]:
+    """Flatten one GitHub issue-comment page or paginated page list."""
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    pages = payload if isinstance(payload, list) else []
+    values = [item for page in pages for item in (page if isinstance(page, list) else [page])]
+    return [cast(dict[str, object], value) for value in values if isinstance(value, dict)]
+
+
+def _authority_payload(comment: Mapping[str, object]) -> dict[str, object] | None:
+    """Parse one canonical unedited repository-member authority comment."""
+    body = comment.get("body")
+    user = comment.get("user")
+    if (
+        not isinstance(body, str)
+        or not isinstance(user, Mapping)
+        or comment.get("author_association") not in {"COLLABORATOR", "MEMBER", "OWNER"}
+        or comment.get("created_at") != comment.get("updated_at")
+    ):
+        return None
+    header, separator, encoded = body.partition("\n")
+    if header != FINAL_PRODUCER_AUTHORITY_HEADER or not separator:
+        return None
+    try:
+        decoded = json.loads(encoded)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(decoded, dict) or set(decoded) != FINAL_PRODUCER_AUTHORITY_FIELDS:
+        return None
+    authority = cast(dict[str, object], decoded)
+    typed_user = cast(Mapping[str, object], user)
+    canonical = json.dumps(authority, sort_keys=True, separators=(",", ":"))
+    if encoded != canonical or authority.get("signer_login") != typed_user.get("login"):
+        return None
+    return authority
+
+
+def _authority_time_is_valid(authority: Mapping[str, object], comment: Mapping[str, object]) -> bool:
+    """Require a live capability whose lifetime is bounded by its comment time."""
+    try:
+        created = datetime.fromisoformat(str(comment.get("created_at")).replace("Z", "+00:00"))
+        expiry = datetime.fromisoformat(str(authority.get("expires_at")).replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    return created <= datetime.now(UTC) < expiry <= created + timedelta(days=7)
+
+
+def _producer_blob_map(value: object) -> dict[str, str] | None:
+    """Return a canonical non-empty repository-path to Git-blob mapping."""
+    if not isinstance(value, dict) or not value:
+        return None
+    blobs = cast(dict[object, object], value)
+    if not all(
+        isinstance(path, str)
+        and path
+        and not Path(path).is_absolute()
+        and ".." not in Path(path).parts
+        and isinstance(blob, str)
+        and GIT_OBJECT_PATTERN.fullmatch(blob) is not None
+        for path, blob in blobs.items()
+    ):
+        return None
+    return cast(dict[str, str], blobs)
+
+
+def _final_authority_matches(
+    authority: Mapping[str, object],
+    comment: Mapping[str, object],
+    boundary: _FinalAuthorityBoundary,
+) -> bool:
+    """Bind the exact approved producer bytes and reject later producer drift."""
+    repo_root = boundary.repo_root
+    context = boundary.context
+    red_ref = boundary.red_ref
+    approved_commit = authority.get("approved_commit")
+    producer_blobs = _producer_blob_map(authority.get("producer_blobs"))
+    changed_at_approval = (
+        _changed_evidence_authority_paths(repo_root, red_ref, approved_commit)
+        if isinstance(approved_commit, str)
+        else None
     )
+    changed_now = _changed_evidence_authority_paths(repo_root, red_ref, context.final_ref)
+    identity_matches = all(
+        (
+            authority.get("authority_version") == 1,
+            authority.get("capability") == "requirements-final-producer",
+            authority.get("repository") == context.repository == EXTERNAL_AUTHORITY_REPOSITORY,
+            authority.get("issue") == EXTERNAL_AUTHORITY_ISSUE,
+            authority.get("pull_request") == context.pull_request == EXTERNAL_AUTHORITY_PULL_REQUEST,
+            authority.get("head_branch") == context.head_branch == EXTERNAL_AUTHORITY_BRANCH,
+            authority.get("change_id") == context.change_id == EXTERNAL_AUTHORITY_CHANGE_ID,
+            authority.get("external_authority_digest") == boundary.external_authority_digest,
+            comment.get("issue_url")
+            == f"https://api.github.com/repos/{context.repository}/issues/{EXTERNAL_AUTHORITY_ISSUE}",
+            _authority_time_is_valid(authority, comment),
+            isinstance(approved_commit, str),
+            GIT_OBJECT_PATTERN.fullmatch(approved_commit) is not None if isinstance(approved_commit, str) else False,
+            authority.get("approved_tree") == _tree_identity(repo_root, approved_commit)
+            if isinstance(approved_commit, str)
+            else False,
+            _is_ancestor(repo_root, red_ref, approved_commit) if isinstance(approved_commit, str) else False,
+            _is_ancestor(repo_root, approved_commit, context.final_ref) if isinstance(approved_commit, str) else False,
+            producer_blobs is not None,
+            changed_at_approval == changed_now == (set(producer_blobs) if producer_blobs is not None else None),
+        )
+    )
+    if not identity_matches or producer_blobs is None or not isinstance(approved_commit, str):
+        return False
+    return all(
+        _blob_identity(repo_root, approved_commit, path) == blob
+        and _blob_identity(repo_root, context.final_ref, path) == blob
+        for path, blob in producer_blobs.items()
+    )
+
+
+@beartype
+@ensure(lambda result: result is None or isinstance(result, dict))
+def validated_final_producer_authority(
+    comments_path: Path,
+    repo_root: Path,
+    context: CycleBaseContext,
+    red_ref: str,
+    external_authority_digest: str,
+) -> dict[str, object] | None:
+    """Select exactly one live authority for the current producer blob set."""
+    matches: list[dict[str, object]] = []
+    try:
+        for comment in _comment_objects(comments_path):
+            authority = _authority_payload(comment)
+            if authority is None or not _final_authority_matches(
+                authority,
+                comment,
+                _FinalAuthorityBoundary(repo_root, context, red_ref, external_authority_digest),
+            ):
+                continue
+            canonical = json.dumps(authority, sort_keys=True, separators=(",", ":")).encode()
+            matches.append(
+                {
+                    **authority,
+                    "kind": FINAL_PRODUCER_AUTHORITY_KIND,
+                    "comment_id": comment.get("id"),
+                    "created_at": comment.get("created_at"),
+                    "authority_digest": f"sha256:{hashlib.sha256(canonical).hexdigest()}",
+                }
+            )
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError, subprocess.SubprocessError):
+        return None
+    return matches[0] if len(matches) == 1 else None
+
+
+_validated_final_producer_authority = validated_final_producer_authority
 
 
 def _matching_artifact(artifacts: dict[str, object], run_id: int, cycle_base: str) -> dict[str, object] | None:
@@ -206,10 +434,54 @@ def _external_authority_digest(receipt: Mapping[str, object]) -> str:
     payload = {
         key: value
         for key, value in receipt.items()
-        if key not in {"kind", "comment_id", "cycle_base", "red_ref", "authority_digest"}
+        if key
+        not in {
+            "kind",
+            "comment_id",
+            "cycle_base",
+            "red_ref",
+            "authority_digest",
+            "final_producer_authority",
+        }
     }
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     return f"sha256:{hashlib.sha256(canonical).hexdigest()}"
+
+
+def _final_producer_receipt_matches(
+    receipt: object,
+    repo_root: Path,
+    context: CycleBaseContext,
+    red_ref: str,
+    external_authority_digest: str,
+) -> bool:
+    """Recheck a live-produced final authority receipt against current Git bytes."""
+    if not isinstance(receipt, Mapping):
+        return False
+    typed = cast(Mapping[str, object], receipt)
+    authority = {
+        key: value
+        for key, value in typed.items()
+        if key not in {"kind", "comment_id", "created_at", "authority_digest"}
+    }
+    canonical = json.dumps(authority, sort_keys=True, separators=(",", ":")).encode()
+    synthetic_comment = {
+        "created_at": typed.get("created_at"),
+        "issue_url": f"https://api.github.com/repos/{context.repository}/issues/{EXTERNAL_AUTHORITY_ISSUE}",
+    }
+    return all(
+        (
+            typed.get("kind") == FINAL_PRODUCER_AUTHORITY_KIND,
+            isinstance(typed.get("comment_id"), int),
+            typed.get("authority_digest") == f"sha256:{hashlib.sha256(canonical).hexdigest()}",
+            set(authority) == FINAL_PRODUCER_AUTHORITY_FIELDS,
+            _final_authority_matches(
+                authority,
+                synthetic_comment,
+                _FinalAuthorityBoundary(repo_root, context, red_ref, external_authority_digest),
+            ),
+        )
+    )
 
 
 def _external_receipt_locator_matches(
@@ -225,8 +497,10 @@ def _external_receipt_locator_matches(
             expiry > datetime.now(UTC),
             receipt.get("kind") == EXTERNAL_AUTHORITY_KIND,
             receipt.get("comment_id") == EXTERNAL_AUTHORITY_COMMENT_ID,
+            receipt.get("authority_version") == 3,
+            receipt.get("producer_bypass") == "stale-red-proof-only",
             receipt.get("repository") == context.repository == EXTERNAL_AUTHORITY_REPOSITORY,
-            receipt.get("change_id") == EXTERNAL_AUTHORITY_CHANGE_ID,
+            receipt.get("change_id") == context.change_id == EXTERNAL_AUTHORITY_CHANGE_ID,
             receipt.get("issue") == EXTERNAL_AUTHORITY_ISSUE,
             receipt.get("pull_request") == context.pull_request == EXTERNAL_AUTHORITY_PULL_REQUEST,
             receipt.get("head_branch") == context.head_branch == EXTERNAL_AUTHORITY_BRANCH,
@@ -252,14 +526,26 @@ def _external_receipt_history_matches(
         context.repository,
         context.pull_request,
         context.head_branch,
+        context.change_id,
     )
-    return all(
+    common_matches = all(
         (
             receipt.get("cycle_base") == root_green,
             receipt.get("red_ref") == approved_red,
             receipt.get("cycle_base_tree") == _tree_identity(paths.repo_root, root_green),
             receipt.get("red_tree") == _tree_identity(paths.repo_root, approved_red),
             _common_history_matches(paths, candidate_context, root_green, approved_red),
+        )
+    )
+    producer_changed = _has_self_authored_evidence_authority(paths.repo_root, approved_red, candidate_green)
+    return common_matches and (
+        not producer_changed
+        or _final_producer_receipt_matches(
+            receipt.get("final_producer_authority"),
+            paths.repo_root,
+            candidate_context,
+            approved_red,
+            cast(str, receipt.get("authority_digest")),
         )
     )
 
@@ -334,7 +620,7 @@ def _common_history_matches(paths: CycleBasePaths, context: CycleBaseContext, cy
         and _is_ancestor(paths.repo_root, cycle_base, red_ref)
         and _is_ancestor(paths.repo_root, red_ref, context.final_ref)
         and _history_is_linear(paths.repo_root, cycle_base, context.final_ref)
-        and not _has_governed_cycle_change(paths.repo_root, cycle_base, red_ref)
+        and not _has_governed_cycle_change(paths.repo_root, cycle_base, red_ref, context.change_id)
     )
 
 
@@ -442,6 +728,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Live-produced exact external receipt required for producer self-authorship exceptions.",
     )
     parser.add_argument("--repository", required=True)
+    parser.add_argument("--change-id", required=True)
     parser.add_argument("--pull-request", type=int, required=True)
     parser.add_argument("--head-branch", required=True)
     parser.add_argument("--output", type=Path, required=True)
@@ -468,6 +755,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             arguments.repository,
             arguments.pull_request,
             arguments.head_branch,
+            arguments.change_id,
         ),
         red_ref=arguments.red_ref,
         external_authority_digest=arguments.external_authority_digest,

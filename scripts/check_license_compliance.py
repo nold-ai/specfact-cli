@@ -18,11 +18,12 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import re
 import subprocess
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any, Literal, cast
 
@@ -30,6 +31,19 @@ import yaml
 from beartype import beartype
 from icontract import ensure
 from packaging.requirements import InvalidRequirement, Requirement
+
+
+def _load_license_scope_matcher() -> Callable[..., bool]:
+    policy_path = Path(__file__).with_name("license_scope_policy.py")
+    spec = importlib.util.spec_from_file_location("license_scope_policy", policy_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Unable to load license scope policy: {policy_path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return cast(Callable[..., bool], module.environment_allowlist_entry_matches)
+
+
+environment_allowlist_entry_matches = _load_license_scope_matcher()
 
 
 # SPDX expressions considered GPL-family (not allowed without an allowlist entry)
@@ -219,17 +233,6 @@ def _allowlist_license_matches_observed(entry_license: str, observed_license: st
 
 
 @beartype
-def _allowlist_version_matches_observed(
-    entry: dict[str, str], observed_version: str, *, require_version: bool = False
-) -> bool:
-    """Return whether a reviewed version matches, with exact version required for mixed metadata."""
-    reviewed_version = entry.get("version", "").strip()
-    if not reviewed_version:
-        return not require_version
-    return reviewed_version == observed_version.strip()
-
-
-@beartype
 def _matching_allowlist_entries(
     entries: list[dict[str, str]],
     license_expr: str,
@@ -242,9 +245,13 @@ def _matching_allowlist_entries(
     return [
         entry
         for entry in entries
-        if entry.get("scope") == allowlist_scope
-        and _allowlist_license_matches_observed(str(entry.get("license", "")), license_expr)
-        and _allowlist_version_matches_observed(entry, version, require_version=require_version)
+        if environment_allowlist_entry_matches(
+            entry,
+            license_expr,
+            version,
+            allowlist_scope=allowlist_scope,
+            require_version=require_version,
+        )
     ]
 
 

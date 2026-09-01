@@ -20,20 +20,22 @@ from icontract import ensure
 
 AUTHORITY_HEADER = "SPECFACT_REQUIREMENTS_BOOTSTRAP_AUTHORITY_V1"
 GIT_OBJECT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
-GOVERNED_PRODUCTION_PREFIXES = (
-    ".github/",
-    "ci/",
-    "scripts/",
-    "src/",
-    "tools/",
-    "resources/templates/",
-    "resources/schemas/",
-    "resources/mappings/",
-    "resources/keys/",
-    "requirements/",
-    "modules/bundle-mapper/",
+ALLOWED_RED_HISTORY_PREFIXES = (
+    "test/",
+    "tests/",
 )
-GOVERNED_PRODUCTION_FILES = {"pyproject.toml", "setup.py", "uv.lock"}
+CHANGE_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+ALLOWED_RED_OPEN_SPEC_FILES = {
+    ".openspec.yaml",
+    "CHANGE_VALIDATION.md",
+    "README.md",
+    "TDD_EVIDENCE.md",
+    "design.md",
+    "proposal.md",
+    "requirements-evidence.yaml",
+    "requirements-proof/review-evidence.json",
+    "tasks.md",
+}
 
 
 @dataclass(frozen=True)
@@ -87,8 +89,24 @@ def _is_ancestor(repo_root: Path, ancestor: str, descendant: str) -> bool:
     return _git(repo_root, "merge-base", "--is-ancestor", ancestor, descendant).returncode == 0
 
 
-def _has_governed_production_path(paths: Sequence[str]) -> bool:
-    return any(path in GOVERNED_PRODUCTION_FILES or path.startswith(GOVERNED_PRODUCTION_PREFIXES) for path in paths)
+def _has_governed_production_path(paths: Sequence[str], change_id: str) -> bool:
+    """Return whether red history contains anything outside its positive allowlist."""
+    return any(not _red_history_path_is_allowed(path, change_id) for path in paths)
+
+
+def _red_history_path_is_allowed(path: str, change_id: str) -> bool:
+    """Allow test roots and declarative artifacts for the linked OpenSpec change."""
+    if path.startswith(ALLOWED_RED_HISTORY_PREFIXES):
+        return True
+    if CHANGE_ID_PATTERN.fullmatch(change_id) is None:
+        return False
+    change_prefix = f"openspec/changes/{change_id}/"
+    if not path.startswith(change_prefix):
+        return False
+    relative = path.removeprefix(change_prefix)
+    return relative in ALLOWED_RED_OPEN_SPEC_FILES or (
+        relative.startswith("specs/") and Path(relative).name == "spec.md"
+    )
 
 
 def _authority_from_comment(comment: dict[str, object], context: AuthorityContext) -> dict[str, object]:
@@ -239,7 +257,7 @@ def _valid_history(authority: dict[str, object], paths: AuthorityPaths, context:
         and red_commit != context.final_ref
         and _is_ancestor(paths.repo_root, red_commit, context.final_ref)
         and changed_paths.returncode == 0
-        and not _has_governed_production_path(changed_paths.stdout.splitlines())
+        and not _has_governed_production_path(changed_paths.stdout.splitlines(), context.change_id)
     )
 
 

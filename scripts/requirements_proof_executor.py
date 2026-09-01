@@ -143,21 +143,14 @@ def selectors_from_plan(plan: dict[str, object], repo_root: Path) -> list[str]:
     return selectors
 
 
-def _run_command(request: ProofCommand) -> int:
-    return subprocess.run(
-        request.arguments,
-        check=False,
-        cwd=request.cwd,
-        env=request.env,
-        shell=request.shell,
-        timeout=request.timeout,
-    ).returncode
-
-
 @beartype
 @ensure(lambda result: isinstance(result, int))
 def execute_plan(
-    plan: dict[str, object], repo_root: Path, junit_path: Path, *, command_runner: CommandRunner = _run_command
+    plan: dict[str, object],
+    repo_root: Path,
+    junit_path: Path,
+    *,
+    command_runner: CommandRunner | None = None,
 ) -> int:
     """Run exact selectors with a deterministic JUnit destination and no shell."""
     selectors = selectors_from_plan(plan, repo_root)
@@ -189,7 +182,17 @@ def execute_plan(
     ]
     environment = {key: value for key, value in os.environ.items() if key in PROOF_ENVIRONMENT_KEYS}
     environment["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"
-    return command_runner(ProofCommand(arguments, repo_root, environment, shell=False, timeout=600))
+    request = ProofCommand(arguments, repo_root, environment, shell=False, timeout=600)
+    if command_runner is not None:
+        return command_runner(request)
+    return subprocess.run(
+        arguments,
+        check=False,
+        cwd=repo_root,
+        env=environment,
+        shell=False,
+        timeout=600,
+    ).returncode
 
 
 def _read_plan(plan_path: Path) -> dict[str, object]:
@@ -222,7 +225,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             _read_plan(arguments.plan),
             arguments.repo_root.resolve(),
             arguments.junit.resolve(),
-            command_runner=_run_command,
         )
     except (OSError, ValueError, subprocess.SubprocessError) as error:
         raise SystemExit(f"Requirements proof execution rejected: {error}") from error

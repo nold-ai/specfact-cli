@@ -58,6 +58,7 @@ jobs:
               - 'modules/**/module-package.yaml'
               - 'src/specfact_cli/modules/**/module-package.yaml'
               - 'scripts/check_license_compliance.py'
+              - 'scripts/license_scope_policy.py'
               - 'scripts/check_dependency_trust_exceptions.py'
               - 'scripts/license_allowlist.yaml'
               - 'ci/dependency-trust-exceptions.json'

@@ -19,10 +19,11 @@ from beartype import beartype
 from icontract import ensure
 
 
-AUTHORITY_HEADER = "SPECFACT_REQUIREMENTS_AMENDMENT_BOOTSTRAP_V2"
+AUTHORITY_HEADER = "SPECFACT_REQUIREMENTS_AMENDMENT_BOOTSTRAP_V3"
 EXTERNAL_AUTHORITY_KIND = "externally-approved-amendment-bootstrap"
+STALE_PRODUCER_DIAGNOSTIC = "Red proof provenance rejected: stale-red-proof"
 APPROVED_BOOTSTRAP_LOCATOR = {
-    "comment_id": 5464938148,
+    "comment_id": 5468600336,
     "repository": "nold-ai/specfact-cli",
     "change_id": "fix-release-promotion-security-gates",
     "issue": 692,
@@ -42,9 +43,11 @@ class _ProvenanceModule(Protocol):
 
 class _CycleBaseModule(Protocol):
     CycleBasePaths: Callable[[Path, Path, Path, Path], object]
-    CycleBaseContext: Callable[[str, str, str, int, str], object]
+    CycleBaseContext: Callable[[str, str, str, int, str, str], object]
     _common_history_matches: Callable[[object, object, str, str], bool]
     _artifact_is_verified_final: Callable[[Path, str], bool]
+    _has_self_authored_evidence_authority: Callable[[Path, str, str], bool]
+    _validated_final_producer_authority: Callable[[Path, Path, object, str, str], dict[str, object] | None]
 
 
 @dataclass(frozen=True)
@@ -146,10 +149,11 @@ def _run(run: dict[str, object], authority: dict[str, object], *, green: bool) -
             run.get("head_sha") == expected_sha,
             run.get("head_branch") == authority.get("head_branch"),
             run.get("status") == "completed",
-            run.get("conclusion") == ("success" if green else "failure"),
+            run.get("conclusion") == "failure",
+            run.get("event") == "pull_request",
             run.get("name") == "Requirements Evidence",
             typed_repository.get("full_name") == authority.get("repository"),
-            authority.get("pull_request") in pull_request_numbers,
+            pull_request_numbers == [authority.get("pull_request")],
         )
     )
 
@@ -220,8 +224,8 @@ def _test_case_selectors(cases: list[object]) -> list[str]:
     return sorted(cast(list[str], selectors))
 
 
-def _raw_failed_selectors(plan_report: dict[str, object], raw_junit: Path) -> tuple[list[str], list[str]]:
-    """Derive the red subset only from exact per-case raw JUnit outcomes."""
+def _raw_selector_outcomes(plan_report: dict[str, object], raw_junit: Path) -> tuple[dict[str, str], list[str]]:
+    """Return exact per-selector raw JUnit outcomes for an approved plan."""
     expected, _, _ = _plan_selectors(plan_report)
     parsed = _load_provenance()._parse_junit(raw_junit.read_bytes())
     observed: dict[str, str] = {}
@@ -232,6 +236,12 @@ def _raw_failed_selectors(plan_report: dict[str, object], raw_junit: Path) -> tu
         observed[selectors[0]] = outcome
     if set(observed) != set(expected):
         raise ValueError("amendment-bootstrap-invalid")
+    return observed, expected
+
+
+def _raw_failed_selectors(plan_report: dict[str, object], raw_junit: Path) -> tuple[list[str], list[str]]:
+    """Derive the red subset only from exact per-case raw JUnit outcomes."""
+    observed, expected = _raw_selector_outcomes(plan_report, raw_junit)
     failed = sorted(selector for selector, outcome in observed.items() if outcome == "failed")
     return failed, expected
 
@@ -274,6 +284,10 @@ def _context_matches(arguments: argparse.Namespace, authority: dict[str, object]
     return all(
         (
             expiry > datetime.now(UTC),
+            authority.get("authority_version") == 3,
+            authority.get("producer_bypass") == "stale-red-proof-only",
+            authority.get("prior_green_report_diagnostic") == STALE_PRODUCER_DIAGNOSTIC,
+            authority.get("red_report_diagnostic") == STALE_PRODUCER_DIAGNOSTIC,
             authority.get("repository") == arguments.repository,
             authority.get("change_id") == arguments.change_id,
             authority.get("issue") == arguments.issue,
@@ -289,7 +303,7 @@ def _approved_locator_matches(arguments: argparse.Namespace) -> bool:
 
 
 def _cycle_boundary_matches(arguments: argparse.Namespace, authority: dict[str, object], files: _ArtifactFiles) -> bool:
-    """Retain every ordinary history and verified-green check except producer authorship."""
+    """Retain the ordinary history checks while the exact V3 capability covers its producer verdict."""
     module = _load_cycle_base()
     paths = module.CycleBasePaths(
         arguments.green_run, arguments.green_artifacts, files.green_report.parent, arguments.repo_root
@@ -300,6 +314,7 @@ def _cycle_boundary_matches(arguments: argparse.Namespace, authority: dict[str, 
         arguments.repository,
         arguments.pull_request,
         arguments.head_branch,
+        arguments.change_id,
     )
     cycle_base = authority.get("cycle_base_commit")
     red_ref = authority.get("red_commit")
@@ -307,7 +322,44 @@ def _cycle_boundary_matches(arguments: argparse.Namespace, authority: dict[str, 
         isinstance(cycle_base, str)
         and isinstance(red_ref, str)
         and module._common_history_matches(paths, context, cycle_base, red_ref)
-        and module._artifact_is_verified_final(files.green_report.parent, cycle_base)
+    )
+
+
+def _stale_producer_evidence_matches(authority: dict[str, object], files: _ArtifactFiles) -> bool:
+    """Validate the exact raw plan/JUnit boundary covered by the stale-producer-only capability."""
+    expected_failed = authority.get("expected_failed_cases")
+    expected_passing = authority.get("expected_passing_cases")
+    prior_green_passing = authority.get("prior_green_expected_passing_cases")
+    if not all(isinstance(value, int) for value in (expected_failed, expected_passing, prior_green_passing)):
+        return False
+    assert isinstance(expected_failed, int)
+    assert isinstance(expected_passing, int)
+    assert isinstance(prior_green_passing, int)
+    expected_report = {
+        "schema_version": 1,
+        "verdict": "failed",
+        "diagnostic": STALE_PRODUCER_DIAGNOSTIC,
+    }
+    green_report = _read(files.green_report)
+    green_plan = _read(files.green_plan)
+    red_report = _read(files.red_report)
+    red_plan = _read(files.red_plan)
+    green_outcomes, green_selectors = _raw_selector_outcomes(green_plan, files.green_junit)
+    red_outcomes, red_selectors = _raw_selector_outcomes(red_plan, files.red_junit)
+    red_failed = [selector for selector, outcome in red_outcomes.items() if outcome == "failed"]
+    return all(
+        (
+            authority.get("authority_version") == 3,
+            authority.get("producer_bypass") == "stale-red-proof-only",
+            green_report == expected_report,
+            red_report == expected_report,
+            set(green_outcomes.values()) == {"passed"},
+            len(green_selectors) == prior_green_passing,
+            len(red_failed) == expected_failed,
+            len(red_selectors) == expected_passing + expected_failed,
+            sum(outcome == "passed" for outcome in red_outcomes.values()) == expected_passing,
+            set(red_outcomes.values()) <= {"passed", "failed"},
+        )
     )
 
 
@@ -346,6 +398,7 @@ def _metadata_matches(
             == authority.get("cycle_base_tree"),
             _git(arguments.repo_root, "merge-base", "--is-ancestor", str(authority["red_commit"]), arguments.final_ref)
             == "",
+            _stale_producer_evidence_matches(authority, evidence.files),
             _cycle_boundary_matches(arguments, authority, evidence.files),
         )
     )
@@ -354,7 +407,7 @@ def _metadata_matches(
 def _authority_receipt(arguments: argparse.Namespace, authority: dict[str, object]) -> dict[str, object]:
     """Serialize the exact live-approved capability for downstream revalidation."""
     canonical = json.dumps(authority, sort_keys=True, separators=(",", ":")).encode()
-    return {
+    receipt = {
         **authority,
         "kind": EXTERNAL_AUTHORITY_KIND,
         "comment_id": arguments.comment_id,
@@ -362,6 +415,35 @@ def _authority_receipt(arguments: argparse.Namespace, authority: dict[str, objec
         "red_ref": authority["red_commit"],
         "authority_digest": f"sha256:{hashlib.sha256(canonical).hexdigest()}",
     }
+    cycle = _load_cycle_base()
+    producer_changed = cycle._has_self_authored_evidence_authority(
+        arguments.repo_root,
+        str(authority["red_commit"]),
+        arguments.final_ref,
+    )
+    if producer_changed:
+        producer_comments = getattr(arguments, "producer_comments", None)
+        if producer_comments is None:
+            raise ValueError("amendment-bootstrap-invalid")
+        context = cycle.CycleBaseContext(
+            arguments.base_ref,
+            arguments.final_ref,
+            arguments.repository,
+            arguments.pull_request,
+            arguments.head_branch,
+            arguments.change_id,
+        )
+        final_authority = cycle._validated_final_producer_authority(
+            producer_comments,
+            arguments.repo_root,
+            context,
+            str(authority["red_commit"]),
+            cast(str, receipt["authority_digest"]),
+        )
+        if final_authority is None:
+            raise ValueError("amendment-bootstrap-invalid")
+        receipt["final_producer_authority"] = final_authority
+    return receipt
 
 
 def _validate_failed_selectors(
@@ -470,6 +552,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--final-ref", required=True)
     parser.add_argument("--base-ref", required=True)
     parser.add_argument("--authority-output", type=Path)
+    parser.add_argument("--producer-comments", type=Path)
     return parser
 
 

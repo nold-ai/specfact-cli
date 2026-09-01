@@ -591,7 +591,7 @@ def _missing_owner_via_rg(files: list[Path]) -> list[Path] | None:
     file_args = [str(f) for f in files]
     try:
         result = subprocess.run(
-            ["rg", "--files-without-match", r"^\s*doc_owner\s*:", *file_args],
+            ["rg", "--files-without-match", r"^\s*doc_owner\s*:", "--", *file_args],
             capture_output=True,
             text=True,
             timeout=60,
@@ -626,18 +626,6 @@ def rg_missing_doc_owner(files: list[Path]) -> list[Path]:
             f"doc-frontmatter: rg-based doc_owner scan failed ({exc!r}); falling back to per-file scan.",
         )
     return _missing_owner_by_scan(files)
-
-
-def _validate_record(fm: dict[str, Any]) -> list[str]:
-    """Return human-readable errors for a frontmatter dict (non-exempt docs)."""
-    missing = [f"missing `{key}`" for key in REQUIRED_KEYS if key not in fm]
-    if missing:
-        return missing
-    try:
-        DocFrontmatter.model_validate(fm)
-    except ValidationError as exc:
-        return _format_doc_frontmatter_errors(exc)
-    return []
 
 
 def _is_agent_rule_doc(path: Path) -> bool:
@@ -740,7 +728,9 @@ app = typer.Typer(
 
 
 @app.callback(invoke_without_command=True)
-def _cli_root(
+@beartype
+@ensure(lambda result: result is None)
+def cli_root(
     fix_hint: bool = typer.Option(
         False,
         "--fix-hint",
