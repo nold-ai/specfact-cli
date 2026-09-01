@@ -13,6 +13,9 @@
   change advances exactly the next patch, 0.55.4. The only additional dependency
   change is the targeted Semgrep 1.175.0 / MCP 1.29.0 security update authorized
   by #692 after the prior exception premise became obsolete.
+- User decision: extend the existing #692 bugfix scope with the smallest complete
+  execution-isolation boundary after independent review proved same-identity
+  per-file sealing incomplete.
 
 ## GitHub readiness
 
@@ -68,6 +71,14 @@
   Semgrep 1.175.0's exact `mcp==1.29.0` binding. The exception register is empty;
   the pre-install policy rejects MCP below 1.28.1, and final frozen audits report
   no vulnerabilities or waivers.
+- A detached mapped-test descendant can currently retain the runner identity and
+  modify path-backed proof or verifier inputs after pytest returns. The validated
+  boundary keeps pytest and descendants in a transient unprivileged service,
+  exposes trusted inputs read-only or not at all, permits only private scratch
+  and one raw-JUnit handoff, and requires cgroup-empty teardown before the
+  trusted executor canonicalizes evidence. Per-file sealing and a fresh job were
+  rejected as incomplete because they leave sibling trusted paths or the
+  producer handoff writable before verification.
 
 ## Compatibility and documentation
 
@@ -76,6 +87,10 @@
 - No public CLI/API, runtime dependency membership, user guide, README, docs index,
   or navigation behavior changes. Core package metadata advances from 0.55.3 to
   0.55.4 and the development/scanning toolchain advances only Semgrep/MCP.
+- Existing mapped selectors need only read access to the checkout/module fixture
+  plus private temporary files and local Bash/Git subprocesses. Network access
+  is not required. The direct executor seam remains for local unit contracts;
+  blocking CI explicitly requires the Linux isolation backend.
 - The internal wiki was consulted read-only. Internal wiki PR #38 and its branch remain untouched; status synchronization is a post-merge follow-up.
 
 ## Rollback
@@ -107,11 +122,21 @@ Revert the issue-linked PR before release. If 0.55.4 has already shipped, publis
   outside this patch and are recorded as a baseline limitation rather than
   silently treated as clean.
 - The prior construct-by-construct provenance candidate failed the mandatory
-  clean-code review. The compact replacement remains incomplete until focused
-  tests, failing-before evidence, implementation, passing-after evidence, and a
-  clean final Code Review all complete in that order.
+  clean-code review. The compact replacement now has focused failing-before and
+  passing-after evidence; the final hosted Code Review and Linux systemd smoke
+  remain required on the pushed exact head.
 - A targeted no-write solve changed only Semgrep 1.171.0 -> 1.175.0 and MCP
   1.23.3 -> 1.29.0 in the 184-package graph. The six-rule repository SAST scan
   then passed over 299 Python targets with zero findings.
 - Python 3.11, 3.12, and 3.13 frozen environments all resolved the fixed
   Semgrep/MCP pair; the policy selector passed in each tested interpreter.
+- Dry-run interface simulation found no public SpecFact CLI/API signature
+  change. The affected graph is limited to the Requirements workflow, its two
+  proof scripts, focused unit/workflow tests, and change-local evidence.
+  Focused verification passed `116/116`; Ruff, formatting, BasedPyright,
+  OpenSpec, actionlint, Bandit, Semgrep, reproducible-delivery, and lock checks
+  passed. Hosted-runner compatibility still requires an actual `ubuntu-24.04`
+  systemd smoke before this extension can be marked complete.
+- Final mapping acceptance is the unedited repository MEMBER comment
+  `https://github.com/nold-ai/specfact-cli/issues/692#issuecomment-5498165183`,
+  bound to `sha256:3e4e717f4208eae1ee73614ccc3286f211f675849b2ea31a979b0269f5b4720d`.

@@ -1355,3 +1355,65 @@ the authoritative failing-before evidence or the candidate design.
   created and last edited at `2026-09-01T14:39:22Z`, bound to source mapping
   digest
   `sha256:a1332aa22b90bff9e2894b45df958eb220c3a9fcbb6426228aa526e8c4e95311`.
+
+## 2026-09-01 isolated proof-execution boundary
+
+- An independent read-only security-boundary pass confirmed that per-file
+  sealing is incomplete while pytest, its SUT, detached descendants, and every
+  later proof input share the trusted runner identity. The smallest complete
+  repository-native boundary keeps the existing executor trusted and runs only
+  mapped pytest inside a transient unprivileged system service with read-only or
+  hidden trusted inputs, private scratch, no network/capabilities, and
+  control-group teardown before host canonicalization.
+- Specification, design, tasks, and validation were updated before tests.
+  `openspec validate fix-release-promotion-security-gates --strict` passed.
+- Failing-before command at `2026-09-01 19:24:10 CEST (+0200)`:
+  `env UV_CACHE_DIR=/private/tmp/specfact-uv-cache uv run pytest -q tests/unit/scripts/test_requirements_proof_executor.py tests/unit/workflows/test_requirements_evidence_delivery_workflow.py`.
+- Failing-before result: `4 failed, 29 passed`. The CLI rejected the explicit
+  `systemd-service` backend, no transient-service request builder existed,
+  proof stdout/stderr had no host-generated workflow-command boundary, and the
+  blocking workflow still invoked the executor without isolation. The 29
+  existing plan-validation, safe-argv, JUnit, amendment, publication, and Code
+  Review handoff controls continued to pass.
+- Implementation and passing-after evidence remain pending. Hosted-runner proof
+  must additionally demonstrate that the complete service cgroup is gone before
+  the trusted host consumes raw JUnit and that legitimate private temporary
+  Bash/Git fixture behavior remains available.
+
+## 2026-09-01 isolated execution and final review P1 passing evidence
+
+- The executor now runs only mapped pytest and its descendants inside a
+  `DynamicUser` transient system service. The checkout is recursively
+  read-only, Git metadata and Docker sockets are hidden, network/capabilities
+  are absent, scratch is private, stdout/stderr are discarded, and the trusted
+  parent canonicalizes bounded regular-file JUnit only after the waited service
+  is inactive. Blocking CI requests this backend explicitly with no fallback.
+- The five exact CLI, identity/mount/lifecycle, private-scratch/handoff,
+  workflow-command, and blocking-workflow selectors passed. The complete
+  provenance, path-policy, executor, Requirements workflow, and producer
+  regression slice passed `116/116` on Python 3.13.14.
+- A fresh independent bypass/regression review found no concrete P1/P2 in the
+  candidate. It confirmed that `setsid`, double-fork, and daemonization remain
+  in the service cgroup and that the raw handoff is not consumed until teardown.
+  Actual systemd execution remains a required `ubuntu-24.04` hosted smoke; any
+  runner property or sudo drift fails closed.
+- Live PR review still contained one separate applicable P1: a literal
+  `pytest_plugins = ("src.hidden_plugin",)` declaration in an applicable
+  conftest could load a mapping-authorized source path as mutable harness code.
+  Its fail-first selector exited 1 because no `ValueError` was raised. The
+  compact correction reads applicable conftest blobs at the authenticated red
+  ref, resolves only literal repository module paths, freezes their modules and
+  package initializers, and rejects invalid literal declarations.
+- The same P1 selector and four legitimate/frozen controls passed, followed by
+  the `116/116` broad slice. Targeted Ruff, formatting, and BasedPyright passed;
+  strict OpenSpec and actionlint passed; Bandit reported no medium/high finding
+  after documenting the private-tmp and transient handoff permission model;
+  Semgrep ran six rules over both changed proof scripts with zero findings;
+  reproducible-delivery and `uv lock --check` passed for 184 packages.
+- Final product-owner acceptance is the unedited repository MEMBER comment
+  `https://github.com/nold-ai/specfact-cli/issues/692#issuecomment-5498165183`,
+  created at `2026-09-01T17:59:00Z`, bound to source mapping digest
+  `sha256:3e4e717f4208eae1ee73614ccc3286f211f675849b2ea31a979b0269f5b4720d`.
+- The acceptance-bound planner then passed at `test-authored` maturity with no
+  findings, `39` exact selectors, and plan digest
+  `sha256:dcecc631490312e035f7735c78421fae19da87cd9b5c86c73b476ab50a1fdd6e`.

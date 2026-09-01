@@ -269,6 +269,16 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_requirements_proof_path_policy.py::test_copy_from_unchanged_frozen_source_is_retained
+      - case_id: RELEASE-692-PATH-S08
+        scenario_id: retained-red-proof-uses-an-exact-owner-approved-sut-path-policy
+        method: test
+        intent: "Prove a repository plugin declared by an applicable conftest remains frozen harness input."
+        observable: >-
+          A literal pytest_plugins module cannot be relabeled as mutable SUT,
+          including when its path is outside the selected test support tree.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_path_policy.py::test_conftest_declared_repository_plugin_cannot_be_authorized_as_mutable
   openspec:fix-release-promotion-security-gates:trustworthy-green-checks:repository-path-operands-cannot-become-command-options:
     rationale: "Repository filenames must not be interpreted as ripgrep options or preprocessors."
     stakeholder_refs:
@@ -488,3 +498,63 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_requirements_cycle_base_v2.py::test_final_producer_authority_binds_exact_complete_blob_set
+  openspec:fix-release-promotion-security-gates:trustworthy-green-checks:mapped-proof-execution-is-isolated-from-trusted-evidence-production:
+    rationale: >-
+      Mapped pytest and every descendant must lose the trusted runner identity,
+      writable proof inputs, persistent process lifetime, network, and direct
+      workflow-command output before raw JUnit can become trusted evidence.
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#692"
+    touchpoints:
+      - id: isolated-proof-executor
+        kind: source_file
+        locator: "scripts/requirements_proof_executor.py"
+      - id: blocking-proof-workflow
+        kind: ci_workflow
+        locator: ".github/workflows/requirements-evidence.yml"
+      - id: isolation-contract-tests
+        kind: test_file
+        locator: "tests/unit/scripts/test_requirements_proof_executor.py"
+      - id: isolation-workflow-tests
+        kind: test_file
+        locator: "tests/unit/workflows/test_requirements_evidence_delivery_workflow.py"
+    verification_cases:
+      - case_id: RELEASE-692-ISOLATION-S01
+        scenario_id: mapped-proof-execution-is-isolated-from-trusted-evidence-production
+        method: test
+        intent: "Prove mapped pytest uses a separate transient identity, mount namespace, and bounded service cgroup."
+        observable: >-
+          The exact no-shell systemd service request has a dynamic unprivileged
+          user, read-only checkout, hidden Git metadata, no network or
+          capabilities, and control-group kill/runtime limits.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_executor.py::test_systemd_service_request_closes_identity_mount_network_and_lifecycle_boundaries
+      - case_id: RELEASE-692-ISOLATION-S02
+        scenario_id: mapped-proof-execution-is-isolated-from-trusted-evidence-production
+        method: test
+        intent: "Prove approved tests retain private temp and raw-JUnit writes without inheriting trusted host paths."
+        observable: >-
+          The checkout is bound read-only, the fresh handoff alone is writable,
+          and HOME, RUNNER_TEMP, and TMPDIR resolve inside private temporary storage.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_executor.py::test_systemd_service_request_preserves_only_private_scratch_and_raw_handoff
+      - case_id: RELEASE-692-ISOLATION-S03
+        scenario_id: mapped-proof-execution-is-isolated-from-trusted-evidence-production
+        method: test
+        intent: "Prove untrusted pytest output cannot reach the GitHub workflow-command parser."
+        observable: "The service routes stdout and stderr to null and does not pipe them to the trusted runner."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_executor.py::test_systemd_service_request_discards_untrusted_workflow_command_output
+      - case_id: RELEASE-692-ISOLATION-S04
+        scenario_id: mapped-proof-execution-is-isolated-from-trusted-evidence-production
+        method: test
+        intent: "Prove blocking Requirements CI explicitly requires the service backend without same-identity fallback."
+        observable: >-
+          The sole proof-executor invocation passes systemd-service and contains
+          no conditional retry through the direct backend.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_requires_system_service_proof_isolation

@@ -633,10 +633,15 @@ jobs:
             python scripts/requirements_proof_executor.py \
               --plan artifacts/requirements-evidence/requirements-evidence-plan.json \
               --repo-root "$GITHUB_WORKSPACE" \
-              --junit artifacts/requirements-evidence/requirements-proof.xml
+              --junit artifacts/requirements-evidence/requirements-proof.xml \
+              --isolation systemd-service
             execution_exit=$?
             set -e
-            if [[ ! -s artifacts/requirements-evidence/requirements-proof.xml ]]; then
+            if [[ "$run_stage" == "final" && "$execution_exit" -ne 0 ]]; then
+              rm -f artifacts/requirements-evidence/requirements-proof.xml
+              write_failure_reports "Requirements proof executor exited with status $execution_exit during final verification."
+              exit_code=1
+            elif [[ ! -s artifacts/requirements-evidence/requirements-proof.xml ]]; then
               write_failure_reports "Requirements proof executor exited with status $execution_exit before writing JUnit."
               exit_code=1
             else

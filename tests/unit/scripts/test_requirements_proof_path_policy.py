@@ -202,6 +202,30 @@ def test_applicable_conftests_cannot_be_authorized_as_mutable(selector: str, loc
         module._mutable_sut_paths(_report(_touchpoint(locator)), Path(), "a" * 40, [selector])
 
 
+def test_conftest_declared_repository_plugin_cannot_be_authorized_as_mutable(tmp_path: Path) -> None:
+    """A conftest-loaded plugin is test harness, even below a production-looking path."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    test_path = tmp_path / "tests" / "unit" / "test_delivery.py"
+    plugin_path = tmp_path / "src" / "hidden_plugin.py"
+    test_path.parent.mkdir(parents=True)
+    plugin_path.parent.mkdir(parents=True)
+    test_path.write_text("def test_delivery() -> None: assert False\n", encoding="utf-8")
+    plugin_path.write_text("VALUE = 'red'\n", encoding="utf-8")
+    (tmp_path / "conftest.py").write_text('pytest_plugins = ("src.hidden_plugin",)\n', encoding="utf-8")
+    red_ref = _commit(tmp_path, "red proof inputs")
+
+    with pytest.raises(ValueError, match="prior-red-proof-invalid"):
+        module._mutable_sut_paths(
+            _report(_touchpoint("src/hidden_plugin.py")),
+            tmp_path,
+            red_ref,
+            ["tests/unit/test_delivery.py"],
+        )
+
+
 def test_copy_from_unchanged_frozen_source_is_retained(tmp_path: Path) -> None:
     """Complete history reports the unchanged source of a copied test blob."""
     module = _load_provenance_module()

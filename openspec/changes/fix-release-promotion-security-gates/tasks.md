@@ -59,7 +59,7 @@
 - [ ] 6.3 After merge, update the internal wiki mirror summary for the compact
   path-policy scope and rebuild its graph without modifying internal wiki PR #38
   or its branch.
-- [ ] 6.4 Record product-owner approval for the exact final change-local Requirements
+- [x] 6.4 Record product-owner approval for the exact final change-local Requirements
   mapping digest and pass the staged gate at `test-authored` maturity.
 
 ## 7. Pull request and release continuation
@@ -75,15 +75,15 @@
 - [x] 8.2 Record the review-driven compact SUT path-policy delta before changing
   tests or implementation; preserve external authority, linear ancestry,
   test-only red, exact archive protocol, and repeatable amendment cycles.
-- [ ] 8.3 Derive focused regressions from each compact path-policy scenario,
+- [x] 8.3 Derive focused regressions from each compact path-policy scenario,
   including exact mutable SUT success, restored/renamed/copied paths, frozen
   harness and anchor rejection, ambiguous mapping rejection, and unmapped-path
   rejection; record failing-before evidence before implementation.
-- [ ] 8.4 Update the exact regular-file Requirements mapping, mark only genuine
+- [x] 8.4 Update the exact regular-file Requirements mapping, mark only genuine
   SUT touchpoints `mutable_after_red: true`, leave tests and frozen proof
   authority immutable, obtain product-owner approval of the resulting digest,
   and capture acceptance before implementation.
-- [ ] 8.5 Replace the oversized construct-by-construct interpreter with the
+- [x] 8.5 Replace the oversized construct-by-construct interpreter with the
   compact complete-history path validator at the externally authenticated red
   boundary; do not add a fifth trust anchor or general mutable/process bypass.
 - [ ] 8.6 Record passing-after evidence, run focused and repository-wide gates,
@@ -92,3 +92,18 @@
 - [ ] 8.7 Run one independent candidate bypass/regression review against the
   exact final tree and resolve every applicable PR review thread with commit and
   verification evidence.
+- [x] 8.8 Extend the existing security-gate specification and design with the
+  approved transient-UID, read-only-mount, private-scratch, and cgroup-teardown
+  boundary; record compatibility and rollback constraints before tests.
+- [x] 8.9 Add failing regressions for exact blocking-workflow isolation,
+  detached-descendant teardown, protected trusted inputs, and legitimate
+  temporary Bash/Git fixture behavior before changing the executor.
+- [x] 8.10 Implement the smallest hosted-Linux isolation backend around only
+  the mapped pytest process; keep canonicalization and every later verifier in
+  the trusted host process and fail closed rather than falling back.
+- [ ] 8.11 Run focused adversarial and legitimate controls, hosted-runner smoke
+  evidence, all applicable quality/security gates, and one fresh independent
+  bypass/regression review before requesting final mapping/producer authority.
+- [x] 8.12 Freeze literal repository-local pytest plugins declared by
+  applicable conftests, with failing-before and passing-after proof for the
+  review-reported mutable-SUT bypass.

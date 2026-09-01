@@ -83,7 +83,8 @@ globs, prefixes, directories, missing/non-regular paths, duplicate or normalized
 locator collisions, and touchpoint-role mismatches before granting authority.
 
 Selected tests and support roots, including additions, pytest configuration,
-the fixed proof executor and explicit plugin, `uv.lock`, applicable package
+repository-local plugins named by literal `pytest_plugins` declarations in
+applicable conftests, the fixed proof executor and explicit plugin, `uv.lock`, applicable package
 initializers, and exactly the four existing `NON_TRANSITIVE_PROOF_INPUTS` trust
 anchors remain frozen regardless of mapping content. The archive regression's
 exact Bash/Git fixture protocol remains freshness-bound; it is not a general
@@ -112,6 +113,38 @@ it makes authority implicit or over-broad. Always reusing the fixed external
 red/green pair was rejected because it makes future review amendments stale and
 prevents an updateable non-default-branch PR.
 
+### Isolate untrusted pytest execution from trusted evidence production
+
+Keep plan validation, raw-JUnit canonicalization, reconciliation, provenance
+validation, Code Review, and artifact publication in the trusted runner process.
+Launch only the exact mapped pytest argument vector in a transient system
+service with a dynamically allocated unprivileged identity, a dedicated cgroup,
+and a private mount namespace. The service exposes the checkout and frozen
+module fixture read-only, hides Git metadata and other runner-home content,
+removes network and privilege-gain capabilities, and permits writes only in a
+private temporary filesystem plus one fresh raw-JUnit handoff directory.
+
+The service uses a finite runtime and control-group kill semantics. The trusted
+executor does not read the handoff until the service is inactive and every
+descendant has been terminated. It then treats raw JUnit as bounded untrusted
+input, canonicalizes exact planned selectors and toolchain identities, and
+publishes the canonical JUnit to a runner-owned path that was never writable by
+the service. Stdout and stderr are captured with fixed bounds and replayed only
+inside a host-generated workflow-command stop/resume boundary, or more narrowly
+routed to null inside the service. The implementation chooses null routing so
+canonical JUnit is the sole proof-data handoff and no custom output-draining
+protocol is needed. Blocking CI requests this backend explicitly and fails
+closed when the hosted runner cannot enforce it. The direct command-runner seam
+remains for local unit tests; it is not an accepted blocking-workflow backend.
+
+Per-file hard links, digests, or memory-backed JUnit alone were rejected because
+a same-identity descendant can instead mutate the plan, checkout, verifier
+scripts, module fixture, Git state, or a later artifact path. A fresh job alone
+was rejected because an unisolated producer can forge its output before upload.
+A new OCI proof image was rejected because the repository has no frozen proof
+image and reusing the host virtual environment in an unrelated image is not a
+reproducible compatibility contract.
+
 ## Risks / Trade-offs
 
 - **Longer CI runs without uv persistence** → Accept the release-safety cost; frozen installs remain deterministic and can use runner-local state only within a job.
@@ -124,6 +157,13 @@ prevents an updateable non-default-branch PR.
   exact, digest-bound, owner-approved, and limited to regular-file mapping
   touchpoints; freeze every declared harness and proof-authority class and reject
   collisions or role mismatches.
+- **Hosted-runner isolation primitives drift or are unavailable** → Pin the
+  workflow to the supported hosted Linux class, validate every required service
+  property before execution, and fail closed without producing canonical proof.
+- **Mapped tests need ordinary scratch or Git fixture behavior** → Preserve a
+  private writable temporary filesystem and installed Bash/Git tools while
+  keeping the real checkout, module fixture, Git metadata, network, and trusted
+  artifact paths inaccessible or read-only.
 
 ## Migration Plan
 

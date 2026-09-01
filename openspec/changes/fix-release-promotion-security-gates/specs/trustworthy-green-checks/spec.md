@@ -139,8 +139,9 @@ globs, prefixes, directories, normalization collisions, duplicate locators,
 role mismatches, missing paths, and non-regular files SHALL fail closed.
 
 Selected tests and support roots, including additions and every applicable
-ancestor `conftest.py`, repository pytest
-configuration, the proof executor and explicit plugin, `uv.lock`, applicable
+ancestor `conftest.py`, repository pytest configuration, repository-local
+plugin modules named by literal `pytest_plugins` declarations in those
+conftests, the proof executor and explicit plugin, `uv.lock`, applicable
 package initializers, and the four existing `NON_TRANSITIVE_PROOF_INPUTS` trust
 anchors SHALL remain frozen and SHALL NOT be authorized as mutable SUT paths.
 The literal boolean `mutable_after_red: true` SHALL itself classify a
@@ -175,7 +176,7 @@ any SUT, test, configuration, or unlisted producer path.
 
 #### Scenario: Proof authority and test inputs remain frozen
 
-- **GIVEN** a selected test or support input, pytest configuration, proof executor or plugin, `uv.lock`, package initializer, or one of the four fixed trust anchors
+- **GIVEN** a selected test or support input, pytest configuration, repository-local plugin loaded by an applicable conftest, proof executor or explicit plugin, `uv.lock`, package initializer, or one of the four fixed trust anchors
 - **WHEN** that path is added, removed, renamed, copied, or changed after red
 - **THEN** retained proof fails with `stale-red-proof` even if a mapping attempts to mark it mutable
 
@@ -197,6 +198,59 @@ any SUT, test, configuration, or unlisted producer path.
 - **GIVEN** a path is not an eligible exact `mutable_after_red: true` SUT touchpoint
 - **WHEN** any red-to-final commit touches that path
 - **THEN** retained proof fails with `stale-red-proof`
+
+### Requirement: Mapped proof execution is isolated from trusted evidence production
+
+The blocking Requirements workflow SHALL execute mapped pytest selectors and
+all of their descendants in a transient Linux service under a separate
+unprivileged identity, mount namespace, and dedicated control group. The
+checkout, selected tests and plugin, proof plan and producers, frozen module
+fixture, canonical evidence destinations, and later verifier inputs SHALL NOT
+be writable by that service; repository Git metadata, runner credentials, and
+unrelated runner-home content SHALL be inaccessible. The service SHALL have no
+network access, privilege-gain path, ambient capability, or persistent writable
+state. It MAY write only to a private temporary filesystem and one fresh raw
+JUnit handoff directory.
+
+The trusted runner process SHALL wait until the transient service is inactive
+and its complete control group has been terminated before reading the handoff.
+Only then SHALL it parse the bounded raw JUnit as untrusted input, canonicalize
+the exact planned selectors and identities, and publish canonical JUnit to a
+runner-owned destination. Proof stdout and stderr SHALL NOT be replayed as
+unframed GitHub workflow commands. The blocking workflow MAY satisfy this
+property by routing both streams to null
+inside the transient service and using canonical JUnit as the only proof-data
+handoff. Blocking proof SHALL fail closed when any required isolation, output
+suppression, or teardown property cannot be established. A direct local
+command-runner test seam SHALL NOT satisfy the blocking workflow boundary.
+
+#### Scenario: Detached proof descendant targets trusted inputs
+
+- **GIVEN** a mapped test or SUT starts a detached descendant that outlives the pytest main process
+- **WHEN** that descendant attempts to modify the plan, checkout, proof producer, module fixture, Git metadata, canonical JUnit, or later artifact input
+- **THEN** the write is denied by the separate identity and mount boundary
+- **AND** the entire service control group is terminated before the trusted runner reads raw JUnit
+- **AND** no descendant can survive to modify later reconciliation, review, or upload inputs
+
+#### Scenario: Proof output resembles a workflow command
+
+- **GIVEN** a mapped test writes GitHub workflow-command syntax to stdout or stderr
+- **WHEN** the transient proof service executes that test
+- **THEN** the service routes both streams to null rather than the workflow command parser
+- **AND** proof bytes cannot set outputs, environment, masks, annotations, or command-processing state
+
+#### Scenario: Legitimate mapped tests use isolated scratch behavior
+
+- **GIVEN** an approved mapped test creates temporary files or an isolated Git repository and invokes installed Bash or Git directly
+- **WHEN** the blocking Requirements workflow executes that selector
+- **THEN** the test can read the frozen checkout and module fixture and write within its private temporary filesystem
+- **AND** the proof service still has no network, credential, persistent-cache, checkout-write, or canonical-artifact-write access
+
+#### Scenario: Isolation backend is unavailable
+
+- **WHEN** the hosted Linux runner cannot establish every required identity, mount, network, capability, runtime, and control-group property
+- **THEN** mapped proof execution fails before canonical evidence is published
+- **AND** the workflow does not fall back to same-identity pytest execution
 
 ### Requirement: Repository path operands cannot become command options
 

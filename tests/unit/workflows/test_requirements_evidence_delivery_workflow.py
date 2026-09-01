@@ -633,6 +633,18 @@ def test_requirements_evidence_workflow_binds_red_proof_before_publication() -> 
     assert command.index(binding) < command.index("fallback_required=0")
 
 
+def test_requirements_evidence_workflow_requires_system_service_proof_isolation() -> None:
+    """Blocking CI must fail closed instead of executing mapped tests as the runner user."""
+    command = _run_evidence_command()
+    invocation = command[
+        command.index("python scripts/requirements_proof_executor.py") : command.index("execution_exit=$?")
+    ]
+
+    assert "--isolation systemd-service" in invocation
+    assert "systemd-service ||" not in invocation
+    assert invocation.count("python scripts/requirements_proof_executor.py") == 1
+
+
 def _review_and_enforcement_steps() -> tuple[dict[str, object], dict[str, object]]:
     """Load the two workflow steps that independently govern final PR status."""
     workflow = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"

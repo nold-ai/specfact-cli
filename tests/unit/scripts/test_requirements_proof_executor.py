@@ -43,6 +43,15 @@ class ExecutorModule(Protocol):
 
     PROOF_PYTEST_BOOTSTRAP: str
 
+    def _systemd_service_request(
+        self,
+        request: ProofCommand,
+        repo_root: Path,
+        handoff_root: Path,
+        unit_name: str,
+    ) -> ProofCommand:
+        raise NotImplementedError
+
     def selectors_from_plan(self, plan: dict[str, object], repo_root: Path) -> list[str]:
         raise NotImplementedError
 
@@ -292,18 +301,122 @@ def test_executor_cli_reads_plan_and_forwards_resolved_paths(tmp_path: Path, mon
     plan_path = tmp_path / "plan.json"
     plan_path.write_text(json.dumps(_plan("tests/test_proof.py::test_selected")), encoding="utf-8")
     junit_path = tmp_path / "artifacts" / "proof.xml"
-    captured: tuple[dict[str, object], Path, Path] | None = None
+    captured: tuple[dict[str, object], Path, Path, str] | None = None
 
-    def execute_plan(plan: dict[str, object], repo_root: Path, output_path: Path) -> int:
+    def execute_plan(
+        plan: dict[str, object],
+        repo_root: Path,
+        output_path: Path,
+        *,
+        isolation: str = "direct",
+    ) -> int:
         nonlocal captured
-        captured = (plan, repo_root, output_path)
+        captured = (plan, repo_root, output_path, isolation)
         return 0
 
     monkeypatch.setattr(module, "execute_plan", execute_plan)
 
-    assert module.main(["--plan", str(plan_path), "--repo-root", str(tmp_path), "--junit", str(junit_path)]) == 0
+    assert (
+        module.main(
+            [
+                "--plan",
+                str(plan_path),
+                "--repo-root",
+                str(tmp_path),
+                "--junit",
+                str(junit_path),
+                "--isolation",
+                "systemd-service",
+            ]
+        )
+        == 0
+    )
     assert captured is not None
-    assert captured == (_plan("tests/test_proof.py::test_selected"), tmp_path, junit_path)
+    assert captured == (_plan("tests/test_proof.py::test_selected"), tmp_path, junit_path, "systemd-service")
+
+
+def _systemd_service_contract(tmp_path: Path) -> tuple[ProofCommand, ProofCommand, Path, set[str]]:
+    """Build one isolated service request through the public execution seam."""
+    module = _load_executor_module()
+    _write_selected_test(tmp_path)
+    captured: ProofCommand | None = None
+
+    def capture_command(command: ProofCommand) -> int:
+        nonlocal captured
+        captured = command
+        return 0
+
+    module.execute_plan(
+        _plan("tests/test_proof.py::test_selected"),
+        tmp_path,
+        tmp_path.parent / "canonical.xml",
+        command_runner=capture_command,
+    )
+    assert captured is not None
+    handoff_root = tmp_path.parent / "proof-handoff"
+    request = module._systemd_service_request(captured, tmp_path, handoff_root, "specfact-proof-deadbeefdeadbeef")
+    arguments = request.arguments
+    properties = {arguments[index + 1] for index, value in enumerate(arguments[:-1]) if value == "--property"}
+    return captured, request, handoff_root, properties
+
+
+def test_systemd_service_request_closes_identity_mount_network_and_lifecycle_boundaries(tmp_path: Path) -> None:
+    """Blocking proof must not reuse the trusted runner identity or writable checkout."""
+    _, request, _, properties = _systemd_service_contract(tmp_path)
+    arguments = request.arguments
+
+    assert arguments[:4] == ["/usr/bin/sudo", "-n", "/usr/bin/systemd-run", "--quiet"]
+    assert {"--wait", "--collect", "--service-type=exec"}.issubset(arguments)
+    assert "--pipe" not in arguments
+    assert "--scope" not in arguments
+    assert {
+        "DynamicUser=yes",
+        "KillMode=control-group",
+        "SendSIGKILL=yes",
+        "TimeoutStopSec=5s",
+        "RuntimeMaxSec=600s",
+        "NoNewPrivileges=yes",
+        "RestrictSUIDSGID=yes",
+        "CapabilityBoundingSet=",
+        "AmbientCapabilities=",
+        "ProtectSystem=strict",
+        "ProtectHome=tmpfs",
+        "PrivateTmp=yes",
+        "PrivateDevices=yes",
+        "PrivateNetwork=yes",
+        "ProtectControlGroups=yes",
+        "ProtectProc=invisible",
+    }.issubset(properties)
+
+
+def test_systemd_service_request_preserves_only_private_scratch_and_raw_handoff(tmp_path: Path) -> None:
+    """Legitimate tests retain private temp writes without a writable checkout or host environment."""
+    captured, request, handoff_root, properties = _systemd_service_contract(tmp_path)
+    arguments = request.arguments
+
+    assert f"BindReadOnlyPaths={tmp_path}:{tmp_path}:rbind" in properties
+    assert f"BindPaths={handoff_root}:{handoff_root}:norbind" in properties
+    assert f"InaccessiblePaths={tmp_path / '.git'}" in properties
+    assert request.shell is False
+    assert request.timeout > captured.timeout
+    assert request.env == {}
+    environment_start = arguments.index("/usr/bin/env")
+    assert arguments[environment_start : environment_start + 5] == [
+        "/usr/bin/env",
+        "-i",
+        "HOME=/tmp",
+        "RUNNER_TEMP=/tmp",
+        "TMPDIR=/tmp",
+    ]
+
+
+def test_systemd_service_request_discards_untrusted_workflow_command_output(tmp_path: Path) -> None:
+    """Mapped test output must never reach the Actions workflow-command parser."""
+    _, request, _, properties = _systemd_service_contract(tmp_path)
+
+    assert "StandardOutput=null" in properties
+    assert "StandardError=null" in properties
+    assert "--pipe" not in request.arguments
 
 
 def test_executor_cli_rejects_malformed_plan_before_spawning(tmp_path: Path) -> None:

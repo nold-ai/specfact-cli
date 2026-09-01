@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import hashlib
 import importlib.util
 import json
@@ -813,6 +814,84 @@ def _python_module_paths(module_parts: Sequence[str]) -> set[str]:
     return paths
 
 
+def _blob_text_at_ref(repo_root: Path, source_ref: str, path: str) -> str | None:
+    """Read one bounded regular Git blob without consulting mutable worktree bytes."""
+    if not _test_path_is_regular_at_ref(repo_root, source_ref, path):
+        return None
+    size_result = _git(repo_root, "cat-file", "-s", f"{source_ref}:{path}")
+    try:
+        blob_size = int(size_result.stdout.strip())
+    except ValueError:
+        return None
+    if size_result.returncode != 0 or blob_size > MAX_TEST_BLOB_BYTES:
+        return None
+    result = _git(repo_root, "show", f"{source_ref}:{path}")
+    return result.stdout if result.returncode == 0 else None
+
+
+def _pytest_plugins_value(statement: ast.stmt) -> ast.expr | None:
+    """Return a direct module-scope pytest_plugins value when present."""
+    if isinstance(statement, ast.Assign):
+        return (
+            statement.value
+            if any(isinstance(target, ast.Name) and target.id == "pytest_plugins" for target in statement.targets)
+            else None
+        )
+    if isinstance(statement, ast.AnnAssign):
+        return (
+            statement.value
+            if isinstance(statement.target, ast.Name) and statement.target.id == "pytest_plugins"
+            else None
+        )
+    return None
+
+
+def _literal_module_names(value: ast.expr) -> tuple[str, ...]:
+    """Return one valid literal string or sequence of module names."""
+    try:
+        declared = ast.literal_eval(value)
+    except (ValueError, TypeError) as error:
+        raise ValueError("prior-red-proof-invalid") from error
+    if isinstance(declared, str):
+        declared = (declared,)
+    if not isinstance(declared, (tuple, list)) or not all(isinstance(module, str) and module for module in declared):
+        raise ValueError("prior-red-proof-invalid")
+    return tuple(declared)
+
+
+def _literal_pytest_plugin_modules(source: str) -> tuple[str, ...]:
+    """Return literal module names from module-scope pytest_plugins declarations."""
+    try:
+        tree = ast.parse(source)
+    except (SyntaxError, ValueError) as error:
+        raise ValueError("prior-red-proof-invalid") from error
+    return tuple(
+        module
+        for statement in tree.body
+        if (value := _pytest_plugins_value(statement)) is not None
+        for module in _literal_module_names(value)
+    )
+
+
+def _conftest_plugin_paths(
+    repo_root: Path,
+    source_ref: str,
+    conftest_paths: Sequence[str],
+) -> set[str]:
+    """Return repository paths named by literal red-time conftest plugins."""
+    plugin_paths: set[str] = set()
+    for conftest_path in conftest_paths:
+        source = _blob_text_at_ref(repo_root, source_ref, conftest_path)
+        if source is None:
+            continue
+        for module_name in _literal_pytest_plugin_modules(source):
+            parts = module_name.split(".")
+            if any(not part.isidentifier() for part in parts):
+                raise ValueError("prior-red-proof-invalid")
+            plugin_paths.update(_python_module_paths(parts))
+    return plugin_paths
+
+
 def _validate_retained_red_junit(
     red_proof_path: Path, report: dict[str, object], *, junit_path: Path | None = None
 ) -> ParsedJunit:
@@ -1392,11 +1471,14 @@ def _test_support_roots(selector_paths: Sequence[str]) -> set[str]:
     return roots
 
 
-def _frozen_proof_paths(selector_paths: Sequence[str]) -> set[str]:
+def _frozen_proof_paths(repo_root: Path, source_ref: str, selector_paths: Sequence[str]) -> set[str]:
     """Return exact proof-authority paths that mapping content cannot unfreeze."""
     configurations = {path for selector in selector_paths for path in _applicable_pytest_configuration_paths(selector)}
     conftests = {path for selector in selector_paths for path in _applicable_conftest_paths(selector)}
-    plugin_paths = _python_module_paths(("scripts", "requirements_proof_pytest_plugin"))
+    plugin_paths = {
+        *_python_module_paths(("scripts", "requirements_proof_pytest_plugin")),
+        *_conftest_plugin_paths(repo_root, source_ref, sorted(conftests)),
+    }
     initializers = {
         initializer for path in {*selector_paths, *plugin_paths} for initializer in _parent_package_initializers(path)
     }
@@ -1478,7 +1560,7 @@ def _mutable_sut_paths(
     producer_paths: frozenset[str] = frozenset(),
 ) -> set[str]:
     """Return exact owner-approved post-red SUT paths from the bound plan."""
-    frozen = _frozen_proof_paths(selector_paths)
+    frozen = _frozen_proof_paths(repo_root, source_ref, selector_paths)
     support_roots = _test_support_roots(selector_paths)
     mutable_paths: set[str] = set()
     policy = _MutablePathPolicy(repo_root, source_ref, frozen, support_roots, mutable_paths, producer_paths)

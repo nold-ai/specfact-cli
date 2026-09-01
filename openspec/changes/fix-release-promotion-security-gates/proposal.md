@@ -19,6 +19,12 @@ The protected `dev` head now contains the intervening 0.55.3 module-scope change
 - Preserve the externally authorized verified green as an ordinary amendment
   cycle base so later review fixes can complete fresh red-to-green proof on the
   same non-default-branch pull request.
+- Isolate mapped pytest proof execution and every descendant from the trusted
+  evidence producer with a transient unprivileged Linux service, read-only
+  proof inputs, private scratch space, and cgroup-bounded teardown before the
+  trusted host canonicalizes the raw JUnit handoff.
+- Keep repository-local pytest plugins named by applicable conftests frozen;
+  mapping metadata cannot relabel those harness modules as mutable SUT.
 - Run the staged-index Markdown auto-fixer once per pre-commit invocation so
   multiple filename batches cannot race on the Git index lock.
 - Finalize the completed retained-red-proof bugfix with the normal OpenSpec archive command when strict validation confirms it is complete.
@@ -50,8 +56,15 @@ None.
 - **Security**: removes the persistent cache sink reported by CodeQL and replaces
   the obsolete MCP waiver with a fixed transitive release plus a pre-install MCP
   floor while retaining exact module repository, commit, and tree verification.
-  No alert is dismissed.
-- **Compatibility**: frozen and hash-locked dependency synchronization remains unchanged; CI may take longer because uv artifacts are downloaded without a persistent Actions cache.
+  It also prevents mapped tests or their detached descendants from modifying the
+  plan, checkout, proof producers, module fixture, canonical reports, or later
+  verifier inputs under the runner identity. No alert is dismissed.
+- **Compatibility**: frozen and hash-locked dependency synchronization remains
+  unchanged; CI may take longer because uv artifacts are downloaded without a
+  persistent Actions cache. Blocking Requirements proof on GitHub's hosted
+  Linux runner gains an explicit system-service isolation backend; local
+  executor unit seams remain available, and mapped tests retain private
+  temporary filesystem and Bash/Git fixture behavior without network access.
 - **Release safety**: Requirements and finalized Code Review remain fail-closed.
   Only exact, regular-file mapping touchpoints explicitly approved as mutable
   may change after red; all proof authority and harness inputs remain frozen.
