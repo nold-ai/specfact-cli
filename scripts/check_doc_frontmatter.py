@@ -591,7 +591,7 @@ def _missing_owner_via_rg(files: list[Path]) -> list[Path] | None:
     file_args = [str(f) for f in files]
     try:
         result = subprocess.run(
-            ["rg", "--files-without-match", r"^\s*doc_owner\s*:", *file_args],
+            ["rg", "--files-without-match", r"^\s*doc_owner\s*:", "--", *file_args],
             capture_output=True,
             text=True,
             timeout=60,

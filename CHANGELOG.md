@@ -10,6 +10,28 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.55.4] - 2026-09-02
+
+### Security
+
+- **Frozen security tooling:** upgrade Semgrep to 1.175.0 and MCP to 1.29.0,
+  remove the superseded MCP vulnerability exception, and enforce both reviewed
+  security floors before synchronization.
+- **Release workflow isolation:** disable persistent Python and Requirements
+  Code Review caches, make the compatibility fixture schedule-only, and verify
+  its immutable commit and tree before exporting its path.
+- **Review dependency boundaries:** authenticate the isolated Code Review lock
+  against its source input and restrict its Pylint license exception to that
+  exact environment.
+
+### Fixed
+
+- Fail closed on incomplete OpenSpec archive moves, failed Git enumeration,
+  repository-shadowed pytest imports, malformed bootstrap authority bytes, and
+  dash-prefixed documentation paths.
+
+---
+
 ## [0.55.3] - 2026-08-29
 
 ### Fixed

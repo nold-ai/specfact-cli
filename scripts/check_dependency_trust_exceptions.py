@@ -6,6 +6,7 @@ only.  Do not add runtime contract or validation-library imports here.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import sys
@@ -19,6 +20,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_REGISTER = REPO_ROOT / "ci" / "dependency-trust-exceptions.json"
 DEFAULT_UV_LOCK = REPO_ROOT / "uv.lock"
 DEFAULT_SECURITY_TOOL_FLOORS = REPO_ROOT / "ci" / "security-tool-minimum-versions.json"
+DEFAULT_CODE_REVIEW_INPUT = REPO_ROOT / "requirements" / "code-review" / "requirements.in"
+DEFAULT_CODE_REVIEW_LOCK = REPO_ROOT / "requirements" / "code-review" / "locked.txt"
+CODE_REVIEW_INPUT_BINDING_PREFIX = "# input-sha256:"
 REQUIRED_FIELDS = frozenset(
     {
         "package",
@@ -38,6 +42,8 @@ PROHIBITED_EXECUTABLE_WHEEL_PACKAGES = frozenset({"nodejs-wheel-binaries"})
 # delivery input.
 BLOCKED_DEPENDENCY_RELEASES = frozenset({("pycparser", "3.0")})
 PACKAGE_NAME_SEPARATOR = re.compile(r"[-_.]+")
+CODE_REVIEW_PIN_PATTERN = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)==([^\s;\\]+)(?:\s*\\)?$")
+CODE_REVIEW_HASH_PATTERN = re.compile(r"^--hash=sha256:[0-9a-fA-F]{64}(?:\s*\\)?$")
 
 
 def _canonical_package_name(value: str) -> str:
@@ -206,6 +212,91 @@ def _read_locked_packages(lock_path: Path) -> tuple[dict[str, dict[str, object]]
     return locked_packages, errors
 
 
+def _validate_code_review_input_binding(input_bytes: bytes, contents: str) -> list[str]:
+    """Verify one exact digest binding from the review lock to its input."""
+    binding_lines = [line for line in contents.splitlines() if line.startswith(CODE_REVIEW_INPUT_BINDING_PREFIX)]
+    if len(binding_lines) != 1:
+        return ["Code Review lock must contain exactly one input SHA-256 binding"]
+    bound_digest = binding_lines[0].removeprefix(CODE_REVIEW_INPUT_BINDING_PREFIX).strip()
+    if not _is_sha256(bound_digest):
+        return ["Code Review lock input SHA-256 binding is malformed"]
+    if bound_digest != hashlib.sha256(input_bytes).hexdigest():
+        return ["Code Review lock input SHA-256 binding does not match requirements.in"]
+    return []
+
+
+def _parse_code_review_hash_line(
+    stripped: str, current_package: str | None, line_number: int
+) -> tuple[str | None, str | None, str | None]:
+    """Return the next package, hashed package, and optional error for one hash line."""
+    next_package = current_package if stripped.endswith("\\") else None
+    if current_package is None:
+        return (
+            next_package,
+            None,
+            (f"Code Review lock hash line {line_number} is not attached to a continued package pin"),
+        )
+    if CODE_REVIEW_HASH_PATTERN.fullmatch(stripped) is None:
+        return next_package, None, f"Code Review lock hash line {line_number} is malformed"
+    return next_package, current_package, None
+
+
+def _parse_code_review_pin_line(
+    stripped: str, packages: dict[str, str], line_number: int
+) -> tuple[str | None, str | None]:
+    """Record one exact package pin and return its continuation state and optional error."""
+    match = CODE_REVIEW_PIN_PATTERN.fullmatch(stripped)
+    if match is None:
+        return None, f"Code Review lock line {line_number} must be an exact name==version pin"
+    package_name = _canonical_package_name(match.group(1))
+    if package_name in packages:
+        return None, f"Code Review lock contains duplicate normalized package identity: {package_name}"
+    packages[package_name] = match.group(2)
+    return (package_name if stripped.endswith("\\") else None), None
+
+
+def _parse_code_review_pins(contents: str) -> tuple[dict[str, str], list[str]]:
+    """Parse the exact-pin and hash subset emitted by the frozen compiler."""
+    packages: dict[str, str] = {}
+    hashed_packages: set[str] = set()
+    errors: list[str] = []
+    current_package: str | None = None
+    for line_number, line in enumerate(contents.splitlines(), start=1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            current_package = None
+            continue
+        if stripped.startswith("--hash=sha256:"):
+            current_package, hashed_package, error = _parse_code_review_hash_line(
+                stripped, current_package, line_number
+            )
+            if hashed_package is not None:
+                hashed_packages.add(hashed_package)
+            if error is not None:
+                errors.append(error)
+            continue
+        current_package, error = _parse_code_review_pin_line(stripped, packages, line_number)
+        if error is not None:
+            errors.append(error)
+    if not packages:
+        errors.append("Code Review lock must contain at least one exact package pin")
+    for package_name, version in packages.items():
+        if package_name not in hashed_packages:
+            errors.append(f"Code Review lock package {package_name}=={version} must include a SHA-256 hash")
+    return packages, errors
+
+
+def _read_code_review_locked_packages(input_path: Path, lock_path: Path) -> tuple[dict[str, str], list[str]]:
+    """Read exact review pins and bind them to the declared input bytes."""
+    try:
+        input_bytes = input_path.read_bytes()
+        contents = lock_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as error:
+        return {}, [f"could not read Code Review dependency graph: {error}"]
+    packages, errors = _parse_code_review_pins(contents)
+    return packages, [*_validate_code_review_input_binding(input_bytes, contents), *errors]
+
+
 def _read_security_tool_floors(policy_path: Path = DEFAULT_SECURITY_TOOL_FLOORS) -> tuple[dict[str, str], list[str]]:
     """Load normalized, locally verifiable security-tool minimum versions."""
     try:
@@ -273,6 +364,25 @@ def _validate_locked_package_policy(
     return errors
 
 
+def _validate_locked_version_policy(locked_versions: dict[str, str], tool_floors: dict[str, str]) -> list[str]:
+    """Apply version-only policy to a hash-locked non-uv dependency graph."""
+    errors: list[str] = []
+    for package_name, version in sorted(locked_versions.items()):
+        if package_name in PROHIBITED_EXECUTABLE_WHEEL_PACKAGES:
+            errors.append(f"{package_name}=={version} is prohibited in the frozen lock")
+        if _is_blocked_release(package_name, version):
+            errors.append(f"{package_name}=={version} is blocked after a security-obfuscation alert")
+        floor = tool_floors.get(package_name)
+        if floor is None:
+            continue
+        below_floor = _is_below_security_floor(version, floor)
+        if below_floor is None:
+            errors.append(f"{package_name}=={version} cannot be compared with reviewed security floor {floor}")
+        elif below_floor:
+            errors.append(f"{package_name}=={version} is below the reviewed security floor {floor}")
+    return errors
+
+
 def _validate_review_record(
     record: dict[str, object], index: int, locked_packages: dict[str, dict[str, object]]
 ) -> list[str]:
@@ -315,8 +425,10 @@ def validate_frozen_dependency_policy(
     lock_path: Path = DEFAULT_UV_LOCK,
     *,
     today: date | None = None,
+    code_review_input_path: Path = DEFAULT_CODE_REVIEW_INPUT,
+    code_review_lock_path: Path = DEFAULT_CODE_REVIEW_LOCK,
 ) -> list[str]:
-    """Reject blocked releases and reviews that do not bind to the frozen lock."""
+    """Reject blocked releases and reviews that do not bind to either frozen graph."""
     errors = validate_exception_register(register_path, today=today)
     locked_packages, lock_errors = _read_locked_packages(lock_path)
     errors.extend(lock_errors)
@@ -328,6 +440,11 @@ def validate_frozen_dependency_policy(
         return errors
     errors.extend(_validate_locked_package_policy(locked_packages, tool_floors))
     errors.extend(_validate_review_records(register_path, locked_packages))
+    code_review_packages, code_review_errors = _read_code_review_locked_packages(
+        code_review_input_path, code_review_lock_path
+    )
+    errors.extend(code_review_errors)
+    errors.extend(_validate_locked_version_policy(code_review_packages, tool_floors))
     return errors
 
 

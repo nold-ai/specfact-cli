@@ -5,13 +5,6 @@ name: Requirements Evidence
 on:
   pull_request:
     branches: [main, dev]
-  workflow_dispatch:
-    inputs:
-      base_branch:
-        description: Base branch used to select changed Requirements sources.
-        required: true
-        default: dev
-        type: string
 
 permissions:
   actions: read
@@ -19,8 +12,14 @@ permissions:
   issues: read
 
 jobs:
-  requirements-evidence:
-    name: Requirements evidence
+  requirements-evidence-producer:
+    name: Requirements evidence producer
+    permissions:
+      actions: read
+      contents: read
+      issues: read
+    outputs:
+      artifact-id: ${{ steps.upload-requirements-evidence.outputs.artifact-id }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -150,16 +149,40 @@ jobs:
             cp "$junit" "${proof_root}/red.xml"
           fi
 
+      - name: Prepare one-time Requirements bootstrap authority
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        env:
+          EVIDENCE_BASE_BRANCH: ${{ github.base_ref }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet "origin/${EVIDENCE_BASE_BRANCH}...HEAD" -- \
+            openspec/changes/fix-retained-red-proof-provenance; then
+            exit 0
+          fi
+          bootstrap_comment_id=5431081643
+          bootstrap_run_id=33013274590
+          bootstrap_red_commit="04b6c02eb63f779309d8dced48085f3ef0efe029"
+          bootstrap_root="${RUNNER_TEMP}/requirements-bootstrap-authority"
+          bootstrap_artifact_root="${bootstrap_root}/artifact"
+          mkdir -p "$bootstrap_artifact_root"
+          gh api "repos/${GITHUB_REPOSITORY}/issues/comments/${bootstrap_comment_id}" > "${bootstrap_root}/comment.json"
+          gh api "repos/${GITHUB_REPOSITORY}/commits/${bootstrap_red_commit}" > "${bootstrap_root}/commit.json"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${bootstrap_run_id}" > "${bootstrap_root}/run.json"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${bootstrap_run_id}/artifacts" > "${bootstrap_root}/artifacts.json"
+          gh run download "$bootstrap_run_id" --name requirements-evidence --dir "$bootstrap_artifact_root"
+
       - name: Run Requirements evidence gate
         id: run-evidence
         continue-on-error: true
         env:
-          EVIDENCE_BASE_BRANCH: ${{ github.event_name == 'pull_request' && github.base_ref || inputs.base_branch || github.event.repository.default_branch }}
+          EVIDENCE_BASE_BRANCH: ${{ github.base_ref }}
           EVIDENCE_EVENT_NAME: ${{ github.event_name }}
           EVIDENCE_FINAL_REF: ${{ github.event.pull_request.head.sha || github.sha }}
           EVIDENCE_HEAD_BRANCH: ${{ github.head_ref }}
           EVIDENCE_PULL_REQUEST: ${{ github.event.pull_request.number }}
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -e
           write_failure_reports() {
@@ -170,15 +193,20 @@ jobs:
             printf 'Invalid evidence base branch: %s\n' "$EVIDENCE_BASE_BRANCH" >&2
             exit 1
           fi
+          if ! evidence_base_commit="$(git merge-base "origin/${EVIDENCE_BASE_BRANCH}" HEAD)" \
+            || [[ ! "$evidence_base_commit" =~ ^[0-9a-f]{40}$ ]]; then
+            write_failure_reports "Unable to resolve immutable evidence base for $EVIDENCE_BASE_BRANCH"
+            exit 1
+          fi
+          printf 'base-commit=%s\n' "$evidence_base_commit" >> "$GITHUB_OUTPUT"
           required_maturity=planned
           changed_status_file="${RUNNER_TEMP}/requirements-evidence-changed-status.z"
-          if ! git diff --name-status -z --find-renames "origin/${EVIDENCE_BASE_BRANCH}...HEAD" > "$changed_status_file"; then
+          if ! git diff --name-status -z --find-renames=100% "${evidence_base_commit}..HEAD" > "$changed_status_file"; then
             write_failure_reports "Unable to derive changed paths for $EVIDENCE_BASE_BRANCH"
             printf 'Unable to derive changed paths for %s\n' "$EVIDENCE_BASE_BRANCH" >&2
             exit 1
           fi
           changed_paths=()
-          declare -A archived_source_paths=()
           while IFS= read -r -d '' status; do
             if ! IFS= read -r -d '' source_path; then
               write_failure_reports "Unable to parse changed paths for $EVIDENCE_BASE_BRANCH"
@@ -192,22 +220,6 @@ jobs:
                   exit 1
                 fi
                 changed_paths+=("$destination_path")
-                if [[ "$status" == R* && "$source_path" == openspec/changes/*/* && "$source_path" != openspec/changes/archive/* && "$destination_path" == openspec/changes/archive/*/* ]]; then
-                  source_relative_path="${source_path#openspec/changes/}"
-                  source_change_id="${source_relative_path%%/*}"
-                  source_change_path="${source_relative_path#*/}"
-                  relative_archive_path="${destination_path#openspec/changes/archive/}"
-                  archive_directory="${relative_archive_path%%/*}"
-                  archive_change_path="${relative_archive_path#*/}"
-                  if [[ "$archive_directory" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}-(.+)$ ]]; then
-                    archived_change_id="${BASH_REMATCH[1]}"
-                    if [[ "$source_change_id" == "$archived_change_id" ]]; then
-                      if [[ "$source_change_path" == "$archive_change_path" ]]; then
-                        archived_source_paths["$source_path"]=1
-                      fi
-                    fi
-                  fi
-                fi
                 ;;
             esac
           done < "$changed_status_file"
@@ -228,6 +240,88 @@ jobs:
             planning_maturity=test-authored
           fi
           selected_change=""
+          is_complete_branch_archive_move() {
+            local change_id="$1"
+            local active_prefix="openspec/changes/${change_id}"
+            local status source_path destination_path archive_relative archive_directory archive_change_path
+            local candidate="" candidate_count=0 source_count=0 destination_count=0 archive_valid=1
+            local active_entry source_entry destination_entry source_mode destination_mode source_hash destination_hash
+            local status_file candidates_file sources_file destinations_file
+            status_file="$(mktemp)" || return 1
+            candidates_file="$(mktemp)" || { rm -f "$status_file"; return 1; }
+            sources_file="$(mktemp)" || { rm -f "$status_file" "$candidates_file"; return 1; }
+            destinations_file="$(mktemp)" || { rm -f "$status_file" "$candidates_file" "$sources_file"; return 1; }
+            if ! git diff --name-status -z --find-renames=100% --diff-filter=R \
+              "${evidence_base_commit}..HEAD" > "$status_file"; then
+              rm -f "$status_file" "$candidates_file" "$sources_file" "$destinations_file"
+              return 1
+            fi
+            while IFS= read -r -d '' status; do
+              if ! IFS= read -r -d '' source_path || ! IFS= read -r -d '' destination_path; then
+                archive_valid=0
+                break
+              fi
+              [[ "$status" == "R100" && "$source_path" == "${active_prefix}/"* ]] || continue
+              [[ "$destination_path" == openspec/changes/archive/*/* ]] || continue
+              archive_relative="${destination_path#openspec/changes/archive/}"
+              archive_directory="${archive_relative%%/*}"
+              archive_change_path="${archive_relative#*/}"
+              [[ "$archive_directory" == [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-"$change_id" ]] || continue
+              [[ "$archive_change_path" == "${source_path#"${active_prefix}/"}" ]] || continue
+              printf '%s\n' "$archive_directory" >> "$candidates_file"
+            done < "$status_file"
+            while IFS= read -r archive_directory || [[ -n "$archive_directory" ]]; do
+              [[ -z "$archive_directory" ]] && continue
+              candidate="$archive_directory"
+              candidate_count=$((candidate_count + 1))
+            done < <(sort -u "$candidates_file")
+            if [[ "$archive_valid" -ne 1 || "$candidate_count" -ne 1 ]]; then
+              rm -f "$status_file" "$candidates_file" "$sources_file" "$destinations_file"
+              return 1
+            fi
+            if ! git ls-tree -r -z --name-only "$evidence_base_commit" -- "$active_prefix" > "$sources_file"; then
+              rm -f "$status_file" "$candidates_file" "$sources_file" "$destinations_file"
+              return 1
+            fi
+            if ! git ls-tree -r -z --name-only HEAD -- "openspec/changes/archive/${candidate}" > "$destinations_file"; then
+              rm -f "$status_file" "$candidates_file" "$sources_file" "$destinations_file"
+              return 1
+            fi
+            if ! active_entry="$(git ls-tree HEAD -- "$active_prefix")"; then
+              rm -f "$status_file" "$candidates_file" "$sources_file" "$destinations_file"
+              return 1
+            fi
+            if [[ -n "$active_entry" || ! -s "$sources_file" ]]; then
+              rm -f "$status_file" "$candidates_file" "$sources_file" "$destinations_file"
+              return 1
+            fi
+            while IFS= read -r -d '' source_path; do
+              source_count=$((source_count + 1))
+              destination_path="openspec/changes/archive/${candidate}/${source_path#"${active_prefix}/"}"
+              if ! source_entry="$(git ls-tree "$evidence_base_commit" -- "$source_path")"; then
+                archive_valid=0
+                break
+              fi
+              if ! destination_entry="$(git ls-tree HEAD -- "$destination_path")"; then
+                archive_valid=0
+                break
+              fi
+              source_mode="$(awk 'NR == 1 { print $1 }' <<<"$source_entry")"
+              source_hash="$(awk 'NR == 1 { print $3 }' <<<"$source_entry")"
+              destination_mode="$(awk 'NR == 1 { print $1 }' <<<"$destination_entry")"
+              destination_hash="$(awk 'NR == 1 { print $3 }' <<<"$destination_entry")"
+              if [[ "$source_mode" != "100644" && "$source_mode" != "100755" ]] || \
+                [[ "$destination_mode" != "$source_mode" || "$source_hash" != "$destination_hash" ]]; then
+                archive_valid=0
+                break
+              fi
+            done < "$sources_file"
+            while IFS= read -r -d '' destination_path; do
+              destination_count=$((destination_count + 1))
+            done < "$destinations_file"
+            rm -f "$status_file" "$candidates_file" "$sources_file" "$destinations_file"
+            [[ "$archive_valid" -eq 1 && "$source_count" -gt 0 && "$destination_count" -eq "$source_count" ]]
+          }
           declare -A changed_change_ids=()
           for changed_path in "${changed_paths[@]}"; do
             case "$changed_path" in
@@ -236,7 +330,11 @@ jobs:
               openspec/changes/*/*)
                 relative_change_path="${changed_path#openspec/changes/}"
                 change_id="${relative_change_path%%/*}"
-                if [[ -e "$changed_path" || -d "openspec/changes/$change_id" || -z "${archived_source_paths[$changed_path]:-}" ]]; then
+                if ! active_entry="$(git ls-tree HEAD -- "openspec/changes/$change_id")"; then
+                  write_failure_reports "Unable to inspect changed OpenSpec change $change_id."
+                  exit 1
+                fi
+                if [[ -n "$active_entry" ]] || ! is_complete_branch_archive_move "$change_id"; then
                   changed_change_ids["$change_id"]=1
                 fi
                 ;;
@@ -260,7 +358,7 @@ jobs:
           evidence_arguments=(
             "${clean_environment[@]}" uv run --locked --no-sync specfact requirements evidence
             --repo-root "$GITHUB_WORKSPACE" \
-            --base-ref "origin/${EVIDENCE_BASE_BRANCH}" \
+            --base-ref "$evidence_base_commit" \
             --required-maturity "$planning_maturity" \
             --plan-output artifacts/requirements-evidence/requirements-evidence-plan.json \
             --output artifacts/requirements-evidence/requirements-evidence.json \
@@ -313,7 +411,7 @@ jobs:
                 if ! red_proof_findings="$(python scripts/requirements_proof_provenance.py \
                   --prior-red-proof "$prior_red_proof" \
                   --repo-root "$GITHUB_WORKSPACE" \
-                  --base-ref "origin/${EVIDENCE_BASE_BRANCH}" \
+                  --base-ref "$evidence_base_commit" \
                   --final-ref "$EVIDENCE_FINAL_REF" 2>&1)"; then
                   write_failure_reports "Red proof provenance rejected: ${red_proof_findings:-tdd-order-unproven}"
                   exit 1
@@ -339,16 +437,12 @@ jobs:
                   legacy_tdd_mapping_digest="sha256:6a9413ab306eb0cf0aad62661d66c5ef684b91036766acf7021953877c9b617e"
                   legacy_tdd_plan_digest="sha256:00595739da3dd81a01032fbc2661094b8c6e2836dc38e366eae0a666e4574222"
                   bootstrap_comment_id=5431081643
-                  bootstrap_run_id=33013274590
-                  bootstrap_red_commit="04b6c02eb63f779309d8dced48085f3ef0efe029"
                   bootstrap_root="${RUNNER_TEMP}/requirements-bootstrap-authority"
                   bootstrap_artifact_root="${bootstrap_root}/artifact"
-                  mkdir -p "$bootstrap_artifact_root"
-                  if ! gh api "repos/${GITHUB_REPOSITORY}/issues/comments/${bootstrap_comment_id}" > "${bootstrap_root}/comment.json" \
-                    || ! gh api "repos/${GITHUB_REPOSITORY}/commits/${bootstrap_red_commit}" > "${bootstrap_root}/commit.json" \
-                    || ! gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${bootstrap_run_id}" > "${bootstrap_root}/run.json" \
-                    || ! gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${bootstrap_run_id}/artifacts" > "${bootstrap_root}/artifacts.json" \
-                    || ! gh run download "$bootstrap_run_id" --name requirements-evidence --dir "$bootstrap_artifact_root" \
+                  if [[ ! -s "${bootstrap_root}/comment.json" \
+                    || ! -s "${bootstrap_root}/commit.json" \
+                    || ! -s "${bootstrap_root}/run.json" \
+                    || ! -s "${bootstrap_root}/artifacts.json" ]] \
                     || ! python scripts/requirements_bootstrap_authority.py \
                       --comment "${bootstrap_root}/comment.json" \
                       --commit "${bootstrap_root}/commit.json" \
@@ -357,7 +451,7 @@ jobs:
                       --artifact-root "$bootstrap_artifact_root" \
                       --repo-root "$GITHUB_WORKSPACE" \
                       --comment-id "$bootstrap_comment_id" \
-                      --base-ref "origin/${EVIDENCE_BASE_BRANCH}" \
+                      --base-ref "$evidence_base_commit" \
                       --final-ref "$EVIDENCE_FINAL_REF" \
                       --repository "$GITHUB_REPOSITORY" \
                       --change-id "$selected_change" \
@@ -435,7 +529,7 @@ jobs:
                   --bind-red-proof artifacts/requirements-evidence/requirements-evidence.json \
                   --junit artifacts/requirements-evidence/requirements-proof.xml \
                   --repo-root "$GITHUB_WORKSPACE" \
-                  --base-ref "origin/${EVIDENCE_BASE_BRANCH}" 2>&1)"; then
+                  --base-ref "$evidence_base_commit" 2>&1)"; then
                   write_failure_reports "Red proof binding rejected: ${binding_error:-prior-red-proof-invalid}"
                   exit 1
                 fi
@@ -465,19 +559,110 @@ jobs:
             cat artifacts/requirements-evidence/requirements-evidence.md >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      - name: Set up reviewed Code Review Node runtime
-        if: steps.run-evidence.outcome == 'success'
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+      - name: Persist Requirements evidence before Code Review
+        id: upload-requirements-evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          node-version: "24.16.0"
-          cache: npm
-          cache-dependency-path: tools/basedpyright/package-lock.json
+          name: requirements-evidence
+          path: |
+            artifacts/requirements-evidence/requirements-evidence.json
+            artifacts/requirements-evidence/requirements-evidence.md
+            artifacts/requirements-evidence/requirements-evidence-plan.json
+            artifacts/requirements-evidence/requirements-proof.xml
+            artifacts/requirements-evidence/approved-legacy-tdd-ledger.md
+            artifacts/requirements-evidence/legacy-tdd-evidence.json
+          if-no-files-found: warn
 
-      - name: Install frozen Code Review tools
-        if: steps.run-evidence.outcome == 'success'
+      - name: Enforce Requirements evidence producer verdict
+        if: steps.run-evidence.outcome == 'failure'
+        run: exit 1
+
+  requirements-evidence:
+    name: Requirements evidence
+    needs: requirements-evidence-producer
+    if: always()
+    permissions:
+      actions: read
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce Requirements evidence producer success
+        if: needs.requirements-evidence-producer.result != 'success'
+        run: exit 1
+
+      - name: Checkout exact head for Code Review
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+          clean: true
+
+      - name: Verify exact head for Code Review
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
         shell: bash
         run: |
           set -euo pipefail
+          [[ "$EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+
+      - name: Read immutable module fixture for Code Review
+        id: review-modules-fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          repository="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])')"
+          commit="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          tree="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["tree"])')"
+          test "$repository" = "nold-ai/specfact-cli-modules"
+          test "$commit" = "69f075819be5e1ceca1446b026b0417f19e584ca"
+          test "$tree" = "5d0b8e66c6cd467e6b1ad9d582e24c66b907e205"
+          {
+            printf 'repository=%s\n' "$repository"
+            printf 'commit=%s\n' "$commit"
+            printf 'tree=%s\n' "$tree"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Checkout immutable module fixture for Code Review
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: ${{ steps.review-modules-fixture.outputs.repository }}
+          path: specfact-cli-modules
+          ref: ${{ steps.review-modules-fixture.outputs.commit }}
+          persist-credentials: false
+
+      - name: Verify immutable module fixture for Code Review
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C specfact-cli-modules rev-parse HEAD)" = "${{ steps.review-modules-fixture.outputs.commit }}"
+          test "$(git -C specfact-cli-modules rev-parse 'HEAD^{tree}')" = "${{ steps.review-modules-fixture.outputs.tree }}"
+
+      - name: Export verified module fixture paths for Code Review
+        run: |
+          echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
+          echo "SPECFACT_MODULES_ROOTS=${GITHUB_WORKSPACE}/specfact-cli-modules/packages" >> "$GITHUB_ENV"
+
+      - name: Set up Python for Code Review
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.12"
+
+      - name: Recreate frozen environment for Code Review
+        uses: ./.github/actions/setup-frozen-python
+
+      - name: Set up reviewed Code Review Node runtime
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: "24.16.0"
+
+      - name: Install frozen Code Review tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/check_reproducible_delivery.py
           npm ci --ignore-scripts --prefix tools/basedpyright
           review_tools="${RUNNER_TEMP}/specfact-code-review-tools"
           uv venv --python "${pythonLocation}/bin/python" "$review_tools"
@@ -490,18 +675,37 @@ jobs:
             echo "${review_tools}/bin"
           } >> "$GITHUB_PATH"
 
+      - name: Restore Requirements evidence for Code Review
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ needs.requirements-evidence-producer.outputs.artifact-id }}
+          path: artifacts/requirements-evidence
+
       - name: Run Code Review with finalized Requirements context
         id: run-code-review
-        if: steps.run-evidence.outcome == 'success'
         continue-on-error: true
         env:
-          EVIDENCE_BASE_BRANCH: ${{ github.event_name == 'pull_request' && github.base_ref || inputs.base_branch || github.event.repository.default_branch }}
+          REVIEW_BASE_BRANCH: ${{ github.base_ref }}
         run: |
           set -euo pipefail
+          if [[ ! "$REVIEW_BASE_BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]]; then
+            printf 'Invalid Code Review base branch: %s\n' "$REVIEW_BASE_BRANCH" >&2
+            exit 1
+          fi
+          if ! review_base_commit="$(git merge-base "origin/${REVIEW_BASE_BRANCH}" HEAD)" \
+            || [[ ! "$review_base_commit" =~ ^[0-9a-f]{40}$ ]]; then
+            printf 'Unable to resolve immutable Code Review base for %s\n' "$REVIEW_BASE_BRANCH" >&2
+            exit 1
+          fi
+          review_paths_file="${RUNNER_TEMP}/requirements-code-review-paths.z"
+          if ! git diff --name-only -z "${review_base_commit}..HEAD" -- '*.py' '*.pyi' > "$review_paths_file"; then
+            printf 'Unable to derive Code Review paths.\n' >&2
+            exit 1
+          fi
           review_paths=()
           while IFS= read -r -d '' review_path; do
             [[ -f "$review_path" ]] && review_paths+=("$review_path")
-          done < <(git diff --name-only -z "origin/${EVIDENCE_BASE_BRANCH}...HEAD" -- '*.py' '*.pyi')
+          done < "$review_paths_file"
           if [[ "${#review_paths[@]}" -eq 0 ]]; then
             printf 'No changed Python files require Code Review context.\n' >> "$GITHUB_STEP_SUMMARY"
             exit 0
@@ -514,21 +718,14 @@ jobs:
             --out artifacts/requirements-evidence/code-review.json \
             --requirements-evidence artifacts/requirements-evidence/requirements-evidence.json
 
-      - name: Upload requirements evidence artifact
+      - name: Upload Code Review evidence artifact
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: requirements-evidence
-          path: |
-            artifacts/requirements-evidence/requirements-evidence.json
-            artifacts/requirements-evidence/requirements-evidence.md
-            artifacts/requirements-evidence/requirements-evidence-plan.json
-            artifacts/requirements-evidence/requirements-proof.xml
-            artifacts/requirements-evidence/approved-legacy-tdd-ledger.md
-            artifacts/requirements-evidence/legacy-tdd-evidence.json
-            artifacts/requirements-evidence/code-review.json
+          name: requirements-code-review
+          path: artifacts/requirements-evidence/code-review.json
           if-no-files-found: warn
 
       - name: Enforce requirements evidence verdict
-        if: steps.run-evidence.outcome == 'failure' || steps.run-code-review.outcome == 'failure'
+        if: steps.run-code-review.outcome == 'failure'
         run: exit 1

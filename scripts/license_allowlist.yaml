@@ -7,6 +7,7 @@
 #   reason   — why the exception is accepted
 #   scope    — where the exception applies:
 #              "dev-only"         → accepted in dev env scan, BLOCKED in module manifests
+#              "code-review-only" → accepted only in the hash-locked isolated review environment
 #              "module-manifest"  → accepted in module manifest scan (e.g. LGPL subprocess use)
 # Package names should stay lowercase to match normalized pip/package metadata.
 #
@@ -37,7 +38,7 @@ exceptions:
       runtime package or a module manifest. Phase 2: replace Pylint with the
       existing Ruff/BasedPyright review path once equivalent semantic findings
       and the full-enforcement report contract are preserved.
-    scope: dev-only
+    scope: code-review-only
 
   - package: docutils
     version: "0.23"
