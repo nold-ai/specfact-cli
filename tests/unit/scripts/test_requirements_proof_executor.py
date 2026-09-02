@@ -93,10 +93,11 @@ def _write_selected_test(tmp_path: Path) -> None:
 
 def _assert_argument_contract(command: ProofCommand, junit_path: Path) -> None:
     assert command.shell is False
-    assert command.arguments == [
-        sys.executable,
-        "-m",
-        "pytest",
+    assert command.arguments[:3] == [sys.executable, "-P", "-c"]
+    bootstrap = command.arguments[3]
+    assert bootstrap.index("import pytest") < bootstrap.index("sys.path.append(repo_root)")
+    assert command.arguments[4:] == [
+        str(junit_path.parents[1]),
         "--junitxml",
         str(junit_path),
         "-p",

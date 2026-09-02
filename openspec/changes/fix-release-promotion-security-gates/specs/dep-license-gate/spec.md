@@ -33,13 +33,15 @@ additional interpreters, and module manifests SHALL remain ineligible.
 ### Requirement: Isolated Code Review locks are dependency-trust inputs
 
 The dependency-trust gate SHALL authenticate the Code Review requirements input
-and hash-locked export, require exact pins with attached hashes, and apply the
-same blocked-package and minimum-version policy before installation.
+and hash-locked export, require the export to equal a fresh constrained
+resolution of that input, require exact pins with attached hashes, and apply
+the same blocked-package and minimum-version policy before installation.
 
 #### Scenario: Modified or weak Code Review lock fails closed
 
-- **WHEN** the Code Review input digest changes, a package is not exactly pinned,
-  a pin has no attached hash, or a package violates the security policy
+- **WHEN** the Code Review input digest changes, the export contains a
+  graph-extraneous package, a package is not exactly pinned, a pin has no
+  attached hash, or a package violates the security policy
 - **THEN** dependency-trust validation SHALL fail before the isolated environment is installed.
 
 ### Requirement: Patch release consumes only the next version

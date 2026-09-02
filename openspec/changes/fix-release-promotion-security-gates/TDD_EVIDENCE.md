@@ -29,4 +29,43 @@ shadowable; invalid UTF-8 diagnostic leaked; `rg` lacked `--`; version remained
 
 ## Passing after
 
-Pending implementation and final verification.
+Timestamp: 2026-09-02 01:43 Europe/Berlin
+
+The independent frozen diff scan added four boundary regressions after the
+initial red commit: exact regenerated Code Review closure, one immutable merge
+base, credential-free proof execution, and a separate fresh-runner review
+handoff that authenticates the exact head and installs tools before artifact
+download.
+Before their implementation, the extended focused run collected 18 tests and
+failed 7 at those new contract points.
+
+Focused passing command:
+
+```text
+.venv/bin/pytest -q \
+  tests/unit/security/test_release_promotion_security_gates.py \
+  tests/unit/scripts/test_check_license_compliance.py \
+  tests/unit/scripts/test_dependency_trust_review.py \
+  tests/unit/scripts/test_requirements_evidence_pre_commit.py \
+  tests/unit/scripts/test_requirements_proof_executor.py \
+  tests/unit/workflows/test_requirements_evidence_delivery_workflow.py \
+  tests/unit/workflows/test_requirements_evidence_producer_regressions.py \
+  tests/unit/workflows/test_trustworthy_green_checks.py
+```
+
+Result: exit 0; 153 passed.
+
+Final CI-equivalent full gate used the repository's
+`tools/smart_test_coverage.py run --level full` on Python 3.12 with the locked
+module fixture commit `69f075819be5e1ceca1446b026b0417f19e584ca` and tree
+`5d0b8e66c6cd467e6b1ad9d582e24c66b907e205`. Result: exit 0; 3,068
+passed, 10 skipped, no failures; coverage collection completed at 64%.
+
+Additional passing evidence:
+
+- exact frozen closure regeneration and `uv lock --check`;
+- both frozen `security_audit_gate.py` invocations with no unreviewed advisories;
+- environment-scoped license gate with Pylint 4.0.7 isolated to Code Review;
+- Ruff formatting/lint, BasedPyright (0 errors), actionlint, yamllint, docs contracts;
+- strict module signatures for all four bundled manifests;
+- Semgrep SAST (0 findings) and Bandit (0 medium/high findings).

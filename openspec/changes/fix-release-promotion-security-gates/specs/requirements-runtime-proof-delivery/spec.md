@@ -6,6 +6,9 @@ Requirements selection SHALL ignore a moved active change only when Git proves
 an exact complete native archive. A Git command failure SHALL be an error, not
 evidence that the active source or an extra destination is absent.
 
+The selector SHALL derive one immutable merge-base object ID and use that same
+object for changed-path discovery, source-tree reads, and proof validation.
+
 #### Scenario: Exact native archive does not compete with the next active change
 
 - **GIVEN** every regular file of one active change moves with identical mode and blob to one correctly dated archive directory
@@ -18,6 +21,13 @@ evidence that the active source or an extra destination is absent.
 - **WHEN** an archive is partial, copied instead of moved, changes a blob or mode, uses multiple destinations, leaves an active source, adds an extra file, or any required Git enumeration fails
 - **THEN** Requirements selection SHALL NOT classify it as a complete archive
 - **AND** the gate SHALL report the conflicting or unverifiable change state.
+
+#### Scenario: Base branch advances during evidence execution
+
+- **GIVEN** the remote base branch changes after the evidence job starts
+- **WHEN** the job evaluates archive identity and proof ancestry
+- **THEN** every comparison SHALL continue to use the one merge-base object ID resolved at the start of the gate
+- **AND** no later remote-branch lookup SHALL change the compared source bytes.
 
 #### Scenario: Ordinary active authoring remains valid
 

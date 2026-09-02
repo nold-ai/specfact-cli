@@ -63,6 +63,15 @@ the repository root. Bootstrap authority preserves only stable public
 diagnostics. The organization-required workflow supplies external exact-tree
 authorization, so no PR-local amendment subsystem is introduced.
 
+The Requirements workflow resolves one merge-base object ID, removes GitHub
+credentials before proof execution, and persists only the bounded evidence
+artifact. Code Review then starts on a separate fresh runner, authenticates the
+exact head commit, validates and installs frozen tools, and only then downloads
+the producer output by immutable artifact ID. Both Code Review installation
+sites run the existing reproducible-delivery checker, which regenerates the
+constrained lock closure and rejects graph-extraneous packages before
+installation.
+
 ## Risks / Trade-offs
 
 - CI may be slower without persistent caches. Frozen installs remain

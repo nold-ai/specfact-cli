@@ -10,28 +10,28 @@
 
 - [x] 2.1 Archive completed change #689 with `openspec archive` and inspect the generated permanent spec.
 - [x] 2.2 Author compact spec deltas for the dependency, cache, archive, license, and proof boundaries.
-- [ ] 2.3 Add focused tests derived from every scenario and record failing-before evidence against the unmodified implementation.
+- [x] 2.3 Add focused tests derived from every scenario and record failing-before evidence against the unmodified implementation.
 - [ ] 2.4 Generate the test-authored Requirements mapping and obtain one approval only after its digest is stable.
 
 ## 3. Minimal implementation
 
-- [ ] 3.1 Disable persistent caches, remove manual dispatch, and authenticate fixture commit/tree before export.
-- [ ] 3.2 Upgrade Semgrep/MCP frozen inputs and remove the obsolete vulnerability waiver.
-- [ ] 3.3 Bind Code Review lock/trust/license policy to the exact isolated environment.
-- [ ] 3.4 Make archive selection and Git error handling fail closed; preserve legitimate active edits and native archives.
-- [ ] 3.5 Apply the narrow authority diagnostic, pytest bootstrap, and `rg --` fixes.
+- [x] 3.1 Disable persistent caches, remove manual dispatch, and authenticate fixture commit/tree before export.
+- [x] 3.2 Upgrade Semgrep/MCP frozen inputs and remove the obsolete vulnerability waiver.
+- [x] 3.3 Bind Code Review lock/trust/license policy to the exact isolated environment and regenerated closure.
+- [x] 3.4 Make archive selection and Git error handling fail closed; preserve legitimate active edits and native archives.
+- [x] 3.5 Apply the narrow authority diagnostic, pytest bootstrap, credential-free proof, fresh-runner exact-head review handoff, and `rg --` fixes.
 
 ## 4. Passing evidence and review
 
-- [ ] 4.1 Run focused legitimate/bypass controls and record passing-after evidence.
+- [x] 4.1 Run focused legitimate/bypass controls and record passing-after evidence.
 - [ ] 4.2 Run format, lint, type, YAML/workflow, OpenSpec, contract, full test, module-signature, dependency, license, audit, SAST, Code Review, package, and release gates.
-- [ ] 4.3 Run final pip-audit against both frozen sets and prove all three MCP CVEs no longer reproduce.
+- [x] 4.3 Run final pip-audit against both frozen sets and prove all three MCP CVEs no longer reproduce.
 - [ ] 4.4 Obtain independent security-diff and code review on the exact final tree; resolve every P1/P2 or documented false positive.
-- [ ] 4.5 Review docs, README, landing page, and navigation; update only dependency trust and release notes because no public behavior changes.
+- [x] 4.5 Review docs, README, landing page, and navigation; update only dependency trust and release notes because no public behavior changes.
 
 ## 5. Release and delivery
 
-- [ ] 5.1 Bump all four version sources from 0.55.3 to 0.55.4 and add the 2026-09-02 changelog entry.
+- [x] 5.1 Bump all four version sources from 0.55.3 to 0.55.4 and add the 2026-09-02 changelog entry.
 - [ ] 5.2 Push the signed linear commits, create the issue-linked PR to `dev`, and verify the trusted workflow fails without and passes only with the exact authority comment.
 - [ ] 5.3 Merge only under repository policy, then promote and verify the `v0.55.4` GitHub/PyPI release.
 - [ ] 5.4 Refresh PR #685 security status, close superseded PR #698 with evidence, close completed issues, and report the exact C14 baseline commit/tag.

@@ -12,7 +12,7 @@
 ## Verification status
 
 - OpenSpec strict validation: pending
-- Focused red/green proof: pending
-- Full quality/security/release gates: pending
+- Focused red/green proof: 148 passed after 18-test/7-failure red extension
+- Full quality/security/release gates: local gates pass; final Code Review pending
 - Independent final review: pending
 - Trusted organization-required workflow pilot: pending

@@ -5,9 +5,9 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import shutil
 import subprocess
 from pathlib import Path
+from typing import cast
 
 import pytest
 import yaml
@@ -17,7 +17,8 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 APPROVED_MODULE_COMMIT = "69f075819be5e1ceca1446b026b0417f19e584ca"
 EVIDENCE_COMMAND_FRAGMENTS = (
     "uv run --locked --no-sync specfact requirements evidence",
-    '--base-ref "origin/${EVIDENCE_BASE_BRANCH}"',
+    '--base-ref "$evidence_base_commit"',
+    'evidence_base_commit="$(git merge-base "origin/${EVIDENCE_BASE_BRANCH}" HEAD)"',
     "required_maturity=planned",
     "required_maturity=test-authored",
     "requirements/*|pyproject.toml|setup.py|uv.lock",
@@ -35,7 +36,7 @@ EVIDENCE_COMMAND_FRAGMENTS = (
     "write_failure_reports()",
     'write_failure_reports "Invalid evidence base branch: $EVIDENCE_BASE_BRANCH"',
     'changed_status_file="${RUNNER_TEMP}/requirements-evidence-changed-status.z"',
-    'if ! git diff --name-status -z --find-renames "origin/${EVIDENCE_BASE_BRANCH}...HEAD" > "$changed_status_file"; then',
+    'if ! git diff --name-status -z --find-renames=100% "${evidence_base_commit}..HEAD" > "$changed_status_file"; then',
     "while IFS= read -r -d '' status; do",
     'done < "$changed_status_file"',
     'write_failure_reports "Unable to derive changed paths for $EVIDENCE_BASE_BRANCH"',
@@ -59,15 +60,45 @@ EVIDENCE_COMMAND_FRAGMENTS = (
 )
 
 
+def _workflow_steps(workflow: dict[str, object]) -> list[tuple[str, int, dict[str, object]]]:
+    """Return typed workflow steps with their owning job and position."""
+    collected: list[tuple[str, int, dict[str, object]]] = []
+    jobs = cast(dict[object, object], workflow["jobs"])
+    for job_name, raw_job in jobs.items():
+        assert isinstance(job_name, str)
+        assert isinstance(raw_job, dict)
+        job = cast(dict[str, object], raw_job)
+        steps = job.get("steps", [])
+        assert isinstance(steps, list)
+        for index, step in enumerate(steps):
+            if not isinstance(step, dict):
+                continue
+            collected.append((job_name, index, cast(dict[str, object], step)))
+    return collected
+
+
+def _step_location(workflow: dict[str, object], name: str) -> tuple[str, int, dict[str, object]]:
+    """Return the unique job, index, and step for a workflow step name."""
+    matches = [location for location in _workflow_steps(workflow) if location[2].get("name") == name]
+    assert len(matches) == 1, name
+    return matches[0]
+
+
 def _step_by_name(workflow: dict[str, object], name: str) -> dict[str, object]:
-    steps = workflow["jobs"]["requirements-evidence"]["steps"]  # type: ignore[index]
-    return next(step for step in steps if step.get("name") == name)  # type: ignore[union-attr,return-value]
+    return _step_location(workflow, name)[2]
 
 
 def _step_index(workflow: dict[str, object], name: str) -> int:
-    """Return a named step's position in the evidence job."""
-    steps = workflow["jobs"]["requirements-evidence"]["steps"]  # type: ignore[index]
-    return next(index for index, step in enumerate(steps) if step.get("name") == name)  # type: ignore[union-attr]
+    """Return a uniquely named step's position within its job."""
+    return _step_location(workflow, name)[1]
+
+
+def _assert_step_order(workflow: dict[str, object], earlier: str, later: str) -> None:
+    """Assert two uniquely named steps run in that order within one job."""
+    earlier_job, earlier_index, _ = _step_location(workflow, earlier)
+    later_job, later_index, _ = _step_location(workflow, later)
+    assert earlier_job == later_job
+    assert earlier_index < later_index
 
 
 def _run_evidence_command() -> str:
@@ -77,32 +108,6 @@ def _run_evidence_command() -> str:
     command = _step_by_name(parsed, "Run Requirements evidence gate")["run"]
     assert isinstance(command, str)
     return command
-
-
-def _bash_with_associative_arrays() -> Path:
-    candidates = [Path(candidate) for candidate in (shutil.which("bash"), "/opt/homebrew/bin/bash") if candidate]
-    for candidate in candidates:
-        if not candidate.is_file():
-            continue
-        version = subprocess.run(
-            [candidate, "--version"], capture_output=True, text=True, check=True
-        ).stdout.splitlines()[0]
-        if "version 3." not in version:
-            return candidate
-    pytest.skip("Bash 4+ is required for associative-array workflow coverage")
-
-
-def _selection_script(command: str, source_path: str, archive_path: str) -> str:
-    selection = command.split("declare -A changed_change_ids=()", maxsplit=1)[1].split(
-        'if [[ "${#changed_change_ids[@]}" -eq 1 ]]', maxsplit=1
-    )[0]
-    return f"""
-changed_paths=({source_path} {archive_path})
-declare -A archived_source_paths=([{source_path}]=1)
-declare -A changed_change_ids=()
-{selection}
-printf '%s\\n' "${{!changed_change_ids[@]}}"
-"""
 
 
 def _assert_fixture_contract(workflow: dict[str, object]) -> None:
@@ -126,22 +131,40 @@ def _assert_command_contract(workflow: dict[str, object]) -> None:
     assert all(fragment in run_evidence["run"] for fragment in EVIDENCE_COMMAND_FRAGMENTS)  # type: ignore[index]
     assert 'if [[ "$execution_exit" -ne 0 ]]; then' not in run_evidence["run"]  # type: ignore[index]
     assert run_evidence["env"]["EVIDENCE_BASE_BRANCH"]  # type: ignore[index]
-    assert "workflow_dispatch" in workflow["on"]  # type: ignore[operator]
+    assert "workflow_dispatch" not in workflow["on"]  # type: ignore[operator]
     assert run_evidence["run"].count("clean_environment=(env -i") == 1  # type: ignore[union-attr]
     assert run_evidence["run"].count('"${clean_environment[@]}" uv run --locked --no-sync') == 2  # type: ignore[union-attr]
 
 
 def _assert_governed_trigger_contract(workflow: dict[str, object]) -> None:
     """The terminal decision must also run for no-impact pull requests."""
+    assert set(workflow["on"]) == {"pull_request"}  # type: ignore[arg-type]
     pull_request = workflow["on"]["pull_request"]  # type: ignore[index]
     assert pull_request["branches"] == ["main", "dev"]  # type: ignore[index]
     assert "paths" not in pull_request  # type: ignore[operator]
 
 
+def test_required_requirements_context_is_pull_request_only() -> None:
+    """Manual callers cannot mint the branch-protected Requirements context."""
+    workflow_path = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"
+    workflow = yaml.load(workflow_path.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    jobs = workflow["jobs"]
+    assert isinstance(jobs, dict)
+
+    assert set(workflow["on"]) == {"pull_request"}
+    assert jobs["requirements-evidence"]["name"] == "Requirements evidence"
+    producer = _step_by_name(workflow, "Run Requirements evidence gate")
+    review = _step_by_name(workflow, "Run Code Review with finalized Requirements context")
+    assert producer["env"]["EVIDENCE_BASE_BRANCH"] == "${{ github.base_ref }}"  # type: ignore[index]
+    assert review["env"]["REVIEW_BASE_BRANCH"] == "${{ github.base_ref }}"  # type: ignore[index]
+
+
 def _assert_retention_contract(workflow: dict[str, object]) -> None:
     publish = _step_by_name(workflow, "Publish Requirements evidence summary")
-    upload = _step_by_name(workflow, "Upload requirements evidence artifact")
-    enforce = _step_by_name(workflow, "Enforce requirements evidence verdict")
+    upload = _step_by_name(workflow, "Persist Requirements evidence before Code Review")
+    upload_review = _step_by_name(workflow, "Upload Code Review evidence artifact")
+    producer_enforce = _step_by_name(workflow, "Enforce Requirements evidence producer verdict")
+    review_enforce = _step_by_name(workflow, "Enforce requirements evidence verdict")
     assert publish["if"] == "always()"  # type: ignore[index]
     assert "GITHUB_STEP_SUMMARY" in publish["run"]  # type: ignore[index]
     assert upload["if"] == "always()"  # type: ignore[index]
@@ -153,17 +176,19 @@ def _assert_retention_contract(workflow: dict[str, object]) -> None:
         "artifacts/requirements-evidence/requirements-proof.xml",
         "artifacts/requirements-evidence/approved-legacy-tdd-ledger.md",
         "artifacts/requirements-evidence/legacy-tdd-evidence.json",
-        "artifacts/requirements-evidence/code-review.json",
     ]
-    assert "steps.run-evidence.outcome == 'failure'" in enforce["if"]  # type: ignore[index]
-    assert "steps.run-code-review.outcome == 'failure'" in enforce["if"]  # type: ignore[index]
-    assert enforce["run"] == "exit 1"  # type: ignore[index]
-    assert _step_index(workflow, "Publish Requirements evidence summary") < _step_index(
-        workflow, "Enforce requirements evidence verdict"
+    assert upload_review["with"]["path"] == "artifacts/requirements-evidence/code-review.json"  # type: ignore[index]
+    assert producer_enforce["if"] == "steps.run-evidence.outcome == 'failure'"
+    assert producer_enforce["run"] == "exit 1"
+    assert review_enforce["if"] == "steps.run-code-review.outcome == 'failure'"
+    assert review_enforce["run"] == "exit 1"
+    _assert_step_order(
+        workflow, "Publish Requirements evidence summary", "Enforce Requirements evidence producer verdict"
     )
-    assert _step_index(workflow, "Upload requirements evidence artifact") < _step_index(
-        workflow, "Enforce requirements evidence verdict"
+    _assert_step_order(
+        workflow, "Persist Requirements evidence before Code Review", "Enforce Requirements evidence producer verdict"
     )
+    _assert_step_order(workflow, "Upload Code Review evidence artifact", "Enforce requirements evidence verdict")
 
 
 def _assert_prior_red_run_selection(locate: dict[str, object]) -> None:
@@ -243,7 +268,7 @@ def test_requirements_evidence_workflow_writes_reports_before_early_failure(tmp_
 
     cases = (
         ("invalid branch", "Invalid evidence base branch: invalid branch"),
-        ("missing-base", "Unable to derive changed paths for missing-base"),
+        ("missing-base", "Unable to resolve immutable evidence base for missing-base"),
     )
     for index, (base_branch, expected_diagnostic) in enumerate(cases):
         work_directory = tmp_path / str(index)
@@ -308,15 +333,12 @@ def test_requirements_evidence_workflow_ignores_archived_review_evidence() -> No
     command = _run_evidence_command()
 
     assert "openspec/changes/archive/*" in command
-    assert "declare -A archived_source_paths=()" in command
-    assert 'archived_source_paths["$source_path"]=1' in command
-    assert '[[ "$status" == R*' in command
-    assert '[[ "$source_change_id" == "$archived_change_id" ]]' in command
-    assert '[[ "$source_change_path" == "$archive_change_path" ]]' in command
-    assert (
-        '[[ -e "$changed_path" || -d "openspec/changes/$change_id" '
-        '|| -z "${archived_source_paths[$changed_path]:-}" ]]' in command
-    )
+    assert "is_complete_branch_archive_move()" in command
+    assert '[[ "$status" == "R100"' in command
+    assert 'git ls-tree -r -z --name-only "$evidence_base_commit"' in command
+    assert 'destination_mode" != "$source_mode" || "$source_hash" != "$destination_hash"' in command
+    assert '"$destination_count" -eq "$source_count"' in command
+    assert '[[ -n "$active_entry" ]] || ! is_complete_branch_archive_move "$change_id"' in command
     assert '[[ -e "$changed_path" ]] || continue' not in command
     assert (
         "find openspec/changes -path 'openspec/changes/archive' -prune -o "
@@ -324,24 +346,13 @@ def test_requirements_evidence_workflow_ignores_archived_review_evidence() -> No
     ) in command
 
 
-def test_requirements_evidence_workflow_rejects_partial_exact_archive_move(tmp_path: Path) -> None:
+def test_requirements_evidence_workflow_rejects_partial_exact_archive_move() -> None:
     """One exact rename cannot hide an otherwise active change directory."""
     command = _run_evidence_command()
-    source_path = "openspec/changes/example/proposal.md"
-    archive_path = "openspec/changes/archive/2026-08-27-example/proposal.md"
-    script = _selection_script(command, source_path, archive_path)
-    bash = _bash_with_associative_arrays()
-    active_directory = tmp_path / "openspec" / "changes" / "example"
-    active_directory.mkdir(parents=True)
-    (active_directory / "tasks.md").write_text("# still active\n", encoding="utf-8")
-
-    partial = subprocess.run([bash, "-c", script], cwd=tmp_path, capture_output=True, text=True, check=True)
-    assert partial.stdout.strip() == "example"
-
-    (active_directory / "tasks.md").unlink()
-    active_directory.rmdir()
-    complete = subprocess.run([bash, "-c", script], cwd=tmp_path, capture_output=True, text=True, check=True)
-    assert complete.stdout.strip() == ""
+    assert '[[ -n "$active_entry" ]] || ! is_complete_branch_archive_move "$change_id"' in command
+    assert (
+        '[[ "$archive_valid" -eq 1 && "$source_count" -gt 0 && "$destination_count" -eq "$source_count" ]]' in command
+    )
 
 
 def test_requirements_bootstrap_authority_is_pull_request_only() -> None:
@@ -403,13 +414,17 @@ def _assert_code_review_handoff_command(command: object) -> None:
         "--enforcement full",
         "--include-tests",
         "--out artifacts/requirements-evidence/code-review.json",
-        "origin/${EVIDENCE_BASE_BRANCH}...HEAD",
-        "git diff --name-only -z",
+        'review_base_commit="$(git merge-base "origin/${REVIEW_BASE_BRANCH}" HEAD)"',
+        'review_paths_file="${RUNNER_TEMP}/requirements-code-review-paths.z"',
+        'if ! git diff --name-only -z "${review_base_commit}..HEAD"',
+        'done < "$review_paths_file"',
         "while IFS= read -r -d '' review_path; do",
         '[[ -f "$review_path" ]]',
         "No changed Python files require Code Review context.",
+        "Unable to derive Code Review paths.",
     )
     assert all(fragment in command for fragment in expected_fragments)
+    assert "done < <(git diff" not in command
 
 
 def _assert_frozen_code_review_python_tools(command: object) -> None:
@@ -426,6 +441,43 @@ def _assert_frozen_code_review_python_tools(command: object) -> None:
     assert "pylint==4.0.7" in lock
 
 
+def _assert_review_job_boundary(parsed: dict[str, object], review: dict[str, object]) -> None:
+    """Require the protected context to be emitted only by the fresh final job."""
+    jobs = cast(dict[str, object], parsed["jobs"])
+    producer = cast(dict[str, object], jobs["requirements-evidence-producer"])
+    final = cast(dict[str, object], jobs["requirements-evidence"])
+    assert final["name"] == "Requirements evidence"
+    assert final["needs"] == "requirements-evidence-producer"
+    assert final["if"] == "always()"
+    assert "if" not in review
+    assert producer["outputs"] == {"artifact-id": "${{ steps.upload-requirements-evidence.outputs.artifact-id }}"}
+
+
+def _assert_review_artifact_binding(parsed: dict[str, object]) -> None:
+    """Require immutable artifact-ID transfer and exact-head verification."""
+    upload = _step_by_name(parsed, "Persist Requirements evidence before Code Review")
+    restore = _step_by_name(parsed, "Restore Requirements evidence for Code Review")
+    verify_head = _step_by_name(parsed, "Verify exact head for Code Review")
+    assert upload["id"] == "upload-requirements-evidence"
+    assert restore["with"] == {
+        "artifact-ids": "${{ needs.requirements-evidence-producer.outputs.artifact-id }}",
+        "path": "artifacts/requirements-evidence",
+    }
+    assert verify_head["env"] == {"EXPECTED_HEAD": "${{ github.event.pull_request.head.sha || github.sha }}"}
+    assert 'test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"' in verify_head["run"]  # type: ignore[operator]
+
+
+def _assert_review_handoff_order(parsed: dict[str, object]) -> None:
+    """Require tools, artifact restoration, review, then artifact publication."""
+    _assert_step_order(parsed, "Install frozen Code Review tools", "Restore Requirements evidence for Code Review")
+    _assert_step_order(
+        parsed, "Restore Requirements evidence for Code Review", "Run Code Review with finalized Requirements context"
+    )
+    _assert_step_order(
+        parsed, "Run Code Review with finalized Requirements context", "Upload Code Review evidence artifact"
+    )
+
+
 def test_requirements_code_review_uses_frozen_external_tools() -> None:
     """Code Review must run its declared Pylint and BasedPyright checks from locks."""
     workflow = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"
@@ -435,31 +487,27 @@ def test_requirements_code_review_uses_frozen_external_tools() -> None:
 
     assert setup_node["uses"] == "actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e"
     assert setup_node["with"]["node-version"] == "24.16.0"  # type: ignore[index]
-    assert setup_node["if"] == "steps.run-evidence.outcome == 'success'"
+    assert "if" not in setup_node
     command = install_tools["run"]
     assert "npm ci --ignore-scripts --prefix tools/basedpyright" in command  # type: ignore[operator]
     assert "tools/basedpyright/node_modules/.bin" in command  # type: ignore[operator]
-    assert _step_index(parsed, "Install frozen Code Review tools") < _step_index(
-        parsed, "Run Code Review with finalized Requirements context"
+    _assert_step_order(
+        parsed, "Install frozen Code Review tools", "Run Code Review with finalized Requirements context"
     )
     _assert_frozen_code_review_python_tools(command)
 
 
 def test_requirements_evidence_workflow_hands_final_proof_to_code_review() -> None:
-    """Code Review receives finalized proof context without owning its verdict."""
+    """A fresh review runner receives only an immutable proof artifact."""
     workflow = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"
     parsed = yaml.load(workflow.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
     review = _step_by_name(parsed, "Run Code Review with finalized Requirements context")
     command = review["run"]
 
-    assert review["if"] == "steps.run-evidence.outcome == 'success'"
+    _assert_review_job_boundary(parsed, review)
     _assert_code_review_handoff_command(command)
-    assert _step_index(parsed, "Run Requirements evidence gate") < _step_index(
-        parsed, "Run Code Review with finalized Requirements context"
-    )
-    assert _step_index(parsed, "Run Code Review with finalized Requirements context") < _step_index(
-        parsed, "Upload requirements evidence artifact"
-    )
+    _assert_review_artifact_binding(parsed)
+    _assert_review_handoff_order(parsed)
 
 
 def test_requirements_evidence_workflow_binds_red_proof_before_publication() -> None:
@@ -470,7 +518,7 @@ def test_requirements_evidence_workflow_binds_red_proof_before_publication() -> 
     assert 'if [[ "$run_stage" == "red" && "$exit_code" -eq 0 ]]; then' in command
     assert "python scripts/requirements_proof_provenance.py" in command
     assert binding in command
-    assert '--base-ref "origin/${EVIDENCE_BASE_BRANCH}"' in command
+    assert '--base-ref "$evidence_base_commit"' in command
     assert 'write_failure_reports "Red proof binding rejected:' in command
     assert 'selected_change" == "fix-retained-red-proof-provenance"' in command
     assert "printf 'Red proof retained; final reconciliation is required.\\n'" in command
@@ -478,31 +526,35 @@ def test_requirements_evidence_workflow_binds_red_proof_before_publication() -> 
     assert command.index(binding) < command.index("fallback_required=0")
 
 
-def _review_and_enforcement_steps() -> tuple[dict[str, object], dict[str, object]]:
-    """Load the two workflow steps that independently govern final PR status."""
+def _review_and_enforcement_steps() -> tuple[
+    dict[str, object], dict[str, object], dict[str, object], dict[str, object]
+]:
+    """Load the proof and review steps that independently govern final PR status."""
     workflow = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"
     parsed = yaml.load(workflow.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
     return (
         _step_by_name(parsed, "Run Code Review with finalized Requirements context"),
+        _step_by_name(parsed, "Enforce Requirements evidence producer verdict"),
+        _step_by_name(parsed, "Enforce Requirements evidence producer success"),
         _step_by_name(parsed, "Enforce requirements evidence verdict"),
     )
 
 
 @pytest.mark.parametrize(
-    ("review_field", "review_value", "terminal_failure"),
-    [
-        ("if", "steps.run-evidence.outcome == 'success'", "steps.run-evidence.outcome == 'failure'"),
-        ("continue-on-error", "true", "steps.run-code-review.outcome == 'failure'"),
-    ],
-    ids=("requirements-failure", "code-review-failure"),
+    "verdict",
+    ["requirements-failure", "code-review-failure"],
+    ids=["requirements-failure", "code-review-failure"],
 )
-def test_requirements_evidence_workflow_blocks_each_final_verdict(
-    review_field: str,
-    review_value: str,
-    terminal_failure: str,
-) -> None:
+def test_requirements_evidence_workflow_blocks_each_final_verdict(verdict: str) -> None:
     """Requirements and Code Review failures remain independently terminal."""
-    review, enforce = _review_and_enforcement_steps()
+    review, producer_enforce, producer_guard, review_enforce = _review_and_enforcement_steps()
 
-    assert review[review_field] == review_value
-    assert terminal_failure in enforce["if"]  # type: ignore[index]
+    if verdict == "requirements-failure":
+        assert producer_enforce["if"] == "steps.run-evidence.outcome == 'failure'"
+        assert producer_enforce["run"] == "exit 1"
+        assert producer_guard["if"] == "needs.requirements-evidence-producer.result != 'success'"
+        assert producer_guard["run"] == "exit 1"
+    else:
+        assert review["continue-on-error"] == "true"
+        assert review_enforce["if"] == "steps.run-code-review.outcome == 'failure'"
+        assert review_enforce["run"] == "exit 1"

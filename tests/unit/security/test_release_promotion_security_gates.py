@@ -41,9 +41,55 @@ def _on_block(workflow: dict[str, Any]) -> dict[str, Any]:
 def _named_step(job: dict[str, Any], name: str) -> dict[str, Any]:
     steps = job.get("steps")
     assert isinstance(steps, list)
-    step = next((item for item in steps if isinstance(item, dict) and item.get("name") == name), None)
-    assert isinstance(step, dict), name
-    return cast(dict[str, Any], step)
+    for item in steps:
+        if isinstance(item, dict):
+            step = cast(dict[str, Any], item)
+            if step.get("name") == name:
+                return step
+    raise AssertionError(name)
+
+
+def _assert_fresh_review_job(jobs: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Return producer and review jobs after checking the isolated final context."""
+    producer = cast(dict[str, Any], jobs["requirements-evidence-producer"])
+    review = cast(dict[str, Any], jobs["requirements-evidence"])
+    assert review["name"] == "Requirements evidence"
+    assert review["needs"] == "requirements-evidence-producer"
+    assert review["if"] == "always()"
+    return producer, review
+
+
+def _assert_exact_review_checkout(review: dict[str, Any]) -> None:
+    """Require a clean, credential-free checkout of the immutable PR head."""
+    checkout = _named_step(review, "Checkout exact head for Code Review")
+    assert checkout["uses"] == "actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10"
+    assert checkout["with"]["ref"] == "${{ github.event.pull_request.head.sha || github.sha }}"  # type: ignore[index]
+    assert checkout["with"]["clean"] is True  # type: ignore[index]
+    assert checkout["with"]["persist-credentials"] is False  # type: ignore[index]
+    verify_head = _named_step(review, "Verify exact head for Code Review")
+    assert verify_head["env"]["EXPECTED_HEAD"] == "${{ github.event.pull_request.head.sha || github.sha }}"  # type: ignore[index]
+    assert 'test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"' in str(verify_head.get("run", ""))
+
+
+def _assert_review_tool_and_artifact_order(review: dict[str, Any]) -> None:
+    """Require frozen tools before the immutable proof artifact enters the runner."""
+    install = str(_named_step(review, "Install frozen Code Review tools").get("run", ""))
+    assert install.index("python scripts/check_reproducible_delivery.py") < install.index("uv pip install")
+    review_steps = cast(list[dict[str, Any]], review["steps"])
+    step_names = [step.get("name") for step in review_steps]
+    assert step_names.index("Install frozen Code Review tools") < step_names.index(
+        "Restore Requirements evidence for Code Review"
+    )
+    restore = _named_step(review, "Restore Requirements evidence for Code Review")
+    assert restore["with"]["artifact-ids"] == "${{ needs.requirements-evidence-producer.outputs.artifact-id }}"  # type: ignore[index]
+
+
+def _assert_review_diff_is_fail_closed(review: dict[str, Any]) -> None:
+    """Require checked tempfile transport for the immutable review diff."""
+    review_command = str(_named_step(review, "Run Code Review with finalized Requirements context").get("run", ""))
+    assert 'if ! git diff --name-only -z "${review_base_commit}..HEAD"' in review_command
+    assert 'done < "$review_paths_file"' in review_command
+    assert "done < <(git diff" not in review_command
 
 
 def test_shared_frozen_setup_disables_persistent_cache() -> None:
@@ -78,6 +124,69 @@ def test_post_fixture_node_setup_has_no_persistent_npm_cache() -> None:
     assert isinstance(inputs, dict)
     assert "cache" not in inputs
     assert "cache-dependency-path" not in inputs
+
+
+def test_requirements_review_restarts_from_exact_head_after_proof() -> None:
+    """Proof execution cannot share a runner or mutable tool state with review."""
+    workflow = _workflow(".github/workflows/requirements-evidence.yml")
+    jobs = cast(dict[str, Any], workflow["jobs"])
+    producer, review = _assert_fresh_review_job(jobs)
+    _named_step(producer, "Run Requirements evidence gate")
+    _assert_exact_review_checkout(review)
+    _assert_review_tool_and_artifact_order(review)
+    _assert_review_diff_is_fail_closed(review)
+
+
+def test_required_requirements_check_cannot_be_manually_dispatched() -> None:
+    """Only PR provenance may emit the branch-protected Requirements context."""
+    workflow = _workflow(".github/workflows/requirements-evidence.yml")
+    assert set(_on_block(workflow)) == {"pull_request"}
+    jobs = cast(dict[str, Any], workflow["jobs"])
+    assert cast(dict[str, Any], jobs["requirements-evidence"])["name"] == "Requirements evidence"
+
+
+def test_requirements_proof_step_has_no_github_token_ancestor() -> None:
+    """Credentialed bootstrap retrieval is isolated from the step that runs tests."""
+    workflow = _workflow(".github/workflows/requirements-evidence.yml")
+    job = cast(dict[str, Any], cast(dict[str, Any], workflow["jobs"])["requirements-evidence-producer"])
+    bootstrap = _named_step(job, "Prepare one-time Requirements bootstrap authority")
+    proof = _named_step(job, "Run Requirements evidence gate")
+    assert cast(dict[str, Any], bootstrap["env"])["GH_TOKEN"] == "${{ github.token }}"
+    assert "GH_TOKEN" not in cast(dict[str, Any], proof.get("env", {}))
+    proof_command = str(proof.get("run", ""))
+    assert "gh api" not in proof_command
+    assert "gh run download" not in proof_command
+
+
+def test_requirements_archive_uses_one_immutable_merge_base() -> None:
+    """Archive selection and blob identity share the exact same base commit."""
+    workflow = _workflow(".github/workflows/requirements-evidence.yml")
+    job = cast(dict[str, Any], cast(dict[str, Any], workflow["jobs"])["requirements-evidence-producer"])
+    command = str(_named_step(job, "Run Requirements evidence gate").get("run", ""))
+    assert 'evidence_base_commit="$(git merge-base "origin/${EVIDENCE_BASE_BRANCH}" HEAD)"' in command
+    assert '"${evidence_base_commit}..HEAD"' in command
+    assert 'git ls-tree -r -z --name-only "$evidence_base_commit"' in command
+    assert 'git ls-tree "$evidence_base_commit"' in command
+    assert '"origin/${EVIDENCE_BASE_BRANCH}...HEAD"' not in command
+
+
+def test_every_code_review_lock_install_has_exact_closure_proof() -> None:
+    """Hash identity alone never authorizes an extra package in the review lock."""
+    for workflow_path, job_name in (
+        (".github/workflows/pr-orchestrator.yml", "license-check"),
+        (".github/workflows/requirements-evidence.yml", "requirements-evidence"),
+    ):
+        workflow = _workflow(workflow_path)
+        job = cast(dict[str, Any], cast(dict[str, Any], workflow["jobs"])[job_name])
+        install = str(
+            _named_step(
+                job,
+                "Install frozen Code Review tools"
+                if job_name == "requirements-evidence"
+                else "Install frozen Code Review license scope",
+            ).get("run", "")
+        )
+        assert install.index("python scripts/check_reproducible_delivery.py") < install.index("uv pip install")
 
 
 def test_frozen_graph_uses_fixed_semgrep_mcp_pair_without_waiver() -> None:
@@ -134,6 +243,14 @@ def test_code_review_only_license_exception_does_not_leak() -> None:
 
     assert checker._evaluate_env_package(package, allowlist) == 1
     assert checker._evaluate_env_package(package, allowlist, allowlist_scope="code-review-only") == 0
+
+
+def test_repository_license_exceptions_match_their_actual_environments() -> None:
+    """The root and isolated review scopes accept only their intended rows."""
+    checker = _load_script("check_license_compliance")
+    allowlist = checker._load_allowlist()
+    assert allowlist["pygments"][0]["scope"] == "dev-only"
+    assert allowlist["pylint"][0]["scope"] == "code-review-only"
 
 
 def test_archive_selection_checks_exact_moves_and_git_failures() -> None:
@@ -227,10 +344,10 @@ def test_invalid_utf8_authority_is_stable_metadata_failure(tmp_path: Path) -> No
         "bugfix/692-security-patch-clean-replay",
     ]
 
-    result = subprocess.run(arguments, capture_output=True, text=True, check=False)
+    authority_validation = subprocess.run(arguments, capture_output=True, text=True, check=False)
 
-    assert result.returncode == 1
-    assert result.stderr.strip() == "bootstrap-authority-invalid:authority-metadata"
+    assert authority_validation.returncode == 1
+    assert authority_validation.stderr.strip() == "bootstrap-authority-invalid:authority-metadata"
 
 
 def test_doc_owner_rg_terminates_options(monkeypatch: Any, tmp_path: Path) -> None:

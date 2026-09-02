@@ -41,6 +41,43 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/security/test_release_promotion_security_gates.py::test_post_fixture_node_setup_has_no_persistent_npm_cache
+  openspec:fix-release-promotion-security-gates:trustworthy-green-checks:proof-and-review-execute-across-a-clean-authenticated-boundary:
+    rationale: "Proof tests must not retain credentials or mutate the later Code Review toolchain."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#692"
+    touchpoints:
+      - id: requirements-evidence
+        kind: ci_workflow
+        locator: ".github/workflows/requirements-evidence.yml"
+    verification_cases:
+      - case_id: REQUIREMENTS-692-S12
+        scenario_id: proof-and-review-execute-across-a-clean-authenticated-boundary
+        method: test
+        intent: >-
+          Prove Code Review starts on a fresh runner, authenticates the exact pull-request head,
+          installs frozen tools before immutable artifact download, and fails closed on diff enumeration.
+        observable: >-
+          Only bounded evidence crosses jobs by immutable artifact ID; the fixture is reverified
+          and Git enumeration is status-checked.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_promotion_security_gates.py::test_requirements_review_restarts_from_exact_head_after_proof
+      - case_id: REQUIREMENTS-692-S13
+        scenario_id: proof-and-review-execute-across-a-clean-authenticated-boundary
+        method: test
+        intent: "Prove the proof-producing step has no GitHub token in its environment."
+        observable: "Credentialed bootstrap retrieval is separate and the proof step has no GH_TOKEN or GITHUB_TOKEN."
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_promotion_security_gates.py::test_requirements_proof_step_has_no_github_token_ancestor
+      - case_id: REQUIREMENTS-692-S14
+        scenario_id: proof-and-review-execute-across-a-clean-authenticated-boundary
+        method: test
+        intent: "Prove only pull-request provenance can emit the branch-protected Requirements context."
+        observable: "The required workflow has no manual trigger or caller-controlled base branch."
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_promotion_security_gates.py::test_required_requirements_check_cannot_be_manually_dispatched
   openspec:fix-release-promotion-security-gates:dep-license-gate:frozen-development-advisories-use-a-compatible-fixed-graph:
     rationale: "The frozen optional tool graph must remove compatible fixable advisories and scope reviewed license exceptions exactly."
     stakeholder_refs:
@@ -87,6 +124,14 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/security/test_release_promotion_security_gates.py::test_code_review_lock_is_bound_before_installation
+      - case_id: REQUIREMENTS-692-S14
+        scenario_id: isolated-code-review-locks-are-dependency-trust-inputs
+        method: test
+        intent: "Prove every Code Review lock installation is preceded by exact closure regeneration."
+        observable: "The existing reproducible-delivery verifier runs before each isolated uv installation."
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_promotion_security_gates.py::test_every_code_review_lock_install_has_exact_closure_proof
   openspec:fix-release-promotion-security-gates:dep-license-gate:license-exceptions-are-bound-to-an-exact-environment-scope:
     rationale: "The Pylint exception must not leak outside the isolated Code Review interpreter."
     stakeholder_refs:
@@ -150,6 +195,14 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/security/test_release_promotion_security_gates.py::test_archive_selection_checks_exact_moves_and_git_failures
+      - case_id: REQUIREMENTS-692-S15
+        scenario_id: active-change-selection-authenticates-archives-and-git-results
+        method: test
+        intent: "Prove archive selection and source reads share one immutable merge-base object ID."
+        observable: "The workflow resolves one merge base and does not compare against a moving remote branch."
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_promotion_security_gates.py::test_requirements_archive_uses_one_immutable_merge_base
   openspec:fix-release-promotion-security-gates:requirements-runtime-proof-delivery:proof-execution-resolves-installed-pytest-before-repository-code:
     rationale: "The proof executor must resolve installed pytest before candidate repository paths can shadow it."
     stakeholder_refs:

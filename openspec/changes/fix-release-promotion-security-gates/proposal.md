@@ -19,11 +19,15 @@ request, branch, commit, and tree.
 - Upgrade only the optional development/scanning tool edge to Semgrep 1.175.0
   and its compatible fixed `mcp==1.29.0`; remove the obsolete MCP waiver.
 - Bind Code Review lock inputs and license exceptions to their exact isolated
-  environment.
+  environment and require the hash-locked export to equal a fresh constrained
+  resolution before installation.
 - Fail closed when Git cannot prove a native OpenSpec archive, and preserve
-  ordinary active-change deletes and renames.
+  ordinary active-change deletes and renames using one immutable merge base.
 - Resolve installed pytest before adding the repository root, classify malformed
   bootstrap authority as metadata failure, and protect `rg` path arguments.
+- Remove GitHub credentials from proof execution and run Code Review on a fresh
+  runner that authenticates the exact head and installs frozen tools before it
+  downloads retained evidence by immutable artifact identity.
 - Archive completed change #689 and release the next patch version, 0.55.4.
 - Do not replay PR #698's amendment cycles, final-producer authority, expanded
   AST provenance framework, or systemd executor.

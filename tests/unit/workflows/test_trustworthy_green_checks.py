@@ -672,7 +672,8 @@ def test_license_gate_audits_the_frozen_code_review_environment() -> None:
     commands = "\n".join(str(step.get("run", "")) for step in steps)
     assert "uv pip install" in commands
     assert "requirements/code-review/locked.txt" in commands
-    assert "--additional-python" in commands
+    assert "--code-review-python" in commands
+    assert "--additional-python" not in commands
 
 
 def test_dependency_trust_is_a_standalone_ci_and_pre_commit_gate() -> None:

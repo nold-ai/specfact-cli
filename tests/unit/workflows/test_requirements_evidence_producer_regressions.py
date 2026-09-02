@@ -38,7 +38,7 @@ def test_producer_repair_bootstrap_requires_external_red_authority() -> None:
         "bootstrap_run_id=33013274590",
         'bootstrap_red_commit="04b6c02eb63f779309d8dced48085f3ef0efe029"',
         "requirements_bootstrap_authority.py",
-        '--base-ref "origin/${EVIDENCE_BASE_BRANCH}"',
+        '--base-ref "$evidence_base_commit"',
         '--final-ref "$EVIDENCE_FINAL_REF"',
         "--issue 689",
         "EVIDENCE_HEAD_BRANCH: ${{ github.head_ref }}",
