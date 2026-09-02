@@ -13,9 +13,9 @@
 ## Verification status
 
 - OpenSpec strict validation: passed
-- Focused red/green proof: prior cycles retained; final four-finding review cycle is in RED
-- Full quality/security/release gates: prior local gates passed; exact final-head rerun pending
-- Independent review: two P1 and two P2 findings remain in the final correction cycle
+- Focused red/green proof: final eight-check review cycle retained and locally green after `470679c23ce2aed8baf26576bbf5f13885061a6c`
+- Full quality/security/release gates: staged pre-commit pipeline passed; exact final-head audit and release reruns pending
+- Independent review: final PR and security-boundary reviews report no remaining P0-P2 findings
 - Trusted organization authority: exact final-tree replay pending
 
 ## Compatibility and dependency impact

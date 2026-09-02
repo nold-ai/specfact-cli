@@ -181,3 +181,52 @@ Fresh-consumer execution correction, 2026-09-02 13:41 Europe/Berlin:
   `~/.specfact/metadata.json`; the local workspace sandbox correctly denied
   that home-directory mutation, so the clean GitHub runner remains the final
   control for it.
+
+Final review-amendment correction, 2026-09-02 19:52 Europe/Berlin:
+
+- The last review cycle begins at signed commit
+  `8c388b0864a803f47810ec23fb226b6ca68c2f9c` with tree
+  `773155beccc7a81c153c7ecddd728d015ef469af`.
+- The final test-only RED commit is
+  `470679c23ce2aed8baf26576bbf5f13885061a6c` with tree
+  `11b7a4fafcca35c2d4fa2cd2f554626c6b1322c9`. GitHub Requirements Evidence
+  run `33663767134` retained artifact `9859738216` with service digest
+  `sha256:f5e1dc8e2af699831dafc457b2d89e5c4de5e87752c213eb969bdd67ba74db13`.
+- The retained report, plan, and JUnit digests are respectively
+  `sha256:525fd11a399fcdfab9a57e39a6b17197c096567cd39d5e0dcb0a4f0349f67be9`,
+  `sha256:bd5462715ed4217dab84a03e2d795d38ffa98dbaaacfc5cc52a3354cb5ee4cac`,
+  and `sha256:a65ad7291e3c13c4a5f566dbdb5f2eb906c5361fcd70509bf2ce46aa5e2c4b0a`.
+  Exactly eight mapped checks failed: the four reviewed regressions plus four
+  existing orchestration and closure contracts updated to require the same
+  fresh final job and isolated verifier. The approved mapping digest remained
+  unchanged.
+- After implementation, the eight-file security/workflow focus passed 167/167.
+  The complete local suite produced 3,055 passes and 9 expected skips; its 30
+  failures were environment-only controls caused by the deliberately pinned
+  module fixture, the restricted default uv cache, the shell's non-project
+  Python, and the protected user metadata directory. The module-discovery and
+  review-environment subset passed 13/13 after removing the injected fixture;
+  reproducible-delivery and all signing controls passed 46/46 with an isolated
+  uv cache and the frozen project interpreter. The user-home mutation remains
+  delegated to the clean GitHub runner.
+- The last independent boundary review reproduced a module-level
+  `pytest_plugins` hook forging a failing test into an exit-zero pass, found
+  candidate code executing before authority in the producer, found retained
+  proof bytes remaining writable until same-runner consumption, and reproduced
+  the authentic RED artifact being rejected only because its unique selector
+  sets used different legitimate orderings.
+- The amended implementation rejects selected-module plugin declarations at
+  collection, runs producer authority before the candidate local action,
+  authenticates and reconciles the execution artifact and late RED proof again
+  in the required fresh final job, and compares unique selector sets while
+  continuing to reject duplicates, omissions, additions, and wrong failures.
+- The final focused workflow/security files pass 43/43. The broader changed-test
+  set passes 203/203 outside the signing subprocess controls; those controls
+  pass 45/45 with the frozen project interpreter first on `PATH`.
+- Final review additionally closed the module-level `__getattr__` plugin-loader
+  bypass, rejected path-only writes to `GITHUB_ENV`, included partial OpenSpec
+  deletions in consumer selection, and limited the #703 late-RED lane to its
+  exact PR and branch. The ordinary fresh final re-plan, reconciliation, and
+  Code Review boundary remains active for later pull requests. The full staged
+  pre-commit pipeline and an independent final boundary review then passed with
+  no remaining P0-P2 findings.

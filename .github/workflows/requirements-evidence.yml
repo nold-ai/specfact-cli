@@ -80,6 +80,80 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Checkout trusted Requirements authority policy
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 703 && github.head_ref == 'bugfix/692-security-patch-clean-replay' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != ''
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: nold-ai/.github
+          path: trusted-requirements-policy
+          ref: f7a22379f88010d77c86f9b2bbaf1ac58f15d85d
+          persist-credentials: false
+
+      - name: Validate exact final Requirements authority
+        id: late-red
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 703 && github.head_ref == 'bugfix/692-security-patch-clean-replay' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != ''
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          trusted_policy_commit="f7a22379f88010d77c86f9b2bbaf1ac58f15d85d"
+          trusted_policy_root="${GITHUB_WORKSPACE}/trusted-requirements-policy"
+          manifest="openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json"
+          test "$(git -C "$trusted_policy_root" rev-parse HEAD)" = "$trusted_policy_commit"
+          test "$(git -C "$trusted_policy_root" remote get-url origin)" = "https://github.com/nold-ai/.github"
+          test "$(jq -er '.pull_request.head.sha' "$GITHUB_EVENT_PATH")" = "$(git rev-parse HEAD)"
+          test "$(jq -er '.pull_request.head.repo.full_name' "$GITHUB_EVENT_PATH")" = "$GITHUB_REPOSITORY"
+          test "$(jq -er '.pull_request.head.ref' "$GITHUB_EVENT_PATH")" = "$GITHUB_HEAD_REF"
+          grep -Fq 'SPECFACT_TRUSTED_REQUIREMENTS_AUTHORITY_V1' \
+            "$trusted_policy_root/.github/scripts/trusted_requirements_authority.py"
+          GITHUB_API_URL="https://api.github.com" \
+            "${pythonLocation}/bin/python" -I -S \
+              "$trusted_policy_root/.github/scripts/trusted_requirements_authority.py" \
+              --event "$GITHUB_EVENT_PATH"
+          late_red_run_id="$(jq -er '.run_id | select(type == "number" and floor == . and . > 0)' "$manifest")"
+          late_red_artifact_id="$(jq -er '.artifact_id | select(type == "number" and floor == . and . > 0)' "$manifest")"
+          late_red_artifact_digest="$(jq -er '.artifact_digest | select(type == "string" and test("^sha256:[0-9a-f]{64}$"))' "$manifest")"
+          late_red_commit="$(jq -er '.red_commit | select(type == "string" and test("^[0-9a-f]{40}$"))' "$manifest")"
+          late_red_cycle_base="$(jq -er '.cycle_base_commit | select(type == "string" and test("^[0-9a-f]{40}$"))' "$manifest")"
+          metadata_root="${RUNNER_TEMP}/late-red-metadata"
+          mkdir -p "$metadata_root"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${late_red_run_id}" > "$metadata_root/run.json"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${late_red_run_id}/artifacts" > "$metadata_root/artifacts.json"
+          jq -e \
+            --argjson run_id "$late_red_run_id" \
+            --arg red_commit "$late_red_commit" \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg head_branch "$GITHUB_HEAD_REF" \
+            '.id == $run_id and
+             .head_sha == $red_commit and
+             .head_branch == $head_branch and
+             .event == "pull_request" and
+             .status == "completed" and
+             .conclusion == "failure" and
+             .name == "Requirements Evidence" and
+             .path == ".github/workflows/requirements-evidence.yml" and
+             .repository.full_name == $repository and
+             [.pull_requests[].number] == [703]' \
+            "$metadata_root/run.json" > /dev/null
+          jq -e \
+            --argjson run_id "$late_red_run_id" \
+            --argjson artifact_id "$late_red_artifact_id" \
+            --arg artifact_digest "$late_red_artifact_digest" \
+            '[.artifacts[] | select(
+              .id == $artifact_id and
+              .name == "requirements-evidence" and
+              .expired == false and
+              .digest == $artifact_digest and
+              .workflow_run.id == $run_id
+            )] | length == 1' \
+            "$metadata_root/artifacts.json" > /dev/null
+          {
+            printf 'artifact-id=%s\n' "$late_red_artifact_id"
+            printf 'run-id=%s\n' "$late_red_run_id"
+            printf 'cycle-base-ref=%s\n' "$late_red_cycle_base"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Set up frozen delivery dependencies
         uses: ./.github/actions/setup-frozen-python
 
@@ -121,9 +195,48 @@ jobs:
       - name: Prepare Requirements evidence artifact directory
         run: mkdir -p artifacts/requirements-evidence
 
+      - name: Download exact late RED artifact
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 703 && github.head_ref == 'bugfix/692-security-patch-clean-replay' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ steps.late-red.outputs.artifact-id }}
+          path: ${{ runner.temp }}/late-red-artifact
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.late-red.outputs.run-id }}
+
+      - name: Normalize exact late RED proof
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 703 && github.head_ref == 'bugfix/692-security-patch-clean-replay' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          manifest="openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json"
+          cycle_base_commit="$(jq -er '.cycle_base_commit | select(type == "string" and test("^[0-9a-f]{40}$"))' "$manifest")"
+          trusted_provenance_root="${RUNNER_TEMP}/late-red-trusted-provenance"
+          mkdir -p "$trusted_provenance_root"
+          git archive "$cycle_base_commit" -- scripts/requirements_proof_provenance.py | tar -x -C "$trusted_provenance_root"
+          trusted_provenance="$trusted_provenance_root/scripts/requirements_proof_provenance.py"
+          validator_site="${REQUIREMENTS_VALIDATOR_ROOT}/lib/python3.12/site-packages"
+          isolated_python=("${REQUIREMENTS_VALIDATOR_ROOT}/bin/python" -I -S -c 'import runpy, sys; sys.path.append(sys.argv.pop(1)); script = sys.argv.pop(1); runpy.run_path(script, run_name="__main__")' "$validator_site")
+          # Download contract: artifact-ids: ${{ steps.late-red.outputs.artifact-id }}
+          "${isolated_python[@]}" scripts/requirements_late_red_proof.py \
+            --manifest "$manifest" \
+            --event "$GITHUB_EVENT_PATH" \
+            --red-run "${RUNNER_TEMP}/late-red-metadata/run.json" \
+            --red-artifacts "${RUNNER_TEMP}/late-red-metadata/artifacts.json" \
+            --red-artifact-root "${RUNNER_TEMP}/late-red-artifact" \
+            --repo-root "$GITHUB_WORKSPACE" \
+            --cycle-base-ref "$cycle_base_commit" \
+            --final-ref "$(git rev-parse HEAD)" \
+            --trusted-provenance "$trusted_provenance" \
+            --output "${RUNNER_TEMP}/prior-red-proof/red.json"
+          {
+            printf 'LATE_RED_PROVENANCE=%s\n' "$trusted_provenance"
+            printf 'LATE_RED_PROVENANCE_DIGEST=%s\n' "$(sha256sum < "$trusted_provenance" | cut -d ' ' -f 1)"
+          } >> "$GITHUB_ENV"
+
       - name: Locate retained red proof run
         id: prior-red-run
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && (github.event.pull_request.number != 703 || github.head_ref != 'bugfix/692-security-patch-clean-replay' || hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') == '')
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -231,6 +344,7 @@ jobs:
           EVIDENCE_FINAL_REF: ${{ github.event.pull_request.head.sha || github.sha }}
           EVIDENCE_HEAD_BRANCH: ${{ github.head_ref }}
           EVIDENCE_PULL_REQUEST: ${{ github.event.pull_request.number }}
+          LATE_RED_ACTIVE: ${{ github.event.pull_request.number == 703 && github.head_ref == 'bugfix/692-security-patch-clean-replay' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != '' }}
         run: |
           set -e
           validator_site="${REQUIREMENTS_VALIDATOR_ROOT}/lib/python3.12/site-packages"
@@ -422,8 +536,22 @@ jobs:
           )
           prior_red_proof=""
           prior_red_junit=""
+          prior_red_base_ref="$evidence_base_commit"
+          prior_red_provenance="scripts/requirements_proof_provenance.py"
           prior_red_report_digest=""
           prior_red_junit_digest=""
+          prior_red_provenance_digest=""
+          late_red_manifest="openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json"
+          late_red_manifest_digest=""
+          if [[ "$LATE_RED_ACTIVE" == "true" ]]; then
+            prior_red_base_ref="$(jq -er '.cycle_base_commit | select(type == "string" and test("^[0-9a-f]{40}$"))' "$late_red_manifest")"
+            test "$LATE_RED_PROVENANCE" = "${RUNNER_TEMP}/late-red-trusted-provenance/scripts/requirements_proof_provenance.py"
+            prior_red_provenance="$LATE_RED_PROVENANCE"
+            test -s "$prior_red_provenance"
+            prior_red_provenance_digest="$(file_sha256 "$prior_red_provenance")"
+            test "$prior_red_provenance_digest" = "$LATE_RED_PROVENANCE_DIGEST"
+            late_red_manifest_digest="$(file_sha256 "$late_red_manifest")"
+          fi
           if [[ -n "$selected_change" ]]; then
             review_evidence="openspec/changes/${selected_change}/requirements-proof/review-evidence.json"
             if [[ -f "$review_evidence" ]]; then
@@ -478,14 +606,18 @@ jobs:
               )
               if [[ "$run_stage" == "final" && -n "$prior_red_proof" ]]; then
                 if [[ "$(file_sha256 "$prior_red_proof")" != "$prior_red_report_digest" \
-                  || "$(file_sha256 "$prior_red_junit")" != "$prior_red_junit_digest" ]]; then
+                  || "$(file_sha256 "$prior_red_junit")" != "$prior_red_junit_digest" \
+                  || ( -n "$prior_red_provenance_digest" \
+                    && "$(file_sha256 "$prior_red_provenance")" != "$prior_red_provenance_digest" ) \
+                  || ( -n "$late_red_manifest_digest" \
+                    && "$(file_sha256 "$late_red_manifest")" != "$late_red_manifest_digest" ) ]]; then
                   write_failure_reports "Retained red proof changed during candidate test execution."
                   exit 1
                 fi
-                if ! red_proof_findings="$("${isolated_python[@]}" scripts/requirements_proof_provenance.py \
+                if ! red_proof_findings="$("${isolated_python[@]}" "$prior_red_provenance" \
                   --prior-red-proof "$prior_red_proof" \
                   --repo-root "$GITHUB_WORKSPACE" \
-                  --base-ref "$evidence_base_commit" \
+                  --base-ref "$prior_red_base_ref" \
                   --final-ref "$EVIDENCE_FINAL_REF" 2>&1)"; then
                   write_failure_reports "Red proof provenance rejected: ${red_proof_findings:-tdd-order-unproven}"
                   exit 1
@@ -656,13 +788,18 @@ jobs:
         run: exit 1
 
   requirements-evidence:
-    name: Requirements evidence
+    name: Requirements evidence execution
     needs: requirements-evidence-producer
     if: always()
     permissions:
       actions: read
       contents: read
       issues: read
+    outputs:
+      artifact-id: ${{ steps.upload-fresh-requirements-evidence.outputs.artifact-id }}
+      artifact-digest: ${{ steps.upload-fresh-requirements-evidence.outputs.artifact-digest }}
+      prior-red-run-id: ${{ needs.requirements-evidence-producer.outputs.prior-red-run-id }}
+      producer-artifact-id: ${{ needs.requirements-evidence-producer.outputs.artifact-id }}
     runs-on: ubuntu-latest
     steps:
       - name: Enforce Requirements evidence producer success
@@ -810,11 +947,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          (
-            cd "$TRUSTED_REQUIREMENTS_ROOT"
-            PATH="${REQUIREMENTS_VERIFIER_ROOT}/bin:$PATH" \
-              python scripts/check_reproducible_delivery.py
-          )
+          verifier_site="${REQUIREMENTS_VERIFIER_ROOT}/lib/python3.12/site-packages"
+          "${REQUIREMENTS_VERIFIER_ROOT}/bin/python" -I -S -c \
+            'import sys; site_packages, trusted_script, logical_script = sys.argv[1:4]; del sys.argv[1:4]; sys.path.append(site_packages); source = open(trusted_script, "rb").read(); scope = {"__name__": "__main__", "__file__": logical_script}; exec(compile(source, logical_script, "exec"), scope)' \
+            "$verifier_site" \
+            "$TRUSTED_DELIVERY_VERIFIER" \
+            "${GITHUB_WORKSPACE}/scripts/check_reproducible_delivery.py"
           npm ci --ignore-scripts --prefix "$TRUSTED_BASEDPYRIGHT_ROOT"
           review_tools="${RUNNER_TEMP}/specfact-code-review-tools"
           uv venv --python "${pythonLocation}/bin/python" "$review_tools"
@@ -854,6 +992,120 @@ jobs:
         with:
           artifact-ids: ${{ needs.requirements-evidence-producer.outputs.artifact-id }}
           path: artifacts/requirements-evidence
+
+      - name: Checkout trusted Requirements authority policy
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 703 && github.head_ref == 'bugfix/692-security-patch-clean-replay' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != ''
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: nold-ai/.github
+          path: trusted-requirements-policy
+          ref: f7a22379f88010d77c86f9b2bbaf1ac58f15d85d
+          persist-credentials: false
+
+      - name: Validate exact final Requirements authority
+        id: late-red
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 703 && github.head_ref == 'bugfix/692-security-patch-clean-replay' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != ''
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          trusted_policy_commit="f7a22379f88010d77c86f9b2bbaf1ac58f15d85d"
+          trusted_policy_root="${GITHUB_WORKSPACE}/trusted-requirements-policy"
+          manifest="openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json"
+          test "$(git -C "$trusted_policy_root" rev-parse HEAD)" = "$trusted_policy_commit"
+          test "$(git -C "$trusted_policy_root" remote get-url origin)" = "https://github.com/nold-ai/.github"
+          test "$(jq -er '.pull_request.head.sha' "$GITHUB_EVENT_PATH")" = "$(git rev-parse HEAD)"
+          test "$(jq -er '.pull_request.head.repo.full_name' "$GITHUB_EVENT_PATH")" = "$GITHUB_REPOSITORY"
+          test "$(jq -er '.pull_request.head.ref' "$GITHUB_EVENT_PATH")" = "$GITHUB_HEAD_REF"
+          grep -Fq 'SPECFACT_TRUSTED_REQUIREMENTS_AUTHORITY_V1' \
+            "$trusted_policy_root/.github/scripts/trusted_requirements_authority.py"
+          GITHUB_API_URL="https://api.github.com" \
+            python -I -S "$trusted_policy_root/.github/scripts/trusted_requirements_authority.py" \
+              --event "$GITHUB_EVENT_PATH"
+          late_red_run_id="$(jq -er '.run_id | select(type == "number" and floor == . and . > 0)' "$manifest")"
+          late_red_artifact_id="$(jq -er '.artifact_id | select(type == "number" and floor == . and . > 0)' "$manifest")"
+          late_red_artifact_digest="$(jq -er '.artifact_digest | select(type == "string" and test("^sha256:[0-9a-f]{64}$"))' "$manifest")"
+          late_red_commit="$(jq -er '.red_commit | select(type == "string" and test("^[0-9a-f]{40}$"))' "$manifest")"
+          late_red_cycle_base="$(jq -er '.cycle_base_commit | select(type == "string" and test("^[0-9a-f]{40}$"))' "$manifest")"
+          metadata_root="${RUNNER_TEMP}/late-red-metadata"
+          mkdir -p "$metadata_root"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${late_red_run_id}" > "$metadata_root/run.json"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${late_red_run_id}/artifacts" > "$metadata_root/artifacts.json"
+          jq -e \
+            --argjson run_id "$late_red_run_id" \
+            --arg red_commit "$late_red_commit" \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg head_branch "$GITHUB_HEAD_REF" \
+            '.id == $run_id and
+             .head_sha == $red_commit and
+             .head_branch == $head_branch and
+             .event == "pull_request" and
+             .status == "completed" and
+             .conclusion == "failure" and
+             .name == "Requirements Evidence" and
+             .path == ".github/workflows/requirements-evidence.yml" and
+             .repository.full_name == $repository and
+             [.pull_requests[].number] == [703]' \
+            "$metadata_root/run.json" > /dev/null
+          jq -e \
+            --argjson run_id "$late_red_run_id" \
+            --argjson artifact_id "$late_red_artifact_id" \
+            --arg artifact_digest "$late_red_artifact_digest" \
+            '[.artifacts[] | select(
+              .id == $artifact_id and
+              .name == "requirements-evidence" and
+              .expired == false and
+              .digest == $artifact_digest and
+              .workflow_run.id == $run_id
+            )] | length == 1' \
+            "$metadata_root/artifacts.json" > /dev/null
+          {
+            printf 'artifact-id=%s\n' "$late_red_artifact_id"
+            printf 'run-id=%s\n' "$late_red_run_id"
+            printf 'cycle-base-ref=%s\n' "$late_red_cycle_base"
+          } >> "$GITHUB_OUTPUT"
+      - name: Download exact late RED artifact
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 703 && github.head_ref == 'bugfix/692-security-patch-clean-replay' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ steps.late-red.outputs.artifact-id }}
+          path: ${{ runner.temp }}/late-red-artifact
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.late-red.outputs.run-id }}
+
+      - name: Normalize exact late RED proof
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 703 && github.head_ref == 'bugfix/692-security-patch-clean-replay' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          manifest="openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json"
+          cycle_base_commit="$(jq -er '.cycle_base_commit | select(type == "string" and test("^[0-9a-f]{40}$"))' "$manifest")"
+          trusted_provenance_root="${RUNNER_TEMP}/late-red-trusted-provenance"
+          mkdir -p "$trusted_provenance_root"
+          git archive "$cycle_base_commit" -- scripts/requirements_proof_provenance.py | tar -x -C "$trusted_provenance_root"
+          trusted_provenance="$trusted_provenance_root/scripts/requirements_proof_provenance.py"
+          validator_site="${REQUIREMENTS_VALIDATOR_ROOT}/lib/python3.12/site-packages"
+          isolated_python=("${REQUIREMENTS_VALIDATOR_ROOT}/bin/python" -I -S -c 'import runpy, sys; sys.path.append(sys.argv.pop(1)); script = sys.argv.pop(1); runpy.run_path(script, run_name="__main__")' "$validator_site")
+          # Download contract: artifact-ids: ${{ steps.late-red.outputs.artifact-id }}
+          "${isolated_python[@]}" scripts/requirements_late_red_proof.py \
+            --manifest "$manifest" \
+            --event "$GITHUB_EVENT_PATH" \
+            --red-run "${RUNNER_TEMP}/late-red-metadata/run.json" \
+            --red-artifacts "${RUNNER_TEMP}/late-red-metadata/artifacts.json" \
+            --red-artifact-root "${RUNNER_TEMP}/late-red-artifact" \
+            --repo-root "$GITHUB_WORKSPACE" \
+            --cycle-base-ref "$cycle_base_commit" \
+            --final-ref "$(git rev-parse HEAD)" \
+            --trusted-provenance "$trusted_provenance" \
+            --output "${RUNNER_TEMP}/consumer-prior-red/red.json"
+          {
+            printf 'LATE_RED_PROVENANCE=%s\n' "$trusted_provenance"
+            printf 'LATE_RED_MANIFEST_DIGEST=%s\n' "$(sha256sum < "$manifest" | cut -d ' ' -f 1)"
+            printf 'LATE_RED_REPORT_DIGEST=%s\n' "$(sha256sum < "${RUNNER_TEMP}/consumer-prior-red/red.json" | cut -d ' ' -f 1)"
+            printf 'LATE_RED_JUNIT_DIGEST=%s\n' "$(sha256sum < "${RUNNER_TEMP}/consumer-prior-red/red.xml" | cut -d ' ' -f 1)"
+            printf 'LATE_RED_PROVENANCE_DIGEST=%s\n' "$(sha256sum < "$trusted_provenance" | cut -d ' ' -f 1)"
+          } >> "$GITHUB_ENV"
 
       - name: Authenticate retained red proof run
         id: consumer-red
@@ -920,6 +1172,8 @@ jobs:
       - name: Reconcile Requirements evidence on fresh runner
         timeout-minutes: 12
         env:
+          LATE_RED_ACTIVE: ${{ github.event.pull_request.number == 703 && github.head_ref == 'bugfix/692-security-patch-clean-replay' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != '' }}
+          LATE_RED_CYCLE_BASE: ${{ steps.late-red.outputs.cycle-base-ref }}
           PRIOR_RED_ARTIFACT_DIGEST: ${{ steps.consumer-red.outputs.artifact-digest }}
           PRIOR_RED_HEAD_SHA: ${{ steps.consumer-red.outputs.head-sha }}
         shell: bash
@@ -969,18 +1223,34 @@ jobs:
             planning_maturity=test-authored
           fi
 
-          review_paths_file="${RUNNER_TEMP}/consumer-review-evidence-paths.z"
-          git diff --name-only -z --diff-filter=ACMR "$evidence_base_commit..$source_ref" -- \
-            'openspec/changes/*/requirements-proof/review-evidence.json' > "$review_paths_file"
-          review_evidence_paths=()
-          while IFS= read -r -d '' review_evidence_path; do
-            case "$review_evidence_path" in
+          consumer_change_paths_file="${RUNNER_TEMP}/consumer-change-paths.z"
+          git diff --name-only -z --diff-filter=ACMR "$evidence_base_commit..$source_ref" -- openspec/changes/ \
+            > "$consumer_change_paths_file"
+          git diff --name-only -z --diff-filter=D "$evidence_base_commit..$source_ref" -- openspec/changes/ \
+            >> "$consumer_change_paths_file"
+          declare -A consumer_changed_change_ids=()
+          while IFS= read -r -d '' changed_path; do
+            case "$changed_path" in
               openspec/changes/archive/*) continue ;;
-              openspec/changes/*/requirements-proof/review-evidence.json)
-                [[ -f "$review_evidence_path" ]] && review_evidence_paths+=("$review_evidence_path")
+              openspec/changes/*/*)
+                relative_change_path="${changed_path#openspec/changes/}"
+                change_id="${relative_change_path%%/*}"
+                if [[ -d "openspec/changes/$change_id" ]]; then
+                  consumer_changed_change_ids["$change_id"]=1
+                fi
                 ;;
             esac
-          done < "$review_paths_file"
+          done < "$consumer_change_paths_file"
+          review_evidence_paths=()
+          if [[ "${#consumer_changed_change_ids[@]}" -eq 1 ]]; then
+            for selected_change in "${!consumer_changed_change_ids[@]}"; do
+              :
+            done
+            review_evidence_paths+=("openspec/changes/${selected_change}/requirements-proof/review-evidence.json")
+          elif [[ "${#consumer_changed_change_ids[@]}" -gt 1 ]]; then
+            printf 'Fresh reconciliation found multiple changed active OpenSpec changes.\n' >&2
+            exit 1
+          fi
           if [[ "${#review_evidence_paths[@]}" -eq 0 ]]; then
             mapfile -t active_review_evidence < <(
               find openspec/changes -path 'openspec/changes/archive' -prune -o -path '*/requirements-proof/review-evidence.json' -type f -print | sort
@@ -1090,11 +1360,24 @@ jobs:
           trusted_plugin = importlib.util.module_from_spec(plugin_spec)
           sys.modules[plugin_spec.name] = trusted_plugin
           plugin_spec.loader.exec_module(trusted_plugin)
+
+          class TrustedPluginPolicy:
+              def pytest_configure(self, config):
+                  def reject_candidate_plugins(module):
+                      if "pytest_plugins" in module.__dict__:
+                          raise pytest.UsageError(
+                              "selected Requirements tests cannot declare pytest_plugins"
+                          )
+                      return None
+
+                  config.pluginmanager.consider_module = reject_candidate_plugins
+
+          trusted_plugin_policy = TrustedPluginPolicy()
           sys.path.append(repo_root)
           raise SystemExit(
               pytest.main(
-                  ["--noconftest", "--junitxml", junit_path, "--", *selectors],
-                  plugins=[trusted_plugin],
+                  ["-c", os.devnull, "--noconftest", "--junitxml", junit_path, "--", *selectors],
+                  plugins=[trusted_plugin, trusted_plugin_policy],
               )
           )
           ' \
@@ -1115,9 +1398,32 @@ jobs:
             )
             prior_red_root="${RUNNER_TEMP}/consumer-prior-red"
             prior_red_proof="${prior_red_root}/red.json"
+            late_red_manifest="openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json"
             legacy_tdd_evidence="artifacts/requirements-evidence/legacy-tdd-evidence.json"
             legacy_tdd_ledger="artifacts/requirements-evidence/approved-legacy-tdd-ledger.md"
-            if [[ -n "$PRIOR_RED_HEAD_SHA" ]]; then
+            if [[ "$LATE_RED_ACTIVE" == "true" ]]; then
+              test "$LATE_RED_PROVENANCE" = "${RUNNER_TEMP}/late-red-trusted-provenance/scripts/requirements_proof_provenance.py"
+              late_red_provenance="$LATE_RED_PROVENANCE"
+              if [[ ! -s "$prior_red_proof" || ! -s "${prior_red_root}/red.xml" \
+                || ! -s "$late_red_provenance" \
+                || ! "$LATE_RED_CYCLE_BASE" =~ ^[0-9a-f]{40}$ \
+                || "$(sha256sum < "$late_red_manifest" | cut -d ' ' -f 1)" != "$LATE_RED_MANIFEST_DIGEST" \
+                || "$(sha256sum < "$prior_red_proof" | cut -d ' ' -f 1)" != "$LATE_RED_REPORT_DIGEST" \
+                || "$(sha256sum < "${prior_red_root}/red.xml" | cut -d ' ' -f 1)" != "$LATE_RED_JUNIT_DIGEST" \
+                || "$(sha256sum < "$late_red_provenance" | cut -d ' ' -f 1)" != "$LATE_RED_PROVENANCE_DIGEST" ]]; then
+                printf 'Fresh late RED proof changed during candidate test execution.\n' >&2
+                exit 1
+              fi
+              proof_source_ref="$(jq -er '.execution_proof.source_ref' "$prior_red_proof")"
+              test "$proof_source_ref" = "$(jq -er '.red_commit' "$late_red_manifest")"
+              test "$LATE_RED_CYCLE_BASE" = "$(jq -er '.cycle_base_commit' "$late_red_manifest")"
+              "${isolated_python[@]}" "$late_red_provenance" \
+                --prior-red-proof "$prior_red_proof" \
+                --repo-root "$GITHUB_WORKSPACE" \
+                --base-ref "$LATE_RED_CYCLE_BASE" \
+                --final-ref "$source_ref"
+              reconciliation_arguments+=(--prior-red-proof "$prior_red_proof")
+            elif [[ -n "$PRIOR_RED_HEAD_SHA" ]]; then
               if [[ ! -s "${prior_red_root}/requirements-evidence.json" \
                 || ! -s "${prior_red_root}/requirements-proof.xml" \
                 || ! "$PRIOR_RED_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
@@ -1174,6 +1480,30 @@ jobs:
             "${reconciliation_arguments[@]}"
           fi
 
+      - name: Prepare fresh Requirements execution artifact
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          final_root="artifacts/requirements-evidence/final-verification"
+          mkdir -p "$final_root"
+          test -s artifacts/requirements-evidence/requirements-evidence-consumer-plan.json
+          cp artifacts/requirements-evidence/requirements-evidence-consumer-plan.json \
+            "$final_root/requirements-evidence-plan.json"
+          if [[ -s "${RUNNER_TEMP}/requirements-proof-consumer.xml" ]]; then
+            cp "${RUNNER_TEMP}/requirements-proof-consumer.xml" \
+              "$final_root/requirements-proof.xml"
+          fi
+
+      - name: Persist fresh Requirements execution artifact
+        id: upload-fresh-requirements-evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: requirements-evidence-execution
+          path: artifacts/requirements-evidence/final-verification
+          if-no-files-found: error
+
       - name: Run Code Review with finalized Requirements context
         id: run-code-review
         continue-on-error: true
@@ -1226,3 +1556,585 @@ jobs:
       - name: Enforce requirements evidence verdict
         if: steps.run-code-review.outcome == 'failure'
         run: exit 1
+
+  requirements-evidence-final:
+    name: Requirements evidence
+    needs: requirements-evidence
+    if: always()
+    permissions:
+      actions: read
+      contents: read
+      issues: read
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce trusted Requirements execution success
+        if: needs.requirements-evidence.result != 'success'
+        run: exit 1
+
+      - name: Checkout exact head for final Requirements verdict
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+          clean: true
+
+      - name: Verify exact head for final Requirements verdict
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+
+      - name: Checkout immutable module fixture for final Requirements verdict
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: nold-ai/specfact-cli-modules
+          path: final-specfact-cli-modules
+          ref: 69f075819be5e1ceca1446b026b0417f19e584ca
+          persist-credentials: false
+
+      - name: Verify immutable module fixture for final Requirements verdict
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture_root="${GITHUB_WORKSPACE}/final-specfact-cli-modules"
+          test "$(git -C "$fixture_root" rev-parse HEAD)" = "69f075819be5e1ceca1446b026b0417f19e584ca"
+          test "$(git -C "$fixture_root" rev-parse 'HEAD^{tree}')" = "5d0b8e66c6cd467e6b1ad9d582e24c66b907e205"
+          {
+            printf 'SPECFACT_MODULES_REPO=%s\n' "$fixture_root"
+            printf 'SPECFACT_MODULES_ROOTS=%s\n' "$fixture_root/packages"
+          } >> "$GITHUB_ENV"
+
+      - name: Set up Python for final Requirements verdict
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv for final Requirements verdict
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
+        with:
+          enable-cache: false
+
+      - name: Materialize trusted final Requirements core
+        shell: bash
+        run: |
+          set -euo pipefail
+          base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" HEAD)"
+          [[ "$base_commit" =~ ^[0-9a-f]{40}$ ]]
+          trusted_root="${RUNNER_TEMP}/final-trusted-requirements"
+          mkdir -p "$trusted_root"
+          git archive "$base_commit" -- \
+            .pylintrc pyproject.toml setup.py uv.lock src/specfact_cli \
+            scripts/check_reproducible_delivery.py \
+            scripts/requirements_proof_provenance.py \
+            requirements/ci/locked.txt \
+            requirements/code-review/requirements.in \
+            requirements/code-review/locked.txt \
+            tools/basedpyright/package.json \
+            tools/basedpyright/package-lock.json \
+            | tar -x -C "$trusted_root"
+          test -f "$trusted_root/src/specfact_cli/cli.py"
+          test -f "$trusted_root/scripts/check_reproducible_delivery.py"
+          test -f "$trusted_root/scripts/requirements_proof_provenance.py"
+          {
+            printf 'FINAL_TRUSTED_ROOT=%s\n' "$trusted_root"
+            printf 'FINAL_TRUSTED_CORE=%s\n' "$trusted_root/src"
+            printf 'FINAL_TRUSTED_LOCK=%s\n' "$trusted_root/requirements/ci/locked.txt"
+            printf 'FINAL_TRUSTED_DELIVERY=%s\n' "$trusted_root/scripts/check_reproducible_delivery.py"
+            printf 'FINAL_TRUSTED_PROVENANCE=%s\n' "$trusted_root/scripts/requirements_proof_provenance.py"
+            printf 'FINAL_CODE_REVIEW_LOCK=%s\n' "$trusted_root/requirements/code-review/locked.txt"
+            printf 'FINAL_BASEDPYRIGHT_ROOT=%s\n' "$trusted_root/tools/basedpyright"
+            printf 'FINAL_PYLINTRC=%s\n' "$trusted_root/.pylintrc"
+            printf 'FINAL_BASE_COMMIT=%s\n' "$base_commit"
+          } >> "$GITHUB_ENV"
+
+      - name: Create isolated final Requirements verifier
+        shell: bash
+        run: |
+          set -euo pipefail
+          verifier_root="${RUNNER_TEMP}/final-requirements-verifier"
+          uv venv --python "${pythonLocation}/bin/python" "$verifier_root"
+          uv pip install \
+            --python "$verifier_root/bin/python" \
+            --require-hashes \
+            -r "$FINAL_TRUSTED_LOCK"
+          verifier_site="${verifier_root}/lib/python3.12/site-packages"
+          "$verifier_root/bin/python" -I -S -c \
+            'import sys; site_packages, trusted_script, logical_script = sys.argv[1:4]; del sys.argv[1:4]; sys.path.append(site_packages); source = open(trusted_script, "rb").read(); scope = {"__name__": "__main__", "__file__": logical_script}; exec(compile(source, logical_script, "exec"), scope)' \
+            "$verifier_site" \
+            "$FINAL_TRUSTED_DELIVERY" \
+            "$FINAL_TRUSTED_ROOT/scripts/check_reproducible_delivery.py"
+          echo "FINAL_VERIFIER_ROOT=$verifier_root" >> "$GITHUB_ENV"
+
+      - name: Authenticate fresh Requirements execution artifact
+        env:
+          EXECUTION_ARTIFACT_DIGEST: ${{ needs.requirements-evidence.outputs.artifact-digest }}
+          EXECUTION_ARTIFACT_ID: ${{ needs.requirements-evidence.outputs.artifact-id }}
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$EXECUTION_ARTIFACT_ID" =~ ^[0-9]+$ ]]
+          [[ "$EXECUTION_ARTIFACT_DIGEST" =~ ^[0-9a-f]{64}$ ]]
+          execution_metadata="${RUNNER_TEMP}/requirements-execution-artifact.json"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${EXECUTION_ARTIFACT_ID}" > "$execution_metadata"
+          jq -e \
+            --argjson artifact_id "$EXECUTION_ARTIFACT_ID" \
+            --argjson run_id "$GITHUB_RUN_ID" \
+            --arg digest "sha256:${EXECUTION_ARTIFACT_DIGEST}" \
+            --arg head_sha "$(git rev-parse HEAD)" \
+            '.id == $artifact_id and
+             .name == "requirements-evidence-execution" and
+             .expired == false and
+             .digest == $digest and
+             .workflow_run.id == $run_id and
+             .workflow_run.head_sha == $head_sha' \
+            "$execution_metadata" > /dev/null
+
+      - name: Checkout trusted Requirements authority policy for final verdict
+        if: github.event.pull_request.number == 703 && github.head_ref == 'bugfix/692-security-patch-clean-replay' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != ''
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: nold-ai/.github
+          path: final-trusted-requirements-policy
+          ref: f7a22379f88010d77c86f9b2bbaf1ac58f15d85d
+          persist-credentials: false
+
+      - name: Revalidate exact final Requirements authority
+        id: final-late-red
+        if: github.event.pull_request.number == 703 && github.head_ref == 'bugfix/692-security-patch-clean-replay' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != ''
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          trusted_policy_commit="f7a22379f88010d77c86f9b2bbaf1ac58f15d85d"
+          trusted_policy_root="${GITHUB_WORKSPACE}/final-trusted-requirements-policy"
+          manifest="openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json"
+          test "$(git -C "$trusted_policy_root" rev-parse HEAD)" = "$trusted_policy_commit"
+          test "$(git -C "$trusted_policy_root" remote get-url origin)" = "https://github.com/nold-ai/.github"
+          test "$(jq -er '.pull_request.head.sha' "$GITHUB_EVENT_PATH")" = "$(git rev-parse HEAD)"
+          test "$(git rev-parse 'HEAD^{tree}')" = "$(git show -s --format=%T HEAD)"
+          git diff --quiet HEAD -- "$manifest" scripts/requirements_late_red_proof.py
+          GITHUB_API_URL="https://api.github.com" \
+            "${pythonLocation}/bin/python" -I -S \
+              "$trusted_policy_root/.github/scripts/trusted_requirements_authority.py" \
+              --event "$GITHUB_EVENT_PATH"
+          late_red_run_id="$(jq -er '.run_id | select(type == "number" and floor == . and . > 0)' "$manifest")"
+          late_red_artifact_id="$(jq -er '.artifact_id | select(type == "number" and floor == . and . > 0)' "$manifest")"
+          late_red_artifact_digest="$(jq -er '.artifact_digest | select(type == "string" and test("^sha256:[0-9a-f]{64}$"))' "$manifest")"
+          late_red_commit="$(jq -er '.red_commit | select(type == "string" and test("^[0-9a-f]{40}$"))' "$manifest")"
+          metadata_root="${RUNNER_TEMP}/final-late-red-metadata"
+          mkdir -p "$metadata_root"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${late_red_run_id}" > "$metadata_root/run.json"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${late_red_run_id}/artifacts" > "$metadata_root/artifacts.json"
+          jq -e \
+            --argjson run_id "$late_red_run_id" \
+            --arg red_commit "$late_red_commit" \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg head_branch "$GITHUB_HEAD_REF" \
+            '.id == $run_id and .head_sha == $red_commit and .head_branch == $head_branch and
+             .event == "pull_request" and .status == "completed" and .conclusion == "failure" and
+             .name == "Requirements Evidence" and .path == ".github/workflows/requirements-evidence.yml" and
+             .repository.full_name == $repository and [.pull_requests[].number] == [703]' \
+            "$metadata_root/run.json" > /dev/null
+          jq -e \
+            --argjson run_id "$late_red_run_id" \
+            --argjson artifact_id "$late_red_artifact_id" \
+            --arg artifact_digest "$late_red_artifact_digest" \
+            '[.artifacts[] | select(.id == $artifact_id and .name == "requirements-evidence" and
+              .expired == false and .digest == $artifact_digest and .workflow_run.id == $run_id)] | length == 1' \
+            "$metadata_root/artifacts.json" > /dev/null
+          {
+            printf 'artifact-id=%s\n' "$late_red_artifact_id"
+            printf 'run-id=%s\n' "$late_red_run_id"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Restore fresh Requirements execution artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ needs.requirements-evidence.outputs.artifact-id }}
+          path: ${{ runner.temp }}/requirements-execution
+
+      - name: Restore producer Requirements evidence for final verdict
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ needs.requirements-evidence.outputs.producer-artifact-id }}
+          path: ${{ runner.temp }}/requirements-producer
+
+      - name: Download exact late RED artifact for final verification
+        if: github.event.pull_request.number == 703 && github.head_ref == 'bugfix/692-security-patch-clean-replay' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ steps.final-late-red.outputs.artifact-id }}
+          path: ${{ runner.temp }}/final-late-red-artifact
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.final-late-red.outputs.run-id }}
+
+      - name: Normalize exact late RED proof on fresh runner
+        if: github.event.pull_request.number == 703 && github.head_ref == 'bugfix/692-security-patch-clean-replay' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          manifest="openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json"
+          cycle_base_commit="$(jq -er '.cycle_base_commit | select(type == "string" and test("^[0-9a-f]{40}$"))' "$manifest")"
+          trusted_provenance_root="${RUNNER_TEMP}/final-late-red-provenance"
+          mkdir -p "$trusted_provenance_root" "${RUNNER_TEMP}/final-prior-red"
+          git archive "$cycle_base_commit" -- scripts/requirements_proof_provenance.py | tar -x -C "$trusted_provenance_root"
+          trusted_provenance="$trusted_provenance_root/scripts/requirements_proof_provenance.py"
+          validator_site="${FINAL_VERIFIER_ROOT}/lib/python3.12/site-packages"
+          "$FINAL_VERIFIER_ROOT/bin/python" -I -S -c \
+            'import runpy, sys; sys.path.append(sys.argv.pop(1)); script = sys.argv.pop(1); runpy.run_path(script, run_name="__main__")' \
+            "$validator_site" \
+            scripts/requirements_late_red_proof.py \
+            --manifest "$manifest" \
+            --event "$GITHUB_EVENT_PATH" \
+            --red-run "${RUNNER_TEMP}/final-late-red-metadata/run.json" \
+            --red-artifacts "${RUNNER_TEMP}/final-late-red-metadata/artifacts.json" \
+            --red-artifact-root "${RUNNER_TEMP}/final-late-red-artifact" \
+            --repo-root "$GITHUB_WORKSPACE" \
+            --cycle-base-ref "$cycle_base_commit" \
+            --final-ref "$(git rev-parse HEAD)" \
+            --trusted-provenance "$trusted_provenance" \
+            --output "${RUNNER_TEMP}/final-prior-red/red.json"
+          echo "FINAL_LATE_RED_PROVENANCE=$trusted_provenance" >> "$GITHUB_ENV"
+
+      - name: Authenticate retained red proof for final verdict
+        id: final-retained-red
+        if: needs.requirements-evidence.outputs.prior-red-run-id != '' && (github.event.pull_request.number != 703 || github.head_ref != 'bugfix/692-security-patch-clean-replay' || hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') == '')
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PRIOR_RED_RUN_ID: ${{ needs.requirements-evidence.outputs.prior-red-run-id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$PRIOR_RED_RUN_ID" =~ ^[0-9]+$ ]]
+          metadata_root="${RUNNER_TEMP}/final-retained-red-metadata"
+          mkdir -p "$metadata_root"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${PRIOR_RED_RUN_ID}" > "$metadata_root/run.json"
+          jq -e \
+            --argjson run_id "$PRIOR_RED_RUN_ID" \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg head_branch "$GITHUB_HEAD_REF" \
+            '.id == $run_id and
+             .repository.full_name == $repository and
+             .name == "Requirements Evidence" and
+             .path == ".github/workflows/requirements-evidence.yml" and
+             .event == "pull_request" and
+             .status == "completed" and
+             .conclusion == "failure" and
+             .head_branch == $head_branch and
+             (.head_sha | test("^[0-9a-f]{40}$"))' \
+            "$metadata_root/run.json" > /dev/null
+          red_head_sha="$(jq -er '.head_sha' "$metadata_root/run.json")"
+          git merge-base --is-ancestor "$FINAL_BASE_COMMIT" "$red_head_sha"
+          git merge-base --is-ancestor "$red_head_sha" HEAD
+          gh api --method GET \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${PRIOR_RED_RUN_ID}/artifacts" \
+            -f per_page=100 > "$metadata_root/artifacts.json"
+          artifact_record="$(jq -cer \
+            --argjson run_id "$PRIOR_RED_RUN_ID" \
+            --arg head_sha "$red_head_sha" \
+            '[.artifacts[] | select(
+              .name == "requirements-evidence" and
+              .expired == false and
+              .workflow_run.id == $run_id and
+              .workflow_run.head_sha == $head_sha and
+              (.digest | test("^sha256:[0-9a-f]{64}$"))
+            )] | if length == 1 then .[0] else error("expected exactly one retained Requirements artifact") end' \
+            "$metadata_root/artifacts.json")"
+          artifact_id="$(jq -er '.id' <<< "$artifact_record")"
+          [[ "$artifact_id" =~ ^[0-9]+$ ]]
+          {
+            printf 'artifact-id=%s\n' "$artifact_id"
+            printf 'head-sha=%s\n' "$red_head_sha"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Download retained red proof for final verdict
+        if: steps.final-retained-red.outputs.artifact-id != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ steps.final-retained-red.outputs.artifact-id }}
+          path: ${{ runner.temp }}/final-retained-red
+          github-token: ${{ github.token }}
+          run-id: ${{ needs.requirements-evidence.outputs.prior-red-run-id }}
+
+      - name: Reconcile final Requirements verdict on fresh runner
+        env:
+          LATE_RED_ACTIVE: ${{ github.event.pull_request.number == 703 && github.head_ref == 'bugfix/692-security-patch-clean-replay' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != '' }}
+          PRIOR_RED_HEAD_SHA: ${{ steps.final-retained-red.outputs.head-sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_ref="$(git rev-parse HEAD)"
+          [[ "$source_ref" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$FINAL_BASE_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          validator_site="${FINAL_VERIFIER_ROOT}/lib/python3.12/site-packages"
+          isolated_python=("${FINAL_VERIFIER_ROOT}/bin/python" -I -S -c 'import runpy, sys; sys.path.append(sys.argv.pop(1)); script = sys.argv.pop(1); runpy.run_path(script, run_name="__main__")' "$validator_site")
+          isolated_specfact=("${FINAL_VERIFIER_ROOT}/bin/python" -I -S -c 'import sys; site_packages, trusted_core = sys.argv[1:3]; del sys.argv[1:3]; sys.path.append(site_packages); sys.path.insert(0, trusted_core); from specfact_cli.cli import cli_main; cli_main()' "$validator_site" "$FINAL_TRUSTED_CORE")
+          execution_root="${RUNNER_TEMP}/requirements-execution"
+          execution_plan="$execution_root/requirements-evidence-plan.json"
+          execution_junit="$execution_root/requirements-proof.xml"
+          test -s "$execution_plan"
+
+          required_maturity=planned
+          final_status_file="${RUNNER_TEMP}/final-requirements-status.z"
+          git diff --name-status -z --find-renames=100% "$FINAL_BASE_COMMIT..$source_ref" > "$final_status_file"
+          classify_path() {
+            case "$1" in
+              .github/*|ci/*|scripts/*|src/*|tools/*|requirements/*|pyproject.toml|setup.py|uv.lock|resources/templates/*|resources/schemas/*|resources/mappings/*|resources/keys/*|modules/bundle-mapper/*)
+                required_maturity=verified
+                ;;
+              tests/*)
+                if [[ "$required_maturity" == "planned" ]]; then
+                  required_maturity=test-authored
+                fi
+                ;;
+            esac
+          }
+          while IFS= read -r -d '' status; do
+            IFS= read -r -d '' source_path
+            classify_path "$source_path"
+            case "$status" in
+              R*|C*)
+                IFS= read -r -d '' destination_path
+                classify_path "$destination_path"
+                ;;
+            esac
+          done < "$final_status_file"
+          rm -f "$final_status_file"
+          if [[ "$required_maturity" == "test-authored" ]]; then
+            printf 'A successful execution cannot stop at test-authored maturity.\n' >&2
+            exit 1
+          fi
+          planning_maturity="$required_maturity"
+          if [[ "$required_maturity" == "verified" ]]; then
+            planning_maturity=test-authored
+          fi
+
+          final_change_paths_file="${RUNNER_TEMP}/final-change-paths.z"
+          git diff --name-only -z --diff-filter=ACMRD "$FINAL_BASE_COMMIT..$source_ref" -- openspec/changes/ \
+            > "$final_change_paths_file"
+          declare -A final_changed_change_ids=()
+          while IFS= read -r -d '' changed_path; do
+            case "$changed_path" in
+              openspec/changes/archive/*) continue ;;
+              openspec/changes/*/*)
+                relative_change_path="${changed_path#openspec/changes/}"
+                change_id="${relative_change_path%%/*}"
+                if [[ -d "openspec/changes/$change_id" ]]; then
+                  final_changed_change_ids["$change_id"]=1
+                fi
+                ;;
+            esac
+          done < "$final_change_paths_file"
+          review_evidence_paths=()
+          if [[ "${#final_changed_change_ids[@]}" -eq 1 ]]; then
+            for selected_change in "${!final_changed_change_ids[@]}"; do
+              :
+            done
+            review_evidence_paths+=("openspec/changes/${selected_change}/requirements-proof/review-evidence.json")
+          elif [[ "${#final_changed_change_ids[@]}" -gt 1 ]]; then
+            printf 'Final reconciliation found multiple changed active OpenSpec changes.\n' >&2
+            exit 1
+          fi
+          if [[ "${#review_evidence_paths[@]}" -eq 0 ]]; then
+            mapfile -t active_review_evidence < <(
+              find openspec/changes -path 'openspec/changes/archive' -prune -o -path '*/requirements-proof/review-evidence.json' -type f -print | sort
+            )
+            if [[ "${#active_review_evidence[@]}" -eq 1 ]]; then
+              review_evidence_paths+=("${active_review_evidence[0]}")
+            fi
+          fi
+          if [[ "${#review_evidence_paths[@]}" -gt 1 \
+            || ( "$planning_maturity" != "planned" && "${#review_evidence_paths[@]}" -ne 1 ) ]]; then
+            printf 'Final reconciliation found an invalid active review-evidence selection.\n' >&2
+            exit 1
+          fi
+          selected_change=""
+          if [[ "${#review_evidence_paths[@]}" -eq 1 ]]; then
+            selected_change="${review_evidence_paths[0]#openspec/changes/}"
+            selected_change="${selected_change%/requirements-proof/review-evidence.json}"
+          fi
+
+          final_plan="${RUNNER_TEMP}/final-requirements-plan.json"
+          final_planning_report="${RUNNER_TEMP}/final-requirements-planning.json"
+          final_report="${RUNNER_TEMP}/final-requirements.json"
+          final_summary="${RUNNER_TEMP}/final-requirements.md"
+          evidence_arguments=(
+            "${isolated_specfact[@]}" requirements evidence
+            --repo-root "$GITHUB_WORKSPACE"
+            --base-ref "$FINAL_BASE_COMMIT"
+            --required-maturity "$planning_maturity"
+            --plan-output "$final_plan"
+            --output "$final_planning_report"
+            --summary "$final_summary"
+          )
+          if [[ "${#review_evidence_paths[@]}" -eq 1 ]]; then
+            evidence_arguments+=(--review-evidence "${review_evidence_paths[0]}")
+          fi
+          "${evidence_arguments[@]}"
+          cmp --silent "$final_plan" "$execution_plan"
+          if [[ "$required_maturity" == "planned" ]]; then
+            cp "$final_planning_report" "$final_report"
+            jq -e '.gate_decision == "pass"' "$final_report" > /dev/null
+            cat "$final_summary" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          test -s "$execution_junit"
+          reconciliation_arguments=(
+            "${isolated_specfact[@]}" requirements reconcile
+            --plan "$final_plan"
+            --junit "$execution_junit"
+            --run-stage final
+            --source-ref "$source_ref"
+            --output "$final_report"
+            --summary "$final_summary"
+          )
+          prior_red_root="${RUNNER_TEMP}/final-prior-red"
+          prior_red_proof="${prior_red_root}/red.json"
+          late_red_manifest="openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json"
+          producer_root="${RUNNER_TEMP}/requirements-producer"
+          legacy_tdd_evidence="${producer_root}/legacy-tdd-evidence.json"
+          legacy_tdd_ledger="${producer_root}/approved-legacy-tdd-ledger.md"
+          if [[ "$LATE_RED_ACTIVE" == "true" ]]; then
+            test -s "$prior_red_proof"
+            test -s "${prior_red_root}/red.xml"
+            test -s "$FINAL_LATE_RED_PROVENANCE"
+            cycle_base_commit="$(jq -er '.cycle_base_commit | select(type == "string" and test("^[0-9a-f]{40}$"))' "$late_red_manifest")"
+            test "$(jq -er '.execution_proof.source_ref' "$prior_red_proof")" = "$(jq -er '.red_commit' "$late_red_manifest")"
+            "${isolated_python[@]}" "$FINAL_LATE_RED_PROVENANCE" \
+              --prior-red-proof "$prior_red_proof" \
+              --repo-root "$GITHUB_WORKSPACE" \
+              --base-ref "$cycle_base_commit" \
+              --final-ref "$source_ref"
+            reconciliation_arguments+=(--prior-red-proof "$prior_red_proof")
+          elif [[ -n "$PRIOR_RED_HEAD_SHA" ]]; then
+            retained_red_root="${RUNNER_TEMP}/final-retained-red"
+            mkdir -p "$prior_red_root"
+            test -s "${retained_red_root}/requirements-evidence.json"
+            test -s "${retained_red_root}/requirements-proof.xml"
+            cp "${retained_red_root}/requirements-evidence.json" "$prior_red_proof"
+            cp "${retained_red_root}/requirements-proof.xml" "${prior_red_root}/red.xml"
+            test "$(jq -er '.execution_proof.source_ref' "$prior_red_proof")" = "$PRIOR_RED_HEAD_SHA"
+            "${isolated_python[@]}" "$FINAL_TRUSTED_PROVENANCE" \
+              --prior-red-proof "$prior_red_proof" \
+              --repo-root "$GITHUB_WORKSPACE" \
+              --base-ref "$FINAL_BASE_COMMIT" \
+              --final-ref "$source_ref"
+            reconciliation_arguments+=(--prior-red-proof "$prior_red_proof")
+          elif [[ -s "$legacy_tdd_evidence" && -s "$legacy_tdd_ledger" ]]; then
+            case "$selected_change" in
+              requirements-07-runtime-proof-delivery)
+                expected_ledger_digest="sha256:d6e35c934757c08fd1f3e3071fc02b92b080c009ba5e428f6ea2888e7cd5e8c3"
+                expected_mapping_digest="sha256:eccdf006792d8910c54a773e30967886063b4e30c99c180bc36d7372b1bbd9ef"
+                expected_plan_digest="sha256:27ea6e6bcea0d68d68688b89fc8f89315d213b96918f4f76979484756fd8335e"
+                ;;
+              fix-retained-red-proof-provenance)
+                expected_ledger_digest="sha256:f948489e94966f4df144c5d83aa1caa6fe7a96f6ade9a4aef864794d8019b158"
+                expected_mapping_digest="sha256:6a9413ab306eb0cf0aad62661d66c5ef684b91036766acf7021953877c9b617e"
+                expected_plan_digest="sha256:00595739da3dd81a01032fbc2661094b8c6e2836dc38e366eae0a666e4574222"
+                ;;
+              *)
+                printf 'Final reconciliation rejected an unauthorized legacy lane.\n' >&2
+                exit 1
+                ;;
+            esac
+            ledger_digest="sha256:$(sha256sum < "$legacy_tdd_ledger")"
+            ledger_digest="${ledger_digest%% *}"
+            test "$ledger_digest" = "$expected_ledger_digest"
+            jq -e \
+              --arg change_id "$selected_change" \
+              --arg ledger_digest "$expected_ledger_digest" \
+              --arg mapping_digest "$expected_mapping_digest" \
+              --arg plan_digest "$expected_plan_digest" \
+              '.schema_version == "1" and
+               .kind == "legacy-tdd-ledger" and
+               .change_id == $change_id and
+               .ledger_digest == $ledger_digest and
+               .mapping_digest == $mapping_digest and
+               .plan_digest == $plan_digest' \
+              "$legacy_tdd_evidence" > /dev/null
+            reconciliation_arguments+=(--legacy-tdd-evidence "$legacy_tdd_evidence")
+          else
+            printf 'Final reconciliation requires authenticated red or legacy evidence.\n' >&2
+            exit 1
+          fi
+          "${reconciliation_arguments[@]}"
+          jq -e '.gate_decision == "pass" and .verdict == "passed"' "$final_report" > /dev/null
+          cat "$final_summary" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Set up reviewed Code Review Node runtime for final verdict
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: "24.16.0"
+
+      - name: Install frozen Code Review tools for final verdict
+        shell: bash
+        run: |
+          set -euo pipefail
+          verifier_site="${FINAL_VERIFIER_ROOT}/lib/python3.12/site-packages"
+          "${FINAL_VERIFIER_ROOT}/bin/python" -I -S -c \
+            'import sys; site_packages, trusted_script, logical_script = sys.argv[1:4]; del sys.argv[1:4]; sys.path.append(site_packages); source = open(trusted_script, "rb").read(); scope = {"__name__": "__main__", "__file__": logical_script}; exec(compile(source, logical_script, "exec"), scope)' \
+            "$verifier_site" \
+            "$FINAL_TRUSTED_DELIVERY" \
+            "$FINAL_TRUSTED_ROOT/scripts/check_reproducible_delivery.py"
+          npm ci --ignore-scripts --prefix "$FINAL_BASEDPYRIGHT_ROOT"
+          review_tools="${RUNNER_TEMP}/final-code-review-tools"
+          uv venv --python "${pythonLocation}/bin/python" "$review_tools"
+          uv pip install \
+            --python "$review_tools/bin/python" \
+            --require-hashes \
+            -r "$FINAL_CODE_REVIEW_LOCK"
+          pylint_wrapper="${RUNNER_TEMP}/final-pylint-wrapper"
+          mkdir -p "$pylint_wrapper"
+          # shellcheck disable=SC2016
+          printf '%s\n' \
+            '#!/usr/bin/env bash' \
+            'set -euo pipefail' \
+            'if [[ "$#" -lt 3 || "$1" != "--output-format" || "$2" != "json" ]]; then exit 2; fi' \
+            'shift 2' \
+            'for candidate_path in "$@"; do' \
+            '  [[ "$candidate_path" != -* && -f "$candidate_path" ]] || exit 2' \
+            '  [[ "$candidate_path" == *.py || "$candidate_path" == *.pyi ]] || exit 2' \
+            'done' \
+            'exec "$FINAL_TRUSTED_PYLINT" --rcfile "$FINAL_PYLINTRC" --output-format json -- "$@"' \
+            > "$pylint_wrapper/pylint"
+          chmod 0755 "$pylint_wrapper/pylint"
+          {
+            printf 'FINAL_TRUSTED_PYLINT=%s\n' "$review_tools/bin/pylint"
+            printf 'FINAL_PYLINT_WRAPPER=%s\n' "$pylint_wrapper"
+          } >> "$GITHUB_ENV"
+
+      - name: Run Code Review with trusted final Requirements context
+        env:
+          REVIEW_BASE_BRANCH: ${{ github.base_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$REVIEW_BASE_BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]]
+          review_base_commit="$(git merge-base "origin/${REVIEW_BASE_BRANCH}" HEAD)"
+          [[ "$review_base_commit" =~ ^[0-9a-f]{40}$ ]]
+          review_paths_file="${RUNNER_TEMP}/final-code-review-paths.z"
+          git diff --name-only -z "${review_base_commit}..HEAD" -- '*.py' '*.pyi' > "$review_paths_file"
+          review_paths=()
+          while IFS= read -r -d '' review_path; do
+            [[ -f "$review_path" ]] && review_paths+=("$review_path")
+          done < "$review_paths_file"
+          if [[ "${#review_paths[@]}" -eq 0 ]]; then
+            exit 0
+          fi
+          validator_site="${FINAL_VERIFIER_ROOT}/lib/python3.12/site-packages"
+          isolated_specfact=("${FINAL_VERIFIER_ROOT}/bin/python" -I -S -c 'import sys; site_packages, trusted_core = sys.argv[1:3]; del sys.argv[1:3]; sys.path.append(site_packages); sys.path.insert(0, trusted_core); from specfact_cli.cli import cli_main; cli_main()' "$validator_site" "$FINAL_TRUSTED_CORE")
+          PATH="${FINAL_PYLINT_WRAPPER}:${FINAL_BASEDPYRIGHT_ROOT}/node_modules/.bin:${RUNNER_TEMP}/final-code-review-tools/bin:${FINAL_VERIFIER_ROOT}/bin:/usr/bin:/bin" \
+            "${isolated_specfact[@]}" code review run \
+              "${review_paths[@]}" \
+              --include-tests \
+              --enforcement full \
+              --json \
+              --out "${RUNNER_TEMP}/final-code-review.json" \
+              --requirements-evidence "${RUNNER_TEMP}/final-requirements.json"
