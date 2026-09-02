@@ -171,23 +171,36 @@ def _create_late_red_history(tmp_path: Path, *, governed_red_path: bool) -> _Lat
     )
 
 
-def _write_late_red_artifact(tmp_path: Path, history: _LateRedHistory) -> _LateRedArtifact:
+def _write_late_red_artifact(
+    tmp_path: Path,
+    history: _LateRedHistory,
+    *,
+    permute_junit_selectors: bool = False,
+    duplicate_junit_selector: bool = False,
+    omit_junit_selector: bool = False,
+    add_junit_selector: bool = False,
+) -> _LateRedArtifact:
     root = tmp_path / "artifact"
     root.mkdir()
-    junit = (
-        b'<testsuite><testcase><properties><property name="specfact.selector" '
-        b'value="tests/test_proof.py::test_fails"/>'
-        b'<property name="specfact.runner" value="pytest"/>'
-        b'<property name="specfact.python" value="3.12"/>'
-        b'<property name="specfact.pytest" value="9.1"/>'
-        b"</properties><failure/></testcase>"
-        b'<testcase><properties><property name="specfact.selector" '
-        b'value="tests/test_proof.py::test_passes"/>'
-        b'<property name="specfact.runner" value="pytest"/>'
-        b'<property name="specfact.python" value="3.12"/>'
-        b'<property name="specfact.pytest" value="9.1"/>'
-        b"</properties></testcase></testsuite>"
+    failed_case = (
+        b'<testcase><properties><property name="specfact.selector" value="tests/test_proof.py::test_fails"/>'
+        b'<property name="specfact.runner" value="pytest"/><property name="specfact.python" value="3.12"/>'
+        b'<property name="specfact.pytest" value="9.1"/></properties><failure/></testcase>'
     )
+    passed_case = (
+        b'<testcase><properties><property name="specfact.selector" value="tests/test_proof.py::test_passes"/>'
+        b'<property name="specfact.runner" value="pytest"/><property name="specfact.python" value="3.12"/>'
+        b'<property name="specfact.pytest" value="9.1"/></properties></testcase>'
+    )
+    if duplicate_junit_selector:
+        cases = failed_case + passed_case + passed_case
+    elif omit_junit_selector:
+        cases = failed_case
+    elif add_junit_selector:
+        cases = failed_case + passed_case + passed_case.replace(b"test_passes", b"test_extra")
+    else:
+        cases = passed_case + failed_case if permute_junit_selectors else failed_case + passed_case
+    junit = b"<testsuite>" + cases + b"</testsuite>"
     junit_path = root / "requirements-proof.xml"
     junit_path.write_bytes(junit)
     mapping_digest = f"sha256:{'a' * 64}"
@@ -332,11 +345,22 @@ def _late_red_fixture(
     invalid_failed_selectors: bool = False,
     governed_red_path: bool = False,
     stale_selected_test: bool = False,
+    permute_junit_selectors: bool = False,
+    duplicate_junit_selector: bool = False,
+    omit_junit_selector: bool = False,
+    add_junit_selector: bool = False,
 ) -> tuple[list[str], Path, Path]:
     """Create one exact test-only RED cycle plus live-metadata-shaped inputs."""
     history = _create_late_red_history(tmp_path, governed_red_path=governed_red_path)
 
-    artifact = _write_late_red_artifact(tmp_path, history)
+    artifact = _write_late_red_artifact(
+        tmp_path,
+        history,
+        permute_junit_selectors=permute_junit_selectors,
+        duplicate_junit_selector=duplicate_junit_selector,
+        omit_junit_selector=omit_junit_selector,
+        add_junit_selector=add_junit_selector,
+    )
 
     manifest_path = _write_late_red_manifest(history, artifact, invalid_failed_selectors=invalid_failed_selectors)
     final_ref = _finalize_late_red_history(history, stale_selected_test=stale_selected_test)
@@ -805,8 +829,8 @@ def _assert_late_red_workflow_contract(workflow: dict[str, object]) -> None:
         "--output",
     )
     assert all(fragment in commands for fragment in required_fragments)
-    assert commands.count("trusted_requirements_authority.py") >= 2
-    assert commands.count("requirements_late_red_proof.py") >= 2
+    assert commands.count("trusted_requirements_authority.py") >= 3
+    assert commands.count("requirements_late_red_proof.py") >= 3
     for job_name in ("requirements-evidence-producer", "requirements-evidence"):
         steps = [step for job, _, step in _workflow_steps(workflow) if job == job_name]
         names = [step.get("name") for step in steps]
@@ -818,6 +842,30 @@ def _assert_late_red_workflow_contract(workflow: dict[str, object]) -> None:
         normalize = steps[normalize_index]
         assert normalize.get("env", {}).get("GH_TOKEN") is None  # type: ignore[union-attr]
         assert normalize.get("env", {}).get("GITHUB_TOKEN") is None  # type: ignore[union-attr]
+
+    producer_steps = [step for job, _, step in _workflow_steps(workflow) if job == "requirements-evidence-producer"]
+    producer_names = [step.get("name") for step in producer_steps]
+    assert producer_names.index("Validate exact final Requirements authority") < producer_names.index(
+        "Set up frozen delivery dependencies"
+    )
+
+    jobs = cast(dict[str, dict[str, object]], workflow["jobs"])
+    execution = jobs["requirements-evidence"]
+    final = jobs["requirements-evidence-final"]
+    assert execution["name"] == "Requirements evidence execution"
+    assert final["name"] == "Requirements evidence"
+    assert final["needs"] == "requirements-evidence"
+    final_steps = cast(list[dict[str, object]], final["steps"])
+    final_names = [step.get("name") for step in final_steps]
+    assert final_names.index("Revalidate exact final Requirements authority") < final_names.index(
+        "Normalize exact late RED proof on fresh runner"
+    )
+    assert final_names.index("Normalize exact late RED proof on fresh runner") < final_names.index(
+        "Reconcile final Requirements verdict on fresh runner"
+    )
+    final_commands = "\n".join(str(step.get("run", "")) for step in final_steps)
+    assert "pytest.main(" not in final_commands
+    assert all(not str(step.get("uses", "")).startswith("./") for step in final_steps)
 
 
 def _assert_late_red_happy_path(tmp_path: Path) -> None:
@@ -835,6 +883,11 @@ def _assert_late_red_happy_path(tmp_path: Path) -> None:
     assert len(normalized["execution_proof"]["selectors"]) == 2
     assert output_path.with_suffix(".xml").is_file()
 
+    permuted_arguments, permuted_output, _ = _late_red_fixture(tmp_path / "permuted", permute_junit_selectors=True)
+    permuted = subprocess.run([sys.executable, *permuted_arguments], check=False, capture_output=True, text=True)
+    assert permuted.returncode == 0, permuted.stderr
+    assert permuted_output.is_file()
+
 
 def _assert_late_red_rejections(tmp_path: Path) -> None:
     arguments, _, run_path = _late_red_fixture(tmp_path / "wrong-run")
@@ -850,6 +903,9 @@ def _assert_late_red_rejections(tmp_path: Path) -> None:
         ("wrong-failures", {"invalid_failed_selectors": True}),
         ("production-red", {"governed_red_path": True}),
         ("stale-test", {"stale_selected_test": True}),
+        ("duplicate-selector", {"duplicate_junit_selector": True}),
+        ("missing-selector", {"omit_junit_selector": True}),
+        ("extra-selector", {"add_junit_selector": True}),
     ):
         invalid_arguments, _, _ = _late_red_fixture(tmp_path / name, **options)
         invalid = subprocess.run([sys.executable, *invalid_arguments], check=False, capture_output=True, text=True)

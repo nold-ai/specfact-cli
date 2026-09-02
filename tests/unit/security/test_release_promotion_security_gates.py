@@ -36,16 +36,27 @@ _ISOLATED_PYTEST_BOOTSTRAP = """
 import os
 import sys
 
-site_packages, repo_root, junit_path, disable_conftest = sys.argv[1:5]
+site_packages, repo_root, junit_path, disable_conftest, block_plugins = sys.argv[1:6]
 os.environ["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"
 sys.path.append(site_packages)
 import pytest
+
+class TrustedPluginPolicy:
+    def pytest_configure(self, config):
+        consider_module = config.pluginmanager.consider_module
+        def reject_candidate_plugins(module):
+            if "pytest_plugins" in module.__dict__:
+                raise pytest.UsageError("selected Requirements tests cannot declare pytest_plugins")
+            consider_module(module)
+        config.pluginmanager.consider_module = reject_candidate_plugins
+
 sys.path.append(repo_root)
 arguments = ["--junitxml", junit_path]
 if disable_conftest == "1":
     arguments.append("--noconftest")
 arguments.extend(["--", "test_guard.py::test_guard"])
-raise SystemExit(pytest.main(arguments))
+plugins = [TrustedPluginPolicy()] if block_plugins == "1" else []
+raise SystemExit(pytest.main(arguments, plugins=plugins))
 """
 
 
@@ -70,7 +81,9 @@ def _assert_contains(text: str, fragments: tuple[str, ...]) -> None:
     assert not missing, missing
 
 
-def _run_isolated_guard(tmp_path: Path, junit_name: str, disable_conftest: bool) -> subprocess.CompletedProcess[str]:
+def _run_isolated_guard(
+    tmp_path: Path, junit_name: str, *, disable_conftest: bool, block_plugins: bool = False
+) -> subprocess.CompletedProcess[str]:
     junit_path = tmp_path / junit_name
     return subprocess.run(
         [
@@ -83,6 +96,7 @@ def _run_isolated_guard(tmp_path: Path, junit_name: str, disable_conftest: bool)
             str(tmp_path),
             str(junit_path),
             str(int(disable_conftest)),
+            str(int(block_plugins)),
         ],
         cwd=tmp_path,
         check=False,
@@ -112,7 +126,10 @@ def _assert_fresh_review_job(jobs: dict[str, Any]) -> tuple[dict[str, Any], dict
     """Return producer and review jobs after checking the isolated final context."""
     producer = cast(dict[str, Any], jobs["requirements-evidence-producer"])
     review = cast(dict[str, Any], jobs["requirements-evidence"])
-    assert review["name"] == "Requirements evidence"
+    final = cast(dict[str, Any], jobs["requirements-evidence-final"])
+    assert review["name"] == "Requirements evidence execution"
+    assert final["name"] == "Requirements evidence"
+    assert final["needs"] == "requirements-evidence"
     assert review["needs"] == "requirements-evidence-producer"
     assert review["if"] == "always()"
     return producer, review
@@ -280,11 +297,37 @@ def test_fresh_consumer_rejects_candidate_conftest_outcome_forgery(tmp_path: Pat
     assert trusted.returncode == 1, trusted.stderr
     assert ElementTree.parse(trusted_junit).find(".//testsuite").get("failures") == "1"  # type: ignore[union-attr]
 
+    (tmp_path / "forge_plugin.py").write_text(_CONFTEST_OUTCOME_FORGERY, encoding="utf-8")
+    (tmp_path / "test_guard.py").write_text(
+        'globals()["pytest_" + "plugins"] = ("forge_plugin",)\n\ndef test_guard():\n    assert False\n',
+        encoding="utf-8",
+    )
+    plugin_forged_junit = tmp_path / "plugin-forged.xml"
+    plugin_forged = _run_isolated_guard(tmp_path, plugin_forged_junit.name, disable_conftest=True)
+    assert plugin_forged.returncode == 0, plugin_forged.stderr
+    assert ElementTree.parse(plugin_forged_junit).find(".//testsuite").get("failures") == "0"  # type: ignore[union-attr]
+
+    plugin_guarded = _run_isolated_guard(tmp_path, "plugin-guarded.xml", disable_conftest=True, block_plugins=True)
+    assert plugin_guarded.returncode == pytest.ExitCode.USAGE_ERROR
+    assert "selected Requirements tests cannot declare pytest_plugins" in (
+        plugin_guarded.stdout + plugin_guarded.stderr
+    )
+
     workflow = _workflow(".github/workflows/requirements-evidence.yml")
     review = cast(dict[str, Any], cast(dict[str, Any], workflow["jobs"])["requirements-evidence"])
     reconcile = str(_named_step(review, "Reconcile Requirements evidence on fresh runner").get("run", ""))
     assert '"--noconftest"' in reconcile
     assert '"-c", os.devnull' in reconcile
+    assert 'if "pytest_plugins" in module.__dict__' in reconcile
+    assert "plugins=[trusted_plugin, trusted_plugin_policy]" in reconcile
+
+    final = cast(dict[str, Any], cast(dict[str, Any], workflow["jobs"])["requirements-evidence-final"])
+    final_commands = "\n".join(str(step.get("run", "")) for step in cast(list[dict[str, Any]], final["steps"]))
+    assert "pytest.main(" not in final_commands
+    assert all(not str(step.get("uses", "")).startswith("./") for step in cast(list[dict[str, Any]], final["steps"]))
+    assert "Reconcile final Requirements verdict on fresh runner" in {
+        step.get("name") for step in cast(list[dict[str, Any]], final["steps"])
+    }
 
 
 def test_requirements_archive_uses_one_immutable_merge_base() -> None:
