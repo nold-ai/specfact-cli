@@ -259,3 +259,37 @@ Same-process proof boundary and exact-head compatibility, 2026-09-02 20:44 Europ
   review reported no P0-P2 finding within the selected model and confirmed the
   retained isolation, configuration, plugin, credential, artifact, plan,
   timeout, and fresh-runner controls.
+
+Canonical selector compatibility correction, 2026-09-02 21:39 Europe/Berlin:
+
+- Requirements Evidence run `33671334359` accepted exact authority and passed
+  its producer. The fresh execution then passed all 22 selected tests but
+  reconciliation rejected every selector as uncollected.
+- Execution artifact `9863663683`, digest
+  `sha256:79d981f0b53acf74907d970edc52d888e04dbbab62edb825fe1c74f03ae5d8b6`,
+  proved that `-c /dev/null` made pytest select `/dev` as its root and record
+  each property as only `::test_name` instead of the plan's canonical
+  `tests/...::test_name`.
+- A focused regression test first failed because the trusted invocation lacked
+  an explicit root directory. The workflow now passes the authenticated
+  `repo_root` through pytest's fixed `--rootdir` option while retaining the
+  null configuration, disabled conftest and plugin autoload, and trusted plugin
+  bootstrap.
+- The regression test then passed. A complete local 22-selector reproduction
+  passed and reconciliation reported no uncollected selectors; its only local
+  finding was the expected absence of the hosted prior-RED artifact. The
+  expanded focused workflow/security set passed 95/95.
+- Independent diagnosis confirmed that changing `junit_family` was unnecessary
+  and that the fixed root directory introduces no additional execution
+  authority or plugin/configuration path.
+- The full exact-working-tree suite passed 3,086 tests with 9 documented skips
+  and no failures. The canonical mapping digest remained
+  `sha256:c8dfbd1876abf04902f3bd3d302ba73bd0c8698ce958730b79465cd683da628e`,
+  and the raw plan hash remained
+  `sha256:bd5462715ed4217dab84a03e2d795d38ffa98dbaaacfc5cc52a3354cb5ee4cac`.
+- The full staged pre-commit pipeline passed, including changed-file lint,
+  workflow lint, local Requirements evidence, command contracts, documentation
+  accountability, and the code-review gate. That review reported no blocking
+  finding on changed lines; its eight retained findings are legacy complexity
+  and size observations on the pre-existing late-RED fixture helpers, which are
+  outside this compatibility correction.
