@@ -264,6 +264,7 @@ def test_fresh_consumer_reexecutes_trusted_plan() -> None:
             "trusted_executor.selectors_from_plan(",
             'os.environ["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"',
             "plugins=[trusted_plugin, trusted_plugin_policy]",
+            '"--rootdir", repo_root',
             '--junit "$consumer_junit"',
         ),
     )
