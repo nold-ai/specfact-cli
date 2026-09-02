@@ -97,3 +97,16 @@ Exact-head CI correction, 2026-09-02 11:54 Europe/Berlin:
 - The focused authority/workflow set then passed 33/33, and an exact launcher
   control reached `specfact requirements --help` instead of treating the
   site-packages path as a command.
+- The same run then reached fresh reconciliation and Code Review, proving the
+  launcher fix, but the final verdict exposed two trusted-tool wiring defects:
+  the wrapper authenticated `pyproject.toml` instead of the repository's real
+  `.pylintrc`, and the installed verifier tools were absent from the review
+  step's `PATH`. The focused protected-config/tool-path contract was added
+  first and failed 2/2.
+- The protected base `.pylintrc` is now materialized and passed explicitly to
+  Pylint, while the already frozen verifier environment is exposed after the
+  explicit Pylint wrapper. The focused set again passed 33/33. A full local
+  review control reduced the artifact from 573 findings and 32 blocking errors
+  to no source-level blocking finding; its only two remaining errors were the
+  known macOS sandbox CA-store failure from Semgrep, which the Ubuntu CI runner
+  does not reproduce in the separate green static-analysis gate.

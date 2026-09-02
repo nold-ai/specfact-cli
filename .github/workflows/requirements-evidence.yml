@@ -742,6 +742,7 @@ jobs:
           trusted_core_root="${RUNNER_TEMP}/trusted-requirements"
           mkdir -p "$trusted_core_root"
           git archive "$base_commit" -- \
+            .pylintrc \
             pyproject.toml \
             setup.py \
             uv.lock \
@@ -765,7 +766,7 @@ jobs:
             echo "TRUSTED_REQUIREMENTS_BOOTSTRAP_LOCK=$trusted_core_root/requirements/ci/locked.txt"
             echo "TRUSTED_CODE_REVIEW_LOCK=$trusted_core_root/requirements/code-review/locked.txt"
             echo "TRUSTED_BASEDPYRIGHT_ROOT=$trusted_core_root/tools/basedpyright"
-            echo "TRUSTED_PYPROJECT=$trusted_core_root/pyproject.toml"
+            echo "TRUSTED_PYLINTRC=$trusted_core_root/.pylintrc"
           } >> "$GITHUB_ENV"
 
       - name: Create trusted Requirements verifier environment
@@ -831,12 +832,13 @@ jobs:
             '  [[ "$candidate_path" != -* && -f "$candidate_path" ]] || exit 2' \
             '  [[ "$candidate_path" == *.py || "$candidate_path" == *.pyi ]] || exit 2' \
             'done' \
-            'exec "$TRUSTED_PYLINT" --rcfile "$TRUSTED_PYPROJECT" --output-format json -- "$@"' \
+            'exec "$TRUSTED_PYLINT" --rcfile "$TRUSTED_PYLINTRC" --output-format json -- "$@"' \
             > "$pylint_wrapper/pylint"
           chmod 0755 "$pylint_wrapper/pylint"
           {
             echo "${TRUSTED_BASEDPYRIGHT_ROOT}/node_modules/.bin"
             echo "${review_tools}/bin"
+            echo "${REQUIREMENTS_VERIFIER_ROOT}/bin"
           } >> "$GITHUB_PATH"
           echo "TRUSTED_PYLINT=$trusted_pylint" >> "$GITHUB_ENV"
           echo "PYLINT_WRAPPER=$pylint_wrapper" >> "$GITHUB_ENV"

@@ -479,11 +479,13 @@ def _assert_trusted_core_materialization(materialize: str) -> None:
     materialize_fragments = (
         'base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" HEAD)"',
         'git archive "$base_commit" --',
+        ".pylintrc",
         "src/specfact_cli",
         "requirements/ci/locked.txt",
         "requirements/code-review/locked.txt",
         "scripts/requirements_proof_provenance.py",
         "TRUSTED_REQUIREMENTS_CORE=$trusted_core_root/src",
+        "TRUSTED_PYLINTRC=$trusted_core_root/.pylintrc",
     )
     assert all(fragment in materialize for fragment in materialize_fragments)
 
@@ -682,7 +684,8 @@ def _assert_frozen_code_review_python_tools(command: object) -> None:
         "--require-hashes",
         '"$TRUSTED_CODE_REVIEW_LOCK"',
         'trusted_pylint="${review_tools}/bin/pylint"',
-        'exec "$TRUSTED_PYLINT" --rcfile "$TRUSTED_PYPROJECT" --output-format json -- "$@"',
+        'exec "$TRUSTED_PYLINT" --rcfile "$TRUSTED_PYLINTRC" --output-format json -- "$@"',
+        'echo "${REQUIREMENTS_VERIFIER_ROOT}/bin"',
         'echo "PYLINT_WRAPPER=$pylint_wrapper"',
     )
     assert all(fragment in command for fragment in command_fragments)
