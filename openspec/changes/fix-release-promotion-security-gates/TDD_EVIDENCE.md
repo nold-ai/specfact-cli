@@ -259,3 +259,41 @@ Same-process proof boundary and exact-head compatibility, 2026-09-02 20:44 Europ
   review reported no P0-P2 finding within the selected model and confirmed the
   retained isolation, configuration, plugin, credential, artifact, plan,
   timeout, and fresh-runner controls.
+
+Canonical selector compatibility correction, 2026-09-02 23:05 Europe/Berlin:
+
+- Requirements Evidence run `33671334359` accepted exact authority and passed
+  its producer. Its fresh execution passed all 22 selected tests, but
+  reconciliation correctly rejected the truncated `::test_name` identities
+  produced when `-c /dev/null` made pytest choose `/dev` as its root.
+- The first correction commit `8e414fe490cc6d78ef7e9e2a4dbcd1f126a630eb`
+  added a standalone regression to an earlier RED proof-input file. Run
+  `33675662619` then accepted exact authority and rejected that retained proof
+  as stale. The correction was not treated as passing evidence.
+- To preserve published history and proof freshness, signed cycle base
+  `c4ceacb9847557359b39a4502f8cdc40c89ed2f6` restored the buggy invocation and
+  made only PR #703's superseded late-RED lane unreachable. Its direct signed
+  RED child `654f49c85e630877d235afa102eb3ee39d7fba1e` changed only the already mapped
+  `test_fresh_consumer_reexecutes_trusted_plan` selector.
+- That selector failed locally because `"--rootdir", repo_root` was absent.
+  Hosted Requirements run `33682811859` reproduced the same failure across the
+  unchanged 22-case plan and uploaded immutable artifact `9866927781`, digest
+  `sha256:22736d3f6d673ff2682bee02bf7f99d039686a7e5dcfefd9d685de0bd774a565`.
+  Its report, plan, and JUnit digests are respectively
+  `sha256:908b44c7705ba7243e3fa05adcccba674fc8fc10e76a89d069d4ce56ac9b56d9`,
+  `sha256:bd5462715ed4217dab84a03e2d795d38ffa98dbaaacfc5cc52a3354cb5ee4cac`,
+  and `sha256:ccf46126cd866b53ab1ba8d2978a4659c41b087ef0917765d6fadd5da58628a2`.
+- The GREEN candidate restores every temporary branch predicate and passes the
+  authenticated repository root through pytest's fixed `--rootdir` option.
+  Null configuration, disabled conftest/plugin autoload, trusted plugin
+  bootstrap, exact mapping/plan identity, and fresh reconciliation remain
+  enforced. The retained RED manifest now binds the exact C/R history and
+  hosted artifact above.
+- Focused proof/security regression tests passed `94 passed`; workflow lint and
+  the frozen dependency security audit passed, with no unreviewed
+  vulnerabilities. The full repository suite passed `3085 passed, 9 skipped`
+  using the PR workflow's pinned modules-repository environment shape.
+- A fresh independent read-only review found no P0-P2 issue in the four-file
+  GREEN patch and confirmed its C/R topology, exact manifest bindings, 17
+  restored branch predicates, retained pytest isolation controls, and absence
+  of changes to the mapped RED test input.
