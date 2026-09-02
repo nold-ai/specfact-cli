@@ -395,6 +395,7 @@ def _assert_fresh_reconciliation_command(workflow: dict[str, object]) -> None:
     reconcile_fragments = (
         '"$TRUSTED_PROOF_PROVENANCE"',
         '"${isolated_python[@]}"',
+        "del sys.argv[1:3]",
         'source_ref="$(git rev-parse HEAD)"',
         'evidence_base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" "$source_ref")"',
         '"${isolated_specfact[@]}" requirements evidence',
@@ -407,6 +408,7 @@ def _assert_fresh_reconciliation_command(workflow: dict[str, object]) -> None:
     )
     missing_fragments = [fragment for fragment in reconcile_fragments if fragment not in reconcile]
     assert not missing_fragments, missing_fragments
+    assert "del sys.argv[1:3]" in review
     assert "requirements_proof_executor.py" not in reconcile
     assert "pytest" not in reconcile
     review_fragments = (

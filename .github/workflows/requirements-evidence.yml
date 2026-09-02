@@ -922,7 +922,7 @@ jobs:
           [[ "$evidence_base_commit" =~ ^[0-9a-f]{40}$ ]]
           validator_site="${REQUIREMENTS_VALIDATOR_ROOT}/lib/python3.12/site-packages"
           isolated_python=("${REQUIREMENTS_VALIDATOR_ROOT}/bin/python" -I -S -c 'import runpy, sys; sys.path.append(sys.argv.pop(1)); script = sys.argv.pop(1); runpy.run_path(script, run_name="__main__")' "$validator_site")
-          isolated_specfact=("${REQUIREMENTS_VALIDATOR_ROOT}/bin/python" -I -S -c 'import sys; site_packages, trusted_core = sys.argv[1:3]; sys.path.append(site_packages); sys.path.insert(0, trusted_core); from specfact_cli.cli import cli_main; cli_main()' "$validator_site" "$TRUSTED_REQUIREMENTS_CORE")
+          isolated_specfact=("${REQUIREMENTS_VALIDATOR_ROOT}/bin/python" -I -S -c 'import sys; site_packages, trusted_core = sys.argv[1:3]; del sys.argv[1:3]; sys.path.append(site_packages); sys.path.insert(0, trusted_core); from specfact_cli.cli import cli_main; cli_main()' "$validator_site" "$TRUSTED_REQUIREMENTS_CORE")
           producer_report="artifacts/requirements-evidence/requirements-evidence.json"
           required_maturity=planned
           consumer_status_file="${RUNNER_TEMP}/consumer-requirements-status.z"
@@ -1083,7 +1083,7 @@ jobs:
         run: |
           set -euo pipefail
           validator_site="${REQUIREMENTS_VALIDATOR_ROOT}/lib/python3.12/site-packages"
-          isolated_specfact=("${REQUIREMENTS_VALIDATOR_ROOT}/bin/python" -I -S -c 'import sys; site_packages, trusted_core = sys.argv[1:3]; sys.path.append(site_packages); sys.path.insert(0, trusted_core); from specfact_cli.cli import cli_main; cli_main()' "$validator_site" "$TRUSTED_REQUIREMENTS_CORE")
+          isolated_specfact=("${REQUIREMENTS_VALIDATOR_ROOT}/bin/python" -I -S -c 'import sys; site_packages, trusted_core = sys.argv[1:3]; del sys.argv[1:3]; sys.path.append(site_packages); sys.path.insert(0, trusted_core); from specfact_cli.cli import cli_main; cli_main()' "$validator_site" "$TRUSTED_REQUIREMENTS_CORE")
           requirements_context="artifacts/requirements-evidence/requirements-evidence-consumer.json"
           [[ -s "$requirements_context" ]]
           if [[ ! "$REVIEW_BASE_BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]]; then

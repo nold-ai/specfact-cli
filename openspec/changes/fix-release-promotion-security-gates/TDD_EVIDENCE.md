@@ -85,3 +85,15 @@ Final review iteration, 2026-09-02 11:24 Europe/Berlin:
   `init-hook` execution with Pylint 4.0.7 before the fix. The final wrapper
   forced the protected-base config and `--` path separation; the same control
   left the marker absent.
+
+Exact-head CI correction, 2026-09-02 11:54 Europe/Berlin:
+
+- GitHub run `33616249786` proved the producer green, then the fresh consumer
+  failed because its isolated CLI launcher left the two trusted bootstrap paths
+  in `sys.argv`; Click correctly rejected the first path as an unknown command.
+- The focused launcher contract was added first and failed 1/1 against that
+  implementation. Both fresh-consumer CLI invocations now delete only those two
+  bootstrap arguments before dispatch while retaining all real CLI arguments.
+- The focused authority/workflow set then passed 33/33, and an exact launcher
+  control reached `specfact requirements --help` instead of treating the
+  site-packages path as a command.
