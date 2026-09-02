@@ -89,6 +89,15 @@ def _find_named_step(job_name: str, step_name: str) -> dict[str, Any]:
     return step
 
 
+def _find_requirements_final_step(step_name: str) -> dict[str, Any]:
+    workflow = _load_yaml(REQUIREMENTS_EVIDENCE)
+    jobs = cast(dict[str, dict[str, Any]], workflow["jobs"])
+    final_steps = cast(list[dict[str, Any]], jobs["requirements-evidence-final"]["steps"])
+    step = next((item for item in final_steps if item.get("name") == step_name), None)
+    assert step is not None, f"Expected {step_name!r} step in final Requirements job"
+    return step
+
+
 def _normalized_condition(value: object) -> str:
     assert isinstance(value, str), "Expected workflow condition to be a string"
     return " ".join(value.replace('"', "'").split())
@@ -437,15 +446,27 @@ def test_core_ci_uses_immutable_modules_fixture() -> None:
 
 def test_requirements_final_verifier_archives_trusted_module_fixture_lock() -> None:
     """The final trusted delivery check must receive its base-sourced fixture lock."""
-    workflow = _load_yaml(REQUIREMENTS_EVIDENCE)
-    jobs = cast(dict[str, dict[str, Any]], workflow["jobs"])
-    final_steps = cast(list[dict[str, Any]], jobs["requirements-evidence-final"]["steps"])
-    materialize = next(
-        step for step in final_steps if step.get("name") == "Materialize trusted final Requirements core"
-    )
+    materialize = _find_requirements_final_step("Materialize trusted final Requirements core")
     run_clause = cast(str, materialize["run"])
     assert "ci/module-fixture.lock.json" in run_clause
     assert 'test -f "$trusted_root/ci/module-fixture.lock.json"' in run_clause
+
+
+def test_requirements_final_review_keeps_verified_node_in_restricted_path() -> None:
+    """The final BasedPyright review must use the exact setup-node runtime."""
+    setup = _find_requirements_final_step("Set up reviewed Code Review Node runtime for final verdict")
+    install = cast(str, _find_requirements_final_step("Install frozen Code Review tools for final verdict")["run"])
+    review = cast(str, _find_requirements_final_step("Run Code Review with trusted final Requirements context")["run"])
+    assert setup["uses"] == "actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e"
+    assert cast(dict[str, str], setup["with"])["node-version"] == "24.16.0"
+    assert 'node_path="$(command -v node)"' in install
+    assert '[[ "$node_path" =~ ^/[A-Za-z0-9._/-]+/node$ && -x "$node_path" ]]' in install
+    assert 'test "$("$node_path" --version)" = "v24.16.0"' in install
+    assert '[[ "$node_bin" == /* && -d "$node_bin" ]]' in install
+    assert "FINAL_NODE_BIN=" in install
+    assert "${FINAL_NODE_BIN}" in review
+    assert 'test "$("${FINAL_NODE_BIN}/node" --version)" = "v24.16.0"' in review
+    assert review.index("${FINAL_NODE_BIN}") < review.index("${FINAL_BASEDPYRIGHT_ROOT}/node_modules/.bin")
 
 
 def test_license_gate_runs_for_every_frozen_dependency_graph_change() -> None:

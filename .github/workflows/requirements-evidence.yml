@@ -2083,6 +2083,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          node_path="$(command -v node)"
+          [[ "$node_path" =~ ^/[A-Za-z0-9._/-]+/node$ && -x "$node_path" ]]
+          test "$("$node_path" --version)" = "v24.16.0"
+          node_bin="${node_path%/node}"
+          [[ "$node_bin" == /* && -d "$node_bin" ]]
           verifier_site="${FINAL_VERIFIER_ROOT}/lib/python3.12/site-packages"
           "${FINAL_VERIFIER_ROOT}/bin/python" -I -S -c \
             'import sys; site_packages, trusted_script, logical_script = sys.argv[1:4]; del sys.argv[1:4]; sys.path.append(site_packages); source = open(trusted_script, "rb").read(); scope = {"__name__": "__main__", "__file__": logical_script}; exec(compile(source, logical_script, "exec"), scope)' \
@@ -2114,6 +2119,7 @@ jobs:
           {
             printf 'FINAL_TRUSTED_PYLINT=%s\n' "$review_tools/bin/pylint"
             printf 'FINAL_PYLINT_WRAPPER=%s\n' "$pylint_wrapper"
+            printf 'FINAL_NODE_BIN=%s\n' "$node_bin"
           } >> "$GITHUB_ENV"
 
       - name: Run Code Review with trusted final Requirements context
@@ -2134,9 +2140,11 @@ jobs:
           if [[ "${#review_paths[@]}" -eq 0 ]]; then
             exit 0
           fi
+          [[ -x "${FINAL_NODE_BIN}/node" ]]
+          test "$("${FINAL_NODE_BIN}/node" --version)" = "v24.16.0"
           validator_site="${FINAL_VERIFIER_ROOT}/lib/python3.12/site-packages"
           isolated_specfact=("${FINAL_VERIFIER_ROOT}/bin/python" -I -S -c 'import sys; site_packages, trusted_core = sys.argv[1:3]; del sys.argv[1:3]; sys.path.append(site_packages); sys.path.insert(0, trusted_core); from specfact_cli.cli import cli_main; cli_main()' "$validator_site" "$FINAL_TRUSTED_CORE")
-          PATH="${FINAL_PYLINT_WRAPPER}:${FINAL_BASEDPYRIGHT_ROOT}/node_modules/.bin:${RUNNER_TEMP}/final-code-review-tools/bin:${FINAL_VERIFIER_ROOT}/bin:/usr/bin:/bin" \
+          PATH="${FINAL_NODE_BIN}:${FINAL_PYLINT_WRAPPER}:${FINAL_BASEDPYRIGHT_ROOT}/node_modules/.bin:${RUNNER_TEMP}/final-code-review-tools/bin:${FINAL_VERIFIER_ROOT}/bin:/usr/bin:/bin" \
             "${isolated_specfact[@]}" code review run \
               "${review_paths[@]}" \
               --include-tests \
