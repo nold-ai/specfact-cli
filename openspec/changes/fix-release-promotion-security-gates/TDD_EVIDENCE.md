@@ -69,3 +69,19 @@ Additional passing evidence:
 - Ruff formatting/lint, BasedPyright (0 errors), actionlint, yamllint, docs contracts;
 - strict module signatures for all four bundled manifests;
 - Semgrep SAST (0 findings) and Bandit (0 medium/high findings).
+
+Final review iteration, 2026-09-02 11:24 Europe/Berlin:
+
+- 219 focused release/security/workflow tests passed on Python 3.13.14;
+- the full suite completed 3,049 passes and 26 expected skips, with its six
+  environment-dependent failures rerun successfully against the pinned module
+  fixture and isolated writable home/cache paths;
+- OpenSpec strict validation, Ruff formatting/lint, BasedPyright, actionlint,
+  Bash syntax, frozen closure regeneration, `uv lock --check`, version-source,
+  strict module-signature, dependency-trust, license, Semgrep, Bandit, package
+  build, Twine, and PyPI-ahead gates passed;
+- both final frozen sets passed `pip-audit` with no unreviewed vulnerabilities;
+- an independent review's candidate-Pylint-config control reproduced
+  `init-hook` execution with Pylint 4.0.7 before the fix. The final wrapper
+  forced the protected-base config and `--` path separation; the same control
+  left the marker absent.

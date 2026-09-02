@@ -20,6 +20,7 @@ jobs:
       issues: read
     outputs:
       artifact-id: ${{ steps.upload-requirements-evidence.outputs.artifact-id }}
+      prior-red-run-id: ${{ steps.prior-red-run.outputs.run-id }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -34,9 +35,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          repository="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])')"
-          commit="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
-          tree="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["tree"])')"
+          repository="$(jq -er '.repository | select(type == "string")' ci/module-fixture.lock.json)"
+          commit="$(jq -er '.commit | select(type == "string")' ci/module-fixture.lock.json)"
+          tree="$(jq -er '.tree | select(type == "string")' ci/module-fixture.lock.json)"
           approved_commit="69f075819be5e1ceca1446b026b0417f19e584ca"
           [[ "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]
           test "$repository" = "nold-ai/specfact-cli-modules"
@@ -61,8 +62,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          expected_repository="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])')"
-          expected="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          expected_repository="$(jq -er '.repository | select(type == "string")' ci/module-fixture.lock.json)"
+          expected="$(jq -er '.commit | select(type == "string")' ci/module-fixture.lock.json)"
           test "$expected_repository" = "${{ steps.modules-fixture.outputs.repository }}"
           actual="$(git -C specfact-cli-modules rev-parse HEAD)"
           test "$actual" = "$expected"
@@ -82,6 +83,41 @@ jobs:
       - name: Set up frozen delivery dependencies
         uses: ./.github/actions/setup-frozen-python
 
+      - name: Materialize trusted delivery verifier
+        shell: bash
+        run: |
+          set -euo pipefail
+          base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" HEAD)"
+          [[ "$base_commit" =~ ^[0-9a-f]{40}$ ]]
+          trusted_root="${RUNNER_TEMP}/trusted-requirements"
+          mkdir -p "$trusted_root"
+          git archive "$base_commit" -- scripts/check_reproducible_delivery.py | tar -x -C "$trusted_root"
+          test -f "$trusted_root/scripts/check_reproducible_delivery.py"
+          echo "TRUSTED_DELIVERY_VERIFIER=$trusted_root/scripts/check_reproducible_delivery.py" >> "$GITHUB_ENV"
+
+      - name: Verify frozen Requirements graph
+        shell: bash
+        run: |
+          set -euo pipefail
+          frozen_site="${GITHUB_WORKSPACE}/.venv/lib/python3.12/site-packages"
+          "${GITHUB_WORKSPACE}/.venv/bin/python" -I -S -c \
+            'import sys; site_packages, trusted_script, logical_script = sys.argv[1:4]; del sys.argv[1:4]; sys.path.append(site_packages); source = open(trusted_script, "rb").read(); scope = {"__name__": "__main__", "__file__": logical_script}; exec(compile(source, logical_script, "exec"), scope)' \
+            "$frozen_site" \
+            "$TRUSTED_DELIVERY_VERIFIER" \
+            "${GITHUB_WORKSPACE}/scripts/check_reproducible_delivery.py"
+
+      - name: Create isolated Requirements validator environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          validator_root="${RUNNER_TEMP}/requirements-validator"
+          uv venv --python "${pythonLocation}/bin/python" "$validator_root"
+          uv pip install \
+            --python "${validator_root}/bin/python" \
+            --require-hashes \
+            -r requirements/ci/locked.txt
+          echo "REQUIREMENTS_VALIDATOR_ROOT=$validator_root" >> "$GITHUB_ENV"
+
       - name: Prepare Requirements evidence artifact directory
         run: mkdir -p artifacts/requirements-evidence
 
@@ -93,9 +129,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          validator_site="${REQUIREMENTS_VALIDATOR_ROOT}/lib/python3.12/site-packages"
+          isolated_python=("${REQUIREMENTS_VALIDATOR_ROOT}/bin/python" -I -S -c 'import runpy, sys; sys.path.append(sys.argv.pop(1)); script = sys.argv.pop(1); runpy.run_path(script, run_name="__main__")' "$validator_site")
           current_head="$(git rev-parse HEAD)"
-          while IFS=$'\t' read -r run_id head_sha; do
+          while IFS=$'\t' read -r run_id head_sha conclusion; do
             [[ -n "$run_id" && -n "$head_sha" ]] || continue
+            [[ "$conclusion" == "failure" ]] || continue
             [[ "$head_sha" != "$current_head" ]] || continue
             git merge-base --is-ancestor "origin/${GITHUB_BASE_REF}" "$head_sha" || continue
             git merge-base --is-ancestor "$head_sha" "$current_head" || continue
@@ -106,7 +145,7 @@ jobs:
             fi
             if ! mv "$candidate_dir/requirements-evidence.json" "$candidate_dir/red.json" \
               || ! mv "$candidate_dir/requirements-proof.xml" "$candidate_dir/red.xml" \
-              || ! python scripts/requirements_proof_provenance.py \
+              || ! "${isolated_python[@]}" scripts/requirements_proof_provenance.py \
                 --prior-red-proof "$candidate_dir/red.json" \
                 --repo-root . \
                 --base-ref "origin/${GITHUB_BASE_REF}" \
@@ -122,7 +161,7 @@ jobs:
               -f event=pull_request \
               -f status=completed \
               -f per_page=100 \
-              --jq '.workflow_runs[] | [.id, .head_sha] | @tsv'
+              --jq '.workflow_runs[] | [.id, .head_sha, .conclusion] | @tsv'
           )
 
       - name: Download retained red proof
@@ -173,6 +212,15 @@ jobs:
           gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${bootstrap_run_id}" > "${bootstrap_root}/run.json"
           gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${bootstrap_run_id}/artifacts" > "${bootstrap_root}/artifacts.json"
           gh run download "$bootstrap_run_id" --name requirements-evidence --dir "$bootstrap_artifact_root"
+          (
+            cd "$bootstrap_root"
+            sha256sum \
+              comment.json commit.json run.json artifacts.json \
+              artifact/requirements-evidence.json \
+              artifact/requirements-evidence-plan.json \
+              artifact/requirements-proof.xml \
+              > bootstrap_authority_manifest.sha256
+          )
 
       - name: Run Requirements evidence gate
         id: run-evidence
@@ -185,6 +233,14 @@ jobs:
           EVIDENCE_PULL_REQUEST: ${{ github.event.pull_request.number }}
         run: |
           set -e
+          validator_site="${REQUIREMENTS_VALIDATOR_ROOT}/lib/python3.12/site-packages"
+          isolated_python=("${REQUIREMENTS_VALIDATOR_ROOT}/bin/python" -I -S -c 'import runpy, sys; sys.path.append(sys.argv.pop(1)); script = sys.argv.pop(1); runpy.run_path(script, run_name="__main__")' "$validator_site")
+          isolated_specfact=("${REQUIREMENTS_VALIDATOR_ROOT}/bin/python" -I -S -c 'import sys; sys.path.append(sys.argv.pop(1)); sys.path.append(sys.argv.pop(1)); from specfact_cli.cli import cli_main; cli_main()' "$validator_site" "${GITHUB_WORKSPACE}/src")
+          file_sha256() {
+            local output
+            output="$(sha256sum < "$1")" || return 1
+            printf '%s\n' "${output%% *}"
+          }
           write_failure_reports() {
             DIAGNOSTIC="$1" python3 -c 'import json, os; from pathlib import Path; report_directory = Path("artifacts/requirements-evidence"); diagnostic = os.environ["DIAGNOSTIC"]; (report_directory / "requirements-evidence.json").write_text(json.dumps({"schema_version": 1, "verdict": "failed", "diagnostic": diagnostic}) + "\n", encoding="utf-8"); (report_directory / "requirements-evidence.md").write_text(f"## Requirements evidence unavailable\n\n- Diagnostic: {diagnostic}\n", encoding="utf-8")'
           }
@@ -356,7 +412,7 @@ jobs:
           fi
           clean_environment=(env -i "HOME=${HOME:-}" "LANG=${LANG:-}" "LC_ALL=${LC_ALL:-}" "LC_CTYPE=${LC_CTYPE:-}" "PATH=${PATH:-}" "RUNNER_TEMP=${RUNNER_TEMP}" "SPECFACT_MODULES_REPO=${SPECFACT_MODULES_REPO}" "SPECFACT_MODULES_ROOTS=${SPECFACT_MODULES_ROOTS}")
           evidence_arguments=(
-            "${clean_environment[@]}" uv run --locked --no-sync specfact requirements evidence
+            "${clean_environment[@]}" "${isolated_specfact[@]}" requirements evidence
             --repo-root "$GITHUB_WORKSPACE" \
             --base-ref "$evidence_base_commit" \
             --required-maturity "$planning_maturity" \
@@ -365,15 +421,28 @@ jobs:
             --summary artifacts/requirements-evidence/requirements-evidence.md
           )
           prior_red_proof=""
+          prior_red_junit=""
+          prior_red_report_digest=""
+          prior_red_junit_digest=""
           if [[ -n "$selected_change" ]]; then
             review_evidence="openspec/changes/${selected_change}/requirements-proof/review-evidence.json"
             if [[ -f "$review_evidence" ]]; then
               evidence_arguments+=(--review-evidence "$review_evidence")
             fi
             candidate_red_proof="${RUNNER_TEMP}/prior-red-proof/red.json"
-            if [[ -f "$candidate_red_proof" ]]; then
+            candidate_red_junit="${RUNNER_TEMP}/prior-red-proof/red.xml"
+            if [[ -f "$candidate_red_proof" && -f "$candidate_red_junit" ]]; then
               prior_red_proof="$candidate_red_proof"
+              prior_red_junit="$candidate_red_junit"
+              prior_red_report_digest="$(file_sha256 "$prior_red_proof")"
+              prior_red_junit_digest="$(file_sha256 "$prior_red_junit")"
             fi
+          fi
+          bootstrap_root="${RUNNER_TEMP}/requirements-bootstrap-authority"
+          bootstrap_authority_manifest="${bootstrap_root}/bootstrap_authority_manifest.sha256"
+          bootstrap_authority_manifest_digest=""
+          if [[ -f "$bootstrap_authority_manifest" ]]; then
+            bootstrap_authority_manifest_digest="$(file_sha256 "$bootstrap_authority_manifest")"
           fi
           set +e
           "${evidence_arguments[@]}"
@@ -386,7 +455,7 @@ jobs:
               run_stage=final
             fi
             set +e
-            python scripts/requirements_proof_executor.py \
+            "${isolated_python[@]}" scripts/requirements_proof_executor.py \
               --plan artifacts/requirements-evidence/requirements-evidence-plan.json \
               --repo-root "$GITHUB_WORKSPACE" \
               --junit artifacts/requirements-evidence/requirements-proof.xml
@@ -399,7 +468,7 @@ jobs:
               rm -f artifacts/requirements-evidence/requirements-evidence.json artifacts/requirements-evidence/requirements-evidence.md
               failure_diagnostic="Requirements proof reconciliation exited with status $execution_exit before writing reports."
               reconciliation_arguments=(
-                "${clean_environment[@]}" uv run --locked --no-sync specfact requirements reconcile
+                "${clean_environment[@]}" "${isolated_specfact[@]}" requirements reconcile
                 --plan artifacts/requirements-evidence/requirements-evidence-plan.json \
                 --junit artifacts/requirements-evidence/requirements-proof.xml \
                 --run-stage "$run_stage" \
@@ -408,7 +477,12 @@ jobs:
                 --summary artifacts/requirements-evidence/requirements-evidence.md
               )
               if [[ "$run_stage" == "final" && -n "$prior_red_proof" ]]; then
-                if ! red_proof_findings="$(python scripts/requirements_proof_provenance.py \
+                if [[ "$(file_sha256 "$prior_red_proof")" != "$prior_red_report_digest" \
+                  || "$(file_sha256 "$prior_red_junit")" != "$prior_red_junit_digest" ]]; then
+                  write_failure_reports "Retained red proof changed during candidate test execution."
+                  exit 1
+                fi
+                if ! red_proof_findings="$("${isolated_python[@]}" scripts/requirements_proof_provenance.py \
                   --prior-red-proof "$prior_red_proof" \
                   --repo-root "$GITHUB_WORKSPACE" \
                   --base-ref "$evidence_base_commit" \
@@ -442,8 +516,11 @@ jobs:
                   if [[ ! -s "${bootstrap_root}/comment.json" \
                     || ! -s "${bootstrap_root}/commit.json" \
                     || ! -s "${bootstrap_root}/run.json" \
-                    || ! -s "${bootstrap_root}/artifacts.json" ]] \
-                    || ! python scripts/requirements_bootstrap_authority.py \
+                    || ! -s "${bootstrap_root}/artifacts.json" \
+                    || -z "$bootstrap_authority_manifest_digest" \
+                    || "$(file_sha256 "$bootstrap_authority_manifest")" != "$bootstrap_authority_manifest_digest" ]] \
+                    || ! (cd "$bootstrap_root" && sha256sum --check --strict --status bootstrap_authority_manifest.sha256) \
+                    || ! "${isolated_python[@]}" scripts/requirements_bootstrap_authority.py \
                       --comment "${bootstrap_root}/comment.json" \
                       --commit "${bootstrap_root}/commit.json" \
                       --run "${bootstrap_root}/run.json" \
@@ -525,7 +602,7 @@ jobs:
               set -e
               failure_diagnostic="Requirements proof reconciliation exited with status $exit_code before writing reports."
               if [[ "$run_stage" == "red" && "$exit_code" -eq 0 ]]; then
-                if ! binding_error="$(python scripts/requirements_proof_provenance.py \
+                if ! binding_error="$("${isolated_python[@]}" scripts/requirements_proof_provenance.py \
                   --bind-red-proof artifacts/requirements-evidence/requirements-evidence.json \
                   --junit artifacts/requirements-evidence/requirements-proof.xml \
                   --repo-root "$GITHUB_WORKSPACE" \
@@ -585,6 +662,7 @@ jobs:
     permissions:
       actions: read
       contents: read
+      issues: read
     runs-on: ubuntu-latest
     steps:
       - name: Enforce Requirements evidence producer success
@@ -613,9 +691,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          repository="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])')"
-          commit="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
-          tree="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["tree"])')"
+          repository="$(jq -er '.repository | select(type == "string")' ci/module-fixture.lock.json)"
+          commit="$(jq -er '.commit | select(type == "string")' ci/module-fixture.lock.json)"
+          tree="$(jq -er '.tree | select(type == "string")' ci/module-fixture.lock.json)"
           test "$repository" = "nold-ai/specfact-cli-modules"
           test "$commit" = "69f075819be5e1ceca1446b026b0417f19e584ca"
           test "$tree" = "5d0b8e66c6cd467e6b1ad9d582e24c66b907e205"
@@ -650,8 +728,71 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Recreate frozen environment for Code Review
-        uses: ./.github/actions/setup-frozen-python
+      - name: Set up uv for trusted Requirements consumer
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
+        with:
+          enable-cache: false
+
+      - name: Materialize trusted Requirements core
+        shell: bash
+        run: |
+          set -euo pipefail
+          base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" HEAD)"
+          [[ "$base_commit" =~ ^[0-9a-f]{40}$ ]]
+          trusted_core_root="${RUNNER_TEMP}/trusted-requirements"
+          mkdir -p "$trusted_core_root"
+          git archive "$base_commit" -- \
+            pyproject.toml \
+            setup.py \
+            uv.lock \
+            ci/module-fixture.lock.json \
+            src/specfact_cli \
+            scripts/check_reproducible_delivery.py \
+            scripts/requirements_proof_provenance.py \
+            requirements/ci/locked.txt \
+            requirements/code-review/requirements.in \
+            requirements/code-review/locked.txt \
+            tools/basedpyright/package.json \
+            tools/basedpyright/package-lock.json \
+            | tar -x -C "$trusted_core_root"
+          test -f "$trusted_core_root/src/specfact_cli/cli.py"
+          test -f "$trusted_core_root/scripts/check_reproducible_delivery.py"
+          {
+            echo "TRUSTED_REQUIREMENTS_ROOT=$trusted_core_root"
+            echo "TRUSTED_REQUIREMENTS_CORE=$trusted_core_root/src"
+            echo "TRUSTED_DELIVERY_VERIFIER=$trusted_core_root/scripts/check_reproducible_delivery.py"
+            echo "TRUSTED_PROOF_PROVENANCE=$trusted_core_root/scripts/requirements_proof_provenance.py"
+            echo "TRUSTED_REQUIREMENTS_BOOTSTRAP_LOCK=$trusted_core_root/requirements/ci/locked.txt"
+            echo "TRUSTED_CODE_REVIEW_LOCK=$trusted_core_root/requirements/code-review/locked.txt"
+            echo "TRUSTED_BASEDPYRIGHT_ROOT=$trusted_core_root/tools/basedpyright"
+            echo "TRUSTED_PYPROJECT=$trusted_core_root/pyproject.toml"
+          } >> "$GITHUB_ENV"
+
+      - name: Create trusted Requirements verifier environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          verifier_root="${RUNNER_TEMP}/requirements-verifier"
+          uv venv --python "${pythonLocation}/bin/python" "$verifier_root"
+          uv pip install \
+            --python "${verifier_root}/bin/python" \
+            --require-hashes \
+            -r "$TRUSTED_REQUIREMENTS_BOOTSTRAP_LOCK"
+          {
+            echo "REQUIREMENTS_VERIFIER_ROOT=$verifier_root"
+            echo "REQUIREMENTS_VALIDATOR_ROOT=$verifier_root"
+          } >> "$GITHUB_ENV"
+
+      - name: Verify frozen Requirements graph
+        shell: bash
+        run: |
+          set -euo pipefail
+          verifier_site="${REQUIREMENTS_VERIFIER_ROOT}/lib/python3.12/site-packages"
+          "${REQUIREMENTS_VERIFIER_ROOT}/bin/python" -I -S -c \
+            'import sys; site_packages, trusted_script, logical_script = sys.argv[1:4]; del sys.argv[1:4]; sys.path.append(site_packages); source = open(trusted_script, "rb").read(); scope = {"__name__": "__main__", "__file__": logical_script}; exec(compile(source, logical_script, "exec"), scope)' \
+            "$verifier_site" \
+            "$TRUSTED_DELIVERY_VERIFIER" \
+            "${GITHUB_WORKSPACE}/scripts/check_reproducible_delivery.py"
 
       - name: Set up reviewed Code Review Node runtime
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
@@ -662,24 +803,277 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python scripts/check_reproducible_delivery.py
-          npm ci --ignore-scripts --prefix tools/basedpyright
+          (
+            cd "$TRUSTED_REQUIREMENTS_ROOT"
+            PATH="${REQUIREMENTS_VERIFIER_ROOT}/bin:$PATH" \
+              python scripts/check_reproducible_delivery.py
+          )
+          npm ci --ignore-scripts --prefix "$TRUSTED_BASEDPYRIGHT_ROOT"
           review_tools="${RUNNER_TEMP}/specfact-code-review-tools"
           uv venv --python "${pythonLocation}/bin/python" "$review_tools"
           uv pip install \
             --python "${review_tools}/bin/python" \
             --require-hashes \
-            -r requirements/code-review/locked.txt
+            -r "$TRUSTED_CODE_REVIEW_LOCK"
+          trusted_pylint="${review_tools}/bin/pylint"
+          pylint_wrapper="${RUNNER_TEMP}/specfact-pylint-wrapper"
+          mkdir -p "$pylint_wrapper"
+          # shellcheck disable=SC2016
+          printf '%s\n' \
+            '#!/usr/bin/env bash' \
+            'set -euo pipefail' \
+            'if [[ "$#" -lt 3 || "$1" != "--output-format" || "$2" != "json" ]]; then' \
+            '  printf "Rejected unexpected Pylint invocation.\\n" >&2' \
+            '  exit 2' \
+            'fi' \
+            'shift 2' \
+            'for candidate_path in "$@"; do' \
+            '  [[ "$candidate_path" != -* && -f "$candidate_path" ]] || exit 2' \
+            '  [[ "$candidate_path" == *.py || "$candidate_path" == *.pyi ]] || exit 2' \
+            'done' \
+            'exec "$TRUSTED_PYLINT" --rcfile "$TRUSTED_PYPROJECT" --output-format json -- "$@"' \
+            > "$pylint_wrapper/pylint"
+          chmod 0755 "$pylint_wrapper/pylint"
           {
-            echo "${GITHUB_WORKSPACE}/tools/basedpyright/node_modules/.bin"
+            echo "${TRUSTED_BASEDPYRIGHT_ROOT}/node_modules/.bin"
             echo "${review_tools}/bin"
           } >> "$GITHUB_PATH"
+          echo "TRUSTED_PYLINT=$trusted_pylint" >> "$GITHUB_ENV"
+          echo "PYLINT_WRAPPER=$pylint_wrapper" >> "$GITHUB_ENV"
 
       - name: Restore Requirements evidence for Code Review
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           artifact-ids: ${{ needs.requirements-evidence-producer.outputs.artifact-id }}
           path: artifacts/requirements-evidence
+
+      - name: Authenticate retained red proof run
+        id: consumer-red
+        if: needs.requirements-evidence-producer.outputs.prior-red-run-id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRIOR_RED_RUN_ID: ${{ needs.requirements-evidence-producer.outputs.prior-red-run-id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$PRIOR_RED_RUN_ID" =~ ^[0-9]+$ ]]
+          metadata_root="${RUNNER_TEMP}/consumer-red-metadata"
+          mkdir -p "$metadata_root"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${PRIOR_RED_RUN_ID}" > "$metadata_root/run.json"
+          jq -e \
+            --argjson run_id "$PRIOR_RED_RUN_ID" \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg head_branch "$GITHUB_HEAD_REF" \
+            '.id == $run_id and
+             .repository.full_name == $repository and
+             .name == "Requirements Evidence" and
+             .path == ".github/workflows/requirements-evidence.yml" and
+             .event == "pull_request" and
+             .status == "completed" and
+             .conclusion == "failure" and
+             .head_branch == $head_branch and
+             (.head_sha | test("^[0-9a-f]{40}$"))' \
+            "$metadata_root/run.json" > /dev/null
+          red_head_sha="$(jq -er '.head_sha' "$metadata_root/run.json")"
+          git merge-base --is-ancestor "origin/${GITHUB_BASE_REF}" "$red_head_sha"
+          git merge-base --is-ancestor "$red_head_sha" HEAD
+          gh api --method GET \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${PRIOR_RED_RUN_ID}/artifacts" \
+            -f per_page=100 > "$metadata_root/artifacts.json"
+          artifact_record="$(jq -cer \
+            --argjson run_id "$PRIOR_RED_RUN_ID" \
+            --arg head_sha "$red_head_sha" \
+            '[.artifacts[] | select(
+              .name == "requirements-evidence" and
+              .expired == false and
+              .workflow_run.id == $run_id and
+              .workflow_run.head_sha == $head_sha and
+              (.digest | test("^sha256:[0-9a-f]{64}$"))
+            )] | if length == 1 then .[0] else error("expected exactly one retained Requirements artifact") end' \
+            "$metadata_root/artifacts.json")"
+          artifact_id="$(jq -er '.id' <<< "$artifact_record")"
+          artifact_digest="$(jq -er '.digest' <<< "$artifact_record")"
+          [[ "$artifact_id" =~ ^[0-9]+$ ]]
+          {
+            printf 'artifact-id=%s\n' "$artifact_id"
+            printf 'artifact-digest=%s\n' "$artifact_digest"
+            printf 'head-sha=%s\n' "$red_head_sha"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Download retained red proof for validation
+        if: needs.requirements-evidence-producer.outputs.prior-red-run-id != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ steps.consumer-red.outputs.artifact-id }}
+          path: ${{ runner.temp }}/consumer-prior-red
+          github-token: ${{ github.token }}
+          run-id: ${{ needs.requirements-evidence-producer.outputs.prior-red-run-id }}
+
+      - name: Reconcile Requirements evidence on fresh runner
+        env:
+          PRIOR_RED_ARTIFACT_DIGEST: ${{ steps.consumer-red.outputs.artifact-digest }}
+          PRIOR_RED_HEAD_SHA: ${{ steps.consumer-red.outputs.head-sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_ref="$(git rev-parse HEAD)"
+          evidence_base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" "$source_ref")"
+          [[ "$source_ref" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$evidence_base_commit" =~ ^[0-9a-f]{40}$ ]]
+          validator_site="${REQUIREMENTS_VALIDATOR_ROOT}/lib/python3.12/site-packages"
+          isolated_python=("${REQUIREMENTS_VALIDATOR_ROOT}/bin/python" -I -S -c 'import runpy, sys; sys.path.append(sys.argv.pop(1)); script = sys.argv.pop(1); runpy.run_path(script, run_name="__main__")' "$validator_site")
+          isolated_specfact=("${REQUIREMENTS_VALIDATOR_ROOT}/bin/python" -I -S -c 'import sys; site_packages, trusted_core = sys.argv[1:3]; sys.path.append(site_packages); sys.path.insert(0, trusted_core); from specfact_cli.cli import cli_main; cli_main()' "$validator_site" "$TRUSTED_REQUIREMENTS_CORE")
+          producer_report="artifacts/requirements-evidence/requirements-evidence.json"
+          required_maturity=planned
+          consumer_status_file="${RUNNER_TEMP}/consumer-requirements-status.z"
+          git diff --name-status -z --find-renames=100% "$evidence_base_commit..$source_ref" > "$consumer_status_file"
+          classify_path() {
+            case "$1" in
+              .github/*|ci/*|scripts/*|src/*|tools/*|requirements/*|pyproject.toml|setup.py|uv.lock|resources/templates/*|resources/schemas/*|resources/mappings/*|resources/keys/*|modules/bundle-mapper/*)
+                required_maturity=verified
+                ;;
+              tests/*)
+                if [[ "$required_maturity" == "planned" ]]; then
+                  required_maturity=test-authored
+                fi
+                ;;
+            esac
+          }
+          while IFS= read -r -d '' status; do
+            IFS= read -r -d '' source_path
+            classify_path "$source_path"
+            case "$status" in
+              R*|C*)
+                IFS= read -r -d '' destination_path
+                classify_path "$destination_path"
+                ;;
+            esac
+          done < "$consumer_status_file"
+          rm -f "$consumer_status_file"
+          test "$(jq -er '.required_maturity' "$producer_report")" = "$required_maturity"
+          if [[ "$required_maturity" == "test-authored" ]]; then
+            printf 'A successful producer cannot stop at test-authored maturity.\n' >&2
+            exit 1
+          fi
+          planning_maturity="$required_maturity"
+          if [[ "$required_maturity" == "verified" ]]; then
+            planning_maturity=test-authored
+          fi
+
+          review_paths_file="${RUNNER_TEMP}/consumer-review-evidence-paths.z"
+          git diff --name-only -z --diff-filter=ACMR "$evidence_base_commit..$source_ref" -- \
+            'openspec/changes/*/requirements-proof/review-evidence.json' > "$review_paths_file"
+          review_evidence_paths=()
+          while IFS= read -r -d '' review_evidence_path; do
+            case "$review_evidence_path" in
+              openspec/changes/archive/*) continue ;;
+              openspec/changes/*/requirements-proof/review-evidence.json)
+                [[ -f "$review_evidence_path" ]] && review_evidence_paths+=("$review_evidence_path")
+                ;;
+            esac
+          done < "$review_paths_file"
+          if [[ "${#review_evidence_paths[@]}" -gt 1 \
+            || ( "$planning_maturity" != "planned" && "${#review_evidence_paths[@]}" -ne 1 ) ]]; then
+            printf 'Fresh reconciliation found an invalid active review-evidence selection.\n' >&2
+            exit 1
+          fi
+          selected_change=""
+          if [[ "${#review_evidence_paths[@]}" -eq 1 ]]; then
+            selected_change="${review_evidence_paths[0]#openspec/changes/}"
+            selected_change="${selected_change%/requirements-proof/review-evidence.json}"
+          fi
+
+          consumer_plan="artifacts/requirements-evidence/requirements-evidence-consumer-plan.json"
+          consumer_planning_report="artifacts/requirements-evidence/requirements-evidence-consumer-planning.json"
+          consumer_summary="artifacts/requirements-evidence/requirements-evidence-consumer.md"
+          consumer_report="artifacts/requirements-evidence/requirements-evidence-consumer.json"
+          evidence_arguments=(
+            "${isolated_specfact[@]}" requirements evidence
+            --repo-root "$GITHUB_WORKSPACE" \
+            --base-ref "$evidence_base_commit" \
+            --required-maturity "$planning_maturity" \
+            --plan-output "$consumer_plan" \
+            --output "$consumer_planning_report" \
+            --summary "$consumer_summary"
+          )
+          if [[ "${#review_evidence_paths[@]}" -eq 1 ]]; then
+            evidence_arguments+=(--review-evidence "${review_evidence_paths[0]}")
+          fi
+          "${evidence_arguments[@]}"
+          cmp --silent "$consumer_plan" artifacts/requirements-evidence/requirements-evidence-plan.json
+          if [[ "$required_maturity" == "planned" ]]; then
+            cp "$consumer_planning_report" "$consumer_report"
+          else
+            reconciliation_arguments=(
+              "${isolated_specfact[@]}" requirements reconcile
+              --plan "$consumer_plan"
+              --junit artifacts/requirements-evidence/requirements-proof.xml
+              --run-stage final
+              --source-ref "$source_ref"
+              --output "$consumer_report"
+              --summary "$consumer_summary"
+            )
+            prior_red_root="${RUNNER_TEMP}/consumer-prior-red"
+            prior_red_proof="${prior_red_root}/red.json"
+            legacy_tdd_evidence="artifacts/requirements-evidence/legacy-tdd-evidence.json"
+            legacy_tdd_ledger="artifacts/requirements-evidence/approved-legacy-tdd-ledger.md"
+            if [[ -n "$PRIOR_RED_HEAD_SHA" ]]; then
+              if [[ ! -s "${prior_red_root}/requirements-evidence.json" \
+                || ! -s "${prior_red_root}/requirements-proof.xml" \
+                || ! "$PRIOR_RED_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+                printf 'Fresh retained red proof is incomplete.\n' >&2
+                exit 1
+              fi
+              mv "${prior_red_root}/requirements-evidence.json" "$prior_red_proof"
+              mv "${prior_red_root}/requirements-proof.xml" "${prior_red_root}/red.xml"
+              proof_source_ref="$(jq -er '.execution_proof.source_ref' "$prior_red_proof")"
+              test "$proof_source_ref" = "$PRIOR_RED_HEAD_SHA"
+              "${isolated_python[@]}" "$TRUSTED_PROOF_PROVENANCE" \
+                --prior-red-proof "$prior_red_proof" \
+                --repo-root "$GITHUB_WORKSPACE" \
+                --base-ref "$evidence_base_commit" \
+                --final-ref "$source_ref"
+              reconciliation_arguments+=(--prior-red-proof "$prior_red_proof")
+            elif [[ -s "$legacy_tdd_evidence" && -s "$legacy_tdd_ledger" ]]; then
+              case "$selected_change" in
+                requirements-07-runtime-proof-delivery)
+                  expected_ledger_digest="sha256:d6e35c934757c08fd1f3e3071fc02b92b080c009ba5e428f6ea2888e7cd5e8c3"
+                  expected_mapping_digest="sha256:eccdf006792d8910c54a773e30967886063b4e30c99c180bc36d7372b1bbd9ef"
+                  expected_plan_digest="sha256:27ea6e6bcea0d68d68688b89fc8f89315d213b96918f4f76979484756fd8335e"
+                  ;;
+                fix-retained-red-proof-provenance)
+                  expected_ledger_digest="sha256:f948489e94966f4df144c5d83aa1caa6fe7a96f6ade9a4aef864794d8019b158"
+                  expected_mapping_digest="sha256:6a9413ab306eb0cf0aad62661d66c5ef684b91036766acf7021953877c9b617e"
+                  expected_plan_digest="sha256:00595739da3dd81a01032fbc2661094b8c6e2836dc38e366eae0a666e4574222"
+                  ;;
+                *)
+                  printf 'Fresh reconciliation rejected an unauthorized legacy lane.\n' >&2
+                  exit 1
+                  ;;
+              esac
+              ledger_digest="sha256:$(sha256sum < "$legacy_tdd_ledger")"
+              ledger_digest="${ledger_digest%% *}"
+              test "$ledger_digest" = "$expected_ledger_digest"
+              jq -e \
+                --arg change_id "$selected_change" \
+                --arg ledger_digest "$expected_ledger_digest" \
+                --arg mapping_digest "$expected_mapping_digest" \
+                --arg plan_digest "$expected_plan_digest" \
+                '.schema_version == "1" and
+                 .kind == "legacy-tdd-ledger" and
+                 .change_id == $change_id and
+                 .ledger_digest == $ledger_digest and
+                 .mapping_digest == $mapping_digest and
+                 .plan_digest == $plan_digest' \
+                "$legacy_tdd_evidence" > /dev/null
+              reconciliation_arguments+=(--legacy-tdd-evidence "$legacy_tdd_evidence")
+            else
+              printf 'Fresh final reconciliation requires authenticated red or legacy evidence.\n' >&2
+              exit 1
+            fi
+            "${reconciliation_arguments[@]}"
+          fi
+          cmp --silent "$consumer_report" artifacts/requirements-evidence/requirements-evidence.json
 
       - name: Run Code Review with finalized Requirements context
         id: run-code-review
@@ -688,6 +1082,10 @@ jobs:
           REVIEW_BASE_BRANCH: ${{ github.base_ref }}
         run: |
           set -euo pipefail
+          validator_site="${REQUIREMENTS_VALIDATOR_ROOT}/lib/python3.12/site-packages"
+          isolated_specfact=("${REQUIREMENTS_VALIDATOR_ROOT}/bin/python" -I -S -c 'import sys; site_packages, trusted_core = sys.argv[1:3]; sys.path.append(site_packages); sys.path.insert(0, trusted_core); from specfact_cli.cli import cli_main; cli_main()' "$validator_site" "$TRUSTED_REQUIREMENTS_CORE")
+          requirements_context="artifacts/requirements-evidence/requirements-evidence-consumer.json"
+          [[ -s "$requirements_context" ]]
           if [[ ! "$REVIEW_BASE_BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]]; then
             printf 'Invalid Code Review base branch: %s\n' "$REVIEW_BASE_BRANCH" >&2
             exit 1
@@ -710,13 +1108,13 @@ jobs:
             printf 'No changed Python files require Code Review context.\n' >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          uv run --locked --no-sync specfact code review run \
+          PATH="${PYLINT_WRAPPER}:$PATH" "${isolated_specfact[@]}" code review run \
             "${review_paths[@]}" \
             --include-tests \
             --enforcement full \
             --json \
             --out artifacts/requirements-evidence/code-review.json \
-            --requirements-evidence artifacts/requirements-evidence/requirements-evidence.json
+            --requirements-evidence "$requirements_context"
 
       - name: Upload Code Review evidence artifact
         if: always()

@@ -48,7 +48,7 @@ print_block2_overview() {
 # Include deletions (D): a commit that only removes paths must still be visible here so
 # check_safe_change() and Block 2 logic do not treat it as an empty / "safe" commit.
 staged_files() {
-  git diff --cached --name-only --diff-filter=ACMRD
+  staged_evidence_paths
 }
 
 staged_evidence_paths() {
@@ -94,8 +94,7 @@ staged_evidence_paths() {
 
 has_staged_yaml() {
   local line
-  while IFS= read -r line || [[ -n "${line}" ]]; do
-    [[ -z "${line}" ]] && continue
+  while IFS= read -r -d '' line; do
     if [[ "${line}" =~ \.(yaml|yml)$ ]]; then
       return 0
     fi
@@ -105,8 +104,7 @@ has_staged_yaml() {
 
 has_staged_workflows() {
   local line
-  while IFS= read -r line || [[ -n "${line}" ]]; do
-    [[ -z "${line}" ]] && continue
+  while IFS= read -r -d '' line; do
     if [[ "${line}" =~ ^\.github/workflows/.*\.ya?ml$ ]]; then
       return 0
     fi
@@ -116,8 +114,7 @@ has_staged_workflows() {
 
 has_staged_markdown() {
   local line
-  while IFS= read -r line || [[ -n "${line}" ]]; do
-    [[ -z "${line}" ]] && continue
+  while IFS= read -r -d '' line; do
     if [[ "${line}" =~ \.(md|mdc)$ ]] && [[ -f "${line}" ]]; then
       return 0
     fi
@@ -127,8 +124,7 @@ has_staged_markdown() {
 
 has_staged_python() {
   local line
-  while IFS= read -r line || [[ -n "${line}" ]]; do
-    [[ -z "${line}" ]] && continue
+  while IFS= read -r -d '' line; do
     if [[ "${line}" =~ \.(py|pyi)$ ]]; then
       return 0
     fi
@@ -138,20 +134,18 @@ has_staged_python() {
 
 staged_python_files() {
   local line
-  while IFS= read -r line || [[ -n "${line}" ]]; do
-    [[ -z "${line}" ]] && continue
+  while IFS= read -r -d '' line; do
     if [[ "${line}" =~ \.(py|pyi)$ ]] && [[ -f "${line}" ]]; then
-      printf '%s\n' "${line}"
+      printf '%s\0' "${line}"
     fi
   done < <(staged_files)
 }
 
 staged_markdown_files() {
   local line
-  while IFS= read -r line || [[ -n "${line}" ]]; do
-    [[ -z "${line}" ]] && continue
+  while IFS= read -r -d '' line; do
     if [[ "${line}" =~ \.(md|mdc)$ ]] && [[ -f "${line}" ]]; then
-      printf '%s\n' "${line}"
+      printf '%s\0' "${line}"
     fi
   done < <(staged_files)
 }
@@ -159,15 +153,14 @@ staged_markdown_files() {
 # Paths eligible for the code review gate (parity with modules: scoped prefixes; non-Python filtered by pre_commit_code_review.py).
 staged_review_gate_files() {
   local line
-  while IFS= read -r line || [[ -n "${line}" ]]; do
-    [[ -z "${line}" ]] && continue
+  while IFS= read -r -d '' line; do
     case "${line}" in
       */TDD_EVIDENCE.md|TDD_EVIDENCE.md) continue ;;
       src/*|scripts/*|tools/*|tests/*|openspec/changes/*)
         # Deletions have no working-tree file; skip them for the review runner (contract
         # tests still run because check_safe_change sees the deleted path).
         [[ -f "${line}" ]] || continue
-        printf '%s\n' "${line}"
+        printf '%s\0' "${line}"
         ;;
     esac
   done < <(staged_files)
@@ -175,8 +168,7 @@ staged_review_gate_files() {
 
 fail_if_markdown_has_unstaged_hunks() {
   local file
-  while IFS= read -r file || [[ -n "${file}" ]]; do
-    [[ -z "${file}" ]] && continue
+  while IFS= read -r -d '' file; do
     if ! git diff --quiet -- "${file}"; then
       error "❌ Cannot auto-fix Markdown with unstaged hunks: ${file}"
       warn "💡 Stage the full file or stash/revert the unstaged Markdown changes before commit"
@@ -201,8 +193,7 @@ check_safe_change() {
   local other_changes=0
   local saw_any=false
   local file
-  while IFS= read -r file || [[ -n "${file}" ]]; do
-    [[ -z "${file}" ]] && continue
+  while IFS= read -r -d '' file; do
     saw_any=true
     case "${file}" in
       src/__init__.py|src/specfact_cli/__init__.py) ;;
@@ -231,8 +222,7 @@ run_version_sources_check_if_needed() {
   local hit=0
   local f
   local p
-  while IFS= read -r f || [[ -n "${f}" ]]; do
-    [[ -z "${f}" ]] && continue
+  while IFS= read -r -d '' f; do
     for p in "${version_paths[@]}"; do
       if [[ "${f}" == "${p}" ]]; then
         hit=1
@@ -334,8 +324,7 @@ run_markdown_autofix_if_needed() {
   info "📦 Block 1 — Markdown fix — attempting safe auto-fix"
   local md_files=()
   local line
-  while IFS= read -r line || [[ -n "${line}" ]]; do
-    [[ -z "${line}" ]] && continue
+  while IFS= read -r -d '' line; do
     md_files+=("${line}")
   done < <(staged_markdown_files)
   if ((${#md_files[@]} == 0)); then
@@ -375,8 +364,7 @@ run_markdown_lint_if_needed() {
   info "📦 Block 1 — Markdown lint — running markdownlint"
   local md_files=()
   local line
-  while IFS= read -r line || [[ -n "${line}" ]]; do
-    [[ -z "${line}" ]] && continue
+  while IFS= read -r -d '' line; do
     md_files+=("${line}")
   done < <(staged_markdown_files)
   if ((${#md_files[@]} == 0)); then
@@ -419,8 +407,7 @@ run_lint_if_staged_python() {
     info "📦 Block 1 — lint — skipped (no staged *.py / *.pyi)"
     return 0
   fi
-  while IFS= read -r line || [[ -n "${line}" ]]; do
-    [[ -z "${line}" ]] && continue
+  while IFS= read -r -d '' line; do
     lint_array+=("${line}")
   done < <(staged_python_files)
   if [ ${#lint_array[@]} -eq 0 ]; then
@@ -799,8 +786,7 @@ run_requirements_evidence_gate() {
 
 run_code_review_gate() {
   local review_array=()
-  while IFS= read -r line || [[ -n "${line}" ]]; do
-    [[ -z "${line}" ]] && continue
+  while IFS= read -r -d '' line; do
     review_array+=("${line}")
   done < <(staged_review_gate_files)
 
@@ -822,8 +808,7 @@ run_code_review_gate() {
 run_command_overview_validation_gate() {
   local hit=0
   local file
-  while IFS= read -r file || [[ -n "${file}" ]]; do
-    [[ -z "${file}" ]] && continue
+  while IFS= read -r -d '' file; do
     case "${file}" in
       src/*|docs/*|.github/*|resources/*|scripts/check-docs-commands.py|scripts/check-command-contract.py|scripts/check-documentation-accountability.py|scripts/generate-command-overview.py|README.md|llms.txt|docs/reference/commands.generated.*)
         hit=1

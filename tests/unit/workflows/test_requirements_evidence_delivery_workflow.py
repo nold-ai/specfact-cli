@@ -200,7 +200,7 @@ def _assert_prior_red_run_selection(locate: dict[str, object]) -> None:
         '"repos/${GITHUB_REPOSITORY}/actions/workflows/requirements-evidence.yml/runs"',
         "-f status=completed",
         "-f per_page=100",
-        "--jq '.workflow_runs[] | [.id, .head_sha] | @tsv'",
+        "--jq '.workflow_runs[] | [.id, .head_sha, .conclusion] | @tsv'",
         'current_head="$(git rev-parse HEAD)"',
         '[[ "$head_sha" != "$current_head" ]]',
         'git merge-base --is-ancestor "origin/${GITHUB_BASE_REF}" "$head_sha"',
@@ -367,18 +367,9 @@ def test_requirements_evidence_workflow_rechecks_prefetched_proof_bytes_after_te
     )
 
 
-def test_fresh_consumer_reconciles_evidence_after_candidate_tests() -> None:
-    """The required verdict cannot reuse validators writable by candidate tests."""
-    workflow = yaml.load(
-        (REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml").read_text(encoding="utf-8"),
-        Loader=yaml.BaseLoader,
-    )
-    jobs = cast(dict[str, dict[str, object]], workflow["jobs"])
-    producer = jobs["requirements-evidence-producer"]
-    consumer = jobs["requirements-evidence"]
-    outputs = cast(dict[str, str], producer["outputs"])
-    permissions = cast(dict[str, str], consumer["permissions"])
-
+def _assert_fresh_consumer_order(
+    workflow: dict[str, object], outputs: dict[str, str], permissions: dict[str, str]
+) -> None:
     assert outputs["prior-red-run-id"] == "${{ steps.prior-red-run.outputs.run-id }}"
     assert permissions == {"actions": "read", "contents": "read", "issues": "read"}
     _assert_step_order(
@@ -393,20 +384,52 @@ def test_fresh_consumer_reconciles_evidence_after_candidate_tests() -> None:
         "Run Code Review with finalized Requirements context",
     )
 
-    reconcile = _step_by_name(workflow, "Reconcile Requirements evidence on fresh runner")["run"]
+
+def _assert_fresh_reconciliation_command(workflow: dict[str, object]) -> None:
+    reconcile_step = _step_by_name(workflow, "Reconcile Requirements evidence on fresh runner")
+    reconcile = reconcile_step["run"]
     review = _step_by_name(workflow, "Run Code Review with finalized Requirements context")["run"]
     assert isinstance(reconcile, str)
     assert isinstance(review, str)
-    assert "requirements_proof_provenance.py" in reconcile
-    assert '"${isolated_python[@]}"' in reconcile
-    assert 'source_ref="$(git rev-parse HEAD)"' in reconcile
-    assert 'evidence_base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" "$source_ref")"' in reconcile
-    assert '"${isolated_specfact[@]}" requirements evidence' in reconcile
-    assert '"${isolated_specfact[@]}" requirements reconcile' in reconcile
-    assert "requirements-evidence-consumer.json" in reconcile
+    assert "if" not in reconcile_step
+    reconcile_fragments = (
+        '"$TRUSTED_PROOF_PROVENANCE"',
+        '"${isolated_python[@]}"',
+        'source_ref="$(git rev-parse HEAD)"',
+        'evidence_base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" "$source_ref")"',
+        '"${isolated_specfact[@]}" requirements evidence',
+        '"${isolated_specfact[@]}" requirements reconcile',
+        "requirements-evidence-consumer.json",
+        "required_maturity=planned",
+        'git diff --name-status -z --find-renames=100% "$evidence_base_commit..$source_ref"',
+        ".github/*|ci/*|scripts/*|src/*|tools/*|requirements/*|pyproject.toml|setup.py|uv.lock",
+        'test "$(jq -er \'.required_maturity\' "$producer_report")" = "$required_maturity"',
+    )
+    missing_fragments = [fragment for fragment in reconcile_fragments if fragment not in reconcile]
+    assert not missing_fragments, missing_fragments
     assert "requirements_proof_executor.py" not in reconcile
     assert "pytest" not in reconcile
-    assert "--requirements-evidence artifacts/requirements-evidence/requirements-evidence-consumer.json" in review
+    review_fragments = (
+        'requirements_context="artifacts/requirements-evidence/requirements-evidence-consumer.json"',
+        '--requirements-evidence "$requirements_context"',
+    )
+    assert all(fragment in review for fragment in review_fragments)
+
+
+def test_fresh_consumer_reconciles_evidence_after_candidate_tests() -> None:
+    """The required verdict cannot reuse validators writable by candidate tests."""
+    workflow = yaml.load(
+        (REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml").read_text(encoding="utf-8"),
+        Loader=yaml.BaseLoader,
+    )
+    jobs = cast(dict[str, dict[str, object]], workflow["jobs"])
+    producer = jobs["requirements-evidence-producer"]
+    consumer = jobs["requirements-evidence"]
+    outputs = cast(dict[str, str], producer["outputs"])
+    permissions = cast(dict[str, str], consumer["permissions"])
+
+    _assert_fresh_consumer_order(workflow, outputs, permissions)
+    _assert_fresh_reconciliation_command(workflow)
 
 
 def test_fresh_consumer_authenticates_retained_red_run_and_artifact() -> None:
@@ -439,14 +462,90 @@ def test_fresh_consumer_authenticates_retained_red_run_and_artifact() -> None:
         ".workflow_run.head_sha == $head_sha",
         ".expired == false",
         '.name == "requirements-evidence"',
-        "artifact-id=$artifact_id",
-        "head-sha=$red_head_sha",
+        "printf 'artifact-id=%s\\n' \"$artifact_id\"",
+        "printf 'artifact-digest=%s\\n' \"$artifact_digest\"",
+        "printf 'head-sha=%s\\n' \"$red_head_sha\"",
     ):
         assert fragment in authenticate
     assert download_with["artifact-ids"] == "${{ steps.consumer-red.outputs.artifact-id }}"
     assert download_with["run-id"] == "${{ needs.requirements-evidence-producer.outputs.prior-red-run-id }}"
-    assert 'proof_source_ref="$(jq -er ".execution_proof.source_ref" "$prior_red_proof")"' in reconcile
+    assert 'proof_source_ref="$(jq -er \'.execution_proof.source_ref\' "$prior_red_proof")"' in reconcile
     assert 'test "$proof_source_ref" = "$PRIOR_RED_HEAD_SHA"' in reconcile
+
+
+def _assert_trusted_core_materialization(materialize: str) -> None:
+    materialize_fragments = (
+        'base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" HEAD)"',
+        'git archive "$base_commit" --',
+        "src/specfact_cli",
+        "requirements/ci/locked.txt",
+        "requirements/code-review/locked.txt",
+        "scripts/requirements_proof_provenance.py",
+        "TRUSTED_REQUIREMENTS_CORE=$trusted_core_root/src",
+    )
+    assert all(fragment in materialize for fragment in materialize_fragments)
+
+
+def _assert_trusted_consumer_order(consumer_steps: list[dict[str, object]]) -> None:
+    consumer_step_names = [cast(str, step.get("name", "")) for step in consumer_steps]
+    materialize_index = consumer_step_names.index("Materialize trusted Requirements core")
+    verifier_index = consumer_step_names.index("Create trusted Requirements verifier environment")
+    proof_index = consumer_step_names.index("Verify frozen Requirements graph")
+    install_index = consumer_step_names.index("Install frozen Code Review tools")
+    assert materialize_index < verifier_index < proof_index < install_index
+
+
+def test_fresh_consumer_uses_authenticated_base_core_for_validation() -> None:
+    """Candidate core code cannot implement its own reconciliation or review verdict."""
+    parsed = yaml.load(
+        (REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml").read_text(encoding="utf-8"),
+        Loader=yaml.BaseLoader,
+    )
+    materialize = _step_by_name(parsed, "Materialize trusted Requirements core")["run"]
+    consumer = cast(dict[str, object], cast(dict[str, object], parsed["jobs"])["requirements-evidence"])
+    consumer_steps = cast(list[dict[str, object]], consumer["steps"])
+    reconcile = _step_by_name(parsed, "Reconcile Requirements evidence on fresh runner")["run"]
+    review = _step_by_name(parsed, "Run Code Review with finalized Requirements context")["run"]
+
+    assert isinstance(materialize, str)
+    assert isinstance(reconcile, str)
+    assert isinstance(review, str)
+    assert all(step.get("uses") != "./.github/actions/setup-frozen-python" for step in consumer_steps)
+    assert (
+        _step_by_name(parsed, "Set up uv for trusted Requirements consumer")["uses"]
+        == "astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e"
+    )
+    _assert_trusted_core_materialization(materialize)
+    _assert_trusted_consumer_order(consumer_steps)
+    trusted_fragments = ('"$TRUSTED_REQUIREMENTS_CORE"', "sys.path.insert(0, trusted_core)")
+    assert all(fragment in reconcile and fragment in review for fragment in trusted_fragments)
+    assert '"$TRUSTED_PROOF_PROVENANCE"' in reconcile
+    assert all('"${GITHUB_WORKSPACE}/src"' not in command for command in (reconcile, review))
+
+
+def test_fresh_consumer_binds_each_legacy_lane_to_approved_digests() -> None:
+    """Matching attacker-controlled ledger fields cannot mint a legacy final verdict."""
+    parsed = yaml.load(
+        (REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml").read_text(encoding="utf-8"),
+        Loader=yaml.BaseLoader,
+    )
+    reconcile = _step_by_name(parsed, "Reconcile Requirements evidence on fresh runner")["run"]
+    assert isinstance(reconcile, str)
+    required_fragments = (
+        "requirements-07-runtime-proof-delivery)",
+        'expected_ledger_digest="sha256:d6e35c934757c08fd1f3e3071fc02b92b080c009ba5e428f6ea2888e7cd5e8c3"',
+        'expected_mapping_digest="sha256:eccdf006792d8910c54a773e30967886063b4e30c99c180bc36d7372b1bbd9ef"',
+        'expected_plan_digest="sha256:27ea6e6bcea0d68d68688b89fc8f89315d213b96918f4f76979484756fd8335e"',
+        "fix-retained-red-proof-provenance)",
+        'expected_ledger_digest="sha256:f948489e94966f4df144c5d83aa1caa6fe7a96f6ade9a4aef864794d8019b158"',
+        'expected_mapping_digest="sha256:6a9413ab306eb0cf0aad62661d66c5ef684b91036766acf7021953877c9b617e"',
+        'expected_plan_digest="sha256:00595739da3dd81a01032fbc2661094b8c6e2836dc38e366eae0a666e4574222"',
+        ".change_id == $change_id",
+        ".ledger_digest == $ledger_digest",
+        ".mapping_digest == $mapping_digest",
+        ".plan_digest == $plan_digest",
+    )
+    assert all(fragment in reconcile for fragment in required_fragments)
 
 
 def test_isolated_requirements_installs_follow_reproducible_graph_proof() -> None:
@@ -455,10 +554,7 @@ def test_isolated_requirements_installs_follow_reproducible_graph_proof() -> Non
         (REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml").read_text(encoding="utf-8"),
         Loader=yaml.BaseLoader,
     )
-    for install_name in (
-        "Create isolated Requirements validator environment",
-        "Create isolated Requirements consumer environment",
-    ):
+    for install_name in ("Create isolated Requirements validator environment",):
         install_job, install_index, _ = _step_location(parsed, install_name)
         matching_proofs = [
             (job, index, step)
@@ -467,7 +563,12 @@ def test_isolated_requirements_installs_follow_reproducible_graph_proof() -> Non
         ]
         assert len(matching_proofs) == 1
         _, proof_index, proof = matching_proofs[0]
-        assert proof["run"] == "python scripts/check_reproducible_delivery.py"
+        proof_command = proof["run"]
+        assert isinstance(proof_command, str)
+        assert '"${GITHUB_WORKSPACE}/.venv/bin/python" -I -S -c' in proof_command
+        assert '"${GITHUB_WORKSPACE}/.venv/lib/python3.12/site-packages"' in proof_command
+        assert '"$TRUSTED_DELIVERY_VERIFIER"' in proof_command
+        assert "python scripts/check_reproducible_delivery.py" not in proof_command
         assert proof_index < install_index
 
 
@@ -552,8 +653,8 @@ def _assert_code_review_handoff_command(command: object) -> None:
     """Keep the review command contract independently readable and bounded."""
     assert isinstance(command, str)
     expected_fragments = (
-        '"${isolated_specfact[@]}" code review run',
-        "--requirements-evidence artifacts/requirements-evidence/requirements-evidence-consumer.json",
+        'PATH="${PYLINT_WRAPPER}:$PATH" "${isolated_specfact[@]}" code review run',
+        '--requirements-evidence "$requirements_context"',
         "--enforcement full",
         "--include-tests",
         "--out artifacts/requirements-evidence/code-review.json",
@@ -573,9 +674,22 @@ def _assert_code_review_handoff_command(command: object) -> None:
 def _assert_frozen_code_review_python_tools(command: object) -> None:
     """Validate the isolated Python resolver input and its reviewed license note."""
     assert isinstance(command, str)
-    assert "uv pip install" in command
-    assert "--require-hashes" in command
-    assert "requirements/code-review/locked.txt" in command
+    command_fragments = (
+        'cd "$TRUSTED_REQUIREMENTS_ROOT"',
+        "uv pip install",
+        "--require-hashes",
+        '"$TRUSTED_CODE_REVIEW_LOCK"',
+        'trusted_pylint="${review_tools}/bin/pylint"',
+        'exec "$TRUSTED_PYLINT" --rcfile "$TRUSTED_PYPROJECT" --output-format json -- "$@"',
+        'echo "PYLINT_WRAPPER=$pylint_wrapper"',
+    )
+    assert all(fragment in command for fragment in command_fragments)
+    assert command.index("python scripts/check_reproducible_delivery.py") < command.index("uv pip install")
+    _assert_frozen_code_review_license_inputs()
+
+
+def _assert_frozen_code_review_license_inputs() -> None:
+    """Keep the frozen Pylint version and license decision synchronized."""
     lock = (REPO_ROOT / "requirements" / "code-review" / "locked.txt").read_text(encoding="utf-8")
     requirement = (REPO_ROOT / "requirements" / "code-review" / "requirements.in").read_text(encoding="utf-8")
     assert requirement.split("#", maxsplit=1)[0].strip() == "pylint==4.0.7"
@@ -635,8 +749,8 @@ def test_requirements_code_review_uses_frozen_external_tools() -> None:
     assert setup_node["with"]["node-version"] == "24.16.0"  # type: ignore[index]
     assert "if" not in setup_node
     command = install_tools["run"]
-    assert "npm ci --ignore-scripts --prefix tools/basedpyright" in command  # type: ignore[operator]
-    assert "tools/basedpyright/node_modules/.bin" in command  # type: ignore[operator]
+    assert 'npm ci --ignore-scripts --prefix "$TRUSTED_BASEDPYRIGHT_ROOT"' in command  # type: ignore[operator]
+    assert '"${TRUSTED_BASEDPYRIGHT_ROOT}/node_modules/.bin"' in command  # type: ignore[operator]
     _assert_step_order(
         parsed, "Install frozen Code Review tools", "Run Code Review with finalized Requirements context"
     )

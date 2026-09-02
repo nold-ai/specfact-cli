@@ -11,8 +11,8 @@
 
 ## Verification status
 
-- OpenSpec strict validation: pending
-- Focused red/green proof: 148 passed after 18-test/7-failure red extension
-- Full quality/security/release gates: local gates pass; final Code Review pending
-- Independent final review: pending
+- OpenSpec strict validation: passed
+- Focused red/green proof: 219 passed after the retained 11-test red and later review-driven red extensions
+- Full quality/security/release gates: local gates pass; exact-head GitHub checks pending
+- Independent final review: three exact-tree passes found no remaining P0-P2 findings
 - Trusted organization-required workflow pilot: pending

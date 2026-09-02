@@ -11,7 +11,7 @@
 - [x] 2.1 Archive completed change #689 with `openspec archive` and inspect the generated permanent spec.
 - [x] 2.2 Author compact spec deltas for the dependency, cache, archive, license, and proof boundaries.
 - [x] 2.3 Add focused tests derived from every scenario and record failing-before evidence against the unmodified implementation.
-- [ ] 2.4 Generate the test-authored Requirements mapping and obtain one approval only after its digest is stable.
+- [x] 2.4 Generate the test-authored Requirements mapping and obtain one approval only after its digest is stable.
 
 ## 3. Minimal implementation
 
@@ -20,14 +20,14 @@
 - [x] 3.3 Bind Code Review lock/trust/license policy to the exact isolated environment and regenerated closure.
 - [x] 3.4 Make archive selection and Git error handling fail closed; preserve legitimate active edits and native archives.
 - [x] 3.5 Apply the narrow authority diagnostic, pytest bootstrap, credential-free proof, fresh-runner exact-head review handoff, and `rg --` fixes.
-- [ ] 3.6 Disable Python site startup for proof validators, bind prefetched inputs across test execution, and make authority/pre-commit Git path parsing NUL-safe.
+- [x] 3.6 Disable Python site startup for proof validators, bind prefetched inputs across test execution, and make authority/pre-commit Git path parsing NUL-safe.
 
 ## 4. Passing evidence and review
 
 - [x] 4.1 Run focused legitimate/bypass controls and record passing-after evidence.
-- [ ] 4.2 Run format, lint, type, YAML/workflow, OpenSpec, contract, full test, module-signature, dependency, license, audit, SAST, Code Review, package, and release gates.
+- [x] 4.2 Run format, lint, type, YAML/workflow, OpenSpec, contract, full test, module-signature, dependency, license, audit, SAST, Code Review, package, and release gates.
 - [x] 4.3 Run final pip-audit against both frozen sets and prove all three MCP CVEs no longer reproduce.
-- [ ] 4.4 Obtain independent security-diff and code review on the exact final tree; resolve every P1/P2 or documented false positive.
+- [x] 4.4 Obtain independent security-diff and code review on the exact final tree; resolve every P1/P2 or documented false positive.
 - [x] 4.5 Review docs, README, landing page, and navigation; update only dependency trust and release notes because no public behavior changes.
 
 ## 5. Release and delivery
