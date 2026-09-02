@@ -6,7 +6,9 @@ import importlib.util
 import json
 import subprocess
 import sys
+import sysconfig
 import tomllib
+import xml.etree.ElementTree as ElementTree
 from pathlib import Path
 from typing import Any, cast
 
@@ -14,6 +16,37 @@ import yaml
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+
+_CONFTEST_OUTCOME_FORGERY = """
+import pytest
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    outcome = yield
+    report = outcome.get_result()
+    if report.failed:
+        report.outcome = "passed"
+        report.longrepr = None
+
+def pytest_sessionfinish(session):
+    session.exitstatus = 0
+""".lstrip()
+
+_ISOLATED_PYTEST_BOOTSTRAP = """
+import os
+import sys
+
+site_packages, repo_root, junit_path, disable_conftest = sys.argv[1:5]
+os.environ["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"
+sys.path.append(site_packages)
+import pytest
+sys.path.append(repo_root)
+arguments = ["--junitxml", junit_path]
+if disable_conftest == "1":
+    arguments.append("--noconftest")
+arguments.extend(["--", "test_guard.py::test_guard"])
+raise SystemExit(pytest.main(arguments))
+"""
 
 
 def _load_script(name: str) -> Any:
@@ -30,6 +63,32 @@ def _workflow(path: str) -> dict[str, Any]:
     payload = yaml.safe_load((REPO_ROOT / path).read_text(encoding="utf-8"))
     assert isinstance(payload, dict)
     return cast(dict[str, Any], payload)
+
+
+def _assert_contains(text: str, fragments: tuple[str, ...]) -> None:
+    missing = [fragment for fragment in fragments if fragment not in text]
+    assert not missing, missing
+
+
+def _run_isolated_guard(tmp_path: Path, junit_name: str, disable_conftest: bool) -> subprocess.CompletedProcess[str]:
+    junit_path = tmp_path / junit_name
+    return subprocess.run(
+        [
+            sys.executable,
+            "-I",
+            "-S",
+            "-c",
+            _ISOLATED_PYTEST_BOOTSTRAP,
+            sysconfig.get_path("purelib"),
+            str(tmp_path),
+            str(junit_path),
+            str(int(disable_conftest)),
+        ],
+        cwd=tmp_path,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
 
 
 def _on_block(workflow: dict[str, Any]) -> dict[str, Any]:
@@ -156,6 +215,72 @@ def test_requirements_proof_step_has_no_github_token_ancestor() -> None:
     proof_command = str(proof.get("run", ""))
     assert "gh api" not in proof_command
     assert "gh run download" not in proof_command
+
+
+def test_fresh_consumer_reexecutes_trusted_plan() -> None:
+    """Producer-authored JUnit cannot mint the fresh consumer's final verdict."""
+    workflow = _workflow(".github/workflows/requirements-evidence.yml")
+    review = cast(dict[str, Any], cast(dict[str, Any], workflow["jobs"])["requirements-evidence"])
+    materialize = str(_named_step(review, "Materialize trusted Requirements core").get("run", ""))
+    reconcile_step = _named_step(review, "Reconcile Requirements evidence on fresh runner")
+    reconcile = str(reconcile_step.get("run", ""))
+
+    _assert_contains(
+        materialize,
+        (
+            "scripts/requirements_proof_executor.py",
+            "scripts/requirements_proof_pytest_plugin.py",
+            "TRUSTED_PROOF_EXECUTOR",
+            "TRUSTED_PROOF_PLUGIN",
+        ),
+    )
+    _assert_contains(
+        reconcile,
+        (
+            'cmp --silent "$consumer_plan"',
+            'consumer_junit="${RUNNER_TEMP}/requirements-proof-consumer.xml"',
+            "importlib.util.spec_from_file_location(",
+            "sys.modules[executor_spec.name] = trusted_executor",
+            "trusted_executor.selectors_from_plan(",
+            'os.environ["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"',
+            "plugins=[trusted_plugin]",
+            '--junit "$consumer_junit"',
+        ),
+    )
+    forbidden_fragments = (
+        "runpy.run_path(trusted_executor)",
+        "--junit artifacts/requirements-evidence/requirements-proof.xml",
+        'cmp --silent "$consumer_report"',
+    )
+    assert not any(fragment in reconcile for fragment in forbidden_fragments)
+    assert reconcile.index("import pytest") < reconcile.index("sys.path.append(repo_root)")
+    execution_order = tuple(
+        reconcile.index(fragment)
+        for fragment in ('cmp --silent "$consumer_plan"', "pytest.main(", "reconciliation_arguments=(")
+    )
+    assert execution_order == tuple(sorted(execution_order))
+    assert reconcile_step["timeout-minutes"] == 12
+
+
+def test_fresh_consumer_rejects_candidate_conftest_outcome_forgery(tmp_path: Path) -> None:
+    """Candidate pytest hooks cannot turn a failing selector into trusted pass JUnit."""
+    (tmp_path / "conftest.py").write_text(_CONFTEST_OUTCOME_FORGERY, encoding="utf-8")
+    (tmp_path / "test_guard.py").write_text("def test_guard():\n    assert False\n", encoding="utf-8")
+
+    forged_junit = tmp_path / "forged.xml"
+    forged = _run_isolated_guard(tmp_path, forged_junit.name, disable_conftest=False)
+    assert forged.returncode == 0, forged.stderr
+    assert ElementTree.parse(forged_junit).find(".//testsuite").get("failures") == "0"  # type: ignore[union-attr]
+
+    trusted_junit = tmp_path / "trusted.xml"
+    trusted = _run_isolated_guard(tmp_path, trusted_junit.name, disable_conftest=True)
+    assert trusted.returncode == 1, trusted.stderr
+    assert ElementTree.parse(trusted_junit).find(".//testsuite").get("failures") == "1"  # type: ignore[union-attr]
+
+    workflow = _workflow(".github/workflows/requirements-evidence.yml")
+    review = cast(dict[str, Any], cast(dict[str, Any], workflow["jobs"])["requirements-evidence"])
+    reconcile = str(_named_step(review, "Reconcile Requirements evidence on fresh runner").get("run", ""))
+    assert '"--noconftest"' in reconcile
 
 
 def test_requirements_archive_uses_one_immutable_merge_base() -> None:

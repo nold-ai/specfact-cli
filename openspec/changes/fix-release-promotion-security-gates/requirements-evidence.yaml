@@ -78,6 +78,25 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/security/test_release_promotion_security_gates.py::test_required_requirements_check_cannot_be_manually_dispatched
+      - case_id: REQUIREMENTS-692-S16
+        scenario_id: proof-and-review-execute-across-a-clean-authenticated-boundary
+        method: test
+        intent: "Prove the fresh consumer independently executes the authenticated plan."
+        observable: >-
+          Base-branch proof components produce a fresh consumer JUnit and only that JUnit
+          reaches final reconciliation.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_promotion_security_gates.py::test_fresh_consumer_reexecutes_trusted_plan
+      - case_id: REQUIREMENTS-692-S17
+        scenario_id: proof-and-review-execute-across-a-clean-authenticated-boundary
+        method: test
+        intent: "Prove candidate pytest hooks cannot forge the fresh consumer verdict."
+        observable: >-
+          Conftest discovery is disabled and the consumer step retains a bounded timeout.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_promotion_security_gates.py::test_fresh_consumer_rejects_candidate_conftest_outcome_forgery
   openspec:fix-release-promotion-security-gates:dep-license-gate:frozen-development-advisories-use-a-compatible-fixed-graph:
     rationale: "The frozen optional tool graph must remove compatible fixable advisories and scope reviewed license exceptions exactly."
     stakeholder_refs:

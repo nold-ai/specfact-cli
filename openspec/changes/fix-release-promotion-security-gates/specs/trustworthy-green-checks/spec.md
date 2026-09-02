@@ -70,6 +70,15 @@ identity.
 - **AND** the workflow run head, artifact run/head metadata, and proof source commit SHALL match exactly
 - **AND** any missing or changed byte or identity SHALL fail closed.
 
+#### Scenario: Fresh reconciliation executes the trusted plan independently
+
+- **GIVEN** the producer executor, proof plugin, dependency graph, and uploaded JUnit are candidate-controlled inputs
+- **WHEN** the required Requirements context evaluates final mapped proof
+- **THEN** the fresh consumer SHALL derive and validate the exact plan with authenticated base-branch proof code
+- **AND** SHALL independently execute every selected test with installed pytest and the authenticated base-branch proof plugin
+- **AND** SHALL disable candidate conftest discovery and bound proof execution time
+- **AND** SHALL reconcile only the consumer-generated JUnit so producer-authored pass results cannot mint the final verdict.
+
 #### Scenario: Governed paths remain exact across local and external history checks
 
 - **GIVEN** Git permits paths containing tabs or other characters that text output quotes

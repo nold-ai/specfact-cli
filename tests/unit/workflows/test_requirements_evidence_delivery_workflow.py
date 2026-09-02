@@ -378,13 +378,7 @@ def _assert_fresh_consumer_order(
     )
 
 
-def _assert_fresh_reconciliation_command(workflow: dict[str, object]) -> None:
-    reconcile_step = _step_by_name(workflow, "Reconcile Requirements evidence on fresh runner")
-    reconcile = reconcile_step["run"]
-    review = _step_by_name(workflow, "Run Code Review with finalized Requirements context")["run"]
-    assert isinstance(reconcile, str)
-    assert isinstance(review, str)
-    assert "if" not in reconcile_step
+def _assert_reconciliation_fragments(reconcile: str) -> None:
     reconcile_fragments = (
         '"$TRUSTED_PROOF_PROVENANCE"',
         '"${isolated_python[@]}"',
@@ -403,20 +397,62 @@ def _assert_fresh_reconciliation_command(workflow: dict[str, object]) -> None:
         "-path '*/requirements-proof/review-evidence.json' -type f -print | sort",
         'if [[ "${#active_review_evidence[@]}" -eq 1 ]]; then',
         'review_evidence_paths+=("${active_review_evidence[0]}")',
+        'consumer_junit="${RUNNER_TEMP}/requirements-proof-consumer.xml"',
+        "importlib.util.spec_from_file_location(",
+        "sys.modules[executor_spec.name] = trusted_executor",
+        "trusted_executor.selectors_from_plan(",
+        'os.environ["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"',
+        "plugins=[trusted_plugin]",
+        '"--noconftest"',
+        '--junit "$consumer_junit"',
     )
     missing_fragments = [fragment for fragment in reconcile_fragments if fragment not in reconcile]
     assert not missing_fragments, missing_fragments
+
+
+def _assert_reconciliation_order(reconcile: str) -> None:
     fallback_index = reconcile.index('if [[ "${#review_evidence_paths[@]}" -eq 0 ]]; then')
-    assert reconcile.index('done < "$review_paths_file"') < fallback_index
-    assert fallback_index < reconcile.index('if [[ "${#review_evidence_paths[@]}" -gt 1')
+    review_path_order = (
+        reconcile.index('done < "$review_paths_file"'),
+        fallback_index,
+        reconcile.index('if [[ "${#review_evidence_paths[@]}" -gt 1'),
+    )
+    assert review_path_order == tuple(sorted(review_path_order))
+    execution_order = tuple(
+        reconcile.index(fragment)
+        for fragment in ('cmp --silent "$consumer_plan"', "pytest.main(", "reconciliation_arguments=(")
+    )
+    assert execution_order == tuple(sorted(execution_order))
+
+
+def _assert_reconciliation_boundaries(reconcile: str, review: str) -> None:
     assert "del sys.argv[1:3]" in review
-    assert "requirements_proof_executor.py" not in reconcile
-    assert "pytest" not in reconcile
+    required_fragments = ('"$TRUSTED_PROOF_EXECUTOR"', '"$TRUSTED_PROOF_PLUGIN"')
+    assert all(fragment in reconcile for fragment in required_fragments)
+    forbidden_fragments = (
+        "runpy.run_path(trusted_executor)",
+        "--junit artifacts/requirements-evidence/requirements-proof.xml",
+        'cmp --silent "$consumer_report"',
+    )
+    assert not any(fragment in reconcile for fragment in forbidden_fragments)
     review_fragments = (
         'requirements_context="artifacts/requirements-evidence/requirements-evidence-consumer.json"',
         '--requirements-evidence "$requirements_context"',
     )
-    assert all(fragment in review for fragment in review_fragments)
+    missing_review_fragments = [fragment for fragment in review_fragments if fragment not in review]
+    assert not missing_review_fragments, missing_review_fragments
+
+
+def _assert_fresh_reconciliation_command(workflow: dict[str, object]) -> None:
+    reconcile_step = _step_by_name(workflow, "Reconcile Requirements evidence on fresh runner")
+    reconcile = reconcile_step["run"]
+    review = _step_by_name(workflow, "Run Code Review with finalized Requirements context")["run"]
+    assert isinstance(reconcile, str)
+    assert isinstance(review, str)
+    assert ("if" not in reconcile_step, reconcile_step["timeout-minutes"]) == (True, "12")
+    _assert_reconciliation_fragments(reconcile)
+    _assert_reconciliation_order(reconcile)
+    _assert_reconciliation_boundaries(reconcile, review)
 
 
 def test_fresh_consumer_reconciles_evidence_after_candidate_tests() -> None:
