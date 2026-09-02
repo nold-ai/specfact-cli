@@ -188,7 +188,7 @@ def test_pre_commit_routes_tabbed_python_path_to_lint_and_review(tmp_path: Path)
 
     assert python_result.returncode == 0, python_result.stderr
     assert review_result.returncode == 0, review_result.stderr
-    assert review_result.stdout == f"{relative_path}\n"
+    assert review_result.stdout == f"{relative_path}\0"
 
 
 def _committed_active_change(tmp_path: Path) -> tuple[Path, str]:

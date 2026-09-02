@@ -42,10 +42,10 @@ EVIDENCE_COMMAND_FRAGMENTS = (
     'write_failure_reports "Unable to derive changed paths for $EVIDENCE_BASE_BRANCH"',
     "--plan-output artifacts/requirements-evidence/requirements-evidence-plan.json",
     '--review-evidence "$review_evidence"',
-    "python scripts/requirements_proof_executor.py",
+    '"${isolated_python[@]}" scripts/requirements_proof_executor.py',
     "if [[ ! -s artifacts/requirements-evidence/requirements-proof.xml ]]; then",
     "--junit artifacts/requirements-evidence/requirements-proof.xml",
-    "python scripts/requirements_proof_provenance.py",
+    '"${isolated_python[@]}" scripts/requirements_proof_provenance.py',
     '--final-ref "$EVIDENCE_FINAL_REF"',
     '--final-ref "$EVIDENCE_FINAL_REF" 2>&1)',
     "uv run --locked --no-sync specfact requirements reconcile",
@@ -207,7 +207,7 @@ def _assert_prior_red_run_selection(locate: dict[str, object]) -> None:
         'git merge-base --is-ancestor "$head_sha" "$current_head"',
         'mv "$candidate_dir/requirements-evidence.json" "$candidate_dir/red.json"',
         'mv "$candidate_dir/requirements-proof.xml" "$candidate_dir/red.xml"',
-        "python scripts/requirements_proof_provenance.py",
+        '"${isolated_python[@]}" scripts/requirements_proof_provenance.py',
         '--prior-red-proof "$candidate_dir/red.json"',
         '--base-ref "origin/${GITHUB_BASE_REF}"',
         '--final-ref "$current_head"',
@@ -335,13 +335,14 @@ def test_requirements_evidence_workflow_disables_site_startup_for_security_valid
         Loader=yaml.BaseLoader,
     )
     run_evidence = _step_by_name(workflow, "Run Requirements evidence gate")["run"]
-    prepare_authority = _step_by_name(workflow, "Prepare one-time Requirements bootstrap authority")["run"]
+    locate_red = _step_by_name(workflow, "Locate retained red proof run")["run"]
 
     assert isinstance(run_evidence, str)
-    assert isinstance(prepare_authority, str)
+    assert isinstance(locate_red, str)
     assert "isolated_python=(python -I -S -c" in run_evidence
     assert '"${isolated_python[@]}" scripts/requirements_proof_executor.py' in run_evidence
-    assert "isolated_python=(python -I -S -c" in prepare_authority
+    assert "isolated_python=(python -I -S -c" in locate_red
+    assert '"${isolated_python[@]}" scripts/requirements_proof_provenance.py' in locate_red
     assert '"${isolated_python[@]}" scripts/requirements_bootstrap_authority.py' in run_evidence
 
 
@@ -364,6 +365,48 @@ def test_requirements_evidence_workflow_rechecks_prefetched_proof_bytes_after_te
     assert run_evidence.index("sha256sum --check --strict") < run_evidence.index(
         "scripts/requirements_bootstrap_authority.py"
     )
+
+
+def test_fresh_consumer_reconciles_evidence_after_candidate_tests() -> None:
+    """The required verdict cannot reuse validators writable by candidate tests."""
+    workflow = yaml.load(
+        (REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml").read_text(encoding="utf-8"),
+        Loader=yaml.BaseLoader,
+    )
+    jobs = cast(dict[str, dict[str, object]], workflow["jobs"])
+    producer = jobs["requirements-evidence-producer"]
+    consumer = jobs["requirements-evidence"]
+    outputs = cast(dict[str, str], producer["outputs"])
+    permissions = cast(dict[str, str], consumer["permissions"])
+
+    assert outputs["prior-red-run-id"] == "${{ steps.prior-red-run.outputs.run-id }}"
+    assert permissions == {"actions": "read", "contents": "read", "issues": "read"}
+    _assert_step_order(
+        workflow, "Restore Requirements evidence for Code Review", "Download retained red proof for validation"
+    )
+    _assert_step_order(
+        workflow, "Download retained red proof for validation", "Reconcile Requirements evidence on fresh runner"
+    )
+    _assert_step_order(
+        workflow,
+        "Reconcile Requirements evidence on fresh runner",
+        "Run Code Review with finalized Requirements context",
+    )
+
+    reconcile = _step_by_name(workflow, "Reconcile Requirements evidence on fresh runner")["run"]
+    review = _step_by_name(workflow, "Run Code Review with finalized Requirements context")["run"]
+    assert isinstance(reconcile, str)
+    assert isinstance(review, str)
+    assert "requirements_proof_provenance.py" in reconcile
+    assert '"${isolated_python[@]}"' in reconcile
+    assert 'source_ref="$(git rev-parse HEAD)"' in reconcile
+    assert 'evidence_base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" "$source_ref")"' in reconcile
+    assert "specfact requirements evidence" in reconcile
+    assert "specfact requirements reconcile" in reconcile
+    assert "requirements-evidence-consumer.json" in reconcile
+    assert "requirements_proof_executor.py" not in reconcile
+    assert "pytest" not in reconcile
+    assert "--requirements-evidence artifacts/requirements-evidence/requirements-evidence-consumer.json" in review
 
 
 def test_requirements_evidence_workflow_ignores_archived_review_evidence() -> None:
@@ -554,7 +597,7 @@ def test_requirements_evidence_workflow_binds_red_proof_before_publication() -> 
     binding = "--bind-red-proof artifacts/requirements-evidence/requirements-evidence.json"
 
     assert 'if [[ "$run_stage" == "red" && "$exit_code" -eq 0 ]]; then' in command
-    assert "python scripts/requirements_proof_provenance.py" in command
+    assert '"${isolated_python[@]}" scripts/requirements_proof_provenance.py' in command
     assert binding in command
     assert '--base-ref "$evidence_base_commit"' in command
     assert 'write_failure_reports "Red proof binding rejected:' in command

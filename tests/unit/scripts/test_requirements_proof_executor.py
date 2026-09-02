@@ -96,7 +96,7 @@ def _assert_argument_contract(command: ProofCommand, junit_path: Path) -> None:
     assert command.arguments[:3] == [sys.executable, "-P", "-c"]
     bootstrap = command.arguments[3]
     assert bootstrap.index("import pytest") < bootstrap.index("sys.path.append(repo_root)")
-    assert command.arguments[4:] == [
+    assert command.arguments[5:] == [
         str(junit_path.parents[1]),
         "--junitxml",
         str(junit_path),
@@ -154,7 +154,7 @@ def test_executor_accepts_existing_exact_selectors_and_uses_argument_array(
     _assert_environment_contract(captured)
 
 
-def test_executor_disables_site_startup_before_pytest_bootstrap(tmp_path: Path) -> None:
+def test_executor_disables_site_startup_before_pytest_bootstrap(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     """Repository-influenced .pth and sitecustomize hooks cannot run before pytest is resolved."""
     module = _load_executor_module()
     _write_selected_test(tmp_path)
@@ -175,7 +175,15 @@ def test_executor_disables_site_startup_before_pytest_bootstrap(tmp_path: Path) 
         == 0
     )
     assert captured is not None
-    assert "-S" in captured.arguments[1 : captured.arguments.index("-c")]
+    spawned: list[str] = []
+
+    def capture_spawn(arguments: list[str], **_keywords: object) -> object:
+        spawned.extend(arguments)
+        return type("Completed", (), {"returncode": 0})()
+
+    monkeypatch.setattr(cast(Any, module).subprocess, "run", capture_spawn)
+    assert cast(Any, module)._run_command(captured) == 0
+    assert spawned[1 : spawned.index("-c")] == ["-I", "-S"]
 
 
 def test_executor_rejects_unsafe_selectors_before_spawning(tmp_path: Path) -> None:
