@@ -37,6 +37,7 @@
 - [x] 4.6 Re-run independent security bypass review and the full applicable gates after the consumer-proof correction.
 - [x] 4.7 Re-run independent review and all applicable gates after the final review-amendment correction.
 - [x] 4.8 Re-run independent review and all applicable gates after the canonical-selector compatibility correction.
+- [x] 4.9 Recover immutable RED proof for the final clean-code refactors, then re-run independent review and all applicable gates without changing mapped selector identities.
 
 ## 5. Release and delivery
 

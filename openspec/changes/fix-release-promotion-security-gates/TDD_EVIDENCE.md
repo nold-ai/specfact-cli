@@ -297,3 +297,37 @@ Canonical selector compatibility correction, 2026-09-02 23:05 Europe/Berlin:
   GREEN patch and confirmed its C/R topology, exact manifest bindings, 17
   restored branch predicates, retained pytest isolation controls, and absence
   of changes to the mapped RED test input.
+
+Clean-code proof recovery, 2026-09-03 00:18 Europe/Berlin:
+
+- Signed cycle base `4c4c6e7fd0bd1a79f9ec4a911f9cb2b937bc5f3f` with tree
+  `11ce0a390ca3ed77b13f1c88526e20bae24b3b50` changed only the 17 PR #703
+  branch predicates to the unreachable proof-cycle branch and temporarily
+  removed only `"-c", os.devnull` from the fresh consumer pytest arguments.
+- Its direct signed test-only child
+  `331ee620791a0438ef31103835033db1c41b37af` with tree
+  `b9bcdb305452d2ec11a13a81e097bf4674d5c9db` refactored only the two mapped
+  security/workflow test files. All 22 mapped selector names and all security
+  assertions remain present.
+- GitHub Requirements Evidence run `33689564917` retained artifact
+  `9869485777` with service digest
+  `sha256:60f213d0859f6c706f877a3fc3bf65817bbee9c152860e9009a8e02ee818e3ac`.
+  Its report, plan, and JUnit digests are respectively
+  `sha256:d2960d71ca6c45ac25c886c1c9afa842202a4dea2cd79ed14745faf869e105ae`,
+  `sha256:bd5462715ed4217dab84a03e2d795d38ffa98dbaaacfc5cc52a3354cb5ee4cac`,
+  and `sha256:3dcae213c417addc8dcf046cae0c0ed256e0450b692d966e0d1e3ac20718ea83`.
+  Exactly the mapped conftest-forgery selector failed because the temporary
+  cycle base omitted isolated pytest configuration; the other 21 selectors
+  passed. Mapping and plan digests remained unchanged.
+- The refactor reduced the blocking CC17 and CC27 functions to CC1 and CC4,
+  reduced the related CC13 function to CC2, and replaced the eight- and
+  six-parameter fixture APIs with a frozen options value. The branch-wide
+  native Code Review passed full enforcement with zero blocking findings.
+- Independent read-only review confirmed the same metrics, unchanged mapped
+  selectors, preserved security assertions, and one nonblocking scanner false
+  positive: the generic-name regex matches `data` inside the domain term
+  `metadata` in a required mapped selector. The selector is retained unchanged
+  to preserve the approved mapping; no rule or security gate is weakened.
+- The final candidate restores all 17 exact branch predicates and
+  `"-c", os.devnull` while retaining `--noconftest`, authenticated `--rootdir`,
+  plugin isolation, time bounds, fresh execution, and artifact/digest checks.
