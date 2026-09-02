@@ -63,6 +63,6 @@ request, branch, commit, and tree.
 ## Source Tracking
 
 - **GitHub Issue**: #692
-- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/692>2>2>2>
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/692>
 - **Repository**: nold-ai/specfact-cli
 - **Last Synced Status**: open; in progress; assigned; labels bug/openspec/QA/security

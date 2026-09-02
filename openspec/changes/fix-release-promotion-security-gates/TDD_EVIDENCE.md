@@ -110,3 +110,21 @@ Exact-head CI correction, 2026-09-02 11:54 Europe/Berlin:
   to no source-level blocking finding; its only two remaining errors were the
   known macOS sandbox CA-store failure from Semgrep, which the Ubuntu CI runner
   does not reproduce in the separate green static-analysis gate.
+
+Ready-for-review corrections, 2026-09-02 12:30 Europe/Berlin:
+
+- The fresh consumer's sole-active review-evidence fallback contract was added
+  first and failed 1/1 because only changed evidence records were selected.
+  The consumer now mirrors the producer only when no changed record exists and
+  adopts the fallback only when exactly one active, non-archived record exists.
+- The merge-history authority test was reproduced under
+  `init.defaultBranch=main` and failed at its hard-coded `master` switch. It now
+  returns to the branch reported by Git after initialization.
+- The corrected focused workflow, authority, dependency-trust, and release
+  security set passed 62/62, including the alternate-default-branch control.
+- GitHub run `33617881577` disproved the reported artifact nesting: each scalar
+  artifact ID extracted directly into its requested directory, and fresh
+  reconciliation completed successfully.
+- The approved mapping and selected security-test bytes remain unchanged at
+  `sha256:a28a89742e1b4f65d3eac1879b10c77632c2e4d906d96711e80ae9172ada6c36`
+  and `sha256:923cbf836f4bc18c1167a57f8d81923bde807d6aaff6a614bf7d74543309de44`.

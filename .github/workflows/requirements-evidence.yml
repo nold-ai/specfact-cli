@@ -974,6 +974,14 @@ jobs:
                 ;;
             esac
           done < "$review_paths_file"
+          if [[ "${#review_evidence_paths[@]}" -eq 0 ]]; then
+            mapfile -t active_review_evidence < <(
+              find openspec/changes -path 'openspec/changes/archive' -prune -o -path '*/requirements-proof/review-evidence.json' -type f -print | sort
+            )
+            if [[ "${#active_review_evidence[@]}" -eq 1 ]]; then
+              review_evidence_paths+=("${active_review_evidence[0]}")
+            fi
+          fi
           if [[ "${#review_evidence_paths[@]}" -gt 1 \
             || ( "$planning_maturity" != "planned" && "${#review_evidence_paths[@]}" -ne 1 ) ]]; then
             printf 'Fresh reconciliation found an invalid active review-evidence selection.\n' >&2

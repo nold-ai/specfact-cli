@@ -353,6 +353,7 @@ def test_bootstrap_authority_rejects_merge_commit_in_red_history(tmp_path: Path)
     _git(repo_root, "config", "user.name", "Requirements proof")
     (repo_root / "README.md").write_text("# proof\n", encoding="utf-8")
     base_ref = _commit(repo_root, "chore: base")
+    initial_branch = _git(repo_root, "branch", "--show-current")
 
     _git(repo_root, "switch", "-c", "red-tests")
     test_path = repo_root / "tests" / "test_proof.py"
@@ -360,7 +361,7 @@ def test_bootstrap_authority_rejects_merge_commit_in_red_history(tmp_path: Path)
     test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
     _commit(repo_root, "test: red")
 
-    _git(repo_root, "switch", "master")
+    _git(repo_root, "switch", initial_branch)
     (repo_root / "README.md").write_text("# proof\n\nmain line\n", encoding="utf-8")
     _commit(repo_root, "docs: advance main")
     _git(repo_root, "merge", "--no-ff", "--no-commit", "red-tests")

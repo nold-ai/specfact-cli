@@ -349,18 +349,25 @@ def _validate_locked_package_policy(
         version = package.get("version")
         if not isinstance(version, str):
             continue
-        if package_name in PROHIBITED_EXECUTABLE_WHEEL_PACKAGES:
-            errors.append(f"{package_name}=={version} is prohibited in the frozen lock")
-        if _is_blocked_release(package_name, version):
-            errors.append(f"{package_name}=={version} is blocked after a security-obfuscation alert")
-        floor = tool_floors.get(package_name)
-        if floor is None:
-            continue
-        below_floor = _is_below_security_floor(version, floor)
-        if below_floor is None:
-            errors.append(f"{package_name}=={version} cannot be compared with reviewed security floor {floor}")
-        elif below_floor:
-            errors.append(f"{package_name}=={version} is below the reviewed security floor {floor}")
+        errors.extend(_validate_locked_release_policy(package_name, version, tool_floors))
+    return errors
+
+
+def _validate_locked_release_policy(package_name: str, version: str, tool_floors: dict[str, str]) -> list[str]:
+    """Apply shared security policy to one frozen package release."""
+    errors: list[str] = []
+    if package_name in PROHIBITED_EXECUTABLE_WHEEL_PACKAGES:
+        errors.append(f"{package_name}=={version} is prohibited in the frozen lock")
+    if _is_blocked_release(package_name, version):
+        errors.append(f"{package_name}=={version} is blocked after a security-obfuscation alert")
+    floor = tool_floors.get(package_name)
+    if floor is None:
+        return errors
+    below_floor = _is_below_security_floor(version, floor)
+    if below_floor is None:
+        errors.append(f"{package_name}=={version} cannot be compared with reviewed security floor {floor}")
+    elif below_floor:
+        errors.append(f"{package_name}=={version} is below the reviewed security floor {floor}")
     return errors
 
 
@@ -368,18 +375,7 @@ def _validate_locked_version_policy(locked_versions: dict[str, str], tool_floors
     """Apply version-only policy to a hash-locked non-uv dependency graph."""
     errors: list[str] = []
     for package_name, version in sorted(locked_versions.items()):
-        if package_name in PROHIBITED_EXECUTABLE_WHEEL_PACKAGES:
-            errors.append(f"{package_name}=={version} is prohibited in the frozen lock")
-        if _is_blocked_release(package_name, version):
-            errors.append(f"{package_name}=={version} is blocked after a security-obfuscation alert")
-        floor = tool_floors.get(package_name)
-        if floor is None:
-            continue
-        below_floor = _is_below_security_floor(version, floor)
-        if below_floor is None:
-            errors.append(f"{package_name}=={version} cannot be compared with reviewed security floor {floor}")
-        elif below_floor:
-            errors.append(f"{package_name}=={version} is below the reviewed security floor {floor}")
+        errors.extend(_validate_locked_release_policy(package_name, version, tool_floors))
     return errors
 
 

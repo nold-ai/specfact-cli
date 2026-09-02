@@ -88,11 +88,6 @@ def _step_by_name(workflow: dict[str, object], name: str) -> dict[str, object]:
     return _step_location(workflow, name)[2]
 
 
-def _step_index(workflow: dict[str, object], name: str) -> int:
-    """Return a uniquely named step's position within its job."""
-    return _step_location(workflow, name)[1]
-
-
 def _assert_step_order(workflow: dict[str, object], earlier: str, later: str) -> None:
     """Assert two uniquely named steps run in that order within one job."""
     earlier_job, earlier_index, _ = _step_location(workflow, earlier)
@@ -230,9 +225,7 @@ def _assert_prior_red_download_contract(workflow: dict[str, object]) -> None:
     assert download["uses"] == "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c"  # type: ignore[index]
     assert download["with"]["github-token"] == "${{ github.token }}"  # type: ignore[index]
     assert download["with"]["run-id"] == "${{ steps.prior-red-run.outputs.run-id }}"  # type: ignore[index]
-    assert _step_index(workflow, "Download retained red proof") < _step_index(
-        workflow, "Run Requirements evidence gate"
-    )
+    _assert_step_order(workflow, "Download retained red proof", "Run Requirements evidence gate")
 
 
 def _assert_prior_red_artifact_contract(workflow: dict[str, object]) -> None:
@@ -405,9 +398,17 @@ def _assert_fresh_reconciliation_command(workflow: dict[str, object]) -> None:
         'git diff --name-status -z --find-renames=100% "$evidence_base_commit..$source_ref"',
         ".github/*|ci/*|scripts/*|src/*|tools/*|requirements/*|pyproject.toml|setup.py|uv.lock",
         'test "$(jq -er \'.required_maturity\' "$producer_report")" = "$required_maturity"',
+        'if [[ "${#review_evidence_paths[@]}" -eq 0 ]]; then',
+        "find openspec/changes -path 'openspec/changes/archive' -prune -o "
+        "-path '*/requirements-proof/review-evidence.json' -type f -print | sort",
+        'if [[ "${#active_review_evidence[@]}" -eq 1 ]]; then',
+        'review_evidence_paths+=("${active_review_evidence[0]}")',
     )
     missing_fragments = [fragment for fragment in reconcile_fragments if fragment not in reconcile]
     assert not missing_fragments, missing_fragments
+    fallback_index = reconcile.index('if [[ "${#review_evidence_paths[@]}" -eq 0 ]]; then')
+    assert reconcile.index('done < "$review_paths_file"') < fallback_index
+    assert fallback_index < reconcile.index('if [[ "${#review_evidence_paths[@]}" -gt 1')
     assert "del sys.argv[1:3]" in review
     assert "requirements_proof_executor.py" not in reconcile
     assert "pytest" not in reconcile
