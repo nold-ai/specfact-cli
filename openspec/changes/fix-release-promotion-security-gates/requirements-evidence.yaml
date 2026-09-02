@@ -91,12 +91,47 @@ requirements:
       - case_id: REQUIREMENTS-692-S17
         scenario_id: proof-and-review-execute-across-a-clean-authenticated-boundary
         method: test
-        intent: "Prove candidate pytest hooks cannot forge the fresh consumer verdict."
+        intent: "Prove candidate pytest hooks and project configuration cannot forge the fresh consumer verdict."
         observable: >-
-          Conftest discovery is disabled and the consumer step retains a bounded timeout.
+          Conftest discovery, project configuration, and addopts are disabled and the consumer step
+          retains a bounded timeout.
         selector:
           runner: pytest
           node_id: tests/unit/security/test_release_promotion_security_gates.py::test_fresh_consumer_rejects_candidate_conftest_outcome_forgery
+      - case_id: REQUIREMENTS-692-S18
+        scenario_id: proof-and-review-execute-across-a-clean-authenticated-boundary
+        method: test
+        intent: "Prove candidate tests cannot replace prefetched proof or authority bytes."
+        observable: "Exact prefetched digests are rechecked immediately before external evidence is consumed."
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_rechecks_prefetched_proof_bytes_after_tests
+      - case_id: REQUIREMENTS-692-S19
+        scenario_id: proof-and-review-execute-across-a-clean-authenticated-boundary
+        method: test
+        intent: "Prove producer and consumer select the same amended active OpenSpec change."
+        observable: "Both stages derive one change from all changed active OpenSpec paths before selecting review evidence."
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_fresh_consumer_selects_review_evidence_for_changed_active_change
+      - case_id: REQUIREMENTS-692-S20
+        scenario_id: proof-and-review-execute-across-a-clean-authenticated-boundary
+        method: test
+        intent: "Prove both consumer closure checks use the isolated trusted interpreter."
+        observable: "Neither frozen-graph verification invokes the delivery verifier through direct Python execution."
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_code_review_closure_recheck_uses_isolated_trusted_interpreter
+      - case_id: REQUIREMENTS-692-S21
+        scenario_id: proof-and-review-execute-across-a-clean-authenticated-boundary
+        method: test
+        intent: "Prove a late amendment accepts only exact authority-bound RED evidence."
+        observable: >-
+          The final consumer revalidates the exact final tree, cycle base, RED commit, run, artifact,
+          digests, ancestry, test-only segment, mapping, plan, and failed selectors.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_late_amendment_requires_exact_authority_bound_red_artifact
   openspec:fix-release-promotion-security-gates:dep-license-gate:frozen-development-advisories-use-a-compatible-fixed-graph:
     rationale: "The frozen optional tool graph must remove compatible fixable advisories and scope reviewed license exceptions exactly."
     stakeholder_refs:

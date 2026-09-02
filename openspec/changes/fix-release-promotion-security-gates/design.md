@@ -16,13 +16,15 @@ and `requirements/ci/locked.txt`. The seventh, Ruby JSON, is already fixed on
 - Remove persistent cache restore/save from jobs that later execute a separately
   checked-out fixture.
 - Keep native archive and isolated license decisions fail closed.
+- Preserve test-first proof for bounded review-driven amendments after production
+  commits already exist on the pull request.
 - Preserve a small, reviewable, linear spec-to-test-to-code patch.
 
 **Non-Goals:**
 
 - Change core runtime dependencies or public CLI/API behavior.
 - Upgrade already-safe Twine, pip, Hatchling, Setuptools, or Ruby JSON versions.
-- Rebuild PR #698's amendment, cycle, provenance-parser, or process-isolation
+- Rebuild PR #698's general amendment, provenance-parser, or process-isolation
   architecture.
 - Change modules, internal wiki PR #38, or C14/C15 worktrees.
 
@@ -65,7 +67,12 @@ authority inputs are digest-bound across candidate test execution. Bootstrap
 authority rejects nonlinear red history and parses Git paths through checked
 NUL-delimited records. Local staged-path consumers use the same NUL-safe
 inventory. The organization-required workflow supplies external exact-tree
-authorization, so no PR-local amendment subsystem is introduced.
+authorization. For a late review correction, that authority binds the final
+tree, whose committed manifest identifies one exact verified cycle base and
+failed RED artifact. The fresh consumer must revalidate its live run and
+artifact metadata, linear ancestry, test-only RED segment, selected failing
+cases, mapping, plan, and artifact digests. This is a bounded recovery lane,
+not a reusable amendment engine.
 
 The Requirements workflow resolves one merge-base object ID, removes GitHub
 credentials before proof execution, and persists only the bounded evidence
@@ -82,9 +89,11 @@ paths, and independently executes every selector in its regenerated plan. Final
 reconciliation consumes only this consumer-generated JUnit. The producer plan
 must still match the independently regenerated plan, but producer report and
 JUnit bytes are transport evidence rather than the final execution authority.
-Candidate `conftest.py` discovery is disabled so repository hooks cannot rewrite
-pytest outcomes, and the combined consumer execution/reconciliation step has a
-12-minute fail-closed timeout.
+Candidate `conftest.py` discovery and candidate pytest configuration are disabled
+so repository hooks and `addopts` cannot rewrite pytest outcomes. The consumer
+selects the changed active OpenSpec change with the same path basis as the
+producer, both frozen-closure checks use the isolated trusted interpreter, and
+the combined execution/reconciliation step has a 12-minute fail-closed timeout.
 
 ## Risks / Trade-offs
 

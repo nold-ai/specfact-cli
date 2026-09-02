@@ -76,8 +76,32 @@ identity.
 - **WHEN** the required Requirements context evaluates final mapped proof
 - **THEN** the fresh consumer SHALL derive and validate the exact plan with authenticated base-branch proof code
 - **AND** SHALL independently execute every selected test with installed pytest and the authenticated base-branch proof plugin
-- **AND** SHALL disable candidate conftest discovery and bound proof execution time
+- **AND** SHALL disable candidate conftest discovery, candidate pytest configuration, and candidate `addopts`
+- **AND** SHALL bound proof execution time
 - **AND** SHALL reconcile only the consumer-generated JUnit so producer-authored pass results cannot mint the final verdict.
+
+#### Scenario: Fresh reconciliation selects the producer's active change
+
+- **GIVEN** multiple active changes contain accepted review-evidence records
+- **WHEN** one active change is amended without rewriting its accepted review-evidence record
+- **THEN** the fresh consumer SHALL select that change from the same changed active OpenSpec paths as the producer
+- **AND** SHALL reject zero or multiple changed active changes before consuming review evidence.
+
+#### Scenario: Every frozen-graph verification uses an isolated trusted interpreter
+
+- **GIVEN** candidate repository startup paths can affect ordinary Python invocation
+- **WHEN** the fresh consumer verifies the frozen closure before either isolated install
+- **THEN** each verification SHALL use the same explicit `-I -S` bootstrap and trusted dependency directory
+- **AND** no direct candidate-context Python execution SHALL perform a closure verification.
+
+#### Scenario: Late review amendments retain exact test-first evidence
+
+- **GIVEN** a mapped review correction is added after production commits already exist on the pull request
+- **WHEN** an ordinary same-branch RED report is classified as final against the original base
+- **THEN** one expiring member authority MAY bind the exact final pull-request commit and tree
+- **AND** a final-tree-bound manifest SHALL bind the exact repository, issue, pull request, branch, cycle base, RED commit, run, artifact, service digest, file digests, mapping, plan, and failed selectors
+- **AND** SHALL revalidate all live identities, linear ancestry, test-only history, artifact bytes, and selected test freshness before reconciliation
+- **AND** all unbound, changed, nonlinear, non-test, or expired amendment evidence SHALL fail closed.
 
 #### Scenario: Governed paths remain exact across local and external history checks
 

@@ -281,6 +281,7 @@ def test_fresh_consumer_rejects_candidate_conftest_outcome_forgery(tmp_path: Pat
     review = cast(dict[str, Any], cast(dict[str, Any], workflow["jobs"])["requirements-evidence"])
     reconcile = str(_named_step(review, "Reconcile Requirements evidence on fresh runner").get("run", ""))
     assert '"--noconftest"' in reconcile
+    assert '"-c", os.devnull' in reconcile
 
 
 def test_requirements_archive_uses_one_immutable_merge_base() -> None:

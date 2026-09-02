@@ -6,6 +6,8 @@ import hashlib
 import json
 import os
 import subprocess
+import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
 
@@ -103,6 +105,268 @@ def _run_evidence_command() -> str:
     command = _step_by_name(parsed, "Run Requirements evidence gate")["run"]
     assert isinstance(command, str)
     return command
+
+
+def _git(repo_root: Path, *arguments: str) -> str:
+    result = subprocess.run(["git", *arguments], cwd=repo_root, check=True, capture_output=True, text=True)
+    return result.stdout.strip()
+
+
+def _commit(repo_root: Path, message: str) -> str:
+    _git(repo_root, "add", ".")
+    _git(repo_root, "commit", "--no-gpg-sign", "-m", message)
+    return _git(repo_root, "rev-parse", "HEAD")
+
+
+def _write_json(path: Path, payload: object) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
+
+
+@dataclass(frozen=True)
+class _LateRedHistory:
+    repo_root: Path
+    cycle_base: str
+    red_ref: str
+    test_path: Path
+    failed_selector: str
+    passed_selector: str
+
+
+@dataclass(frozen=True)
+class _LateRedArtifact:
+    root: Path
+    report: Path
+    plan: Path
+    junit: Path
+    mapping_digest: str
+    plan_digest: str
+
+
+def _create_late_red_history(tmp_path: Path, *, governed_red_path: bool) -> _LateRedHistory:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir(parents=True)
+    _git(repo_root, "init")
+    _git(repo_root, "config", "user.email", "requirements@example.test")
+    _git(repo_root, "config", "user.name", "Requirements proof")
+    (repo_root / "README.md").write_text("# proof\n", encoding="utf-8")
+    cycle_base = _commit(repo_root, "chore: cycle base")
+    test_path = repo_root / "tests" / "test_proof.py"
+    test_path.parent.mkdir()
+    test_path.write_text(
+        "def test_fails() -> None:\n    assert False\n\ndef test_passes() -> None:\n    assert True\n",
+        encoding="utf-8",
+    )
+    if governed_red_path:
+        governed_path = repo_root / "src" / "smuggled.py"
+        governed_path.parent.mkdir()
+        governed_path.write_text("SMUGGLED = True\n", encoding="utf-8")
+    return _LateRedHistory(
+        repo_root=repo_root,
+        cycle_base=cycle_base,
+        red_ref=_commit(repo_root, "test: reproduce review finding"),
+        test_path=test_path,
+        failed_selector="tests/test_proof.py::test_fails",
+        passed_selector="tests/test_proof.py::test_passes",
+    )
+
+
+def _write_late_red_artifact(tmp_path: Path, history: _LateRedHistory) -> _LateRedArtifact:
+    root = tmp_path / "artifact"
+    root.mkdir()
+    junit = (
+        b'<testsuite><testcase><properties><property name="specfact.selector" '
+        b'value="tests/test_proof.py::test_fails"/>'
+        b'<property name="specfact.runner" value="pytest"/>'
+        b'<property name="specfact.python" value="3.12"/>'
+        b'<property name="specfact.pytest" value="9.1"/>'
+        b"</properties><failure/></testcase>"
+        b'<testcase><properties><property name="specfact.selector" '
+        b'value="tests/test_proof.py::test_passes"/>'
+        b'<property name="specfact.runner" value="pytest"/>'
+        b'<property name="specfact.python" value="3.12"/>'
+        b'<property name="specfact.pytest" value="9.1"/>'
+        b"</properties></testcase></testsuite>"
+    )
+    junit_path = root / "requirements-proof.xml"
+    junit_path.write_bytes(junit)
+    mapping_digest = f"sha256:{'a' * 64}"
+    plan_digest = f"sha256:{'b' * 64}"
+    plan_path = root / "requirements-evidence-plan.json"
+    _write_json(
+        plan_path,
+        {
+            "gate_decision": "pass",
+            "plan": {
+                "cases": [
+                    {"node_id": history.failed_selector, "runner": "pytest"},
+                    {"node_id": history.passed_selector, "runner": "pytest"},
+                ],
+                "mapping_digest": mapping_digest,
+                "plan_digest": plan_digest,
+            },
+        },
+    )
+    report_path = root / "requirements-evidence.json"
+    _write_json(
+        report_path,
+        {
+            "delivery_status": "incomplete",
+            "gate_decision": "fail",
+            "observed_maturity": "incomplete",
+            "required_maturity": "verified",
+            "verdict": "failed",
+            "mapping_digest": mapping_digest,
+            "plan_digest": plan_digest,
+            "execution_proof": {
+                "junit_digest": f"sha256:{hashlib.sha256(junit).hexdigest()}",
+                "run_stage": "final",
+                "selectors": [history.failed_selector, history.passed_selector],
+                "source_ref": history.red_ref,
+            },
+        },
+    )
+    return _LateRedArtifact(root, report_path, plan_path, junit_path, mapping_digest, plan_digest)
+
+
+def _write_late_red_manifest(
+    history: _LateRedHistory, artifact: _LateRedArtifact, *, invalid_failed_selectors: bool
+) -> Path:
+    manifest_path = (
+        history.repo_root
+        / "openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json"
+    )
+    failed_selectors = [history.passed_selector] if invalid_failed_selectors else [history.failed_selector]
+    _write_json(
+        manifest_path,
+        {
+            "schema_version": "1",
+            "kind": "late-review-red-proof",
+            "repository": "nold-ai/specfact-cli",
+            "issue": 692,
+            "pull_request": 703,
+            "base_branch": "dev",
+            "head_branch": "bugfix/692-security-patch-clean-replay",
+            "change_id": "fix-release-promotion-security-gates",
+            "cycle_base_commit": history.cycle_base,
+            "cycle_base_tree": _git(history.repo_root, "rev-parse", f"{history.cycle_base}^{{tree}}"),
+            "red_commit": history.red_ref,
+            "red_tree": _git(history.repo_root, "rev-parse", f"{history.red_ref}^{{tree}}"),
+            "run_id": 11,
+            "artifact_id": 22,
+            "artifact_digest": f"sha256:{'c' * 64}",
+            "report_digest": f"sha256:{hashlib.sha256(artifact.report.read_bytes()).hexdigest()}",
+            "plan_report_digest": f"sha256:{hashlib.sha256(artifact.plan.read_bytes()).hexdigest()}",
+            "junit_digest": f"sha256:{hashlib.sha256(artifact.junit.read_bytes()).hexdigest()}",
+            "mapping_digest": artifact.mapping_digest,
+            "plan_digest": artifact.plan_digest,
+            "failed_selectors": failed_selectors,
+        },
+    )
+    return manifest_path
+
+
+def _finalize_late_red_history(history: _LateRedHistory, *, stale_selected_test: bool) -> str:
+    source_path = history.repo_root / "src" / "fix.py"
+    source_path.parent.mkdir(exist_ok=True)
+    source_path.write_text("FIXED = True\n", encoding="utf-8")
+    if stale_selected_test:
+        history.test_path.write_text(
+            "def test_fails() -> None:\n    assert True\n\ndef test_passes() -> None:\n    assert True\n",
+            encoding="utf-8",
+        )
+    return _commit(history.repo_root, "fix: close review finding")
+
+
+def _write_late_red_metadata(tmp_path: Path, history: _LateRedHistory, final_ref: str) -> tuple[Path, Path, Path]:
+    repository = "nold-ai/specfact-cli"
+    branch = "bugfix/692-security-patch-clean-replay"
+    event_path = tmp_path / "event.json"
+    _write_json(
+        event_path,
+        {
+            "number": 703,
+            "repository": {"full_name": repository},
+            "pull_request": {
+                "base": {"ref": "dev", "repo": {"full_name": repository}},
+                "head": {"ref": branch, "sha": final_ref, "repo": {"full_name": repository}},
+            },
+        },
+    )
+    run_path = tmp_path / "run.json"
+    _write_json(
+        run_path,
+        {
+            "id": 11,
+            "head_sha": history.red_ref,
+            "head_branch": branch,
+            "event": "pull_request",
+            "status": "completed",
+            "conclusion": "failure",
+            "name": "Requirements Evidence",
+            "path": ".github/workflows/requirements-evidence.yml",
+            "repository": {"full_name": repository},
+        },
+    )
+    artifacts_path = tmp_path / "artifacts.json"
+    _write_json(
+        artifacts_path,
+        {
+            "artifacts": [
+                {
+                    "id": 22,
+                    "name": "requirements-evidence",
+                    "expired": False,
+                    "digest": f"sha256:{'c' * 64}",
+                    "workflow_run": {"id": 11, "head_sha": history.red_ref},
+                }
+            ]
+        },
+    )
+    return event_path, run_path, artifacts_path
+
+
+def _late_red_fixture(
+    tmp_path: Path,
+    *,
+    invalid_failed_selectors: bool = False,
+    governed_red_path: bool = False,
+    stale_selected_test: bool = False,
+) -> tuple[list[str], Path, Path]:
+    """Create one exact test-only RED cycle plus live-metadata-shaped inputs."""
+    history = _create_late_red_history(tmp_path, governed_red_path=governed_red_path)
+
+    artifact = _write_late_red_artifact(tmp_path, history)
+
+    manifest_path = _write_late_red_manifest(history, artifact, invalid_failed_selectors=invalid_failed_selectors)
+    final_ref = _finalize_late_red_history(history, stale_selected_test=stale_selected_test)
+
+    event_path, run_path, artifacts_path = _write_late_red_metadata(tmp_path, history, final_ref)
+    output_path = tmp_path / "normalized" / "red.json"
+    arguments = [
+        str(REPO_ROOT / "scripts" / "requirements_late_red_proof.py"),
+        "--manifest",
+        str(manifest_path),
+        "--event",
+        str(event_path),
+        "--red-run",
+        str(run_path),
+        "--red-artifacts",
+        str(artifacts_path),
+        "--red-artifact-root",
+        str(artifact.root),
+        "--repo-root",
+        str(history.repo_root),
+        "--cycle-base-ref",
+        history.cycle_base,
+        "--final-ref",
+        final_ref,
+        "--trusted-provenance",
+        str(REPO_ROOT / "scripts" / "requirements_proof_provenance.py"),
+        "--output",
+        str(output_path),
+    ]
+    return arguments, output_path, run_path
 
 
 def _assert_fixture_contract(workflow: dict[str, object]) -> None:
@@ -469,6 +733,138 @@ def test_fresh_consumer_reconciles_evidence_after_candidate_tests() -> None:
 
     _assert_fresh_consumer_order(workflow, outputs, permissions)
     _assert_fresh_reconciliation_command(workflow)
+
+
+def test_fresh_consumer_selects_review_evidence_for_changed_active_change() -> None:
+    """Multiple active records cannot hide the one active change amended by the PR."""
+    workflow = yaml.load(
+        (REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml").read_text(encoding="utf-8"),
+        Loader=yaml.BaseLoader,
+    )
+    reconcile = _step_by_name(workflow, "Reconcile Requirements evidence on fresh runner")["run"]
+    assert isinstance(reconcile, str)
+
+    required_fragments = (
+        'consumer_change_paths_file="${RUNNER_TEMP}/consumer-change-paths.z"',
+        'git diff --name-only -z --diff-filter=ACMR "$evidence_base_commit..$source_ref" -- openspec/changes/',
+        "declare -A consumer_changed_change_ids=()",
+        "openspec/changes/archive/*) continue ;;",
+        'consumer_changed_change_ids["$change_id"]=1',
+        'if [[ "${#consumer_changed_change_ids[@]}" -eq 1 ]]; then',
+        'review_evidence_paths+=("openspec/changes/${selected_change}/requirements-proof/review-evidence.json")',
+    )
+    assert all(fragment in reconcile for fragment in required_fragments)
+    assert reconcile.index("consumer_changed_change_ids") < reconcile.index("active_review_evidence")
+
+
+def test_code_review_closure_recheck_uses_isolated_trusted_interpreter() -> None:
+    """Both frozen-graph checks reject repository startup hooks before isolated installs."""
+    workflow = yaml.load(
+        (REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml").read_text(encoding="utf-8"),
+        Loader=yaml.BaseLoader,
+    )
+    consumer_steps = {
+        cast(str, step.get("name")): step
+        for job, _, step in _workflow_steps(workflow)
+        if job == "requirements-evidence"
+    }
+    verify = consumer_steps["Verify frozen Requirements graph"]["run"]
+    install = _step_by_name(workflow, "Install frozen Code Review tools")["run"]
+    assert isinstance(verify, str)
+    assert isinstance(install, str)
+
+    isolated_bootstrap = '"${REQUIREMENTS_VERIFIER_ROOT}/bin/python" -I -S -c'
+    for command in (verify, install):
+        assert isolated_bootstrap in command
+        assert '"$verifier_site"' in command
+        assert '"$TRUSTED_DELIVERY_VERIFIER"' in command
+        assert "python scripts/check_reproducible_delivery.py" not in command
+
+
+def _assert_late_red_workflow_contract(workflow: dict[str, object]) -> None:
+    commands = "\n".join(
+        cast(str, step.get("run", "")) for _, _, step in _workflow_steps(workflow) if isinstance(step.get("run"), str)
+    )
+    required_fragments = (
+        "SPECFACT_TRUSTED_REQUIREMENTS_AUTHORITY_V1",
+        "nold-ai/.github",
+        "trusted_requirements_authority.py",
+        'test "$(git -C "$trusted_policy_root" rev-parse HEAD)" = "$trusted_policy_commit"',
+        "requirements_late_red_proof.py",
+        "requirements-proof/late-red-evidence.json",
+        "actions/runs/${late_red_run_id}",
+        "actions/runs/${late_red_run_id}/artifacts",
+        "artifact-ids: ${{ steps.late-red.outputs.artifact-id }}",
+        "--cycle-base-ref",
+        "--final-ref",
+        "--event",
+        "--red-run",
+        "--red-artifacts",
+        "--red-artifact-root",
+        "--output",
+    )
+    assert all(fragment in commands for fragment in required_fragments)
+    assert commands.count("trusted_requirements_authority.py") >= 2
+    assert commands.count("requirements_late_red_proof.py") >= 2
+    for job_name in ("requirements-evidence-producer", "requirements-evidence"):
+        steps = [step for job, _, step in _workflow_steps(workflow) if job == job_name]
+        names = [step.get("name") for step in steps]
+        authority_index = names.index("Validate exact final Requirements authority")
+        download_index = names.index("Download exact late RED artifact")
+        normalize_index = names.index("Normalize exact late RED proof")
+        assert authority_index < download_index < normalize_index
+        assert "continue-on-error" not in steps[authority_index]
+        normalize = steps[normalize_index]
+        assert normalize.get("env", {}).get("GH_TOKEN") is None  # type: ignore[union-attr]
+        assert normalize.get("env", {}).get("GITHUB_TOKEN") is None  # type: ignore[union-attr]
+
+
+def _assert_late_red_happy_path(tmp_path: Path) -> None:
+    arguments, output_path, _run_path = _late_red_fixture(tmp_path)
+    accepted = subprocess.run([sys.executable, *arguments], check=False, capture_output=True, text=True)
+    assert accepted.returncode == 0, accepted.stderr
+    normalized = json.loads(output_path.read_text(encoding="utf-8"))
+    assert normalized["gate_decision"] == "pass"
+    assert normalized["observed_maturity"] == "red"
+    assert normalized["execution_proof"]["run_stage"] == "red"
+    assert normalized["execution_proof"]["source_tree"]
+    assert normalized["execution_proof"]["merge_base"]
+    assert normalized["execution_proof"]["test_file_digests"]
+    assert normalized["execution_proof"]["toolchain_identity"]
+    assert len(normalized["execution_proof"]["selectors"]) == 2
+    assert output_path.with_suffix(".xml").is_file()
+
+
+def _assert_late_red_rejections(tmp_path: Path) -> None:
+    arguments, _, run_path = _late_red_fixture(tmp_path / "wrong-run")
+
+    run = json.loads(run_path.read_text(encoding="utf-8"))
+    run["head_sha"] = "0" * 40
+    _write_json(run_path, run)
+    rejected = subprocess.run([sys.executable, *arguments], check=False, capture_output=True, text=True)
+    assert rejected.returncode == 1
+    assert rejected.stderr == "late-red-proof-invalid\n"
+
+    for name, options in (
+        ("wrong-failures", {"invalid_failed_selectors": True}),
+        ("production-red", {"governed_red_path": True}),
+        ("stale-test", {"stale_selected_test": True}),
+    ):
+        invalid_arguments, _, _ = _late_red_fixture(tmp_path / name, **options)
+        invalid = subprocess.run([sys.executable, *invalid_arguments], check=False, capture_output=True, text=True)
+        assert invalid.returncode == 1
+        assert invalid.stderr == "late-red-proof-invalid\n"
+
+
+def test_late_amendment_requires_exact_authority_bound_red_artifact(tmp_path: Path) -> None:
+    """A late RED lane remains final-tree-bound, exact, live, and fail closed."""
+    workflow = yaml.load(
+        (REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml").read_text(encoding="utf-8"),
+        Loader=yaml.BaseLoader,
+    )
+    _assert_late_red_workflow_contract(workflow)
+    _assert_late_red_happy_path(tmp_path / "accepted")
+    _assert_late_red_rejections(tmp_path / "rejected")
 
 
 def test_fresh_consumer_authenticates_retained_red_run_and_artifact() -> None:

@@ -30,9 +30,12 @@ request, branch, commit, and tree.
   downloads retained evidence by immutable artifact identity.
 - Make that fresh consumer independently execute the base-authenticated proof
   plan and reconcile only its own JUnit instead of trusting producer results.
+- Permit one review-driven late amendment to use a test-only RED segment from
+  an exact verified cycle base, bound to live run/artifact metadata and an
+  expiring member authority for the final pull-request commit and tree.
 - Archive completed change #689 and release the next patch version, 0.55.4.
-- Do not replay PR #698's amendment cycles, final-producer authority, expanded
-  AST provenance framework, or systemd executor.
+- Do not replay PR #698's general amendment subsystem, final-producer authority,
+  expanded AST provenance framework, or systemd executor.
 
 ## Capabilities
 

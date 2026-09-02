@@ -12,6 +12,7 @@
 - [x] 2.2 Author compact spec deltas for the dependency, cache, archive, license, and proof boundaries.
 - [x] 2.3 Add focused tests derived from every scenario and record failing-before evidence against the unmodified implementation.
 - [x] 2.4 Generate the test-authored Requirements mapping and obtain one approval only after its digest is stable.
+- [ ] 2.5 Add one mapped review-amendment cycle for the remaining P1/P2 findings and retain its exact RED artifact.
 
 ## 3. Minimal implementation
 
@@ -22,6 +23,7 @@
 - [x] 3.5 Apply the narrow authority diagnostic, pytest bootstrap, credential-free proof, fresh-runner exact-head review handoff, and `rg --` fixes.
 - [x] 3.6 Disable Python site startup for proof validators, bind prefetched inputs across test execution, and make authority/pre-commit Git path parsing NUL-safe.
 - [x] 3.7 Re-execute the authenticated plan on the fresh consumer and reconcile only its consumer-generated JUnit.
+- [ ] 3.8 Bind the late RED artifact to live GitHub metadata and the expiring exact-tree member authority without importing the superseded amendment subsystem.
 
 ## 4. Passing evidence and review
 
@@ -31,6 +33,7 @@
 - [x] 4.4 Obtain independent security-diff and code review on the exact final tree; resolve every P1/P2 or documented false positive.
 - [x] 4.5 Review docs, README, landing page, and navigation; update only dependency trust and release notes because no public behavior changes.
 - [x] 4.6 Re-run independent security bypass review and the full applicable gates after the consumer-proof correction.
+- [ ] 4.7 Re-run independent review and all applicable gates after the final review-amendment correction.
 
 ## 5. Release and delivery
 
