@@ -25,7 +25,6 @@
 - [x] 3.7 Re-execute the authenticated plan on the fresh consumer and reconcile only its consumer-generated JUnit.
 - [x] 3.8 Bind the late RED artifact to live GitHub metadata and the expiring exact-tree member authority without importing the superseded amendment subsystem.
 - [x] 3.9 Restore candidate `src/` imports after trusted pytest initialization and document the approved non-hostile same-process proof boundary.
-- [x] 3.10 Pin isolated pytest to the authenticated repository root so JUnit retains canonical repository-relative selector identities.
 
 ## 4. Passing evidence and review
 
@@ -36,7 +35,6 @@
 - [x] 4.5 Review docs, README, landing page, and navigation; update only dependency trust and release notes because no public behavior changes.
 - [x] 4.6 Re-run independent security bypass review and the full applicable gates after the consumer-proof correction.
 - [x] 4.7 Re-run independent review and all applicable gates after the final review-amendment correction.
-- [x] 4.8 Re-run independent review and all applicable gates after the canonical-selector compatibility correction.
 
 ## 5. Release and delivery
 

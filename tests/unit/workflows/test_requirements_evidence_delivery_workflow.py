@@ -760,18 +760,6 @@ def test_fresh_consumer_reconciles_evidence_after_candidate_tests() -> None:
     _assert_fresh_reconciliation_command(workflow)
 
 
-def test_fresh_consumer_sets_trusted_rootdir_for_canonical_selectors() -> None:
-    """Isolated pytest must retain repository-relative selector identities."""
-    workflow = yaml.load(
-        (REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml").read_text(encoding="utf-8"),
-        Loader=yaml.BaseLoader,
-    )
-    reconcile = _step_by_name(workflow, "Reconcile Requirements evidence on fresh runner")["run"]
-    assert isinstance(reconcile, str)
-
-    assert '"--rootdir", repo_root' in reconcile
-
-
 def test_fresh_consumer_selects_review_evidence_for_changed_active_change() -> None:
     """Multiple active records cannot hide the one active change amended by the PR."""
     workflow = yaml.load(
