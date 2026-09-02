@@ -6,12 +6,12 @@ import importlib.util
 import json
 import subprocess
 import sys
-import sysconfig
 import tomllib
 import xml.etree.ElementTree as ElementTree
 from pathlib import Path
 from typing import Any, cast
 
+import pytest
 import yaml
 
 
@@ -79,7 +79,7 @@ def _run_isolated_guard(tmp_path: Path, junit_name: str, disable_conftest: bool)
             "-S",
             "-c",
             _ISOLATED_PYTEST_BOOTSTRAP,
-            sysconfig.get_path("purelib"),
+            str(Path(pytest.__file__).resolve().parent.parent),
             str(tmp_path),
             str(junit_path),
             str(int(disable_conftest)),
