@@ -221,7 +221,7 @@ def test_required_requirements_check_cannot_be_manually_dispatched() -> None:
     workflow = _workflow(".github/workflows/requirements-evidence.yml")
     assert set(_on_block(workflow)) == {"pull_request"}
     jobs = cast(dict[str, Any], workflow["jobs"])
-    assert cast(dict[str, Any], jobs["requirements-evidence"])["name"] == "Requirements evidence"
+    assert cast(dict[str, Any], jobs["requirements-evidence-final"])["name"] == "Requirements evidence"
 
 
 def test_requirements_proof_step_has_no_github_token_ancestor() -> None:
@@ -263,7 +263,7 @@ def test_fresh_consumer_reexecutes_trusted_plan() -> None:
             "sys.modules[executor_spec.name] = trusted_executor",
             "trusted_executor.selectors_from_plan(",
             'os.environ["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"',
-            "plugins=[trusted_plugin]",
+            "plugins=[trusted_plugin, trusted_plugin_policy]",
             '--junit "$consumer_junit"',
         ),
     )

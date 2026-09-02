@@ -435,7 +435,7 @@ def test_required_requirements_context_is_pull_request_only() -> None:
     assert isinstance(jobs, dict)
 
     assert set(workflow["on"]) == {"pull_request"}
-    assert jobs["requirements-evidence"]["name"] == "Requirements evidence"
+    assert jobs["requirements-evidence-final"]["name"] == "Requirements evidence"
     producer = _step_by_name(workflow, "Run Requirements evidence gate")
     review = _step_by_name(workflow, "Run Code Review with finalized Requirements context")
     assert producer["env"]["EVIDENCE_BASE_BRANCH"] == "${{ github.base_ref }}"  # type: ignore[index]
@@ -690,7 +690,7 @@ def _assert_reconciliation_fragments(reconcile: str) -> None:
         "sys.modules[executor_spec.name] = trusted_executor",
         "trusted_executor.selectors_from_plan(",
         'os.environ["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"',
-        "plugins=[trusted_plugin]",
+        "plugins=[trusted_plugin, trusted_plugin_policy]",
         '"--noconftest"',
         '--junit "$consumer_junit"',
     )
@@ -1200,9 +1200,13 @@ def _assert_review_job_boundary(parsed: dict[str, object], review: dict[str, obj
     """Require the protected context to be emitted only by the fresh final job."""
     jobs = cast(dict[str, object], parsed["jobs"])
     producer = cast(dict[str, object], jobs["requirements-evidence-producer"])
-    final = cast(dict[str, object], jobs["requirements-evidence"])
+    execution = cast(dict[str, object], jobs["requirements-evidence"])
+    final = cast(dict[str, object], jobs["requirements-evidence-final"])
+    assert execution["name"] == "Requirements evidence execution"
+    assert execution["needs"] == "requirements-evidence-producer"
+    assert execution["if"] == "always()"
     assert final["name"] == "Requirements evidence"
-    assert final["needs"] == "requirements-evidence-producer"
+    assert final["needs"] == "requirements-evidence"
     assert final["if"] == "always()"
     assert "if" not in review
     assert producer["outputs"] == {
