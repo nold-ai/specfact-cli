@@ -26,6 +26,9 @@ and `requirements/ci/locked.txt`. The seventh, Ruby JSON, is already fixed on
 - Upgrade already-safe Twine, pip, Hatchling, Setuptools, or Ruby JSON versions.
 - Rebuild PR #698's general amendment, provenance-parser, or process-isolation
   architecture.
+- Claim containment of intentionally hostile mapped tests or production code
+  inside the same pytest process; that requires a separately scoped isolation
+  architecture.
 - Change modules, internal wiki PR #38, or C14/C15 worktrees.
 
 ## Decisions
@@ -95,6 +98,17 @@ selects the changed active OpenSpec change with the same path basis as the
 producer, both frozen-closure checks use the isolated trusted interpreter, and
 the combined execution/reconciliation step has a 12-minute fail-closed timeout.
 
+This is not a Python sandbox. The approved mapped tests and the candidate
+production code they intentionally import execute with the same process
+authority as pytest and its JUnit writer. They are therefore review-trusted and
+assumed not to deliberately tamper with pytest, its exit status, or the JUnit
+channel. The fresh-consumer boundary protects against producer-uploaded results,
+repository pytest configuration and plugins, Python startup injection,
+credential inheritance, stale external evidence, and mutation of the later
+Code Review runner. Containing intentionally hostile same-process Python would
+require a separately designed external isolation boundary and is outside this
+patch release.
+
 ## Risks / Trade-offs
 
 - CI may be slower without persistent caches. Frozen installs remain
@@ -104,6 +118,10 @@ the combined execution/reconciliation step has a 12-minute fail-closed timeout.
 - Git archive logic can reject unusual-but-legitimate moves. Exact positive and
   negative fixtures cover ordinary edits, native archives, partial moves,
   fabricated copies, and command failures.
+- Intentionally hostile mapped tests or imported production code can interfere
+  with their own pytest process. Mandatory static and human review enforce the
+  non-hostile-code assumption; a future hostile-code threat model requires an
+  external execution boundary rather than additional in-process guards.
 
 ## Release and rollback
 

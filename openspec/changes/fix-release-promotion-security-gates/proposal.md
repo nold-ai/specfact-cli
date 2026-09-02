@@ -29,7 +29,9 @@ request, branch, commit, and tree.
   runner that authenticates the exact head and installs frozen tools before it
   downloads retained evidence by immutable artifact identity.
 - Make that fresh consumer independently execute the base-authenticated proof
-  plan and reconcile only its own JUnit instead of trusting producer results.
+  plan and reconcile only its own JUnit instead of trusting producer-uploaded
+  results, within the explicit assumption that reviewed mapped tests and the
+  production code they import do not deliberately attack the pytest process.
 - Permit one review-driven late amendment to use a test-only RED segment from
   an exact verified cycle base, bound to live run/artifact metadata and an
   expiring member authority for the final pull-request commit and tree.
@@ -56,7 +58,10 @@ request, branch, commit, and tree.
 - **Security:** clears six duplicate MCP alert manifestations without an
   exception and removes the shared CodeQL cache sink. The CodeQL exploit path is
   unproven on the current immutable fixture, so the cache change is classified
-  as fail-closed hardening rather than a confirmed compromise.
+  as fail-closed hardening rather than a confirmed compromise. Requirements
+  execution isolates producer artifacts, configuration, plugins, startup hooks,
+  credentials, and the later review runner; it is not a sandbox for intentionally
+  hostile Python executed inside pytest.
 - **Compatibility:** no core runtime dependency or public CLI/API changes.
   Twine 7.0.0, Hatchling 1.32.0, Setuptools `<85`, pip 26.2.1, and Ruby JSON
   2.21.2 are already present and unchanged on `dev`.

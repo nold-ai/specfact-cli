@@ -228,5 +228,34 @@ Final review-amendment correction, 2026-09-02 19:52 Europe/Berlin:
   deletions in consumer selection, and limited the #703 late-RED lane to its
   exact PR and branch. The ordinary fresh final re-plan, reconciliation, and
   Code Review boundary remains active for later pull requests. The full staged
-  pre-commit pipeline and an independent final boundary review then passed with
-  no remaining P0-P2 findings.
+  pre-commit pipeline passed before the exact-head push.
+
+Same-process proof boundary and exact-head compatibility, 2026-09-02 20:44 Europe/Berlin:
+
+- GitHub Requirements Evidence run `33667861056` authenticated the exact member
+  authority and completed its producer, then the fresh execution job failed the
+  approved `test_doc_owner_rg_terminates_options` selector because isolated
+  pytest could not import the candidate checkout's `src/specfact_cli` package.
+- The compatibility correction appends `repo_root/src` only after installed
+  pytest and the authenticated proof plugin are loaded. An exact isolated
+  reproduction changed from the run's `ModuleNotFoundError` to one passing
+  selector; the expanded focused workflow/security set passed 94/94.
+- Two independent reviews then confirmed that consumer-generated JUnit does not
+  provide sandbox integrity against intentionally hostile Python executing in
+  the same pytest process. Approved test bytes and retained RED prove test-first
+  provenance, but imported final production code has the same process authority
+  as the JUnit writer.
+- The user selected the narrow, explicit trust model: mapped tests and imported
+  production code are review-trusted and assumed not to tamper deliberately with
+  pytest, its exit status, or JUnit. The gate continues to protect producer
+  artifacts, exact plans, pytest configuration and plugins, startup hooks,
+  credentials, prefetched evidence, and the separate final review runner. A
+  hostile-code sandbox is outside this patch and would require an external
+  execution boundary, not another in-process guard.
+- The full exact-working-tree repository suite passed 3,085 tests with 9
+  documented skips and no failures in 142.57 seconds.
+- The full staged pre-commit pipeline, strict OpenSpec validation, and both
+  frozen-set security audits passed. A fresh independent bypass/regression
+  review reported no P0-P2 finding within the selected model and confirmed the
+  retained isolation, configuration, plugin, credential, artifact, plan,
+  timeout, and fresh-runner controls.

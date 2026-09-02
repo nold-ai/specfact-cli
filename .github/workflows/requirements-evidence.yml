@@ -1373,6 +1373,7 @@ jobs:
                   config.pluginmanager.consider_module = reject_candidate_plugins
 
           trusted_plugin_policy = TrustedPluginPolicy()
+          sys.path.append(os.path.join(repo_root, "src"))
           sys.path.append(repo_root)
           raise SystemExit(
               pytest.main(

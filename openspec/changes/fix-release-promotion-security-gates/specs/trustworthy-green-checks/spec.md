@@ -35,7 +35,10 @@ SHALL run final Code Review in a separate fresh job and runner from candidate
 proof execution. That review job SHALL clean-checkout and authenticate the exact
 pull-request head, recreate and validate its frozen review environment before
 downloading proof data, and consume the producer artifact by immutable artifact
-identity.
+identity. Mapped tests and the production code they intentionally import SHALL be
+review-trusted and assumed not to deliberately tamper with the same-process
+pytest runner, its exit status, or its JUnit channel. This requirement SHALL NOT
+claim sandbox containment of intentionally hostile Python executed by pytest.
 
 #### Scenario: Proof tests cannot mutate the later review toolchain
 
@@ -70,15 +73,16 @@ identity.
 - **AND** the workflow run head, artifact run/head metadata, and proof source commit SHALL match exactly
 - **AND** any missing or changed byte or identity SHALL fail closed.
 
-#### Scenario: Fresh reconciliation executes the trusted plan independently
+#### Scenario: Fresh reconciliation executes the trusted plan independently of producer results
 
-- **GIVEN** the producer executor, proof plugin, dependency graph, and uploaded JUnit are candidate-controlled inputs
+- **GIVEN** producer-side executors, proof plugins, dependency graphs, and uploaded JUnit are untrusted inputs
+- **AND** the approved mapped tests and imported production code follow the documented non-hostile same-process assumption
 - **WHEN** the required Requirements context evaluates final mapped proof
 - **THEN** the fresh consumer SHALL derive and validate the exact plan with authenticated base-branch proof code
 - **AND** SHALL independently execute every selected test with installed pytest and the authenticated base-branch proof plugin
 - **AND** SHALL disable candidate conftest discovery, candidate pytest configuration, and candidate `addopts`
 - **AND** SHALL bound proof execution time
-- **AND** SHALL reconcile only the consumer-generated JUnit so producer-authored pass results cannot mint the final verdict.
+- **AND** SHALL reconcile only the consumer-generated JUnit so producer-uploaded pass results alone cannot mint the final verdict.
 
 #### Scenario: Fresh reconciliation selects the producer's active change
 
