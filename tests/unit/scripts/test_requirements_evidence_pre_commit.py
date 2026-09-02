@@ -173,6 +173,24 @@ def test_pre_commit_preserves_tabbed_staged_evidence_paths(tmp_path: Path) -> No
     assert result.stdout.split(b"\0") == [b"src/tab\tpath.py", b""]
 
 
+def test_pre_commit_routes_tabbed_python_path_to_lint_and_review(tmp_path: Path) -> None:
+    """One unusual governed path cannot skip either Python enforcement consumer."""
+    subprocess.run(["git", "init", "--quiet"], cwd=tmp_path, check=True)
+    relative_path = "src/tab\tpath.py"
+    staged_path = tmp_path / relative_path
+    staged_path.parent.mkdir()
+    staged_path.write_text("print('proof')\n", encoding="utf-8")
+    subprocess.run(["git", "add", "--", relative_path], cwd=tmp_path, check=True)
+
+    pre_commit_library = _pre_commit_text().removesuffix('\nmain "$@"\n')
+    python_result = _run_pre_commit_function(tmp_path, pre_commit_library, "has_staged_python")
+    review_result = _run_pre_commit_function(tmp_path, pre_commit_library, "staged_review_gate_files")
+
+    assert python_result.returncode == 0, python_result.stderr
+    assert review_result.returncode == 0, review_result.stderr
+    assert review_result.stdout == f"{relative_path}\n"
+
+
 def _committed_active_change(tmp_path: Path) -> tuple[Path, str]:
     """Create the committed active-change fixture used by archive-selection checks."""
     subprocess.run(["git", "init", "--quiet"], cwd=tmp_path, check=True)

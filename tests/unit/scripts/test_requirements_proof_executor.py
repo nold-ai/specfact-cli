@@ -154,6 +154,30 @@ def test_executor_accepts_existing_exact_selectors_and_uses_argument_array(
     _assert_environment_contract(captured)
 
 
+def test_executor_disables_site_startup_before_pytest_bootstrap(tmp_path: Path) -> None:
+    """Repository-influenced .pth and sitecustomize hooks cannot run before pytest is resolved."""
+    module = _load_executor_module()
+    _write_selected_test(tmp_path)
+    captured: ProofCommand | None = None
+
+    def capture_command(command: ProofCommand) -> int:
+        nonlocal captured
+        captured = command
+        return 0
+
+    assert (
+        module.execute_plan(
+            _plan("tests/test_proof.py::test_selected"),
+            tmp_path,
+            tmp_path / "artifacts" / "proof.xml",
+            command_runner=capture_command,
+        )
+        == 0
+    )
+    assert captured is not None
+    assert "-S" in captured.arguments[1 : captured.arguments.index("-c")]
+
+
 def test_executor_rejects_unsafe_selectors_before_spawning(tmp_path: Path) -> None:
     """Path escapes, option injection, globs, and shell syntax are never executable."""
     module = _load_executor_module()

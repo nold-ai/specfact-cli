@@ -58,9 +58,13 @@ enumeration is status-checked so an error cannot become an empty successful set.
 
 ### Keep proof hardening narrow
 
-The executor uses isolated-path mode and imports installed pytest before adding
-the repository root. Bootstrap authority preserves only stable public
-diagnostics. The organization-required workflow supplies external exact-tree
+The executor and security validators disable Python site startup, add the exact
+installed dependency directory without processing `.pth` files, and import
+installed pytest before adding the repository root. Prefetched proof and
+authority inputs are digest-bound across candidate test execution. Bootstrap
+authority rejects nonlinear red history and parses Git paths through checked
+NUL-delimited records. Local staged-path consumers use the same NUL-safe
+inventory. The organization-required workflow supplies external exact-tree
 authorization, so no PR-local amendment subsystem is introduced.
 
 The Requirements workflow resolves one merge-base object ID, removes GitHub

@@ -52,6 +52,28 @@ identity.
 - **THEN** a separate bounded step MAY retrieve the fixed metadata with a token
 - **AND** the proof-producing step and its child processes SHALL NOT receive `GH_TOKEN` or `GITHUB_TOKEN`.
 
+#### Scenario: Proof validators cannot inherit repository startup hooks
+
+- **GIVEN** the checked-out repository and its selected tests are untrusted proof inputs
+- **WHEN** the workflow starts the proof executor, provenance validator, or bootstrap-authority validator
+- **THEN** Python site startup, `.pth` files, and `sitecustomize` SHALL be disabled before repository bytes execute
+- **AND** installed proof dependencies SHALL be added explicitly without processing repository-controlled startup hooks.
+
+#### Scenario: Candidate tests cannot replace prefetched external evidence
+
+- **GIVEN** retained proof or one-time authority bytes are fetched before candidate tests execute
+- **WHEN** those bytes are consumed after the test process returns
+- **THEN** the workflow SHALL verify their exact prefetched digests immediately before consumption
+- **AND** any missing or changed byte SHALL fail closed.
+
+#### Scenario: Governed paths remain exact across local and external history checks
+
+- **GIVEN** Git permits paths containing tabs or other characters that text output quotes
+- **WHEN** bootstrap history or staged pre-commit paths are classified
+- **THEN** every Git record SHALL be status-checked and parsed as NUL-delimited bytes
+- **AND** bootstrap red history containing a merge commit SHALL fail closed
+- **AND** every staged Python path SHALL reach both lint and Code Review classification.
+
 #### Scenario: Required Requirements context cannot be manually minted
 
 - **GIVEN** branch protection requires the `Requirements evidence` GitHub Actions context

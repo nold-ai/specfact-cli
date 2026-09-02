@@ -20,6 +20,7 @@
 - [x] 3.3 Bind Code Review lock/trust/license policy to the exact isolated environment and regenerated closure.
 - [x] 3.4 Make archive selection and Git error handling fail closed; preserve legitimate active edits and native archives.
 - [x] 3.5 Apply the narrow authority diagnostic, pytest bootstrap, credential-free proof, fresh-runner exact-head review handoff, and `rg --` fixes.
+- [ ] 3.6 Disable Python site startup for proof validators, bind prefetched inputs across test execution, and make authority/pre-commit Git path parsing NUL-safe.
 
 ## 4. Passing evidence and review
 

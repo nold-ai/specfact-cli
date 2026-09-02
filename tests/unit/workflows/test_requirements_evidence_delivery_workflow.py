@@ -328,6 +328,44 @@ def test_requirements_evidence_workflow_fails_when_executor_omits_junit(tmp_path
     assert result.returncode != 0
 
 
+def test_requirements_evidence_workflow_disables_site_startup_for_security_validators() -> None:
+    """Repository startup hooks cannot run before proof or authority validation."""
+    workflow = yaml.load(
+        (REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml").read_text(encoding="utf-8"),
+        Loader=yaml.BaseLoader,
+    )
+    run_evidence = _step_by_name(workflow, "Run Requirements evidence gate")["run"]
+    prepare_authority = _step_by_name(workflow, "Prepare one-time Requirements bootstrap authority")["run"]
+
+    assert isinstance(run_evidence, str)
+    assert isinstance(prepare_authority, str)
+    assert "isolated_python=(python -I -S -c" in run_evidence
+    assert '"${isolated_python[@]}" scripts/requirements_proof_executor.py' in run_evidence
+    assert "isolated_python=(python -I -S -c" in prepare_authority
+    assert '"${isolated_python[@]}" scripts/requirements_bootstrap_authority.py' in run_evidence
+
+
+def test_requirements_evidence_workflow_rechecks_prefetched_proof_bytes_after_tests() -> None:
+    """Candidate tests cannot replace prefetched external proof or authority inputs."""
+    workflow = yaml.load(
+        (REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml").read_text(encoding="utf-8"),
+        Loader=yaml.BaseLoader,
+    )
+    run_evidence = _step_by_name(workflow, "Run Requirements evidence gate")["run"]
+    prepare_authority = _step_by_name(workflow, "Prepare one-time Requirements bootstrap authority")["run"]
+
+    assert isinstance(run_evidence, str)
+    assert isinstance(prepare_authority, str)
+    assert "prior_red_report_digest" in run_evidence
+    assert "prior_red_junit_digest" in run_evidence
+    assert "Retained red proof changed during candidate test execution." in run_evidence
+    assert "bootstrap_authority_manifest.sha256" in prepare_authority
+    assert "sha256sum --check --strict" in run_evidence
+    assert run_evidence.index("sha256sum --check --strict") < run_evidence.index(
+        "scripts/requirements_bootstrap_authority.py"
+    )
+
+
 def test_requirements_evidence_workflow_ignores_archived_review_evidence() -> None:
     """Archived moves are ignored without allowing deletion-only evidence bypasses."""
     command = _run_evidence_command()
