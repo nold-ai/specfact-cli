@@ -57,14 +57,18 @@ identity.
 - **GIVEN** the checked-out repository and its selected tests are untrusted proof inputs
 - **WHEN** the workflow starts the proof executor, provenance validator, or bootstrap-authority validator
 - **THEN** Python site startup, `.pth` files, and `sitecustomize` SHALL be disabled before repository bytes execute
-- **AND** installed proof dependencies SHALL be added explicitly without processing repository-controlled startup hooks.
+- **AND** installed proof dependencies SHALL be added explicitly without processing repository-controlled startup hooks
+- **AND** any isolated install from `requirements/ci/locked.txt` SHALL follow successful proof that it is the exact reproducible closure of `uv.lock`.
 
 #### Scenario: Candidate tests cannot replace prefetched external evidence
 
 - **GIVEN** retained proof or one-time authority bytes are fetched before candidate tests execute
 - **WHEN** those bytes are consumed after the test process returns
 - **THEN** the workflow SHALL verify their exact prefetched digests immediately before consumption
-- **AND** any missing or changed byte SHALL fail closed.
+- **AND** retained red proof SHALL be authenticated against the completed failing Requirements workflow run for the same repository and pull-request branch
+- **AND** SHALL download exactly one unexpired Requirements artifact by its immutable artifact identity
+- **AND** the workflow run head, artifact run/head metadata, and proof source commit SHALL match exactly
+- **AND** any missing or changed byte or identity SHALL fail closed.
 
 #### Scenario: Governed paths remain exact across local and external history checks
 

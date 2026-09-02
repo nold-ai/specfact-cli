@@ -16,7 +16,7 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parents[3]
 APPROVED_MODULE_COMMIT = "69f075819be5e1ceca1446b026b0417f19e584ca"
 EVIDENCE_COMMAND_FRAGMENTS = (
-    "uv run --locked --no-sync specfact requirements evidence",
+    '"${isolated_specfact[@]}" requirements evidence',
     '--base-ref "$evidence_base_commit"',
     'evidence_base_commit="$(git merge-base "origin/${EVIDENCE_BASE_BRANCH}" HEAD)"',
     "required_maturity=planned",
@@ -48,7 +48,7 @@ EVIDENCE_COMMAND_FRAGMENTS = (
     '"${isolated_python[@]}" scripts/requirements_proof_provenance.py',
     '--final-ref "$EVIDENCE_FINAL_REF"',
     '--final-ref "$EVIDENCE_FINAL_REF" 2>&1)',
-    "uv run --locked --no-sync specfact requirements reconcile",
+    '"${isolated_specfact[@]}" requirements reconcile',
     "rm -f artifacts/requirements-evidence/requirements-evidence.json artifacts/requirements-evidence/requirements-evidence.md",
     '--run-stage "$run_stage"',
     '--source-ref "$EVIDENCE_FINAL_REF"',
@@ -133,7 +133,7 @@ def _assert_command_contract(workflow: dict[str, object]) -> None:
     assert run_evidence["env"]["EVIDENCE_BASE_BRANCH"]  # type: ignore[index]
     assert "workflow_dispatch" not in workflow["on"]  # type: ignore[operator]
     assert run_evidence["run"].count("clean_environment=(env -i") == 1  # type: ignore[union-attr]
-    assert run_evidence["run"].count('"${clean_environment[@]}" uv run --locked --no-sync') == 2  # type: ignore[union-attr]
+    assert run_evidence["run"].count('"${clean_environment[@]}" "${isolated_specfact[@]}"') == 2  # type: ignore[union-attr]
 
 
 def _assert_governed_trigger_contract(workflow: dict[str, object]) -> None:
@@ -339,9 +339,9 @@ def test_requirements_evidence_workflow_disables_site_startup_for_security_valid
 
     assert isinstance(run_evidence, str)
     assert isinstance(locate_red, str)
-    assert "isolated_python=(python -I -S -c" in run_evidence
+    assert 'isolated_python=("${REQUIREMENTS_VALIDATOR_ROOT}/bin/python" -I -S -c' in run_evidence
     assert '"${isolated_python[@]}" scripts/requirements_proof_executor.py' in run_evidence
-    assert "isolated_python=(python -I -S -c" in locate_red
+    assert 'isolated_python=("${REQUIREMENTS_VALIDATOR_ROOT}/bin/python" -I -S -c' in locate_red
     assert '"${isolated_python[@]}" scripts/requirements_proof_provenance.py' in locate_red
     assert '"${isolated_python[@]}" scripts/requirements_bootstrap_authority.py' in run_evidence
 
@@ -401,12 +401,74 @@ def test_fresh_consumer_reconciles_evidence_after_candidate_tests() -> None:
     assert '"${isolated_python[@]}"' in reconcile
     assert 'source_ref="$(git rev-parse HEAD)"' in reconcile
     assert 'evidence_base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" "$source_ref")"' in reconcile
-    assert "specfact requirements evidence" in reconcile
-    assert "specfact requirements reconcile" in reconcile
+    assert '"${isolated_specfact[@]}" requirements evidence' in reconcile
+    assert '"${isolated_specfact[@]}" requirements reconcile' in reconcile
     assert "requirements-evidence-consumer.json" in reconcile
     assert "requirements_proof_executor.py" not in reconcile
     assert "pytest" not in reconcile
     assert "--requirements-evidence artifacts/requirements-evidence/requirements-evidence-consumer.json" in review
+
+
+def test_fresh_consumer_authenticates_retained_red_run_and_artifact() -> None:
+    """Retained red bytes must be bound to the live run and immutable artifact identity."""
+    parsed = yaml.load(
+        (REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml").read_text(encoding="utf-8"),
+        Loader=yaml.BaseLoader,
+    )
+    locate = _step_by_name(parsed, "Locate retained red proof run")["run"]
+    authenticate = _step_by_name(parsed, "Authenticate retained red proof run")["run"]
+    download = _step_by_name(parsed, "Download retained red proof for validation")
+    reconcile = _step_by_name(parsed, "Reconcile Requirements evidence on fresh runner")["run"]
+    assert isinstance(locate, str)
+    assert isinstance(authenticate, str)
+    assert isinstance(reconcile, str)
+    download_with = cast(dict[str, str], download["with"])
+
+    assert '[[ "$conclusion" == "failure" ]]' in locate
+    for fragment in (
+        "actions/runs/${PRIOR_RED_RUN_ID}",
+        ".repository.full_name == $repository",
+        '.name == "Requirements Evidence"',
+        '.path == ".github/workflows/requirements-evidence.yml"',
+        '.event == "pull_request"',
+        '.status == "completed"',
+        '.conclusion == "failure"',
+        ".head_branch == $head_branch",
+        "actions/runs/${PRIOR_RED_RUN_ID}/artifacts",
+        ".workflow_run.id == $run_id",
+        ".workflow_run.head_sha == $head_sha",
+        ".expired == false",
+        '.name == "requirements-evidence"',
+        "artifact-id=$artifact_id",
+        "head-sha=$red_head_sha",
+    ):
+        assert fragment in authenticate
+    assert download_with["artifact-ids"] == "${{ steps.consumer-red.outputs.artifact-id }}"
+    assert download_with["run-id"] == "${{ needs.requirements-evidence-producer.outputs.prior-red-run-id }}"
+    assert 'proof_source_ref="$(jq -er ".execution_proof.source_ref" "$prior_red_proof")"' in reconcile
+    assert 'test "$proof_source_ref" = "$PRIOR_RED_HEAD_SHA"' in reconcile
+
+
+def test_isolated_requirements_installs_follow_reproducible_graph_proof() -> None:
+    """Each isolated CI-lock install must follow a successful closure proof in its job."""
+    parsed = yaml.load(
+        (REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml").read_text(encoding="utf-8"),
+        Loader=yaml.BaseLoader,
+    )
+    for install_name in (
+        "Create isolated Requirements validator environment",
+        "Create isolated Requirements consumer environment",
+    ):
+        install_job, install_index, _ = _step_location(parsed, install_name)
+        matching_proofs = [
+            (job, index, step)
+            for job, index, step in _workflow_steps(parsed)
+            if job == install_job and step.get("name") == "Verify frozen Requirements graph"
+        ]
+        assert len(matching_proofs) == 1
+        _, proof_index, proof = matching_proofs[0]
+        assert proof["run"] == "python scripts/check_reproducible_delivery.py"
+        assert proof_index < install_index
 
 
 def test_requirements_evidence_workflow_ignores_archived_review_evidence() -> None:
@@ -490,8 +552,8 @@ def _assert_code_review_handoff_command(command: object) -> None:
     """Keep the review command contract independently readable and bounded."""
     assert isinstance(command, str)
     expected_fragments = (
-        "uv run --locked --no-sync specfact code review run",
-        "--requirements-evidence artifacts/requirements-evidence/requirements-evidence.json",
+        '"${isolated_specfact[@]}" code review run',
+        "--requirements-evidence artifacts/requirements-evidence/requirements-evidence-consumer.json",
         "--enforcement full",
         "--include-tests",
         "--out artifacts/requirements-evidence/code-review.json",
@@ -531,7 +593,10 @@ def _assert_review_job_boundary(parsed: dict[str, object], review: dict[str, obj
     assert final["needs"] == "requirements-evidence-producer"
     assert final["if"] == "always()"
     assert "if" not in review
-    assert producer["outputs"] == {"artifact-id": "${{ steps.upload-requirements-evidence.outputs.artifact-id }}"}
+    assert producer["outputs"] == {
+        "artifact-id": "${{ steps.upload-requirements-evidence.outputs.artifact-id }}",
+        "prior-red-run-id": "${{ steps.prior-red-run.outputs.run-id }}",
+    }
 
 
 def _assert_review_artifact_binding(parsed: dict[str, object]) -> None:
