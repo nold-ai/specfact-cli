@@ -23,6 +23,8 @@ All notable changes to this project will be documented in this file.
 - **Review dependency boundaries:** authenticate the isolated Code Review lock
   against its source input and restrict its Pylint license exception to that
   exact environment.
+- **Requirements proof authority:** re-execute the base-authenticated proof plan
+  on the fresh consumer and reconcile only consumer-generated JUnit.
 
 ### Fixed
 

@@ -21,6 +21,7 @@
 - [x] 3.4 Make archive selection and Git error handling fail closed; preserve legitimate active edits and native archives.
 - [x] 3.5 Apply the narrow authority diagnostic, pytest bootstrap, credential-free proof, fresh-runner exact-head review handoff, and `rg --` fixes.
 - [x] 3.6 Disable Python site startup for proof validators, bind prefetched inputs across test execution, and make authority/pre-commit Git path parsing NUL-safe.
+- [x] 3.7 Re-execute the authenticated plan on the fresh consumer and reconcile only its consumer-generated JUnit.
 
 ## 4. Passing evidence and review
 
@@ -29,6 +30,7 @@
 - [x] 4.3 Run final pip-audit against both frozen sets and prove all three MCP CVEs no longer reproduce.
 - [x] 4.4 Obtain independent security-diff and code review on the exact final tree; resolve every P1/P2 or documented false positive.
 - [x] 4.5 Review docs, README, landing page, and navigation; update only dependency trust and release notes because no public behavior changes.
+- [x] 4.6 Re-run independent security bypass review and the full applicable gates after the consumer-proof correction.
 
 ## 5. Release and delivery
 

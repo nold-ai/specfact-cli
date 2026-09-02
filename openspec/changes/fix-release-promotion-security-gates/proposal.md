@@ -28,6 +28,8 @@ request, branch, commit, and tree.
 - Remove GitHub credentials from proof execution and run Code Review on a fresh
   runner that authenticates the exact head and installs frozen tools before it
   downloads retained evidence by immutable artifact identity.
+- Make that fresh consumer independently execute the base-authenticated proof
+  plan and reconcile only its own JUnit instead of trusting producer results.
 - Archive completed change #689 and release the next patch version, 0.55.4.
 - Do not replay PR #698's amendment cycles, final-producer authority, expanded
   AST provenance framework, or systemd executor.

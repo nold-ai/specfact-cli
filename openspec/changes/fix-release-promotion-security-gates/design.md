@@ -76,6 +76,16 @@ sites run the existing reproducible-delivery checker, which regenerates the
 constrained lock closure and rejects graph-extraneous packages before
 installation.
 
+The fresh consumer materializes the proof selector validator and JUnit plugin
+from that immutable merge-base, imports installed pytest before repository
+paths, and independently executes every selector in its regenerated plan. Final
+reconciliation consumes only this consumer-generated JUnit. The producer plan
+must still match the independently regenerated plan, but producer report and
+JUnit bytes are transport evidence rather than the final execution authority.
+Candidate `conftest.py` discovery is disabled so repository hooks cannot rewrite
+pytest outcomes, and the combined consumer execution/reconciliation step has a
+12-minute fail-closed timeout.
+
 ## Risks / Trade-offs
 
 - CI may be slower without persistent caches. Frozen installs remain

@@ -128,3 +128,56 @@ Ready-for-review corrections, 2026-09-02 12:30 Europe/Berlin:
 - The approved mapping and selected security-test bytes remain unchanged at
   `sha256:a28a89742e1b4f65d3eac1879b10c77632c2e4d906d96711e80ae9172ada6c36`
   and `sha256:923cbf836f4bc18c1167a57f8d81923bde807d6aaff6a614bf7d74543309de44`.
+
+Fresh-consumer execution correction, 2026-09-02 13:41 Europe/Berlin:
+
+- Independent review validated that the producer-controlled executor or proof
+  plugin could synthesize passing JUnit while the fresh consumer regenerated
+  only the plan and reconciled those producer bytes.
+- The new mapped consumer-execution contract was added before workflow changes.
+  Its focused run collected two tests and failed 2/2 because the consumer did
+  not materialize authenticated proof components, execute pytest, or produce
+  its own JUnit.
+- After implementation, the final focused workflow/security set passed 128/128.
+  A direct control materialized the executor and proof plugin from
+  `origin/dev@4fd96d6d804da70cc7ceca83b8adce21f7da561c`, independently executed
+  all 16 selectors from PR run `33623640940`, and wrote trusted JUnit with
+  16 passes. The first control also exposed and reproduced an invalid
+  `runpy` module name; a named, registered import replaced it and the control
+  then passed.
+- Final reconciliation now uses only `${RUNNER_TEMP}/requirements-proof-consumer.xml`.
+  The producer-report byte comparison was removed because its JUnit digest is
+  expected to differ from independently generated proof; exact plan equality
+  remains enforced.
+- The independent bypass review then reproduced a candidate `conftest.py` hook
+  changing a failing mapped assertion into exit-zero passing JUnit, and found
+  that the direct consumer call lacked the executor's time bound. The executable
+  hook control plus workflow contracts were added first and failed 3/3.
+  Consumer pytest now uses `--noconftest`, and its complete reconciliation step
+  has a 12-minute timeout; the same three checks then passed 3/3.
+- The first remote RED attempt exposed a test-fixture portability defect before
+  reaching the conftest control, so it is not counted as proof. The corrected
+  test-only RED commit is
+  `9a8cc901a6a84184de17b98c3280c67df0cc43ac` with tree
+  `b4780097f199075d149b00f95e9b49509ef89b32`.
+- GitHub Requirements Evidence run `33635003608` retained artifact
+  `9848403071` with service digest
+  `sha256:02fefa1834c74011652d415431e455ef841a81f2aed364ef49d1cdcd62c38e58`.
+  Its JUnit digest is
+  `sha256:c019fefe3e3fd6bf664e0a83557b4edae0158b9a37d4f61dd0b1f1ba9b3993b9`.
+  S16 failed because the pre-fix consumer did not materialize the trusted
+  executor/plugin; S17 first demonstrated that the malicious conftest forged
+  an exit-zero pass, then failed because the pre-fix workflow omitted
+  `--noconftest`.
+- Post-correction gates passed strict OpenSpec validation, Ruff formatting and
+  lint, BasedPyright with zero errors, actionlint, module signatures, both
+  frozen `pip-audit` sets, license policy, Semgrep SAST with zero findings,
+  Bandit with zero medium/high findings, docs contracts, synchronized version
+  sources, the governed `uv build --wheel`, Twine, and the PyPI-ahead check.
+- The full Python 3.12 run completed 3,071 passes and 9 expected skips. Ten of
+  its 11 failures passed unchanged after removing the deliberately injected
+  module-root test environment, assigning the isolated uv cache, or allowing
+  the two marketplace controls network access. The remaining test writes
+  `~/.specfact/metadata.json`; the local workspace sandbox correctly denied
+  that home-directory mutation, so the clean GitHub runner remains the final
+  control for it.

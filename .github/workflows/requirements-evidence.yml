@@ -749,6 +749,8 @@ jobs:
             ci/module-fixture.lock.json \
             src/specfact_cli \
             scripts/check_reproducible_delivery.py \
+            scripts/requirements_proof_executor.py \
+            scripts/requirements_proof_pytest_plugin.py \
             scripts/requirements_proof_provenance.py \
             requirements/ci/locked.txt \
             requirements/code-review/requirements.in \
@@ -758,10 +760,14 @@ jobs:
             | tar -x -C "$trusted_core_root"
           test -f "$trusted_core_root/src/specfact_cli/cli.py"
           test -f "$trusted_core_root/scripts/check_reproducible_delivery.py"
+          test -f "$trusted_core_root/scripts/requirements_proof_executor.py"
+          test -f "$trusted_core_root/scripts/requirements_proof_pytest_plugin.py"
           {
             echo "TRUSTED_REQUIREMENTS_ROOT=$trusted_core_root"
             echo "TRUSTED_REQUIREMENTS_CORE=$trusted_core_root/src"
             echo "TRUSTED_DELIVERY_VERIFIER=$trusted_core_root/scripts/check_reproducible_delivery.py"
+            echo "TRUSTED_PROOF_EXECUTOR=$trusted_core_root/scripts/requirements_proof_executor.py"
+            echo "TRUSTED_PROOF_PLUGIN=$trusted_core_root/scripts/requirements_proof_pytest_plugin.py"
             echo "TRUSTED_PROOF_PROVENANCE=$trusted_core_root/scripts/requirements_proof_provenance.py"
             echo "TRUSTED_REQUIREMENTS_BOOTSTRAP_LOCK=$trusted_core_root/requirements/ci/locked.txt"
             echo "TRUSTED_CODE_REVIEW_LOCK=$trusted_core_root/requirements/code-review/locked.txt"
@@ -912,6 +918,7 @@ jobs:
           run-id: ${{ needs.requirements-evidence-producer.outputs.prior-red-run-id }}
 
       - name: Reconcile Requirements evidence on fresh runner
+        timeout-minutes: 12
         env:
           PRIOR_RED_ARTIFACT_DIGEST: ${{ steps.consumer-red.outputs.artifact-digest }}
           PRIOR_RED_HEAD_SHA: ${{ steps.consumer-red.outputs.head-sha }}
@@ -1014,10 +1021,93 @@ jobs:
           if [[ "$required_maturity" == "planned" ]]; then
             cp "$consumer_planning_report" "$consumer_report"
           else
+            consumer_junit="${RUNNER_TEMP}/requirements-proof-consumer.xml"
+            consumer_selectors_file="${RUNNER_TEMP}/requirements-proof-consumer-selectors.z"
+            "${REQUIREMENTS_VALIDATOR_ROOT}/bin/python" -I -S -c '
+          import importlib.util
+          import json
+          import pathlib
+          import sys
+
+          site_packages, trusted_executor, plan_path, repo_root, output_path = sys.argv[1:6]
+          sys.path.append(site_packages)
+          executor_spec = importlib.util.spec_from_file_location(
+              "_specfact_trusted_requirements_proof_executor", trusted_executor
+          )
+          if executor_spec is None or executor_spec.loader is None:
+              raise SystemExit("Trusted Requirements proof executor is unavailable.")
+          trusted_executor = importlib.util.module_from_spec(executor_spec)
+          sys.modules[executor_spec.name] = trusted_executor
+          executor_spec.loader.exec_module(trusted_executor)
+          plan = json.loads(pathlib.Path(plan_path).read_text(encoding="utf-8"))
+          selectors = trusted_executor.selectors_from_plan(
+              plan, pathlib.Path(repo_root).resolve()
+          )
+          pathlib.Path(output_path).write_bytes(
+              b"".join(selector.encode("utf-8") + b"\0" for selector in selectors)
+          )
+          ' \
+              "$validator_site" \
+              "$TRUSTED_PROOF_EXECUTOR" \
+              "$consumer_plan" \
+              "$GITHUB_WORKSPACE" \
+              "$consumer_selectors_file"
+            consumer_selectors=()
+            mapfile -d '' -t consumer_selectors < "$consumer_selectors_file"
+            test "${#consumer_selectors[@]}" -gt 0
+            "${REQUIREMENTS_VALIDATOR_ROOT}/bin/python" -I -S -c '
+          import importlib.util
+          import os
+          import sys
+
+          site_packages, trusted_plugin_path, repo_root, junit_path = sys.argv[1:5]
+          selectors = sys.argv[5:]
+          preserved_keys = (
+              "HOME",
+              "LANG",
+              "LC_ALL",
+              "LC_CTYPE",
+              "PATH",
+              "SPECFACT_MODULES_REPO",
+              "SPECFACT_MODULES_ROOTS",
+              "TMPDIR",
+              "VIRTUAL_ENV",
+          )
+          preserved_environment = {
+              key: os.environ[key] for key in preserved_keys if key in os.environ
+          }
+          os.environ.clear()
+          os.environ.update(preserved_environment)
+          os.environ["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"
+          sys.path.append(site_packages)
+          import pytest
+
+          plugin_spec = importlib.util.spec_from_file_location(
+              "_specfact_trusted_requirements_proof_plugin", trusted_plugin_path
+          )
+          if plugin_spec is None or plugin_spec.loader is None:
+              raise SystemExit("Trusted Requirements proof plugin is unavailable.")
+          trusted_plugin = importlib.util.module_from_spec(plugin_spec)
+          sys.modules[plugin_spec.name] = trusted_plugin
+          plugin_spec.loader.exec_module(trusted_plugin)
+          sys.path.append(repo_root)
+          raise SystemExit(
+              pytest.main(
+                  ["--noconftest", "--junitxml", junit_path, "--", *selectors],
+                  plugins=[trusted_plugin],
+              )
+          )
+          ' \
+              "$validator_site" \
+              "$TRUSTED_PROOF_PLUGIN" \
+              "$GITHUB_WORKSPACE" \
+              "$consumer_junit" \
+              "${consumer_selectors[@]}"
+            test -s "$consumer_junit"
             reconciliation_arguments=(
               "${isolated_specfact[@]}" requirements reconcile
               --plan "$consumer_plan"
-              --junit artifacts/requirements-evidence/requirements-proof.xml
+              --junit "$consumer_junit"
               --run-stage final
               --source-ref "$source_ref"
               --output "$consumer_report"
@@ -1083,7 +1173,6 @@ jobs:
             fi
             "${reconciliation_arguments[@]}"
           fi
-          cmp --silent "$consumer_report" artifacts/requirements-evidence/requirements-evidence.json
 
       - name: Run Code Review with finalized Requirements context
         id: run-code-review
