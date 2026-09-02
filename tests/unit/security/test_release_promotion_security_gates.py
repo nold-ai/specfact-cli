@@ -133,7 +133,10 @@ def _assert_exact_review_checkout(review: dict[str, Any]) -> None:
 def _assert_review_tool_and_artifact_order(review: dict[str, Any]) -> None:
     """Require frozen tools before the immutable proof artifact enters the runner."""
     install = str(_named_step(review, "Install frozen Code Review tools").get("run", ""))
-    assert install.index("python scripts/check_reproducible_delivery.py") < install.index("uv pip install")
+    closure_proof = '"$TRUSTED_DELIVERY_VERIFIER"'
+    assert '"${REQUIREMENTS_VERIFIER_ROOT}/bin/python" -I -S -c' in install
+    assert install.index(closure_proof) < install.index("uv pip install")
+    assert "python scripts/check_reproducible_delivery.py" not in install
     review_steps = cast(list[dict[str, Any]], review["steps"])
     step_names = [step.get("name") for step in review_steps]
     assert step_names.index("Install frozen Code Review tools") < step_names.index(
@@ -312,7 +315,12 @@ def test_every_code_review_lock_install_has_exact_closure_proof() -> None:
                 else "Install frozen Code Review license scope",
             ).get("run", "")
         )
-        assert install.index("python scripts/check_reproducible_delivery.py") < install.index("uv pip install")
+        closure_proof = (
+            '"$TRUSTED_DELIVERY_VERIFIER"'
+            if job_name == "requirements-evidence"
+            else "python scripts/check_reproducible_delivery.py"
+        )
+        assert install.index(closure_proof) < install.index("uv pip install")
 
 
 def test_frozen_graph_uses_fixed_semgrep_mcp_pair_without_waiver() -> None:
