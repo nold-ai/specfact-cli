@@ -677,7 +677,8 @@ def _assert_reconciliation_fragments(reconcile: str) -> None:
 def _assert_reconciliation_order(reconcile: str) -> None:
     fallback_index = reconcile.index('if [[ "${#review_evidence_paths[@]}" -eq 0 ]]; then')
     review_path_order = (
-        reconcile.index('done < "$review_paths_file"'),
+        reconcile.index('done < "$consumer_change_paths_file"'),
+        reconcile.index('elif [[ "${#consumer_changed_change_ids[@]}" -gt 1'),
         fallback_index,
         reconcile.index('if [[ "${#review_evidence_paths[@]}" -gt 1'),
     )
@@ -1112,7 +1113,9 @@ def _assert_frozen_code_review_python_tools(command: object) -> None:
     """Validate the isolated Python resolver input and its reviewed license note."""
     assert isinstance(command, str)
     command_fragments = (
-        'cd "$TRUSTED_REQUIREMENTS_ROOT"',
+        'verifier_site="${REQUIREMENTS_VERIFIER_ROOT}/lib/python3.12/site-packages"',
+        '"${REQUIREMENTS_VERIFIER_ROOT}/bin/python" -I -S -c',
+        '"$TRUSTED_DELIVERY_VERIFIER"',
         "uv pip install",
         "--require-hashes",
         '"$TRUSTED_CODE_REVIEW_LOCK"',
@@ -1122,7 +1125,8 @@ def _assert_frozen_code_review_python_tools(command: object) -> None:
         'echo "PYLINT_WRAPPER=$pylint_wrapper"',
     )
     assert all(fragment in command for fragment in command_fragments)
-    assert command.index("python scripts/check_reproducible_delivery.py") < command.index("uv pip install")
+    assert command.index('"$TRUSTED_DELIVERY_VERIFIER"') < command.index("uv pip install")
+    assert "python scripts/check_reproducible_delivery.py" not in command
     _assert_frozen_code_review_license_inputs()
 
 
