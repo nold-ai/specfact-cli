@@ -16,6 +16,7 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PYPROJECT = REPO_ROOT / "pyproject.toml"
 PR_ORCHESTRATOR = REPO_ROOT / ".github" / "workflows" / "pr-orchestrator.yml"
+REQUIREMENTS_EVIDENCE = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"
 DOCS_REVIEW = REPO_ROOT / ".github" / "workflows" / "docs-review.yml"
 SPECFACT_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "specfact.yml"
 SIGN_MODULES = REPO_ROOT / ".github" / "workflows" / "sign-modules.yml"
@@ -432,6 +433,19 @@ def test_core_ci_uses_immutable_modules_fixture() -> None:
     assert "git ls-remote --exit-code --heads https://github.com/nold-ai/specfact-cli-modules.git" not in raw
     assert "ref: ${{ steps.modules-ref.outputs.ref }}" not in raw
     assert "git -C specfact-cli-modules rev-parse HEAD" in raw
+
+
+def test_requirements_final_verifier_archives_trusted_module_fixture_lock() -> None:
+    """The final trusted delivery check must receive its base-sourced fixture lock."""
+    workflow = _load_yaml(REQUIREMENTS_EVIDENCE)
+    jobs = cast(dict[str, dict[str, Any]], workflow["jobs"])
+    final_steps = cast(list[dict[str, Any]], jobs["requirements-evidence-final"]["steps"])
+    materialize = next(
+        step for step in final_steps if step.get("name") == "Materialize trusted final Requirements core"
+    )
+    run_clause = cast(str, materialize["run"])
+    assert "ci/module-fixture.lock.json" in run_clause
+    assert 'test -f "$trusted_root/ci/module-fixture.lock.json"' in run_clause
 
 
 def test_license_gate_runs_for_every_frozen_dependency_graph_change() -> None:

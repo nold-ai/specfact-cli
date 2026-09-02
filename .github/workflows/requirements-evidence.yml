@@ -1632,6 +1632,7 @@ jobs:
           mkdir -p "$trusted_root"
           git archive "$base_commit" -- \
             .pylintrc pyproject.toml setup.py uv.lock src/specfact_cli \
+            ci/module-fixture.lock.json \
             scripts/check_reproducible_delivery.py \
             scripts/requirements_proof_provenance.py \
             requirements/ci/locked.txt \
@@ -1641,6 +1642,7 @@ jobs:
             tools/basedpyright/package-lock.json \
             | tar -x -C "$trusted_root"
           test -f "$trusted_root/src/specfact_cli/cli.py"
+          test -f "$trusted_root/ci/module-fixture.lock.json"
           test -f "$trusted_root/scripts/check_reproducible_delivery.py"
           test -f "$trusted_root/scripts/requirements_proof_provenance.py"
           {
