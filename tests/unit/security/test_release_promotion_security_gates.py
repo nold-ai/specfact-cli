@@ -283,21 +283,29 @@ def test_fresh_consumer_reexecutes_trusted_plan() -> None:
     assert reconcile_step["timeout-minutes"] == 12
 
 
-def test_fresh_consumer_rejects_candidate_conftest_outcome_forgery(tmp_path: Path) -> None:
-    """Candidate pytest hooks cannot turn a failing selector into trusted pass JUnit."""
+def _assert_guard_result(
+    result: subprocess.CompletedProcess[str], junit_path: Path, expected_returncode: int, expected_failures: str
+) -> None:
+    assert result.returncode == expected_returncode, result.stderr
+    suite = ElementTree.parse(junit_path).find(".//testsuite")
+    assert suite is not None
+    assert suite.get("failures") == expected_failures
+
+
+def _assert_conftest_outcome_forgery_is_blocked(tmp_path: Path) -> None:
     (tmp_path / "conftest.py").write_text(_CONFTEST_OUTCOME_FORGERY, encoding="utf-8")
     (tmp_path / "test_guard.py").write_text("def test_guard():\n    assert False\n", encoding="utf-8")
 
     forged_junit = tmp_path / "forged.xml"
     forged = _run_isolated_guard(tmp_path, forged_junit.name, disable_conftest=False)
-    assert forged.returncode == 0, forged.stderr
-    assert ElementTree.parse(forged_junit).find(".//testsuite").get("failures") == "0"  # type: ignore[union-attr]
+    _assert_guard_result(forged, forged_junit, 0, "0")
 
     trusted_junit = tmp_path / "trusted.xml"
     trusted = _run_isolated_guard(tmp_path, trusted_junit.name, disable_conftest=True)
-    assert trusted.returncode == 1, trusted.stderr
-    assert ElementTree.parse(trusted_junit).find(".//testsuite").get("failures") == "1"  # type: ignore[union-attr]
+    _assert_guard_result(trusted, trusted_junit, 1, "1")
 
+
+def _assert_declared_plugin_outcome_forgery_is_blocked(tmp_path: Path) -> None:
     (tmp_path / "forge_plugin.py").write_text(_CONFTEST_OUTCOME_FORGERY, encoding="utf-8")
     (tmp_path / "test_guard.py").write_text(
         'globals()["pytest_" + "plugins"] = ("forge_plugin",)\n\ndef test_guard():\n    assert False\n',
@@ -305,8 +313,7 @@ def test_fresh_consumer_rejects_candidate_conftest_outcome_forgery(tmp_path: Pat
     )
     plugin_forged_junit = tmp_path / "plugin-forged.xml"
     plugin_forged = _run_isolated_guard(tmp_path, plugin_forged_junit.name, disable_conftest=True)
-    assert plugin_forged.returncode == 0, plugin_forged.stderr
-    assert ElementTree.parse(plugin_forged_junit).find(".//testsuite").get("failures") == "0"  # type: ignore[union-attr]
+    _assert_guard_result(plugin_forged, plugin_forged_junit, 0, "0")
 
     plugin_guarded = _run_isolated_guard(tmp_path, "plugin-guarded.xml", disable_conftest=True, block_plugins=True)
     assert plugin_guarded.returncode == pytest.ExitCode.USAGE_ERROR
@@ -314,7 +321,8 @@ def test_fresh_consumer_rejects_candidate_conftest_outcome_forgery(tmp_path: Pat
         plugin_guarded.stdout + plugin_guarded.stderr
     )
 
-    workflow = _workflow(".github/workflows/requirements-evidence.yml")
+
+def _assert_consumer_pytest_isolation(workflow: dict[str, Any]) -> None:
     review = cast(dict[str, Any], cast(dict[str, Any], workflow["jobs"])["requirements-evidence"])
     reconcile = str(_named_step(review, "Reconcile Requirements evidence on fresh runner").get("run", ""))
     assert '"--noconftest"' in reconcile
@@ -322,6 +330,8 @@ def test_fresh_consumer_rejects_candidate_conftest_outcome_forgery(tmp_path: Pat
     assert 'if "pytest_plugins" in module.__dict__' in reconcile
     assert "plugins=[trusted_plugin, trusted_plugin_policy]" in reconcile
 
+
+def _assert_final_job_does_not_execute_candidate_tests(workflow: dict[str, Any]) -> None:
     final = cast(dict[str, Any], cast(dict[str, Any], workflow["jobs"])["requirements-evidence-final"])
     final_commands = "\n".join(str(step.get("run", "")) for step in cast(list[dict[str, Any]], final["steps"]))
     assert "pytest.main(" not in final_commands
@@ -329,6 +339,15 @@ def test_fresh_consumer_rejects_candidate_conftest_outcome_forgery(tmp_path: Pat
     assert "Reconcile final Requirements verdict on fresh runner" in {
         step.get("name") for step in cast(list[dict[str, Any]], final["steps"])
     }
+
+
+def test_fresh_consumer_rejects_candidate_conftest_outcome_forgery(tmp_path: Path) -> None:
+    """Candidate pytest hooks cannot turn a failing selector into trusted pass JUnit."""
+    _assert_conftest_outcome_forgery_is_blocked(tmp_path)
+    _assert_declared_plugin_outcome_forgery_is_blocked(tmp_path)
+    workflow = _workflow(".github/workflows/requirements-evidence.yml")
+    _assert_consumer_pytest_isolation(workflow)
+    _assert_final_job_does_not_execute_candidate_tests(workflow)
 
 
 def test_requirements_archive_uses_one_immutable_merge_base() -> None:
@@ -533,11 +552,11 @@ def test_doc_owner_rg_terminates_options(monkeypatch: Any, tmp_path: Path) -> No
     module = _load_script("check_doc_frontmatter")
     observed: list[list[str]] = []
 
-    def run(arguments: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+    def run_rg(arguments: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
         observed.append(arguments)
         return subprocess.CompletedProcess(arguments, 1, "", "")
 
-    monkeypatch.setattr(module.subprocess, "run", run)
+    monkeypatch.setattr(module.subprocess, "run", run_rg)
     assert module._missing_owner_via_rg([tmp_path / "--files"]) == []
     assert observed[0][-2:] == ["--", str(tmp_path / "--files")]
 

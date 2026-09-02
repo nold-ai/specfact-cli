@@ -143,6 +143,17 @@ class _LateRedArtifact:
     plan_digest: str
 
 
+@dataclass(frozen=True)
+class _LateRedFixtureOptions:
+    invalid_failed_selectors: bool = False
+    governed_red_path: bool = False
+    stale_selected_test: bool = False
+    permute_junit_selectors: bool = False
+    duplicate_junit_selector: bool = False
+    omit_junit_selector: bool = False
+    add_junit_selector: bool = False
+
+
 def _create_late_red_history(tmp_path: Path, *, governed_red_path: bool) -> _LateRedHistory:
     repo_root = tmp_path / "repo"
     repo_root.mkdir(parents=True)
@@ -174,11 +185,7 @@ def _create_late_red_history(tmp_path: Path, *, governed_red_path: bool) -> _Lat
 def _write_late_red_artifact(
     tmp_path: Path,
     history: _LateRedHistory,
-    *,
-    permute_junit_selectors: bool = False,
-    duplicate_junit_selector: bool = False,
-    omit_junit_selector: bool = False,
-    add_junit_selector: bool = False,
+    options: _LateRedFixtureOptions,
 ) -> _LateRedArtifact:
     root = tmp_path / "artifact"
     root.mkdir()
@@ -192,14 +199,14 @@ def _write_late_red_artifact(
         b'<property name="specfact.runner" value="pytest"/><property name="specfact.python" value="3.12"/>'
         b'<property name="specfact.pytest" value="9.1"/></properties></testcase>'
     )
-    if duplicate_junit_selector:
+    if options.duplicate_junit_selector:
         cases = failed_case + passed_case + passed_case
-    elif omit_junit_selector:
+    elif options.omit_junit_selector:
         cases = failed_case
-    elif add_junit_selector:
+    elif options.add_junit_selector:
         cases = failed_case + passed_case + passed_case.replace(b"test_passes", b"test_extra")
     else:
-        cases = passed_case + failed_case if permute_junit_selectors else failed_case + passed_case
+        cases = passed_case + failed_case if options.permute_junit_selectors else failed_case + passed_case
     junit = b"<testsuite>" + cases + b"</testsuite>"
     junit_path = root / "requirements-proof.xml"
     junit_path.write_bytes(junit)
@@ -341,29 +348,20 @@ def _write_late_red_metadata(tmp_path: Path, history: _LateRedHistory, final_ref
 
 def _late_red_fixture(
     tmp_path: Path,
-    *,
-    invalid_failed_selectors: bool = False,
-    governed_red_path: bool = False,
-    stale_selected_test: bool = False,
-    permute_junit_selectors: bool = False,
-    duplicate_junit_selector: bool = False,
-    omit_junit_selector: bool = False,
-    add_junit_selector: bool = False,
+    options: _LateRedFixtureOptions | None = None,
 ) -> tuple[list[str], Path, Path]:
     """Create one exact test-only RED cycle plus live-metadata-shaped inputs."""
-    history = _create_late_red_history(tmp_path, governed_red_path=governed_red_path)
+    options = options or _LateRedFixtureOptions()
+    history = _create_late_red_history(tmp_path, governed_red_path=options.governed_red_path)
 
-    artifact = _write_late_red_artifact(
-        tmp_path,
+    artifact = _write_late_red_artifact(tmp_path, history, options)
+
+    manifest_path = _write_late_red_manifest(
         history,
-        permute_junit_selectors=permute_junit_selectors,
-        duplicate_junit_selector=duplicate_junit_selector,
-        omit_junit_selector=omit_junit_selector,
-        add_junit_selector=add_junit_selector,
+        artifact,
+        invalid_failed_selectors=options.invalid_failed_selectors,
     )
-
-    manifest_path = _write_late_red_manifest(history, artifact, invalid_failed_selectors=invalid_failed_selectors)
-    final_ref = _finalize_late_red_history(history, stale_selected_test=stale_selected_test)
+    final_ref = _finalize_late_red_history(history, stale_selected_test=options.stale_selected_test)
 
     event_path, run_path, artifacts_path = _write_late_red_metadata(tmp_path, history, final_ref)
     output_path = tmp_path / "normalized" / "red.json"
@@ -806,10 +804,7 @@ def test_code_review_closure_recheck_uses_isolated_trusted_interpreter() -> None
         assert "python scripts/check_reproducible_delivery.py" not in command
 
 
-def _assert_late_red_workflow_contract(workflow: dict[str, object]) -> None:
-    commands = "\n".join(
-        cast(str, step.get("run", "")) for _, _, step in _workflow_steps(workflow) if isinstance(step.get("run"), str)
-    )
+def _assert_late_red_command_contract(commands: str) -> None:
     required_fragments = (
         "SPECFACT_TRUSTED_REQUIREMENTS_AUTHORITY_V1",
         "nold-ai/.github",
@@ -831,24 +826,30 @@ def _assert_late_red_workflow_contract(workflow: dict[str, object]) -> None:
     assert all(fragment in commands for fragment in required_fragments)
     assert commands.count("trusted_requirements_authority.py") >= 3
     assert commands.count("requirements_late_red_proof.py") >= 3
-    for job_name in ("requirements-evidence-producer", "requirements-evidence"):
-        steps = [step for job, _, step in _workflow_steps(workflow) if job == job_name]
-        names = [step.get("name") for step in steps]
-        authority_index = names.index("Validate exact final Requirements authority")
-        download_index = names.index("Download exact late RED artifact")
-        normalize_index = names.index("Normalize exact late RED proof")
-        assert authority_index < download_index < normalize_index
-        assert "continue-on-error" not in steps[authority_index]
-        normalize = steps[normalize_index]
-        assert normalize.get("env", {}).get("GH_TOKEN") is None  # type: ignore[union-attr]
-        assert normalize.get("env", {}).get("GITHUB_TOKEN") is None  # type: ignore[union-attr]
 
+
+def _assert_late_red_job_contract(workflow: dict[str, object], job_name: str) -> None:
+    steps = [step for job, _, step in _workflow_steps(workflow) if job == job_name]
+    names = [step.get("name") for step in steps]
+    authority_index = names.index("Validate exact final Requirements authority")
+    download_index = names.index("Download exact late RED artifact")
+    normalize_index = names.index("Normalize exact late RED proof")
+    assert authority_index < download_index < normalize_index
+    assert "continue-on-error" not in steps[authority_index]
+    normalize_environment = cast(dict[str, object], steps[normalize_index].get("env", {}))
+    assert normalize_environment.get("GH_TOKEN") is None
+    assert normalize_environment.get("GITHUB_TOKEN") is None
+
+
+def _assert_late_red_producer_order(workflow: dict[str, object]) -> None:
     producer_steps = [step for job, _, step in _workflow_steps(workflow) if job == "requirements-evidence-producer"]
     producer_names = [step.get("name") for step in producer_steps]
     assert producer_names.index("Validate exact final Requirements authority") < producer_names.index(
         "Set up frozen delivery dependencies"
     )
 
+
+def _assert_late_red_final_job_contract(workflow: dict[str, object]) -> None:
     jobs = cast(dict[str, dict[str, object]], workflow["jobs"])
     execution = jobs["requirements-evidence"]
     final = jobs["requirements-evidence-final"]
@@ -868,25 +869,49 @@ def _assert_late_red_workflow_contract(workflow: dict[str, object]) -> None:
     assert all(not str(step.get("uses", "")).startswith("./") for step in final_steps)
 
 
+def _assert_late_red_workflow_contract(workflow: dict[str, object]) -> None:
+    commands = "\n".join(
+        cast(str, step.get("run", "")) for _, _, step in _workflow_steps(workflow) if isinstance(step.get("run"), str)
+    )
+    _assert_late_red_command_contract(commands)
+    for job_name in ("requirements-evidence-producer", "requirements-evidence"):
+        _assert_late_red_job_contract(workflow, job_name)
+    _assert_late_red_producer_order(workflow)
+    _assert_late_red_final_job_contract(workflow)
+
+
+def _assert_normalized_late_red_report(normalized: dict[str, object], output_path: Path) -> None:
+    assert normalized["gate_decision"] == "pass"
+    assert normalized["observed_maturity"] == "red"
+    assert output_path.with_suffix(".xml").is_file()
+
+
+def _assert_normalized_late_red_execution(normalized: dict[str, object]) -> None:
+    execution_proof = cast(dict[str, object], normalized["execution_proof"])
+    assert execution_proof["run_stage"] == "red"
+    assert execution_proof["source_tree"]
+    assert execution_proof["merge_base"]
+    assert execution_proof["test_file_digests"]
+    assert execution_proof["toolchain_identity"]
+    assert len(cast(list[object], execution_proof["selectors"])) == 2
+
+
+def _assert_permuted_late_red_is_accepted(tmp_path: Path) -> None:
+    options = _LateRedFixtureOptions(permute_junit_selectors=True)
+    permuted_arguments, permuted_output, _ = _late_red_fixture(tmp_path, options)
+    permuted = subprocess.run([sys.executable, *permuted_arguments], check=False, capture_output=True, text=True)
+    assert permuted.returncode == 0, permuted.stderr
+    assert permuted_output.is_file()
+
+
 def _assert_late_red_happy_path(tmp_path: Path) -> None:
     arguments, output_path, _run_path = _late_red_fixture(tmp_path)
     accepted = subprocess.run([sys.executable, *arguments], check=False, capture_output=True, text=True)
     assert accepted.returncode == 0, accepted.stderr
-    normalized = json.loads(output_path.read_text(encoding="utf-8"))
-    assert normalized["gate_decision"] == "pass"
-    assert normalized["observed_maturity"] == "red"
-    assert normalized["execution_proof"]["run_stage"] == "red"
-    assert normalized["execution_proof"]["source_tree"]
-    assert normalized["execution_proof"]["merge_base"]
-    assert normalized["execution_proof"]["test_file_digests"]
-    assert normalized["execution_proof"]["toolchain_identity"]
-    assert len(normalized["execution_proof"]["selectors"]) == 2
-    assert output_path.with_suffix(".xml").is_file()
-
-    permuted_arguments, permuted_output, _ = _late_red_fixture(tmp_path / "permuted", permute_junit_selectors=True)
-    permuted = subprocess.run([sys.executable, *permuted_arguments], check=False, capture_output=True, text=True)
-    assert permuted.returncode == 0, permuted.stderr
-    assert permuted_output.is_file()
+    normalized = cast(dict[str, object], json.loads(output_path.read_text(encoding="utf-8")))
+    _assert_normalized_late_red_report(normalized, output_path)
+    _assert_normalized_late_red_execution(normalized)
+    _assert_permuted_late_red_is_accepted(tmp_path / "permuted")
 
 
 def _assert_late_red_rejections(tmp_path: Path) -> None:
@@ -900,14 +925,14 @@ def _assert_late_red_rejections(tmp_path: Path) -> None:
     assert rejected.stderr == "late-red-proof-invalid\n"
 
     for name, options in (
-        ("wrong-failures", {"invalid_failed_selectors": True}),
-        ("production-red", {"governed_red_path": True}),
-        ("stale-test", {"stale_selected_test": True}),
-        ("duplicate-selector", {"duplicate_junit_selector": True}),
-        ("missing-selector", {"omit_junit_selector": True}),
-        ("extra-selector", {"add_junit_selector": True}),
+        ("wrong-failures", _LateRedFixtureOptions(invalid_failed_selectors=True)),
+        ("production-red", _LateRedFixtureOptions(governed_red_path=True)),
+        ("stale-test", _LateRedFixtureOptions(stale_selected_test=True)),
+        ("duplicate-selector", _LateRedFixtureOptions(duplicate_junit_selector=True)),
+        ("missing-selector", _LateRedFixtureOptions(omit_junit_selector=True)),
+        ("extra-selector", _LateRedFixtureOptions(add_junit_selector=True)),
     ):
-        invalid_arguments, _, _ = _late_red_fixture(tmp_path / name, **options)
+        invalid_arguments, _, _ = _late_red_fixture(tmp_path / name, options)
         invalid = subprocess.run([sys.executable, *invalid_arguments], check=False, capture_output=True, text=True)
         assert invalid.returncode == 1
         assert invalid.stderr == "late-red-proof-invalid\n"
