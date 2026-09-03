@@ -61,6 +61,53 @@ def _write_json(path: Path, value: object) -> str:
     return f"sha256:{hashlib.sha256(payload).hexdigest()}"
 
 
+def _junit_with_failed_selectors(selectors: list[str]) -> bytes:
+    cases = "".join(
+        f'<testcase><properties><property name="specfact.selector" value="{selector}"/></properties><failure/></testcase>'
+        for selector in selectors
+    )
+    return f"<testsuite>{cases}</testsuite>".encode()
+
+
+def _write_selector_artifact(
+    artifact_root: Path,
+    selectors: list[str],
+    junit_payload: bytes,
+    mapping_digest: str,
+    plan_digest: str,
+) -> tuple[str, str]:
+    plan_report_digest = _write_json(
+        artifact_root / "requirements-evidence-plan.json",
+        {
+            "gate_decision": "pass",
+            "plan": {
+                "cases": [{"node_id": selector, "runner": "pytest"} for selector in selectors],
+                "mapping_digest": mapping_digest,
+                "plan_digest": plan_digest,
+            },
+        },
+    )
+    report_digest = _write_json(
+        artifact_root / "requirements-evidence.json",
+        {
+            "delivery_status": "incomplete",
+            "gate_decision": "fail",
+            "observed_maturity": "incomplete",
+            "required_maturity": "verified",
+            "verdict": "failed",
+            "mapping_digest": mapping_digest,
+            "plan_digest": plan_digest,
+            "execution_proof": {
+                "junit_digest": f"sha256:{hashlib.sha256(junit_payload).hexdigest()}",
+                "run_stage": "final",
+                "selectors": selectors,
+                "source_ref": "c" * 40,
+            },
+        },
+    )
+    return plan_report_digest, report_digest
+
+
 def test_provenance_loader_authenticates_cycle_base_bytes_before_execution(tmp_path: Path) -> None:
     """A same-named arbitrary module must not execute inside the proof validator."""
     module = _load_script_module()
@@ -96,43 +143,16 @@ def test_failed_selector_identity_is_order_independent_but_exact(tmp_path: Path)
     first_selector = "tests/test_proof.py::test_first"
     second_selector = "tests/test_proof.py::test_second"
     selectors = [first_selector, second_selector]
-    cases = "".join(
-        f'<testcase><properties><property name="specfact.selector" value="{selector}"/></properties><failure/></testcase>'
-        for selector in selectors
-    )
-    junit_payload = f"<testsuite>{cases}</testsuite>".encode()
-    junit_path = artifact_root / "requirements-proof.xml"
-    junit_path.write_bytes(junit_payload)
+    junit_payload = _junit_with_failed_selectors(selectors)
+    (artifact_root / "requirements-proof.xml").write_bytes(junit_payload)
     mapping_digest = f"sha256:{'a' * 64}"
     plan_digest = f"sha256:{'b' * 64}"
-    plan_report_digest = _write_json(
-        artifact_root / "requirements-evidence-plan.json",
-        {
-            "gate_decision": "pass",
-            "plan": {
-                "cases": [{"node_id": selector, "runner": "pytest"} for selector in selectors],
-                "mapping_digest": mapping_digest,
-                "plan_digest": plan_digest,
-            },
-        },
-    )
-    report_digest = _write_json(
-        artifact_root / "requirements-evidence.json",
-        {
-            "delivery_status": "incomplete",
-            "gate_decision": "fail",
-            "observed_maturity": "incomplete",
-            "required_maturity": "verified",
-            "verdict": "failed",
-            "mapping_digest": mapping_digest,
-            "plan_digest": plan_digest,
-            "execution_proof": {
-                "junit_digest": f"sha256:{hashlib.sha256(junit_payload).hexdigest()}",
-                "run_stage": "final",
-                "selectors": selectors,
-                "source_ref": "c" * 40,
-            },
-        },
+    plan_report_digest, report_digest = _write_selector_artifact(
+        artifact_root,
+        selectors,
+        junit_payload,
+        mapping_digest,
+        plan_digest,
     )
     manifest = {
         "report_digest": report_digest,

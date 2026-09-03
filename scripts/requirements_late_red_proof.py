@@ -26,6 +26,8 @@ PULL_REQUEST = 703
 BASE_BRANCH = "dev"
 HEAD_BRANCH = "bugfix/692-security-patch-clean-replay"
 WORKFLOW_PATH = ".github/workflows/requirements-evidence.yml"
+PROVENANCE_PATH = "scripts/requirements_proof_provenance.py"
+PROOF_CYCLE_BASE_COMMIT = "4c4c6e7fd0bd1a79f9ec4a911f9cb2b937bc5f3f"
 MAX_INPUT_BYTES = 10 * 1024 * 1024
 OBJECT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 DIGEST_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -338,7 +340,7 @@ def _validate_raw_artifact(root: Path, manifest: dict[str, object]) -> tuple[byt
     if (
         not expected_failures
         or len(expected_failures) != len(set(expected_failures))
-        or failed != expected_failures
+        or set(failed) != set(expected_failures)
         or not set(failed).issubset(set(reported))
     ):
         raise ValueError
@@ -416,10 +418,27 @@ def _validate_history(repo_root: Path, manifest: dict[str, object], cycle_ref: s
         raise ValueError
 
 
-def _load_provenance(path: Path) -> tuple[Callable[..., None], Callable[..., list[str]]]:
+def _load_provenance(
+    path: Path, repo_root: Path, cycle_commit: str
+) -> tuple[Callable[..., None], Callable[..., list[str]]]:
     if path.name != "requirements_proof_provenance.py":
         raise ValueError
-    _regular_payload(path)
+    payload = _regular_payload(path)
+    cycle = _string(cycle_commit, OBJECT_PATTERN)
+    trusted = _git(repo_root, "show", f"{cycle}:{PROVENANCE_PATH}", binary=True)
+    if trusted.returncode:
+        validator_root = Path(__file__).resolve(strict=True).parents[1]
+        expected_path = validator_root / PROVENANCE_PATH
+        if path.resolve(strict=True) != expected_path:
+            raise ValueError
+        trusted = _git(
+            validator_root,
+            "show",
+            f"{PROOF_CYCLE_BASE_COMMIT}:{PROVENANCE_PATH}",
+            binary=True,
+        )
+    if trusted.returncode or trusted.stdout != payload:
+        raise ValueError
     module_name = "_specfact_trusted_requirements_proof_provenance"
     specification = importlib.util.spec_from_file_location(module_name, path)
     if specification is None or specification.loader is None:
@@ -437,6 +456,8 @@ def _load_provenance(path: Path) -> tuple[Callable[..., None], Callable[..., lis
     bind = getattr(cast(ModuleType, module), "bind_red_proof", None)
     validate = getattr(cast(ModuleType, module), "validate_prior_red_proof", None)
     if not callable(bind) or not callable(validate):
+        raise ValueError
+    if _regular_payload(path) != payload:
         raise ValueError
     return cast(Callable[..., None], bind), cast(Callable[..., list[str]], validate)
 
@@ -471,9 +492,10 @@ def _normalize(arguments: argparse.Namespace) -> None:
     _validate_event(_read_json(arguments.event), manifest, final)
     _validate_run(_read_json(arguments.red_run), manifest)
     _validate_artifact(_read_json(arguments.red_artifacts), manifest)
+    cycle_commit = _string(manifest["cycle_base_commit"], OBJECT_PATTERN)
     _validate_history(repo_root, manifest, arguments.cycle_base_ref, final)
     junit_payload, selectors = _validate_raw_artifact(arguments.red_artifact_root, manifest)
-    bind, validate = _load_provenance(arguments.trusted_provenance)
+    bind, validate = _load_provenance(arguments.trusted_provenance, repo_root, cycle_commit)
     output, output_xml = _external_outputs(arguments.output, repo_root)
     normalized = {
         "gate_decision": "pass",
