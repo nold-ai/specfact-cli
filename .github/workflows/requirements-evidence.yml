@@ -2146,7 +2146,7 @@ jobs:
           test "$("${FINAL_NODE_BIN}/node" --version)" = "v24.16.0"
           validator_site="${FINAL_VERIFIER_ROOT}/lib/python3.12/site-packages"
           isolated_specfact=("${FINAL_VERIFIER_ROOT}/bin/python" -I -S -c 'import sys; site_packages, trusted_core = sys.argv[1:3]; del sys.argv[1:3]; sys.path.append(site_packages); sys.path.insert(0, trusted_core); from specfact_cli.cli import cli_main; cli_main()' "$validator_site" "$FINAL_TRUSTED_CORE")
-          PATH="${FINAL_NODE_BIN}:${FINAL_PYLINT_WRAPPER}:${FINAL_BASEDPYRIGHT_ROOT}/node_modules/.bin:${RUNNER_TEMP}/final-code-review-tools/bin:${FINAL_VERIFIER_ROOT}/bin:/usr/bin:/bin" \
+          PATH="${FINAL_NODE_BIN}:${FINAL_PYLINT_WRAPPER}:${FINAL_BASEDPYRIGHT_ROOT}/node_modules/.bin:${FINAL_VERIFIER_ROOT}/bin:${RUNNER_TEMP}/final-code-review-tools/bin:/usr/bin:/bin" \
             "${isolated_specfact[@]}" code review run \
               "${review_paths[@]}" \
               --include-tests \

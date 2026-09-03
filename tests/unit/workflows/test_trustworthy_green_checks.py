@@ -469,6 +469,15 @@ def test_requirements_final_review_keeps_verified_node_in_restricted_path() -> N
     assert review.index("${FINAL_NODE_BIN}") < review.index("${FINAL_BASEDPYRIGHT_ROOT}/node_modules/.bin")
 
 
+def test_requirements_final_review_prefers_full_verifier_python() -> None:
+    """BasedPyright must inspect code with the frozen full verifier environment."""
+    review = cast(str, _find_requirements_final_step("Run Code Review with trusted final Requirements context")["run"])
+    path_clause = next(line for line in review.splitlines() if line.startswith("PATH="))
+    assert path_clause.index("${FINAL_VERIFIER_ROOT}/bin") < path_clause.index(
+        "${RUNNER_TEMP}/final-code-review-tools/bin"
+    )
+
+
 def test_requirements_final_review_persists_failure_before_enforcement() -> None:
     """A failing final review must retain its report without weakening the verdict."""
     workflow = _load_yaml(REQUIREMENTS_EVIDENCE)
