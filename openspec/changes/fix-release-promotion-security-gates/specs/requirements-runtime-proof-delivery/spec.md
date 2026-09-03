@@ -40,6 +40,11 @@ The Requirements proof executor SHALL prevent the candidate repository root from
 shadowing the installed pytest package while preserving explicit loading of the
 repository-owned proof plugin and exact selectors.
 
+Approved mapped tests and the production code they intentionally import SHALL be
+review-trusted and assumed not to deliberately tamper with the same-process
+pytest runner, its exit status, or its JUnit channel. This requirement SHALL NOT
+claim sandbox containment of intentionally hostile Python executed by pytest.
+
 #### Scenario: Repository pytest.py cannot replace installed pytest
 
 - **GIVEN** the candidate repository contains a root-level `pytest.py`
