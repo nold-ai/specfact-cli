@@ -206,6 +206,34 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/security/test_release_promotion_security_gates.py::test_code_review_only_license_exception_does_not_leak
+      - case_id: REQUIREMENTS-692-S23
+        scenario_id: license-exceptions-are-bound-to-an-exact-environment-scope
+        method: test
+        intent: "Prove non-string allowlist scopes use the stable fail-closed diagnostic."
+        observable: "List and mapping YAML values raise RuntimeError rather than an unhandled membership TypeError."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_check_license_compliance.py::TestAllowlistLoader::test_non_string_scope_uses_stable_invalid_scope_error
+  openspec:fix-release-promotion-security-gates:module-publishing:bundled-module-snapshots-reference-published-release-assets:
+    rationale: "The bundled snapshot must not claim an unavailable or unverified module artifact."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#692"
+    touchpoints:
+      - id: bundled-module-publisher
+        kind: ci_workflow
+        locator: ".github/workflows/publish-modules.yml"
+      - id: bundled-registry-snapshot
+        kind: config
+        locator: "resources/bundled-module-registry/index.json"
+    verification_cases:
+      - case_id: REQUIREMENTS-692-S24
+        scenario_id: bundled-module-snapshots-reference-published-release-assets
+        method: test
+        intent: "Prove a protected tag-qualified release asset is verified before snapshot mutation."
+        observable: "Both publishing lanes create and redownload the exact asset, check SHA-256, and only then update the index."
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_trustworthy_green_checks.py::test_publish_modules_verifies_release_asset_before_snapshot_update
   openspec:fix-release-promotion-security-gates:dep-license-gate:patch-release-consumes-only-the-next-version:
     rationale: "The bugfix must consume exactly one patch version and keep all release sources synchronized."
     stakeholder_refs:
@@ -274,6 +302,23 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/security/test_release_promotion_security_gates.py::test_proof_executor_imports_installed_pytest_before_repository_root
+  openspec:fix-release-promotion-security-gates:requirements-runtime-proof-delivery:pytest-plugin-provenance-follows-effective-module-bindings:
+    rationale: "Proof inputs must follow Python module namespace semantics without dropping explicit global plugin bindings."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#692"
+    touchpoints:
+      - id: proof-provenance-validator
+        kind: source_file
+        locator: "scripts/requirements_proof_provenance.py"
+    verification_cases:
+      - case_id: REQUIREMENTS-692-S22
+        scenario_id: pytest-plugin-provenance-follows-effective-module-bindings
+        method: test
+        intent: "Prove local/class declarations are ignored while module and explicit-global bindings remain authenticated."
+        observable: "Only plugin modules capable of binding the imported module namespace enter the proof-input closure."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_provenance.py::test_pytest_plugin_provenance_ignores_local_scope_and_keeps_global_bindings
   openspec:fix-release-promotion-security-gates:requirements-runtime-proof-delivery:bootstrap-metadata-failures-retain-stable-diagnostics:
     rationale: "Malformed external authority bytes must use a stable fail-closed diagnostic."
     stakeholder_refs:

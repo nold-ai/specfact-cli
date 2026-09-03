@@ -312,6 +312,53 @@ def test_git_bound_red_proof_rejects_changed_pytest_plugin(tmp_path: Path) -> No
     ]
 
 
+def test_pytest_plugin_provenance_ignores_local_scope_and_keeps_global_bindings(tmp_path: Path) -> None:
+    """Only declarations capable of changing the module namespace are proof inputs."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    helpers_path = tests_path / "helpers"
+    helpers_path.mkdir(parents=True)
+    module_plugin = helpers_path / "module_plugin.py"
+    global_plugin = helpers_path / "global_plugin.py"
+    local_plugin = helpers_path / "local_plugin.py"
+    class_plugin = helpers_path / "class_plugin.py"
+    for plugin_path in (module_plugin, global_plugin, local_plugin, class_plugin):
+        plugin_path.write_text("VALUE = False\n", encoding="utf-8")
+    (tests_path / "conftest.py").write_text(
+        "pytest_plugins = ('tests.helpers.module_plugin',)\n\n"
+        "def configure_local() -> None:\n"
+        "    pytest_plugins = ('tests.helpers.local_plugin',)\n\n"
+        "def configure_global() -> None:\n"
+        "    global pytest_plugins\n"
+        "    pytest_plugins = ('tests.helpers.global_plugin',)\n\n"
+        "class PluginNamespace:\n"
+        "    pytest_plugins = ('tests.helpers.class_plugin',)\n",
+        encoding="utf-8",
+    )
+    base_ref = _commit(tmp_path, "test: add scoped pytest plugins")
+    test_path = tests_path / "test_proof.py"
+    test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    local_plugin.write_text("VALUE = True\n", encoding="utf-8")
+    class_plugin.write_text("VALUE = True\n", encoding="utf-8")
+    local_change_ref = _commit(tmp_path, "test: change local-only plugins")
+    assert (
+        module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=local_change_ref) == []
+    )
+
+    global_plugin.write_text("VALUE = True\n", encoding="utf-8")
+    global_change_ref = _commit(tmp_path, "test: change global plugin")
+    assert module.validate_prior_red_proof(
+        red_proof_path, tmp_path, base_ref=base_ref, final_ref=global_change_ref
+    ) == ["stale-red-proof"]
+
+
 def test_git_bound_red_proof_rejects_import_target_added_after_red(tmp_path: Path) -> None:
     """A missing local import added after red must invalidate collection-error proof."""
     module = _load_provenance_module()

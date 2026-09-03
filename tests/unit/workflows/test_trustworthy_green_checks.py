@@ -684,6 +684,25 @@ def test_publish_modules_bundled_snapshot_targets_core_repository() -> None:
             assert "${BUNDLED_REGISTRY_DOWNLOAD_BASE_URL}" in block
 
 
+def test_publish_modules_verifies_release_asset_before_snapshot_update() -> None:
+    """Bundled metadata may advance only after a protected, tag-qualified asset is verified."""
+    raw = PUBLISH_MODULES.read_text(encoding="utf-8")
+    assert 'RELEASE_TAG="${MODULE_SLUG}-v${MODULE_VERSION}"' in raw
+    assert 'RELEASE_TAG="${{ steps.entry.outputs.module_slug }}-v${{ steps.entry.outputs.module_version }}"' in raw
+    assert '--download-base-url "${BUNDLED_REGISTRY_DOWNLOAD_BASE_URL}/${RELEASE_TAG}"' in raw
+    assert raw.count('git merge-base --is-ancestor "${SOURCE_SHA}"') >= 2
+    assert raw.count('gh release create "${RELEASE_TAG}"') >= 2
+    assert raw.count('gh release download "${RELEASE_TAG}"') >= 2
+
+    for publication_block in raw.split("python scripts/update-registry-index.py")[:-1]:
+        assert publication_block.rfind('gh release download "${RELEASE_TAG}"') > publication_block.rfind(
+            'gh release create "${RELEASE_TAG}"'
+        )
+        assert publication_block.rfind('sha256sum "${DOWNLOADED_ASSET}"') > publication_block.rfind(
+            'gh release download "${RELEASE_TAG}"'
+        )
+
+
 CANONICAL_VERSION_SOURCE_REGEX = r"^(pyproject\.toml|setup\.py|src/__init__\.py|src/specfact_cli/__init__\.py)$"
 
 

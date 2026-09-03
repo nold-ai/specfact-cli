@@ -30,6 +30,13 @@ additional interpreters, and module manifests SHALL remain ineligible.
 - **THEN** it SHALL reject the GPL Pylint record
 - **AND** the exact frozen Code Review interpreter MAY accept only the matching version and license.
 
+#### Scenario: Malformed allowlist scope fails with a stable diagnostic
+
+- **GIVEN** an allowlist entry supplies a list, mapping, or other non-string scope
+- **WHEN** the license gate validates the entry
+- **THEN** it SHALL reject the entry with the existing invalid-scope diagnostic
+- **AND** SHALL NOT expose an unhandled membership-testing exception.
+
 ### Requirement: Isolated Code Review locks are dependency-trust inputs
 
 The dependency-trust gate SHALL authenticate the Code Review requirements input

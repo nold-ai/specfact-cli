@@ -371,3 +371,30 @@ Branch-level version-gate correction, 2026-09-03 Europe/Berlin:
   `HEAD`. The complete version-gate test file passes `11 passed, 1 skipped`;
   the subsequent full repository run passes `3094 passed, 10 skipped` with 64%
   coverage.
+
+Release-PR provenance regression, 2026-09-03T18:08:18Z:
+
+- Spec first: added the module-namespace binding requirement and its local,
+  class, module, and explicit-global declaration scenario before changing the
+  validator.
+- Failing-before command:
+  `/private/tmp/specfact-recovery-worktrees/bugfix/692-security-patch-clean-replay/.venv/bin/python -m pytest -q tests/unit/scripts/test_requirements_proof_provenance.py::test_pytest_plugin_provenance_ignores_local_scope_and_keeps_global_bindings`
+- Result: expected failure, exit 1; `1 failed`. The unchanged validator treated
+  ordinary function- and class-local declarations as effective module plugin
+  bindings and returned `stale-red-proof` after only those plugin files changed.
+
+Release-PR review regressions, completed 2026-09-03T18:24:37Z:
+
+- Spec first: added stable malformed-license-scope and published bundled-asset
+  requirements before changing the license gate or module-publishing workflow.
+- Failing-before command:
+  `/private/tmp/specfact-recovery-worktrees/bugfix/692-security-patch-clean-replay/.venv/bin/python -m pytest -q tests/unit/scripts/test_check_license_compliance.py::TestAllowlistLoader::test_non_string_scope_uses_stable_invalid_scope_error tests/unit/workflows/test_trustworthy_green_checks.py::test_publish_modules_verifies_release_asset_before_snapshot_update tests/unit/scripts/test_requirements_proof_provenance.py::test_pytest_plugin_provenance_ignores_local_scope_and_keeps_global_bindings`
+- Result: expected failure, exit 1; `4 failed`. The unchanged license validator
+  exposed `TypeError` for both list and mapping scopes, both publishing lanes
+  lacked tag-qualified verified release assets, and plugin discovery still
+  included ordinary local declarations.
+- Publication control: retained Actions artifact `9727636292` from run
+  `33296707608` contains `module-registry-0.1.35.tar.gz` with SHA-256
+  `8a3013299190286d2c48d87a6a605686ee3880d6acdc92119b466724d9db6f70`,
+  exactly matching the current snapshot. No GitHub release or module tag exists;
+  no remote publication was performed during failing-before evidence.

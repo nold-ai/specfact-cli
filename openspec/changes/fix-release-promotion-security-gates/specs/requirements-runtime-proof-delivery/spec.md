@@ -52,6 +52,21 @@ claim sandbox containment of intentionally hostile Python executed by pytest.
 - **THEN** Python isolated-path mode SHALL import installed pytest first
 - **AND** only then SHALL the bootstrap append the repository root and load the explicit proof plugin.
 
+### Requirement: Pytest plugin provenance follows effective module bindings
+
+The retained-proof provenance validator SHALL bind literal `pytest_plugins`
+declarations that can affect the imported module namespace. It SHALL include
+assignments executed in module scope and assignments whose lexical scope
+explicitly declares `pytest_plugins` as `global`. Ordinary function-local and
+class-local assignments SHALL NOT expand the proof-input closure.
+
+#### Scenario: Local declarations do not create false stale-proof results
+
+- **GIVEN** a Python proof input contains module-level, function-local, class-local, and explicit-global `pytest_plugins` assignments
+- **WHEN** the provenance validator derives repository-local plugin inputs
+- **THEN** it SHALL include the module-level and explicit-global plugin modules
+- **AND** it SHALL ignore the function-local and class-local plugin modules that cannot affect the imported module namespace.
+
 ### Requirement: Bootstrap metadata failures retain stable diagnostics
 
 Malformed authority bytes or JSON SHALL be reported as `authority-metadata`;

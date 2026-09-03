@@ -13,6 +13,8 @@
 - [x] 2.3 Add focused tests derived from every scenario and record failing-before evidence against the unmodified implementation.
 - [x] 2.4 Generate the test-authored Requirements mapping and obtain one approval only after its digest is stable.
 - [x] 2.5 Add one mapped review-amendment cycle for the remaining P1/P2 findings and retain its exact RED artifact.
+- [x] 2.6 Add a mapped namespace-scope regression for the final release-PR provenance finding and record its failing-before result before implementation.
+- [x] 2.7 Add mapped malformed-license-scope and module-release-publication regressions and record their failing-before results.
 
 ## 3. Minimal implementation
 
@@ -28,6 +30,9 @@
 - [x] 3.10 Pin isolated pytest to the authenticated repository root so JUnit retains canonical repository-relative selector identities.
 - [x] 3.11 Upgrade the GitPython runtime floor and frozen graph to 3.1.61 after the final audit reported four newly published 3.1.58 advisories.
 - [x] 3.12 Make the local version gate reuse the complete branch-level release bundle only for unchanged-version follow-ups, while rejecting later downgrades, deleted evidence, and invalid explicit CI bases.
+- [ ] 3.13 Restrict literal `pytest_plugins` discovery to module bindings while retaining explicit-global assignments.
+- [ ] 3.14 Reject non-string license scopes through the stable diagnostic path.
+- [ ] 3.15 Publish and checksum-verify tag-qualified bundled module release assets before updating snapshot metadata.
 
 ## 4. Passing evidence and review
 
@@ -40,6 +45,7 @@
 - [x] 4.7 Re-run independent review and all applicable gates after the final review-amendment correction.
 - [x] 4.8 Re-run independent review and all applicable gates after the canonical-selector compatibility correction.
 - [x] 4.9 Recover immutable RED proof for the final clean-code refactors, then re-run independent review and all applicable gates without changing mapped selector identities.
+- [ ] 4.10 Resolve the remaining release-PR evidence and test-quality findings, then re-run independent review and all applicable gates.
 
 ## 5. Release and delivery
 
