@@ -61,5 +61,5 @@ def test_tarball_rejects_symlinks_instead_of_silently_omitting_them(tmp_path: Pa
     (module_dir / "target.py").write_text("VALUE = True\n", encoding="utf-8")
     (module_dir / "alias.py").symlink_to("target.py")
 
-    with pytest.raises(ValueError, match="symlink"):
+    with pytest.raises(ValueError, match="symlink"):  # pyright: ignore[reportUnknownMemberType]
         module._create_tarball(module_dir, tmp_path / "module.tar.gz", "nold-ai/example", "1.2.3")
