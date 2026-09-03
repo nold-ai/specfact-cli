@@ -102,6 +102,21 @@ def test_tarball_checksum_matches_generated_index_entry(tmp_path: Path, monkeypa
     assert checksum == entry["checksum_sha256"]
 
 
+def test_tarball_is_reproducible_across_source_and_output_mtime_changes(tmp_path: Path) -> None:
+    """Retrying an immutable release must reproduce the exact archive bytes."""
+    module = _load_script_module()
+    bundle_dir = _create_bundle_package(tmp_path, "specfact-codebase")
+    first = tmp_path / "first.tar.gz"
+    second = tmp_path / "second.tar.gz"
+
+    module._create_tarball(bundle_dir, first, "nold-ai/specfact-codebase", "0.39.0")
+    for source_path in bundle_dir.rglob("*"):
+        source_path.touch()
+    module._create_tarball(bundle_dir, second, "nold-ai/specfact-codebase", "0.39.0")
+
+    assert hashlib.sha256(first.read_bytes()).digest() == hashlib.sha256(second.read_bytes()).digest()
+
+
 def test_publish_entry_serializes_bundle_dependency_objects_as_ids() -> None:
     module = _load_script_module()
 

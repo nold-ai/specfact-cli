@@ -693,6 +693,14 @@ def test_publish_modules_verifies_release_asset_before_snapshot_update() -> None
     assert raw.count('git merge-base --is-ancestor "${SOURCE_SHA}"') >= 2
     assert raw.count('gh release create "${RELEASE_TAG}"') >= 2
     assert raw.count('gh release download "${RELEASE_TAG}"') >= 2
+    assert "scripts/sign-modules.py" not in raw
+    assert "SPECFACT_MODULE_PRIVATE_SIGN_KEY" not in raw
+    assert raw.count('git diff --exit-code -- "${MODULE_PATH}"') >= 1
+    assert raw.count('git diff --exit-code -- "${MODULE_DIR}"') >= 1
+    assert raw.count("--verify-tag") >= 2
+    assert '--target "${SOURCE_SHA}"' not in raw
+    assert 'git push origin "${SOURCE_SHA}:refs/tags/${RELEASE_TAG}"' in raw
+    assert "Release creation did not succeed; verifying an existing immutable release." in raw
 
     for publication_block in raw.split("python scripts/update-registry-index.py")[:-1]:
         assert publication_block.rfind('gh release download "${RELEASE_TAG}"') > publication_block.rfind(

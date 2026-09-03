@@ -314,7 +314,21 @@ def test_git_bound_red_proof_rejects_changed_pytest_plugin(tmp_path: Path) -> No
     ]
 
 
-def test_pytest_plugin_provenance_ignores_local_scope_and_keeps_global_bindings(tmp_path: Path) -> None:
+@pytest.mark.parametrize(  # pyright: ignore[reportUnknownMemberType]
+    "global_declaration",
+    (
+        "def configure_global() -> None:\n"
+        "    global pytest_plugins\n"
+        "    pytest_plugins = ('tests.helpers.global_plugin',)\n\n",
+        "class GlobalPluginNamespace:\n"
+        "    global pytest_plugins\n"
+        "    pytest_plugins = ('tests.helpers.global_plugin',)\n\n",
+        "pytest_plugins: tuple[str, ...] = ('tests.helpers.global_plugin',)\n\n",
+    ),
+)
+def test_pytest_plugin_provenance_ignores_local_scope_and_keeps_global_bindings(
+    tmp_path: Path, global_declaration: str
+) -> None:
     """Only declarations capable of changing the module namespace are proof inputs."""
     module = _load_provenance_module()
     _git(tmp_path, "init")
@@ -332,11 +346,7 @@ def test_pytest_plugin_provenance_ignores_local_scope_and_keeps_global_bindings(
     (tests_path / "conftest.py").write_text(
         "pytest_plugins = ('tests.helpers.module_plugin',)\n\n"
         "def configure_local() -> None:\n"
-        "    pytest_plugins = ('tests.helpers.local_plugin',)\n\n"
-        "def configure_global() -> None:\n"
-        "    global pytest_plugins\n"
-        "    pytest_plugins = ('tests.helpers.global_plugin',)\n\n"
-        "class PluginNamespace:\n"
+        "    pytest_plugins = ('tests.helpers.local_plugin',)\n\n" + global_declaration + "class PluginNamespace:\n"
         "    pytest_plugins = ('tests.helpers.class_plugin',)\n",
         encoding="utf-8",
     )
