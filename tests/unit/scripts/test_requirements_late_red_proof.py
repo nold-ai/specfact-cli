@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import shutil
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -17,8 +18,8 @@ SCRIPT_PATH = REPO_ROOT / "scripts" / "requirements_late_red_proof.py"
 PROVENANCE_PATH = "scripts/requirements_proof_provenance.py"
 
 
-def _load_script_module() -> Any:
-    specification = importlib.util.spec_from_file_location("requirements_late_red_proof_test", SCRIPT_PATH)
+def _load_script_module(script_path: Path = SCRIPT_PATH) -> Any:
+    specification = importlib.util.spec_from_file_location("requirements_late_red_proof_test", script_path)
     assert specification is not None and specification.loader is not None
     module = importlib.util.module_from_spec(specification)
     specification.loader.exec_module(module)
@@ -53,6 +54,21 @@ def _create_provenance_history(tmp_path: Path) -> tuple[Path, str, bytes]:
     _git(repo_root, "add", PROVENANCE_PATH)
     _git(repo_root, "commit", "-m", "test: add trusted provenance")
     return repo_root, _git(repo_root, "rev-parse", "HEAD"), payload
+
+
+def _create_validator_checkout(tmp_path: Path) -> tuple[Any, Path]:
+    validator_root = tmp_path / "validator"
+    validator_script = validator_root / "scripts" / SCRIPT_PATH.name
+    validator_provenance = validator_root / PROVENANCE_PATH
+    validator_script.parent.mkdir(parents=True)
+    shutil.copyfile(SCRIPT_PATH, validator_script)
+    shutil.copyfile(REPO_ROOT / PROVENANCE_PATH, validator_provenance)
+    _git(validator_root, "init")
+    _git(validator_root, "config", "user.email", "requirements@example.test")
+    _git(validator_root, "config", "user.name", "Requirements proof")
+    _git(validator_root, "add", "scripts")
+    _git(validator_root, "commit", "-m", "test: add validator checkout")
+    return _load_script_module(validator_script), validator_provenance
 
 
 def _write_json(path: Path, value: object) -> str:
@@ -133,6 +149,24 @@ def test_provenance_loader_authenticates_cycle_base_bytes_before_execution(tmp_p
     with pytest.raises(ValueError):
         module._load_provenance(untrusted, repo_root, cycle_commit)
     assert not marker.exists()
+
+
+def test_provenance_loader_accepts_exact_committed_sibling_for_synthetic_fixture(tmp_path: Path) -> None:
+    """A fixture history may omit the helper while the validator checkout pins it."""
+    module, validator_provenance = _create_validator_checkout(tmp_path)
+    fixture_root = tmp_path / "fixture"
+    fixture_root.mkdir()
+    (fixture_root / "README.md").write_text("# fixture\n", encoding="utf-8")
+    _git(fixture_root, "init")
+    _git(fixture_root, "config", "user.email", "requirements@example.test")
+    _git(fixture_root, "config", "user.name", "Requirements proof")
+    _git(fixture_root, "add", "README.md")
+    _git(fixture_root, "commit", "-m", "test: add synthetic fixture")
+    fixture_commit = _git(fixture_root, "rev-parse", "HEAD")
+
+    bind, validate = module._load_provenance(validator_provenance, fixture_root, fixture_commit)
+    assert callable(bind)
+    assert callable(validate)
 
 
 def test_failed_selector_identity_is_order_independent_but_exact(tmp_path: Path) -> None:
