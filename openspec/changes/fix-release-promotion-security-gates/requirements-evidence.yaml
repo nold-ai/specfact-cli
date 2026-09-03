@@ -1,0 +1,310 @@
+schema_version: "2"
+requirements:
+  openspec:fix-release-promotion-security-gates:trustworthy-green-checks:privileged-dependency-caches-are-non-persistent:
+    rationale: >-
+      Privileged workflow state and companion fixture execution must not share
+      persistent package caches or branch-selected manual authority.
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#692"
+    touchpoints:
+      - id: frozen-python-setup
+        kind: ci_workflow
+        locator: ".github/actions/setup-frozen-python/action.yml"
+      - id: pr-orchestrator
+        kind: ci_workflow
+        locator: ".github/workflows/pr-orchestrator.yml"
+      - id: requirements-evidence
+        kind: ci_workflow
+        locator: ".github/workflows/requirements-evidence.yml"
+    verification_cases:
+      - case_id: REQUIREMENTS-692-S01
+        scenario_id: privileged-dependency-caches-are-non-persistent
+        method: test
+        intent: "Prove the shared frozen setup disables persistent uv restore and save."
+        observable: "The committed action uses enable-cache false and retains frozen synchronization."
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_promotion_security_gates.py::test_shared_frozen_setup_disables_persistent_cache
+      - case_id: REQUIREMENTS-692-S02
+        scenario_id: privileged-dependency-caches-are-non-persistent
+        method: test
+        intent: "Prove dynamic fixture execution is schedule-only and commit/tree verified before export."
+        observable: "No workflow_dispatch trigger exists and verification precedes the path export."
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_promotion_security_gates.py::test_compatibility_fixture_is_schedule_only_and_verified_before_export
+      - case_id: REQUIREMENTS-692-S03
+        scenario_id: privileged-dependency-caches-are-non-persistent
+        method: test
+        intent: "Prove Code Review Node setup has no persistent npm cache inputs."
+        observable: "The setup-node step omits cache and cache-dependency-path."
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_promotion_security_gates.py::test_post_fixture_node_setup_has_no_persistent_npm_cache
+  openspec:fix-release-promotion-security-gates:trustworthy-green-checks:proof-and-review-execute-across-a-clean-authenticated-boundary:
+    rationale: "Proof tests must not retain credentials or mutate the later Code Review toolchain."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#692"
+    touchpoints:
+      - id: requirements-evidence
+        kind: ci_workflow
+        locator: ".github/workflows/requirements-evidence.yml"
+    verification_cases:
+      - case_id: REQUIREMENTS-692-S12
+        scenario_id: proof-and-review-execute-across-a-clean-authenticated-boundary
+        method: test
+        intent: >-
+          Prove Code Review starts on a fresh runner, authenticates the exact pull-request head,
+          installs frozen tools before immutable artifact download, and fails closed on diff enumeration.
+        observable: >-
+          Only bounded evidence crosses jobs by immutable artifact ID; the fixture is reverified
+          and Git enumeration is status-checked.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_promotion_security_gates.py::test_requirements_review_restarts_from_exact_head_after_proof
+      - case_id: REQUIREMENTS-692-S13
+        scenario_id: proof-and-review-execute-across-a-clean-authenticated-boundary
+        method: test
+        intent: "Prove the proof-producing step has no GitHub token in its environment."
+        observable: "Credentialed bootstrap retrieval is separate and the proof step has no GH_TOKEN or GITHUB_TOKEN."
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_promotion_security_gates.py::test_requirements_proof_step_has_no_github_token_ancestor
+      - case_id: REQUIREMENTS-692-S14
+        scenario_id: proof-and-review-execute-across-a-clean-authenticated-boundary
+        method: test
+        intent: "Prove only pull-request provenance can emit the branch-protected Requirements context."
+        observable: "The required workflow has no manual trigger or caller-controlled base branch."
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_promotion_security_gates.py::test_required_requirements_check_cannot_be_manually_dispatched
+      - case_id: REQUIREMENTS-692-S16
+        scenario_id: proof-and-review-execute-across-a-clean-authenticated-boundary
+        method: test
+        intent: "Prove the fresh consumer independently executes the authenticated plan."
+        observable: >-
+          Base-branch proof components produce a fresh consumer JUnit and only that JUnit
+          reaches final reconciliation.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_promotion_security_gates.py::test_fresh_consumer_reexecutes_trusted_plan
+      - case_id: REQUIREMENTS-692-S17
+        scenario_id: proof-and-review-execute-across-a-clean-authenticated-boundary
+        method: test
+        intent: "Prove candidate pytest hooks and project configuration cannot forge the fresh consumer verdict."
+        observable: >-
+          Conftest discovery, project configuration, and addopts are disabled and the consumer step
+          retains a bounded timeout.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_promotion_security_gates.py::test_fresh_consumer_rejects_candidate_conftest_outcome_forgery
+      - case_id: REQUIREMENTS-692-S18
+        scenario_id: proof-and-review-execute-across-a-clean-authenticated-boundary
+        method: test
+        intent: "Prove candidate tests cannot replace prefetched proof or authority bytes."
+        observable: "Exact prefetched digests are rechecked immediately before external evidence is consumed."
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_rechecks_prefetched_proof_bytes_after_tests
+      - case_id: REQUIREMENTS-692-S19
+        scenario_id: proof-and-review-execute-across-a-clean-authenticated-boundary
+        method: test
+        intent: "Prove producer and consumer select the same amended active OpenSpec change."
+        observable: "Both stages derive one change from all changed active OpenSpec paths before selecting review evidence."
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_fresh_consumer_selects_review_evidence_for_changed_active_change
+      - case_id: REQUIREMENTS-692-S20
+        scenario_id: proof-and-review-execute-across-a-clean-authenticated-boundary
+        method: test
+        intent: "Prove both consumer closure checks use the isolated trusted interpreter."
+        observable: "Neither frozen-graph verification invokes the delivery verifier through direct Python execution."
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_code_review_closure_recheck_uses_isolated_trusted_interpreter
+      - case_id: REQUIREMENTS-692-S21
+        scenario_id: proof-and-review-execute-across-a-clean-authenticated-boundary
+        method: test
+        intent: "Prove a late amendment accepts only exact authority-bound RED evidence."
+        observable: >-
+          The final consumer revalidates the exact final tree, cycle base, RED commit, run, artifact,
+          digests, ancestry, test-only segment, mapping, plan, and failed selectors.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_late_amendment_requires_exact_authority_bound_red_artifact
+  openspec:fix-release-promotion-security-gates:dep-license-gate:frozen-development-advisories-use-a-compatible-fixed-graph:
+    rationale: "The frozen optional tool graph must remove compatible fixable advisories and scope reviewed license exceptions exactly."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#692"
+      - "GHSA-hvrp-rf83-w775"
+      - "GHSA-jpw9-pfvf-9f58"
+      - "GHSA-vj7q-gjh5-988w"
+    touchpoints:
+      - id: frozen-dependency-inputs
+        kind: config
+        locator: "pyproject.toml"
+      - id: dependency-trust-policy
+        kind: source_file
+        locator: "scripts/check_dependency_trust_exceptions.py"
+      - id: license-policy
+        kind: source_file
+        locator: "scripts/check_license_compliance.py"
+    verification_cases:
+      - case_id: REQUIREMENTS-692-S04
+        scenario_id: frozen-development-advisories-use-a-compatible-fixed-graph
+        method: test
+        intent: "Prove Semgrep and MCP resolve to the reviewed fixed pair with no MCP waiver."
+        observable: "All committed graphs and floors agree and runtime dependencies remain unchanged."
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_promotion_security_gates.py::test_frozen_graph_uses_fixed_semgrep_mcp_pair_without_waiver
+  openspec:fix-release-promotion-security-gates:dep-license-gate:isolated-code-review-locks-are-dependency-trust-inputs:
+    rationale: "The isolated Code Review input and hash-locked graph must be authenticated before installation."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#692"
+    touchpoints:
+      - id: dependency-trust-policy
+        kind: source_file
+        locator: "scripts/check_dependency_trust_exceptions.py"
+      - id: code-review-lock
+        kind: config
+        locator: "requirements/code-review/locked.txt"
+    verification_cases:
+      - case_id: REQUIREMENTS-692-S05
+        scenario_id: isolated-code-review-locks-are-dependency-trust-inputs
+        method: test
+        intent: "Prove a stale Code Review input digest fails before installation."
+        observable: "Dependency trust reports the exact binding mismatch."
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_promotion_security_gates.py::test_code_review_lock_is_bound_before_installation
+      - case_id: REQUIREMENTS-692-S14
+        scenario_id: isolated-code-review-locks-are-dependency-trust-inputs
+        method: test
+        intent: "Prove every Code Review lock installation is preceded by exact closure regeneration."
+        observable: "The existing reproducible-delivery verifier runs before each isolated uv installation."
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_promotion_security_gates.py::test_every_code_review_lock_install_has_exact_closure_proof
+  openspec:fix-release-promotion-security-gates:dep-license-gate:license-exceptions-are-bound-to-an-exact-environment-scope:
+    rationale: "The Pylint exception must not leak outside the isolated Code Review interpreter."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#692"
+    touchpoints:
+      - id: license-policy
+        kind: source_file
+        locator: "scripts/check_license_compliance.py"
+      - id: license-allowlist
+        kind: config
+        locator: "scripts/license_allowlist.yaml"
+    verification_cases:
+      - case_id: REQUIREMENTS-692-S06
+        scenario_id: license-exceptions-are-bound-to-an-exact-environment-scope
+        method: test
+        intent: "Prove the Pylint exception applies only to the exact Code Review scope."
+        observable: "Primary scan rejects while code-review-only accepts the matching record."
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_promotion_security_gates.py::test_code_review_only_license_exception_does_not_leak
+  openspec:fix-release-promotion-security-gates:dep-license-gate:patch-release-consumes-only-the-next-version:
+    rationale: "The bugfix must consume exactly one patch version and keep all release sources synchronized."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#692"
+    touchpoints:
+      - id: release-version
+        kind: config
+        locator: "pyproject.toml"
+    verification_cases:
+      - case_id: REQUIREMENTS-692-S11
+        scenario_id: patch-release-consumes-only-the-next-version
+        method: test
+        intent: "Prove all canonical version sources use 0.55.4."
+        observable: "The four release version sources agree on the next semver patch."
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_promotion_security_gates.py::test_patch_release_uses_next_version_in_all_sources
+  openspec:fix-release-promotion-security-gates:requirements-runtime-proof-delivery:active-change-selection-authenticates-archives-and-git-results:
+    rationale: "Requirements selection and proof helpers must fail closed on ambiguous archive, interpreter, authority, and path inputs."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#692"
+    touchpoints:
+      - id: pre-commit-selection
+        kind: source_file
+        locator: "scripts/pre-commit-quality-checks.sh"
+      - id: proof-executor
+        kind: source_file
+        locator: "scripts/requirements_proof_executor.py"
+      - id: authority-validator
+        kind: source_file
+        locator: "scripts/requirements_bootstrap_authority.py"
+      - id: docs-path-validator
+        kind: source_file
+        locator: "scripts/check_doc_frontmatter.py"
+    verification_cases:
+      - case_id: REQUIREMENTS-692-S07
+        scenario_id: active-change-selection-authenticates-archives-and-git-results
+        method: test
+        intent: "Prove exact native moves and successful Git enumeration are required."
+        observable: "Pre-commit and workflow sources status-check Git and require R100 identity."
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_promotion_security_gates.py::test_archive_selection_checks_exact_moves_and_git_failures
+      - case_id: REQUIREMENTS-692-S15
+        scenario_id: active-change-selection-authenticates-archives-and-git-results
+        method: test
+        intent: "Prove archive selection and source reads share one immutable merge-base object ID."
+        observable: "The workflow resolves one merge base and does not compare against a moving remote branch."
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_promotion_security_gates.py::test_requirements_archive_uses_one_immutable_merge_base
+  openspec:fix-release-promotion-security-gates:requirements-runtime-proof-delivery:proof-execution-resolves-installed-pytest-before-repository-code:
+    rationale: "The proof executor must resolve installed pytest before candidate repository paths can shadow it."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#692"
+    touchpoints:
+      - id: proof-executor
+        kind: source_file
+        locator: "scripts/requirements_proof_executor.py"
+    verification_cases:
+      - case_id: REQUIREMENTS-692-S08
+        scenario_id: proof-execution-resolves-installed-pytest-before-repository-code
+        method: test
+        intent: "Prove the executor imports installed pytest before appending repository paths."
+        observable: "The command uses -P and the bootstrap order is installed pytest then repo root."
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_promotion_security_gates.py::test_proof_executor_imports_installed_pytest_before_repository_root
+  openspec:fix-release-promotion-security-gates:requirements-runtime-proof-delivery:bootstrap-metadata-failures-retain-stable-diagnostics:
+    rationale: "Malformed external authority bytes must use a stable fail-closed diagnostic."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#692"
+    touchpoints:
+      - id: authority-validator
+        kind: source_file
+        locator: "scripts/requirements_bootstrap_authority.py"
+    verification_cases:
+      - case_id: REQUIREMENTS-692-S09
+        scenario_id: bootstrap-metadata-failures-retain-stable-diagnostics
+        method: test
+        intent: "Prove invalid external bytes use the stable authority-metadata result."
+        observable: "The validator exits one with only the stable metadata diagnostic."
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_promotion_security_gates.py::test_invalid_utf8_authority_is_stable_metadata_failure
+  openspec:fix-release-promotion-security-gates:requirements-runtime-proof-delivery:external-command-path-arguments-are-unambiguous:
+    rationale: "Dash-prefixed repository paths must not become command options."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#692"
+    touchpoints:
+      - id: docs-path-validator
+        kind: source_file
+        locator: "scripts/check_doc_frontmatter.py"
+    verification_cases:
+      - case_id: REQUIREMENTS-692-S10
+        scenario_id: external-command-path-arguments-are-unambiguous
+        method: test
+        intent: "Prove ripgrep arguments use the option terminator before repository paths."
+        observable: "The executed argument array contains -- immediately before the path."
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_promotion_security_gates.py::test_doc_owner_rg_terminates_options

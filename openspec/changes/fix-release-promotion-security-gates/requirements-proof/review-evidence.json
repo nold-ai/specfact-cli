@@ -1,0 +1,9 @@
+{
+  "schema_version": "1",
+  "decision": "accepted",
+  "reviewer_id": "djm81",
+  "reviewer_role": "product-owner",
+  "recorded_at": "2026-09-02T18:18:31+02:00",
+  "reference": "https://github.com/nold-ai/specfact-cli/issues/692#issuecomment-5512722993",
+  "mapping_digest": "sha256:945745fa94ce5a7e095d691080570d55b014a96d7794d3e7304234d5657a64c2"
+}

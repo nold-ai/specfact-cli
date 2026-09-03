@@ -40,6 +40,25 @@ def _init_git_repo(tmp_path: Path) -> None:
     )
 
 
+def _run_git(tmp_path: Path, *args: str) -> None:
+    subprocess.run(["git", *args], cwd=tmp_path, check=True, capture_output=True, text=True)
+
+
+def _commit_all(tmp_path: Path, message: str) -> None:
+    _run_git(tmp_path, "add", ".")
+    _run_git(tmp_path, "commit", "-m", message)
+
+
+def _run_version_check(script: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [sys.executable, str(script), *args],
+        cwd=script.parents[1],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+
 def test_check_version_sources_passes_on_repo() -> None:
     """Current checkout must keep canonical version files aligned."""
     repo_root = Path(__file__).resolve().parents[3]
@@ -157,28 +176,36 @@ def test_check_version_sources_passes_when_packaged_artifact_changes_with_versio
     (tmp_path / "CHANGELOG.md").write_text("## [1.2.3] - 2026-04-16\n\n- Initial release entry.\n", encoding="utf-8")
     (tmp_path / "src" / "specfact_cli" / "runtime.py").write_text("VALUE = 1\n", encoding="utf-8")
     _init_git_repo(tmp_path)
-    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True, text=True)
-    subprocess.run(["git", "commit", "-m", "initial"], cwd=tmp_path, check=True, capture_output=True, text=True)
+    _commit_all(tmp_path, "initial")
 
     (tmp_path / "src" / "specfact_cli" / "runtime.py").write_text("VALUE = 2\n", encoding="utf-8")
     _write_canonical_version_files(tmp_path, "1.2.4")
     (tmp_path / "CHANGELOG.md").write_text("## [1.2.4] - 2026-04-16\n\n- Runtime update.\n", encoding="utf-8")
-    subprocess.run(
-        [
-            "git",
-            "add",
-            "src/specfact_cli/runtime.py",
-            "pyproject.toml",
-            "setup.py",
-            "src/__init__.py",
-            "src/specfact_cli/__init__.py",
-            "CHANGELOG.md",
-        ],
-        cwd=tmp_path,
-        check=True,
-        capture_output=True,
-        text=True,
+    _run_git(tmp_path, "add", ".")
+
+    completed = _run_version_check(script)
+    assert completed.returncode == 0, completed.stderr
+
+
+def test_check_version_sources_reuses_branch_release_for_dependency_follow_up(tmp_path: Path) -> None:
+    """A follow-up metadata commit may reuse the branch's unreleased version bump."""
+    script = _copy_version_script(tmp_path)
+    _write_canonical_version_files(tmp_path, "1.2.3")
+    (tmp_path / "CHANGELOG.md").write_text("## [1.2.3] - 2026-04-16\n\n- Initial.\n", encoding="utf-8")
+    _init_git_repo(tmp_path)
+    _commit_all(tmp_path, "initial")
+    _run_git(tmp_path, "update-ref", "refs/remotes/origin/dev", "HEAD")
+
+    _write_canonical_version_files(tmp_path, "1.2.4")
+    (tmp_path / "CHANGELOG.md").write_text("## [1.2.4] - 2026-04-16\n\n- Patch release.\n", encoding="utf-8")
+    _commit_all(tmp_path, "release bundle")
+
+    setup_path = tmp_path / "setup.py"
+    setup_path.write_text(
+        setup_path.read_text(encoding="utf-8") + '\ninstall_requires=["gitpython>=3.1.61"]\n',
+        encoding="utf-8",
     )
+    subprocess.run(["git", "add", "setup.py"], cwd=tmp_path, check=True, capture_output=True, text=True)
 
     completed = subprocess.run(
         [sys.executable, str(script)],
@@ -188,6 +215,83 @@ def test_check_version_sources_passes_when_packaged_artifact_changes_with_versio
         text=True,
     )
     assert completed.returncode == 0, completed.stderr
+
+
+def test_check_version_sources_rejects_invalid_explicit_base_ref(tmp_path: Path) -> None:
+    """An explicit CI comparison ref must fail closed when it cannot be resolved."""
+    script = _copy_version_script(tmp_path)
+    _write_canonical_version_files(tmp_path, "1.2.3")
+    (tmp_path / "CHANGELOG.md").write_text("## [1.2.3] - 2026-04-16\n", encoding="utf-8")
+    _init_git_repo(tmp_path)
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "commit", "-m", "initial"], cwd=tmp_path, check=True, capture_output=True, text=True)
+
+    completed = subprocess.run(
+        [sys.executable, str(script), "--changed-vs", "refs/remotes/origin/missing"],
+        cwd=str(tmp_path),
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode != 0
+    assert "cannot list changed files" in completed.stderr
+
+
+def test_check_version_sources_rejects_staged_downgrade_after_branch_release(tmp_path: Path) -> None:
+    """Branch-level release reuse must not permit a later staged version downgrade."""
+    script = _copy_version_script(tmp_path)
+    _write_canonical_version_files(tmp_path, "1.2.3")
+    (tmp_path / "CHANGELOG.md").write_text("## [1.2.3] - 2026-04-16\n", encoding="utf-8")
+    _init_git_repo(tmp_path)
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "commit", "-m", "initial"], cwd=tmp_path, check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "update-ref", "refs/remotes/origin/dev", "HEAD"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    _write_canonical_version_files(tmp_path, "1.2.5")
+    (tmp_path / "CHANGELOG.md").write_text("## [1.2.5] - 2026-04-16\n", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "commit", "-m", "release bundle"], cwd=tmp_path, check=True, capture_output=True, text=True)
+
+    _write_canonical_version_files(tmp_path, "1.2.4")
+    (tmp_path / "CHANGELOG.md").write_text("## [1.2.4] - 2026-04-16\n", encoding="utf-8")
+    _run_git(tmp_path, "add", ".")
+
+    completed = _run_version_check(script)
+
+    assert completed.returncode == 1
+    assert "incrementing the package version" in completed.stderr
+
+
+def test_check_version_sources_rejects_staged_changelog_deletion_during_follow_up(tmp_path: Path) -> None:
+    """A staged changelog deletion must not reuse the committed release entry."""
+    script = _copy_version_script(tmp_path)
+    _write_canonical_version_files(tmp_path, "1.2.3")
+    changelog = tmp_path / "CHANGELOG.md"
+    changelog.write_text("## [1.2.3] - 2026-04-16\n", encoding="utf-8")
+    _init_git_repo(tmp_path)
+    _commit_all(tmp_path, "initial")
+    _run_git(tmp_path, "update-ref", "refs/remotes/origin/dev", "HEAD")
+
+    _write_canonical_version_files(tmp_path, "1.2.4")
+    changelog.write_text("## [1.2.4] - 2026-04-16\n", encoding="utf-8")
+    _commit_all(tmp_path, "release bundle")
+
+    setup_path = tmp_path / "setup.py"
+    setup_path.write_text(setup_path.read_text(encoding="utf-8") + "\n# dependency follow-up\n", encoding="utf-8")
+    changelog.unlink()
+    _run_git(tmp_path, "add", "setup.py", "CHANGELOG.md")
+
+    completed = _run_version_check(script)
+
+    assert completed.returncode == 1
+    assert "must contain a release header" in completed.stderr
 
 
 def test_check_version_sources_changed_vs_detects_ci_packaged_artifact_change_without_version_bundle(
@@ -247,32 +351,6 @@ def test_check_version_sources_changed_vs_allows_pyproject_tooling_edit_without_
     assert completed.returncode == 0, completed.stderr
 
 
-def test_check_version_sources_changed_vs_passes_with_version_bundle_and_changelog(
-    tmp_path: Path,
-) -> None:
-    """CI mode should enforce and accept a full release bundle from working tree changes."""
-    script = _copy_version_script(tmp_path)
-    _write_canonical_version_files(tmp_path, "1.2.3")
-    (tmp_path / "CHANGELOG.md").write_text("## [1.2.3] - 2026-04-16\n\n- Initial release entry.\n", encoding="utf-8")
-    (tmp_path / "src" / "specfact_cli" / "runtime.py").write_text("VALUE = 1\n", encoding="utf-8")
-    _init_git_repo(tmp_path)
-    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True, text=True)
-    subprocess.run(["git", "commit", "-m", "initial"], cwd=tmp_path, check=True, capture_output=True, text=True)
-
-    (tmp_path / "src" / "specfact_cli" / "runtime.py").write_text("VALUE = 2\n", encoding="utf-8")
-    _write_canonical_version_files(tmp_path, "1.2.4")
-    (tmp_path / "CHANGELOG.md").write_text("## [1.2.4] - 2026-04-16\n\n- Runtime update.\n", encoding="utf-8")
-
-    completed = subprocess.run(
-        [sys.executable, str(script), "--changed-vs", "HEAD"],
-        cwd=str(tmp_path),
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert completed.returncode == 0, completed.stderr
-
-
 def test_check_version_sources_compares_version_bump_against_changed_vs_base(
     tmp_path: Path,
 ) -> None:
@@ -282,35 +360,12 @@ def test_check_version_sources_compares_version_bump_against_changed_vs_base(
     (tmp_path / "CHANGELOG.md").write_text("## [1.2.3] - 2026-04-16\n\n- Initial release entry.\n", encoding="utf-8")
     (tmp_path / "src" / "specfact_cli" / "runtime.py").write_text("VALUE = 1\n", encoding="utf-8")
     _init_git_repo(tmp_path)
-    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True, text=True)
-    subprocess.run(["git", "commit", "-m", "initial"], cwd=tmp_path, check=True, capture_output=True, text=True)
+    _commit_all(tmp_path, "initial")
 
     (tmp_path / "src" / "specfact_cli" / "runtime.py").write_text("VALUE = 2\n", encoding="utf-8")
     _write_canonical_version_files(tmp_path, "1.2.4")
     (tmp_path / "CHANGELOG.md").write_text("## [1.2.4] - 2026-04-16\n\n- Runtime update.\n", encoding="utf-8")
-    subprocess.run(
-        [
-            "git",
-            "add",
-            "src/specfact_cli/runtime.py",
-            "pyproject.toml",
-            "setup.py",
-            "src/__init__.py",
-            "src/specfact_cli/__init__.py",
-            "CHANGELOG.md",
-        ],
-        cwd=tmp_path,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    subprocess.run(["git", "commit", "-m", "release bundle"], cwd=tmp_path, check=True, capture_output=True, text=True)
+    _commit_all(tmp_path, "release bundle")
 
-    completed = subprocess.run(
-        [sys.executable, str(script), "--changed-vs", "HEAD~1"],
-        cwd=str(tmp_path),
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    completed = _run_version_check(script, "--changed-vs", "HEAD~1")
     assert completed.returncode == 0, completed.stderr

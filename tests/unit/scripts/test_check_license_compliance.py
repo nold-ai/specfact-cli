@@ -214,7 +214,7 @@ class TestAllowlistAccepted:
         entry = entries[0]
         assert entry["version"] == "4.0.7"
         assert entry["license"] == "GPL-2.0-or-later"
-        assert entry["scope"] == "dev-only"
+        assert entry["scope"] == "code-review-only"
         assert "Phase 2" in entry["reason"]
 
     def test_allowlist_entry_suppresses_gpl_failure(self, mod) -> None:

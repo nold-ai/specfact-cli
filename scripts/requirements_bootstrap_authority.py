@@ -21,19 +21,19 @@ from icontract import ensure
 AUTHORITY_HEADER = "SPECFACT_REQUIREMENTS_BOOTSTRAP_AUTHORITY_V1"
 GIT_OBJECT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 GOVERNED_PRODUCTION_PREFIXES = (
-    ".github/",
-    "ci/",
-    "scripts/",
-    "src/",
-    "tools/",
-    "resources/templates/",
-    "resources/schemas/",
-    "resources/mappings/",
-    "resources/keys/",
-    "requirements/",
-    "modules/bundle-mapper/",
+    b".github/",
+    b"ci/",
+    b"scripts/",
+    b"src/",
+    b"tools/",
+    b"resources/templates/",
+    b"resources/schemas/",
+    b"resources/mappings/",
+    b"resources/keys/",
+    b"requirements/",
+    b"modules/bundle-mapper/",
 )
-GOVERNED_PRODUCTION_FILES = {"pyproject.toml", "setup.py", "uv.lock"}
+GOVERNED_PRODUCTION_FILES = {b"pyproject.toml", b"setup.py", b"uv.lock"}
 
 
 @dataclass(frozen=True)
@@ -83,12 +83,69 @@ def _git(repo_root: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(["git", *arguments], cwd=repo_root, capture_output=True, check=False, text=True)
 
 
+def _git_bytes(repo_root: Path, *arguments: str) -> subprocess.CompletedProcess[bytes]:
+    return subprocess.run(["git", *arguments], cwd=repo_root, capture_output=True, check=False)
+
+
 def _is_ancestor(repo_root: Path, ancestor: str, descendant: str) -> bool:
     return _git(repo_root, "merge-base", "--is-ancestor", ancestor, descendant).returncode == 0
 
 
-def _has_governed_production_path(paths: Sequence[str]) -> bool:
+def _has_governed_production_path(paths: Sequence[bytes]) -> bool:
     return any(path in GOVERNED_PRODUCTION_FILES or path.startswith(GOVERNED_PRODUCTION_PREFIXES) for path in paths)
+
+
+def _linear_history_commits(repo_root: Path, base_commit: str, red_commit: str) -> list[tuple[str, str]] | None:
+    history = _git(repo_root, "rev-list", "--reverse", "--parents", f"{base_commit}..{red_commit}")
+    if history.returncode != 0:
+        return None
+    commits: list[tuple[str, str]] = []
+    for record in history.stdout.splitlines():
+        fields = record.split()
+        if len(fields) != 2 or any(GIT_OBJECT_PATTERN.fullmatch(field) is None for field in fields):
+            return None
+        commits.append((fields[1], fields[0]))
+    return commits or None
+
+
+def _commit_changed_paths(repo_root: Path, parent: str, commit: str) -> list[bytes] | None:
+    changed = _git_bytes(
+        repo_root,
+        "diff-tree",
+        "--no-commit-id",
+        "--name-status",
+        "--no-renames",
+        "-r",
+        "-z",
+        parent,
+        commit,
+        "--",
+    )
+    if changed.returncode != 0 or not changed.stdout.endswith(b"\0"):
+        return None
+    fields = changed.stdout.split(b"\0")
+    if fields[-1] != b"" or len(fields[:-1]) % 2 != 0:
+        return None
+    paths: list[bytes] = []
+    for index in range(0, len(fields) - 1, 2):
+        status, path = fields[index : index + 2]
+        if status not in {b"A", b"B", b"D", b"M", b"T", b"U", b"X"} or not path:
+            return None
+        paths.append(path)
+    return paths
+
+
+def _linear_history_paths(repo_root: Path, base_commit: str, red_commit: str) -> list[bytes] | None:
+    commits = _linear_history_commits(repo_root, base_commit, red_commit)
+    if commits is None:
+        return None
+    paths: list[bytes] = []
+    for parent, commit in commits:
+        changed_paths = _commit_changed_paths(repo_root, parent, commit)
+        if changed_paths is None:
+            return None
+        paths.extend(changed_paths)
+    return paths
 
 
 def _authority_from_comment(comment: dict[str, object], context: AuthorityContext) -> dict[str, object]:
@@ -151,10 +208,13 @@ def _valid_commit(authority: dict[str, object], commit: dict[str, object]) -> bo
 
 def _valid_run(authority: dict[str, object], run: dict[str, object]) -> bool:
     repository = _object(run.get("repository"))
+    red_branch = authority.get("red_branch", authority.get("head_branch"))
     return (
         run.get("id") == authority.get("run_id")
         and run.get("head_sha") == authority.get("red_commit")
-        and run.get("head_branch") == authority.get("head_branch")
+        and isinstance(red_branch, str)
+        and bool(red_branch)
+        and run.get("head_branch") == red_branch
         and run.get("event") == "pull_request"
         and run.get("status") == "completed"
         and run.get("conclusion") == "failure"
@@ -220,23 +280,15 @@ def _valid_history(authority: dict[str, object], paths: AuthorityPaths, context:
     ):
         return False
     merge_base = _git(paths.repo_root, "merge-base", context.base_ref, red_commit)
-    changed_paths = _git(
-        paths.repo_root,
-        "log",
-        "--format=",
-        "--name-only",
-        "--no-renames",
-        "--end-of-options",
-        f"{base_commit}..{red_commit}",
-    )
+    changed_paths = _linear_history_paths(paths.repo_root, base_commit, red_commit)
     return (
         merge_base.returncode == 0
         and merge_base.stdout.strip() == base_commit
         and _is_ancestor(paths.repo_root, context.base_ref, red_commit)
         and red_commit != context.final_ref
         and _is_ancestor(paths.repo_root, red_commit, context.final_ref)
-        and changed_paths.returncode == 0
-        and not _has_governed_production_path(changed_paths.stdout.splitlines())
+        and changed_paths is not None
+        and not _has_governed_production_path(changed_paths)
     )
 
 
@@ -259,10 +311,11 @@ def _authority_findings(paths: AuthorityPaths, context: AuthorityContext) -> lis
     """Name each failed independent binding without exposing authority contents."""
     try:
         authority = _authority_from_comment(_read_object(paths.comment), context)
-    except ValueError as error:
-        return [str(error)]
     except (OSError, UnicodeDecodeError, json.JSONDecodeError):
         return ["authority-metadata"]
+    except ValueError as error:
+        diagnostic = str(error)
+        return [diagnostic] if diagnostic.startswith("authority-comment-") else ["authority-metadata"]
     findings: list[str] = []
     checks = (
         ("artifact-files", lambda: _valid_red_artifact(authority, paths.artifact_root)),

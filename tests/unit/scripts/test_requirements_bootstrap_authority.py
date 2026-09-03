@@ -231,6 +231,30 @@ def _mutate_authority(fixture: dict[str, object], **updates: object) -> None:
     _write_json(comment_path, comment)
 
 
+def _history_is_valid(module: Any, repo_root: Path, base_ref: str, red_ref: str, final_ref: str) -> bool:
+    """Exercise only the Git-history boundary with otherwise well-formed identities."""
+    placeholder = repo_root / "unused"
+    paths = module.AuthorityPaths(
+        comment=placeholder,
+        commit=placeholder,
+        run=placeholder,
+        artifacts=placeholder,
+        artifact_root=placeholder,
+        repo_root=repo_root,
+    )
+    context = module.AuthorityContext(
+        comment_id=33,
+        base_ref=base_ref,
+        final_ref=final_ref,
+        repository="nold-ai/specfact-cli",
+        change_id="fix-retained-red-proof-provenance",
+        issue=689,
+        pull_request=690,
+        head_branch="bugfix/689-retained-red-proof-provenance",
+    )
+    return cast(bool, module._valid_history({"base_commit": base_ref, "red_commit": red_ref}, paths, context))
+
+
 def test_bootstrap_authority_accepts_exact_owner_bound_red_history(tmp_path: Path) -> None:
     """Every external and local identity must agree for the one-time bootstrap."""
     module = _load_authority_module()
@@ -317,6 +341,58 @@ def test_bootstrap_authority_rejects_governed_path_in_red_history(tmp_path: Path
     fixture = _authority_fixture(tmp_path, governed_red_path=True)
 
     assert not _validate(module, fixture)
+
+
+def test_bootstrap_authority_rejects_merge_commit_in_red_history(tmp_path: Path) -> None:
+    """A merge cannot hide production bytes that exist only in its resolution tree."""
+    module = _load_authority_module()
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    _git(repo_root, "init")
+    _git(repo_root, "config", "user.email", "requirements@example.test")
+    _git(repo_root, "config", "user.name", "Requirements proof")
+    (repo_root / "README.md").write_text("# proof\n", encoding="utf-8")
+    base_ref = _commit(repo_root, "chore: base")
+    initial_branch = _git(repo_root, "branch", "--show-current")
+
+    _git(repo_root, "switch", "-c", "red-tests")
+    test_path = repo_root / "tests" / "test_proof.py"
+    test_path.parent.mkdir()
+    test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    _commit(repo_root, "test: red")
+
+    _git(repo_root, "switch", initial_branch)
+    (repo_root / "README.md").write_text("# proof\n\nmain line\n", encoding="utf-8")
+    _commit(repo_root, "docs: advance main")
+    _git(repo_root, "merge", "--no-ff", "--no-commit", "red-tests")
+    governed_path = repo_root / "src" / "merge_resolution.py"
+    governed_path.parent.mkdir()
+    governed_path.write_text("VALUE = 1\n", encoding="utf-8")
+    red_ref = _commit(repo_root, "test: merge red evidence")
+    (repo_root / "README.md").write_text("# proof\n\nfinal line\n", encoding="utf-8")
+    final_ref = _commit(repo_root, "docs: final")
+
+    assert not _history_is_valid(module, repo_root, base_ref, red_ref, final_ref)
+
+
+def test_bootstrap_authority_rejects_tabbed_governed_path(tmp_path: Path) -> None:
+    """Git quoting cannot conceal a governed path containing a tab."""
+    module = _load_authority_module()
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    _git(repo_root, "init")
+    _git(repo_root, "config", "user.email", "requirements@example.test")
+    _git(repo_root, "config", "user.name", "Requirements proof")
+    (repo_root / "README.md").write_text("# proof\n", encoding="utf-8")
+    base_ref = _commit(repo_root, "chore: base")
+    governed_path = repo_root / "src" / "tab\tpath.py"
+    governed_path.parent.mkdir()
+    governed_path.write_text("VALUE = 1\n", encoding="utf-8")
+    red_ref = _commit(repo_root, "test: tabbed governed path")
+    (repo_root / "README.md").write_text("# proof\n\nfinal line\n", encoding="utf-8")
+    final_ref = _commit(repo_root, "docs: final")
+
+    assert not _history_is_valid(module, repo_root, base_ref, red_ref, final_ref)
 
 
 def test_bootstrap_authority_rejects_invalid_base_oid_before_git(
