@@ -487,15 +487,13 @@ def test_proof_executor_imports_installed_pytest_before_repository_root(tmp_path
     }
     captured: list[Any] = []
 
-    assert (
-        module.execute_plan(
-            plan,
-            tmp_path,
-            tmp_path / "proof.xml",
-            command_runner=lambda command: captured.append(command) or 0,
-        )
-        == 0
+    exit_code = module.execute_plan(
+        plan,
+        tmp_path,
+        tmp_path / "proof.xml",
+        command_runner=lambda command: captured.append(command) or 0,
     )
+    assert exit_code == 0
     command = captured[0]
     bootstrap = getattr(module, "PROOF_PYTEST_BOOTSTRAP", "")
     assert command.arguments[1:4] == ["-P", "-c", bootstrap]

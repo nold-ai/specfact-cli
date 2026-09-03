@@ -206,7 +206,9 @@ def test_git_bound_red_proof_requires_test_only_ancestor_and_unchanged_selector_
     ]
 
 
-@pytest.mark.parametrize("support_path", ["conftest.py", "tests/conftest.py"])
+@pytest.mark.parametrize(  # pyright: ignore[reportUnknownMemberType]
+    "support_path", ["conftest.py", "tests/conftest.py"]
+)
 def test_git_bound_red_proof_rejects_changed_applicable_conftest(tmp_path: Path, support_path: str) -> None:
     """A fixture or hook change must invalidate an earlier selected-test failure."""
     module = _load_provenance_module()
@@ -691,7 +693,7 @@ def test_git_bound_red_proof_rejects_test_changed_and_restored_after_red(tmp_pat
     ]
 
 
-@pytest.mark.parametrize(
+@pytest.mark.parametrize(  # pyright: ignore[reportUnknownMemberType]
     "delivery_path",
     [
         "pyproject.toml",
@@ -729,7 +731,9 @@ def test_git_bound_red_proof_rejects_delivery_input_before_red(tmp_path: Path, d
     ]
 
 
-@pytest.mark.parametrize("missing_field", ["source_tree", "merge_base", "test_file_digests", "toolchain_identity"])
+@pytest.mark.parametrize(  # pyright: ignore[reportUnknownMemberType]
+    "missing_field", ["source_tree", "merge_base", "test_file_digests", "toolchain_identity"]
+)
 def test_git_bound_red_proof_requires_every_execution_binding(tmp_path: Path, missing_field: str) -> None:
     """A retained red report without every source and toolchain binding is invalid."""
     module = _load_provenance_module()
