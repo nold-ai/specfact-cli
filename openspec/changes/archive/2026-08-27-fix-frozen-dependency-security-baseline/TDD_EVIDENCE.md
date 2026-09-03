@@ -85,7 +85,7 @@
 ## Focused failing policy tests
 
 ```text
-UV_CACHE_DIR=/private/tmp/specfact-security-uv-cache .venv/bin/pytest \
+UV_CACHE_DIR=<isolated-uv-cache> <project-venv>/bin/python -m pytest \
   tests/unit/scripts/test_reproducible_delivery.py::test_reproducible_delivery_wheel_build_uses_a_locked_backend \
   tests/unit/scripts/test_reproducible_delivery.py::test_reproducible_delivery_pins_patched_pip_to_tooling_only -q
 ```
@@ -213,6 +213,24 @@ UV_CACHE_DIR=/private/tmp/specfact-security-uv-cache .venv/bin/pytest \
   or the repository-wide advisory backlog is an explicit scope exception because
   it is unrelated to this dependency-only patch and would violate the smallest-fix
   constraint.
+
+## Final delivery evidence
+
+- PR #690 head `595a74e2d000b0c19a71a4af9d178d87480dfb63` merged to `dev`
+  on 2026-08-27 at 19:13:58Z as
+  `3ea3d9b4492ade6ec5683fac83c5b5090b0cb547`.
+- Requirements Evidence run `33106636809` started on 2026-08-27 at
+  19:04:15Z and passed. Its retained `requirements-evidence` artifact is ID
+  `9660752140`, service digest
+  `sha256:7cfca5613dcccf551f0c128d79f9bea2d028b3717d61944110f27880a36eb475`.
+- PR Orchestrator run `33106636920` started at the same commit and passed all
+  applicable required quality, security, compatibility, and packaging jobs.
+- The merge changed 53 files covering the frozen dependency inputs, security
+  and Requirements validators/workflows, their focused tests, canonical
+  release metadata, and the archived OpenSpec evidence. The exact inventory is
+  recoverable with `git diff-tree --no-commit-id --name-only -r 3ea3d9b4`.
+- The internal wiki source was intentionally not modified because that
+  repository and its planning PR were outside the authorized change scope.
 
 ## PR review P1: live-index-independent isolated lock verification
 

@@ -150,9 +150,10 @@ not currently exist. Both publisher lanes derive the release tag from the
 validated module slug and version, require the source commit to be reachable
 from `dev` or `main`, create the release without overwriting an existing version,
 redownload and checksum the archive, and only then update the snapshot. The
-existing `module-registry` 0.1.35 Actions artifact is retained as the exact
-source for repairing its already-recorded URL; no module payload or version is
-changed.
+existing `module-registry` 0.1.35 Actions artifact remains comparison evidence.
+After this publisher correction merges, the protected source is packaged
+reproducibly and its verified release checksum replaces the stale snapshot
+checksum and URL; no module payload or version is changed.
 
 ## Risks / Trade-offs
 

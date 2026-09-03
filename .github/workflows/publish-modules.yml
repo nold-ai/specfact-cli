@@ -11,8 +11,6 @@
 #                                        publishing for official bundles remains in
 #                                        the modules repository.
 #
-# Optional signing: set repository secrets SPECFACT_MODULE_PRIVATE_SIGN_KEY (PEM string)
-# and SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE to sign the module manifest before packaging.
 name: Publish Modules
 
 on:
@@ -38,13 +36,13 @@ jobs:
       contents: write
       pull-requests: write
     env:
-      SPECFACT_MODULE_PRIVATE_SIGN_KEY: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY }}
-      SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE }}
       BUNDLED_REGISTRY_INDEX: resources/bundled-module-registry/index.json
       BUNDLED_REGISTRY_DOWNLOAD_BASE_URL: https://github.com/nold-ai/specfact-cli/releases/download
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -80,20 +78,15 @@ jobs:
         run: |
           echo "module_path=${{ github.event.inputs.module_path }}" >> "$GITHUB_OUTPUT"
 
-      - name: Sign module manifest (optional)
-        if: env.SPECFACT_MODULE_PRIVATE_SIGN_KEY != ''
+      - name: Verify checked-in module manifests (strict policy)
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            MODULE_PATH="${{ github.event.inputs.module_path }}"
-          else
-            MODULE_PATH="${{ steps.resolve.outputs.module_path }}"
-          fi
-          MANIFEST="${MODULE_PATH}/module-package.yaml"
-          if [ -f "$MANIFEST" ]; then
-            python scripts/sign-modules.py --payload-from-filesystem "$MANIFEST"
-          fi
+          set -euo pipefail
+          # shellcheck disable=SC1091
+          source scripts/module-verify-policy.sh
+          python scripts/verify-modules-signature.py "${VERIFY_MODULES_STRICT[@]}" --version-check-base "HEAD~1"
 
-      - name: Verify module manifest (policy)
+      - name: Read module metadata
+        id: entry
         run: |
           set -euo pipefail
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -101,35 +94,16 @@ jobs:
           else
             MODULE_PATH="${{ steps.resolve.outputs.module_path }}"
           fi
-          MANIFEST="${MODULE_PATH}/module-package.yaml"
-          # shellcheck disable=SC1091
-          source scripts/module-verify-policy.sh
-          python scripts/verify-modules-signature.py "${VERIFY_MODULES_STRICT[@]}" --version-check-base "HEAD~1" "$MANIFEST"
-
-      - name: Publish module
-        id: publish
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            MODULE_PATH="${{ github.event.inputs.module_path }}"
-          else
-            MODULE_PATH="${{ steps.resolve.outputs.module_path }}"
-          fi
-          mkdir -p dist
-          python scripts/publish-module.py "$MODULE_PATH" -o dist \
-            --download-base-url "${BUNDLED_REGISTRY_DOWNLOAD_BASE_URL}" \
-            --index-fragment dist/registry-entry.yaml
-
-      - name: Read published module metadata
-        id: entry
-        run: |
-          python - <<'PY'
+          python - "${MODULE_PATH}" <<'PY'
           import os
+          import sys
           from pathlib import Path
+
           import yaml
 
-          data = yaml.safe_load(Path("dist/registry-entry.yaml").read_text(encoding="utf-8"))
-          module_id = str(data["id"])
-          module_version = str(data["latest_version"])
+          data = yaml.safe_load((Path(sys.argv[1]) / "module-package.yaml").read_text(encoding="utf-8"))
+          module_id = str(data["name"])
+          module_version = str(data["version"])
           module_slug = module_id.replace("/", "-")
 
           out = Path(os.environ["GITHUB_OUTPUT"])
@@ -138,6 +112,123 @@ jobs:
               fp.write(f"module_version={module_version}\n")
               fp.write(f"module_slug={module_slug}\n")
           PY
+
+      - name: Authenticate protected source and release identity
+        id: release
+        run: |
+          set -euo pipefail
+          SOURCE_SHA="$(git rev-parse HEAD)"
+          git fetch --no-tags origin \
+            "+refs/heads/dev:refs/remotes/origin/dev" \
+            "+refs/heads/main:refs/remotes/origin/main"
+          if ! git merge-base --is-ancestor "${SOURCE_SHA}" origin/dev && \
+             ! git merge-base --is-ancestor "${SOURCE_SHA}" origin/main; then
+            echo "Refusing to publish from a source outside protected dev/main history." >&2
+            exit 1
+          fi
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ "${GITHUB_REF_TYPE}" != "branch" ] || \
+               { [ "${GITHUB_REF_NAME}" != "dev" ] && [ "${GITHUB_REF_NAME}" != "main" ]; }; then
+              echo "Manual publication must run from protected branch dev or main." >&2
+              exit 1
+            fi
+            SOURCE_BRANCH="${GITHUB_REF_NAME}"
+            if ! git merge-base --is-ancestor "${SOURCE_SHA}" "origin/${SOURCE_BRANCH}"; then
+              echo "Manual publication source is outside the selected protected branch history." >&2
+              exit 1
+            fi
+          elif git merge-base --is-ancestor "${SOURCE_SHA}" origin/dev; then
+            SOURCE_BRANCH="dev"
+          else
+            SOURCE_BRANCH="main"
+          fi
+
+          RELEASE_TAG="${{ steps.entry.outputs.module_slug }}-v${{ steps.entry.outputs.module_version }}"
+          if [ "${{ github.event_name }}" = "push" ]; then
+            if [ "${GITHUB_REF_NAME}" != "${RELEASE_TAG}" ]; then
+              echo "Push tag does not match authenticated module metadata." >&2
+              exit 1
+            fi
+            if [ "$(git rev-parse --verify "refs/tags/${GITHUB_REF_NAME}^{commit}")" != "${SOURCE_SHA}" ]; then
+              echo "Push tag does not identify the authenticated source commit." >&2
+              exit 1
+            fi
+          fi
+          if [ -n "$(git status --porcelain --untracked-files=all)" ]; then
+            echo "Refusing to publish from a dirty checkout." >&2
+            exit 1
+          fi
+          echo "source_sha=${SOURCE_SHA}" >> "$GITHUB_OUTPUT"
+          echo "source_branch=${SOURCE_BRANCH}" >> "$GITHUB_OUTPUT"
+
+      - name: Package module
+        id: publish
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            MODULE_PATH="${{ github.event.inputs.module_path }}"
+          else
+            MODULE_PATH="${{ steps.resolve.outputs.module_path }}"
+          fi
+          RELEASE_TAG="${{ steps.entry.outputs.module_slug }}-v${{ steps.entry.outputs.module_version }}"
+          mkdir -p dist
+          python scripts/publish-module.py "$MODULE_PATH" -o dist \
+            --download-base-url "${BUNDLED_REGISTRY_DOWNLOAD_BASE_URL}/${RELEASE_TAG}" \
+            --index-fragment dist/registry-entry.yaml
+          git diff --exit-code -- "${MODULE_PATH}"
+          if [ -n "$(git status --porcelain --untracked-files=all -- "${MODULE_PATH}")" ]; then
+            echo "Module source changed while packaging." >&2
+            exit 1
+          fi
+
+      - name: Publish and verify immutable release asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          RELEASE_TAG="${{ steps.entry.outputs.module_slug }}-v${{ steps.entry.outputs.module_version }}"
+          SOURCE_SHA="${{ steps.release.outputs.source_sha }}"
+          ASSET_NAME="${{ steps.entry.outputs.module_slug }}-${{ steps.entry.outputs.module_version }}.tar.gz"
+          ASSET="dist/${ASSET_NAME}"
+          if [ "${{ github.event_name }}" != "push" ]; then
+            git push origin "${SOURCE_SHA}:refs/tags/${RELEASE_TAG}"
+          fi
+          if ! gh release create "${RELEASE_TAG}" "${ASSET}" "${ASSET}.sha256" \
+            --repo "${{ github.repository }}" --verify-tag --title "${RELEASE_TAG}" \
+            --notes "Published bundled module asset from ${SOURCE_SHA}." --latest=false; then
+            echo "Release creation did not succeed; verifying an existing immutable release."
+          fi
+
+          read -r IS_DRAFT PUBLISHED_AT PUBLISHED_TAG < <(
+            gh release view "${RELEASE_TAG}" --repo "${{ github.repository }}" \
+              --json isDraft,publishedAt,tagName --jq '[.isDraft, (.publishedAt // ""), .tagName] | @tsv'
+          )
+          if [ "${IS_DRAFT}" = "true" ] || [ -z "${PUBLISHED_AT}" ]; then
+            echo "Refusing to advance the snapshot from an unpublished release." >&2
+            exit 1
+          fi
+          if [ "${PUBLISHED_TAG}" != "${RELEASE_TAG}" ]; then
+            echo "Published release tag does not match authenticated module metadata." >&2
+            exit 1
+          fi
+          git fetch --force --no-tags origin "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
+          if [ "$(git rev-parse --verify "refs/tags/${RELEASE_TAG}^{commit}")" != "${SOURCE_SHA}" ]; then
+            echo "Release tag does not identify the authenticated source commit." >&2
+            exit 1
+          fi
+
+          DOWNLOAD_DIR="$(mktemp -d)"
+          gh release download "${RELEASE_TAG}" --repo "${{ github.repository }}" \
+            --pattern "${ASSET_NAME}" --pattern "${ASSET_NAME}.sha256" --dir "${DOWNLOAD_DIR}"
+          DOWNLOADED_ASSET="${DOWNLOAD_DIR}/${ASSET_NAME}"
+          EXPECTED_SHA="$(cut -d ' ' -f 1 "${ASSET}.sha256")"
+          PUBLISHED_SHA="$(cut -d ' ' -f 1 "${DOWNLOADED_ASSET}.sha256")"
+          ACTUAL_SHA="$(sha256sum "${DOWNLOADED_ASSET}" | cut -d ' ' -f 1)"
+          if [ "${PUBLISHED_SHA}" != "${EXPECTED_SHA}" ] || [ "${ACTUAL_SHA}" != "${EXPECTED_SHA}" ]; then
+            echo "Published asset checksum does not match the packaged module." >&2
+            exit 1
+          fi
 
       - name: Update bundled registry snapshot (this repository)
         id: update_index
@@ -155,10 +246,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          BASE="dev"
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            BASE="${{ github.ref_name }}"
-          fi
+          BASE="${{ steps.release.outputs.source_branch }}"
           BRANCH="auto/bundled-registry-${{ steps.entry.outputs.module_slug }}-${{ github.run_id }}"
           TITLE="chore(bundled-modules): snapshot ${{ steps.entry.outputs.module_id }} v${{ steps.entry.outputs.module_version }}"
           BODY=$'Updates `resources/bundled-module-registry/index.json` after publish-modules (bundled snapshot only; not the marketplace registry in specfact-cli-modules).\n\n- Module: `${{ steps.entry.outputs.module_id }}`\n- Version: `${{ steps.entry.outputs.module_version }}`\n- Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
@@ -201,8 +289,6 @@ jobs:
       contents: write
       pull-requests: write
     env:
-      SPECFACT_MODULE_PRIVATE_SIGN_KEY: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY }}
-      SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE }}
       BUNDLED_REGISTRY_INDEX: resources/bundled-module-registry/index.json
       BUNDLED_REGISTRY_DOWNLOAD_BASE_URL: https://github.com/nold-ai/specfact-cli/releases/download
       HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
@@ -214,11 +300,25 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
 
-      - name: Sync to branch tip (post-sign pushes may advance beyond workflow_run head)
+      - name: Authenticate exact workflow-run source
+        id: source
         run: |
           set -euo pipefail
-          git fetch origin "${HEAD_BRANCH}"
-          git reset --hard "origin/${HEAD_BRANCH}"
+          SOURCE_SHA="$(git rev-parse HEAD)"
+          if [ "${SOURCE_SHA}" != "${HEAD_SHA}" ]; then
+            echo "Checkout does not match the triggering workflow source." >&2
+            exit 1
+          fi
+          git fetch --no-tags origin \
+            "+refs/heads/dev:refs/remotes/origin/dev" \
+            "+refs/heads/main:refs/remotes/origin/main"
+          if ! git merge-base --is-ancestor "${SOURCE_SHA}" origin/dev && \
+             ! git merge-base --is-ancestor "${SOURCE_SHA}" origin/main; then
+            echo "Refusing to publish from a source outside protected dev/main history." >&2
+            exit 1
+          fi
+          echo "source_sha=${SOURCE_SHA}" >> "$GITHUB_OUTPUT"
+          echo "source_branch=${HEAD_BRANCH}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -229,6 +329,15 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install pyyaml beartype icontract cryptography cffi packaging
+
+      - name: Verify checked-in module manifests (strict policy)
+        run: |
+          set -euo pipefail
+          SOURCE_SHA="${{ steps.source.outputs.source_sha }}"
+          # shellcheck disable=SC1091
+          source scripts/module-verify-policy.sh
+          python scripts/verify-modules-signature.py "${VERIFY_MODULES_STRICT[@]}" \
+            --version-check-base "${SOURCE_SHA}^"
 
       - name: Detect modules whose version is ahead of the bundled snapshot
         id: detect
@@ -254,27 +363,80 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Package, sign, and stage registry entries
+      - name: Package and stage registry entries
         id: stage
         if: steps.detect.outputs.modules != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           mkdir -p dist
+          SOURCE_SHA="${{ steps.source.outputs.source_sha }}"
           PUBLISHED=()
           while IFS= read -r MODULE_DIR; do
             [ -n "${MODULE_DIR}" ] || continue
-            SLUG="$(basename "${MODULE_DIR}")"
-            FRAGMENT="dist/${SLUG}-registry-entry.yaml"
+            read -r MODULE_ID MODULE_VERSION < <(
+              python - "${MODULE_DIR}" <<'PY'
+          import sys
+          from pathlib import Path
 
-            # Re-sign defensively; sign-modules.yml already signed on push,
-            # but signing is idempotent and protects against partial signer state.
-            if [ -n "${SPECFACT_MODULE_PRIVATE_SIGN_KEY}" ] && [ -f "${MODULE_DIR}/module-package.yaml" ]; then
-              python scripts/sign-modules.py --payload-from-filesystem "${MODULE_DIR}/module-package.yaml"
-            fi
+          import yaml
+
+          data = yaml.safe_load((Path(sys.argv[1]) / "module-package.yaml").read_text(encoding="utf-8"))
+          print(data["name"], data["version"])
+          PY
+            )
+            MODULE_SLUG="${MODULE_ID//\//-}"
+            RELEASE_TAG="${MODULE_SLUG}-v${MODULE_VERSION}"
+            FRAGMENT="dist/${MODULE_SLUG}-registry-entry.yaml"
 
             python scripts/publish-module.py "${MODULE_DIR}" -o dist \
-              --download-base-url "${BUNDLED_REGISTRY_DOWNLOAD_BASE_URL}" \
+              --download-base-url "${BUNDLED_REGISTRY_DOWNLOAD_BASE_URL}/${RELEASE_TAG}" \
               --index-fragment "${FRAGMENT}"
+            git diff --exit-code -- "${MODULE_DIR}"
+            if [ -n "$(git status --porcelain --untracked-files=all -- "${MODULE_DIR}")" ]; then
+              echo "Module source changed while packaging." >&2
+              exit 1
+            fi
+
+            ASSET_NAME="${MODULE_SLUG}-${MODULE_VERSION}.tar.gz"
+            ASSET="dist/${ASSET_NAME}"
+            git push origin "${SOURCE_SHA}:refs/tags/${RELEASE_TAG}"
+            if ! gh release create "${RELEASE_TAG}" "${ASSET}" "${ASSET}.sha256" \
+              --repo "${{ github.repository }}" --verify-tag --title "${RELEASE_TAG}" \
+              --notes "Published bundled module asset from ${SOURCE_SHA}." --latest=false; then
+              echo "Release creation did not succeed; verifying an existing immutable release."
+            fi
+
+            read -r IS_DRAFT PUBLISHED_AT PUBLISHED_TAG < <(
+              gh release view "${RELEASE_TAG}" --repo "${{ github.repository }}" \
+                --json isDraft,publishedAt,tagName --jq '[.isDraft, (.publishedAt // ""), .tagName] | @tsv'
+            )
+            if [ "${IS_DRAFT}" = "true" ] || [ -z "${PUBLISHED_AT}" ]; then
+              echo "Refusing to advance the snapshot from an unpublished release." >&2
+              exit 1
+            fi
+            if [ "${PUBLISHED_TAG}" != "${RELEASE_TAG}" ]; then
+              echo "Published release tag does not match authenticated module metadata." >&2
+              exit 1
+            fi
+            git fetch --force --no-tags origin "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
+            if [ "$(git rev-parse --verify "refs/tags/${RELEASE_TAG}^{commit}")" != "${SOURCE_SHA}" ]; then
+              echo "Release tag does not identify the authenticated source commit." >&2
+              exit 1
+            fi
+
+            DOWNLOAD_DIR="$(mktemp -d)"
+            gh release download "${RELEASE_TAG}" --repo "${{ github.repository }}" \
+              --pattern "${ASSET_NAME}" --pattern "${ASSET_NAME}.sha256" --dir "${DOWNLOAD_DIR}"
+            DOWNLOADED_ASSET="${DOWNLOAD_DIR}/${ASSET_NAME}"
+            EXPECTED_SHA="$(cut -d ' ' -f 1 "${ASSET}.sha256")"
+            PUBLISHED_SHA="$(cut -d ' ' -f 1 "${DOWNLOADED_ASSET}.sha256")"
+            ACTUAL_SHA="$(sha256sum "${DOWNLOADED_ASSET}" | cut -d ' ' -f 1)"
+            if [ "${PUBLISHED_SHA}" != "${EXPECTED_SHA}" ] || [ "${ACTUAL_SHA}" != "${EXPECTED_SHA}" ]; then
+              echo "Published asset checksum does not match the packaged module." >&2
+              exit 1
+            fi
 
             python scripts/update-registry-index.py \
               --index-path "${BUNDLED_REGISTRY_INDEX}" \

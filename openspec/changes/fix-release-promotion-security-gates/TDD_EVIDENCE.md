@@ -378,7 +378,7 @@ Release-PR provenance regression, 2026-09-03T18:08:18Z:
   class, module, and explicit-global declaration scenario before changing the
   validator.
 - Failing-before command:
-  `/private/tmp/specfact-recovery-worktrees/bugfix/692-security-patch-clean-replay/.venv/bin/python -m pytest -q tests/unit/scripts/test_requirements_proof_provenance.py::test_pytest_plugin_provenance_ignores_local_scope_and_keeps_global_bindings`
+  `<isolated-security-worktree>/.venv/bin/python -m pytest -q tests/unit/scripts/test_requirements_proof_provenance.py::test_pytest_plugin_provenance_ignores_local_scope_and_keeps_global_bindings`
 - Result: expected failure, exit 1; `1 failed`. The unchanged validator treated
   ordinary function- and class-local declarations as effective module plugin
   bindings and returned `stale-red-proof` after only those plugin files changed.
@@ -388,7 +388,7 @@ Release-PR review regressions, completed 2026-09-03T18:24:37Z:
 - Spec first: added stable malformed-license-scope and published bundled-asset
   requirements before changing the license gate or module-publishing workflow.
 - Failing-before command:
-  `/private/tmp/specfact-recovery-worktrees/bugfix/692-security-patch-clean-replay/.venv/bin/python -m pytest -q tests/unit/scripts/test_check_license_compliance.py::TestAllowlistLoader::test_non_string_scope_uses_stable_invalid_scope_error tests/unit/workflows/test_trustworthy_green_checks.py::test_publish_modules_verifies_release_asset_before_snapshot_update tests/unit/scripts/test_requirements_proof_provenance.py::test_pytest_plugin_provenance_ignores_local_scope_and_keeps_global_bindings`
+  `<isolated-security-worktree>/.venv/bin/python -m pytest -q tests/unit/scripts/test_check_license_compliance.py::TestAllowlistLoader::test_non_string_scope_uses_stable_invalid_scope_error tests/unit/workflows/test_trustworthy_green_checks.py::test_publish_modules_verifies_release_asset_before_snapshot_update tests/unit/scripts/test_requirements_proof_provenance.py::test_pytest_plugin_provenance_ignores_local_scope_and_keeps_global_bindings`
 - Result: expected failure, exit 1; `4 failed`. The unchanged license validator
   exposed `TypeError` for both list and mapping scopes, both publishing lanes
   lacked tag-qualified verified release assets, and plugin discovery still
@@ -398,3 +398,117 @@ Release-PR review regressions, completed 2026-09-03T18:24:37Z:
   `8a3013299190286d2c48d87a6a605686ee3880d6acdc92119b466724d9db6f70`,
   exactly matching the current snapshot. No GitHub release or module tag exists;
   no remote publication was performed during failing-before evidence.
+
+Final review RED and local passing evidence, 2026-09-03 Europe/Berlin:
+
+- The final test-only head `f7fd96b0aeda254b849b66c7980b8d22a67d0471`
+  retained the approved 25-case mapping and incorporated only review-quality
+  corrections before implementation.
+- GitHub Requirements Evidence run `33808710389` started at
+  2026-09-03T21:34:54Z and retained artifact `9913948112`, service digest
+  `sha256:369ba41c06fc851e9d647b9d5c80811a04d9c372c7353722205d29a227866f5e`.
+  Its JUnit digest is
+  `sha256:35eba3275a3668a34ad95af7302fea19a33dd9fcfcca716d5805db75cc4da59e`.
+- The JUnit contains exactly the four expected failures: two non-string
+  allowlist scopes, missing verified module-release publication, and stale
+  plugin provenance caused by ordinary local/class declarations. Authority,
+  mapping, fixture, and infrastructure setup completed successfully.
+- After the implementation, the focused five-case regression/control command
+  passed. The complete provenance, license, publishing/workflow, and release
+  gate suites then passed 33, 32, 80, and 19 tests respectively; actionlint and
+  `git diff --check` also passed.
+- No dependency or version source changed. No remote module tag or release was
+  created during validation; publication remains a post-merge operational step.
+
+Independent final-review RED, 2026-09-04 Europe/Berlin:
+
+- Signed test-only commit `b4d1b9c581c5628c9e8dfd70fd43b53a5db0998d`
+  strengthened the existing mapped plugin-provenance and module-publication
+  selectors and added one focused reproducible-archive control after independent
+  reviewers identified class-global, annotated-assignment, source-binding, and
+  retry gaps.
+- Requirements Evidence run `33810222523` retained artifact `9914498650`,
+  service digest
+  `sha256:6799940eff42853f3d6cca10802396c154e6ce33939d79e3991f7fe6d7fb119b`,
+  and JUnit digest
+  `sha256:bf918344e817db436d300da68307659139ea40c5e4a1a71076f1dae8ecfb72a9`.
+  The run produced exactly six expected failures and 22 passes: two malformed
+  license scopes, the release-publication contract, and all three scoped plugin
+  variants against the unchanged over-broad baseline detector. Authority,
+  mapping, fixture, and artifact publication completed successfully.
+- The implementation removes publication-time signing, strictly verifies clean
+  checked-in manifests at the authenticated source commit, uses exact tags,
+  makes archives reproducible, and verifies or safely reuses an exact published
+  asset before changing snapshot metadata. The absent `module-registry-v0.1.35`
+  release remains deliberately absent from the checked-in snapshot until the
+  corrected workflow is merged and run.
+- Passing-after evidence: the focused six regression/control cases passed;
+  strict OpenSpec validation passed; and the combined provenance, license,
+  publishing, workflow, Requirements-delivery, and release-security suite passed
+  all 185 tests. Actionlint, repository format/lint, type checking (zero errors),
+  and `git diff --check` passed. The repository-wide YAML lint still reports only
+  pre-existing findings in the abandoned Requirements 08 archive and the active
+  Requirements 07 mapping, neither touched by this follow-up.
+
+Final publication-boundary RED, 2026-09-04 Europe/Berlin:
+
+- Signed test-only commit `b4aac69b22854049b9016ba2aa81dec9212e7a34`
+  retained the mapped selector identity while splitting its assertions below
+  the clean-code complexity threshold and adding destructured plugin-binding,
+  Git-invisible file-mode, unpublished-release, late-untracked-file, and
+  protected-PR-base regressions.
+- Requirements Evidence run `33811488807` retained artifact `9914965827`,
+  service digest
+  `sha256:11acb8371be6bd5a9abb7b766c2a41caf6a552bd4af40ed28493c48885386216`,
+  and JUnit digest
+  `sha256:0291e7931ed7e744ac6a3c53a9c9a742b0ff68c836d423f60e5f43ed217a4602`.
+  The approved plan produced exactly seven expected failures and 22 passes:
+  two malformed license scopes, the module-release selector, and four scoped
+  plugin variants. Authority, mapping, fixture, and artifact publication passed.
+- The two new standalone publication tests and the destructured plugin variant
+  produced four expected local failures against the intermediate candidate:
+  non-reproducible mode metadata, missing published-release state validation,
+  missing late-untracked/protected-base checks, and missing destructured plugin
+  provenance.
+
+Final independent-review RED and passing evidence, 2026-09-04 Europe/Berlin:
+
+- Signed test-only commits `ac98b65476930debcdc8bff454358ba839ee6d98`,
+  `aa44c0bf594debabb8e9dce5054a16525daa1f11`, and
+  `eed94e01d1b97eef337b8aa2f699ce698a8b642d` added only the final reviewed
+  regressions and removed their type-review warning before implementation.
+  They cover starred, augmented, and named-expression module plugin bindings,
+  including definition-time expressions, explicit rejection of module symlinks,
+  and safe manual-release retries after the selected protected branch advances.
+- Requirements Evidence run `33812971823` retained artifact `9915498910`,
+  service digest
+  `sha256:4376ae97cb9bacb28e0b14183736b4bbac841e8f8d9608cc835bd1ed766d82e3`,
+  and JUnit digest
+  `sha256:3ba2e1224c83bd3d8ea638292e2801a62c404e44cbfa3bb8b764a3d301035673`.
+  Its approved plan digest remained
+  `sha256:8ef3da33b39d72ccd344ca694cbdaa38f25110794fc351d16a766e2c04341535`.
+  The immutable run produced 11 failures and 22 passes: the two malformed
+  license cases, the release-publication contract, and all seven scoped plugin
+  variants plus the definition-time variant failed against the unchanged
+  production baseline while authority,
+  fixture, and artifact creation completed.
+- The narrow implementation models literal Python unpacking semantics and
+  augmented/named assignments for effective module plugin bindings, rejects
+  module symlinks rather than publishing an incomplete signed archive, and
+  authenticates manual publication by selected protected-branch ancestry so an
+  exact-source retry remains valid after normal branch advancement.
+- Passing-after evidence: the focused 14 regression/control cases passed, and
+  the combined provenance, license, publishing, workflow,
+  Requirements-delivery, and release-security suite passed all 194 tests.
+  Repository format/lint, actionlint, strict OpenSpec validation, type checking
+  (zero errors), and `git diff --check` also passed.
+- Both frozen dependency audits passed against the live PyPI advisory service
+  with no unreviewed vulnerabilities. The scoped Code Review result has no
+  errors and no new warnings; its two parameter-count warnings are unchanged
+  file-level findings on `_write_index_fragment` and `publish_bundle`, whose
+  declarations and call shapes are outside this patch. The three informational
+  readability notices were inspected and preserve explicit security-test and
+  command-flow clarity.
+- Independent security-boundary and release-path re-reviews reported no
+  remaining actionable P1/P2 findings after the definition-time traversal,
+  symlink rejection, and protected-ancestor retry fixes.
