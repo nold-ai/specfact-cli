@@ -206,6 +206,36 @@ def test_git_bound_red_proof_requires_test_only_ancestor_and_unchanged_selector_
     ]
 
 
+def test_git_bound_red_proof_accepts_parameterized_cases_for_one_mapped_selector(tmp_path: Path) -> None:
+    """Concrete pytest parameter cases must authenticate their exact mapped selector."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / "README.md").write_text("# proof\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "chore: base")
+    test_path = tmp_path / "tests" / "test_proof.py"
+    test_path.parent.mkdir()
+    test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add parameterized red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+    original_case = red_proof_path.with_suffix(".xml").read_bytes()
+    second_case = original_case.replace(b"test_selected", b"test_selected[second]")
+    parameterized_junit = original_case.replace(b"test_selected", b"test_selected[first]").replace(
+        b"</testsuite>", second_case.removeprefix(b"<testsuite>")
+    )
+    red_proof_path.with_suffix(".xml").write_bytes(parameterized_junit)
+    report = json.loads(red_proof_path.read_text(encoding="utf-8"))
+    report["execution_proof"]["junit_digest"] = f"sha256:{hashlib.sha256(parameterized_junit).hexdigest()}"
+    red_proof_path.write_text(json.dumps(report), encoding="utf-8")
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "delivery.py").write_text("VALUE = 1\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: deliver behavior")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
+
+
 @pytest.mark.parametrize(  # pyright: ignore[reportUnknownMemberType]
     "support_path", ["conftest.py", "tests/conftest.py"]
 )
