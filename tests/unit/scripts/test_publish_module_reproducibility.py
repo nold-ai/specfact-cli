@@ -8,6 +8,8 @@ import sys
 from pathlib import Path
 from typing import Protocol, cast
 
+import pytest
+
 
 SCRIPT_PATH = Path(__file__).resolve().parents[3] / "scripts" / "publish-module.py"
 
@@ -29,7 +31,7 @@ def _load_script_module() -> PublishModule:
     return cast(PublishModule, module)
 
 
-def test_tarball_is_reproducible_across_git_invisible_metadata_changes(tmp_path: Path) -> None:
+def test_tarball_is_reproducible_across_git_invisible_attributes(tmp_path: Path) -> None:
     """Retrying an immutable release must reproduce the exact archive bytes."""
     module = _load_script_module()
     module_dir = tmp_path / "module"
@@ -49,3 +51,15 @@ def test_tarball_is_reproducible_across_git_invisible_metadata_changes(tmp_path:
     module._create_tarball(module_dir, second, "nold-ai/example", "1.2.3")
 
     assert hashlib.sha256(first.read_bytes()).digest() == hashlib.sha256(second.read_bytes()).digest()
+
+
+def test_tarball_rejects_symlinks_instead_of_silently_omitting_them(tmp_path: Path) -> None:
+    """A verified module cannot publish a bundle with missing symlinked files."""
+    module = _load_script_module()
+    module_dir = tmp_path / "module"
+    module_dir.mkdir()
+    (module_dir / "target.py").write_text("VALUE = True\n", encoding="utf-8")
+    (module_dir / "alias.py").symlink_to("target.py")
+
+    with pytest.raises(ValueError, match="symlink"):
+        module._create_tarball(module_dir, tmp_path / "module.tar.gz", "nold-ai/example", "1.2.3")

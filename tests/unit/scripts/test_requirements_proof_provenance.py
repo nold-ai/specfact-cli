@@ -325,6 +325,9 @@ def test_git_bound_red_proof_rejects_changed_pytest_plugin(tmp_path: Path) -> No
         "    pytest_plugins = ('tests.helpers.global_plugin',)\n\n",
         "pytest_plugins: tuple[str, ...] = ('tests.helpers.global_plugin',)\n\n",
         "pytest_plugins, marker = (('tests.helpers.global_plugin',), 1)\n\n",
+        "*pytest_plugins, marker = ('tests.helpers.global_plugin', 1)\n\n",
+        "pytest_plugins += ('tests.helpers.global_plugin',)\n\n",
+        "(pytest_plugins := ('tests.helpers.global_plugin',))\n\n",
     ),
 )
 def test_pytest_plugin_provenance_ignores_local_scope_and_keeps_global_bindings(
