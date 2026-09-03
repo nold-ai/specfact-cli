@@ -27,7 +27,7 @@ BASE_BRANCH = "dev"
 HEAD_BRANCH = "bugfix/692-security-patch-clean-replay"
 WORKFLOW_PATH = ".github/workflows/requirements-evidence.yml"
 PROVENANCE_PATH = "scripts/requirements_proof_provenance.py"
-PROOF_CYCLE_BASE_COMMIT = "4c4c6e7fd0bd1a79f9ec4a911f9cb2b937bc5f3f"
+PROOF_CYCLE_PROVENANCE_BLOB = "4f042cb175fff3e068771230fe7dda94d2c6aa41"
 MAX_INPUT_BYTES = 10 * 1024 * 1024
 OBJECT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 DIGEST_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -431,12 +431,7 @@ def _load_provenance(
         expected_path = validator_root / PROVENANCE_PATH
         if path.resolve(strict=True) != expected_path:
             raise ValueError
-        trusted = _git(
-            validator_root,
-            "show",
-            f"{PROOF_CYCLE_BASE_COMMIT}:{PROVENANCE_PATH}",
-            binary=True,
-        )
+        trusted = _git(validator_root, "cat-file", "blob", PROOF_CYCLE_PROVENANCE_BLOB, binary=True)
     if trusted.returncode or trusted.stdout != payload:
         raise ValueError
     module_name = "_specfact_trusted_requirements_proof_provenance"
