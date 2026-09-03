@@ -469,6 +469,27 @@ def test_requirements_final_review_keeps_verified_node_in_restricted_path() -> N
     assert review.index("${FINAL_NODE_BIN}") < review.index("${FINAL_BASEDPYRIGHT_ROOT}/node_modules/.bin")
 
 
+def test_requirements_final_review_persists_failure_before_enforcement() -> None:
+    """A failing final review must retain its report without weakening the verdict."""
+    workflow = _load_yaml(REQUIREMENTS_EVIDENCE)
+    jobs = cast(dict[str, dict[str, Any]], workflow["jobs"])
+    steps = cast(list[dict[str, Any]], jobs["requirements-evidence-final"]["steps"])
+    review = _find_requirements_final_step("Run Code Review with trusted final Requirements context")
+    upload = _find_requirements_final_step("Upload final Code Review evidence artifact")
+    enforce = _find_requirements_final_step("Enforce final Code Review verdict")
+
+    assert review["id"] == "run-final-code-review"
+    assert review["continue-on-error"] is True
+    assert upload["if"] == "always()"
+    assert upload["uses"] == "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+    upload_options = cast(dict[str, str], upload["with"])
+    assert upload_options["path"] == "${{ runner.temp }}/final-code-review.json"
+    assert upload_options["if-no-files-found"] == "error"
+    assert enforce["if"] == "steps.run-final-code-review.outcome == 'failure'"
+    assert enforce["run"] == "exit 1"
+    assert steps.index(review) < steps.index(upload) < steps.index(enforce)
+
+
 def test_license_gate_runs_for_every_frozen_dependency_graph_change() -> None:
     """Transitive lock/export refreshes must receive the license policy gate."""
     raw = PR_ORCHESTRATOR.read_text(encoding="utf-8")

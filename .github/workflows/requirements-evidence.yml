@@ -2123,6 +2123,8 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Run Code Review with trusted final Requirements context
+        id: run-final-code-review
+        continue-on-error: true
         env:
           REVIEW_BASE_BRANCH: ${{ github.base_ref }}
         shell: bash
@@ -2152,3 +2154,15 @@ jobs:
               --json \
               --out "${RUNNER_TEMP}/final-code-review.json" \
               --requirements-evidence "${RUNNER_TEMP}/final-requirements.json"
+
+      - name: Upload final Code Review evidence artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: requirements-final-code-review
+          path: ${{ runner.temp }}/final-code-review.json
+          if-no-files-found: error
+
+      - name: Enforce final Code Review verdict
+        if: steps.run-final-code-review.outcome == 'failure'
+        run: exit 1
