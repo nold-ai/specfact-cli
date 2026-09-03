@@ -87,7 +87,7 @@ dependencies = [
     
     # Git operations
     # gitpython: CVE history (CVE-2022-24439, CVE-2023-41040, CVE-2023-40590). Phase 2: replace with dulwich.
-    "gitpython>=3.1.58",
+    "gitpython>=3.1.61",
     
     # YAML utilities
     "ruamel.yaml>=0.18.16",

@@ -331,3 +331,43 @@ Clean-code proof recovery, 2026-09-03 00:18 Europe/Berlin:
 - The final candidate restores all 17 exact branch predicates and
   `"-c", os.devnull` while retaining `--noconftest`, authenticated `--rootdir`,
   plugin isolation, time bounds, fresh execution, and artifact/digest checks.
+
+GitPython frozen-graph remediation, 2026-09-03 Europe/Berlin:
+
+- Hosted PR Orchestrator run `33777509057`, job `100722917093`, provided the
+  failing-before evidence: the frozen `gitpython==3.1.58` graph reported
+  PYSEC-2026-3785 through PYSEC-2026-3788 (CVE-2026-78675 through
+  CVE-2026-78678).
+- Upstream release evidence showed that 3.1.59 fixed those four findings but
+  retained three follow-on advisories, while 3.1.60 accidentally removed the
+  public `Actor.name_email_regex` attribute. The candidate therefore uses
+  3.1.61, which restores that compatibility surface while retaining the fixes.
+- Both dependency declarations, `uv.lock`, and `requirements/ci/locked.txt`
+  now select 3.1.61 with its exact wheel and source hashes. No other package in
+  either frozen graph changed.
+- Both frozen-set security audits pass with no unreviewed vulnerabilities.
+  The focused analyzer/versioning suite, linked-worktree smoke, full repository
+  suite (`3092 passed, 9 skipped`), pinned BasedPyright error gate, Semgrep,
+  Bandit, reproducible-delivery, license, and packaged-wheel smoke all pass.
+  The built 0.55.4 wheel declares `gitpython>=3.1.61` and imports GitPython
+  3.1.61 in a clean hash-locked environment.
+
+Branch-level version-gate correction, 2026-09-03 Europe/Berlin:
+
+- A new regression staged a dependency-only `setup.py` follow-up after a
+  complete 1.2.3 to 1.2.4 release bundle relative to `origin/dev`. Before the
+  implementation, the local gate failed by demanding another four-file version
+  bundle for the same unreleased change.
+- The gate now discovers the fetched target branch only for local staged mode;
+  missing target refs keep the existing per-commit behavior. Independent review
+  then identified two fail-open boundaries: an invalid explicit `--changed-vs`
+  ref returned success, and a staged 1.2.5 to 1.2.4 downgrade could reuse the
+  earlier branch-level 1.2.3 baseline. Both new regressions failed before the
+  correction. A third regression proved that a staged changelog deletion could
+  reuse the committed header and also failed before the correction.
+- Explicit base enumeration now fails closed, branch-level reuse requires the
+  candidate version to equal `HEAD`, real version changes remain strict
+  `HEAD`-relative bumps, and candidate evidence is read from the index plus
+  `HEAD`. The complete version-gate test file passes `11 passed, 1 skipped`;
+  the subsequent full repository run passes `3094 passed, 10 skipped` with 64%
+  coverage.

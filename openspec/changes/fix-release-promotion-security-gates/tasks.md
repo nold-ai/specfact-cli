@@ -26,12 +26,14 @@
 - [x] 3.8 Bind the late RED artifact to live GitHub metadata and the expiring exact-tree member authority without importing the superseded amendment subsystem.
 - [x] 3.9 Restore candidate `src/` imports after trusted pytest initialization and document the approved non-hostile same-process proof boundary.
 - [x] 3.10 Pin isolated pytest to the authenticated repository root so JUnit retains canonical repository-relative selector identities.
+- [x] 3.11 Upgrade the GitPython runtime floor and frozen graph to 3.1.61 after the final audit reported four newly published 3.1.58 advisories.
+- [x] 3.12 Make the local version gate reuse the complete branch-level release bundle only for unchanged-version follow-ups, while rejecting later downgrades, deleted evidence, and invalid explicit CI bases.
 
 ## 4. Passing evidence and review
 
 - [x] 4.1 Run focused legitimate/bypass controls and record passing-after evidence.
 - [x] 4.2 Run format, lint, type, YAML/workflow, OpenSpec, contract, full test, module-signature, dependency, license, audit, SAST, Code Review, package, and release gates.
-- [x] 4.3 Run final pip-audit against both frozen sets and prove all three MCP CVEs no longer reproduce.
+- [x] 4.3 Run final pip-audit against both frozen sets and prove all three MCP and four GitPython CVEs no longer reproduce.
 - [x] 4.4 Obtain independent security-diff and code review on the exact final tree; resolve every P1/P2 or documented false positive.
 - [x] 4.5 Review docs, README, landing page, and navigation; update only dependency trust and release notes because no public behavior changes.
 - [x] 4.6 Re-run independent security bypass review and the full applicable gates after the consumer-proof correction.

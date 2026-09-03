@@ -6,7 +6,7 @@
 - Baseline: `4fd96d6d804da70cc7ceca83b8adce21f7da561c`
 - Patch version: 0.55.4
 - Public CLI/API change: none
-- Core runtime dependency change: none
+- Core runtime dependency change: GitPython 3.1.58 to 3.1.61
 - Review-amendment scope: one exact test-only RED artifact for this change
 - Superseded PR #698 general amendment/provenance framework: excluded
 - Requirements runtime trust boundary: approved mapped tests and imported
@@ -27,7 +27,9 @@
 ## Compatibility and dependency impact
 
 - No public interface or module compatibility contract changes.
-- No additional dependency or lockfile changes are introduced by this review cycle.
+- The final frozen audit required GitPython 3.1.61 after four new advisories
+  affected 3.1.58. Both dependency declarations, `uv.lock`, and the hashed CI
+  export move together; no other runtime dependency changes are introduced.
 - The internal wiki mirror is not present in this isolated worktree; update its
   matching source, including this trust-boundary clarification, after merge
   without modifying internal wiki PR #38.

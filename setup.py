@@ -30,7 +30,7 @@ if __name__ == "__main__":
             "jinja2>=3.1.6",
             "networkx>=3.4.2",
             "graphviz>=0.20.1",
-            "gitpython>=3.1.58",
+            "gitpython>=3.1.61",
             "ruamel.yaml>=0.18.16",
             "jsonschema>=4.23.0",
             "commentjson>=0.9.0",

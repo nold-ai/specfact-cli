@@ -11,6 +11,11 @@ that subsystem is unnecessary now that an organization-required workflow
 authenticates an unedited member capability against the exact repository, pull
 request, branch, commit, and tree.
 
+During final pull-request verification, the frozen runtime graph also began
+reporting four newly published GitPython 3.1.58 advisories. GitPython 3.1.61 is
+the first compatible release that includes those fixes and restores the public
+`Actor.name_email_regex` attribute removed accidentally in 3.1.60.
+
 ## What Changes
 
 - Disable persistent `uv` and post-fixture npm caches and retain the
@@ -18,6 +23,13 @@ request, branch, commit, and tree.
 - Verify the immutable module fixture commit and tree before exporting its path.
 - Upgrade only the optional development/scanning tool edge to Semgrep 1.175.0
   and its compatible fixed `mcp==1.29.0`; remove the obsolete MCP waiver.
+- Upgrade the runtime GitPython floor and frozen graph from 3.1.58 to 3.1.61;
+  avoid the follow-on security issues in 3.1.59 and compatibility regression in
+  3.1.60.
+- Make the local version gate evaluate staged follow-up metadata against the
+  fetched target branch so one unreleased patch does not require repeated bumps;
+  preserve strict `HEAD`-relative checks for later version changes and fail
+  closed on invalid explicit base revisions in CI.
 - Bind Code Review lock inputs and license exceptions to their exact isolated
   environment and require the hash-locked export to equal a fresh constrained
   resolution before installation.
@@ -62,9 +74,11 @@ request, branch, commit, and tree.
   execution isolates producer artifacts, configuration, plugins, startup hooks,
   credentials, and the later review runner; it is not a sandbox for intentionally
   hostile Python executed inside pytest.
-- **Compatibility:** no core runtime dependency or public CLI/API changes.
-  Twine 7.0.0, Hatchling 1.32.0, Setuptools `<85`, pip 26.2.1, and Ruby JSON
-  2.21.2 are already present and unchanged on `dev`.
+- **Compatibility:** the GitPython runtime floor changes from 3.1.58 to 3.1.61;
+  focused Git callers, worktree behavior, the packaged wheel, and the full suite
+  remain compatible. There are no public CLI/API changes. Twine 7.0.0,
+  Hatchling 1.32.0, Setuptools `<85`, pip 26.2.1, and Ruby JSON 2.21.2 are
+  already present and unchanged on `dev`.
 - **Documentation:** update the dependency trust record and changelog; README,
   public guides, landing page, and navigation are unaffected.
 - **Rollback:** revert the security PR. After publication, correct through a

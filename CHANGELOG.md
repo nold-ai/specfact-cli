@@ -14,6 +14,10 @@ All notable changes to this project will be documented in this file.
 
 ### Security
 
+- **Git dependency hardening:** upgrade the runtime GitPython floor and frozen
+  graph from 3.1.58 to 3.1.61, closing CVE-2026-78675 through CVE-2026-78678
+  while avoiding the follow-on security and compatibility regressions in 3.1.59
+  and 3.1.60.
 - **Frozen security tooling:** upgrade Semgrep to 1.175.0 and MCP to 1.29.0,
   remove the superseded MCP vulnerability exception, and enforce both reviewed
   security floors before synchronization.

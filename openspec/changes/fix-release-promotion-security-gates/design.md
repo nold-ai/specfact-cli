@@ -6,13 +6,15 @@ Semgrep development/scanning graph. All 24 open CodeQL alerts share the cache
 enabled by `.github/actions/setup-frozen-python/action.yml`; six of seven open
 Dependabot alerts are the same three MCP advisories repeated across `uv.lock`
 and `requirements/ci/locked.txt`. The seventh, Ruby JSON, is already fixed on
-`dev`.
+`dev`. During final verification, the hosted frozen audit additionally reported
+four newly published GitPython 3.1.58 advisories in the shipped runtime graph.
 
 ## Goals / Non-Goals
 
 **Goals:**
 
 - Remove the obsolete MCP exception with a resolver-supported fixed graph.
+- Move GitPython to the first fixed compatibility-restored release.
 - Remove persistent cache restore/save from jobs that later execute a separately
   checked-out fixture.
 - Keep native archive and isolated license decisions fail closed.
@@ -22,7 +24,7 @@ and `requirements/ci/locked.txt`. The seventh, Ruby JSON, is already fixed on
 
 **Non-Goals:**
 
-- Change core runtime dependencies or public CLI/API behavior.
+- Change other core runtime dependencies or public CLI/API behavior.
 - Upgrade already-safe Twine, pip, Hatchling, Setuptools, or Ruby JSON versions.
 - Rebuild PR #698's general amendment, provenance-parser, or process-isolation
   architecture.
@@ -40,6 +42,30 @@ frozen graph and export move together, the MCP waiver is removed, and policy
 enforces both Semgrep 1.175.0 and MCP 1.28.1 minimums before synchronization.
 Semgrep 1.176.0 and MCP 1.29.1 add no required advisory fix compatible with the
 current exact Semgrep binding, so they are outside this patch.
+
+### Use GitPython 3.1.61 as the smallest safe compatible runtime floor
+
+GitPython 3.1.59 closes CVE-2026-78675 through CVE-2026-78678 but remains
+affected by three follow-on advisories fixed in 3.1.60. Release 3.1.60 also
+accidentally removed the public `Actor.name_email_regex` attribute. GitPython
+3.1.61 restores that attribute with deprecation and retains the security fixes,
+so it is the narrowest supported target that avoids both known vulnerability
+and compatibility regressions. The project does not enable GitPython's unsafe
+option escape hatches.
+
+### Validate the release bundle across the change branch
+
+CI already supplies the pull-request base to the version checker. Local
+pre-commit now uses the fetched `GITHUB_BASE_REF`, or the repository's normal
+`dev` target outside `main`, when that ref is available. This preserves the
+four-file version and changelog requirement across the complete change while
+allowing a later dependency-metadata commit to remain in the same unreleased
+patch. If the target ref is unavailable, the existing per-commit fail-closed
+behavior remains. The branch-level exemption applies only while the candidate
+version equals `HEAD`; a staged version change remains subject to the original
+strict `HEAD`-relative increment and complete staged-bundle checks. Candidate
+content comes from the index plus `HEAD`, so unstaged or deleted bytes cannot
+satisfy the gate. An invalid explicit CI comparison ref is a hard error.
 
 ### Remove cache capability rather than attempt cache authentication
 
@@ -115,6 +141,8 @@ patch release.
   deterministic; rollback requires a separately designed trusted cache scope.
 - Semgrep behavior may change. Run the repository Semgrep gate, full tests,
   package matrix, frozen audit, and Socket checks before merge.
+- GitPython behavior may change. Run focused analyzer/versioning and linked
+  worktree tests, the packaged-wheel smoke test, full suite, and frozen audit.
 - Git archive logic can reject unusual-but-legitimate moves. Exact positive and
   negative fixtures cover ordinary edits, native archives, partial moves,
   fabricated copies, and command failures.

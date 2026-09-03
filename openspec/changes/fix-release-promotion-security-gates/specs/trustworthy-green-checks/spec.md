@@ -121,3 +121,13 @@ claim sandbox containment of intentionally hostile Python executed by pytest.
 - **WHEN** the Requirements workflow is invoked
 - **THEN** only a `pull_request` event targeting `dev` or `main` SHALL be able to emit that context
 - **AND** no manual caller-controlled base branch SHALL be accepted by the required workflow.
+
+#### Scenario: Local version checks preserve one patch release across follow-up commits
+
+- **GIVEN** a change branch already contains one complete synchronized version bump and changelog entry relative to its fetched target branch
+- **WHEN** a later commit updates package metadata without changing the declared version
+- **THEN** the staged version gate SHALL validate the complete change against that target branch
+- **AND** SHALL NOT require another version increment for the same unreleased change
+- **AND** a later staged version change SHALL still be a strict increment over the branch HEAD
+- **AND** staged deletion of release evidence SHALL fail rather than reuse committed bytes
+- **AND** CI SHALL fail closed if its explicit base revision cannot be resolved.
