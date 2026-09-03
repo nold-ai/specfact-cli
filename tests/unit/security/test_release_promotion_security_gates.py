@@ -13,6 +13,7 @@ from typing import Any, cast
 
 import pytest
 import yaml
+from _pytest.config import ExitCode
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -85,6 +86,8 @@ def _run_isolated_guard(
     tmp_path: Path, junit_name: str, *, disable_conftest: bool, block_plugins: bool = False
 ) -> subprocess.CompletedProcess[str]:
     junit_path = tmp_path / junit_name
+    pytest_file = pytest.__file__
+    assert pytest_file is not None
     return subprocess.run(
         [
             sys.executable,
@@ -92,7 +95,7 @@ def _run_isolated_guard(
             "-S",
             "-c",
             _ISOLATED_PYTEST_BOOTSTRAP,
-            str(Path(pytest.__file__).resolve().parent.parent),
+            str(Path(pytest_file).resolve().parent.parent),
             str(tmp_path),
             str(junit_path),
             str(int(disable_conftest)),
@@ -316,7 +319,7 @@ def _assert_declared_plugin_outcome_forgery_is_blocked(tmp_path: Path) -> None:
     _assert_guard_result(plugin_forged, plugin_forged_junit, 0, "0")
 
     plugin_guarded = _run_isolated_guard(tmp_path, "plugin-guarded.xml", disable_conftest=True, block_plugins=True)
-    assert plugin_guarded.returncode == pytest.ExitCode.USAGE_ERROR
+    assert plugin_guarded.returncode == ExitCode.USAGE_ERROR  # pyright: ignore[reportUnknownMemberType]
     assert "selected Requirements tests cannot declare pytest_plugins" in (
         plugin_guarded.stdout + plugin_guarded.stderr
     )
