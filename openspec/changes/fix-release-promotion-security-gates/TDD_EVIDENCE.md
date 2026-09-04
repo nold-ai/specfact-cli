@@ -512,3 +512,33 @@ Final independent-review RED and passing evidence, 2026-09-04 Europe/Berlin:
 - Independent security-boundary and release-path re-reviews reported no
   remaining actionable P1/P2 findings after the definition-time traversal,
   symlink rejection, and protected-ancestor retry fixes.
+
+Parameterized-selector proof recovery, 2026-09-04 Europe/Berlin:
+
+- Strict normalization maps each unique concrete pytest parameter case to
+  exactly one approved selector, rejects ambiguous or malformed prefixes, and
+  still requires complete selector coverage and one consistent toolchain.
+- Signed cycle base `519b7bcd205bc0b7e019e95b663958ab372bd2c4`
+  with tree `cbaf747adfef7ac955c7c69e042b2fb7336abc7b` changed only the
+  late-RED script constants to PR #704 and
+  `bugfix/692-release-review-followup`; definition-time traversal remained
+  disabled and all 17 workflow predicates remained unreachable.
+- Its direct signed test-only child
+  `fed178205f79fb4467ab8079077f594dea424df5` with tree
+  `89ef840b3c38c76d6e34e1f9022b13dbb3e7bdc0` changed only four synthetic
+  fixture values. The late-amendment control passed, while the default-value
+  and return-annotation cases failed under the same mapped plugin selector.
+- Requirements Evidence run `33845908431` retained artifact `9926518461`
+  with service digest
+  `sha256:57ce81936788c45298f50023e56e8f30a8024a88d4faed1fd2397ba318aea2e5`.
+  Report, plan-report, and JUnit digests are respectively
+  `sha256:f32be138a0636b94bdd00b96776d63002897b2b42c813eb38f37befc041777a7`,
+  `sha256:8ef3da33b39d72ccd344ca694cbdaa38f25110794fc351d16a766e2c04341535`,
+  and `sha256:075b4fd97a3136082fb6ac16cc62831a6b5d066f61d50dea3074ffa80d3bc592`.
+  Exactly the two concrete definition-time cases failed and normalize to the
+  single mapped plugin-provenance selector; all other mapped selectors passed.
+- Mapping and plan digests remained
+  `sha256:302fa2d64f2bba475fbf7ed31922e80d835c433ca46cadcc68f75d0e623d4d08`
+  and `sha256:ac492798da29548664d23c0378596dee7073e9f1e3f5792153ca8358ec226f0e`.
+  The final candidate restores definition-time traversal and retargets all
+  late-RED predicates exactly to PR #704 and the current branch.

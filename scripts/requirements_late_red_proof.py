@@ -1,4 +1,4 @@
-"""Normalize one authority-bound late review RED artifact for PR #703."""
+"""Normalize one authority-bound late review RED artifact for PR #704."""
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ BASE_BRANCH = "dev"
 HEAD_BRANCH = "bugfix/692-release-review-followup"
 WORKFLOW_PATH = ".github/workflows/requirements-evidence.yml"
 PROVENANCE_PATH = "scripts/requirements_proof_provenance.py"
-PROOF_CYCLE_PROVENANCE_BLOB = "4648fbeecd6b99760060586deca67bf153a74299"
+PROOF_CYCLE_PROVENANCE_BLOB = "9e3cea2db94dffbe557510650bcffb53c33a1ad3"
 MAX_INPUT_BYTES = 10 * 1024 * 1024
 OBJECT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 DIGEST_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -261,24 +261,25 @@ def _junit_selectors(payload: bytes) -> tuple[list[str], list[str]]:
     return selectors, [selector for selector, failed in collector.cases if failed]
 
 
+def _normalize_junit_selector(selector: str, expected_selectors: set[str]) -> str:
+    """Map one exact pytest parameter case to an unambiguous governed selector."""
+    if selector in expected_selectors:
+        return selector
+    matches = [
+        expected
+        for expected in expected_selectors
+        if selector.startswith(f"{expected}[") and selector.endswith("]") and len(selector) > len(expected) + 2
+    ]
+    if len(matches) != 1:
+        raise ValueError
+    return matches[0]
+
+
 def _normalize_junit_selectors(selectors: Sequence[str], expected_selectors: set[str]) -> list[str]:
-    """Map exact pytest parameter cases to one unambiguous governed selector."""
+    """Map unique pytest parameter cases to their governed selectors."""
     if len(selectors) != len(set(selectors)):
         raise ValueError
-    normalized: list[str] = []
-    for selector in selectors:
-        if selector in expected_selectors:
-            normalized.append(selector)
-            continue
-        matches = [
-            expected
-            for expected in expected_selectors
-            if selector.startswith(f"{expected}[") and selector.endswith("]") and len(selector) > len(expected) + 2
-        ]
-        if len(matches) != 1:
-            raise ValueError
-        normalized.append(matches[0])
-    return normalized
+    return [_normalize_junit_selector(selector, expected_selectors) for selector in selectors]
 
 
 def _artifact_payloads(root: Path, manifest: dict[str, object]) -> tuple[bytes, bytes, bytes]:
