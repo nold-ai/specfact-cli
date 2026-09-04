@@ -11,8 +11,13 @@ All tasks below are future implementation work. This rescope completes none of t
 ## 2. Specification and failing-first evidence
 
 - [ ] 2.1 Finalize descriptor, discovery, trust, canonical `.agents/skills`, inventory, collision, update, and uninstall deltas without adding workflow content or adapters.
-- [ ] 2.2 Add tests mapped to all discovery/export/idempotency/drift/collision/uninstall scenarios.
-- [ ] 2.3 Run targeted tests before production edits and record failing-first results in a newly created `TDD_EVIDENCE.md`.
+- [ ] 2.2 Before any Section 3 implementation, add success and failure tests
+  mapped in `requirements-evidence.yaml` to every discovery, export,
+  idempotency, drift, collision, uninstall, trust, integrity, compatibility,
+  digest-mismatch, and unchanged signed-module pass-through scenario.
+- [ ] 2.3 After the scenario mapping is complete, run the targeted tests before
+  production edits and record failing-first results in a newly created
+  `TDD_EVIDENCE.md`.
 
 ## 3. Minimal distribution implementation
 
