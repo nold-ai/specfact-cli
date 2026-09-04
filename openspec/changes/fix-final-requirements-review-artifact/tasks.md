@@ -22,16 +22,16 @@
 
 ## 3. Minimal implementation
 
-- [ ] 3.1 Emit only fixed `review-required=false|true` values from the final
+- [x] 3.1 Emit only fixed `review-required=false|true` values from the final
   Code Review step at the exact target-selection boundary.
-- [ ] 3.2 Make artifact upload conditional on exact `true` while retaining
+- [x] 3.2 Make artifact upload conditional on exact `true` while retaining
   `always()`, the pinned action, and `if-no-files-found: error`.
-- [ ] 3.3 Preserve final review failure enforcement and all trusted setup,
+- [x] 3.3 Preserve final review failure enforcement and all trusted setup,
   checkout, path, artifact, and toolchain controls.
 
 ## 4. Passing evidence and quality gates
 
-- [ ] 4.1 Re-run the focused selectors and legitimate no-target/failure controls
+- [x] 4.1 Re-run the focused selectors and legitimate no-target/failure controls
   with passing evidence.
 - [ ] 4.2 Run workflow lint, YAML lint, format, lint, type-check, contract gates,
   smart tests, strict OpenSpec validation, module-signature verification,
@@ -42,9 +42,9 @@
 
 ## 5. Documentation, release, and delivery
 
-- [ ] 5.1 Record that README and published docs need no change because this is
+- [x] 5.1 Record that README and published docs need no change because this is
   an internal CI control-flow correction.
-- [ ] 5.2 Keep the existing unreleased `0.55.4` version and changelog transaction
+- [x] 5.2 Keep the existing unreleased `0.55.4` version and changelog transaction
   unchanged; do not create `0.55.5` for this blocker.
 - [ ] 5.3 After merge, update the internal wiki source without altering internal
   wiki PR #38 or its planning branch, and rebuild the graph from the internal

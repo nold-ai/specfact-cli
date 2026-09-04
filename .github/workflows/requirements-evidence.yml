@@ -2130,6 +2130,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          printf 'review-required=false\n' >> "$GITHUB_OUTPUT"
           [[ "$REVIEW_BASE_BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]]
           review_base_commit="$(git merge-base "origin/${REVIEW_BASE_BRANCH}" HEAD)"
           [[ "$review_base_commit" =~ ^[0-9a-f]{40}$ ]]
@@ -2142,6 +2143,7 @@ jobs:
           if [[ "${#review_paths[@]}" -eq 0 ]]; then
             exit 0
           fi
+          printf 'review-required=true\n' >> "$GITHUB_OUTPUT"
           [[ -x "${FINAL_NODE_BIN}/node" ]]
           test "$("${FINAL_NODE_BIN}/node" --version)" = "v24.16.0"
           validator_site="${FINAL_VERIFIER_ROOT}/lib/python3.12/site-packages"
@@ -2156,7 +2158,7 @@ jobs:
               --requirements-evidence "${RUNNER_TEMP}/final-requirements.json"
 
       - name: Upload final Code Review evidence artifact
-        if: always()
+        if: always() && steps.run-final-code-review.outputs.review-required == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: requirements-final-code-review
