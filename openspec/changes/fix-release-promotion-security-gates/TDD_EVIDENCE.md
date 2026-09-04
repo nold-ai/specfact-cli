@@ -607,54 +607,8 @@ Bundled-module publication input-boundary recovery, 2026-09-04 Europe/Berlin:
   transports candidate-derived paths and metadata only through scoped
   environment bindings.
 
-Release-follow-up fixture isolation and registry snapshot, 2026-09-04
-Europe/Berlin:
+Bundled registry snapshot finalization, 2026-09-04 Europe/Berlin:
 
-- Failing-before control: with `GITHUB_BASE_REF=main`, the two focused
-  `test_check_version_sources` follow-up selectors failed because their
-  synthetic repositories inherited the outer pull-request base. The production
-  version check remained fail-closed. Reproduced at
-  `2026-09-04T13:21:24+02:00` against exact pre-fix commit
-  `6486fd4b654f4897dbf4ecbbe1eca1e50ea19fbf` with
-  `GITHUB_BASE_REF=main hatch run pytest -q tests/unit/scripts/test_check_version_sources.py::test_check_version_sources_reuses_branch_release_for_dependency_follow_up tests/unit/scripts/test_check_version_sources.py::test_check_version_sources_rejects_staged_changelog_deletion_during_follow_up`:
-  2 failed, 0 errors, and 0 skips.
-- Passing-after control: the helper now removes `GITHUB_BASE_REF` only from a
-  copied environment passed to synthetic subprocesses. The same two selectors
-  passed under `GITHUB_BASE_REF=main` at
-  `2026-09-04T13:21:39+02:00` using the same command at finalization commit
-  `3399e4708f5a36f50d53bcea605c5ea3d4488828`: 2 passed, 0 failures,
-  0 errors, and 0 skips. The containing module then passed all 12 tests under
-  the same environment.
-- Full regression with the exact locked modules fixture
-  `69f075819be5e1ceca1446b026b0417f19e584ca` and tree
-  `5d0b8e66c6cd467e6b1ad9d582e24c66b907e205` ran from
-  `2026-09-04T12:56:33+02:00` to `2026-09-04T12:59:05+02:00` using
-  `SPECFACT_MODULES_REPO=/private/tmp/specfact-modules-fixture.yBWmBZ/repo hatch run smart-test`:
-  3,113 passed and 9 skipped. The JUnit report records one unavailable bundled
-  spec/contract stub, one deferred lean-help behavior, one opt-in live HTTP
-  check, and six live self-review checks disabled by `TEST_MODE`; none selects
-  the two changed fixture-isolation tests. At `2026-09-04T13:22:54+02:00`,
-  `hatch run ruff format --check`
-  reported all 959 files formatted and `hatch run contract-test-status`
-  reused the completed `2026-09-04T12:59:05+02:00` run with 3,113 tests,
-  64.0% coverage, and zero contract violations because no source changed.
-  `hatch run lint`, `hatch run type-check`, `openspec validate --all --strict`,
-  the 17 bundled-registry tests, and `git diff --check` also passed separately.
-- `SPECFACT_MODULES_REPO=/private/tmp/specfact-modules-fixture.yBWmBZ/repo git commit -S -m "fix(release): stabilize 0.55.4 promotion (#692)"`
-  invoked the repository pre-commit suite immediately before signed commit
-  `b9303ba2849371006c6bae1e3d2c94edebd1b43e`, whose commit timestamp is
-  `2026-09-04T13:09:05+02:00`. Module signatures and canonical versions passed,
-  formatting was already clean, the contract gate reported no changed contract
-  input, and Block 2 produced passing local Requirements Evidence for the
-  staged active change.
-- PR #706 Requirements Evidence run `33866834794` at
-  `2026-09-04T13:12:28+02:00` retained producer artifact `9934284379` with
-  service digest
-  `sha256:b357282f77c668ae8213d8152f23519754be63bc6665115117fbf94cd9e38d3e`.
-  Its producer correctly stopped before test execution because the three
-  changed active mappings had not yet received external product-owner
-  acceptance; this is an intentional fail-closed prerequisite, not a skipped
-  selector or passing claim.
 - Governed publication run `33864735147` produced
   `module-registry-v0.1.35/module-registry-0.1.35.tar.gz`. Its downloaded bytes,
   GitHub asset digest, and bundled snapshot checksum all equal

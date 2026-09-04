@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -51,15 +50,12 @@ def _commit_all(tmp_path: Path, message: str) -> None:
 
 
 def _run_version_check(script: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    environment = os.environ.copy()
-    environment.pop("GITHUB_BASE_REF", None)
     return subprocess.run(
         [sys.executable, str(script), *args],
         cwd=script.parents[1],
         check=False,
         capture_output=True,
         text=True,
-        env=environment,
     )
 
 
@@ -211,7 +207,13 @@ def test_check_version_sources_reuses_branch_release_for_dependency_follow_up(tm
     )
     subprocess.run(["git", "add", "setup.py"], cwd=tmp_path, check=True, capture_output=True, text=True)
 
-    completed = _run_version_check(script)
+    completed = subprocess.run(
+        [sys.executable, str(script)],
+        cwd=str(tmp_path),
+        check=False,
+        capture_output=True,
+        text=True,
+    )
     assert completed.returncode == 0, completed.stderr
 
 
