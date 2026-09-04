@@ -362,6 +362,7 @@ def test_git_bound_red_proof_rejects_changed_pytest_plugin(tmp_path: Path) -> No
         "    value=(pytest_plugins := ('tests.helpers.global_plugin',)),\n"
         ") -> None:\n"
         "    pass\n\n",
+        "def configure_return() -> (pytest_plugins := ('tests.helpers.global_plugin',)):\n    pass\n\n",
     ),
 )
 def test_pytest_plugin_provenance_ignores_local_scope_and_keeps_global_bindings(
