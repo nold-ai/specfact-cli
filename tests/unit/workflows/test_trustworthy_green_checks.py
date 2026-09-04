@@ -536,6 +536,30 @@ def test_requirements_final_review_prefers_full_verifier_python() -> None:
     )
 
 
+def test_requirements_final_review_marks_no_python_target_path() -> None:
+    """A successful no-target review must explicitly suppress only its artifact."""
+    review = cast(str, _find_requirements_final_step("Run Code Review with trusted final Requirements context")["run"])
+    no_review_marker = "printf 'review-required=false\\n' >> \"$GITHUB_OUTPUT\""
+    review_marker = "printf 'review-required=true\\n' >> \"$GITHUB_OUTPUT\""
+    no_targets = 'if [[ "${#review_paths[@]}" -eq 0 ]]; then'
+
+    assert review.index(no_review_marker) < review.index("git diff --name-only")
+    assert review.index(no_targets) < review.index("exit 0") < review.index(review_marker)
+
+
+def test_requirements_final_review_requires_artifact_for_python_targets() -> None:
+    """A Python target must declare review before execution and require its report."""
+    review = cast(str, _find_requirements_final_step("Run Code Review with trusted final Requirements context")["run"])
+    upload = _find_requirements_final_step("Upload final Code Review evidence artifact")
+    review_marker = "printf 'review-required=true\\n' >> \"$GITHUB_OUTPUT\""
+
+    assert review.index(review_marker) < review.index('"${isolated_specfact[@]}" code review run')
+    assert upload["uses"] == "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+    upload_options = cast(dict[str, str], upload["with"])
+    assert upload_options["path"] == "${{ runner.temp }}/final-code-review.json"
+    assert upload_options["if-no-files-found"] == "error"
+
+
 def test_requirements_final_review_persists_failure_before_enforcement() -> None:
     """A failing final review must retain its report without weakening the verdict."""
     workflow = _load_yaml(REQUIREMENTS_EVIDENCE)
@@ -547,11 +571,7 @@ def test_requirements_final_review_persists_failure_before_enforcement() -> None
 
     assert review["id"] == "run-final-code-review"
     assert review["continue-on-error"] is True
-    assert upload["if"] == "always()"
-    assert upload["uses"] == "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
-    upload_options = cast(dict[str, str], upload["with"])
-    assert upload_options["path"] == "${{ runner.temp }}/final-code-review.json"
-    assert upload_options["if-no-files-found"] == "error"
+    assert upload["if"] == "always() && steps.run-final-code-review.outputs.review-required == 'true'"
     assert enforce["if"] == "steps.run-final-code-review.outcome == 'failure'"
     assert enforce["run"] == "exit 1"
     assert steps.index(review) < steps.index(upload) < steps.index(enforce)
