@@ -19,7 +19,7 @@ review targets must continue to fail closed.
 - Upload the final Code Review artifact only when that authenticated step output
   says review was required.
 - Preserve strict missing-artifact failure and review-verdict enforcement for
-  every Python-changing pull request.
+  every pull request with at least one existing Python review target.
 - Preserve the accepted R07 deleted-path filter: deletion-only changes have no
   file-oriented review target, while mixed changes still review every present
   Python target.

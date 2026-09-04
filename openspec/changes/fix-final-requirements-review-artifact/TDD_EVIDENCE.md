@@ -43,15 +43,30 @@
 
 ## Passing After
 
-- Timestamp: `2026-09-04T21:09:17Z`
+- Timestamp: `2026-09-04T21:22:54Z`
 - Environment: macOS, Python 3.12.13, pytest 9.1.1
 - Result: mapped selectors `3 passed`; complete workflow contract file
   `58 passed`.
-- Workflow controls: actionlint passed.
-- Strict OpenSpec validation: passed.
+- Full suite: `3,118 passed`, `9 skipped`, zero failures. The immutable modules
+  fixture was supplied only through the CI-supported `SPECFACT_MODULES_REPO`
+  boundary.
+- Workflow controls: actionlint passed; both changed OpenSpec YAML files passed
+  yamllint independently of known archived baseline violations.
+- Strict OpenSpec validation: `178 passed`, zero failed.
+- Quality and release controls: docs validation, Ruff formatting/lint, error-level
+  BasedPyright, full type-check, safe-write guard, contract check, synchronized
+  version sources, PyPI-ahead check, reproducible-delivery verification, license
+  policy, and all four module signatures passed.
+- Security controls: both frozen pip-audit graphs passed; Semgrep scanned 298
+  Python targets with zero findings and its baseline gate passed; Bandit reported
+  zero medium/high issues.
 - Evidence: the no-existing-target path retains fixed `false`; one or more
   present Python targets record fixed `true` before Code Review; upload remains
   pinned and strict, while failed-review enforcement is unchanged.
 - The accepted R07 deletion filter remains unchanged: absent paths are excluded,
   while every present path in a mixed change remains reviewable.
-- Full quality, security, and GitHub Requirements results: pending.
+- Independent security review found no P0-P3 issue across metadata-only,
+  deletion-only, mixed, present-target, reviewer-failure, and missing-artifact
+  paths. Independent code review findings were fixed or explicitly dispositioned
+  in `CHANGE_VALIDATION.md`.
+- Final GitHub Requirements and PR review results: pending the frozen-head push.
