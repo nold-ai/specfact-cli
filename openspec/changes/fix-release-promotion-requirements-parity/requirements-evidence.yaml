@@ -1,0 +1,106 @@
+schema_version: "2"
+requirements:
+  openspec:fix-release-promotion-requirements-parity:trustworthy-green-checks:exact-release-promotion-reuses-protected-development-evidence:
+    rationale: >-
+      A release promotion must not invent aggregate approvals or treat planning
+      validation alone as production verification.
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#692"
+    touchpoints:
+      - id: requirements-evidence-workflow
+        kind: ci_workflow
+        locator: ".github/workflows/requirements-evidence.yml"
+      - id: promotion-reuse-validator
+        kind: source_file
+        locator: "scripts/requirements_promotion_reuse.py"
+      - id: workflow-contract-tests
+        kind: test_file
+        locator: "tests/unit/workflows/test_requirements_evidence_delivery_workflow.py"
+      - id: promotion-reuse-tests
+        kind: test_file
+        locator: "tests/unit/scripts/test_requirements_promotion_reuse.py"
+    verification_cases:
+      - case_id: REQ-PROMOTION-001
+        scenario_id: exact-release-promotion-reuses-protected-development-evidence
+        method: inspection
+        intent: >-
+          Inspect the exact protected-promotion boundary before authoring its
+          validator and workflow regressions.
+        observable: >-
+          Repository identity, exact refs and live tips, ancestry, aggregate
+          planning, and a distinct reuse attestation are all required.
+  openspec:fix-release-promotion-requirements-parity:trustworthy-green-checks:lookalike-promotions-retain-ordinary-proof-requirements:
+    rationale: >-
+      A fork or similarly named branch must not gain the protected-promotion
+      trust path.
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#692"
+    touchpoints:
+      - id: requirements-evidence-workflow
+        kind: ci_workflow
+        locator: ".github/workflows/requirements-evidence.yml"
+      - id: workflow-contract-tests
+        kind: test_file
+        locator: "tests/unit/workflows/test_requirements_evidence_delivery_workflow.py"
+    verification_cases:
+      - case_id: REQ-PROMOTION-002
+        scenario_id: lookalike-promotions-retain-ordinary-proof-requirements
+        method: inspection
+        intent: >-
+          Inspect the fork, wrong-repository, wrong-base, and wrong-head
+          rejection contract before authoring its workflow regression.
+        observable: >-
+          Every non-matching pull request retains ordinary maturity and proof
+          handling.
+  openspec:fix-release-promotion-requirements-parity:trustworthy-green-checks:promotion-reuse-authenticates-complete-prior-provenance:
+    rationale: >-
+      Only exact-tree, successful, GitHub-Actions-produced and digest-bound
+      prior evidence may replace duplicate aggregate selector execution.
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#692"
+    touchpoints:
+      - id: requirements-evidence-workflow
+        kind: ci_workflow
+        locator: ".github/workflows/requirements-evidence.yml"
+      - id: promotion-reuse-validator
+        kind: source_file
+        locator: "scripts/requirements_promotion_reuse.py"
+      - id: promotion-reuse-tests
+        kind: test_file
+        locator: "tests/unit/scripts/test_requirements_promotion_reuse.py"
+    verification_cases:
+      - case_id: REQ-PROMOTION-003
+        scenario_id: promotion-reuse-authenticates-complete-prior-provenance
+        method: inspection
+        intent: >-
+          Inspect the fail-closed provenance contract before authoring its
+          validator and workflow regressions.
+        observable: >-
+          Missing, stale, spoofed, ambiguous, expired, or digest-mismatched
+          promotion evidence cannot produce a passing attestation.
+  openspec:fix-release-promotion-requirements-parity:trustworthy-green-checks:promotion-stages-independently-validate-reuse:
+    rationale: >-
+      No producer-controlled boolean may substitute for live validation by the
+      fresh consumer and final required check.
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#692"
+    touchpoints:
+      - id: requirements-evidence-workflow
+        kind: ci_workflow
+        locator: ".github/workflows/requirements-evidence.yml"
+      - id: promotion-reuse-validator
+        kind: source_file
+        locator: "scripts/requirements_promotion_reuse.py"
+      - id: workflow-contract-tests
+        kind: test_file
+        locator: "tests/unit/workflows/test_requirements_evidence_delivery_workflow.py"
+    verification_cases:
+      - case_id: REQ-PROMOTION-004
+        scenario_id: promotion-stages-independently-validate-reuse
+        method: inspection
+        intent: >-
+          Inspect the independent stage and main-relative trust-boundary
+          contract before authoring its workflow regression.
+        observable: >-
+          Producer, execution, and final independently validate byte-identical
+          attestations while trusted inputs and Code Review stay main-relative.
