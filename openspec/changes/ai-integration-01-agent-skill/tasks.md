@@ -10,9 +10,21 @@ All tasks below are future implementation work. This rescope completes none of t
 
 ## 2. Specification and failing-first evidence
 
-- [ ] 2.1 Finalize descriptor, discovery, trust, canonical `.agents/skills`, inventory, collision, update, and uninstall deltas without adding workflow content or adapters.
-- [ ] 2.2 Add tests mapped to all discovery/export/idempotency/drift/collision/uninstall scenarios.
-- [ ] 2.3 Run targeted tests before production edits and record failing-first results in a newly created `TDD_EVIDENCE.md`.
+- [ ] 2.1 Finalize descriptor, discovery, trust, canonical `.agents/skills`,
+  inventory, collision, update, and uninstall deltas without adding workflow
+  content or adapters. Include a combined first-installed-identity scenario for
+  the signed #434 handoff that preserves both `specfact-preflight` and the
+  seal-bound implementation-check workflow from #684.
+- [ ] 2.2 Before any Section 3 implementation, add success and failure tests
+  mapped in `requirements-evidence.yaml` to every discovery, export,
+  inventory, idempotency, update, drift, collision, uninstall, trust, integrity,
+  compatibility, digest-mismatch, and unchanged signed-module pass-through
+  scenario, including success and failure coverage for the combined identity
+  and its exact signed provenance, workflow identities, digests, and bytes.
+- [ ] 2.3 After the scenario mapping is complete, run the targeted tests before
+  production edits and record the exact failing-first command, execution
+  timestamp and timezone, failure and test counts, and expected skip reasons in
+  a newly created `TDD_EVIDENCE.md`.
 
 ## 3. Minimal distribution implementation
 
@@ -22,10 +34,31 @@ All tasks below are future implementation work. This rescope completes none of t
 
 ## 4. Passing evidence and quality gates
 
-- [ ] 4.1 Re-run mapped tests and capture passing evidence after implementation.
+- [ ] 4.1 Re-run the mapped tests after implementation and record the matching
+  passing command, execution timestamp and timezone, test counts, and skip
+  reasons in `TDD_EVIDENCE.md`.
 - [ ] 4.2 Run required format, type, lint, contract, smart-test, test, and SpecFact code-review gates; resolve all findings.
 - [ ] 4.3 Run `openspec status --change ai-integration-01-agent-skill --json` and `openspec validate ai-integration-01-agent-skill --strict`.
-- [ ] 4.4 Document canonical export, conflicts, uninstall, and ownership limits using observed behavior.
+- [ ] 4.4 Review README and the published `docs/` areas, update the applicable
+  user guidance for canonical export, conflicts, uninstall, and ownership
+  limits using observed behavior, or record why no user-facing page changes;
+  update frontmatter and navigation if any page is added or moved.
+- [ ] 4.5 Run
+  `hatch run ./scripts/verify-modules-signature.py --require-signature`. If
+  signed module assets changed, apply the required module version bump, run
+  `hatch run python scripts/sign-modules.py --key-file <private-key.pem> <module-package.yaml ...>`,
+  and rerun signature verification until it passes.
+- [ ] 4.6 Apply the release-appropriate semantic version bump, synchronize all
+  canonical version sources, and add the matching changelog entry.
+- [ ] 4.7 After all substantive edits, run
+  `hatch run specfact code review run --scope full --json --out .specfact/code-review.json`,
+  resolve every finding or record an approved exception, and capture this
+  command, its execution timestamp and timezone, finding disposition, and
+  passing result in `TDD_EVIDENCE.md`. Record exact commands, timestamps and
+  timezones, result summaries, and immutable artifact links when CI-generated
+  for Tasks 4.2-4.6 in `TDD_EVIDENCE.md` or the PR description; include actual
+  test counts, skip causes, and manual-proof outcomes when those gates produce
+  them.
 
 ## 5. Delivery and post-merge cleanup
 
