@@ -16,8 +16,8 @@ pull-request base.
 
 ## What Changes
 
-- Remove the effective `GITHUB_BASE_REF` value only from the primary and
-  compatibility pytest executions in the pull-request orchestrator.
+- Remove `GITHUB_BASE_REF` inside only the primary and compatibility Bash test
+  steps, immediately before their Python launchers execute.
 - Preserve the normal GitHub-provided value for all non-test workflow steps.
 - Add workflow regression coverage proving both boundaries.
 - Keep the version-source production check and its test helpers unchanged.

@@ -2,15 +2,19 @@
 
 ## Decision
 
-Override `GITHUB_BASE_REF` with an empty value only in the two workflow steps
-that execute the primary Python 3.12 suite and the Python 3.11 compatibility
-suite. `check_version_sources.py` already treats an empty value as absent, so
-synthetic repositories use their own Git history without changing production
-logic or test helpers.
+Run `unset GITHUB_BASE_REF` inside only the two Bash workflow steps that execute
+the primary Python 3.12 suite and the Python 3.11 compatibility suite, before
+either Python launcher starts. Synthetic repositories then use their own Git
+history without changing production logic or test helpers.
 
-The override is step-scoped rather than job-scoped. Setup, signature checks,
-change detection, release validation, and any later workflow routing continue
-to see GitHub's authentic base reference.
+A workflow `env` override is not sufficient: GitHub documents that assignments
+to default `GITHUB_*` variables are ignored. The shell-level removal therefore
+defines the effective process boundary. Both affected steps declare Bash
+explicitly.
+
+The removal is shell- and step-scoped rather than job-scoped. Setup, signature
+checks, change detection, release validation, and any later workflow routing
+continue to see GitHub's authentic base reference.
 
 ## Alternatives
 
@@ -29,8 +33,10 @@ to see GitHub's authentic base reference.
 
 The workflow continues to use the trusted GitHub base reference outside the
 two test steps. No secret, token, dependency, cache, checkout, or permission
-surface changes. Setting the variable to an empty string is portable across the
-existing Ubuntu runners and both supported Python lanes.
+surface changes. Bash `unset` is portable across the existing Ubuntu runners
+and both supported Python lanes.
+
+Primary reference: <https://docs.github.com/en/actions/reference/workflows-and-actions/variables>.
 
 ## Rollback
 

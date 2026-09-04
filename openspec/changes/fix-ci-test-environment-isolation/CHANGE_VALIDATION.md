@@ -16,6 +16,9 @@
 
 - The production version checker must retain its existing GitHub base-reference
   behavior.
+- GitHub's Variables reference confirms default `GITHUB_*` variables cannot be
+  overridden through workflow `env`; the design therefore uses shell-level
+  removal inside only the two test steps.
 - PR #706 intentionally removes the test-helper workaround and contains no test
   or workflow diff.
 - The existing R08 bounded replay design remains the long-term proof-model
