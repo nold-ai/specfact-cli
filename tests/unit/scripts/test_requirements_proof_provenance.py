@@ -347,22 +347,49 @@ def test_git_bound_red_proof_rejects_changed_pytest_plugin(tmp_path: Path) -> No
 @pytest.mark.parametrize(  # pyright: ignore[reportUnknownMemberType]
     "global_declaration",
     (
-        "def configure_global() -> None:\n"
-        "    global pytest_plugins\n"
-        "    pytest_plugins = ('tests.helpers.global_plugin',)\n\n",
-        "class GlobalPluginNamespace:\n"
-        "    global pytest_plugins\n"
-        "    pytest_plugins = ('tests.helpers.global_plugin',)\n\n",
-        "pytest_plugins: tuple[str, ...] = ('tests.helpers.global_plugin',)\n\n",
-        "pytest_plugins, marker = (('tests.helpers.global_plugin',), 1)\n\n",
-        "*pytest_plugins, marker = ('tests.helpers.global_plugin', 1)\n\n",
-        "pytest_plugins += ('tests.helpers.global_plugin',)\n\n",
-        "(pytest_plugins := ('tests.helpers.global_plugin',))\n\n",
-        "def configure_default(\n"
-        "    value=(pytest_plugins := ('tests.helpers.global_plugin',)),\n"
-        ") -> None:\n"
-        "    pass\n\n",
-        "def configure_return() -> (pytest_plugins := ('tests.helpers.global_plugin',)):\n    pass\n\n",
+        pytest.param(
+            "def configure_global() -> None:\n"
+            "    global pytest_plugins\n"
+            "    pytest_plugins = ('tests.helpers.global_plugin',)\n\n",
+            id="function-global-statement",
+        ),
+        pytest.param(
+            "class GlobalPluginNamespace:\n"
+            "    global pytest_plugins\n"
+            "    pytest_plugins = ('tests.helpers.global_plugin',)\n\n",
+            id="class-global-statement",
+        ),
+        pytest.param(
+            "pytest_plugins: tuple[str, ...] = ('tests.helpers.global_plugin',)\n\n",
+            id="module-annotated-assignment",
+        ),
+        pytest.param(
+            "pytest_plugins, marker = (('tests.helpers.global_plugin',), 1)\n\n",
+            id="module-tuple-unpack",
+        ),
+        pytest.param(
+            "*pytest_plugins, marker = ('tests.helpers.global_plugin', 1)\n\n",
+            id="module-starred-unpack",
+        ),
+        pytest.param(
+            "pytest_plugins += ('tests.helpers.global_plugin',)\n\n",
+            id="module-augmented-assignment",
+        ),
+        pytest.param(
+            "(pytest_plugins := ('tests.helpers.global_plugin',))\n\n",
+            id="module-named-expression",
+        ),
+        pytest.param(
+            "def configure_default(\n"
+            "    value=(pytest_plugins := ('tests.helpers.global_plugin',)),\n"
+            ") -> None:\n"
+            "    pass\n\n",
+            id="default-named-expression",
+        ),
+        pytest.param(
+            "def configure_return() -> (pytest_plugins := ('tests.helpers.global_plugin',)):\n    pass\n\n",
+            id="return-named-expression",
+        ),
     ),
 )
 def test_pytest_plugin_provenance_ignores_local_scope_and_keeps_global_bindings(

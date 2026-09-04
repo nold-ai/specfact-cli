@@ -431,7 +431,10 @@ class TestAllowlistLoader:
         with pytest.raises(RuntimeError, match="not found"):
             mod._load_allowlist(missing)
 
-    @pytest.mark.parametrize("invalid_scope", ["[]", "{}"])
+    @pytest.mark.parametrize(
+        "invalid_scope",
+        (pytest.param("[]", id="list-scope"), pytest.param("{}", id="mapping-scope")),
+    )
     def test_non_string_scope_uses_stable_invalid_scope_error(self, mod, tmp_path: Path, invalid_scope: str) -> None:
         """Malformed YAML shapes must not escape as unhandled set-membership errors."""
         allowlist_path = tmp_path / "license_allowlist.yaml"
