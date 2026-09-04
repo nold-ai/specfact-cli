@@ -25,7 +25,8 @@ def test_publication_rechecks_module_cleanliness_and_uses_protected_pr_base() ->
     assert 'git status --porcelain --untracked-files=all -- "${MODULE_DIR}"' in raw
     assert 'echo "source_branch=${SOURCE_BRANCH}" >> "$GITHUB_OUTPUT"' in raw
     assert 'echo "source_branch=${HEAD_BRANCH}" >> "$GITHUB_OUTPUT"' in raw
-    assert 'BASE="${{ steps.release.outputs.source_branch }}"' in raw
+    assert "BASE: ${{ steps.release.outputs.source_branch }}" in raw
+    assert '--base "${BASE}"' in raw
     assert 'BASE="${{ github.ref_name }}"' not in raw
 
 

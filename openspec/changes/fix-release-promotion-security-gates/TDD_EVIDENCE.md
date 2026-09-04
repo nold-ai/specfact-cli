@@ -576,3 +576,33 @@ Exact parameter-selector delivery recovery, 2026-09-04 Europe/Berlin:
   failed against the intentionally unreachable workflow predicates. Restoring
   traversal and those predicates made all three focused selectors pass without
   changing test, mapping, executor, plugin, module, or JUnit bytes.
+
+Bundled-module publication input-boundary recovery, 2026-09-04 Europe/Berlin:
+
+- Product-owner comment
+  `https://github.com/nold-ai/specfact-cli/pull/704#issuecomment-5538706970`
+  authorized the exact append-only C5/R5/G5 cycle without changing the approved
+  Requirements mapping.
+- Signed cycle base `108d74ce78f248215ea9637f0c9c00a3b123ee51` with tree
+  `a385712f49626dc57962f9d11393bb7d088e3808` redirected only the 17 PR #704
+  late-RED predicates to the unreachable proof-cycle branch.
+- Its direct signed test-only child
+  `11cef405871706d19db40cde132fac558b2870a3` with tree
+  `b64de8ce680adb40a3f57f7d2f7581920c344b8a` strengthened only the existing
+  mapped `REQUIREMENTS-692-S24` selector. Requirements Evidence run
+  `33860942465` retained artifact `9932100005` with service digest
+  `sha256:45a44f9bf9a2c3183e82c7f7ed801588fe27bc0ff72993fd1c0fdbf4340c75dc`.
+- The immutable report, plan-report, JUnit, and summary digests are respectively
+  `sha256:b8cdbcd46f8799cfb6e92214b192daad4842307cb1e4f1367c178c316aaf29c3`,
+  `sha256:bfb3e9c4a8dd65d67cee02a2997c7ffe6e49583bf69979f274abb86e3b71b6a4`,
+  `sha256:01e00f34ade62b6d7b71e921a1d3f81872d2c1865355f648f701760168a2666c`,
+  and `sha256:af5b0cc03c94f1b281f23212f8450e9909d7863d0423f952f6b11f7af091170d`.
+  Mapping and plan digests remained
+  `sha256:f2b2a823494b10dd2fd8be022c213f49b34e4cb9857506715ed8a3733ff36808`
+  and `sha256:0be546afae288733a0233df36864bcbe0f2abcac75de5b300d1d2b9a2bedcf4d`.
+- The run collected all 34 exact selectors: 33 passed and only the mapped
+  publication selector failed by assertion, with zero errors and zero skips.
+  The final candidate restores all 17 predicates, authenticates protected
+  source before executable setup, validates one canonical module path, and
+  transports candidate-derived paths and metadata only through scoped
+  environment bindings.

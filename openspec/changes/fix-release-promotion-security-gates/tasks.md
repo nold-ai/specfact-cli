@@ -32,7 +32,7 @@
 - [x] 3.12 Make the local version gate reuse the complete branch-level release bundle only for unchanged-version follow-ups, while rejecting later downgrades, deleted evidence, and invalid explicit CI bases.
 - [x] 3.13 Restrict literal `pytest_plugins` discovery to module bindings while retaining explicit-global assignments.
 - [x] 3.14 Reject non-string license scopes through the stable diagnostic path.
-- [ ] 3.15 Publish and checksum-verify tag-qualified bundled module release assets before updating snapshot metadata.
+- [x] 3.15 Publish and checksum-verify tag-qualified bundled module release assets before updating snapshot metadata.
 
 ## 4. Passing evidence and review
 
@@ -48,6 +48,7 @@
 - [x] 4.10 Resolve the remaining release-PR evidence and test-quality findings, then re-run independent review and all applicable gates.
 - [x] 4.11 Normalize parameterized Requirements selectors, recover the final definition-time plugin RED proof, and restore the PR #704 late-RED path.
 - [x] 4.12 Bind parameter values to stable exact selectors, recover their immutable RED proof, and preserve independent per-case reconciliation.
+- [x] 4.13 Authenticate bundled-module publication inputs before execution, recover the mapped immutable RED proof, and close the final release-workflow review finding.
 
 ## 5. Release and delivery
 
