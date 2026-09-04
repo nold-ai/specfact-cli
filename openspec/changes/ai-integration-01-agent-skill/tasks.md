@@ -10,11 +10,17 @@ All tasks below are future implementation work. This rescope completes none of t
 
 ## 2. Specification and failing-first evidence
 
-- [ ] 2.1 Finalize descriptor, discovery, trust, canonical `.agents/skills`, inventory, collision, update, and uninstall deltas without adding workflow content or adapters.
+- [ ] 2.1 Finalize descriptor, discovery, trust, canonical `.agents/skills`,
+  inventory, collision, update, and uninstall deltas without adding workflow
+  content or adapters. Include a combined first-installed-identity scenario for
+  the signed #434 handoff that preserves both `specfact-preflight` and the
+  seal-bound implementation-check workflow from #684.
 - [ ] 2.2 Before any Section 3 implementation, add success and failure tests
   mapped in `requirements-evidence.yaml` to every discovery, export,
   idempotency, drift, collision, uninstall, trust, integrity, compatibility,
-  digest-mismatch, and unchanged signed-module pass-through scenario.
+  digest-mismatch, and unchanged signed-module pass-through scenario, including
+  success and failure coverage for the combined identity and its exact signed
+  provenance, workflow identities, digests, and bytes.
 - [ ] 2.3 After the scenario mapping is complete, run the targeted tests before
   production edits and record failing-first results in a newly created
   `TDD_EVIDENCE.md`.
@@ -34,12 +40,16 @@ All tasks below are future implementation work. This rescope completes none of t
   user guidance for canonical export, conflicts, uninstall, and ownership
   limits using observed behavior, or record why no user-facing page changes;
   update frontmatter and navigation if any page is added or moved.
-- [ ] 4.5 Run module-signature verification. If signed module assets changed,
-  apply the required module version bump and re-sign before rerunning the gate.
+- [ ] 4.5 Run
+  `hatch run ./scripts/verify-modules-signature.py --require-signature`. If
+  signed module assets changed, apply the required module version bump, run
+  `hatch run python scripts/sign-modules.py --key-file <private-key.pem> <module-package.yaml ...>`,
+  and rerun signature verification until it passes.
 - [ ] 4.6 Apply the release-appropriate semantic version bump, synchronize all
   canonical version sources, and add the matching changelog entry.
-- [ ] 4.7 Regenerate `.specfact/code-review.json` after all substantive edits,
-  resolve every finding or record an approved exception, and capture the exact
+- [ ] 4.7 After all substantive edits, run
+  `hatch run specfact code review run --scope full --json --out .specfact/code-review.json`,
+  resolve every finding or record an approved exception, and capture the
   command, timestamp, and passing result in `TDD_EVIDENCE.md`.
 
 ## 5. Delivery and post-merge cleanup
