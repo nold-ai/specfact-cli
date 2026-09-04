@@ -1,0 +1,72 @@
+schema_version: "2"
+requirements:
+  openspec:fix-final-requirements-review-artifact:trustworthy-green-checks:metadata-only-final-review-needs-no-artifact:
+    rationale: >-
+      An intentional no-target final review must not be misclassified as missing
+      required evidence.
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#710"
+    touchpoints:
+      - id: requirements-evidence-workflow
+        kind: ci_workflow
+        locator: ".github/workflows/requirements-evidence.yml"
+      - id: workflow-contract-tests
+        kind: test_file
+        locator: "tests/unit/workflows/test_trustworthy_green_checks.py"
+    verification_cases:
+      - case_id: REQ-FINAL-REVIEW-001
+        scenario_id: metadata-only-final-review-needs-no-artifact
+        method: test
+        intent: "Verify the explicit no-target output suppresses only the inapplicable artifact upload."
+        observable: >-
+          The final review defaults its fixed output to false and exits without
+          requiring a report only when no existing Python target is present.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_trustworthy_green_checks.py::test_requirements_final_review_marks_no_python_target_path
+  openspec:fix-final-requirements-review-artifact:trustworthy-green-checks:python-final-review-requires-strict-artifact:
+    rationale: >-
+      Python-changing pull requests must retain strict missing-artifact failure.
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#710"
+    touchpoints:
+      - id: requirements-evidence-workflow
+        kind: ci_workflow
+        locator: ".github/workflows/requirements-evidence.yml"
+      - id: workflow-contract-tests
+        kind: test_file
+        locator: "tests/unit/workflows/test_trustworthy_green_checks.py"
+    verification_cases:
+      - case_id: REQ-FINAL-REVIEW-002
+        scenario_id: python-final-review-requires-strict-artifact
+        method: test
+        intent: "Verify Python targets declare review before execution and keep strict artifact upload."
+        observable: >-
+          The final review emits true before invoking Code Review, and upload
+          remains pinned and fatal when the report is absent.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_trustworthy_green_checks.py::test_requirements_final_review_requires_artifact_for_python_targets
+  openspec:fix-final-requirements-review-artifact:trustworthy-green-checks:final-review-failure-blocks-requirements:
+    rationale: >-
+      Conditional artifact handling must not weaken failed-review enforcement.
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#710"
+    touchpoints:
+      - id: requirements-evidence-workflow
+        kind: ci_workflow
+        locator: ".github/workflows/requirements-evidence.yml"
+      - id: workflow-contract-tests
+        kind: test_file
+        locator: "tests/unit/workflows/test_trustworthy_green_checks.py"
+    verification_cases:
+      - case_id: REQ-FINAL-REVIEW-003
+        scenario_id: final-review-failure-blocks-requirements
+        method: test
+        intent: "Verify conditional artifact handling does not weaken failed-review enforcement."
+        observable: >-
+          Failed Code Review still reaches artifact retention when required and
+          the later enforcement step exits nonzero.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_trustworthy_green_checks.py::test_requirements_final_review_persists_failure_before_enforcement
