@@ -24,10 +24,10 @@ REPOSITORY = "nold-ai/specfact-cli"
 ISSUE = 692
 PULL_REQUEST = 703
 BASE_BRANCH = "dev"
-HEAD_BRANCH = "bugfix/692-security-patch-clean-replay"
+HEAD_BRANCH = "bugfix/692-release-review-followup-proof-cycle-3-disabled"
 WORKFLOW_PATH = ".github/workflows/requirements-evidence.yml"
 PROVENANCE_PATH = "scripts/requirements_proof_provenance.py"
-PROOF_CYCLE_PROVENANCE_BLOB = "9c4df64266aa3cd9998e079231bdb9ad5fde188d"
+PROOF_CYCLE_PROVENANCE_BLOB = "4648fbeecd6b99760060586deca67bf153a74299"
 MAX_INPUT_BYTES = 10 * 1024 * 1024
 OBJECT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 DIGEST_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -261,6 +261,26 @@ def _junit_selectors(payload: bytes) -> tuple[list[str], list[str]]:
     return selectors, [selector for selector, failed in collector.cases if failed]
 
 
+def _normalize_junit_selectors(selectors: Sequence[str], expected_selectors: set[str]) -> list[str]:
+    """Map exact pytest parameter cases to one unambiguous governed selector."""
+    if len(selectors) != len(set(selectors)):
+        raise ValueError
+    normalized: list[str] = []
+    for selector in selectors:
+        if selector in expected_selectors:
+            normalized.append(selector)
+            continue
+        matches = [
+            expected
+            for expected in expected_selectors
+            if selector.startswith(f"{expected}[") and selector.endswith("]") and len(selector) > len(expected) + 2
+        ]
+        if len(matches) != 1:
+            raise ValueError
+        normalized.append(matches[0])
+    return normalized
+
+
 def _artifact_payloads(root: Path, manifest: dict[str, object]) -> tuple[bytes, bytes, bytes]:
     report_payload = _regular_payload(root / "requirements-evidence.json")
     plan_payload = _regular_payload(root / "requirements-evidence-plan.json")
@@ -332,16 +352,19 @@ def _validate_raw_artifact(root: Path, manifest: dict[str, object]) -> tuple[byt
     reported = _strings(execution.get("selectors"))
     junit, failed = _junit_selectors(junit_payload)
     expected_failures = _strings(manifest["failed_selectors"])
-    selector_lists = (planned, reported, junit)
+    selector_lists = (planned, reported)
     if any(not selectors or len(selectors) != len(set(selectors)) for selectors in selector_lists):
         raise ValueError
-    if set(planned) != set(reported) or set(junit) != set(reported):
+    expected_selectors = set(reported)
+    normalized_junit = _normalize_junit_selectors(junit, expected_selectors)
+    normalized_failures = _normalize_junit_selectors(failed, expected_selectors)
+    if set(planned) != expected_selectors or set(normalized_junit) != expected_selectors:
         raise ValueError
     if (
         not expected_failures
         or len(expected_failures) != len(set(expected_failures))
-        or set(failed) != set(expected_failures)
-        or not set(failed).issubset(set(reported))
+        or set(normalized_failures) != set(expected_failures)
+        or not set(normalized_failures).issubset(expected_selectors)
     ):
         raise ValueError
     return junit_payload, reported

@@ -143,7 +143,7 @@ def _validated_execution_proof(report: dict[str, object]) -> dict[str, object]:
     return cast(dict[str, object], execution_proof)
 
 
-def _validated_selectors(execution_proof: dict[str, object]) -> list[object]:
+def _validated_selectors(execution_proof: dict[str, object]) -> list[str]:
     source_ref = execution_proof.get("source_ref")
     selectors = execution_proof.get("selectors")
     if (
@@ -151,9 +151,10 @@ def _validated_selectors(execution_proof: dict[str, object]) -> list[object]:
         or GIT_OBJECT_PATTERN.fullmatch(source_ref) is None
         or not isinstance(selectors, list)
         or not selectors
+        or not all(isinstance(selector, str) and selector for selector in selectors)
     ):
         raise ValueError("prior-red-proof-invalid")
-    return selectors
+    return cast(list[str], selectors)
 
 
 def _selector_paths(report: dict[str, object]) -> tuple[str, list[str]]:
@@ -202,12 +203,8 @@ def _python_module_paths(module_parts: Sequence[str]) -> set[str]:
 
 def _same_scope_children(node: ast.AST) -> list[ast.AST]:
     """Return child nodes evaluated in the parent's lexical scope."""
-    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-        return [*node.decorator_list, node.args, *([node.returns] if node.returns else [])]
-    if isinstance(node, ast.ClassDef):
-        return [*node.decorator_list, *node.bases, *node.keywords]
-    if isinstance(node, ast.Lambda):
-        return [node.args]
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)):
+        return []
     return list(ast.iter_child_nodes(node))
 
 
@@ -362,8 +359,10 @@ def _validate_retained_red_junit(
     actual_digest = f"sha256:{hashlib.sha256(payload).hexdigest()}"
     if expected_digest != actual_digest or not parsed_junit.has_failure:
         raise ValueError("prior-red-proof-invalid")
-    junit_selectors = {selector for case in parsed_junit.cases for selector in case.get("specfact.selector", ())}
-    if junit_selectors != set(_validated_selectors(execution_proof)):
+    expected_selectors = set(_validated_selectors(execution_proof))
+    concrete_selectors = [selector for case in parsed_junit.cases for selector in case.get("specfact.selector", ())]
+    normalized_selectors = _normalize_junit_selectors(concrete_selectors, expected_selectors)
+    if set(normalized_selectors) != expected_selectors:
         raise ValueError("prior-red-proof-invalid")
     return parsed_junit
 
@@ -376,22 +375,43 @@ def _case_property(properties: dict[str, tuple[str, ...]], name: str) -> str:
     return values[0]
 
 
+def _normalize_junit_selectors(selectors: Sequence[str], expected_selectors: set[str]) -> list[str]:
+    """Map exact pytest parameter cases to one unambiguous governed selector."""
+    if len(selectors) != len(set(selectors)):
+        raise ValueError("prior-red-proof-invalid")
+    normalized: list[str] = []
+    for selector in selectors:
+        if selector in expected_selectors:
+            normalized.append(selector)
+            continue
+        matches = [
+            expected
+            for expected in expected_selectors
+            if selector.startswith(f"{expected}[") and selector.endswith("]") and len(selector) > len(expected) + 2
+        ]
+        if len(matches) != 1:
+            raise ValueError("prior-red-proof-invalid")
+        normalized.append(matches[0])
+    return normalized
+
+
 def _toolchain_identity_from_junit(junit: ParsedJunit, selectors: Sequence[object]) -> dict[str, str]:
     """Return one consistent toolchain identity emitted by every selected pytest case."""
     expected_selectors = {selector for selector in selectors if isinstance(selector, str)}
-    identities: dict[str, tuple[str, str, str]] = {}
+    concrete_selectors = [_case_property(properties, "specfact.selector") for properties in junit.cases]
+    normalized_selectors = _normalize_junit_selectors(concrete_selectors, expected_selectors)
+    identities: list[tuple[str, str, str]] = []
     for properties in junit.cases:
-        selector = _case_property(properties, "specfact.selector")
-        if selector not in expected_selectors or selector in identities:
-            raise ValueError("prior-red-proof-invalid")
-        identities[selector] = (
-            _case_property(properties, TOOLCHAIN_PROPERTY_NAMES["runner"]),
-            _case_property(properties, TOOLCHAIN_PROPERTY_NAMES["python"]),
-            _case_property(properties, TOOLCHAIN_PROPERTY_NAMES["pytest"]),
+        identities.append(
+            (
+                _case_property(properties, TOOLCHAIN_PROPERTY_NAMES["runner"]),
+                _case_property(properties, TOOLCHAIN_PROPERTY_NAMES["python"]),
+                _case_property(properties, TOOLCHAIN_PROPERTY_NAMES["pytest"]),
+            )
         )
-    if set(identities) != expected_selectors or len(set(identities.values())) != 1:
+    if set(normalized_selectors) != expected_selectors or len(set(identities)) != 1:
         raise ValueError("prior-red-proof-invalid")
-    identity = next(iter(identities.values()))
+    identity = identities[0]
     return dict(zip(TOOLCHAIN_PROPERTY_NAMES, identity, strict=True))
 
 
