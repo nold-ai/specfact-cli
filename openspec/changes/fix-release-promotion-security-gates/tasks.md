@@ -47,6 +47,7 @@
 - [x] 4.9 Recover immutable RED proof for the final clean-code refactors, then re-run independent review and all applicable gates without changing mapped selector identities.
 - [x] 4.10 Resolve the remaining release-PR evidence and test-quality findings, then re-run independent review and all applicable gates.
 - [x] 4.11 Normalize parameterized Requirements selectors, recover the final definition-time plugin RED proof, and restore the PR #704 late-RED path.
+- [x] 4.12 Bind parameter values to stable exact selectors, recover their immutable RED proof, and preserve independent per-case reconciliation.
 
 ## 5. Release and delivery
 

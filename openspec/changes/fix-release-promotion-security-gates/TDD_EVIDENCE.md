@@ -542,3 +542,37 @@ Parameterized-selector proof recovery, 2026-09-04 Europe/Berlin:
   and `sha256:ac492798da29548664d23c0378596dee7073e9f1e3f5792153ca8358ec226f0e`.
   The final candidate restores definition-time traversal and retargets all
   late-RED predicates exactly to PR #704 and the current branch.
+
+Exact parameter-selector delivery recovery, 2026-09-04 Europe/Berlin:
+
+- Product-owner comment
+  `https://github.com/nold-ai/specfact-cli/issues/692#issuecomment-5537842252`
+  approved the revised test-authored mapping digest
+  `sha256:644805b601e2e88eb39551c70150bacc6fb3f61a414a515546da682d25e24b7f`.
+  The two existing parameterized regressions retain independent execution but
+  now bind each value directly to a stable selector-safe ID; the mapping lists
+  all 11 concrete selectors and no overlapping base selector.
+- Signed cycle base `fd7a0a3bb9aca6adf6d82729cee104cff51eba9f`
+  with tree `274aa5af7b18975d5c7dc01395aee9585d06019f` temporarily disabled only
+  definition-time plugin traversal and redirected the 17 PR-specific late-RED
+  expressions to the unreachable proof-cycle branch.
+- Its direct signed test-and-evidence-only child
+  `508bbc00c63d6c14956cf0bd343de3561e717a2a` with tree
+  `deb582ca5255cde86881918a5d49db70172f80fa` added the stable IDs, exact
+  selector mappings, and matching accepted review evidence. Requirements
+  Evidence run `33853864883` retained artifact `9929395781` with service digest
+  `sha256:6f7de5fd8a9d01a678877d74e82626104c33218abd51d52b948cca34124c5264`.
+- The immutable report, plan-report, JUnit, and summary digests are respectively
+  `sha256:70f98fdaba3e2d995022b6088df0791cb62b45dc887297c2f335dd0a4fda014f`,
+  `sha256:bfb3e9c4a8dd65d67cee02a2997c7ffe6e49583bf69979f274abb86e3b71b6a4`,
+  `sha256:c86972e327a3028474a7e7af3ffe87ca9beb916f725953bde874b72ecb162647`,
+  and `sha256:af5b0cc03c94f1b281f23212f8450e9909d7863d0423f952f6b11f7af091170d`.
+  Mapping and plan digests are
+  `sha256:f2b2a823494b10dd2fd8be022c213f49b34e4cb9857506715ed8a3733ff36808`
+  and `sha256:0be546afae288733a0233df36864bcbe0f2abcac75de5b300d1d2b9a2bedcf4d`.
+- The run collected all 34 exact selectors: 31 passed and three failed by
+  assertion, with zero errors and zero skips. The two definition-time cases
+  failed against disabled traversal; the mapped late-amendment self-test also
+  failed against the intentionally unreachable workflow predicates. Restoring
+  traversal and those predicates made all three focused selectors pass without
+  changing test, mapping, executor, plugin, module, or JUnit bytes.

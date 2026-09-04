@@ -203,8 +203,12 @@ def _python_module_paths(module_parts: Sequence[str]) -> set[str]:
 
 def _same_scope_children(node: ast.AST) -> list[ast.AST]:
     """Return child nodes evaluated in the parent's lexical scope."""
-    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)):
-        return []
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        return [*node.decorator_list, node.args, *([node.returns] if node.returns else [])]
+    if isinstance(node, ast.ClassDef):
+        return [*node.decorator_list, *node.bases, *node.keywords]
+    if isinstance(node, ast.Lambda):
+        return [node.args]
     return list(ast.iter_child_nodes(node))
 
 
