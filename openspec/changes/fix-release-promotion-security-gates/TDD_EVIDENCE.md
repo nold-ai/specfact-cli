@@ -606,3 +606,23 @@ Bundled-module publication input-boundary recovery, 2026-09-04 Europe/Berlin:
   source before executable setup, validates one canonical module path, and
   transports candidate-derived paths and metadata only through scoped
   environment bindings.
+
+Release-follow-up fixture isolation and registry snapshot, 2026-09-04
+Europe/Berlin:
+
+- Failing-before control: with `GITHUB_BASE_REF=main`, the two focused
+  `test_check_version_sources` follow-up selectors failed because their
+  synthetic repositories inherited the outer pull-request base. The production
+  version check remained fail-closed.
+- Passing-after control: the helper now removes `GITHUB_BASE_REF` only from a
+  copied environment passed to synthetic subprocesses. The same two selectors
+  passed under `GITHUB_BASE_REF=main`, followed by all 12 tests in the module.
+- Full regression with the exact locked modules fixture
+  `69f075819be5e1ceca1446b026b0417f19e584ca` and tree
+  `5d0b8e66c6cd467e6b1ad9d582e24c66b907e205` passed 3,113 tests with 9
+  skips. Type checking, lint, strict OpenSpec validation, registry update and
+  publication tests, and `git diff --check` also passed.
+- Governed publication run `33864735147` produced
+  `module-registry-v0.1.35/module-registry-0.1.35.tar.gz`. Its downloaded bytes,
+  GitHub asset digest, and bundled snapshot checksum all equal
+  `sha256:50bdb396d33b31540e5fa3dc06f10a9c8827c917f905629d671f32992105ec8f`.
