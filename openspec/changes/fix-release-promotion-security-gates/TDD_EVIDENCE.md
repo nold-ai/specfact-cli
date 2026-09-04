@@ -630,19 +630,23 @@ Europe/Berlin:
   `5d0b8e66c6cd467e6b1ad9d582e24c66b907e205` ran from
   `2026-09-04T12:56:33+02:00` to `2026-09-04T12:59:05+02:00` using
   `SPECFACT_MODULES_REPO=/private/tmp/specfact-modules-fixture.yBWmBZ/repo hatch run smart-test`:
-  3,113 passed and 9 skipped. The skips are the repository's unchanged
-  environment/platform skips; none selects the two changed fixture-isolation
-  tests. At `2026-09-04T13:22:54+02:00`, `hatch run ruff format --check`
+  3,113 passed and 9 skipped. The JUnit report records one unavailable bundled
+  spec/contract stub, one deferred lean-help behavior, one opt-in live HTTP
+  check, and six live self-review checks disabled by `TEST_MODE`; none selects
+  the two changed fixture-isolation tests. At `2026-09-04T13:22:54+02:00`,
+  `hatch run ruff format --check`
   reported all 959 files formatted and `hatch run contract-test-status`
   reused the completed `2026-09-04T12:59:05+02:00` run with 3,113 tests,
   64.0% coverage, and zero contract violations because no source changed.
   `hatch run lint`, `hatch run type-check`, `openspec validate --all --strict`,
   the 17 bundled-registry tests, and `git diff --check` also passed separately.
-- Commit `b9303ba2849371006c6bae1e3d2c94edebd1b43e` recorded at
-  `2026-09-04T13:09:05+02:00` ran the repository pre-commit suite. Module
-  signatures and canonical versions passed, formatting was already clean,
-  the contract gate reported no changed contract input, and Block 2 produced
-  passing local Requirements Evidence for the staged active change.
+- `SPECFACT_MODULES_REPO=/private/tmp/specfact-modules-fixture.yBWmBZ/repo git commit -S -m "fix(release): stabilize 0.55.4 promotion (#692)"`
+  invoked the repository pre-commit suite immediately before signed commit
+  `b9303ba2849371006c6bae1e3d2c94edebd1b43e`, whose commit timestamp is
+  `2026-09-04T13:09:05+02:00`. Module signatures and canonical versions passed,
+  formatting was already clean, the contract gate reported no changed contract
+  input, and Block 2 produced passing local Requirements Evidence for the
+  staged active change.
 - PR #706 Requirements Evidence run `33866834794` at
   `2026-09-04T13:12:28+02:00` retained producer artifact `9934284379` with
   service digest
