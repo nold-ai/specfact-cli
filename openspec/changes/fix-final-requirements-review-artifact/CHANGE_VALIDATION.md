@@ -31,6 +31,16 @@
 - Test-authored mapping: accepted by unedited repository-member comment
   `5545980847` at mapping digest
   `sha256:e7354c1071e98cab25b4990b410a40d68865fb57911371b02046d62b50c2c0c1`
-- Focused passing-after evidence: pending
+- Focused passing-after evidence: passed (`3 passed` mapped; `58 passed` full
+  workflow contract file)
 - Full quality/security/release gates: pending
 - Independent review: pending
+
+## Review-warning disposition
+
+- The test-authored local Code Review reported three generic-name warnings at
+  lines 164, 170, and 177 of `test_trustworthy_green_checks.py`. Those selectors
+  are unchanged baseline tests introduced and approved by #708; they are not in
+  the #710 diff. Renaming them would invalidate #708 mapping/proof identities and
+  expand this workflow-only fix, so they remain a documented pre-existing
+  exception rather than being modified here.
