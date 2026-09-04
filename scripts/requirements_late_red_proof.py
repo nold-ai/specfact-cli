@@ -22,9 +22,9 @@ from xml.parsers import expat
 CHANGE_ID = "fix-release-promotion-security-gates"
 REPOSITORY = "nold-ai/specfact-cli"
 ISSUE = 692
-PULL_REQUEST = 703
+PULL_REQUEST = 704
 BASE_BRANCH = "dev"
-HEAD_BRANCH = "bugfix/692-release-review-followup-proof-cycle-3-disabled"
+HEAD_BRANCH = "bugfix/692-release-review-followup"
 WORKFLOW_PATH = ".github/workflows/requirements-evidence.yml"
 PROVENANCE_PATH = "scripts/requirements_proof_provenance.py"
 PROOF_CYCLE_PROVENANCE_BLOB = "4648fbeecd6b99760060586deca67bf153a74299"
