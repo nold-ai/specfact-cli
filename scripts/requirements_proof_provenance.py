@@ -405,15 +405,14 @@ def _toolchain_identity_from_junit(junit: ParsedJunit, selectors: Sequence[objec
     expected_selectors = {selector for selector in selectors if isinstance(selector, str)}
     concrete_selectors = [_case_property(properties, "specfact.selector") for properties in junit.cases]
     normalized_selectors = _normalize_junit_selectors(concrete_selectors, expected_selectors)
-    identities: list[tuple[str, str, str]] = []
-    for properties in junit.cases:
-        identities.append(
-            (
-                _case_property(properties, TOOLCHAIN_PROPERTY_NAMES["runner"]),
-                _case_property(properties, TOOLCHAIN_PROPERTY_NAMES["python"]),
-                _case_property(properties, TOOLCHAIN_PROPERTY_NAMES["pytest"]),
-            )
+    identities = [
+        (
+            _case_property(properties, TOOLCHAIN_PROPERTY_NAMES["runner"]),
+            _case_property(properties, TOOLCHAIN_PROPERTY_NAMES["python"]),
+            _case_property(properties, TOOLCHAIN_PROPERTY_NAMES["pytest"]),
         )
+        for properties in junit.cases
+    ]
     if set(normalized_selectors) != expected_selectors or len(set(identities)) != 1:
         raise ValueError("prior-red-proof-invalid")
     identity = identities[0]
