@@ -22,9 +22,9 @@
 - Production workflow remained unchanged while this evidence was captured.
 - Formatting and lint controls for the test file passed.
 - Mapping acceptance: unedited repository-member issue comment
-  <https://github.com/nold-ai/specfact-cli/issues/710#issuecomment-5545980847>
+  <https://github.com/nold-ai/specfact-cli/issues/710#issuecomment-5546332802>
   binds mapping digest
-  `sha256:e7354c1071e98cab25b4990b410a40d68865fb57911371b02046d62b50c2c0c1`.
+  `sha256:be79411756a4bc65c02d68513b56074b9024876720fbb0f09a9957deb93e57ab`.
 
 ## Passing After
 

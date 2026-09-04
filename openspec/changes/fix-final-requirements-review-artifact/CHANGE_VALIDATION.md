@@ -29,8 +29,8 @@
   fix-final-requirements-review-artifact --strict`)
 - Focused failing-before evidence: passed as an expected RED (`3 failed`)
 - Test-authored mapping: accepted by unedited repository-member comment
-  `5545980847` at mapping digest
-  `sha256:e7354c1071e98cab25b4990b410a40d68865fb57911371b02046d62b50c2c0c1`
+  `5546332802` at mapping digest
+  `sha256:be79411756a4bc65c02d68513b56074b9024876720fbb0f09a9957deb93e57ab`
 - Focused passing-after evidence: pending
 - Full quality/security/release gates: pending
 - Independent review: pending

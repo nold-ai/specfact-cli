@@ -20,7 +20,8 @@ requirements:
         intent: "Verify the explicit no-target output suppresses only the inapplicable artifact upload."
         observable: >-
           The final review defaults its fixed output to false and exits without
-          requiring a report only when no existing Python target is present.
+          requiring a report only when no changed Python path is present; a
+          deleted or otherwise unreviewable Python path remains blocking.
         selector:
           runner: pytest
           node_id: tests/unit/workflows/test_trustworthy_green_checks.py::test_requirements_final_review_marks_no_python_target_path
