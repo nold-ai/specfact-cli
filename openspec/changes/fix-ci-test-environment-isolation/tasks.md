@@ -21,14 +21,14 @@
 
 ## 3. Minimal implementation
 
-- [ ] 3.1 Isolate `GITHUB_BASE_REF` only on the two test-execution steps in
+- [x] 3.1 Isolate `GITHUB_BASE_REF` only on the two test-execution steps in
   `.github/workflows/pr-orchestrator.yml`.
-- [ ] 3.2 Preserve the variable for all non-test workflow steps and avoid any
+- [x] 3.2 Preserve the variable for all non-test workflow steps and avoid any
   production-script or test-helper change.
 
 ## 4. Passing evidence and quality gates
 
-- [ ] 4.1 Re-run the focused selectors and the original two version-source
+- [x] 4.1 Re-run the focused selectors and the original two version-source
   follow-up regressions with passing evidence.
 - [ ] 4.2 Run workflow lint, YAML lint, format, lint, type-check, contract gates,
   smart tests, strict OpenSpec validation, module-signature verification,

@@ -366,6 +366,7 @@ jobs:
           PYTEST_ADDOPTS: "-r fEw"
         run: |
           echo "🧪 Running full test suite (direct smart-test-full, Python 3.12)..."
+          unset GITHUB_BASE_REF
           python tools/smart_test_coverage.py run --level full
 
       - name: Generate coverage XML for quality gates
@@ -431,10 +432,12 @@ jobs:
       - name: Set up frozen compatibility dependencies
         uses: ./.github/actions/setup-frozen-python
       - name: Run Python 3.11 compatibility tests
+        shell: bash
         run: |
           echo "🔁 Python 3.11 compatibility checks"
           mkdir -p logs/compat-py311
           COMPAT_LOG="logs/compat-py311/compat_$(date -u +%Y%m%d_%H%M%S).log"
+          unset GITHUB_BASE_REF
           {
             python -m pytest -r fEw tests/unit tests/integration
             python -m coverage xml -o logs/compat-py311/coverage.xml || true

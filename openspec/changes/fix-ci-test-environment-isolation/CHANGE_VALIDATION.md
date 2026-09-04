@@ -30,8 +30,10 @@
 
 - Strict OpenSpec validation: passed (`openspec validate
   fix-ci-test-environment-isolation --strict`)
-- Focused failing-before evidence: pending
-- Focused passing-after evidence: pending
+- Focused failing-before evidence: passed (`3 failed` as expected locally and
+  in GitHub run `33910361233`)
+- Focused passing-after evidence: passed (`5 passed`, starting from inherited
+  `GITHUB_BASE_REF=main` and crossing the exact Bash removal boundary)
 - Full quality/security/release gates: pending
 - Independent review: pending
 
