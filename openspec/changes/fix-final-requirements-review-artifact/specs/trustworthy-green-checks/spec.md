@@ -3,16 +3,27 @@
 ### Requirement: Metadata-only final review needs no artifact
 
 The required Requirements workflow SHALL record when final changed-path
-discovery finds no existing changed Python target and SHALL NOT require a final
-Code Review artifact for that intentional no-review outcome.
+discovery finds no changed Python path and SHALL NOT require a final Code Review
+artifact for that intentional no-review outcome. A changed Python path that is
+not an existing reviewable file, including a deleted file, SHALL remain a
+blocking review outcome rather than being treated as metadata-only.
 
 #### Scenario: Metadata-only final review needs no artifact
 
 - **GIVEN** final changed-path discovery succeeds
-- **AND** no existing changed `*.py` or `*.pyi` target is present
+- **AND** no changed `*.py` or `*.pyi` path is present
 - **WHEN** the final Code Review stage completes
 - **THEN** it SHALL record that review was not required
 - **AND** it SHALL NOT require a final Code Review artifact.
+
+#### Scenario: Deleted Python path remains review-required
+
+- **GIVEN** final changed-path discovery identifies a deleted `*.py` or `*.pyi`
+  path
+- **WHEN** the final Code Review stage cannot submit that path to its
+  file-oriented reviewer
+- **THEN** it SHALL record that review was required
+- **AND** it SHALL fail closed instead of suppressing the review artifact.
 
 ### Requirement: Python final review requires strict artifact
 

@@ -15,11 +15,13 @@ review targets must continue to fail closed.
 ## What Changes
 
 - Have the final Code Review step publish an explicit output that records whether
-  Python review targets exist.
+  changed Python paths exist.
 - Upload the final Code Review artifact only when that authenticated step output
   says review was required.
 - Preserve strict missing-artifact failure and review-verdict enforcement for
   every Python-changing pull request.
+- Fail closed when a changed Python path is deleted or otherwise cannot be
+  submitted to the file-oriented reviewer.
 - Add workflow contract tests for both branches and the failure control.
 
 ## Capabilities

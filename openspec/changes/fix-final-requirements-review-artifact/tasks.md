@@ -48,8 +48,10 @@
 - [ ] 5.3 After merge, update the internal wiki source without altering internal
   wiki PR #38 or its planning branch, and rebuild the graph from the internal
   repository root.
-- [ ] 5.4 Open the issue-linked PR to `dev` only after required local gates pass;
-  resolve all review threads and merge only under normal policy.
+- [ ] 5.4 Promote the issue-linked draft PR to ready for review only after
+  required local gates pass; resolve all review threads and merge only under
+  normal policy. A draft opened at the test-only commit may retain immutable
+  GitHub RED evidence before that promotion.
 - [ ] 5.5 After merge, archive this change with `openspec archive
   fix-final-requirements-review-artifact`, validate the resulting canonical
   spec, and remove the dedicated worktree and merged branch.
