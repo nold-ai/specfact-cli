@@ -714,12 +714,62 @@ def _assert_module_release_precedes_snapshot(raw: str) -> None:
         )
 
 
+def _publish_module_steps_by_name() -> dict[str, dict[str, Any]]:
+    workflow = _load_yaml(PUBLISH_MODULES)
+    jobs = cast(dict[str, Any], workflow["jobs"])
+    publish = cast(dict[str, Any], jobs["publish"])
+    steps = cast(list[dict[str, Any]], publish["steps"])
+    return {str(step.get("name", "")): step for step in steps}
+
+
+def _assert_publication_source_is_authenticated_first(steps_by_name: dict[str, dict[str, Any]]) -> None:
+    step_names = list(steps_by_name)
+    assert "Authenticate protected source" in step_names
+    authentication_index = step_names.index("Authenticate protected source")
+    protected_steps = ("Set up Python", "Install dependencies", "Verify checked-in module manifests (strict policy)")
+    assert all(authentication_index < step_names.index(step) for step in protected_steps)
+
+
+def _assert_candidate_publication_values_are_environment_bound(steps_by_name: dict[str, dict[str, Any]]) -> None:
+    run_scripts = "\n".join(str(step.get("run", "")) for step in steps_by_name.values())
+    candidate_expressions = (
+        "${{ github.event.inputs.module_path }}",
+        "${{ steps.resolve.outputs.module_path }}",
+        "${{ steps.entry.outputs.module_id }}",
+        "${{ steps.entry.outputs.module_slug }}",
+        "${{ steps.entry.outputs.module_version }}",
+    )
+    assert "Resolve module path (manual)" not in steps_by_name
+    assert all(expression not in run_scripts for expression in candidate_expressions)
+
+
+def _assert_one_validated_module_path_is_reused(steps_by_name: dict[str, dict[str, Any]]) -> None:
+    resolver = steps_by_name["Resolve and validate module path"]
+    resolver_env = cast(dict[str, str], resolver["env"])
+    assert resolver_env["INPUT_MODULE_PATH"] == "${{ github.event.inputs.module_path }}"
+    assert resolver_env["TAG_MODULE_PATH"] == "${{ steps.resolve.outputs.module_path }}"
+    resolver_script = str(resolver["run"])
+    assert all(
+        boundary in resolver_script
+        for boundary in ("resolve(strict=True)", "allowed_roots", "module-package.yaml", "is_symlink()")
+    )
+    for consumer_name in ("Read module metadata", "Package module"):
+        consumer = steps_by_name[consumer_name]
+        consumer_env = cast(dict[str, str], consumer["env"])
+        assert consumer_env["MODULE_PATH"] == "${{ steps.module.outputs.module_path }}"
+        assert '"${MODULE_PATH}"' in str(consumer["run"])
+
+
 def test_publish_modules_verifies_release_asset_before_snapshot_update() -> None:
     """Bundled metadata may advance only after a protected, tag-qualified asset is verified."""
     raw = PUBLISH_MODULES.read_text(encoding="utf-8")
     _assert_module_release_identity(raw)
     _assert_module_release_retry_safety(raw)
     _assert_module_release_precedes_snapshot(raw)
+    publish_steps = _publish_module_steps_by_name()
+    _assert_publication_source_is_authenticated_first(publish_steps)
+    _assert_candidate_publication_values_are_environment_bound(publish_steps)
+    _assert_one_validated_module_path_is_reused(publish_steps)
 
 
 CANONICAL_VERSION_SOURCE_REGEX = r"^(pyproject\.toml|setup\.py|src/__init__\.py|src/specfact_cli/__init__\.py)$"
