@@ -34,3 +34,11 @@
 - Focused passing-after evidence: pending
 - Full quality/security/release gates: pending
 - Independent review: pending
+
+## Code-review disposition
+
+- `banned-generic-public-names` on the three mapped pytest selectors is a false
+  positive. The functions are tests rather than public APIs, and “test process”
+  names the exact isolation boundary in the approved mapping and specification.
+  Renaming them would invalidate the accepted mapping without improving the
+  production interface.

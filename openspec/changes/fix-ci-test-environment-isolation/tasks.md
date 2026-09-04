@@ -11,11 +11,11 @@
 
 ## 2. Tests and failing evidence
 
-- [ ] 2.1 Add exact workflow tests for the Python 3.12 and Python 3.11 pytest
+- [x] 2.1 Add exact workflow tests for the Python 3.12 and Python 3.11 pytest
   steps plus a negative control proving non-test routing remains unchanged.
-- [ ] 2.2 Map the scenarios to exact pytest selectors in
+- [x] 2.2 Map the scenarios to exact pytest selectors in
   `requirements-evidence.yaml` and obtain the required mapping acceptance.
-- [ ] 2.3 Run the focused selectors before workflow edits and record the exact
+- [x] 2.3 Run the focused selectors before workflow edits and record the exact
   failing result, timestamp, environment, and expected assertions in
   `TDD_EVIDENCE.md`.
 

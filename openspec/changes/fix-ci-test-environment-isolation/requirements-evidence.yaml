@@ -16,11 +16,14 @@ requirements:
     verification_cases:
       - case_id: CI-ENV-001
         scenario_id: primary-test-suite-ignores-the-outer-pull-request-base
-        method: inspection
+        method: test
         intent: "Inspect the planned step-scoped isolation boundary for the primary test suite."
         observable: >-
           The specification requires the primary pytest process to receive no
           effective GITHUB_BASE_REF while non-test workflow behavior retains it.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_trustworthy_green_checks.py::test_primary_test_process_does_not_inherit_github_base_ref
   openspec:fix-ci-test-environment-isolation:test-suite-stabilization:compatibility-suite-ignores-the-outer-pull-request-base:
     rationale: >-
       The supported compatibility lane must exercise the same isolated test
@@ -37,11 +40,14 @@ requirements:
     verification_cases:
       - case_id: CI-ENV-002
         scenario_id: compatibility-suite-ignores-the-outer-pull-request-base
-        method: inspection
+        method: test
         intent: "Inspect the planned step-scoped isolation boundary for the compatibility suite."
         observable: >-
           The specification requires the Python 3.11 pytest process to receive
           no effective GITHUB_BASE_REF.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_trustworthy_green_checks.py::test_compatibility_test_process_does_not_inherit_github_base_ref
   openspec:fix-ci-test-environment-isolation:test-suite-stabilization:non-test-workflow-routing-remains-unchanged:
     rationale: >-
       Test isolation must not erase the pull-request base from control-plane
@@ -58,8 +64,11 @@ requirements:
     verification_cases:
       - case_id: CI-ENV-003
         scenario_id: non-test-workflow-routing-remains-unchanged
-        method: inspection
+        method: test
         intent: "Inspect the planned negative control for non-test workflow routing."
         observable: >-
           The specification preserves GitHub's authentic base reference for
           release, signature, change-selection, and other non-test steps.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_trustworthy_green_checks.py::test_only_test_processes_override_github_base_ref

@@ -108,6 +108,20 @@ def _assert_condition_contains(value: object, expected: str, *, context: str) ->
     assert expected in normalized, f"{context}; got {value!r}"
 
 
+def _assert_unsets_github_base_ref_before(step: dict[str, Any], command_fragment: str) -> None:
+    run_clause = step.get("run")
+    assert isinstance(run_clause, str), "Test step must define a shell run block"
+    lines = [line.strip() for line in run_clause.splitlines()]
+    assert lines.count("unset GITHUB_BASE_REF") == 1
+    unset_index = lines.index("unset GITHUB_BASE_REF")
+    command_index = next(
+        (index for index, line in enumerate(lines) if command_fragment in line),
+        None,
+    )
+    assert command_index is not None, f"Expected test launcher containing {command_fragment!r}"
+    assert unset_index < command_index, "GITHUB_BASE_REF must be unset before the test launcher"
+
+
 def test_pr_orchestrator_pypi_version_check_gated_on_version_sources() -> None:
     """PyPI-ahead must not run on every code PR; gate matches pre-commit staged version files."""
     pypi_step = _find_named_step("tests", "Verify local version is ahead of PyPI")
@@ -145,6 +159,50 @@ def test_pr_orchestrator_version_sync_uses_base_sha_on_clean_ci_checkout() -> No
     assert "github.event.before" in run_clause, (
         "Version-source sync step must compare against the push 'before' SHA when applicable"
     )
+
+
+def test_primary_test_process_does_not_inherit_github_base_ref() -> None:
+    """The primary pytest launcher must not inherit pull-request routing state."""
+    step = _find_named_step("tests", "Run full test suite (direct smart-test-full)")
+    _assert_unsets_github_base_ref_before(step, "python tools/smart_test_coverage.py")
+
+
+def test_compatibility_test_process_does_not_inherit_github_base_ref() -> None:
+    """The Python 3.11 pytest launcher must not inherit pull-request routing state."""
+    step = _find_named_step("compat-py311", "Run Python 3.11 compatibility tests")
+    assert step.get("shell") == "bash", "Compatibility test isolation requires an explicit Bash shell"
+    _assert_unsets_github_base_ref_before(step, "python -m pytest")
+
+
+def test_only_test_processes_override_github_base_ref() -> None:
+    """Only the two test run blocks may remove GitHub's authentic base reference."""
+    workflow = _load_yaml(PR_ORCHESTRATOR)
+    workflow_environment = workflow.get("env")
+    assert not (isinstance(workflow_environment, dict) and "GITHUB_BASE_REF" in workflow_environment), (
+        "Workflow-level GITHUB_BASE_REF overrides are forbidden"
+    )
+
+    clearers: set[tuple[str, str]] = set()
+    for job_name, job in _load_jobs().items():
+        job_environment = job.get("env")
+        assert not (isinstance(job_environment, dict) and "GITHUB_BASE_REF" in job_environment), (
+            f"Job {job_name!r} must retain GitHub's authentic base reference"
+        )
+        for step in _load_job_steps(job_name):
+            step_environment = step.get("env")
+            assert not (isinstance(step_environment, dict) and "GITHUB_BASE_REF" in step_environment), (
+                "Reserved GitHub variables cannot be overridden through workflow env"
+            )
+            run_clause = step.get("run")
+            if isinstance(run_clause, str) and "unset GITHUB_BASE_REF" in {
+                line.strip() for line in run_clause.splitlines()
+            }:
+                clearers.add((job_name, str(step.get("name", ""))))
+
+    assert clearers == {
+        ("tests", "Run full test suite (direct smart-test-full)"),
+        ("compat-py311", "Run Python 3.11 compatibility tests"),
+    }
 
 
 def test_pr_orchestrator_required_checks_trigger_on_every_pr_head_commit() -> None:
