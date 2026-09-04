@@ -518,7 +518,7 @@ Parameterized-selector proof recovery, 2026-09-04 Europe/Berlin:
 - Strict normalization maps each unique concrete pytest parameter case to
   exactly one approved selector, rejects ambiguous or malformed prefixes, and
   still requires complete selector coverage and one consistent toolchain.
-- Signed cycle base `519b7bcd205bc0b7e019e95b663958ab372bd2c4`
+- Signed cycle base `519b7bcda4a3f0d012770021b85d9c566361f42f`
   with tree `cbaf747adfef7ac955c7c69e042b2fb7336abc7b` changed only the
   late-RED script constants to PR #704 and
   `bugfix/692-release-review-followup`; definition-time traversal remained
