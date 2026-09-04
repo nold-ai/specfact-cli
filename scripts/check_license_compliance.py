@@ -59,6 +59,11 @@ EnvironmentAllowlistScope = Literal["dev-only", "code-review-only"]
 _ALLOWLIST_SCOPES = frozenset({"dev-only", "code-review-only", "module-manifest"})
 
 
+def _is_valid_allowlist_scope(scope: object) -> bool:
+    """Return whether a parsed allowlist scope is a supported string value."""
+    return isinstance(scope, str) and scope in _ALLOWLIST_SCOPES
+
+
 @beartype
 def _emit(message: str, *, error: bool = False) -> None:
     """Write a single log line without using ``print`` in source."""
@@ -87,7 +92,7 @@ def _validate_allowlist_entry(entry: object, *, index: int, allowlist_path: Path
         raise RuntimeError(f"Allowlist exceptions[{index}] must include non-empty 'reason' for package {pkg!r}")
     if version is not None and (not isinstance(version, str) or not version.strip()):
         raise RuntimeError(f"Allowlist exceptions[{index}] has invalid 'version' for package {pkg!r}")
-    if scope not in _ALLOWLIST_SCOPES:
+    if not _is_valid_allowlist_scope(scope):
         raise RuntimeError(f"Allowlist exceptions[{index}] has invalid 'scope' for package {pkg!r}")
     return cast(dict[str, str], entry_map)
 

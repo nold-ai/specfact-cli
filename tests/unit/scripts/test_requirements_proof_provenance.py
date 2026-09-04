@@ -206,7 +206,39 @@ def test_git_bound_red_proof_requires_test_only_ancestor_and_unchanged_selector_
     ]
 
 
-@pytest.mark.parametrize("support_path", ["conftest.py", "tests/conftest.py"])
+def test_git_bound_red_proof_accepts_parameterized_cases_for_one_mapped_selector(tmp_path: Path) -> None:
+    """Concrete pytest parameter cases must authenticate their exact mapped selector."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / "README.md").write_text("# proof\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "chore: base")
+    test_path = tmp_path / "tests" / "test_proof.py"
+    test_path.parent.mkdir()
+    test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add parameterized red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+    original_case = red_proof_path.with_suffix(".xml").read_bytes()
+    second_case = original_case.replace(b"test_selected", b"test_selected[second]")
+    parameterized_junit = original_case.replace(b"test_selected", b"test_selected[first]").replace(
+        b"</testsuite>", second_case.removeprefix(b"<testsuite>")
+    )
+    red_proof_path.with_suffix(".xml").write_bytes(parameterized_junit)
+    report = json.loads(red_proof_path.read_text(encoding="utf-8"))
+    report["execution_proof"]["junit_digest"] = f"sha256:{hashlib.sha256(parameterized_junit).hexdigest()}"
+    red_proof_path.write_text(json.dumps(report), encoding="utf-8")
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "delivery.py").write_text("VALUE = 1\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: deliver behavior")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
+
+
+@pytest.mark.parametrize(  # pyright: ignore[reportUnknownMemberType]
+    "support_path", ["conftest.py", "tests/conftest.py"]
+)
 def test_git_bound_red_proof_rejects_changed_applicable_conftest(tmp_path: Path, support_path: str) -> None:
     """A fixture or hook change must invalidate an earlier selected-test failure."""
     module = _load_provenance_module()
@@ -310,6 +342,99 @@ def test_git_bound_red_proof_rejects_changed_pytest_plugin(tmp_path: Path) -> No
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
         "stale-red-proof"
     ]
+
+
+@pytest.mark.parametrize(  # pyright: ignore[reportUnknownMemberType]
+    "global_declaration",
+    (
+        pytest.param(
+            "def configure_global() -> None:\n"
+            "    global pytest_plugins\n"
+            "    pytest_plugins = ('tests.helpers.global_plugin',)\n\n",
+            id="function-global-statement",
+        ),
+        pytest.param(
+            "class GlobalPluginNamespace:\n"
+            "    global pytest_plugins\n"
+            "    pytest_plugins = ('tests.helpers.global_plugin',)\n\n",
+            id="class-global-statement",
+        ),
+        pytest.param(
+            "pytest_plugins: tuple[str, ...] = ('tests.helpers.global_plugin',)\n\n",
+            id="module-annotated-assignment",
+        ),
+        pytest.param(
+            "pytest_plugins, marker = (('tests.helpers.global_plugin',), 1)\n\n",
+            id="module-tuple-unpack",
+        ),
+        pytest.param(
+            "*pytest_plugins, marker = ('tests.helpers.global_plugin', 1)\n\n",
+            id="module-starred-unpack",
+        ),
+        pytest.param(
+            "pytest_plugins += ('tests.helpers.global_plugin',)\n\n",
+            id="module-augmented-assignment",
+        ),
+        pytest.param(
+            "(pytest_plugins := ('tests.helpers.global_plugin',))\n\n",
+            id="module-named-expression",
+        ),
+        pytest.param(
+            "def configure_default(\n"
+            "    value=(pytest_plugins := ('tests.helpers.global_plugin',)),\n"
+            ") -> None:\n"
+            "    pass\n\n",
+            id="default-named-expression",
+        ),
+        pytest.param(
+            "def configure_return() -> (pytest_plugins := ('tests.helpers.global_plugin',)):\n    pass\n\n",
+            id="return-named-expression",
+        ),
+    ),
+)
+def test_pytest_plugin_provenance_ignores_local_scope_and_keeps_global_bindings(
+    tmp_path: Path, global_declaration: str
+) -> None:
+    """Only declarations capable of changing the module namespace are proof inputs."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    helpers_path = tests_path / "helpers"
+    helpers_path.mkdir(parents=True)
+    module_plugin = helpers_path / "module_plugin.py"
+    global_plugin = helpers_path / "global_plugin.py"
+    local_plugin = helpers_path / "local_plugin.py"
+    class_plugin = helpers_path / "class_plugin.py"
+    for plugin_path in (module_plugin, global_plugin, local_plugin, class_plugin):
+        plugin_path.write_text("VALUE = False\n", encoding="utf-8")
+    (tests_path / "conftest.py").write_text(
+        "pytest_plugins = ('tests.helpers.module_plugin',)\n\n"
+        "def configure_local() -> None:\n"
+        "    pytest_plugins = ('tests.helpers.local_plugin',)\n\n" + global_declaration + "class PluginNamespace:\n"
+        "    pytest_plugins = ('tests.helpers.class_plugin',)\n",
+        encoding="utf-8",
+    )
+    base_ref = _commit(tmp_path, "test: add scoped pytest plugins")
+    test_path = tests_path / "test_proof.py"
+    test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    local_plugin.write_text("VALUE = True\n", encoding="utf-8")
+    class_plugin.write_text("VALUE = True\n", encoding="utf-8")
+    local_change_ref = _commit(tmp_path, "test: change local-only plugins")
+    assert (
+        module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=local_change_ref) == []
+    )
+
+    global_plugin.write_text("VALUE = True\n", encoding="utf-8")
+    global_change_ref = _commit(tmp_path, "test: change global plugin")
+    assert module.validate_prior_red_proof(
+        red_proof_path, tmp_path, base_ref=base_ref, final_ref=global_change_ref
+    ) == ["stale-red-proof"]
 
 
 def test_git_bound_red_proof_rejects_import_target_added_after_red(tmp_path: Path) -> None:
@@ -644,7 +769,7 @@ def test_git_bound_red_proof_rejects_test_changed_and_restored_after_red(tmp_pat
     ]
 
 
-@pytest.mark.parametrize(
+@pytest.mark.parametrize(  # pyright: ignore[reportUnknownMemberType]
     "delivery_path",
     [
         "pyproject.toml",
@@ -682,7 +807,9 @@ def test_git_bound_red_proof_rejects_delivery_input_before_red(tmp_path: Path, d
     ]
 
 
-@pytest.mark.parametrize("missing_field", ["source_tree", "merge_base", "test_file_digests", "toolchain_identity"])
+@pytest.mark.parametrize(  # pyright: ignore[reportUnknownMemberType]
+    "missing_field", ["source_tree", "merge_base", "test_file_digests", "toolchain_identity"]
+)
 def test_git_bound_red_proof_requires_every_execution_binding(tmp_path: Path, missing_field: str) -> None:
     """A retained red report without every source and toolchain binding is invalid."""
     module = _load_provenance_module()

@@ -57,7 +57,8 @@ claim sandbox containment of intentionally hostile Python executed by pytest.
 
 #### Scenario: Proof validators cannot inherit repository startup hooks
 
-- **GIVEN** the checked-out repository and its selected tests are untrusted proof inputs
+- **GIVEN** repository-controlled startup hooks, configuration, and plugins are untrusted proof inputs
+- **AND** mapped tests and intentionally imported production code remain review-trusted under the documented non-hostile same-process assumption
 - **WHEN** the workflow starts the proof executor, provenance validator, or bootstrap-authority validator
 - **THEN** Python site startup, `.pth` files, and `sitecustomize` SHALL be disabled before repository bytes execute
 - **AND** installed proof dependencies SHALL be added explicitly without processing repository-controlled startup hooks

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import hashlib
 import json
 import logging
@@ -133,17 +134,31 @@ def _create_tarball(
     """Create tarball {name}-{version}.tar.gz excluding tests and cache dirs. Returns output_path."""
     _ = version
     arcname_base = name.split("/")[-1] if "/" in name else name
-    with tarfile.open(output_path, "w:gz") as tar:
+    with (
+        output_path.open("wb") as raw_output,
+        gzip.GzipFile(filename="", mode="wb", fileobj=raw_output, mtime=0) as compressed,
+        tarfile.open(fileobj=compressed, mode="w", format=tarfile.PAX_FORMAT) as tar,
+    ):
         for item in sorted(module_dir.rglob("*")):
+            rel = item.relative_to(module_dir)
+            if item.is_symlink():
+                raise ValueError(f"Module archive cannot contain symlink: {rel.as_posix()}")
             if not item.is_file():
                 continue
-            rel = item.relative_to(module_dir)
             if any(part in _IGNORED_DIRS for part in rel.parts):
                 continue
             if item.suffix.lower() in _IGNORED_SUFFIXES:
                 continue
             arcname = f"{arcname_base}/{rel.as_posix()}"
-            tar.add(item, arcname=arcname)
+            tar_info = tar.gettarinfo(str(item), arcname=arcname)
+            tar_info.uid = 0
+            tar_info.gid = 0
+            tar_info.uname = ""
+            tar_info.gname = ""
+            tar_info.mtime = 0
+            tar_info.mode = 0o755 if item.stat().st_mode & 0o111 else 0o644
+            with item.open("rb") as source:
+                tar.addfile(tar_info, source)
     return output_path
 
 

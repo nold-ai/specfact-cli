@@ -124,6 +124,13 @@ selects the changed active OpenSpec change with the same path basis as the
 producer, both frozen-closure checks use the isolated trusted interpreter, and
 the combined execution/reconciliation step has a 12-minute fail-closed timeout.
 
+Retained-proof dependency discovery follows Python namespace semantics for
+literal `pytest_plugins` declarations: module-scope assignments and explicit
+`global pytest_plugins` assignments remain bound, while ordinary function- and
+class-local declarations that cannot affect the imported module namespace are
+excluded. This removes false stale-proof results without dropping a reachable
+plugin binding.
+
 This is not a Python sandbox. The approved mapped tests and the candidate
 production code they intentionally import execute with the same process
 authority as pytest and its JUnit writer. They are therefore review-trusted and
@@ -134,6 +141,19 @@ credential inheritance, stale external evidence, and mutation of the later
 Code Review runner. Containing intentionally hostile same-process Python would
 require a separately designed external isolation boundary and is outside this
 patch release.
+
+### Publish bundled snapshot entries only after the release asset exists
+
+The bundled registry is a CI comparison snapshot rather than the runtime
+marketplace index, but its absolute URLs still claim public artifacts that do
+not currently exist. Both publisher lanes derive the release tag from the
+validated module slug and version, require the source commit to be reachable
+from `dev` or `main`, create the release without overwriting an existing version,
+redownload and checksum the archive, and only then update the snapshot. The
+existing `module-registry` 0.1.35 Actions artifact remains comparison evidence.
+After this publisher correction merges, the protected source is packaged
+reproducibly and its verified release checksum replaces the stale snapshot
+checksum and URL; no module payload or version is changed.
 
 ## Risks / Trade-offs
 

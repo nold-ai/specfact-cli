@@ -431,6 +431,25 @@ class TestAllowlistLoader:
         with pytest.raises(RuntimeError, match="not found"):
             mod._load_allowlist(missing)
 
+    @pytest.mark.parametrize(
+        "invalid_scope",
+        (pytest.param("[]", id="list-scope"), pytest.param("{}", id="mapping-scope")),
+    )
+    def test_non_string_scope_uses_stable_invalid_scope_error(self, mod, tmp_path: Path, invalid_scope: str) -> None:
+        """Malformed YAML shapes must not escape as unhandled set-membership errors."""
+        allowlist_path = tmp_path / "license_allowlist.yaml"
+        allowlist_path.write_text(
+            "exceptions:\n"
+            "  - package: pylint\n"
+            "    license: GPL-2.0-or-later\n"
+            "    reason: reviewed tool only\n"
+            f"    scope: {invalid_scope}\n",
+            encoding="utf-8",
+        )
+
+        with pytest.raises(RuntimeError, match="invalid 'scope' for package 'pylint'"):
+            mod._load_allowlist(allowlist_path)
+
 
 class TestManifestStaticLicenseMap:
     """Manifest deps must resolve to an SPDX string in the static map."""

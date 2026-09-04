@@ -264,9 +264,9 @@ def _write_late_red_manifest(
             "kind": "late-review-red-proof",
             "repository": "nold-ai/specfact-cli",
             "issue": 692,
-            "pull_request": 703,
+            "pull_request": 704,
             "base_branch": "dev",
-            "head_branch": "bugfix/692-security-patch-clean-replay",
+            "head_branch": "bugfix/692-release-review-followup",
             "change_id": "fix-release-promotion-security-gates",
             "cycle_base_commit": history.cycle_base,
             "cycle_base_tree": _git(history.repo_root, "rev-parse", f"{history.cycle_base}^{{tree}}"),
@@ -300,12 +300,12 @@ def _finalize_late_red_history(history: _LateRedHistory, *, stale_selected_test:
 
 def _write_late_red_metadata(tmp_path: Path, history: _LateRedHistory, final_ref: str) -> tuple[Path, Path, Path]:
     repository = "nold-ai/specfact-cli"
-    branch = "bugfix/692-security-patch-clean-replay"
+    branch = "bugfix/692-release-review-followup"
     event_path = tmp_path / "event.json"
     _write_json(
         event_path,
         {
-            "number": 703,
+            "number": 704,
             "repository": {"full_name": repository},
             "pull_request": {
                 "base": {"ref": "dev", "repo": {"full_name": repository}},

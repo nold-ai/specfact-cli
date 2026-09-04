@@ -371,3 +371,238 @@ Branch-level version-gate correction, 2026-09-03 Europe/Berlin:
   `HEAD`. The complete version-gate test file passes `11 passed, 1 skipped`;
   the subsequent full repository run passes `3094 passed, 10 skipped` with 64%
   coverage.
+
+Release-PR provenance regression, 2026-09-03T18:08:18Z:
+
+- Spec first: added the module-namespace binding requirement and its local,
+  class, module, and explicit-global declaration scenario before changing the
+  validator.
+- Failing-before command:
+  `<isolated-security-worktree>/.venv/bin/python -m pytest -q tests/unit/scripts/test_requirements_proof_provenance.py::test_pytest_plugin_provenance_ignores_local_scope_and_keeps_global_bindings`
+- Result: expected failure, exit 1; `1 failed`. The unchanged validator treated
+  ordinary function- and class-local declarations as effective module plugin
+  bindings and returned `stale-red-proof` after only those plugin files changed.
+
+Release-PR review regressions, completed 2026-09-03T18:24:37Z:
+
+- Spec first: added stable malformed-license-scope and published bundled-asset
+  requirements before changing the license gate or module-publishing workflow.
+- Failing-before command:
+  `<isolated-security-worktree>/.venv/bin/python -m pytest -q tests/unit/scripts/test_check_license_compliance.py::TestAllowlistLoader::test_non_string_scope_uses_stable_invalid_scope_error tests/unit/workflows/test_trustworthy_green_checks.py::test_publish_modules_verifies_release_asset_before_snapshot_update tests/unit/scripts/test_requirements_proof_provenance.py::test_pytest_plugin_provenance_ignores_local_scope_and_keeps_global_bindings`
+- Result: expected failure, exit 1; `4 failed`. The unchanged license validator
+  exposed `TypeError` for both list and mapping scopes, both publishing lanes
+  lacked tag-qualified verified release assets, and plugin discovery still
+  included ordinary local declarations.
+- Publication control: retained Actions artifact `9727636292` from run
+  `33296707608` contains `module-registry-0.1.35.tar.gz` with SHA-256
+  `8a3013299190286d2c48d87a6a605686ee3880d6acdc92119b466724d9db6f70`,
+  exactly matching the current snapshot. No GitHub release or module tag exists;
+  no remote publication was performed during failing-before evidence.
+
+Final review RED and local passing evidence, 2026-09-03 Europe/Berlin:
+
+- The final test-only head `f7fd96b0aeda254b849b66c7980b8d22a67d0471`
+  retained the approved 25-case mapping and incorporated only review-quality
+  corrections before implementation.
+- GitHub Requirements Evidence run `33808710389` started at
+  2026-09-03T21:34:54Z and retained artifact `9913948112`, service digest
+  `sha256:369ba41c06fc851e9d647b9d5c80811a04d9c372c7353722205d29a227866f5e`.
+  Its JUnit digest is
+  `sha256:35eba3275a3668a34ad95af7302fea19a33dd9fcfcca716d5805db75cc4da59e`.
+- The JUnit contains exactly the four expected failures: two non-string
+  allowlist scopes, missing verified module-release publication, and stale
+  plugin provenance caused by ordinary local/class declarations. Authority,
+  mapping, fixture, and infrastructure setup completed successfully.
+- After the implementation, the focused five-case regression/control command
+  passed. The complete provenance, license, publishing/workflow, and release
+  gate suites then passed 33, 32, 80, and 19 tests respectively; actionlint and
+  `git diff --check` also passed.
+- No dependency or version source changed. No remote module tag or release was
+  created during validation; publication remains a post-merge operational step.
+
+Independent final-review RED, 2026-09-04 Europe/Berlin:
+
+- Signed test-only commit `b4d1b9c581c5628c9e8dfd70fd43b53a5db0998d`
+  strengthened the existing mapped plugin-provenance and module-publication
+  selectors and added one focused reproducible-archive control after independent
+  reviewers identified class-global, annotated-assignment, source-binding, and
+  retry gaps.
+- Requirements Evidence run `33810222523` retained artifact `9914498650`,
+  service digest
+  `sha256:6799940eff42853f3d6cca10802396c154e6ce33939d79e3991f7fe6d7fb119b`,
+  and JUnit digest
+  `sha256:bf918344e817db436d300da68307659139ea40c5e4a1a71076f1dae8ecfb72a9`.
+  The run produced exactly six expected failures and 22 passes: two malformed
+  license scopes, the release-publication contract, and all three scoped plugin
+  variants against the unchanged over-broad baseline detector. Authority,
+  mapping, fixture, and artifact publication completed successfully.
+- The implementation removes publication-time signing, strictly verifies clean
+  checked-in manifests at the authenticated source commit, uses exact tags,
+  makes archives reproducible, and verifies or safely reuses an exact published
+  asset before changing snapshot metadata. The absent `module-registry-v0.1.35`
+  release remains deliberately absent from the checked-in snapshot until the
+  corrected workflow is merged and run.
+- Passing-after evidence: the focused six regression/control cases passed;
+  strict OpenSpec validation passed; and the combined provenance, license,
+  publishing, workflow, Requirements-delivery, and release-security suite passed
+  all 185 tests. Actionlint, repository format/lint, type checking (zero errors),
+  and `git diff --check` passed. The repository-wide YAML lint still reports only
+  pre-existing findings in the abandoned Requirements 08 archive and the active
+  Requirements 07 mapping, neither touched by this follow-up.
+
+Final publication-boundary RED, 2026-09-04 Europe/Berlin:
+
+- Signed test-only commit `b4aac69b22854049b9016ba2aa81dec9212e7a34`
+  retained the mapped selector identity while splitting its assertions below
+  the clean-code complexity threshold and adding destructured plugin-binding,
+  Git-invisible file-mode, unpublished-release, late-untracked-file, and
+  protected-PR-base regressions.
+- Requirements Evidence run `33811488807` retained artifact `9914965827`,
+  service digest
+  `sha256:11acb8371be6bd5a9abb7b766c2a41caf6a552bd4af40ed28493c48885386216`,
+  and JUnit digest
+  `sha256:0291e7931ed7e744ac6a3c53a9c9a742b0ff68c836d423f60e5f43ed217a4602`.
+  The approved plan produced exactly seven expected failures and 22 passes:
+  two malformed license scopes, the module-release selector, and four scoped
+  plugin variants. Authority, mapping, fixture, and artifact publication passed.
+- The two new standalone publication tests and the destructured plugin variant
+  produced four expected local failures against the intermediate candidate:
+  non-reproducible mode metadata, missing published-release state validation,
+  missing late-untracked/protected-base checks, and missing destructured plugin
+  provenance.
+
+Final independent-review RED and passing evidence, 2026-09-04 Europe/Berlin:
+
+- Signed test-only commits `ac98b65476930debcdc8bff454358ba839ee6d98`,
+  `aa44c0bf594debabb8e9dce5054a16525daa1f11`, and
+  `eed94e01d1b97eef337b8aa2f699ce698a8b642d` added only the final reviewed
+  regressions and removed their type-review warning before implementation.
+  They cover starred, augmented, and named-expression module plugin bindings,
+  including definition-time expressions, explicit rejection of module symlinks,
+  and safe manual-release retries after the selected protected branch advances.
+- Requirements Evidence run `33812971823` retained artifact `9915498910`,
+  service digest
+  `sha256:4376ae97cb9bacb28e0b14183736b4bbac841e8f8d9608cc835bd1ed766d82e3`,
+  and JUnit digest
+  `sha256:3ba2e1224c83bd3d8ea638292e2801a62c404e44cbfa3bb8b764a3d301035673`.
+  Its approved plan digest remained
+  `sha256:8ef3da33b39d72ccd344ca694cbdaa38f25110794fc351d16a766e2c04341535`.
+  The immutable run produced 11 failures and 22 passes: the two malformed
+  license cases, the release-publication contract, and all seven scoped plugin
+  variants plus the definition-time variant failed against the unchanged
+  production baseline while authority,
+  fixture, and artifact creation completed.
+- The narrow implementation models literal Python unpacking semantics and
+  augmented/named assignments for effective module plugin bindings, rejects
+  module symlinks rather than publishing an incomplete signed archive, and
+  authenticates manual publication by selected protected-branch ancestry so an
+  exact-source retry remains valid after normal branch advancement.
+- Passing-after evidence: the focused 14 regression/control cases passed, and
+  the combined provenance, license, publishing, workflow,
+  Requirements-delivery, and release-security suite passed all 194 tests.
+  Repository format/lint, actionlint, strict OpenSpec validation, type checking
+  (zero errors), and `git diff --check` also passed.
+- Both frozen dependency audits passed against the live PyPI advisory service
+  with no unreviewed vulnerabilities. The scoped Code Review result has no
+  errors and no new warnings; its two parameter-count warnings are unchanged
+  file-level findings on `_write_index_fragment` and `publish_bundle`, whose
+  declarations and call shapes are outside this patch. The three informational
+  readability notices were inspected and preserve explicit security-test and
+  command-flow clarity.
+- Independent security-boundary and release-path re-reviews reported no
+  remaining actionable P1/P2 findings after the definition-time traversal,
+  symlink rejection, and protected-ancestor retry fixes.
+
+Parameterized-selector proof recovery, 2026-09-04 Europe/Berlin:
+
+- Strict normalization maps each unique concrete pytest parameter case to
+  exactly one approved selector, rejects ambiguous or malformed prefixes, and
+  still requires complete selector coverage and one consistent toolchain.
+- Signed cycle base `519b7bcda4a3f0d012770021b85d9c566361f42f`
+  with tree `cbaf747adfef7ac955c7c69e042b2fb7336abc7b` changed only the
+  late-RED script constants to PR #704 and
+  `bugfix/692-release-review-followup`; definition-time traversal remained
+  disabled and all 17 workflow predicates remained unreachable.
+- Its direct signed test-only child
+  `fed178205f79fb4467ab8079077f594dea424df5` with tree
+  `89ef840b3c38c76d6e34e1f9022b13dbb3e7bdc0` changed only four synthetic
+  fixture values. The late-amendment control passed, while the default-value
+  and return-annotation cases failed under the same mapped plugin selector.
+- Requirements Evidence run `33845908431` retained artifact `9926518461`
+  with service digest
+  `sha256:57ce81936788c45298f50023e56e8f30a8024a88d4faed1fd2397ba318aea2e5`.
+  Report, plan-report, and JUnit digests are respectively
+  `sha256:f32be138a0636b94bdd00b96776d63002897b2b42c813eb38f37befc041777a7`,
+  `sha256:8ef3da33b39d72ccd344ca694cbdaa38f25110794fc351d16a766e2c04341535`,
+  and `sha256:075b4fd97a3136082fb6ac16cc62831a6b5d066f61d50dea3074ffa80d3bc592`.
+  Exactly the two concrete definition-time cases failed and normalize to the
+  single mapped plugin-provenance selector; all other mapped selectors passed.
+- Mapping and plan digests remained
+  `sha256:302fa2d64f2bba475fbf7ed31922e80d835c433ca46cadcc68f75d0e623d4d08`
+  and `sha256:ac492798da29548664d23c0378596dee7073e9f1e3f5792153ca8358ec226f0e`.
+  The final candidate restores definition-time traversal and retargets all
+  late-RED predicates exactly to PR #704 and the current branch.
+
+Exact parameter-selector delivery recovery, 2026-09-04 Europe/Berlin:
+
+- Product-owner comment
+  `https://github.com/nold-ai/specfact-cli/issues/692#issuecomment-5537842252`
+  approved the revised test-authored mapping digest
+  `sha256:644805b601e2e88eb39551c70150bacc6fb3f61a414a515546da682d25e24b7f`.
+  The two existing parameterized regressions retain independent execution but
+  now bind each value directly to a stable selector-safe ID; the mapping lists
+  all 11 concrete selectors and no overlapping base selector.
+- Signed cycle base `fd7a0a3bb9aca6adf6d82729cee104cff51eba9f`
+  with tree `274aa5af7b18975d5c7dc01395aee9585d06019f` temporarily disabled only
+  definition-time plugin traversal and redirected the 17 PR-specific late-RED
+  expressions to the unreachable proof-cycle branch.
+- Its direct signed test-and-evidence-only child
+  `508bbc00c63d6c14956cf0bd343de3561e717a2a` with tree
+  `deb582ca5255cde86881918a5d49db70172f80fa` added the stable IDs, exact
+  selector mappings, and matching accepted review evidence. Requirements
+  Evidence run `33853864883` retained artifact `9929395781` with service digest
+  `sha256:6f7de5fd8a9d01a678877d74e82626104c33218abd51d52b948cca34124c5264`.
+- The immutable report, plan-report, JUnit, and summary digests are respectively
+  `sha256:70f98fdaba3e2d995022b6088df0791cb62b45dc887297c2f335dd0a4fda014f`,
+  `sha256:bfb3e9c4a8dd65d67cee02a2997c7ffe6e49583bf69979f274abb86e3b71b6a4`,
+  `sha256:c86972e327a3028474a7e7af3ffe87ca9beb916f725953bde874b72ecb162647`,
+  and `sha256:af5b0cc03c94f1b281f23212f8450e9909d7863d0423f952f6b11f7af091170d`.
+  Mapping and plan digests are
+  `sha256:f2b2a823494b10dd2fd8be022c213f49b34e4cb9857506715ed8a3733ff36808`
+  and `sha256:0be546afae288733a0233df36864bcbe0f2abcac75de5b300d1d2b9a2bedcf4d`.
+- The run collected all 34 exact selectors: 31 passed and three failed by
+  assertion, with zero errors and zero skips. The two definition-time cases
+  failed against disabled traversal; the mapped late-amendment self-test also
+  failed against the intentionally unreachable workflow predicates. Restoring
+  traversal and those predicates made all three focused selectors pass without
+  changing test, mapping, executor, plugin, module, or JUnit bytes.
+
+Bundled-module publication input-boundary recovery, 2026-09-04 Europe/Berlin:
+
+- Product-owner comment
+  `https://github.com/nold-ai/specfact-cli/pull/704#issuecomment-5538706970`
+  authorized the exact append-only C5/R5/G5 cycle without changing the approved
+  Requirements mapping.
+- Signed cycle base `108d74ce78f248215ea9637f0c9c00a3b123ee51` with tree
+  `a385712f49626dc57962f9d11393bb7d088e3808` redirected only the 17 PR #704
+  late-RED predicates to the unreachable proof-cycle branch.
+- Its direct signed test-only child
+  `11cef405871706d19db40cde132fac558b2870a3` with tree
+  `b64de8ce680adb40a3f57f7d2f7581920c344b8a` strengthened only the existing
+  mapped `REQUIREMENTS-692-S24` selector. Requirements Evidence run
+  `33860942465` retained artifact `9932100005` with service digest
+  `sha256:45a44f9bf9a2c3183e82c7f7ed801588fe27bc0ff72993fd1c0fdbf4340c75dc`.
+- The immutable report, plan-report, JUnit, and summary digests are respectively
+  `sha256:b8cdbcd46f8799cfb6e92214b192daad4842307cb1e4f1367c178c316aaf29c3`,
+  `sha256:bfb3e9c4a8dd65d67cee02a2997c7ffe6e49583bf69979f274abb86e3b71b6a4`,
+  `sha256:01e00f34ade62b6d7b71e921a1d3f81872d2c1865355f648f701760168a2666c`,
+  and `sha256:af5b0cc03c94f1b281f23212f8450e9909d7863d0423f952f6b11f7af091170d`.
+  Mapping and plan digests remained
+  `sha256:f2b2a823494b10dd2fd8be022c213f49b34e4cb9857506715ed8a3733ff36808`
+  and `sha256:0be546afae288733a0233df36864bcbe0f2abcac75de5b300d1d2b9a2bedcf4d`.
+- The run collected all 34 exact selectors: 33 passed and only the mapped
+  publication selector failed by assertion, with zero errors and zero skips.
+  The final candidate restores all 17 predicates, authenticates protected
+  source before executable setup, validates one canonical module path, and
+  transports candidate-derived paths and metadata only through scoped
+  environment bindings.

@@ -143,7 +143,7 @@ def _validated_execution_proof(report: dict[str, object]) -> dict[str, object]:
     return cast(dict[str, object], execution_proof)
 
 
-def _validated_selectors(execution_proof: dict[str, object]) -> list[object]:
+def _validated_selectors(execution_proof: dict[str, object]) -> list[str]:
     source_ref = execution_proof.get("source_ref")
     selectors = execution_proof.get("selectors")
     if (
@@ -151,9 +151,10 @@ def _validated_selectors(execution_proof: dict[str, object]) -> list[object]:
         or GIT_OBJECT_PATTERN.fullmatch(source_ref) is None
         or not isinstance(selectors, list)
         or not selectors
+        or not all(isinstance(selector, str) and selector for selector in selectors)
     ):
         raise ValueError("prior-red-proof-invalid")
-    return selectors
+    return cast(list[str], selectors)
 
 
 def _selector_paths(report: dict[str, object]) -> tuple[str, list[str]]:
@@ -200,22 +201,103 @@ def _python_module_paths(module_parts: Sequence[str]) -> set[str]:
     return paths
 
 
+def _same_scope_children(node: ast.AST) -> list[ast.AST]:
+    """Return child nodes evaluated in the parent's lexical scope."""
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        return [*node.decorator_list, node.args, *([node.returns] if node.returns else [])]
+    if isinstance(node, ast.ClassDef):
+        return [*node.decorator_list, *node.bases, *node.keywords]
+    if isinstance(node, ast.Lambda):
+        return [node.args]
+    return list(ast.iter_child_nodes(node))
+
+
+def _same_scope_nodes(statements: Sequence[ast.stmt]) -> list[ast.AST]:
+    """Return nodes evaluated in one lexical scope, excluding dormant bodies."""
+    pending: list[ast.AST] = list(statements)
+    nodes: list[ast.AST] = []
+    while pending:
+        node = pending.pop()
+        nodes.append(node)
+        pending.extend(_same_scope_children(node))
+    return nodes
+
+
+def _pytest_plugin_assignments(
+    tree: ast.AST,
+) -> list[ast.Assign | ast.AnnAssign | ast.AugAssign | ast.NamedExpr]:
+    """Return assignments that can bind the imported module's plugin name."""
+    assignments: list[ast.Assign | ast.AnnAssign | ast.AugAssign | ast.NamedExpr] = []
+    assignment_types = (ast.Assign, ast.AnnAssign, ast.AugAssign, ast.NamedExpr)
+    if isinstance(tree, ast.Module):
+        assignments.extend(node for node in _same_scope_nodes(tree.body) if isinstance(node, assignment_types))
+    scope_types = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+    for scope in (node for node in ast.walk(tree) if isinstance(node, scope_types)):
+        scope_nodes = _same_scope_nodes(scope.body)
+        binds_module_name = any(isinstance(node, ast.Global) and "pytest_plugins" in node.names for node in scope_nodes)
+        if binds_module_name:
+            assignments.extend(node for node in scope_nodes if isinstance(node, assignment_types))
+    return assignments
+
+
+def _destructured_assignment_groups(
+    target: ast.List | ast.Tuple, value: ast.List | ast.Tuple
+) -> list[tuple[ast.expr, ast.expr]]:
+    """Pair literal sequence targets with values using Python unpacking rules."""
+    starred_indexes = [index for index, item in enumerate(target.elts) if isinstance(item, ast.Starred)]
+    if not starred_indexes:
+        return list(zip(target.elts, value.elts, strict=True)) if len(target.elts) == len(value.elts) else []
+    if len(starred_indexes) != 1 or len(value.elts) < len(target.elts) - 1:
+        return []
+    starred_index = starred_indexes[0]
+    trailing_count = len(target.elts) - starred_index - 1
+    assigned_groups: list[ast.expr] = [*value.elts[:starred_index]]
+    assigned_groups.append(
+        ast.List(elts=list(value.elts[starred_index : len(value.elts) - trailing_count or None]), ctx=ast.Load())
+    )
+    assigned_groups.extend(value.elts[-trailing_count:] if trailing_count else [])
+    return list(zip(target.elts, assigned_groups, strict=True))
+
+
+def _assigned_values(target: ast.expr, value: ast.expr) -> list[tuple[str, ast.expr]]:
+    """Return literal value nodes paired with names in a direct assignment target."""
+    if isinstance(target, ast.Name):
+        return [(target.id, value)]
+    if isinstance(target, ast.Starred):
+        return _assigned_values(target.value, value)
+    if not isinstance(target, (ast.List, ast.Tuple)) or not isinstance(value, (ast.List, ast.Tuple)):
+        return []
+    return [
+        pair
+        for item, assigned in _destructured_assignment_groups(target, value)
+        for pair in _assigned_values(item, assigned)
+    ]
+
+
+def _literal_plugin_paths(value_node: ast.expr) -> list[list[str]]:
+    """Return literal plugin paths represented by one assignment value."""
+    try:
+        value = ast.literal_eval(value_node)
+    except (ValueError, TypeError):
+        return []
+    declared_plugins = [value] if isinstance(value, str) else value
+    if not isinstance(declared_plugins, (list, tuple)):
+        return []
+    return [plugin.split(".") for plugin in declared_plugins if isinstance(plugin, str)]
+
+
 def _pytest_plugin_names(tree: ast.AST) -> list[list[str]]:
-    """Return statically declared ``pytest_plugins`` module names."""
+    """Return literal ``pytest_plugins`` names that can bind module state."""
     plugin_names: list[list[str]] = []
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Assign):
+    for node in _pytest_plugin_assignments(tree):
+        if node.value is None:
             continue
-        assigned_names = {target.id for target in node.targets if isinstance(target, ast.Name)}
-        if "pytest_plugins" not in assigned_names:
-            continue
-        try:
-            value = ast.literal_eval(node.value)
-        except (ValueError, TypeError):
-            continue
-        declared_plugins = [value] if isinstance(value, str) else value
-        if isinstance(declared_plugins, (list, tuple)):
-            plugin_names.extend(plugin.split(".") for plugin in declared_plugins if isinstance(plugin, str))
+        targets = node.targets if isinstance(node, ast.Assign) else (node.target,)
+        assigned_values = [pair for target in targets for pair in _assigned_values(target, node.value)]
+        for assigned_name, value_node in assigned_values:
+            if assigned_name != "pytest_plugins":
+                continue
+            plugin_names.extend(_literal_plugin_paths(value_node))
     return plugin_names
 
 
@@ -281,8 +363,10 @@ def _validate_retained_red_junit(
     actual_digest = f"sha256:{hashlib.sha256(payload).hexdigest()}"
     if expected_digest != actual_digest or not parsed_junit.has_failure:
         raise ValueError("prior-red-proof-invalid")
-    junit_selectors = {selector for case in parsed_junit.cases for selector in case.get("specfact.selector", ())}
-    if junit_selectors != set(_validated_selectors(execution_proof)):
+    expected_selectors = set(_validated_selectors(execution_proof))
+    concrete_selectors = [selector for case in parsed_junit.cases for selector in case.get("specfact.selector", ())]
+    normalized_selectors = _normalize_junit_selectors(concrete_selectors, expected_selectors)
+    if set(normalized_selectors) != expected_selectors:
         raise ValueError("prior-red-proof-invalid")
     return parsed_junit
 
@@ -295,22 +379,43 @@ def _case_property(properties: dict[str, tuple[str, ...]], name: str) -> str:
     return values[0]
 
 
+def _normalize_junit_selector(selector: str, expected_selectors: set[str]) -> str:
+    """Map one exact pytest parameter case to an unambiguous governed selector."""
+    if selector in expected_selectors:
+        return selector
+    matches = [
+        expected
+        for expected in expected_selectors
+        if selector.startswith(f"{expected}[") and selector.endswith("]") and len(selector) > len(expected) + 2
+    ]
+    if len(matches) != 1:
+        raise ValueError("prior-red-proof-invalid")
+    return matches[0]
+
+
+def _normalize_junit_selectors(selectors: Sequence[str], expected_selectors: set[str]) -> list[str]:
+    """Map unique pytest parameter cases to their governed selectors."""
+    if len(selectors) != len(set(selectors)):
+        raise ValueError("prior-red-proof-invalid")
+    return [_normalize_junit_selector(selector, expected_selectors) for selector in selectors]
+
+
 def _toolchain_identity_from_junit(junit: ParsedJunit, selectors: Sequence[object]) -> dict[str, str]:
     """Return one consistent toolchain identity emitted by every selected pytest case."""
     expected_selectors = {selector for selector in selectors if isinstance(selector, str)}
-    identities: dict[str, tuple[str, str, str]] = {}
-    for properties in junit.cases:
-        selector = _case_property(properties, "specfact.selector")
-        if selector not in expected_selectors or selector in identities:
-            raise ValueError("prior-red-proof-invalid")
-        identities[selector] = (
+    concrete_selectors = [_case_property(properties, "specfact.selector") for properties in junit.cases]
+    normalized_selectors = _normalize_junit_selectors(concrete_selectors, expected_selectors)
+    identities = [
+        (
             _case_property(properties, TOOLCHAIN_PROPERTY_NAMES["runner"]),
             _case_property(properties, TOOLCHAIN_PROPERTY_NAMES["python"]),
             _case_property(properties, TOOLCHAIN_PROPERTY_NAMES["pytest"]),
         )
-    if set(identities) != expected_selectors or len(set(identities.values())) != 1:
+        for properties in junit.cases
+    ]
+    if set(normalized_selectors) != expected_selectors or len(set(identities)) != 1:
         raise ValueError("prior-red-proof-invalid")
-    identity = next(iter(identities.values()))
+    identity = identities[0]
     return dict(zip(TOOLCHAIN_PROPERTY_NAMES, identity, strict=True))
 
 
