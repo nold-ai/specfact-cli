@@ -4,6 +4,9 @@
 
 - `hatch run pytest tests/unit/registry/test_module_discovery.py::test_project_shadow_warning_is_actionable_and_emitted_once tests/unit/modules/module_registry/test_commands.py::test_doctor_reports_effective_and_shadowed_duplicate_modules -q`
   - Result: FAIL before production edits (`2 failed`).
+  - The original local execution timestamp was not retained; this historical
+    omission is recorded rather than inferred. The authoritative retained CI
+    RED run started at `2026-08-29T20:56:09Z`.
   - Discovery still recommended `specfact module uninstall backlog-core --scope
     user`, and doctor still printed `Recovery: specfact module uninstall
     nold-ai/specfact-codebase --scope user` instead of preservation/no-action
@@ -18,6 +21,9 @@
 
 - `hatch run pytest tests/unit/registry/test_module_discovery.py::test_project_shadow_warning_is_actionable_and_emitted_once tests/unit/modules/module_registry/test_commands.py::test_doctor_reports_effective_and_shadowed_duplicate_modules -q`
   - Result: PASS (`2 passed`).
+  - The original local execution timestamp was not retained; the final
+    exact-head Requirements and orchestrator controls both started at
+    `2026-08-29T22:14:08Z`.
 - `hatch run pytest tests/unit/registry/test_module_discovery.py tests/unit/modules/module_registry/test_commands.py -q`
   - Initial implementation result: PASS (`67 passed`).
   - Discovery precedence, duplicate reporting, doctor output, and explicit uninstall command coverage remain green.
@@ -35,6 +41,7 @@
   source commit `daf05baa9303ef914f5659eafe940146d311af25` executed all three
   mapped selectors using the final reviewed test bytes and produced a bound
   `observed_maturity: red` artifact with no reconciliation findings.
+  The run started at `2026-08-29T21:50:30Z`.
 - Passing focused run after the production edit: PASS (`4 passed`).
 - Related discovery/doctor files after the review fixes: PASS (`69 passed`).
 
