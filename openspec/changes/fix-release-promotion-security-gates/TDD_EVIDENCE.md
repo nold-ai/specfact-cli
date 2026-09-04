@@ -606,3 +606,10 @@ Bundled-module publication input-boundary recovery, 2026-09-04 Europe/Berlin:
   source before executable setup, validates one canonical module path, and
   transports candidate-derived paths and metadata only through scoped
   environment bindings.
+
+Bundled registry snapshot finalization, 2026-09-04 Europe/Berlin:
+
+- Governed publication run `33864735147` produced
+  `module-registry-v0.1.35/module-registry-0.1.35.tar.gz`. Its downloaded bytes,
+  GitHub asset digest, and bundled snapshot checksum all equal
+  `sha256:50bdb396d33b31540e5fa3dc06f10a9c8827c917f905629d671f32992105ec8f`.
