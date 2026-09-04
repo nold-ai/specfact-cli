@@ -30,7 +30,17 @@ All tasks below are future implementation work. This rescope completes none of t
 - [ ] 4.1 Re-run mapped tests and capture passing evidence after implementation.
 - [ ] 4.2 Run required format, type, lint, contract, smart-test, test, and SpecFact code-review gates; resolve all findings.
 - [ ] 4.3 Run `openspec status --change ai-integration-01-agent-skill --json` and `openspec validate ai-integration-01-agent-skill --strict`.
-- [ ] 4.4 Document canonical export, conflicts, uninstall, and ownership limits using observed behavior.
+- [ ] 4.4 Review README and the published `docs/` areas, update the applicable
+  user guidance for canonical export, conflicts, uninstall, and ownership
+  limits using observed behavior, or record why no user-facing page changes;
+  update frontmatter and navigation if any page is added or moved.
+- [ ] 4.5 Run module-signature verification. If signed module assets changed,
+  apply the required module version bump and re-sign before rerunning the gate.
+- [ ] 4.6 Apply the release-appropriate semantic version bump, synchronize all
+  canonical version sources, and add the matching changelog entry.
+- [ ] 4.7 Regenerate `.specfact/code-review.json` after all substantive edits,
+  resolve every finding or record an approved exception, and capture the exact
+  command, timestamp, and passing result in `TDD_EVIDENCE.md`.
 
 ## 5. Delivery and post-merge cleanup
 
