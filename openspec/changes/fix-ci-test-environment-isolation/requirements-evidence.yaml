@@ -1,0 +1,65 @@
+schema_version: "2"
+requirements:
+  openspec:fix-ci-test-environment-isolation:test-suite-stabilization:primary-test-suite-ignores-the-outer-pull-request-base:
+    rationale: >-
+      Pull-request routing state must remain available to workflow control logic
+      without leaking into tests that create and inspect synthetic repositories.
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#708"
+    touchpoints:
+      - id: pull-request-orchestrator
+        kind: ci_workflow
+        locator: ".github/workflows/pr-orchestrator.yml"
+      - id: workflow-contract-tests
+        kind: test_file
+        locator: "tests/unit/workflows/test_trustworthy_green_checks.py"
+    verification_cases:
+      - case_id: CI-ENV-001
+        scenario_id: primary-test-suite-ignores-the-outer-pull-request-base
+        method: inspection
+        intent: "Inspect the planned step-scoped isolation boundary for the primary test suite."
+        observable: >-
+          The specification requires the primary pytest process to receive no
+          effective GITHUB_BASE_REF while non-test workflow behavior retains it.
+  openspec:fix-ci-test-environment-isolation:test-suite-stabilization:compatibility-suite-ignores-the-outer-pull-request-base:
+    rationale: >-
+      The supported compatibility lane must exercise the same isolated test
+      boundary as the primary lane.
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#708"
+    touchpoints:
+      - id: pull-request-orchestrator
+        kind: ci_workflow
+        locator: ".github/workflows/pr-orchestrator.yml"
+      - id: workflow-contract-tests
+        kind: test_file
+        locator: "tests/unit/workflows/test_trustworthy_green_checks.py"
+    verification_cases:
+      - case_id: CI-ENV-002
+        scenario_id: compatibility-suite-ignores-the-outer-pull-request-base
+        method: inspection
+        intent: "Inspect the planned step-scoped isolation boundary for the compatibility suite."
+        observable: >-
+          The specification requires the Python 3.11 pytest process to receive
+          no effective GITHUB_BASE_REF.
+  openspec:fix-ci-test-environment-isolation:test-suite-stabilization:non-test-workflow-routing-remains-unchanged:
+    rationale: >-
+      Test isolation must not erase the pull-request base from control-plane
+      logic that legitimately uses it.
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#708"
+    touchpoints:
+      - id: pull-request-orchestrator
+        kind: ci_workflow
+        locator: ".github/workflows/pr-orchestrator.yml"
+      - id: workflow-contract-tests
+        kind: test_file
+        locator: "tests/unit/workflows/test_trustworthy_green_checks.py"
+    verification_cases:
+      - case_id: CI-ENV-003
+        scenario_id: non-test-workflow-routing-remains-unchanged
+        method: inspection
+        intent: "Inspect the planned negative control for non-test workflow routing."
+        observable: >-
+          The specification preserves GitHub's authentic base reference for
+          release, signature, change-selection, and other non-test steps.
