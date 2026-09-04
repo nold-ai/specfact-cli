@@ -2,8 +2,9 @@
 
 ## 1. Readiness and specification
 
-- [x] 1.1 Create `bugfix/710-requirements-no-python-review` in an isolated
-  worktree from freshly fetched `origin/dev` before implementation edits.
+- [x] 1.1 Create `bugfix/710-requirements-no-python-review-clean` in an
+  isolated worktree from freshly fetched `origin/dev` before implementation
+  edits.
 - [x] 1.2 Verify issue #710 is open, assigned, labeled, In Progress, linked under
   #692, and a native blocker; check for duplicate issues and changes.
 - [x] 1.3 Define the no-target and required-review artifact behavior plus
@@ -12,11 +13,11 @@
 
 ## 2. Tests and failing evidence
 
-- [ ] 2.1 Add exact workflow tests for the no-Python-target output, required
+- [x] 2.1 Add exact workflow tests for the no-Python-target output, required
   Python review artifact, and unchanged verdict enforcement.
-- [ ] 2.2 Map the scenarios to exact pytest selectors in
+- [x] 2.2 Map the scenarios to exact pytest selectors in
   `requirements-evidence.yaml` and obtain the required mapping acceptance.
-- [ ] 2.3 Run the focused selectors before workflow edits and record the exact
+- [x] 2.3 Run the focused selectors before workflow edits and record the exact
   failing result, timestamp, environment, and assertions in `TDD_EVIDENCE.md`.
 
 ## 3. Minimal implementation
