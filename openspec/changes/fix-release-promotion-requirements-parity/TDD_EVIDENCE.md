@@ -127,3 +127,20 @@ plumbing for independent revalidation. The documented two-parent merge
 requirement can reject squash/rebase promotions but fails closed.
 
 Final staged-tree hooks remain pending before the implementation commit.
+
+## Post-merge promotion-plan regression
+
+PR #691 Requirements run `33996054082` at exact `dev` head
+`5f3f506c726a8644dac23419bf557e4447ffff7b` authenticated the #714 source
+merge and produced a passing aggregate report, but the producer rejected that
+report because it queried the report for plan cases stored in the separate
+aggregate plan artifact.
+
+At `2026-09-05T22:53:41Z`, the mapped selector was strengthened before the
+workflow correction and run with:
+
+`python -m pytest -q tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_workflow_revalidates_promotion_reuse_in_all_stages`
+
+Result: FAIL (`1 failed`) because producer, fresh execution, and final verdict
+did not validate the aggregate report and aggregate plan through their distinct
+files.

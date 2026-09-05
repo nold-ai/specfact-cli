@@ -1470,11 +1470,22 @@ def _assert_promotion_scope(workflow: dict[str, object], commands: tuple[str, st
 
 
 def _assert_promotion_planning(commands: tuple[str, str, str]) -> None:
-    for command in commands:
+    evidence_paths = (
+        (
+            "artifacts/requirements-evidence/requirements-evidence.json",
+            "artifacts/requirements-evidence/requirements-evidence-plan.json",
+        ),
+        ('"$consumer_report"', '"$consumer_plan"'),
+        ('"$final_report"', '"$final_plan"'),
+    )
+    for command, (report_path, plan_path) in zip(commands, evidence_paths, strict=True):
+        normalized_command = " ".join(command.split())
         assert 'if [[ "$EVIDENCE_PROMOTION_REUSE" == "true" ]]; then' in command
         assert "planning_maturity=planned" in command
-        assert '.gate_decision == "pass"' in command
-        assert ".plan.cases | length > 0" in command
+        assert f"jq -e '.gate_decision == \"pass\"' {report_path} > /dev/null" in normalized_command
+        assert (
+            f"jq -e '.gate_decision == \"pass\" and (.plan.cases | length > 0)' {plan_path} > /dev/null"
+        ) in normalized_command
 
 
 def _assert_promotion_artifacts(workflow: dict[str, object], commands: tuple[str, str, str]) -> None:
