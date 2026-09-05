@@ -466,6 +466,7 @@ def _assert_retention_contract(workflow: dict[str, object]) -> None:
         "artifacts/requirements-evidence/requirements-evidence.md",
         "artifacts/requirements-evidence/requirements-evidence-plan.json",
         "artifacts/requirements-evidence/requirements-proof.xml",
+        "artifacts/requirements-evidence/requirements-promotion-reuse.json",
         "artifacts/requirements-evidence/approved-legacy-tdd-ledger.md",
         "artifacts/requirements-evidence/legacy-tdd-evidence.json",
     ]
