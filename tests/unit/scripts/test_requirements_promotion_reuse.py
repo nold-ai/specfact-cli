@@ -136,6 +136,12 @@ def _refresh_artifact_digest(fixture: _PromotionFixture, artifact_index: int, ar
     _object_list(fixture.artifacts, "artifacts")[artifact_index]["digest"] = _artifact_digest(archive)
 
 
+def _rewrite_plan_member(fixture: _PromotionFixture, field_path: tuple[str, ...], value: object) -> None:
+    for artifact_index, archive in enumerate((fixture.producer_archive, fixture.execution_archive)):
+        _rewrite_json_member(archive, "requirements-evidence-plan.json", field_path, value)
+        _refresh_artifact_digest(fixture, artifact_index, archive)
+
+
 def _proof_archives(tmp_path: Path) -> tuple[Path, Path]:
     plan = {
         "schema_version": "2",
@@ -731,6 +737,15 @@ def _assert_archive_semantic_mutations_rejected(validator: types.ModuleType, tmp
         fixture = _promotion_fixture(tmp_path)
         _rewrite_json_member(fixture.producer_archive, "requirements-evidence.json", field_path, value)
         _refresh_artifact_digest(fixture, 0, fixture.producer_archive)
+        _assert_rejected(validator, fixture)
+    valid_source = {"source": "openspec/changes/fix", "mapping_digest": SOURCE_MAPPING_DIGEST}
+    for sources in (
+        [{**valid_source, "source": ""}],
+        [{**valid_source, "mapping_digest": "sha256:invalid"}],
+        [valid_source, copy.deepcopy(valid_source)],
+    ):
+        fixture = _promotion_fixture(tmp_path)
+        _rewrite_plan_member(fixture, ("sources",), sources)
         _assert_rejected(validator, fixture)
     for member in ("requirements-evidence.json", "requirements-evidence-plan.json", "requirements-proof.xml"):
         fixture = _promotion_fixture(tmp_path)
