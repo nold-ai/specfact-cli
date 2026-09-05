@@ -7,6 +7,7 @@ import hashlib
 import importlib.util
 import inspect
 import json
+import os
 import subprocess
 import sys
 import types
@@ -476,17 +477,42 @@ def _assert_default_git_runner(tmp_path: Path) -> None:
     validator = _load_validator()
     repo_root = tmp_path / "git-repository"
     repo_root.mkdir()
-    subprocess.run(["git", "init", "--quiet"], cwd=repo_root, check=True)
-    subprocess.run(["git", "config", "user.email", "proof@example.test"], cwd=repo_root, check=True)
-    subprocess.run(["git", "config", "user.name", "Proof"], cwd=repo_root, check=True)
+    git_environment = {
+        key: value
+        for key, value in os.environ.items()
+        if not key.startswith("GIT_CONFIG_")
+        and key not in {"GIT_COMMON_DIR", "GIT_DIR", "GIT_INDEX_FILE", "GIT_TEMPLATE_DIR", "GIT_WORK_TREE"}
+    }
+    git_environment.update(
+        {
+            "GIT_CONFIG_GLOBAL": os.devnull,
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "XDG_CONFIG_HOME": str(tmp_path / "xdg"),
+        }
+    )
+    git_command = ["git", "-c", f"core.hooksPath={os.devnull}"]
+    subprocess.run([*git_command, "init", "--quiet", "--template="], cwd=repo_root, check=True, env=git_environment)
+    subprocess.run(
+        [*git_command, "config", "user.email", "proof@example.test"],
+        cwd=repo_root,
+        check=True,
+        env=git_environment,
+    )
+    subprocess.run([*git_command, "config", "user.name", "Proof"], cwd=repo_root, check=True, env=git_environment)
     (repo_root / "proof.txt").write_text("proof\n", encoding="utf-8")
-    subprocess.run(["git", "add", "proof.txt"], cwd=repo_root, check=True)
-    subprocess.run(["git", "commit", "--quiet", "--no-gpg-sign", "-m", "proof"], cwd=repo_root, check=True)
+    subprocess.run([*git_command, "add", "proof.txt"], cwd=repo_root, check=True, env=git_environment)
+    subprocess.run(
+        [*git_command, "commit", "--quiet", "--no-gpg-sign", "-m", "proof"],
+        cwd=repo_root,
+        check=True,
+        env=git_environment,
+    )
     expected = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
+        [*git_command, "rev-parse", "HEAD"],
         cwd=repo_root,
         check=True,
         capture_output=True,
+        env=git_environment,
         text=True,
     ).stdout.strip()
     assert validator._run_git(repo_root, ["rev-parse", "HEAD"]) == expected
