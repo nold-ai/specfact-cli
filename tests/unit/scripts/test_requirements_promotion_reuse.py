@@ -29,7 +29,12 @@ SOURCE_SHA = "3" * 40
 HEAD_SHA = "4" * 40
 HEAD_TREE = "5" * 40
 MAPPING_DIGEST = f"sha256:{'6' * 64}"
+SOURCE_MAPPING_DIGEST = f"sha256:{'a' * 64}"
 PLAN_DIGEST = f"sha256:{'7' * 64}"
+PLANNED_SELECTORS = (
+    "tests/test_fix.py::test_z_fix",
+    "tests/test_fix.py::test_a_fix",
+)
 REQUIREMENTS_WORKFLOW_ID = 323253915
 AUTHORITY_WORKFLOW_ID = 348163848
 GitArguments = tuple[str, ...]
@@ -132,7 +137,6 @@ def _refresh_artifact_digest(fixture: _PromotionFixture, artifact_index: int, ar
 
 
 def _proof_archives(tmp_path: Path) -> tuple[Path, Path]:
-    selector = "tests/test_fix.py::test_fix"
     plan = {
         "schema_version": "2",
         "verdict": "passed",
@@ -141,7 +145,7 @@ def _proof_archives(tmp_path: Path) -> tuple[Path, Path]:
         "observed_maturity": "test-authored",
         "mapping_digest": MAPPING_DIGEST,
         "plan_identity_digest": f"sha256:{'8' * 64}",
-        "sources": [{"source": "openspec/changes/fix", "mapping_digest": MAPPING_DIGEST}],
+        "sources": [{"source": "openspec/changes/fix", "mapping_digest": SOURCE_MAPPING_DIGEST}],
         "plan": {
             "mapping_digest": MAPPING_DIGEST,
             "plan_digest": PLAN_DIGEST,
@@ -151,15 +155,21 @@ def _proof_archives(tmp_path: Path) -> tuple[Path, Path]:
                     "node_id": selector,
                     "selector": {"runner": "pytest", "node_id": selector},
                 }
+                for selector in PLANNED_SELECTORS
             ],
         },
     }
     junit = (
-        b'<testsuite tests="1" failures="0"><testcase><properties>'
-        b'<property name="specfact.selector" value="tests/test_fix.py::test_fix"/>'
-        b'<property name="specfact.runner" value="pytest"/>'
-        b"</properties></testcase></testsuite>\n"
-    )
+        '<testsuite tests="2" failures="0">'
+        + "".join(
+            "<testcase><properties>"
+            f'<property name="specfact.selector" value="{selector}"/>'
+            '<property name="specfact.runner" value="pytest"/>'
+            "</properties></testcase>"
+            for selector in PLANNED_SELECTORS
+        )
+        + "</testsuite>\n"
+    ).encode()
     report = {
         "schema_version": "2",
         "verdict": "passed",
@@ -174,7 +184,7 @@ def _proof_archives(tmp_path: Path) -> tuple[Path, Path]:
             "source_ref": SOURCE_SHA,
             "run_stage": "final",
             "proof_basis": "red-junit",
-            "selectors": [selector],
+            "selectors": sorted(PLANNED_SELECTORS),
             "junit_digest": f"sha256:{hashlib.sha256(junit).hexdigest()}",
         },
     }
@@ -714,6 +724,7 @@ def _assert_archive_semantic_mutations_rejected(validator: types.ModuleType, tmp
         (("execution_proof", "source_ref"), "9" * 40),
         (("execution_proof", "proof_basis"), "untrusted"),
         (("execution_proof", "selectors"), ["tests/test_other.py::test_other"]),
+        (("execution_proof", "selectors"), [PLANNED_SELECTORS[0], PLANNED_SELECTORS[0]]),
         (("execution_proof", "junit_digest"), f"sha256:{'9' * 64}"),
     )
     for field_path, value in report_mutations:
