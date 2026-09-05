@@ -385,7 +385,7 @@ def _promotion_fixture(tmp_path: Path) -> _PromotionFixture:
 
 def _validate(fixture: _PromotionFixture) -> dict[str, object]:
     validator = _load_validator()
-    return validator.build_attestation(
+    inputs = validator.PromotionInputs(
         event=fixture.event,
         repo_root=REPO_ROOT,
         source_pulls=fixture.source_pulls,
@@ -395,8 +395,8 @@ def _validate(fixture: _PromotionFixture) -> dict[str, object]:
         artifacts=fixture.artifacts,
         producer_archive=fixture.producer_archive,
         execution_archive=fixture.execution_archive,
-        git_runner=fixture.run_git,
     )
+    return validator.build_attestation(inputs, git_runner=fixture.run_git)
 
 
 def _write_cli_inputs(tmp_path: Path, fixture: _PromotionFixture) -> _CliInputs:
@@ -461,8 +461,8 @@ def _assert_cli_contract(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
     attestation: dict[str, object] = {"claim": "promotion-reused", "source_head": SOURCE_SHA}
     captured: dict[str, object] = {}
 
-    def accepted_build(**keywords: object) -> dict[str, object]:
-        captured.update(keywords)
+    def accepted_build(inputs: object) -> dict[str, object]:
+        captured["inputs"] = inputs
         return attestation
 
     monkeypatch.setattr(validator, "build_attestation", accepted_build)
@@ -471,8 +471,9 @@ def _assert_cli_contract(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
     assert validator.main(_cli_arguments(fixture, inputs, first_output)) == 0
     assert validator.main(_cli_arguments(fixture, inputs, second_output)) == 0
     assert first_output.read_bytes() == second_output.read_bytes() == _json_bytes(attestation)
-    assert "git_runner" not in captured
-    assert captured["repo_root"] == REPO_ROOT
+    captured_inputs = captured["inputs"]
+    assert isinstance(captured_inputs, validator.PromotionInputs)
+    assert captured_inputs.repo_root == REPO_ROOT
 
     expected = tmp_path / "expected.json"
     expected.write_bytes(b"{}\n")
@@ -480,7 +481,7 @@ def _assert_cli_contract(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
     assert validator.main(_cli_arguments(fixture, inputs, rejected_output, expected)) == 1
     assert not rejected_output.exists()
 
-    def rejected_build(**_keywords: object) -> dict[str, object]:
+    def rejected_build(_inputs: object) -> dict[str, object]:
         raise validator.PromotionReuseError
 
     monkeypatch.setattr(validator, "build_attestation", rejected_build)
@@ -547,6 +548,7 @@ def test_exact_protected_promotion_produces_canonical_attestation(
     attestation = _validate(fixture)
 
     assert "git_facts" not in inspect.signature(_load_validator().build_attestation).parameters
+    assert len(inspect.signature(_load_validator().build_attestation).parameters) == 2
     assert attestation["claim"] == "promotion-reused"
     assert attestation["promotion"] == {
         "base_ref": "main",
