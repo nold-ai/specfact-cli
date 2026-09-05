@@ -7,9 +7,10 @@ GitHub pull-request event identifies the same repository as both base and head,
 the base ref is exactly `main`, the head ref is exactly `dev`, every Requirements
 stage is checked out at the event's exact head commit, live `main` and `dev` tips
 equal the event commits, and `main` is an ancestor of `dev`. The workflow SHALL
-require both deterministic aggregate planning validation and a distinct
-authenticated `promotion-reused` attestation instead of one synthetic review
-acceptance for the accumulated active OpenSpec changes.
+first authenticate the candidate tree with an immutable centrally pinned
+authority validator, then require both deterministic aggregate planning
+validation and a distinct authenticated `promotion-reused` attestation instead
+of one synthetic review acceptance for the accumulated active OpenSpec changes.
 
 #### Scenario: Exact protected development promotion is accepted
 
@@ -18,6 +19,8 @@ acceptance for the accumulated active OpenSpec changes.
 - **AND** the exact refs are `main` and `dev`
 - **AND** the event commits equal the checked-out and live remote tips and
   `main` is an ancestor of `dev`
+- **AND** the current head has a live, expiring, unedited member authority
+  accepted by the exact pinned central validator bytes
 - **WHEN** the accumulated branch delta contains multiple active OpenSpec
   changes
 - **THEN** each stage SHALL validate the deterministic aggregate plan and the
@@ -40,17 +43,19 @@ identity SHALL retain the existing single-change maturity and proof requirements
 
 ### Requirement: Promotion reuse authenticates complete prior provenance
 
-The workflow SHALL authenticate the unique merged pull request that produced
-the exact current `dev` tree, that pull request's successful GitHub-Actions
-Requirements and external-authority runs, and the Requirements run's exact
-unexpired, digest-bound producer and fresh-execution artifacts.
+The workflow SHALL authenticate its current candidate tree with exact pinned
+central authority bytes, then authenticate the unique merged pull request that
+produced the exact current `dev` tree, that pull request's successful
+GitHub-Actions Requirements and external-authority runs, and the Requirements
+run's exact unexpired, digest-bound producer and fresh-execution artifacts.
 
 #### Scenario: Promotion provenance is incomplete or stale
 
 - **GIVEN** an otherwise exact same-repository `dev` to `main` event
 - **WHEN** any commit, tree, live tip, ancestry, source pull request, check run,
   workflow, application, artifact identity, expiry, digest, report, plan, or
-  JUnit binding is absent, ambiguous, stale, unsuccessful, or mismatched
+  JUnit binding is absent, ambiguous, stale, unsuccessful, or mismatched, or
+  the central validator commit/tree/blob/digest or member authority is invalid
 - **THEN** that stage SHALL fail closed before accepting promotion reuse.
 
 ### Requirement: Promotion stages independently validate reuse

@@ -13,6 +13,8 @@ the current tree already crossed the protected `dev` boundary.
   this repository's exact live `main` ref as a release promotion.
 - Require immutable event commits and trees, checked-out head, live remote tips,
   ancestry, and the merged pull request that produced the current `dev` tree.
+- Authenticate the current promotion tree first with the exact immutable
+  central authority validator and a live, expiring member authority comment.
 - Authenticate that merged pull request's successful GitHub-Actions
   Requirements and external-authority checks plus their exact, unexpired,
   digest-bound Requirements artifacts.
@@ -39,11 +41,12 @@ None.
 
 - **Affected code:** `.github/workflows/requirements-evidence.yml`, one focused
   promotion-attestation validator, and focused unit/workflow contract tests.
-- **Security:** the promotion verifier rejects missing, stale, spoofed, expired,
-  ambiguous, or digest-mismatched prior evidence. Every non-promotion pull
-  request retains existing fail-closed maturity, review-evidence, proof, and
-  artifact checks. The independently required exact-head authority workflow and
-  all release security/quality gates remain unchanged.
+- **Security:** the centrally authorized promotion verifier rejects missing,
+  stale, spoofed, expired, ambiguous, or digest-mismatched prior evidence.
+  Every non-promotion pull request retains existing fail-closed maturity,
+  review-evidence, proof, and artifact checks. The independently required
+  exact-head authority workflow and all release security/quality gates remain
+  unchanged.
 - **Compatibility:** no CLI, API, dependency, lock, package, or runtime behavior
   changes.
 - **Documentation:** no public docs, README, landing-page, or navigation change;

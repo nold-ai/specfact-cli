@@ -39,12 +39,20 @@ runtime, and test gates.
 
 The promotion predicate requires a pull-request event whose base and head
 repository IDs and full names equal the event repository, base ref is exactly
-`main`, and head ref is exactly `dev`. Producer, fresh execution, and final
-verification each require valid 40-hex event commits, exact checked-out and live
-remote tips, commit objects, and `main` ancestry of `dev`. A partial promotion
-match fails closed instead of falling back to ordinary pull-request behavior.
+`main`, and head ref is exactly `dev`. A fork or any other incomplete identity
+match remains on the ordinary pull-request path. After the complete identity
+matches, producer, fresh execution, and final verification each require valid
+40-hex event commits, exact checked-out and live remote tips, commit objects,
+and `main` ancestry of `dev`; any downstream mismatch fails closed.
 
 ### Authenticate the protected development result
+
+Before executing the candidate-tree promotion validator, each stage checks out
+the immutable central `nold-ai/.github` authority validator, verifies its exact
+commit, tree, script blob, and script SHA-256, and uses it to authenticate the
+current promotion pull request's repository, refs, head commit/tree, unedited
+member authority, expiry, and live permission. Candidate validator bytes are
+therefore never the first or sole authority for their own execution.
 
 The current `dev` tip must be a two-parent merge whose first parent is the
 merged pull request's recorded `dev` base and whose second parent is its exact
@@ -93,8 +101,9 @@ Requirements the sole promotion defense.
 - A privileged actor who bypasses repository-level `dev` protection could place
   unreviewed bytes on the promotion branch. Mitigation: the organization
   authority has no bypass actor; promotion reuse additionally requires the
-  exact-tree merged pull request's successful Requirements and authority runs,
-  while the promotion reruns all release gates.
+  current promotion tree's expiring member authority and the exact-tree merged
+  pull request's successful Requirements and authority runs, while the
+  promotion reruns all release gates.
 - A stale pull-request run could be mistaken for current evidence. Mitigation:
   every stage re-fetches run and artifact metadata and verifies exact live tips,
   source tree, expiry, and digests.

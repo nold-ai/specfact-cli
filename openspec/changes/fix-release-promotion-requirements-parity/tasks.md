@@ -9,10 +9,10 @@
 
 ## 2. Tests first
 
-- [ ] 2.1 Add mapped validator and workflow regressions for exact promotion
+- [x] 2.1 Add mapped validator and workflow regressions for exact promotion
   acceptance; lookalike, stale, spoofed, ambiguous, expired, and digest-tampered
   rejection; and producer/consumer/final independent validation.
-- [ ] 2.2 Run the focused selectors against unmodified production code and retain
+- [x] 2.2 Run the focused selectors against unmodified production code and retain
   failing-before evidence.
 - [ ] 2.3 Obtain acceptance for the stable test-authored mapping before the
   implementation commit.

@@ -17,6 +17,17 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 APPROVED_MODULE_COMMIT = "69f075819be5e1ceca1446b026b0417f19e584ca"
+TRUSTED_AUTHORITY_COMMIT = "f7a22379f88010d77c86f9b2bbaf1ac58f15d85d"
+TRUSTED_AUTHORITY_TREE = "47f33b4df92060a36f3afd92948e441555fb280d"
+TRUSTED_AUTHORITY_BLOB = "8c7b30020033c6b6081d6e743d77aa76043724ea"
+TRUSTED_AUTHORITY_SHA256 = "5441e26e7c3c8f18973c781e7d43c72076b3283c915d98ca5188bb174bf17c45"
+PROMOTION_CONDITION = (
+    "github.event_name == 'pull_request' && github.base_ref == 'main' && github.head_ref == 'dev' && "
+    "github.event.pull_request.base.repo.id == github.event.repository.id && "
+    "github.event.pull_request.head.repo.id == github.event.repository.id && "
+    "github.event.pull_request.base.repo.full_name == github.event.repository.full_name && "
+    "github.event.pull_request.head.repo.full_name == github.event.repository.full_name"
+)
 EVIDENCE_COMMAND_FRAGMENTS = (
     '"${isolated_specfact[@]}" requirements evidence',
     '--base-ref "$evidence_base_commit"',
@@ -1311,6 +1322,245 @@ def test_requirements_evidence_workflow_binds_red_proof_before_publication() -> 
     assert "printf 'Red proof retained; final reconciliation is required.\\n'" in command
     assert "exit_code=1" in command[command.index(binding) : command.index("fallback_required=0")]
     assert command.index(binding) < command.index("fallback_required=0")
+
+
+@dataclass(frozen=True)
+class _PromotionStage:
+    name: str
+    step_id: str
+    policy_path: str
+    evidence_step_name: str
+    expected_attestation: str | None
+    output_attestation: str
+
+
+def _assert_promotion_authority(authority: dict[str, object], policy_path: str) -> None:
+    command = cast(str, authority["run"])
+    trusted_script = f"${{GITHUB_WORKSPACE}}/{policy_path}/.github/scripts/trusted_requirements_authority.py"
+    fragments = (
+        f'trusted_policy_commit="{TRUSTED_AUTHORITY_COMMIT}"',
+        f'trusted_policy_tree="{TRUSTED_AUTHORITY_TREE}"',
+        f'trusted_policy_blob="{TRUSTED_AUTHORITY_BLOB}"',
+        f'trusted_policy_digest="{TRUSTED_AUTHORITY_SHA256}"',
+        'test "$(git -C "$trusted_policy_root" remote get-url origin)" = "https://github.com/nold-ai/.github"',
+        'test "$(git -C "$trusted_policy_root" rev-parse HEAD)" = "$trusted_policy_commit"',
+        'test "$(git -C "$trusted_policy_root" rev-parse \'HEAD^{tree}\')" = "$trusted_policy_tree"',
+        'test "$(git -C "$trusted_policy_root" rev-parse \'HEAD:.github/scripts/trusted_requirements_authority.py\')" = "$trusted_policy_blob"',
+        'test "$(sha256sum < "$trusted_policy_script" | cut -d \' \' -f 1)" = "$trusted_policy_digest"',
+        f'"{trusted_script}"',
+        '--event "$GITHUB_EVENT_PATH"',
+    )
+    positions = [command.index(fragment) for fragment in fragments]
+    assert positions == sorted(positions)
+    assert authority["env"] == {"GITHUB_TOKEN": "${{ github.token }}"}
+
+
+def _assert_promotion_fetch(fetch: dict[str, object]) -> None:
+    command = cast(str, fetch["run"])
+    fragments = (
+        "git fetch --no-tags origin",
+        'git merge-base --is-ancestor "$base_sha" "$head_sha"',
+        'git rev-list --parents -n 1 "$head_sha"',
+        "--paginate --slurp",
+        "commits/${source_head}/pulls",
+        "commits/${source_head}/check-runs?per_page=100",
+        "actions/runs/${requirements_run_id}",
+        "actions/runs/${authority_run_id}",
+        "actions/runs/${requirements_run_id}/artifacts?per_page=100",
+        "actions/artifacts/${producer_artifact_id}/zip",
+        "actions/artifacts/${execution_artifact_id}/zip",
+    )
+    assert all(fragment in command for fragment in fragments)
+    assert fetch["env"] == {"GH_TOKEN": "${{ github.token }}"}
+    assert "scripts/requirements_promotion_reuse.py" not in command
+
+
+def _assert_promotion_validation(validate: dict[str, object], stage: _PromotionStage) -> None:
+    command = cast(str, validate["run"])
+    metadata_root = f"${{RUNNER_TEMP}}/promotion-{stage.step_id}"
+    arguments = (
+        ("--event", "$GITHUB_EVENT_PATH"),
+        ("--repo-root", "$GITHUB_WORKSPACE"),
+        ("--source-pulls", f"{metadata_root}/source-pulls.json"),
+        ("--check-runs", f"{metadata_root}/check-runs.json"),
+        ("--requirements-run", f"{metadata_root}/requirements-run.json"),
+        ("--authority-run", f"{metadata_root}/authority-run.json"),
+        ("--artifacts", f"{metadata_root}/artifacts.json"),
+        ("--producer-archive", f"{metadata_root}/producer.zip"),
+        ("--execution-archive", f"{metadata_root}/execution.zip"),
+        ("--output", stage.output_attestation),
+    )
+    assert validate["id"] == stage.step_id
+    assert "scripts/requirements_promotion_reuse.py" in command
+    assert not {"GITHUB_TOKEN", "GH_TOKEN"}.intersection(cast(dict[str, str], validate.get("env", {})))
+    assert all(f'{argument} "{value}"' in command for argument, value in arguments)
+    if stage.expected_attestation is None:
+        assert "--expected-attestation" not in command
+        return
+    assert f'--expected-attestation "{stage.expected_attestation}"' in command
+    assert f'cmp --silent "{stage.output_attestation}" "{stage.expected_attestation}"' in command
+
+
+def _assert_promotion_stage_boundary(workflow: dict[str, object], stage: _PromotionStage) -> None:
+    checkout_name = f"Checkout trusted promotion authority policy for {stage.name}"
+    authority_name = f"Authenticate protected promotion head for {stage.name}"
+    fetch_name = f"Fetch protected promotion evidence for {stage.name}"
+    validate_name = f"Validate protected promotion evidence for {stage.name}"
+    checkout = _step_by_name(workflow, checkout_name)
+    authority = _step_by_name(workflow, authority_name)
+    fetch = _step_by_name(workflow, fetch_name)
+    validate = _step_by_name(workflow, validate_name)
+    checkout_with = cast(dict[str, str], checkout["with"])
+
+    assert all(step["if"] == PROMOTION_CONDITION for step in (checkout, authority, fetch, validate))
+    assert all("continue-on-error" not in step for step in (checkout, authority, fetch, validate))
+    assert checkout_with["repository"] == "nold-ai/.github"
+    assert checkout_with["ref"] == TRUSTED_AUTHORITY_COMMIT
+    assert checkout_with["path"] == stage.policy_path
+    assert checkout_with["persist-credentials"] == "false"
+    assert checkout["uses"] == "actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10"
+    _assert_promotion_authority(authority, stage.policy_path)
+    _assert_promotion_fetch(fetch)
+    _assert_promotion_validation(validate, stage)
+    _assert_step_order(workflow, checkout_name, authority_name)
+    _assert_step_order(workflow, authority_name, fetch_name)
+    _assert_step_order(workflow, fetch_name, validate_name)
+    _assert_step_order(workflow, validate_name, stage.evidence_step_name)
+
+
+def _promotion_commands(workflow: dict[str, object]) -> tuple[str, str, str]:
+    producer = _step_by_name(workflow, "Run Requirements evidence gate")
+    consumer = _step_by_name(workflow, "Reconcile Requirements evidence on fresh runner")
+    final = _step_by_name(workflow, "Reconcile final Requirements verdict on fresh runner")
+    return cast(str, producer["run"]), cast(str, consumer["run"]), cast(str, final["run"])
+
+
+def _assert_promotion_stage_outputs(workflow: dict[str, object]) -> None:
+    producer = _step_by_name(workflow, "Run Requirements evidence gate")
+    consumer = _step_by_name(workflow, "Reconcile Requirements evidence on fresh runner")
+    final = _step_by_name(workflow, "Reconcile final Requirements verdict on fresh runner")
+    assert (
+        cast(dict[str, str], producer["env"])["EVIDENCE_PROMOTION_REUSE"]
+        == "${{ steps.producer-promotion.outputs.active }}"
+    )
+    assert (
+        cast(dict[str, str], consumer["env"])["EVIDENCE_PROMOTION_REUSE"]
+        == "${{ steps.execution-promotion.outputs.active }}"
+    )
+    assert (
+        cast(dict[str, str], final["env"])["EVIDENCE_PROMOTION_REUSE"] == "${{ steps.final-promotion.outputs.active }}"
+    )
+
+
+def _assert_promotion_scope(workflow: dict[str, object], commands: tuple[str, str, str]) -> None:
+    producer_command, consumer_command, final_command = commands
+    producer_base = 'evidence_base_commit="$(git merge-base "origin/${EVIDENCE_BASE_BRANCH}" HEAD)"'
+    consumer_base = 'evidence_base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" "$source_ref")"'
+    assert producer_command.count(producer_base) == 1
+    assert consumer_command.count(consumer_base) == 1
+    assert producer_command.count('--base-ref "$evidence_base_commit"') == 1
+    assert consumer_command.count('--base-ref "$evidence_base_commit"') == 1
+    assert final_command.count('--base-ref "$FINAL_BASE_COMMIT"') == 1
+    assert "evidence_scope_commit=" not in producer_command + consumer_command
+    assert "final_scope_commit=" not in final_command
+    final_core = cast(str, _step_by_name(workflow, "Materialize trusted final Requirements core")["run"])
+    assert 'base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" HEAD)"' in final_core
+    assert "printf 'FINAL_BASE_COMMIT=%s\\n' \"$base_commit\"" in final_core
+
+
+def _assert_promotion_planning(commands: tuple[str, str, str]) -> None:
+    for command in commands:
+        assert 'if [[ "$EVIDENCE_PROMOTION_REUSE" == "true" ]]; then' in command
+        assert "planning_maturity=planned" in command
+        assert '.gate_decision == "pass"' in command
+        assert ".plan.cases | length > 0" in command
+
+
+def _assert_promotion_artifacts(workflow: dict[str, object], commands: tuple[str, str, str]) -> None:
+    producer_command, consumer_command, final_command = commands
+    assert "requirements-promotion-reuse.json" in producer_command
+    assert "requirements-promotion-reuse.json" in consumer_command
+    assert 'test -s "$execution_root/requirements-promotion-reuse.json"' in final_command
+    assert 'review_base_commit="$(git merge-base "origin/${REVIEW_BASE_BRANCH}" HEAD)"' in consumer_command
+
+    producer_upload = _step_by_name(workflow, "Persist Requirements evidence before Code Review")
+    execution_upload = _step_by_name(workflow, "Persist fresh Requirements execution artifact")
+    producer_paths = cast(dict[str, str], producer_upload["with"])["path"]
+    execution_paths = cast(dict[str, str], execution_upload["with"])["path"]
+    assert "artifacts/requirements-evidence/requirements-promotion-reuse.json" in producer_paths
+    assert "artifacts/requirements-evidence/final-verification/requirements-promotion-reuse.json" in execution_paths
+
+
+def _assert_promotion_plan_and_attestation_contract(workflow: dict[str, object]) -> None:
+    commands = _promotion_commands(workflow)
+    _assert_promotion_stage_outputs(workflow)
+    _assert_promotion_scope(workflow, commands)
+    _assert_promotion_planning(commands)
+    _assert_promotion_artifacts(workflow, commands)
+
+
+def test_workflow_revalidates_promotion_reuse_in_all_stages() -> None:
+    """Producer, execution, and final authenticate reuse independently."""
+    workflow = yaml.load(
+        (REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml").read_text(encoding="utf-8"),
+        Loader=yaml.BaseLoader,
+    )
+    stages = (
+        _PromotionStage(
+            "producer",
+            "producer-promotion",
+            "promotion-authority-policy-producer",
+            "Run Requirements evidence gate",
+            None,
+            "artifacts/requirements-evidence/requirements-promotion-reuse.json",
+        ),
+        _PromotionStage(
+            "fresh execution",
+            "execution-promotion",
+            "promotion-authority-policy-execution",
+            "Reconcile Requirements evidence on fresh runner",
+            "artifacts/requirements-evidence/requirements-promotion-reuse.json",
+            "artifacts/requirements-evidence/final-verification/requirements-promotion-reuse.json",
+        ),
+        _PromotionStage(
+            "final verdict",
+            "final-promotion",
+            "promotion-authority-policy-final",
+            "Reconcile final Requirements verdict on fresh runner",
+            "${RUNNER_TEMP}/requirements-execution/requirements-promotion-reuse.json",
+            "${RUNNER_TEMP}/final-promotion-reuse.json",
+        ),
+    )
+    for stage in stages:
+        _assert_promotion_stage_boundary(workflow, stage)
+    _assert_promotion_plan_and_attestation_contract(workflow)
+
+
+def test_same_named_fork_does_not_enter_promotion_path() -> None:
+    """A fork branch named dev remains on the ordinary Requirements path."""
+    workflow = yaml.load(
+        (REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml").read_text(encoding="utf-8"),
+        Loader=yaml.BaseLoader,
+    )
+    promotion_steps = (
+        "Checkout trusted promotion authority policy for producer",
+        "Authenticate protected promotion head for producer",
+        "Fetch protected promotion evidence for producer",
+        "Validate protected promotion evidence for producer",
+        "Checkout trusted promotion authority policy for fresh execution",
+        "Authenticate protected promotion head for fresh execution",
+        "Fetch protected promotion evidence for fresh execution",
+        "Validate protected promotion evidence for fresh execution",
+        "Checkout trusted promotion authority policy for final verdict",
+        "Authenticate protected promotion head for final verdict",
+        "Fetch protected promotion evidence for final verdict",
+        "Validate protected promotion evidence for final verdict",
+    )
+    for step_name in promotion_steps:
+        condition = cast(str, _step_by_name(workflow, step_name)["if"])
+        assert condition == PROMOTION_CONDITION
+        assert "pull_request.head.repo.id == github.event.repository.id" in condition
+        assert "pull_request.head.repo.full_name == github.event.repository.full_name" in condition
 
 
 def _review_and_enforcement_steps() -> tuple[
