@@ -148,3 +148,18 @@ files.
 At `2026-09-05T22:55:59Z`, the assertion normalized YAML-preserved shell line
 continuations and the same command remained RED (`1 failed`) against unchanged
 workflow bytes.
+
+At `2026-09-05T23:00:12Z`, PR #715 Requirements run `33997442368` retained
+the same RED result at test-only head
+`9eb681963ab28360a9fbaf13f07009f5ea04b28a`. Artifact `9978484067`
+(`requirements-evidence`) has service digest
+`sha256:526034fe72c4cdba090daa55d710be8cf25054fbe1f37c27c16143c1f4970773`;
+its JUnit document has SHA-256
+`0633b17b9caf535ef365f66b8b64bfc4d0981c156cbabe49609f4d8a69b07831`
+and records the mapped selector as the only failure among five cases.
+
+At `2026-09-05T22:57:31Z`, the workflow correction validated the aggregate
+report decision from the report file and the non-empty aggregate cases from the
+separate plan file in producer, fresh execution, and final verdict. The mapped
+selector passed, the focused promotion and security suite passed (`24 passed`),
+and `actionlint .github/workflows/requirements-evidence.yml` passed.

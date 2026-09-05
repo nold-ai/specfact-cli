@@ -711,8 +711,10 @@ jobs:
           failure_diagnostic="Evidence command exited with status $exit_code before writing reports."
           if [[ "$EVIDENCE_PROMOTION_REUSE" == "true" ]]; then
             test -s artifacts/requirements-evidence/requirements-promotion-reuse.json
-            jq -e '.gate_decision == "pass" and (.plan.cases | length > 0)' \
+            jq -e '.gate_decision == "pass"' \
               artifacts/requirements-evidence/requirements-evidence.json > /dev/null
+            jq -e '.gate_decision == "pass" and (.plan.cases | length > 0)' \
+              artifacts/requirements-evidence/requirements-evidence-plan.json > /dev/null
           elif [[ "$exit_code" -eq 0 && "$required_maturity" != "planned" ]]; then
             run_stage=red
             if [[ "$required_maturity" == "verified" ]]; then
@@ -1573,8 +1575,9 @@ jobs:
           if [[ "$EVIDENCE_PROMOTION_REUSE" == "true" ]]; then
             test -s artifacts/requirements-evidence/final-verification/requirements-promotion-reuse.json
             cp "$consumer_planning_report" "$consumer_report"
+            jq -e '.gate_decision == "pass"' "$consumer_report" > /dev/null
             jq -e '.gate_decision == "pass" and (.plan.cases | length > 0)' \
-              "$consumer_report" > /dev/null
+              "$consumer_plan" > /dev/null
           elif [[ "$required_maturity" == "planned" ]]; then
             cp "$consumer_planning_report" "$consumer_report"
           else
@@ -2420,8 +2423,9 @@ jobs:
           if [[ "$EVIDENCE_PROMOTION_REUSE" == "true" ]]; then
             test -s "$execution_root/requirements-promotion-reuse.json"
             cp "$final_planning_report" "$final_report"
+            jq -e '.gate_decision == "pass"' "$final_report" > /dev/null
             jq -e '.gate_decision == "pass" and (.plan.cases | length > 0)' \
-              "$final_report" > /dev/null
+              "$final_plan" > /dev/null
             cat "$final_summary" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           elif [[ "$required_maturity" == "planned" ]]; then
