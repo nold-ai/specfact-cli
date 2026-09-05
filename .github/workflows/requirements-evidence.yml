@@ -81,7 +81,7 @@ jobs:
           python-version: "3.12"
 
       - name: Checkout trusted Requirements authority policy
-        if: github.event_name == 'pull_request' && github.event.pull_request.number == 704 && github.head_ref == 'bugfix/692-release-review-followup' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != ''
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 715 && github.head_ref == 'bugfix/692-promotion-exit-code' && hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') != ''
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: nold-ai/.github
@@ -91,7 +91,7 @@ jobs:
 
       - name: Validate exact final Requirements authority
         id: late-red
-        if: github.event_name == 'pull_request' && github.event.pull_request.number == 704 && github.head_ref == 'bugfix/692-release-review-followup' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != ''
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 715 && github.head_ref == 'bugfix/692-promotion-exit-code' && hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') != ''
         env:
           GITHUB_TOKEN: ${{ github.token }}
         shell: bash
@@ -99,7 +99,7 @@ jobs:
           set -euo pipefail
           trusted_policy_commit="f7a22379f88010d77c86f9b2bbaf1ac58f15d85d"
           trusted_policy_root="${GITHUB_WORKSPACE}/trusted-requirements-policy"
-          manifest="openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json"
+          manifest="openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json"
           test "$(git -C "$trusted_policy_root" rev-parse HEAD)" = "$trusted_policy_commit"
           test "$(git -C "$trusted_policy_root" remote get-url origin)" = "https://github.com/nold-ai/.github"
           test "$(jq -er '.pull_request.head.sha' "$GITHUB_EVENT_PATH")" = "$(git rev-parse HEAD)"
@@ -134,7 +134,7 @@ jobs:
              .name == "Requirements Evidence" and
              .path == ".github/workflows/requirements-evidence.yml" and
              .repository.full_name == $repository and
-             [.pull_requests[].number] == [704]' \
+             [.pull_requests[].number] == [715]' \
             "$metadata_root/run.json" > /dev/null
           jq -e \
             --argjson run_id "$late_red_run_id" \
@@ -324,7 +324,7 @@ jobs:
           printf 'active=true\n' >> "$GITHUB_OUTPUT"
 
       - name: Download exact late RED artifact
-        if: github.event_name == 'pull_request' && github.event.pull_request.number == 704 && github.head_ref == 'bugfix/692-release-review-followup' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != ''
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 715 && github.head_ref == 'bugfix/692-promotion-exit-code' && hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') != ''
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           artifact-ids: ${{ steps.late-red.outputs.artifact-id }}
@@ -333,11 +333,11 @@ jobs:
           run-id: ${{ steps.late-red.outputs.run-id }}
 
       - name: Normalize exact late RED proof
-        if: github.event_name == 'pull_request' && github.event.pull_request.number == 704 && github.head_ref == 'bugfix/692-release-review-followup' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != ''
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 715 && github.head_ref == 'bugfix/692-promotion-exit-code' && hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') != ''
         shell: bash
         run: |
           set -euo pipefail
-          manifest="openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json"
+          manifest="openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json"
           cycle_base_commit="$(jq -er '.cycle_base_commit | select(type == "string" and test("^[0-9a-f]{40}$"))' "$manifest")"
           trusted_provenance_root="${RUNNER_TEMP}/late-red-trusted-provenance"
           mkdir -p "$trusted_provenance_root"
@@ -364,7 +364,7 @@ jobs:
 
       - name: Locate retained red proof run
         id: prior-red-run
-        if: github.event_name == 'pull_request' && (github.event.pull_request.number != 704 || github.head_ref != 'bugfix/692-release-review-followup' || hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') == '')
+        if: github.event_name == 'pull_request' && (github.event.pull_request.number != 715 || github.head_ref != 'bugfix/692-promotion-exit-code' || hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') == '')
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -473,7 +473,7 @@ jobs:
           EVIDENCE_HEAD_BRANCH: ${{ github.head_ref }}
           EVIDENCE_PULL_REQUEST: ${{ github.event.pull_request.number }}
           EVIDENCE_PROMOTION_REUSE: ${{ steps.producer-promotion.outputs.active }}
-          LATE_RED_ACTIVE: ${{ github.event.pull_request.number == 704 && github.head_ref == 'bugfix/692-release-review-followup' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != '' }}
+          LATE_RED_ACTIVE: ${{ github.event.pull_request.number == 715 && github.head_ref == 'bugfix/692-promotion-exit-code' && hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') != '' }}
         run: |
           set -e
           validator_site="${REQUIREMENTS_VALIDATOR_ROOT}/lib/python3.12/site-packages"
@@ -673,7 +673,7 @@ jobs:
           prior_red_report_digest=""
           prior_red_junit_digest=""
           prior_red_provenance_digest=""
-          late_red_manifest="openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json"
+          late_red_manifest="openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json"
           late_red_manifest_digest=""
           if [[ "$LATE_RED_ACTIVE" == "true" ]]; then
             prior_red_base_ref="$(jq -er '.cycle_base_commit | select(type == "string" and test("^[0-9a-f]{40}$"))' "$late_red_manifest")"
@@ -711,8 +711,10 @@ jobs:
           failure_diagnostic="Evidence command exited with status $exit_code before writing reports."
           if [[ "$EVIDENCE_PROMOTION_REUSE" == "true" ]]; then
             test -s artifacts/requirements-evidence/requirements-promotion-reuse.json
-            jq -e '.gate_decision == "pass" and (.plan.cases | length > 0)' \
+            jq -e '.gate_decision == "pass"' \
               artifacts/requirements-evidence/requirements-evidence.json > /dev/null
+            jq -e '.gate_decision == "pass" and (.plan.cases | length > 0)' \
+              artifacts/requirements-evidence/requirements-evidence-plan.json > /dev/null
           elif [[ "$exit_code" -eq 0 && "$required_maturity" != "planned" ]]; then
             run_stage=red
             if [[ "$required_maturity" == "verified" ]]; then
@@ -1261,7 +1263,7 @@ jobs:
           printf 'active=true\n' >> "$GITHUB_OUTPUT"
 
       - name: Checkout trusted Requirements authority policy
-        if: github.event_name == 'pull_request' && github.event.pull_request.number == 704 && github.head_ref == 'bugfix/692-release-review-followup' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != ''
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 715 && github.head_ref == 'bugfix/692-promotion-exit-code' && hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') != ''
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: nold-ai/.github
@@ -1271,7 +1273,7 @@ jobs:
 
       - name: Validate exact final Requirements authority
         id: late-red
-        if: github.event_name == 'pull_request' && github.event.pull_request.number == 704 && github.head_ref == 'bugfix/692-release-review-followup' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != ''
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 715 && github.head_ref == 'bugfix/692-promotion-exit-code' && hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') != ''
         env:
           GITHUB_TOKEN: ${{ github.token }}
         shell: bash
@@ -1279,7 +1281,7 @@ jobs:
           set -euo pipefail
           trusted_policy_commit="f7a22379f88010d77c86f9b2bbaf1ac58f15d85d"
           trusted_policy_root="${GITHUB_WORKSPACE}/trusted-requirements-policy"
-          manifest="openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json"
+          manifest="openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json"
           test "$(git -C "$trusted_policy_root" rev-parse HEAD)" = "$trusted_policy_commit"
           test "$(git -C "$trusted_policy_root" remote get-url origin)" = "https://github.com/nold-ai/.github"
           test "$(jq -er '.pull_request.head.sha' "$GITHUB_EVENT_PATH")" = "$(git rev-parse HEAD)"
@@ -1313,7 +1315,7 @@ jobs:
              .name == "Requirements Evidence" and
              .path == ".github/workflows/requirements-evidence.yml" and
              .repository.full_name == $repository and
-             [.pull_requests[].number] == [704]' \
+             [.pull_requests[].number] == [715]' \
             "$metadata_root/run.json" > /dev/null
           jq -e \
             --argjson run_id "$late_red_run_id" \
@@ -1333,7 +1335,7 @@ jobs:
             printf 'cycle-base-ref=%s\n' "$late_red_cycle_base"
           } >> "$GITHUB_OUTPUT"
       - name: Download exact late RED artifact
-        if: github.event_name == 'pull_request' && github.event.pull_request.number == 704 && github.head_ref == 'bugfix/692-release-review-followup' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != ''
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 715 && github.head_ref == 'bugfix/692-promotion-exit-code' && hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') != ''
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           artifact-ids: ${{ steps.late-red.outputs.artifact-id }}
@@ -1342,11 +1344,11 @@ jobs:
           run-id: ${{ steps.late-red.outputs.run-id }}
 
       - name: Normalize exact late RED proof
-        if: github.event_name == 'pull_request' && github.event.pull_request.number == 704 && github.head_ref == 'bugfix/692-release-review-followup' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != ''
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 715 && github.head_ref == 'bugfix/692-promotion-exit-code' && hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') != ''
         shell: bash
         run: |
           set -euo pipefail
-          manifest="openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json"
+          manifest="openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json"
           cycle_base_commit="$(jq -er '.cycle_base_commit | select(type == "string" and test("^[0-9a-f]{40}$"))' "$manifest")"
           trusted_provenance_root="${RUNNER_TEMP}/late-red-trusted-provenance"
           mkdir -p "$trusted_provenance_root"
@@ -1440,7 +1442,7 @@ jobs:
         timeout-minutes: 12
         env:
           EVIDENCE_PROMOTION_REUSE: ${{ steps.execution-promotion.outputs.active }}
-          LATE_RED_ACTIVE: ${{ github.event.pull_request.number == 704 && github.head_ref == 'bugfix/692-release-review-followup' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != '' }}
+          LATE_RED_ACTIVE: ${{ github.event.pull_request.number == 715 && github.head_ref == 'bugfix/692-promotion-exit-code' && hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') != '' }}
           LATE_RED_CYCLE_BASE: ${{ steps.late-red.outputs.cycle-base-ref }}
           PRIOR_RED_ARTIFACT_DIGEST: ${{ steps.consumer-red.outputs.artifact-digest }}
           PRIOR_RED_HEAD_SHA: ${{ steps.consumer-red.outputs.head-sha }}
@@ -1573,8 +1575,9 @@ jobs:
           if [[ "$EVIDENCE_PROMOTION_REUSE" == "true" ]]; then
             test -s artifacts/requirements-evidence/final-verification/requirements-promotion-reuse.json
             cp "$consumer_planning_report" "$consumer_report"
+            jq -e '.gate_decision == "pass"' "$consumer_report" > /dev/null
             jq -e '.gate_decision == "pass" and (.plan.cases | length > 0)' \
-              "$consumer_report" > /dev/null
+              "$consumer_plan" > /dev/null
           elif [[ "$required_maturity" == "planned" ]]; then
             cp "$consumer_planning_report" "$consumer_report"
           else
@@ -1689,7 +1692,7 @@ jobs:
             )
             prior_red_root="${RUNNER_TEMP}/consumer-prior-red"
             prior_red_proof="${prior_red_root}/red.json"
-            late_red_manifest="openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json"
+          late_red_manifest="openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json"
             legacy_tdd_evidence="artifacts/requirements-evidence/legacy-tdd-evidence.json"
             legacy_tdd_ledger="artifacts/requirements-evidence/approved-legacy-tdd-ledger.md"
             if [[ "$LATE_RED_ACTIVE" == "true" ]]; then
@@ -1996,7 +1999,7 @@ jobs:
             "$execution_metadata" > /dev/null
 
       - name: Checkout trusted Requirements authority policy for final verdict
-        if: github.event.pull_request.number == 704 && github.head_ref == 'bugfix/692-release-review-followup' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != ''
+        if: github.event.pull_request.number == 715 && github.head_ref == 'bugfix/692-promotion-exit-code' && hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') != ''
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: nold-ai/.github
@@ -2006,7 +2009,7 @@ jobs:
 
       - name: Revalidate exact final Requirements authority
         id: final-late-red
-        if: github.event.pull_request.number == 704 && github.head_ref == 'bugfix/692-release-review-followup' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != ''
+        if: github.event.pull_request.number == 715 && github.head_ref == 'bugfix/692-promotion-exit-code' && hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') != ''
         env:
           GITHUB_TOKEN: ${{ github.token }}
         shell: bash
@@ -2014,7 +2017,7 @@ jobs:
           set -euo pipefail
           trusted_policy_commit="f7a22379f88010d77c86f9b2bbaf1ac58f15d85d"
           trusted_policy_root="${GITHUB_WORKSPACE}/final-trusted-requirements-policy"
-          manifest="openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json"
+          manifest="openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json"
           test "$(git -C "$trusted_policy_root" rev-parse HEAD)" = "$trusted_policy_commit"
           test "$(git -C "$trusted_policy_root" remote get-url origin)" = "https://github.com/nold-ai/.github"
           test "$(jq -er '.pull_request.head.sha' "$GITHUB_EVENT_PATH")" = "$(git rev-parse HEAD)"
@@ -2040,7 +2043,7 @@ jobs:
             '.id == $run_id and .head_sha == $red_commit and .head_branch == $head_branch and
              .event == "pull_request" and .status == "completed" and .conclusion == "failure" and
              .name == "Requirements Evidence" and .path == ".github/workflows/requirements-evidence.yml" and
-             .repository.full_name == $repository and [.pull_requests[].number] == [704]' \
+             .repository.full_name == $repository and [.pull_requests[].number] == [715]' \
             "$metadata_root/run.json" > /dev/null
           jq -e \
             --argjson run_id "$late_red_run_id" \
@@ -2197,7 +2200,7 @@ jobs:
           path: ${{ runner.temp }}/requirements-producer
 
       - name: Download exact late RED artifact for final verification
-        if: github.event.pull_request.number == 704 && github.head_ref == 'bugfix/692-release-review-followup' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != ''
+        if: github.event.pull_request.number == 715 && github.head_ref == 'bugfix/692-promotion-exit-code' && hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') != ''
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           artifact-ids: ${{ steps.final-late-red.outputs.artifact-id }}
@@ -2206,11 +2209,11 @@ jobs:
           run-id: ${{ steps.final-late-red.outputs.run-id }}
 
       - name: Normalize exact late RED proof on fresh runner
-        if: github.event.pull_request.number == 704 && github.head_ref == 'bugfix/692-release-review-followup' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != ''
+        if: github.event.pull_request.number == 715 && github.head_ref == 'bugfix/692-promotion-exit-code' && hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') != ''
         shell: bash
         run: |
           set -euo pipefail
-          manifest="openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json"
+          manifest="openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json"
           cycle_base_commit="$(jq -er '.cycle_base_commit | select(type == "string" and test("^[0-9a-f]{40}$"))' "$manifest")"
           trusted_provenance_root="${RUNNER_TEMP}/final-late-red-provenance"
           mkdir -p "$trusted_provenance_root" "${RUNNER_TEMP}/final-prior-red"
@@ -2235,7 +2238,7 @@ jobs:
 
       - name: Authenticate retained red proof for final verdict
         id: final-retained-red
-        if: needs.requirements-evidence.outputs.prior-red-run-id != '' && (github.event.pull_request.number != 704 || github.head_ref != 'bugfix/692-release-review-followup' || hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') == '')
+        if: needs.requirements-evidence.outputs.prior-red-run-id != '' && (github.event.pull_request.number != 715 || github.head_ref != 'bugfix/692-promotion-exit-code' || hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') == '')
         env:
           GITHUB_TOKEN: ${{ github.token }}
           PRIOR_RED_RUN_ID: ${{ needs.requirements-evidence.outputs.prior-red-run-id }}
@@ -2296,7 +2299,7 @@ jobs:
       - name: Reconcile final Requirements verdict on fresh runner
         env:
           EVIDENCE_PROMOTION_REUSE: ${{ steps.final-promotion.outputs.active }}
-          LATE_RED_ACTIVE: ${{ github.event.pull_request.number == 704 && github.head_ref == 'bugfix/692-release-review-followup' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != '' }}
+          LATE_RED_ACTIVE: ${{ github.event.pull_request.number == 715 && github.head_ref == 'bugfix/692-promotion-exit-code' && hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') != '' }}
           PRIOR_RED_HEAD_SHA: ${{ steps.final-retained-red.outputs.head-sha }}
         shell: bash
         run: |
@@ -2420,8 +2423,9 @@ jobs:
           if [[ "$EVIDENCE_PROMOTION_REUSE" == "true" ]]; then
             test -s "$execution_root/requirements-promotion-reuse.json"
             cp "$final_planning_report" "$final_report"
+            jq -e '.gate_decision == "pass"' "$final_report" > /dev/null
             jq -e '.gate_decision == "pass" and (.plan.cases | length > 0)' \
-              "$final_report" > /dev/null
+              "$final_plan" > /dev/null
             cat "$final_summary" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           elif [[ "$required_maturity" == "planned" ]]; then
@@ -2443,7 +2447,7 @@ jobs:
           )
           prior_red_root="${RUNNER_TEMP}/final-prior-red"
           prior_red_proof="${prior_red_root}/red.json"
-          late_red_manifest="openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json"
+          late_red_manifest="openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json"
           producer_root="${RUNNER_TEMP}/requirements-producer"
           legacy_tdd_evidence="${producer_root}/legacy-tdd-evidence.json"
           legacy_tdd_ledger="${producer_root}/approved-legacy-tdd-ledger.md"

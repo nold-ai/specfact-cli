@@ -197,10 +197,11 @@ def test_failed_selector_identity_is_order_independent_but_exact(tmp_path: Path)
         "red_commit": "c" * 40,
         "failed_selectors": [second_selector, first_selector],
     }
+    scope = module._PROOF_SCOPES[0]
 
-    _, reported = module._validate_raw_artifact(artifact_root, manifest)
+    _, reported = module._validate_raw_artifact(artifact_root, manifest, scope)
     assert reported == selectors
 
     manifest["failed_selectors"] = [first_selector, "tests/test_proof.py::test_other"]
     with pytest.raises(ValueError):
-        module._validate_raw_artifact(artifact_root, manifest)
+        module._validate_raw_artifact(artifact_root, manifest, scope)

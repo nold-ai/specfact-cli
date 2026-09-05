@@ -127,3 +127,56 @@ plumbing for independent revalidation. The documented two-parent merge
 requirement can reject squash/rebase promotions but fails closed.
 
 Final staged-tree hooks remain pending before the implementation commit.
+
+## Post-merge promotion-plan regression
+
+PR #691 Requirements run `33996054082` at exact `dev` head
+`5f3f506c726a8644dac23419bf557e4447ffff7b` authenticated the #714 source
+merge and produced a passing aggregate report, but the producer rejected that
+report because it queried the report for plan cases stored in the separate
+aggregate plan artifact.
+
+At `2026-09-05T22:53:41Z`, the mapped selector was strengthened before the
+workflow correction and run with:
+
+`python -m pytest -q tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_workflow_revalidates_promotion_reuse_in_all_stages`
+
+Result: FAIL (`1 failed`) because producer, fresh execution, and final verdict
+did not validate the aggregate report and aggregate plan through their distinct
+files.
+
+At `2026-09-05T22:55:59Z`, the assertion normalized YAML-preserved shell line
+continuations and the same command remained RED (`1 failed`) against unchanged
+workflow bytes.
+
+At `2026-09-05T23:00:12Z`, PR #715 Requirements run `33997442368` retained
+the same RED result at test-only head
+`9eb681963ab28360a9fbaf13f07009f5ea04b28a`. Artifact `9978484067`
+(`requirements-evidence`) has service digest
+`sha256:526034fe72c4cdba090daa55d710be8cf25054fbe1f37c27c16143c1f4970773`;
+its JUnit document has SHA-256
+`0633b17b9caf535ef365f66b8b64bfc4d0981c156cbabe49609f4d8a69b07831`
+and records the mapped selector as the only failure among five cases.
+
+At `2026-09-05T22:57:31Z`, the workflow correction validated the aggregate
+report decision from the report file and the non-empty aggregate cases from the
+separate plan file in producer, fresh execution, and final verdict. The mapped
+selector passed, the focused promotion and security suite passed (`24 passed`),
+and `actionlint .github/workflows/requirements-evidence.yml` passed.
+
+## Python 3.11 compatibility regression
+
+PR #715 check run `33998406109` exposed the same three existing late-RED proof
+test failures in its Python 3.11 job `101392883500` and Python 3.12 job
+`101392883489`. The new frozen dataclass was evaluated by an authenticated
+dynamic loader that intentionally does not register the candidate module in
+`sys.modules`; the dataclass implementation requires that registration and
+failed during module evaluation. These hosted failures are the RED evidence
+for replacing only the proof-scope value representation while preserving its
+immutable tuple semantics and every authenticated field.
+
+The proof scope now uses `NamedTuple`, retaining immutability and named-field
+access without requiring loader-side module registration. The previously
+masked selector-identity test also supplies the legacy scope that its synthetic
+`verified`/`final` artifact models. The exact three failed selectors pass on
+Python 3.11.15 and Python 3.12.13 (`3 passed` on each interpreter).
