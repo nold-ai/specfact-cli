@@ -1,4 +1,4 @@
-"""Normalize one authority-bound late review RED artifact for PR #704."""
+"""Normalize an exact authority-bound late review RED artifact."""
 
 from __future__ import annotations
 
@@ -13,18 +13,16 @@ import subprocess
 import sys
 import tempfile
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from types import ModuleType
 from typing import Any, NoReturn, cast
 from xml.parsers import expat
 
 
-CHANGE_ID = "fix-release-promotion-security-gates"
 REPOSITORY = "nold-ai/specfact-cli"
 ISSUE = 692
-PULL_REQUEST = 704
 BASE_BRANCH = "dev"
-HEAD_BRANCH = "bugfix/692-release-review-followup"
 WORKFLOW_PATH = ".github/workflows/requirements-evidence.yml"
 PROVENANCE_PATH = "scripts/requirements_proof_provenance.py"
 PROOF_CYCLE_PROVENANCE_BLOB = "28491925ea5242d58e7cdaeff8ada8291382a15a"
@@ -54,6 +52,27 @@ MANIFEST_FIELDS = {
     "plan_digest",
     "failed_selectors",
 }
+
+
+@dataclass(frozen=True)
+class _ProofScope:
+    change_id: str
+    pull_request: int
+    head_branch: str
+
+
+_PROOF_SCOPES = (
+    _ProofScope("fix-release-promotion-security-gates", 704, "bugfix/692-release-review-followup"),
+    _ProofScope("fix-release-promotion-requirements-parity", 715, "bugfix/692-promotion-exit-code"),
+)
+
+
+def _proof_scope(manifest_path: Path, repo_root: Path) -> _ProofScope:
+    for scope in _PROOF_SCOPES:
+        expected = repo_root / f"openspec/changes/{scope.change_id}/requirements-proof/late-red-evidence.json"
+        if manifest_path == expected:
+            return scope
+    raise ValueError
 
 
 def _argument_error(message: str) -> NoReturn:
@@ -118,7 +137,7 @@ def _strings(value: object) -> list[str]:
     return result
 
 
-def _validate_manifest(manifest: dict[str, object]) -> None:
+def _validate_manifest(manifest: dict[str, object], scope: _ProofScope) -> None:
     if set(manifest) != MANIFEST_FIELDS:
         raise ValueError
     expected = {
@@ -126,10 +145,10 @@ def _validate_manifest(manifest: dict[str, object]) -> None:
         "kind": "late-review-red-proof",
         "repository": REPOSITORY,
         "issue": ISSUE,
-        "pull_request": PULL_REQUEST,
+        "pull_request": scope.pull_request,
         "base_branch": BASE_BRANCH,
-        "head_branch": HEAD_BRANCH,
-        "change_id": CHANGE_ID,
+        "head_branch": scope.head_branch,
+        "change_id": scope.change_id,
     }
     if any(manifest.get(key) != value for key, value in expected.items()):
         raise ValueError
@@ -149,7 +168,7 @@ def _validate_manifest(manifest: dict[str, object]) -> None:
     _strings(manifest["failed_selectors"])
 
 
-def _validate_event(event: dict[str, object], manifest: dict[str, object], final_ref: str) -> None:
+def _validate_event(event: dict[str, object], manifest: dict[str, object], final_ref: str, scope: _ProofScope) -> None:
     pull_request = _object(event.get("pull_request"))
     repository = _object(event.get("repository"))
     base = _object(pull_request.get("base"))
@@ -159,18 +178,18 @@ def _validate_event(event: dict[str, object], manifest: dict[str, object], final
         or repository.get("full_name") != REPOSITORY
         or base.get("ref") != BASE_BRANCH
         or _object(base.get("repo")).get("full_name") != REPOSITORY
-        or head.get("ref") != HEAD_BRANCH
+        or head.get("ref") != scope.head_branch
         or head.get("sha") != final_ref
         or _object(head.get("repo")).get("full_name") != REPOSITORY
     ):
         raise ValueError
 
 
-def _validate_run(run: dict[str, object], manifest: dict[str, object]) -> None:
+def _validate_run(run: dict[str, object], manifest: dict[str, object], scope: _ProofScope) -> None:
     if (
         _integer(run.get("id")) != manifest["run_id"]
         or run.get("head_sha") != manifest["red_commit"]
-        or run.get("head_branch") != HEAD_BRANCH
+        or run.get("head_branch") != scope.head_branch
         or run.get("event") != "pull_request"
         or run.get("status") != "completed"
         or run.get("conclusion") != "failure"
@@ -416,12 +435,12 @@ def _validate_red_path(path: str, allowed_change: str) -> None:
         raise ValueError
 
 
-def _validate_linear_red_segment(repo_root: Path, cycle: str, red: str) -> None:
+def _validate_linear_red_segment(repo_root: Path, cycle: str, red: str, scope: _ProofScope) -> None:
     revisions = _git(repo_root, "rev-list", "--reverse", "--parents", f"{cycle}..{red}")
     if revisions.returncode or not revisions.stdout.splitlines():
         raise ValueError
     parent = cycle
-    allowed_change = f"openspec/changes/{CHANGE_ID}/"
+    allowed_change = f"openspec/changes/{scope.change_id}/"
     for line in revisions.stdout.splitlines():
         values = line.split()
         if len(values) != 2 or values[1] != parent:
@@ -434,10 +453,12 @@ def _validate_linear_red_segment(repo_root: Path, cycle: str, red: str) -> None:
         raise ValueError
 
 
-def _validate_history(repo_root: Path, manifest: dict[str, object], cycle_ref: str, final_ref: str) -> None:
+def _validate_history(
+    repo_root: Path, manifest: dict[str, object], cycle_ref: str, final_ref: str, scope: _ProofScope
+) -> None:
     cycle, red, final = _validated_history_commits(repo_root, manifest, cycle_ref, final_ref)
     _validate_recorded_trees(repo_root, manifest, cycle, red)
-    _validate_linear_red_segment(repo_root, cycle, red)
+    _validate_linear_red_segment(repo_root, cycle, red, scope)
     if _git(repo_root, "merge-base", "--is-ancestor", red, final).returncode:
         raise ValueError
 
@@ -502,17 +523,15 @@ def _external_outputs(output: Path, repo_root: Path) -> tuple[Path, Path]:
 def _normalize(arguments: argparse.Namespace) -> None:
     repo_root = arguments.repo_root.resolve(strict=True)
     manifest_path = arguments.manifest.resolve(strict=True)
-    expected_manifest = repo_root / f"openspec/changes/{CHANGE_ID}/requirements-proof/late-red-evidence.json"
-    if manifest_path != expected_manifest:
-        raise ValueError
+    scope = _proof_scope(manifest_path, repo_root)
     manifest = _read_json(manifest_path)
-    _validate_manifest(manifest)
+    _validate_manifest(manifest, scope)
     final = _resolve_commit(repo_root, arguments.final_ref)
-    _validate_event(_read_json(arguments.event), manifest, final)
-    _validate_run(_read_json(arguments.red_run), manifest)
+    _validate_event(_read_json(arguments.event), manifest, final, scope)
+    _validate_run(_read_json(arguments.red_run), manifest, scope)
     _validate_artifact(_read_json(arguments.red_artifacts), manifest)
     cycle_commit = _string(manifest["cycle_base_commit"], OBJECT_PATTERN)
-    _validate_history(repo_root, manifest, arguments.cycle_base_ref, final)
+    _validate_history(repo_root, manifest, arguments.cycle_base_ref, final, scope)
     junit_payload, selectors = _validate_raw_artifact(arguments.red_artifact_root, manifest)
     bind, validate = _load_provenance(arguments.trusted_provenance, repo_root, cycle_commit)
     output, output_xml = _external_outputs(arguments.output, repo_root)
