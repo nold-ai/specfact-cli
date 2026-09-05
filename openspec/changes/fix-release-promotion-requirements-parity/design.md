@@ -98,6 +98,12 @@ Requirements the sole promotion defense.
 
 ## Risks / Trade-offs
 
+- Promotion reuse supports only the repository's current two-parent merge
+  topology on `dev`. A squash or rebase merge can satisfy the live ruleset but
+  cannot prove the source-head/tree relationship required here, so the release
+  promotion fails closed. Mitigation: merge release-bound changes into `dev`
+  with a merge commit; otherwise rerun their Requirements evidence or extend
+  the provenance model in a separately reviewed change.
 - A privileged actor who bypasses repository-level `dev` protection could place
   unreviewed bytes on the promotion branch. Mitigation: the organization
   authority has no bypass actor; promotion reuse additionally requires the

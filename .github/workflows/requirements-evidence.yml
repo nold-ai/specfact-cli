@@ -195,6 +195,134 @@ jobs:
       - name: Prepare Requirements evidence artifact directory
         run: mkdir -p artifacts/requirements-evidence
 
+      - name: Checkout trusted promotion authority policy for producer
+        if: >-
+          github.event_name == 'pull_request' && github.base_ref == 'main' && github.head_ref == 'dev' && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: nold-ai/.github
+          path: promotion-authority-policy-producer
+          ref: f7a22379f88010d77c86f9b2bbaf1ac58f15d85d
+          persist-credentials: false
+
+      - name: Authenticate protected promotion head for producer
+        if: >-
+          github.event_name == 'pull_request' && github.base_ref == 'main' && github.head_ref == 'dev' && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          trusted_policy_commit="f7a22379f88010d77c86f9b2bbaf1ac58f15d85d"
+          trusted_policy_tree="47f33b4df92060a36f3afd92948e441555fb280d"
+          trusted_policy_blob="8c7b30020033c6b6081d6e743d77aa76043724ea"
+          trusted_policy_digest="5441e26e7c3c8f18973c781e7d43c72076b3283c915d98ca5188bb174bf17c45"
+          trusted_policy_root="${GITHUB_WORKSPACE}/promotion-authority-policy-producer"
+          trusted_policy_script="$trusted_policy_root/.github/scripts/trusted_requirements_authority.py"
+          test "$(git -C "$trusted_policy_root" remote get-url origin)" = "https://github.com/nold-ai/.github"
+          test "$(git -C "$trusted_policy_root" rev-parse HEAD)" = "$trusted_policy_commit"
+          test "$(git -C "$trusted_policy_root" rev-parse 'HEAD^{tree}')" = "$trusted_policy_tree"
+          test "$(git -C "$trusted_policy_root" rev-parse 'HEAD:.github/scripts/trusted_requirements_authority.py')" = "$trusted_policy_blob"
+          test "$(sha256sum < "$trusted_policy_script" | cut -d ' ' -f 1)" = "$trusted_policy_digest"
+          GITHUB_API_URL="https://api.github.com" \
+            "${pythonLocation}/bin/python" -I -S \
+              "${GITHUB_WORKSPACE}/promotion-authority-policy-producer/.github/scripts/trusted_requirements_authority.py" \
+              --event "$GITHUB_EVENT_PATH"
+
+      - name: Fetch protected promotion evidence for producer
+        if: >-
+          github.event_name == 'pull_request' && github.base_ref == 'main' && github.head_ref == 'dev' && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          metadata_root="${RUNNER_TEMP}/promotion-producer-promotion"
+          mkdir -p "$metadata_root"
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/dev:refs/remotes/origin/dev"
+          base_sha="$(jq -er '.pull_request.base.sha | select(type == "string" and test("^[0-9a-f]{40}$"))' "$GITHUB_EVENT_PATH")"
+          head_sha="$(jq -er '.pull_request.head.sha | select(type == "string" and test("^[0-9a-f]{40}$"))' "$GITHUB_EVENT_PATH")"
+          test "$(git rev-parse HEAD)" = "$head_sha"
+          test "$(git rev-parse 'HEAD^{tree}')" = "$(git rev-parse "${head_sha}^{tree}")"
+          test "$(git rev-parse 'refs/remotes/origin/main^{commit}')" = "$base_sha"
+          test "$(git rev-parse 'refs/remotes/origin/dev^{commit}')" = "$head_sha"
+          test "$(git cat-file -t "$base_sha")" = commit
+          test "$(git cat-file -t "$head_sha")" = commit
+          git merge-base --is-ancestor "$base_sha" "$head_sha"
+          read -r merge_sha previous_dev source_head extra_parent < <(git rev-list --parents -n 1 "$head_sha")
+          test "$merge_sha" = "$head_sha"
+          test -n "$previous_dev"
+          test -n "$source_head"
+          test -z "${extra_parent:-}"
+          test "$(git cat-file -t "$previous_dev")" = commit
+          test "$(git cat-file -t "$source_head")" = commit
+          gh api --method GET --paginate --slurp \
+            -H "Accept: application/vnd.github+json" \
+            "repos/${GITHUB_REPOSITORY}/commits/${source_head}/pulls?per_page=100" \
+            > "$metadata_root/source-pulls-pages.json"
+          jq -e '[.[][]]' "$metadata_root/source-pulls-pages.json" > "$metadata_root/source-pulls.json"
+          gh api --method GET --paginate --slurp \
+            -H "Accept: application/vnd.github+json" \
+            "repos/${GITHUB_REPOSITORY}/commits/${source_head}/check-runs?per_page=100" \
+            > "$metadata_root/check-runs-pages.json"
+          jq -e \
+            '{total_count: (.[0].total_count // 0), check_runs: [.[].check_runs[]]}' \
+            "$metadata_root/check-runs-pages.json" > "$metadata_root/check-runs.json"
+          requirements_run_id="$(jq -er '
+            [.check_runs[] | select(.name == "Requirements evidence")] |
+            if length == 1 then .[0].details_url |
+              capture("/actions/runs/(?<run_id>[0-9]+)/job/[0-9]+$").run_id
+            else error("expected one Requirements evidence check") end
+          ' "$metadata_root/check-runs.json")"
+          authority_run_id="$(jq -er '
+            [.check_runs[] | select(.name == "Trusted Requirements Authority")] |
+            if length == 1 then .[0].details_url |
+              capture("/actions/runs/(?<run_id>[0-9]+)/job/[0-9]+$").run_id
+            else error("expected one Trusted Requirements Authority check") end
+          ' "$metadata_root/check-runs.json")"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${requirements_run_id}" > "$metadata_root/requirements-run.json"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${authority_run_id}" > "$metadata_root/authority-run.json"
+          gh api --method GET --paginate --slurp \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${requirements_run_id}/artifacts?per_page=100" \
+            > "$metadata_root/artifacts-pages.json"
+          jq -e \
+            '{total_count: (.[0].total_count // 0), artifacts: [.[].artifacts[]]}' \
+            "$metadata_root/artifacts-pages.json" > "$metadata_root/artifacts.json"
+          producer_artifact_id="$(jq -er '
+            [.artifacts[] | select(.name == "requirements-evidence")] |
+            if length == 1 then .[0].id else error("expected one producer artifact") end
+          ' "$metadata_root/artifacts.json")"
+          execution_artifact_id="$(jq -er '
+            [.artifacts[] | select(.name == "requirements-evidence-execution")] |
+            if length == 1 then .[0].id else error("expected one execution artifact") end
+          ' "$metadata_root/artifacts.json")"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${producer_artifact_id}/zip" > "$metadata_root/producer.zip"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${execution_artifact_id}/zip" > "$metadata_root/execution.zip"
+
+      - name: Validate protected promotion evidence for producer
+        id: producer-promotion
+        if: >-
+          github.event_name == 'pull_request' && github.base_ref == 'main' && github.head_ref == 'dev' && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="artifacts/requirements-evidence/requirements-promotion-reuse.json"
+          mkdir -p "$(dirname "$output")"
+          "${REQUIREMENTS_VALIDATOR_ROOT}/bin/python" -I -S scripts/requirements_promotion_reuse.py \
+            --event "$GITHUB_EVENT_PATH" \
+            --repo-root "$GITHUB_WORKSPACE" \
+            --source-pulls "${RUNNER_TEMP}/promotion-producer-promotion/source-pulls.json" \
+            --check-runs "${RUNNER_TEMP}/promotion-producer-promotion/check-runs.json" \
+            --requirements-run "${RUNNER_TEMP}/promotion-producer-promotion/requirements-run.json" \
+            --authority-run "${RUNNER_TEMP}/promotion-producer-promotion/authority-run.json" \
+            --artifacts "${RUNNER_TEMP}/promotion-producer-promotion/artifacts.json" \
+            --producer-archive "${RUNNER_TEMP}/promotion-producer-promotion/producer.zip" \
+            --execution-archive "${RUNNER_TEMP}/promotion-producer-promotion/execution.zip" \
+            --output "artifacts/requirements-evidence/requirements-promotion-reuse.json"
+          printf 'active=true\n' >> "$GITHUB_OUTPUT"
+
       - name: Download exact late RED artifact
         if: github.event_name == 'pull_request' && github.event.pull_request.number == 704 && github.head_ref == 'bugfix/692-release-review-followup' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != ''
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
@@ -344,6 +472,7 @@ jobs:
           EVIDENCE_FINAL_REF: ${{ github.event.pull_request.head.sha || github.sha }}
           EVIDENCE_HEAD_BRANCH: ${{ github.head_ref }}
           EVIDENCE_PULL_REQUEST: ${{ github.event.pull_request.number }}
+          EVIDENCE_PROMOTION_REUSE: ${{ steps.producer-promotion.outputs.active }}
           LATE_RED_ACTIVE: ${{ github.event.pull_request.number == 704 && github.head_ref == 'bugfix/692-release-review-followup' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != '' }}
         run: |
           set -e
@@ -408,6 +537,9 @@ jobs:
           planning_maturity="$required_maturity"
           if [[ "$required_maturity" == "verified" ]]; then
             planning_maturity=test-authored
+          fi
+          if [[ "$EVIDENCE_PROMOTION_REUSE" == "true" ]]; then
+            planning_maturity=planned
           fi
           selected_change=""
           is_complete_branch_archive_move() {
@@ -577,7 +709,11 @@ jobs:
           exit_code=$?
           set -e
           failure_diagnostic="Evidence command exited with status $exit_code before writing reports."
-          if [[ "$exit_code" -eq 0 && "$required_maturity" != "planned" ]]; then
+          if [[ "$EVIDENCE_PROMOTION_REUSE" == "true" ]]; then
+            test -s artifacts/requirements-evidence/requirements-promotion-reuse.json
+            jq -e '.gate_decision == "pass" and (.plan.cases | length > 0)' \
+              artifacts/requirements-evidence/requirements-evidence.json > /dev/null
+          elif [[ "$exit_code" -eq 0 && "$required_maturity" != "planned" ]]; then
             run_stage=red
             if [[ "$required_maturity" == "verified" ]]; then
               run_stage=final
@@ -660,7 +796,7 @@ jobs:
                       --artifact-root "$bootstrap_artifact_root" \
                       --repo-root "$GITHUB_WORKSPACE" \
                       --comment-id "$bootstrap_comment_id" \
-                      --base-ref "$evidence_base_commit" \
+                      --base-ref "${evidence_base_commit}" \
                       --final-ref "$EVIDENCE_FINAL_REF" \
                       --repository "$GITHUB_REPOSITORY" \
                       --change-id "$selected_change" \
@@ -738,7 +874,7 @@ jobs:
                   --bind-red-proof artifacts/requirements-evidence/requirements-evidence.json \
                   --junit artifacts/requirements-evidence/requirements-proof.xml \
                   --repo-root "$GITHUB_WORKSPACE" \
-                  --base-ref "$evidence_base_commit" 2>&1)"; then
+                  --base-ref "${evidence_base_commit}" 2>&1)"; then
                   write_failure_reports "Red proof binding rejected: ${binding_error:-prior-red-proof-invalid}"
                   exit 1
                 fi
@@ -779,6 +915,7 @@ jobs:
             artifacts/requirements-evidence/requirements-evidence.md
             artifacts/requirements-evidence/requirements-evidence-plan.json
             artifacts/requirements-evidence/requirements-proof.xml
+            artifacts/requirements-evidence/requirements-promotion-reuse.json
             artifacts/requirements-evidence/approved-legacy-tdd-ledger.md
             artifacts/requirements-evidence/legacy-tdd-evidence.json
           if-no-files-found: warn
@@ -993,6 +1130,136 @@ jobs:
           artifact-ids: ${{ needs.requirements-evidence-producer.outputs.artifact-id }}
           path: artifacts/requirements-evidence
 
+      - name: Checkout trusted promotion authority policy for fresh execution
+        if: >-
+          github.event_name == 'pull_request' && github.base_ref == 'main' && github.head_ref == 'dev' && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: nold-ai/.github
+          path: promotion-authority-policy-execution
+          ref: f7a22379f88010d77c86f9b2bbaf1ac58f15d85d
+          persist-credentials: false
+
+      - name: Authenticate protected promotion head for fresh execution
+        if: >-
+          github.event_name == 'pull_request' && github.base_ref == 'main' && github.head_ref == 'dev' && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          trusted_policy_commit="f7a22379f88010d77c86f9b2bbaf1ac58f15d85d"
+          trusted_policy_tree="47f33b4df92060a36f3afd92948e441555fb280d"
+          trusted_policy_blob="8c7b30020033c6b6081d6e743d77aa76043724ea"
+          trusted_policy_digest="5441e26e7c3c8f18973c781e7d43c72076b3283c915d98ca5188bb174bf17c45"
+          trusted_policy_root="${GITHUB_WORKSPACE}/promotion-authority-policy-execution"
+          trusted_policy_script="$trusted_policy_root/.github/scripts/trusted_requirements_authority.py"
+          test "$(git -C "$trusted_policy_root" remote get-url origin)" = "https://github.com/nold-ai/.github"
+          test "$(git -C "$trusted_policy_root" rev-parse HEAD)" = "$trusted_policy_commit"
+          test "$(git -C "$trusted_policy_root" rev-parse 'HEAD^{tree}')" = "$trusted_policy_tree"
+          test "$(git -C "$trusted_policy_root" rev-parse 'HEAD:.github/scripts/trusted_requirements_authority.py')" = "$trusted_policy_blob"
+          test "$(sha256sum < "$trusted_policy_script" | cut -d ' ' -f 1)" = "$trusted_policy_digest"
+          GITHUB_API_URL="https://api.github.com" \
+            "${pythonLocation}/bin/python" -I -S \
+              "${GITHUB_WORKSPACE}/promotion-authority-policy-execution/.github/scripts/trusted_requirements_authority.py" \
+              --event "$GITHUB_EVENT_PATH"
+
+      - name: Fetch protected promotion evidence for fresh execution
+        if: >-
+          github.event_name == 'pull_request' && github.base_ref == 'main' && github.head_ref == 'dev' && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          metadata_root="${RUNNER_TEMP}/promotion-execution-promotion"
+          mkdir -p "$metadata_root"
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/dev:refs/remotes/origin/dev"
+          base_sha="$(jq -er '.pull_request.base.sha | select(type == "string" and test("^[0-9a-f]{40}$"))' "$GITHUB_EVENT_PATH")"
+          head_sha="$(jq -er '.pull_request.head.sha | select(type == "string" and test("^[0-9a-f]{40}$"))' "$GITHUB_EVENT_PATH")"
+          test "$(git rev-parse HEAD)" = "$head_sha"
+          test "$(git rev-parse 'HEAD^{tree}')" = "$(git rev-parse "${head_sha}^{tree}")"
+          test "$(git rev-parse 'refs/remotes/origin/main^{commit}')" = "$base_sha"
+          test "$(git rev-parse 'refs/remotes/origin/dev^{commit}')" = "$head_sha"
+          test "$(git cat-file -t "$base_sha")" = commit
+          test "$(git cat-file -t "$head_sha")" = commit
+          git merge-base --is-ancestor "$base_sha" "$head_sha"
+          read -r merge_sha previous_dev source_head extra_parent < <(git rev-list --parents -n 1 "$head_sha")
+          test "$merge_sha" = "$head_sha"
+          test -n "$previous_dev"
+          test -n "$source_head"
+          test -z "${extra_parent:-}"
+          test "$(git cat-file -t "$previous_dev")" = commit
+          test "$(git cat-file -t "$source_head")" = commit
+          gh api --method GET --paginate --slurp \
+            -H "Accept: application/vnd.github+json" \
+            "repos/${GITHUB_REPOSITORY}/commits/${source_head}/pulls?per_page=100" \
+            > "$metadata_root/source-pulls-pages.json"
+          jq -e '[.[][]]' "$metadata_root/source-pulls-pages.json" > "$metadata_root/source-pulls.json"
+          gh api --method GET --paginate --slurp \
+            -H "Accept: application/vnd.github+json" \
+            "repos/${GITHUB_REPOSITORY}/commits/${source_head}/check-runs?per_page=100" \
+            > "$metadata_root/check-runs-pages.json"
+          jq -e \
+            '{total_count: (.[0].total_count // 0), check_runs: [.[].check_runs[]]}' \
+            "$metadata_root/check-runs-pages.json" > "$metadata_root/check-runs.json"
+          requirements_run_id="$(jq -er '
+            [.check_runs[] | select(.name == "Requirements evidence")] |
+            if length == 1 then .[0].details_url |
+              capture("/actions/runs/(?<run_id>[0-9]+)/job/[0-9]+$").run_id
+            else error("expected one Requirements evidence check") end
+          ' "$metadata_root/check-runs.json")"
+          authority_run_id="$(jq -er '
+            [.check_runs[] | select(.name == "Trusted Requirements Authority")] |
+            if length == 1 then .[0].details_url |
+              capture("/actions/runs/(?<run_id>[0-9]+)/job/[0-9]+$").run_id
+            else error("expected one Trusted Requirements Authority check") end
+          ' "$metadata_root/check-runs.json")"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${requirements_run_id}" > "$metadata_root/requirements-run.json"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${authority_run_id}" > "$metadata_root/authority-run.json"
+          gh api --method GET --paginate --slurp \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${requirements_run_id}/artifacts?per_page=100" \
+            > "$metadata_root/artifacts-pages.json"
+          jq -e \
+            '{total_count: (.[0].total_count // 0), artifacts: [.[].artifacts[]]}' \
+            "$metadata_root/artifacts-pages.json" > "$metadata_root/artifacts.json"
+          producer_artifact_id="$(jq -er '
+            [.artifacts[] | select(.name == "requirements-evidence")] |
+            if length == 1 then .[0].id else error("expected one producer artifact") end
+          ' "$metadata_root/artifacts.json")"
+          execution_artifact_id="$(jq -er '
+            [.artifacts[] | select(.name == "requirements-evidence-execution")] |
+            if length == 1 then .[0].id else error("expected one execution artifact") end
+          ' "$metadata_root/artifacts.json")"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${producer_artifact_id}/zip" > "$metadata_root/producer.zip"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${execution_artifact_id}/zip" > "$metadata_root/execution.zip"
+
+      - name: Validate protected promotion evidence for fresh execution
+        id: execution-promotion
+        if: >-
+          github.event_name == 'pull_request' && github.base_ref == 'main' && github.head_ref == 'dev' && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="artifacts/requirements-evidence/final-verification/requirements-promotion-reuse.json"
+          mkdir -p "$(dirname "$output")"
+          "${REQUIREMENTS_VALIDATOR_ROOT}/bin/python" -I -S scripts/requirements_promotion_reuse.py \
+            --event "$GITHUB_EVENT_PATH" \
+            --repo-root "$GITHUB_WORKSPACE" \
+            --source-pulls "${RUNNER_TEMP}/promotion-execution-promotion/source-pulls.json" \
+            --check-runs "${RUNNER_TEMP}/promotion-execution-promotion/check-runs.json" \
+            --requirements-run "${RUNNER_TEMP}/promotion-execution-promotion/requirements-run.json" \
+            --authority-run "${RUNNER_TEMP}/promotion-execution-promotion/authority-run.json" \
+            --artifacts "${RUNNER_TEMP}/promotion-execution-promotion/artifacts.json" \
+            --producer-archive "${RUNNER_TEMP}/promotion-execution-promotion/producer.zip" \
+            --execution-archive "${RUNNER_TEMP}/promotion-execution-promotion/execution.zip" \
+            --expected-attestation "artifacts/requirements-evidence/requirements-promotion-reuse.json" \
+            --output "artifacts/requirements-evidence/final-verification/requirements-promotion-reuse.json"
+          cmp --silent "artifacts/requirements-evidence/final-verification/requirements-promotion-reuse.json" "artifacts/requirements-evidence/requirements-promotion-reuse.json"
+          printf 'active=true\n' >> "$GITHUB_OUTPUT"
+
       - name: Checkout trusted Requirements authority policy
         if: github.event_name == 'pull_request' && github.event.pull_request.number == 704 && github.head_ref == 'bugfix/692-release-review-followup' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != ''
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -1172,17 +1439,21 @@ jobs:
       - name: Reconcile Requirements evidence on fresh runner
         timeout-minutes: 12
         env:
+          EVIDENCE_PROMOTION_REUSE: ${{ steps.execution-promotion.outputs.active }}
           LATE_RED_ACTIVE: ${{ github.event.pull_request.number == 704 && github.head_ref == 'bugfix/692-release-review-followup' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != '' }}
           LATE_RED_CYCLE_BASE: ${{ steps.late-red.outputs.cycle-base-ref }}
           PRIOR_RED_ARTIFACT_DIGEST: ${{ steps.consumer-red.outputs.artifact-digest }}
           PRIOR_RED_HEAD_SHA: ${{ steps.consumer-red.outputs.head-sha }}
+          REVIEW_BASE_BRANCH: ${{ github.base_ref }}
         shell: bash
         run: |
           set -euo pipefail
           source_ref="$(git rev-parse HEAD)"
           evidence_base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" "$source_ref")"
+          review_base_commit="$(git merge-base "origin/${REVIEW_BASE_BRANCH}" HEAD)"
           [[ "$source_ref" =~ ^[0-9a-f]{40}$ ]]
           [[ "$evidence_base_commit" =~ ^[0-9a-f]{40}$ ]]
+          test "$review_base_commit" = "$evidence_base_commit"
           validator_site="${REQUIREMENTS_VALIDATOR_ROOT}/lib/python3.12/site-packages"
           isolated_python=("${REQUIREMENTS_VALIDATOR_ROOT}/bin/python" -I -S -c 'import runpy, sys; sys.path.append(sys.argv.pop(1)); script = sys.argv.pop(1); runpy.run_path(script, run_name="__main__")' "$validator_site")
           isolated_specfact=("${REQUIREMENTS_VALIDATOR_ROOT}/bin/python" -I -S -c 'import sys; site_packages, trusted_core = sys.argv[1:3]; del sys.argv[1:3]; sys.path.append(site_packages); sys.path.insert(0, trusted_core); from specfact_cli.cli import cli_main; cli_main()' "$validator_site" "$TRUSTED_REQUIREMENTS_CORE")
@@ -1213,7 +1484,11 @@ jobs:
             esac
           done < "$consumer_status_file"
           rm -f "$consumer_status_file"
-          test "$(jq -er '.required_maturity' "$producer_report")" = "$required_maturity"
+          if [[ "$EVIDENCE_PROMOTION_REUSE" == "true" ]]; then
+            test "$(jq -er '.required_maturity' "$producer_report")" = planned
+          else
+            test "$(jq -er '.required_maturity' "$producer_report")" = "$required_maturity"
+          fi
           if [[ "$required_maturity" == "test-authored" ]]; then
             printf 'A successful producer cannot stop at test-authored maturity.\n' >&2
             exit 1
@@ -1221,6 +1496,9 @@ jobs:
           planning_maturity="$required_maturity"
           if [[ "$required_maturity" == "verified" ]]; then
             planning_maturity=test-authored
+          fi
+          if [[ "$EVIDENCE_PROMOTION_REUSE" == "true" ]]; then
+            planning_maturity=planned
           fi
 
           consumer_change_paths_file="${RUNNER_TEMP}/consumer-change-paths.z"
@@ -1242,21 +1520,25 @@ jobs:
             esac
           done < "$consumer_change_paths_file"
           review_evidence_paths=()
-          if [[ "${#consumer_changed_change_ids[@]}" -eq 1 ]]; then
-            for selected_change in "${!consumer_changed_change_ids[@]}"; do
-              :
-            done
-            review_evidence_paths+=("openspec/changes/${selected_change}/requirements-proof/review-evidence.json")
-          elif [[ "${#consumer_changed_change_ids[@]}" -gt 1 ]]; then
-            printf 'Fresh reconciliation found multiple changed active OpenSpec changes.\n' >&2
-            exit 1
+          if [[ "$EVIDENCE_PROMOTION_REUSE" != "true" ]]; then
+            if [[ "${#consumer_changed_change_ids[@]}" -eq 1 ]]; then
+              for selected_change in "${!consumer_changed_change_ids[@]}"; do
+                :
+              done
+              review_evidence_paths+=("openspec/changes/${selected_change}/requirements-proof/review-evidence.json")
+            elif [[ "${#consumer_changed_change_ids[@]}" -gt 1 ]]; then
+              printf 'Fresh reconciliation found multiple changed active OpenSpec changes.\n' >&2
+              exit 1
+            fi
           fi
-          if [[ "${#review_evidence_paths[@]}" -eq 0 ]]; then
-            mapfile -t active_review_evidence < <(
-              find openspec/changes -path 'openspec/changes/archive' -prune -o -path '*/requirements-proof/review-evidence.json' -type f -print | sort
-            )
-            if [[ "${#active_review_evidence[@]}" -eq 1 ]]; then
-              review_evidence_paths+=("${active_review_evidence[0]}")
+          if [[ "$EVIDENCE_PROMOTION_REUSE" != "true" ]]; then
+            if [[ "${#review_evidence_paths[@]}" -eq 0 ]]; then
+              mapfile -t active_review_evidence < <(
+                find openspec/changes -path 'openspec/changes/archive' -prune -o -path '*/requirements-proof/review-evidence.json' -type f -print | sort
+              )
+              if [[ "${#active_review_evidence[@]}" -eq 1 ]]; then
+                review_evidence_paths+=("${active_review_evidence[0]}")
+              fi
             fi
           fi
           if [[ "${#review_evidence_paths[@]}" -gt 1 \
@@ -1288,7 +1570,12 @@ jobs:
           fi
           "${evidence_arguments[@]}"
           cmp --silent "$consumer_plan" artifacts/requirements-evidence/requirements-evidence-plan.json
-          if [[ "$required_maturity" == "planned" ]]; then
+          if [[ "$EVIDENCE_PROMOTION_REUSE" == "true" ]]; then
+            test -s artifacts/requirements-evidence/final-verification/requirements-promotion-reuse.json
+            cp "$consumer_planning_report" "$consumer_report"
+            jq -e '.gate_decision == "pass" and (.plan.cases | length > 0)' \
+              "$consumer_report" > /dev/null
+          elif [[ "$required_maturity" == "planned" ]]; then
             cp "$consumer_planning_report" "$consumer_report"
           else
             consumer_junit="${RUNNER_TEMP}/requirements-proof-consumer.xml"
@@ -1441,7 +1728,7 @@ jobs:
               "${isolated_python[@]}" "$TRUSTED_PROOF_PROVENANCE" \
                 --prior-red-proof "$prior_red_proof" \
                 --repo-root "$GITHUB_WORKSPACE" \
-                --base-ref "$evidence_base_commit" \
+                --base-ref "${evidence_base_commit}" \
                 --final-ref "$source_ref"
               reconciliation_arguments+=(--prior-red-proof "$prior_red_proof")
             elif [[ -s "$legacy_tdd_evidence" && -s "$legacy_tdd_ledger" ]]; then
@@ -1486,6 +1773,8 @@ jobs:
 
       - name: Prepare fresh Requirements execution artifact
         if: always()
+        env:
+          EVIDENCE_PROMOTION_REUSE: ${{ steps.execution-promotion.outputs.active }}
         shell: bash
         run: |
           set -euo pipefail
@@ -1498,6 +1787,9 @@ jobs:
             cp "${RUNNER_TEMP}/requirements-proof-consumer.xml" \
               "$final_root/requirements-proof.xml"
           fi
+          if [[ "$EVIDENCE_PROMOTION_REUSE" == "true" ]]; then
+            test -s "$final_root/requirements-promotion-reuse.json"
+          fi
 
       - name: Persist fresh Requirements execution artifact
         id: upload-fresh-requirements-evidence
@@ -1505,7 +1797,10 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: requirements-evidence-execution
-          path: artifacts/requirements-evidence/final-verification
+          path: |
+            artifacts/requirements-evidence/final-verification/requirements-evidence-plan.json
+            artifacts/requirements-evidence/final-verification/requirements-proof.xml
+            artifacts/requirements-evidence/final-verification/requirements-promotion-reuse.json
           if-no-files-found: error
 
       - name: Run Code Review with finalized Requirements context
@@ -1765,6 +2060,136 @@ jobs:
           artifact-ids: ${{ needs.requirements-evidence.outputs.artifact-id }}
           path: ${{ runner.temp }}/requirements-execution
 
+      - name: Checkout trusted promotion authority policy for final verdict
+        if: >-
+          github.event_name == 'pull_request' && github.base_ref == 'main' && github.head_ref == 'dev' && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: nold-ai/.github
+          path: promotion-authority-policy-final
+          ref: f7a22379f88010d77c86f9b2bbaf1ac58f15d85d
+          persist-credentials: false
+
+      - name: Authenticate protected promotion head for final verdict
+        if: >-
+          github.event_name == 'pull_request' && github.base_ref == 'main' && github.head_ref == 'dev' && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          trusted_policy_commit="f7a22379f88010d77c86f9b2bbaf1ac58f15d85d"
+          trusted_policy_tree="47f33b4df92060a36f3afd92948e441555fb280d"
+          trusted_policy_blob="8c7b30020033c6b6081d6e743d77aa76043724ea"
+          trusted_policy_digest="5441e26e7c3c8f18973c781e7d43c72076b3283c915d98ca5188bb174bf17c45"
+          trusted_policy_root="${GITHUB_WORKSPACE}/promotion-authority-policy-final"
+          trusted_policy_script="$trusted_policy_root/.github/scripts/trusted_requirements_authority.py"
+          test "$(git -C "$trusted_policy_root" remote get-url origin)" = "https://github.com/nold-ai/.github"
+          test "$(git -C "$trusted_policy_root" rev-parse HEAD)" = "$trusted_policy_commit"
+          test "$(git -C "$trusted_policy_root" rev-parse 'HEAD^{tree}')" = "$trusted_policy_tree"
+          test "$(git -C "$trusted_policy_root" rev-parse 'HEAD:.github/scripts/trusted_requirements_authority.py')" = "$trusted_policy_blob"
+          test "$(sha256sum < "$trusted_policy_script" | cut -d ' ' -f 1)" = "$trusted_policy_digest"
+          GITHUB_API_URL="https://api.github.com" \
+            "${pythonLocation}/bin/python" -I -S \
+              "${GITHUB_WORKSPACE}/promotion-authority-policy-final/.github/scripts/trusted_requirements_authority.py" \
+              --event "$GITHUB_EVENT_PATH"
+
+      - name: Fetch protected promotion evidence for final verdict
+        if: >-
+          github.event_name == 'pull_request' && github.base_ref == 'main' && github.head_ref == 'dev' && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          metadata_root="${RUNNER_TEMP}/promotion-final-promotion"
+          mkdir -p "$metadata_root"
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/dev:refs/remotes/origin/dev"
+          base_sha="$(jq -er '.pull_request.base.sha | select(type == "string" and test("^[0-9a-f]{40}$"))' "$GITHUB_EVENT_PATH")"
+          head_sha="$(jq -er '.pull_request.head.sha | select(type == "string" and test("^[0-9a-f]{40}$"))' "$GITHUB_EVENT_PATH")"
+          test "$(git rev-parse HEAD)" = "$head_sha"
+          test "$(git rev-parse 'HEAD^{tree}')" = "$(git rev-parse "${head_sha}^{tree}")"
+          test "$(git rev-parse 'refs/remotes/origin/main^{commit}')" = "$base_sha"
+          test "$(git rev-parse 'refs/remotes/origin/dev^{commit}')" = "$head_sha"
+          test "$(git cat-file -t "$base_sha")" = commit
+          test "$(git cat-file -t "$head_sha")" = commit
+          git merge-base --is-ancestor "$base_sha" "$head_sha"
+          read -r merge_sha previous_dev source_head extra_parent < <(git rev-list --parents -n 1 "$head_sha")
+          test "$merge_sha" = "$head_sha"
+          test -n "$previous_dev"
+          test -n "$source_head"
+          test -z "${extra_parent:-}"
+          test "$(git cat-file -t "$previous_dev")" = commit
+          test "$(git cat-file -t "$source_head")" = commit
+          gh api --method GET --paginate --slurp \
+            -H "Accept: application/vnd.github+json" \
+            "repos/${GITHUB_REPOSITORY}/commits/${source_head}/pulls?per_page=100" \
+            > "$metadata_root/source-pulls-pages.json"
+          jq -e '[.[][]]' "$metadata_root/source-pulls-pages.json" > "$metadata_root/source-pulls.json"
+          gh api --method GET --paginate --slurp \
+            -H "Accept: application/vnd.github+json" \
+            "repos/${GITHUB_REPOSITORY}/commits/${source_head}/check-runs?per_page=100" \
+            > "$metadata_root/check-runs-pages.json"
+          jq -e \
+            '{total_count: (.[0].total_count // 0), check_runs: [.[].check_runs[]]}' \
+            "$metadata_root/check-runs-pages.json" > "$metadata_root/check-runs.json"
+          requirements_run_id="$(jq -er '
+            [.check_runs[] | select(.name == "Requirements evidence")] |
+            if length == 1 then .[0].details_url |
+              capture("/actions/runs/(?<run_id>[0-9]+)/job/[0-9]+$").run_id
+            else error("expected one Requirements evidence check") end
+          ' "$metadata_root/check-runs.json")"
+          authority_run_id="$(jq -er '
+            [.check_runs[] | select(.name == "Trusted Requirements Authority")] |
+            if length == 1 then .[0].details_url |
+              capture("/actions/runs/(?<run_id>[0-9]+)/job/[0-9]+$").run_id
+            else error("expected one Trusted Requirements Authority check") end
+          ' "$metadata_root/check-runs.json")"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${requirements_run_id}" > "$metadata_root/requirements-run.json"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${authority_run_id}" > "$metadata_root/authority-run.json"
+          gh api --method GET --paginate --slurp \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${requirements_run_id}/artifacts?per_page=100" \
+            > "$metadata_root/artifacts-pages.json"
+          jq -e \
+            '{total_count: (.[0].total_count // 0), artifacts: [.[].artifacts[]]}' \
+            "$metadata_root/artifacts-pages.json" > "$metadata_root/artifacts.json"
+          producer_artifact_id="$(jq -er '
+            [.artifacts[] | select(.name == "requirements-evidence")] |
+            if length == 1 then .[0].id else error("expected one producer artifact") end
+          ' "$metadata_root/artifacts.json")"
+          execution_artifact_id="$(jq -er '
+            [.artifacts[] | select(.name == "requirements-evidence-execution")] |
+            if length == 1 then .[0].id else error("expected one execution artifact") end
+          ' "$metadata_root/artifacts.json")"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${producer_artifact_id}/zip" > "$metadata_root/producer.zip"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${execution_artifact_id}/zip" > "$metadata_root/execution.zip"
+
+      - name: Validate protected promotion evidence for final verdict
+        id: final-promotion
+        if: >-
+          github.event_name == 'pull_request' && github.base_ref == 'main' && github.head_ref == 'dev' && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="${RUNNER_TEMP}/final-promotion-reuse.json"
+          mkdir -p "$(dirname "$output")"
+          "${FINAL_VERIFIER_ROOT}/bin/python" -I -S scripts/requirements_promotion_reuse.py \
+            --event "$GITHUB_EVENT_PATH" \
+            --repo-root "$GITHUB_WORKSPACE" \
+            --source-pulls "${RUNNER_TEMP}/promotion-final-promotion/source-pulls.json" \
+            --check-runs "${RUNNER_TEMP}/promotion-final-promotion/check-runs.json" \
+            --requirements-run "${RUNNER_TEMP}/promotion-final-promotion/requirements-run.json" \
+            --authority-run "${RUNNER_TEMP}/promotion-final-promotion/authority-run.json" \
+            --artifacts "${RUNNER_TEMP}/promotion-final-promotion/artifacts.json" \
+            --producer-archive "${RUNNER_TEMP}/promotion-final-promotion/producer.zip" \
+            --execution-archive "${RUNNER_TEMP}/promotion-final-promotion/execution.zip" \
+            --expected-attestation "${RUNNER_TEMP}/requirements-execution/requirements-promotion-reuse.json" \
+            --output "${RUNNER_TEMP}/final-promotion-reuse.json"
+          cmp --silent "${RUNNER_TEMP}/final-promotion-reuse.json" "${RUNNER_TEMP}/requirements-execution/requirements-promotion-reuse.json"
+          printf 'active=true\n' >> "$GITHUB_OUTPUT"
+
       - name: Restore producer Requirements evidence for final verdict
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
@@ -1870,6 +2295,7 @@ jobs:
 
       - name: Reconcile final Requirements verdict on fresh runner
         env:
+          EVIDENCE_PROMOTION_REUSE: ${{ steps.final-promotion.outputs.active }}
           LATE_RED_ACTIVE: ${{ github.event.pull_request.number == 704 && github.head_ref == 'bugfix/692-release-review-followup' && hashFiles('openspec/changes/fix-release-promotion-security-gates/requirements-proof/late-red-evidence.json') != '' }}
           PRIOR_RED_HEAD_SHA: ${{ steps.final-retained-red.outputs.head-sha }}
         shell: bash
@@ -1920,6 +2346,9 @@ jobs:
           if [[ "$required_maturity" == "verified" ]]; then
             planning_maturity=test-authored
           fi
+          if [[ "$EVIDENCE_PROMOTION_REUSE" == "true" ]]; then
+            planning_maturity=planned
+          fi
 
           final_change_paths_file="${RUNNER_TEMP}/final-change-paths.z"
           git diff --name-only -z --diff-filter=ACMRD "$FINAL_BASE_COMMIT..$source_ref" -- openspec/changes/ \
@@ -1938,21 +2367,25 @@ jobs:
             esac
           done < "$final_change_paths_file"
           review_evidence_paths=()
-          if [[ "${#final_changed_change_ids[@]}" -eq 1 ]]; then
-            for selected_change in "${!final_changed_change_ids[@]}"; do
-              :
-            done
-            review_evidence_paths+=("openspec/changes/${selected_change}/requirements-proof/review-evidence.json")
-          elif [[ "${#final_changed_change_ids[@]}" -gt 1 ]]; then
-            printf 'Final reconciliation found multiple changed active OpenSpec changes.\n' >&2
-            exit 1
+          if [[ "$EVIDENCE_PROMOTION_REUSE" != "true" ]]; then
+            if [[ "${#final_changed_change_ids[@]}" -eq 1 ]]; then
+              for selected_change in "${!final_changed_change_ids[@]}"; do
+                :
+              done
+              review_evidence_paths+=("openspec/changes/${selected_change}/requirements-proof/review-evidence.json")
+            elif [[ "${#final_changed_change_ids[@]}" -gt 1 ]]; then
+              printf 'Final reconciliation found multiple changed active OpenSpec changes.\n' >&2
+              exit 1
+            fi
           fi
-          if [[ "${#review_evidence_paths[@]}" -eq 0 ]]; then
-            mapfile -t active_review_evidence < <(
-              find openspec/changes -path 'openspec/changes/archive' -prune -o -path '*/requirements-proof/review-evidence.json' -type f -print | sort
-            )
-            if [[ "${#active_review_evidence[@]}" -eq 1 ]]; then
-              review_evidence_paths+=("${active_review_evidence[0]}")
+          if [[ "$EVIDENCE_PROMOTION_REUSE" != "true" ]]; then
+            if [[ "${#review_evidence_paths[@]}" -eq 0 ]]; then
+              mapfile -t active_review_evidence < <(
+                find openspec/changes -path 'openspec/changes/archive' -prune -o -path '*/requirements-proof/review-evidence.json' -type f -print | sort
+              )
+              if [[ "${#active_review_evidence[@]}" -eq 1 ]]; then
+                review_evidence_paths+=("${active_review_evidence[0]}")
+              fi
             fi
           fi
           if [[ "${#review_evidence_paths[@]}" -gt 1 \
@@ -1984,7 +2417,14 @@ jobs:
           fi
           "${evidence_arguments[@]}"
           cmp --silent "$final_plan" "$execution_plan"
-          if [[ "$required_maturity" == "planned" ]]; then
+          if [[ "$EVIDENCE_PROMOTION_REUSE" == "true" ]]; then
+            test -s "$execution_root/requirements-promotion-reuse.json"
+            cp "$final_planning_report" "$final_report"
+            jq -e '.gate_decision == "pass" and (.plan.cases | length > 0)' \
+              "$final_report" > /dev/null
+            cat "$final_summary" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          elif [[ "$required_maturity" == "planned" ]]; then
             cp "$final_planning_report" "$final_report"
             jq -e '.gate_decision == "pass"' "$final_report" > /dev/null
             cat "$final_summary" >> "$GITHUB_STEP_SUMMARY"
@@ -2030,7 +2470,7 @@ jobs:
             "${isolated_python[@]}" "$FINAL_TRUSTED_PROVENANCE" \
               --prior-red-proof "$prior_red_proof" \
               --repo-root "$GITHUB_WORKSPACE" \
-              --base-ref "$FINAL_BASE_COMMIT" \
+              --base-ref "${FINAL_BASE_COMMIT}" \
               --final-ref "$source_ref"
             reconciliation_arguments+=(--prior-red-proof "$prior_red_proof")
           elif [[ -s "$legacy_tdd_evidence" && -s "$legacy_tdd_ledger" ]]; then
