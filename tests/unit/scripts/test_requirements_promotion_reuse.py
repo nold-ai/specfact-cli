@@ -648,7 +648,7 @@ def _assert_check_and_run_mutations_rejected(validator: types.ModuleType, tmp_pa
 def _assert_artifact_metadata_mutations_rejected(validator: types.ModuleType, tmp_path: Path) -> None:
     for artifact_index in (0, 1):
         for field_path, value in (
-            (("id",), 999),
+            (("id",), 0),
             (("name",), "spoofed-evidence"),
             (("expired",), True),
             (("digest",), f"sha256:{'0' * 64}"),
