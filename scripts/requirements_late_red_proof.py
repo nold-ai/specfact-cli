@@ -13,10 +13,9 @@ import subprocess
 import sys
 import tempfile
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from types import ModuleType
-from typing import Any, NoReturn, cast
+from typing import Any, NamedTuple, NoReturn, cast
 from xml.parsers import expat
 
 
@@ -54,8 +53,7 @@ MANIFEST_FIELDS = {
 }
 
 
-@dataclass(frozen=True)
-class _ProofScope:
+class _ProofScope(NamedTuple):
     change_id: str
     pull_request: int
     head_branch: str

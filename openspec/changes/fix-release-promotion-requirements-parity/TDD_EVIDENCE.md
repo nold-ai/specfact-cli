@@ -163,3 +163,20 @@ report decision from the report file and the non-empty aggregate cases from the
 separate plan file in producer, fresh execution, and final verdict. The mapped
 selector passed, the focused promotion and security suite passed (`24 passed`),
 and `actionlint .github/workflows/requirements-evidence.yml` passed.
+
+## Python 3.11 compatibility regression
+
+PR #715 check run `33998406109` exposed the same three existing late-RED proof
+test failures in its Python 3.11 job `101392883500` and Python 3.12 job
+`101392883489`. The new frozen dataclass was evaluated by an authenticated
+dynamic loader that intentionally does not register the candidate module in
+`sys.modules`; the dataclass implementation requires that registration and
+failed during module evaluation. These hosted failures are the RED evidence
+for replacing only the proof-scope value representation while preserving its
+immutable tuple semantics and every authenticated field.
+
+The proof scope now uses `NamedTuple`, retaining immutability and named-field
+access without requiring loader-side module registration. The previously
+masked selector-identity test also supplies the legacy scope that its synthetic
+`verified`/`final` artifact models. The exact three failed selectors pass on
+Python 3.11.15 and Python 3.12.13 (`3 passed` on each interpreter).
