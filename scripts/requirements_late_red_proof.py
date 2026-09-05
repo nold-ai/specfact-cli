@@ -59,11 +59,13 @@ class _ProofScope:
     change_id: str
     pull_request: int
     head_branch: str
+    required_maturity: str
+    run_stage: str
 
 
 _PROOF_SCOPES = (
-    _ProofScope("fix-release-promotion-security-gates", 704, "bugfix/692-release-review-followup"),
-    _ProofScope("fix-release-promotion-requirements-parity", 715, "bugfix/692-promotion-exit-code"),
+    _ProofScope("fix-release-promotion-security-gates", 704, "bugfix/692-release-review-followup", "verified", "final"),
+    _ProofScope("fix-release-promotion-requirements-parity", 715, "bugfix/692-promotion-exit-code", "red", "red"),
 )
 
 
@@ -327,20 +329,20 @@ def _planned_selectors(plan: dict[str, object]) -> list[str]:
 
 
 def _validate_final_report(
-    report: dict[str, object], execution: dict[str, object], manifest: dict[str, object]
+    report: dict[str, object], execution: dict[str, object], manifest: dict[str, object], scope: _ProofScope
 ) -> None:
     expected_report = {
         "delivery_status": "incomplete",
         "gate_decision": "fail",
         "observed_maturity": "incomplete",
-        "required_maturity": "verified",
+        "required_maturity": scope.required_maturity,
         "verdict": "failed",
         "mapping_digest": manifest["mapping_digest"],
         "plan_digest": manifest["plan_digest"],
     }
     expected_execution = {
         "junit_digest": manifest["junit_digest"],
-        "run_stage": "final",
+        "run_stage": scope.run_stage,
         "source_ref": manifest["red_commit"],
     }
     if any(report.get(field) != value for field, value in expected_report.items()):
@@ -360,13 +362,13 @@ def _validate_plan_report(plan_report: dict[str, object], plan: dict[str, object
         raise ValueError
 
 
-def _validate_raw_artifact(root: Path, manifest: dict[str, object]) -> tuple[bytes, list[str]]:
+def _validate_raw_artifact(root: Path, manifest: dict[str, object], scope: _ProofScope) -> tuple[bytes, list[str]]:
     report_payload, plan_payload, junit_payload = _artifact_payloads(root, manifest)
     report = _object(json.loads(report_payload, object_pairs_hook=_pairs))
     plan_report = _object(json.loads(plan_payload, object_pairs_hook=_pairs))
     execution = _object(report.get("execution_proof"))
     plan = _object(plan_report.get("plan"))
-    _validate_final_report(report, execution, manifest)
+    _validate_final_report(report, execution, manifest, scope)
     _validate_plan_report(plan_report, plan, manifest)
     planned = _planned_selectors(plan)
     reported = _strings(execution.get("selectors"))
@@ -532,7 +534,7 @@ def _normalize(arguments: argparse.Namespace) -> None:
     _validate_artifact(_read_json(arguments.red_artifacts), manifest)
     cycle_commit = _string(manifest["cycle_base_commit"], OBJECT_PATTERN)
     _validate_history(repo_root, manifest, arguments.cycle_base_ref, final, scope)
-    junit_payload, selectors = _validate_raw_artifact(arguments.red_artifact_root, manifest)
+    junit_payload, selectors = _validate_raw_artifact(arguments.red_artifact_root, manifest, scope)
     bind, validate = _load_provenance(arguments.trusted_provenance, repo_root, cycle_commit)
     output, output_xml = _external_outputs(arguments.output, repo_root)
     normalized = {
