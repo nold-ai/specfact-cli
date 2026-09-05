@@ -144,3 +144,7 @@ workflow correction and run with:
 Result: FAIL (`1 failed`) because producer, fresh execution, and final verdict
 did not validate the aggregate report and aggregate plan through their distinct
 files.
+
+At `2026-09-05T22:55:59Z`, the assertion normalized YAML-preserved shell line
+continuations and the same command remained RED (`1 failed`) against unchanged
+workflow bytes.

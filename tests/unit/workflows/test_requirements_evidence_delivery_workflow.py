@@ -1479,7 +1479,7 @@ def _assert_promotion_planning(commands: tuple[str, str, str]) -> None:
         ('"$final_report"', '"$final_plan"'),
     )
     for command, (report_path, plan_path) in zip(commands, evidence_paths, strict=True):
-        normalized_command = " ".join(command.split())
+        normalized_command = " ".join(command.replace("\\\n", " ").split())
         assert 'if [[ "$EVIDENCE_PROMOTION_REUSE" == "true" ]]; then' in command
         assert "planning_maturity=planned" in command
         assert f"jq -e '.gate_decision == \"pass\"' {report_path} > /dev/null" in normalized_command
