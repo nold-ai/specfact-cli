@@ -239,3 +239,38 @@ source tree, two source blobs, base-to-source and source-to-HEAD ancestry, both
 archive source sets, and rejects a removed base-to-source relationship. The
 four-file Requirements proof/workflow surface passed (`72 passed`), workflow
 lint passed, strict OpenSpec validation passed, and `git diff --check` passed.
+
+## Spec-first bootstrap recovery
+
+Independent review found that the mapped test and RED proof preceded the exact
+normative OpenSpec exception even though they preceded the implementation. The
+normative scenario and task were therefore aligned at signed commit
+`698694589540557c317a39a8dece6f2517a0dac0` before a new append-only proof
+cycle. The mapping and its approved source digest remained unchanged.
+
+The spec-first recovery retained these immutable commits and artifact:
+
+- C5 commit: `90e30c33e1083945c6b26bc30e06b5b420838356`
+- C5 tree: `36516710f0acd4143ce34ba883678b9702f9f21c`
+- R5 test-only commit: `154bfd19fd7089aec13ec1a7473af13ea08b1035`
+- R5 tree: `b606ac80e3adb4e3aa75f9543e4663f26658fc81`
+- GitHub Actions run: `34036583353`
+- artifact: `9990355198` (`requirements-evidence`)
+- service artifact digest:
+  `sha256:76a50e25c076843d4758f1af0cb09a2fb4137efac50230202bbc494ffee875a2`
+- evidence JSON SHA-256:
+  `257667df94d43287bbe2b757db6aa2f383ab5886a90f95c9f087d82ebe261a5e`
+- plan report SHA-256:
+  `94254e4aaae42c483d1ad8c3d42a3e3ba91b9e84728e6e066124497510d40159`
+- JUnit SHA-256:
+  `5ac750b03b62a444c0b00b9b461651958add9fb9108f3299f984841ba2bcb25b`
+- result: six collected cases and exactly one failure, the mapped trusted-core
+  selector, because C5 intentionally retained only the invalid single archive
+
+R5 strengthens the same approved selector to require the base-relative default,
+the disjunctive missing-input trigger, the exact immutable source identities,
+both ancestry directions, and rejection of an altered default, conjunction, or
+ancestry guard. At `2026-09-06T13:39:24Z`, G5 restored the reviewed production
+blocks and exact PR #716 predicates. The four-file Requirements proof/workflow
+surface passed (`72 passed`), workflow lint passed, strict OpenSpec validation
+passed, and `git diff --check` passed.
