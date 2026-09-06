@@ -169,7 +169,11 @@ def test_provenance_loader_accepts_exact_committed_sibling_for_synthetic_fixture
     assert callable(validate)
 
 
-def test_failed_selector_identity_is_order_independent_but_exact(tmp_path: Path) -> None:
+@pytest.mark.parametrize("pull_request", (704, 716), ids=("pr704", "pr716"))
+def test_failed_selector_identity_is_order_independent_but_exact(
+    tmp_path: Path,
+    pull_request: int,
+) -> None:
     """Authentic unique failures may appear in a different JUnit document order."""
     module = _load_script_module()
     artifact_root = tmp_path / "artifact"
@@ -197,7 +201,7 @@ def test_failed_selector_identity_is_order_independent_but_exact(tmp_path: Path)
         "red_commit": "c" * 40,
         "failed_selectors": [second_selector, first_selector],
     }
-    scope = module._PROOF_SCOPES[0]
+    scope = next(scope for scope in module._PROOF_SCOPES if scope.pull_request == pull_request)
 
     _, reported = module._validate_raw_artifact(artifact_root, manifest, scope)
     assert reported == selectors
