@@ -425,6 +425,7 @@ def _cli_arguments(
     inputs: _CliInputs,
     output: Path,
     expected_attestation: Path | None = None,
+    verified_evidence_output: Path | None = None,
 ) -> list[str]:
     arguments = [
         "--event",
@@ -450,6 +451,8 @@ def _cli_arguments(
     ]
     if expected_attestation is not None:
         arguments.extend(("--expected-attestation", str(expected_attestation)))
+    if verified_evidence_output is not None:
+        arguments.extend(("--verified-evidence-output", str(verified_evidence_output)))
     return arguments
 
 
@@ -459,18 +462,21 @@ def _assert_cli_contract(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
     fixture = _promotion_fixture(tmp_path)
     inputs = _write_cli_inputs(tmp_path, fixture)
     attestation: dict[str, object] = {"claim": "promotion-reused", "source_head": SOURCE_SHA}
+    verified_evidence = b'{"execution_proof":{"run_stage":"final"}}\n'
     captured: dict[str, object] = {}
 
-    def accepted_build(inputs: object) -> dict[str, object]:
+    def accepted_build(inputs: object) -> tuple[dict[str, object], bytes]:
         captured["inputs"] = inputs
-        return attestation
+        return attestation, verified_evidence
 
-    monkeypatch.setattr(validator, "build_attestation", accepted_build)
+    monkeypatch.setattr(validator, "_build_validation", accepted_build)
     first_output = tmp_path / "first.json"
     second_output = tmp_path / "second.json"
-    assert validator.main(_cli_arguments(fixture, inputs, first_output)) == 0
+    evidence_output = tmp_path / "verified-evidence.json"
+    assert validator.main(_cli_arguments(fixture, inputs, first_output, verified_evidence_output=evidence_output)) == 0
     assert validator.main(_cli_arguments(fixture, inputs, second_output)) == 0
     assert first_output.read_bytes() == second_output.read_bytes() == _json_bytes(attestation)
+    assert evidence_output.read_bytes() == verified_evidence
     captured_inputs = captured["inputs"]
     assert isinstance(captured_inputs, validator.PromotionInputs)
     assert captured_inputs.repo_root == REPO_ROOT
@@ -478,13 +484,26 @@ def _assert_cli_contract(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
     expected = tmp_path / "expected.json"
     expected.write_bytes(b"{}\n")
     rejected_output = tmp_path / "rejected.json"
-    assert validator.main(_cli_arguments(fixture, inputs, rejected_output, expected)) == 1
+    rejected_evidence = tmp_path / "rejected-evidence.json"
+    assert (
+        validator.main(
+            _cli_arguments(
+                fixture,
+                inputs,
+                rejected_output,
+                expected,
+                verified_evidence_output=rejected_evidence,
+            )
+        )
+        == 1
+    )
     assert not rejected_output.exists()
+    assert not rejected_evidence.exists()
 
-    def rejected_build(_inputs: object) -> dict[str, object]:
+    def rejected_build(_inputs: object) -> tuple[dict[str, object], bytes]:
         raise validator.PromotionReuseError
 
-    monkeypatch.setattr(validator, "build_attestation", rejected_build)
+    monkeypatch.setattr(validator, "_build_validation", rejected_build)
     invalid_output = tmp_path / "invalid.json"
     assert validator.main(_cli_arguments(fixture, inputs, invalid_output)) == 1
     assert not invalid_output.exists()
@@ -545,10 +564,23 @@ def test_exact_protected_promotion_produces_canonical_attestation(
 ) -> None:
     fixture = _promotion_fixture(tmp_path)
 
-    attestation = _validate(fixture)
+    validator = _load_validator()
+    inputs = validator.PromotionInputs(
+        event=fixture.event,
+        repo_root=REPO_ROOT,
+        source_pulls=fixture.source_pulls,
+        check_runs=fixture.check_runs,
+        requirements_run=fixture.requirements_run,
+        authority_run=fixture.authority_run,
+        artifacts=fixture.artifacts,
+        producer_archive=fixture.producer_archive,
+        execution_archive=fixture.execution_archive,
+    )
+    attestation, verified_evidence = validator._build_validation(inputs, git_runner=fixture.run_git)
 
-    assert "git_facts" not in inspect.signature(_load_validator().build_attestation).parameters
-    assert len(inspect.signature(_load_validator().build_attestation).parameters) == 2
+    assert "git_facts" not in inspect.signature(validator.build_attestation).parameters
+    assert len(inspect.signature(validator.build_attestation).parameters) == 2
+    assert verified_evidence == _archive_files(fixture.producer_archive)["requirements-evidence.json"]
     assert attestation["claim"] == "promotion-reused"
     assert attestation["promotion"] == {
         "base_ref": "main",
