@@ -67,8 +67,8 @@ _PROOF_SCOPES = (
         "fix-release-promotion-requirements-parity",
         716,
         "bugfix/692-promotion-core-manifest",
-        "red",
-        "red",
+        "verified",
+        "final",
     ),
 )
 

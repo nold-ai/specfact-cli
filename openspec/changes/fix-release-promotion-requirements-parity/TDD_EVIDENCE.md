@@ -314,3 +314,29 @@ The green candidate restores only PR #716's `verified/final` values. No mapping,
 review evidence, immutable manifest, or retained artifact byte changed.
 The mapped regression and unchanged selector-order control passed, followed by
 all 72 cases in the four-file Requirements proof/workflow surface.
+
+## Fresh mapped final-lane proof
+
+The mapped test change correctly made the older R5 artifact stale, so the final
+candidate does not reuse or relax that proof. A new append-only cycle retained:
+
+- C8 commit `22e458f0a28d708c1287dbf62a30184c6f8b7523` with tree
+  `79e4a1b03741e3537bb762ef138366ce0647b342`, which temporarily removed
+  the old manifest and mapped assertion and restored only PR #716's `red/red`
+  mismatch.
+- Its direct test-only child
+  `4858b3a863c433a0ce5496bb8a1a4e2d6b736b20` with tree
+  `c052de7c6aba2d76be7865b1d3667c34bb796df0`, which restored only the
+  existing mapped `REQ-PROMOTION-004` assertion.
+- Requirements Evidence run `34037707935` and immutable artifact `9990694902`
+  with service digest
+  `sha256:cfffe81dfceea8357b76b9474257caa9ecff0db49ec8bbfc3560655fd36aae3a`.
+- Report, plan-report, and JUnit digests respectively
+  `sha256:5d074828304a81c00ffad3cd79ea851c07f346c9eecfa7778ac53d76ebf9fee3`,
+  `sha256:94254e4aaae42c483d1ad8c3d42a3e3ba91b9e84728e6e066124497510d40159`,
+  and `sha256:ee269ead68a195e30eda1be5bd6dfd330b8983f4eb89c07996bdb2951b70a505`.
+
+The run collected all six approved selectors with exactly the mapped promotion
+stage selector failing and zero errors or skips. The final candidate restores
+PR #716's `verified/final` scope, retains the mapped test bytes, and binds this
+fresh artifact without changing the approved mapping or review evidence.
