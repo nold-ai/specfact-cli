@@ -340,3 +340,35 @@ The run collected all six approved selectors with exactly the mapped promotion
 stage selector failing and zero errors or skips. The final candidate restores
 PR #716's `verified/final` scope, retains the mapped test bytes, and binds this
 fresh artifact without changing the approved mapping or review evidence.
+
+## Reviewed final-lane proof
+
+The fresh final run exposed one blocking `CC18` finding in the trusted-core
+test helper. Four information-only bloat suggestions and two type-check
+warnings were classified as non-blocking and intentionally left unchanged.
+The required helper refactor split identity, ordering, and archive assertions
+without altering any assertion or selector behavior; Radon reduced the wrapper
+from complexity 18 to 1 and the highest extracted helper to 12.
+
+The post-review append-only cycle retained:
+
+- C9 commit `f502f28e4f13dc6a5e0e7d1c58de3d1b0a49a5dc` with tree
+  `e5ac7624669128c46f8c2be6ca9672f3c94451dc`, containing the CC18-only
+  test refactor plus the temporary manifest removal, mapped assertion removal,
+  and PR #716 `red/red` proof configuration.
+- Its direct test-only child
+  `7b51700a7f10f25ce908f55d0b652c0d709b4a72` with tree
+  `556302e49d80c06cfb0b5eaf9c6950a77eb02ae4`, restoring only the mapped
+  `REQ-PROMOTION-004` assertion.
+- Requirements Evidence run `34038160697` and artifact `9990828779` with
+  service digest
+  `sha256:43a3bb17b610e174f96457f3fca58266d1e8b7c9bb29dd834bcdf4bd7b82cbcb`.
+- Report, plan-report, and JUnit digests respectively
+  `sha256:f893ab930e794b1d1445702f36053c99c8377dccb8354569722425ab27739645`,
+  `sha256:94254e4aaae42c483d1ad8c3d42a3e3ba91b9e84728e6e066124497510d40159`,
+  and `sha256:ad28dc8dad83f2238a33df993f32d5ddd1dda8191b5016b959cc602a3e564e36`.
+
+All six approved selectors ran; five passed and only the mapped final-lane
+selector failed, with zero errors or skips. The final candidate restores
+`verified/final`, preserves the reviewed helper and mapped test bytes, and
+binds the post-review artifact without changing mapping or review evidence.
