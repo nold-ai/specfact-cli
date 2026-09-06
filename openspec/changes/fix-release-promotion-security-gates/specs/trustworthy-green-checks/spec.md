@@ -106,7 +106,6 @@ claim sandbox containment of intentionally hostile Python executed by pytest.
 - **THEN** one expiring member authority MAY bind the exact final pull-request commit and tree
 - **AND** a final-tree-bound manifest SHALL bind the exact repository, issue, pull request, branch, cycle base, RED commit, run, artifact, service digest, file digests, mapping, plan, and failed selectors
 - **AND** SHALL revalidate all live identities, linear ancestry, test-only history, artifact bytes, and selected test freshness before reconciliation
-- **AND** a failing late-review artifact produced by the ordinary verified/final lane SHALL be accepted only when every immutable binding and final-report semantic validates
 - **AND** all unbound, changed, nonlinear, non-test, or expired amendment evidence SHALL fail closed.
 
 #### Scenario: Governed paths remain exact across local and external history checks

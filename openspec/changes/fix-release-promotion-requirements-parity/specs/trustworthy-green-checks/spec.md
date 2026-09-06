@@ -83,4 +83,7 @@ base contains both inputs.
   attestation
 - **AND** trusted core, retained-RED ancestry, Code Review, and release gates
   SHALL remain `main`-relative except for the exact, ancestry-bound legacy
-  two-input bootstrap defined above.
+  two-input bootstrap defined above
+- **AND** a failing late-review artifact from the ordinary verified/final lane
+  SHALL be accepted only when every immutable binding and final-report semantic
+  validates.
