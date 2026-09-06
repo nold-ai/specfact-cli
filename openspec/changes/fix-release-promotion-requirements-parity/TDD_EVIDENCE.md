@@ -291,3 +291,26 @@ commit, tree, run, artifact, digest, test-only, failed-selector, freshness, and
 final-report checks; the R5 manifest and artifact bytes remain unchanged.
 The focused regression passed both proof scopes, and the four-file Requirements
 proof/workflow surface passed all 73 collected cases.
+
+Independent review then found that the first clarification touched a second
+active change and its new selector was not part of the approved parity mapping.
+The final append-only recovery therefore uses only the already mapped
+`REQ-PROMOTION-004` selector and retains the approved mapping bytes:
+
+- Spec-only commit `24218c7eceb125dc2107c1348389bd44fd6179de`
+  (tree `5b96d8cc5c07dcf81d0f274aff08d6a124ede220`) removes the second-change
+  delta and adds the final-lane semantic to the mapped parity scenario.
+- Cycle-base commit `f7accc92223a4184af3c9eb5728007ae22a8d51d`
+  (tree `75ae13c95c0da357edd24c5855122b553fc33780`) temporarily restores only
+  PR #716's mismatched `red/red` scope.
+- Its direct test-only child
+  `cc9097ddd777c97865547fa848cdd239b416a2ac` (tree
+  `aa2b14d2b267f5d685d4379f52d7c6f96c8dbe1e`) strengthens the existing
+  mapped promotion-stage selector and removes the superseded unmapped
+  parameter case. The mapped selector failed only on the exact missing
+  `verified/final` scope; the unchanged selector-order control passed.
+
+The green candidate restores only PR #716's `verified/final` values. No mapping,
+review evidence, immutable manifest, or retained artifact byte changed.
+The mapped regression and unchanged selector-order control passed, followed by
+all 72 cases in the four-file Requirements proof/workflow surface.
