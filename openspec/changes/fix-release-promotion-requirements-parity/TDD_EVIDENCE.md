@@ -426,3 +426,79 @@ identical to R11. The 17 late-RED predicates were restored exactly. CodeRabbit
 comment `3944074309`, requesting retroactive command detail for older proof
 cycles, is minor documentation cleanup and was explicitly dispositioned as
 non-blocking rather than expanding this security fix further.
+
+## Authenticated final-context handoff regression
+
+PR #691 run `34040421417` exposed the same fail-closed defect at two promotion
+boundaries: fresh execution copied its aggregate planning report over the
+verified consumer report, and final verification repeated that replacement.
+Code Review correctly rejected the resulting report because its
+`execution_proof.run_stage` was not `final`. The existing specification and
+approved mapping already require both stages to validate reuse independently,
+so no mapping or review-evidence bytes changed.
+
+At `2026-09-06T15:41:00Z`, the exact local RED command was:
+
+```shell
+/Users/dom/.codex/worktrees/323f/specfact-cli/.venv/bin/python -m pytest -q tests/unit/scripts/test_requirements_promotion_reuse.py::test_exact_protected_promotion_produces_canonical_attestation tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_workflow_revalidates_promotion_reuse_in_all_stages
+```
+
+Both mapped selectors failed against unchanged production code. The first
+hosted evidence attempt retained:
+
+- C12 commit `82adb14babf699381a50601e2c7c5c79703d1d39` with tree
+  `f80d3e4d3403a0514053a02f52a034c9a2c423fb`, clarifying the existing
+  authenticated-report transport requirement
+- its direct signed test-only child
+  `65facaa2788b5809ab7b48cf6ef69c9756ae8991` with tree
+  `9ecacd5c48ef6ff6311af5bc7b29787a1db1f8a1`
+- Requirements Evidence run `34043136896` and artifact `9992286643`, created
+  at `2026-09-06T15:42:10Z`, with service digest
+  `sha256:fa851f93d2ededdf7533b35ef57ef1d3f2c8863521b6dffa0fd84f1d55e07661`
+- report, plan-report, and JUnit digests respectively
+  `sha256:7702fe9dbe0921301ed95572dba0254222ddefb14c2906e307506deaf775033d`,
+  `sha256:94254e4aaae42c483d1ad8c3d42a3e3ba91b9e84728e6e066124497510d40159`,
+  and `sha256:5c9be9e09b94d718f90c98aa25bc97d375042bc1504b648b4a09c93441dd40a6`
+
+The hosted JUnit collected all six approved selectors, with the two affected
+selectors failing and the four unchanged security controls passing, with zero
+errors or skips. The green implementation returns the exact verified producer
+report bytes from the same authenticated archive read and writes them only
+after the expected promotion attestation matches. Fresh execution and final
+verification pass those bytes to Code Review and retain their independent
+planning checks.
+
+At `2026-09-06T15:48:00Z`, all 30 promotion validator, workflow, and trusted-core
+tests passed locally, including both mapped regressions and all lookalike,
+stale-provenance, main-relative, and fail-closed controls.
+
+The proof normalizer then correctly rejected that first attempt because an
+intermediate append-only commit had changed and later restored one selected
+test file. Since freshness considers every path touched after RED, exact byte
+restoration cannot erase that history. No history was rewritten and the proof
+check was not relaxed.
+
+The freshness-preserving recovery cycle uses:
+
+- C13 commit `14726b9274a586f591899bf941f7081458dec027` with tree
+  `8797eec7f4f6e9ed654611997535516642fd1531`, temporarily restoring only the
+  two defective report handoffs and redirecting only the 17 PR #717 late-RED
+  branch predicates to an unreachable branch
+- its direct signed test-only child
+  `3cb4ed08c051302c23830a2471cadbb40f33b638` with tree
+  `96b8791dc6282ff47a21fa7da953d998dfa5310c`, strengthening the mapped
+  validator selector to require `execution_proof.run_stage == final`
+- Requirements Evidence run `34044017472` and artifact `9992549271`, created
+  at `2026-09-06T15:59:36Z`, with service digest
+  `sha256:33699997a9426e758894b08882b56a68269cddb0c1a35e8ed4c640cfc9efa8d3`
+- report, plan-report, and JUnit digests respectively
+  `sha256:7051e4c40cdaa51381b4d5c74faacf56c2418bfe432836e755e4f0502fdc8075`,
+  `sha256:94254e4aaae42c483d1ad8c3d42a3e3ba91b9e84728e6e066124497510d40159`,
+  and `sha256:52141cdb93e21b4766eb16ddd6974d9ecfad6c7a17697f8d5fc5e77e20992446`
+
+The R13 report records `required_maturity=verified` and
+`execution_proof.run_stage=final`. Its hosted JUnit again contains exactly the
+two expected mapped failures and four passing controls, with zero errors or
+skips. The final child restores the two handoffs and all 17 exact branch
+predicates, binds the R13 artifact, and does not modify either selected test
+file.

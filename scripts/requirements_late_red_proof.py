@@ -65,6 +65,13 @@ _PROOF_SCOPES = (
     _ProofScope("fix-release-promotion-security-gates", 704, "bugfix/692-release-review-followup", "verified", "final"),
     _ProofScope(
         "fix-release-promotion-requirements-parity",
+        717,
+        "bugfix/692-promotion-final-context",
+        "verified",
+        "final",
+    ),
+    _ProofScope(
+        "fix-release-promotion-requirements-parity",
         716,
         "bugfix/692-promotion-core-manifest",
         "verified",

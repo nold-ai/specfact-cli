@@ -1333,6 +1333,7 @@ class _PromotionStage:
     evidence_step_name: str
     expected_attestation: str | None
     output_attestation: str
+    verified_evidence_output: str | None
 
 
 def _assert_promotion_authority(authority: dict[str, object], policy_path: str) -> None:
@@ -1397,9 +1398,13 @@ def _assert_promotion_validation(validate: dict[str, object], stage: _PromotionS
     assert all(f'{argument} "{value}"' in command for argument, value in arguments)
     if stage.expected_attestation is None:
         assert "--expected-attestation" not in command
-        return
-    assert f'--expected-attestation "{stage.expected_attestation}"' in command
-    assert f'cmp --silent "{stage.output_attestation}" "{stage.expected_attestation}"' in command
+    else:
+        assert f'--expected-attestation "{stage.expected_attestation}"' in command
+        assert f'cmp --silent "{stage.output_attestation}" "{stage.expected_attestation}"' in command
+    if stage.verified_evidence_output is None:
+        assert "--verified-evidence-output" not in command
+    else:
+        assert f'--verified-evidence-output "{stage.verified_evidence_output}"' in command
 
 
 def _assert_promotion_stage_boundary(workflow: dict[str, object], stage: _PromotionStage) -> None:
@@ -1486,6 +1491,15 @@ def _assert_promotion_planning(commands: tuple[str, str, str]) -> None:
         assert (
             f"jq -e '.gate_decision == \"pass\" and (.plan.cases | length > 0)' {plan_path} > /dev/null"
         ) in normalized_command
+    for command, planning_report, verified_report in (
+        (commands[1], '"$consumer_planning_report"', '"$consumer_report"'),
+        (commands[2], '"$final_planning_report"', '"$final_report"'),
+    ):
+        promotion_start = command.index('if [[ "$EVIDENCE_PROMOTION_REUSE" == "true" ]]; then')
+        promotion_end = command.index('elif [[ "$required_maturity" == "planned" ]]; then', promotion_start)
+        promotion_branch = command[promotion_start:promotion_end]
+        assert f"cp {planning_report} {verified_report}" not in promotion_branch
+        assert f"test -s {verified_report}" in promotion_branch
 
 
 def _assert_promotion_artifacts(workflow: dict[str, object], commands: tuple[str, str, str]) -> None:
@@ -1525,6 +1539,7 @@ def test_workflow_revalidates_promotion_reuse_in_all_stages() -> None:
             "Run Requirements evidence gate",
             None,
             "artifacts/requirements-evidence/requirements-promotion-reuse.json",
+            None,
         ),
         _PromotionStage(
             "fresh execution",
@@ -1533,6 +1548,7 @@ def test_workflow_revalidates_promotion_reuse_in_all_stages() -> None:
             "Reconcile Requirements evidence on fresh runner",
             "artifacts/requirements-evidence/requirements-promotion-reuse.json",
             "artifacts/requirements-evidence/final-verification/requirements-promotion-reuse.json",
+            "artifacts/requirements-evidence/requirements-evidence-consumer.json",
         ),
         _PromotionStage(
             "final verdict",
@@ -1541,6 +1557,7 @@ def test_workflow_revalidates_promotion_reuse_in_all_stages() -> None:
             "Reconcile final Requirements verdict on fresh runner",
             "${RUNNER_TEMP}/requirements-execution/requirements-promotion-reuse.json",
             "${RUNNER_TEMP}/final-promotion-reuse.json",
+            "${RUNNER_TEMP}/final-requirements.json",
         ),
     )
     for stage in stages:
