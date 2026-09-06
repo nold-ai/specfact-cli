@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import platform
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -92,10 +93,11 @@ def _write_selected_test(tmp_path: Path) -> None:
 
 def _assert_argument_contract(command: ProofCommand, junit_path: Path) -> None:
     assert command.shell is False
-    assert command.arguments == [
-        sys.executable,
-        "-m",
-        "pytest",
+    assert command.arguments[:3] == [sys.executable, "-P", "-c"]
+    bootstrap = command.arguments[3]
+    assert bootstrap.index("import pytest") < bootstrap.index("sys.path.append(repo_root)")
+    assert command.arguments[5:] == [
+        str(junit_path.parents[1]),
         "--junitxml",
         str(junit_path),
         "-p",
@@ -150,6 +152,38 @@ def test_executor_accepts_existing_exact_selectors_and_uses_argument_array(
     assert captured.cwd == tmp_path
     _assert_argument_contract(captured, junit_path)
     _assert_environment_contract(captured)
+
+
+def test_executor_disables_site_startup_before_pytest_bootstrap(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+    """Repository-influenced .pth and sitecustomize hooks cannot run before pytest is resolved."""
+    module = _load_executor_module()
+    _write_selected_test(tmp_path)
+    captured: ProofCommand | None = None
+
+    def capture_command(command: ProofCommand) -> int:
+        nonlocal captured
+        captured = command
+        return 0
+
+    assert (
+        module.execute_plan(
+            _plan("tests/test_proof.py::test_selected"),
+            tmp_path,
+            tmp_path / "artifacts" / "proof.xml",
+            command_runner=capture_command,
+        )
+        == 0
+    )
+    assert captured is not None
+    spawned: list[str] = []
+
+    def capture_spawn(arguments: list[str], **_keywords: object) -> object:
+        spawned.extend(arguments)
+        return type("Completed", (), {"returncode": 0})()
+
+    monkeypatch.setattr(cast(Any, module).subprocess, "run", capture_spawn)
+    assert cast(Any, module)._run_command(captured) == 0
+    assert spawned[1 : spawned.index("-c")] == ["-I", "-S"]
 
 
 def test_executor_rejects_unsafe_selectors_before_spawning(tmp_path: Path) -> None:
@@ -300,6 +334,24 @@ def test_executor_records_canonical_selector_property_in_junit(tmp_path: Path) -
 
     root = ET.parse(junit_path).getroot()
     assert root.find(".//property[@name='specfact.selector'][@value='" + selector + "']") is not None
+
+
+def test_executor_records_proof_toolchain_identity_in_junit(tmp_path: Path) -> None:
+    """Retained provenance must identify the interpreter and pytest process that ran the selector."""
+    module = _load_executor_module()
+    selector = "tests/fixtures/requirements_proof_target.py::test_records_canonical_selector"
+    junit_path = tmp_path / "requirements-proof.xml"
+
+    assert module.execute_plan(_plan(selector), REPO_ROOT, junit_path) == 0
+
+    root = ET.parse(junit_path).getroot()
+    expected_properties = {
+        "specfact.runner": "pytest",
+        "specfact.python": platform.python_version(),
+        "specfact.pytest": pytest.__version__,
+    }
+    for name, value in expected_properties.items():
+        assert root.find(f".//property[@name='{name}'][@value='{value}']") is not None
 
 
 def test_executor_records_canonical_selector_for_skipped_and_setup_error_cases(tmp_path: Path) -> None:

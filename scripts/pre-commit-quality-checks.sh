@@ -48,7 +48,7 @@ print_block2_overview() {
 # Include deletions (D): a commit that only removes paths must still be visible here so
 # check_safe_change() and Block 2 logic do not treat it as an empty / "safe" commit.
 staged_files() {
-  git diff --cached --name-only --diff-filter=ACMRD
+  staged_evidence_paths
 }
 
 staged_evidence_paths() {
@@ -94,8 +94,7 @@ staged_evidence_paths() {
 
 has_staged_yaml() {
   local line
-  while IFS= read -r line || [[ -n "${line}" ]]; do
-    [[ -z "${line}" ]] && continue
+  while IFS= read -r -d '' line; do
     if [[ "${line}" =~ \.(yaml|yml)$ ]]; then
       return 0
     fi
@@ -105,8 +104,7 @@ has_staged_yaml() {
 
 has_staged_workflows() {
   local line
-  while IFS= read -r line || [[ -n "${line}" ]]; do
-    [[ -z "${line}" ]] && continue
+  while IFS= read -r -d '' line; do
     if [[ "${line}" =~ ^\.github/workflows/.*\.ya?ml$ ]]; then
       return 0
     fi
@@ -116,8 +114,7 @@ has_staged_workflows() {
 
 has_staged_markdown() {
   local line
-  while IFS= read -r line || [[ -n "${line}" ]]; do
-    [[ -z "${line}" ]] && continue
+  while IFS= read -r -d '' line; do
     if [[ "${line}" =~ \.(md|mdc)$ ]] && [[ -f "${line}" ]]; then
       return 0
     fi
@@ -127,8 +124,7 @@ has_staged_markdown() {
 
 has_staged_python() {
   local line
-  while IFS= read -r line || [[ -n "${line}" ]]; do
-    [[ -z "${line}" ]] && continue
+  while IFS= read -r -d '' line; do
     if [[ "${line}" =~ \.(py|pyi)$ ]]; then
       return 0
     fi
@@ -138,20 +134,18 @@ has_staged_python() {
 
 staged_python_files() {
   local line
-  while IFS= read -r line || [[ -n "${line}" ]]; do
-    [[ -z "${line}" ]] && continue
+  while IFS= read -r -d '' line; do
     if [[ "${line}" =~ \.(py|pyi)$ ]] && [[ -f "${line}" ]]; then
-      printf '%s\n' "${line}"
+      printf '%s\0' "${line}"
     fi
   done < <(staged_files)
 }
 
 staged_markdown_files() {
   local line
-  while IFS= read -r line || [[ -n "${line}" ]]; do
-    [[ -z "${line}" ]] && continue
+  while IFS= read -r -d '' line; do
     if [[ "${line}" =~ \.(md|mdc)$ ]] && [[ -f "${line}" ]]; then
-      printf '%s\n' "${line}"
+      printf '%s\0' "${line}"
     fi
   done < <(staged_files)
 }
@@ -159,15 +153,14 @@ staged_markdown_files() {
 # Paths eligible for the code review gate (parity with modules: scoped prefixes; non-Python filtered by pre_commit_code_review.py).
 staged_review_gate_files() {
   local line
-  while IFS= read -r line || [[ -n "${line}" ]]; do
-    [[ -z "${line}" ]] && continue
+  while IFS= read -r -d '' line; do
     case "${line}" in
       */TDD_EVIDENCE.md|TDD_EVIDENCE.md) continue ;;
       src/*|scripts/*|tools/*|tests/*|openspec/changes/*)
         # Deletions have no working-tree file; skip them for the review runner (contract
         # tests still run because check_safe_change sees the deleted path).
         [[ -f "${line}" ]] || continue
-        printf '%s\n' "${line}"
+        printf '%s\0' "${line}"
         ;;
     esac
   done < <(staged_files)
@@ -175,8 +168,7 @@ staged_review_gate_files() {
 
 fail_if_markdown_has_unstaged_hunks() {
   local file
-  while IFS= read -r file || [[ -n "${file}" ]]; do
-    [[ -z "${file}" ]] && continue
+  while IFS= read -r -d '' file; do
     if ! git diff --quiet -- "${file}"; then
       error "❌ Cannot auto-fix Markdown with unstaged hunks: ${file}"
       warn "💡 Stage the full file or stash/revert the unstaged Markdown changes before commit"
@@ -201,8 +193,7 @@ check_safe_change() {
   local other_changes=0
   local saw_any=false
   local file
-  while IFS= read -r file || [[ -n "${file}" ]]; do
-    [[ -z "${file}" ]] && continue
+  while IFS= read -r -d '' file; do
     saw_any=true
     case "${file}" in
       src/__init__.py|src/specfact_cli/__init__.py) ;;
@@ -231,8 +222,7 @@ run_version_sources_check_if_needed() {
   local hit=0
   local f
   local p
-  while IFS= read -r f || [[ -n "${f}" ]]; do
-    [[ -z "${f}" ]] && continue
+  while IFS= read -r -d '' f; do
     for p in "${version_paths[@]}"; do
       if [[ "${f}" == "${p}" ]]; then
         hit=1
@@ -334,8 +324,7 @@ run_markdown_autofix_if_needed() {
   info "📦 Block 1 — Markdown fix — attempting safe auto-fix"
   local md_files=()
   local line
-  while IFS= read -r line || [[ -n "${line}" ]]; do
-    [[ -z "${line}" ]] && continue
+  while IFS= read -r -d '' line; do
     md_files+=("${line}")
   done < <(staged_markdown_files)
   if ((${#md_files[@]} == 0)); then
@@ -375,8 +364,7 @@ run_markdown_lint_if_needed() {
   info "📦 Block 1 — Markdown lint — running markdownlint"
   local md_files=()
   local line
-  while IFS= read -r line || [[ -n "${line}" ]]; do
-    [[ -z "${line}" ]] && continue
+  while IFS= read -r -d '' line; do
     md_files+=("${line}")
   done < <(staged_markdown_files)
   if ((${#md_files[@]} == 0)); then
@@ -419,8 +407,7 @@ run_lint_if_staged_python() {
     info "📦 Block 1 — lint — skipped (no staged *.py / *.pyi)"
     return 0
   fi
-  while IFS= read -r line || [[ -n "${line}" ]]; do
-    [[ -z "${line}" ]] && continue
+  while IFS= read -r -d '' line; do
     lint_array+=("${line}")
   done < <(staged_python_files)
   if [ ${#lint_array[@]} -eq 0 ]; then
@@ -446,7 +433,7 @@ staged_required_maturity() {
       return 1
     fi
     case "${file}" in
-      .github/*|ci/*|scripts/*|src/*|tools/*|pyproject.toml|setup.py|uv.lock|requirements/ci/locked.txt|resources/templates/*|resources/schemas/*|resources/mappings/*|resources/keys/*|modules/bundle-mapper/*)
+      .github/*|ci/*|scripts/*|src/*|tools/*|pyproject.toml|setup.py|uv.lock|requirements/ci/locked.txt|requirements/*|resources/templates/*|resources/schemas/*|resources/mappings/*|resources/keys/*|modules/bundle-mapper/*)
         printf 'verified\n'
         return 0
         ;;
@@ -477,6 +464,144 @@ has_staged_requirements_evidence_scope() {
   return 1
 }
 
+is_complete_staged_archive_move() {
+  local change_id="$1"
+  local active_prefix="openspec/changes/${change_id}"
+  local status source_path destination_path archive_relative archive_directory archive_change_path
+  local candidate="" candidate_count=0 source_count=0 destination_count=0 archive_valid=1
+  local source_entry destination_entry source_mode destination_mode source_hash destination_hash
+  local status_file candidates_file active_index_file sources_file destinations_file
+  status_file="$(mktemp)" || return 1
+  candidates_file="$(mktemp)" || {
+    rm -f "${status_file}"
+    return 1
+  }
+  active_index_file="$(mktemp)" || {
+    rm -f "${status_file}" "${candidates_file}"
+    return 1
+  }
+  sources_file="$(mktemp)" || {
+    rm -f "${status_file}" "${candidates_file}" "${active_index_file}"
+    return 1
+  }
+  destinations_file="$(mktemp)" || {
+    rm -f "${status_file}" "${candidates_file}" "${active_index_file}" "${sources_file}"
+    return 1
+  }
+
+  if ! git diff --cached --name-status -z --find-renames=100% --diff-filter=R >"${status_file}"; then
+    rm -f "${status_file}" "${candidates_file}" "${active_index_file}" "${sources_file}" "${destinations_file}"
+    return 1
+  fi
+  while IFS= read -r -d '' status; do
+    if ! IFS= read -r -d '' source_path || ! IFS= read -r -d '' destination_path; then
+      archive_valid=0
+      break
+    fi
+    [[ "${status}" == "R100" && "${source_path}" == "${active_prefix}/"* ]] || continue
+    [[ "${destination_path}" == openspec/changes/archive/*/* ]] || continue
+    archive_relative="${destination_path#openspec/changes/archive/}"
+    archive_directory="${archive_relative%%/*}"
+    archive_change_path="${archive_relative#*/}"
+    [[ "${archive_directory}" == [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-"${change_id}" ]] || continue
+    [[ "${archive_change_path}" == "${source_path#"${active_prefix}/"}" ]] || continue
+    printf '%s\n' "${archive_directory}" >>"${candidates_file}"
+  done <"${status_file}"
+
+  while IFS= read -r archive_directory || [[ -n "${archive_directory}" ]]; do
+    [[ -z "${archive_directory}" ]] && continue
+    candidate="${archive_directory}"
+    candidate_count=$((candidate_count + 1))
+  done < <(sort -u "${candidates_file}")
+  if [[ ${archive_valid} -ne 1 || ${candidate_count} -ne 1 ]]; then
+    rm -f "${status_file}" "${candidates_file}" "${active_index_file}" "${sources_file}" "${destinations_file}"
+    return 1
+  fi
+  if ! git ls-files --cached -z -- "${active_prefix}" >"${active_index_file}"; then
+    rm -f "${status_file}" "${candidates_file}" "${active_index_file}" "${sources_file}" "${destinations_file}"
+    return 1
+  fi
+  if ! git ls-tree HEAD -r -z --name-only -- "${active_prefix}" >"${sources_file}"; then
+    rm -f "${status_file}" "${candidates_file}" "${active_index_file}" "${sources_file}" "${destinations_file}"
+    return 1
+  fi
+  if ! git ls-files --cached -z -- "openspec/changes/archive/${candidate}" >"${destinations_file}"; then
+    rm -f "${status_file}" "${candidates_file}" "${active_index_file}" "${sources_file}" "${destinations_file}"
+    return 1
+  fi
+  if [[ -s "${active_index_file}" || ! -s "${sources_file}" ]]; then
+    rm -f "${status_file}" "${candidates_file}" "${active_index_file}" "${sources_file}" "${destinations_file}"
+    return 1
+  fi
+
+  while IFS= read -r -d '' source_path; do
+    source_count=$((source_count + 1))
+    destination_path="openspec/changes/archive/${candidate}/${source_path#"${active_prefix}/"}"
+    if ! source_entry="$(git ls-tree HEAD -- "${source_path}")"; then
+      archive_valid=0
+      break
+    fi
+    if ! destination_entry="$(git ls-files --stage -- "${destination_path}")"; then
+      archive_valid=0
+      break
+    fi
+    source_mode="$(awk 'NR == 1 { print $1 }' <<<"${source_entry}")"
+    source_hash="$(awk 'NR == 1 { print $3 }' <<<"${source_entry}")"
+    destination_mode="$(awk 'NR == 1 { print $1 }' <<<"${destination_entry}")"
+    destination_hash="$(awk 'NR == 1 { print $2 }' <<<"${destination_entry}")"
+    if [[ "${source_mode}" != "100644" && "${source_mode}" != "100755" ]] || \
+      [[ "${destination_mode}" != "${source_mode}" || "${source_hash}" != "${destination_hash}" ]]; then
+      archive_valid=0
+      break
+    fi
+  done <"${sources_file}"
+  while IFS= read -r -d '' destination_path; do
+    destination_count=$((destination_count + 1))
+  done <"${destinations_file}"
+  rm -f "${status_file}" "${candidates_file}" "${active_index_file}" "${sources_file}" "${destinations_file}"
+  [[ ${archive_valid} -eq 1 && ${source_count} -gt 0 && ${destination_count} -eq ${source_count} ]]
+}
+
+validate_staged_active_change_deletions() {
+  local status source_path destination_path relative_path change_id status_file
+  status_file="$(mktemp)" || return 1
+  if ! git diff --cached --name-status -z --find-renames --diff-filter=DR >"${status_file}"; then
+    error "Unable to inspect staged active-change deletions"
+    rm -f "${status_file}"
+    return 1
+  fi
+  while IFS= read -r -d '' status; do
+    if ! IFS= read -r -d '' source_path; then
+      error "Unable to read staged deletion source for ${status}"
+      rm -f "${status_file}"
+      return 1
+    fi
+    case "${status}" in
+      R*)
+        if ! IFS= read -r -d '' destination_path; then
+          error "Unable to read staged rename destination for ${status}"
+          rm -f "${status_file}"
+          return 1
+        fi
+        ;;
+    esac
+    case "${source_path}" in
+      openspec/changes/archive/*)
+        ;;
+      openspec/changes/*/*)
+        relative_path="${source_path#openspec/changes/}"
+        change_id="${relative_path%%/*}"
+        if ! is_complete_staged_archive_move "${change_id}"; then
+          error "❌ Block 2 — Active change deletion is not a complete native archive move: ${change_id}"
+          rm -f "${status_file}"
+          return 1
+        fi
+        ;;
+    esac
+  done <"${status_file}"
+  rm -f "${status_file}"
+}
+
 staged_active_change_ids() {
   local file relative_path change_ids_file
   change_ids_file="$(mktemp)" || {
@@ -494,6 +619,12 @@ staged_active_change_ids() {
       openspec/changes/archive/*)
         ;;
       openspec/changes/*/*)
+        if ! git cat-file -e ":${file}" 2>/dev/null; then
+          relative_path="${file#openspec/changes/}"
+          if is_complete_staged_archive_move "${relative_path%%/*}"; then
+            continue
+          fi
+        fi
         relative_path="${file#openspec/changes/}"
         if ! printf '%s\n' "${relative_path%%/*}" >>"${change_ids_file}"; then
           error "Unable to retain staged change identifiers"
@@ -571,6 +702,7 @@ run_requirements_evidence_gate() {
 
   mkdir -p "${report_dir}"
   rm -f "${json_report}" "${markdown_report}" "${plan_report}"
+  validate_staged_active_change_deletions || exit 1
   required_maturity="$(staged_planning_maturity)"
   if [[ "${required_maturity}" == "${STAGED_PATH_ERROR}" ]]; then
     exit 1
@@ -654,8 +786,7 @@ run_requirements_evidence_gate() {
 
 run_code_review_gate() {
   local review_array=()
-  while IFS= read -r line || [[ -n "${line}" ]]; do
-    [[ -z "${line}" ]] && continue
+  while IFS= read -r -d '' line; do
     review_array+=("${line}")
   done < <(staged_review_gate_files)
 
@@ -677,8 +808,7 @@ run_code_review_gate() {
 run_command_overview_validation_gate() {
   local hit=0
   local file
-  while IFS= read -r file || [[ -n "${file}" ]]; do
-    [[ -z "${file}" ]] && continue
+  while IFS= read -r -d '' file; do
     case "${file}" in
       src/*|docs/*|.github/*|resources/*|scripts/check-docs-commands.py|scripts/check-command-contract.py|scripts/check-documentation-accountability.py|scripts/generate-command-overview.py|README.md|llms.txt|docs/reference/commands.generated.*)
         hit=1

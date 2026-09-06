@@ -8,6 +8,7 @@ import os
 import re
 import subprocess
 import sys
+import sysconfig
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -32,6 +33,15 @@ PROOF_ENVIRONMENT_KEYS = frozenset(
         "TMPDIR",
         "VIRTUAL_ENV",
     }
+)
+PROOF_PYTEST_BOOTSTRAP = (
+    "import sys\n"
+    "site_packages = sys.argv.pop(1)\n"
+    "repo_root = sys.argv.pop(1)\n"
+    "sys.path.append(site_packages)\n"
+    "import pytest\n"
+    "sys.path.append(repo_root)\n"
+    "raise SystemExit(pytest.main(sys.argv[1:]))\n"
 )
 
 
@@ -137,14 +147,28 @@ def selectors_from_plan(plan: dict[str, object], repo_root: Path) -> list[str]:
 
 
 def _run_command(request: ProofCommand) -> int:
+    if request.arguments[1:4] != ["-P", "-c", PROOF_PYTEST_BOOTSTRAP]:
+        raise ValueError("invalid proof subprocess bootstrap")
+    isolated_arguments = [request.arguments[0], "-I", "-S", "-c", *request.arguments[3:]]
     return subprocess.run(
-        request.arguments,
+        isolated_arguments,
         check=False,
         cwd=request.cwd,
         env=request.env,
         shell=request.shell,
         timeout=request.timeout,
     ).returncode
+
+
+def _isolated_site_packages() -> str:
+    """Resolve the invoked interpreter's environment without running site initialization."""
+    environment_root = Path(sys.executable).parent.parent
+    site_packages = Path(
+        sysconfig.get_path("purelib", vars={"base": str(environment_root), "platbase": str(environment_root)})
+    )
+    if not site_packages.is_dir():
+        raise ValueError("isolated proof dependency directory is unavailable")
+    return str(site_packages)
 
 
 @beartype
@@ -169,8 +193,11 @@ def execute_plan(
     junit_path.unlink(missing_ok=True)
     arguments = [
         sys.executable,
-        "-m",
-        "pytest",
+        "-P",
+        "-c",
+        PROOF_PYTEST_BOOTSTRAP,
+        _isolated_site_packages(),
+        str(repo_root.resolve()),
         "--junitxml",
         str(junit_path),
         "-p",

@@ -8,14 +8,28 @@ active changes should be implemented.
 
 | Bucket | Count | Location |
 |---|---:|---|
-| **Active** | 19 | [`openspec/changes/`](changes/) |
-| **Parked** | 21 | [`openspec/parking-lot/`](parking-lot/) |
-| **Archived** | 115 | [`openspec/changes/archive/`](changes/archive/) |
+| **Active-tree entries** | 27 | [`openspec/changes/`](changes/) |
+| **Parking-lot entries** | 21 | [`openspec/parking-lot/`](parking-lot/) |
+| **Archived** | 119 | [`openspec/changes/archive/`](changes/archive/) |
 
-`openspec list` reflects the active set only. Parking-lot proposals are paused
-pending external signal, such as paying customer pull, third-party publisher
-adoption, or a real evidence corpus. See
+`openspec list` reflects the active tree and no longer presents the closed R08
+proposal as active work. Under an explicit owner decision on 2026-08-30, its
+complete historical folder was relocated to the dated archive without running
+`openspec archive`; no unimplemented delta entered canonical specifications.
+Completed changes still use native OpenSpec archival. Parking-lot proposals are
+paused pending external signal, such as paying customer pull, third-party
+publisher adoption, or a real evidence corpus. See
 [`parking-lot/README.md`](parking-lot/README.md) for un-park triggers.
+
+## Abandoned changes archived without specification promotion
+
+| Change | GitHub issue | Archive status |
+|---|---|---|
+| [`requirements-08-bounded-red-green-proof`](changes/archive/2026-08-30-requirements-08-bounded-red-green-proof/) | [#675](https://github.com/nold-ai/specfact-cli/issues/675) / modules [#414](https://github.com/nold-ai/specfact-cli-modules/issues/414) | Closed Not Planned; never implemented; manually relocated on 2026-08-30 without `openspec archive`; canonical specs unchanged |
+
+This is a bounded exception for an abandoned, never-implemented proposal. It is
+not precedent for completed work, which must still use `openspec archive` so
+implemented deltas are validated and promoted normally.
 
 ## Product thesis
 
@@ -38,7 +52,7 @@ brownfield delivery. The active roadmap should make that thesis stronger:
 
 ## Active tracks
 
-The 19 active changes group into three product tracks plus one reliability lane.
+The 27 active changes group into four product tracks plus one reliability lane.
 Tracks can run in parallel; within a track, follow the order column.
 
 ### Track A - Validation Evidence Spine
@@ -67,8 +81,8 @@ upstream intent-engineering product.
 
 | Order | Change | Issue | Positioning | Blocked by |
 |---:|---|---|---|---|
-| 1 | `ai-integration-01-agent-skill` | [#251](https://github.com/nold-ai/specfact-cli/issues/251) | Agent skill for running validation and reading evidence | governance-01, validation-02 |
-| 2 | `ai-integration-03-instruction-files` | [#253](https://github.com/nold-ai/specfact-cli/issues/253) | Lightweight IDE aliases for validation and remediation loops | ai-integration-01 |
+| 1 | `ai-integration-01-agent-skill` | [#251](https://github.com/nold-ai/specfact-cli/issues/251) | Discover, verify, install, update, uninstall, and canonically export module-owned skills under `.agents/skills`; no workflow-content ownership | signed modules checkpoint/conformance release [#434](https://github.com/nold-ai/specfact-cli-modules/issues/434) |
+| 2 | `ai-integration-03-instruction-files` | [#253](https://github.com/nold-ai/specfact-cli/issues/253) | Generate compact AGENTS/OpenSpec/Spec Kit and harness gate references; no validation logic or adapter packaging | ai-integration-01 |
 | 3 | `ai-integration-02-mcp-server` | [#252](https://github.com/nold-ai/specfact-cli/issues/252) | Later thin adapter with 2-3 validation tools only | CLI pull from ai-integration-01 |
 
 ### Track C - Upstream Context Adapters
@@ -85,8 +99,8 @@ planning workflows.
 | 3 | `openspec-01-intent-trace` | [#350](https://github.com/nold-ai/specfact-cli/issues/350) | Import-first OpenSpec and Spec Kit requirement evidence with pass/fail gates (rescoped 2026-07-13) | requirements-01/02 |
 | 4 | `requirements-04-upstream-source-readiness` | [#648](https://github.com/nold-ai/specfact-cli/issues/648) | Reject incomplete or policy-invalid native OpenSpec and Spec Kit sources before requirement normalization | openspec-01; paired modules #346 |
 | 5 | `requirements-06-evidence-enforcement` | [#657](https://github.com/nold-ai/specfact-cli/issues/657) | Enforce released Requirements evidence reports in staged pre-commit and pull-request delivery gates | released modules #361 fixture |
-| 6 | `requirements-07-runtime-proof-delivery` | [#662](https://github.com/nold-ai/specfact-cli/issues/662) | Execute safe scenario test plans, reconcile JUnit proof, and hand finalized Requirements context to review | modules [#368](https://github.com/nold-ai/specfact-cli-modules/issues/368) signed release |
-| 7 | `architecture-01-solution-layer` | [#240](https://github.com/nold-ai/specfact-cli/issues/240) | Architecture-boundary records and drift validation | requirements input contracts |
+| 6 | `requirements-07-runtime-proof-delivery` | [#662](https://github.com/nold-ai/specfact-cli/issues/662) | Execute exact scenario selectors and report current-run JUnit evidence independently from historical chronology | corrected modules R07 signed release |
+| 8 | `architecture-01-solution-layer` | [#240](https://github.com/nold-ai/specfact-cli/issues/240) | Architecture-boundary records and drift validation | requirements input contracts |
 | Parked | `requirements-03-backlog-sync` | [#244](https://github.com/nold-ai/specfact-cli/issues/244) | Read-first drift evidence; no write-back critical path. Deprioritized 2026-07-13 behind openspec-01 | requirements-02; modules `sync-01` |
 | Gated | `architecture-02-well-architected-review` | [#524](https://github.com/nold-ai/specfact-cli/issues/524) | Architecture-boundary review findings | architecture-01 shipped plus one usage cycle |
 | Gated | `telemetry-01-opentelemetry-default-on` | [#518](https://github.com/nold-ai/specfact-cli/issues/518) | Opt-in validation outcome telemetry only | governance-01 evidence fields |
@@ -97,9 +111,31 @@ These changes make the CLI itself trustworthy enough to be the validation tool.
 
 | Order | Change | Issue | Positioning | Blocked by |
 |---:|---|---|---|---|
+| 0 | `module-scope-02-preserve-user-installs` | [#699](https://github.com/nold-ai/specfact-cli/issues/699) | Preserve user-scoped modules when project copies shadow them; remove destructive discovery/doctor guidance | none; paired modules [#452](https://github.com/nold-ai/specfact-cli-modules/issues/452) is coordinated but independently mergeable |
 | 1 | `cli-val-03-misuse-safety-proof` | [#281](https://github.com/nold-ai/specfact-cli/issues/281) | Misuse safety proof for user-facing commands | - |
 | 2 | `cli-val-04-acceptance-test-runner` | [#282](https://github.com/nold-ai/specfact-cli/issues/282) | Acceptance-test runner for CLI behavior proof | cli-val-03 |
 | 3 | `cli-val-05-ci-integration` | [#643](https://github.com/nold-ai/specfact-cli/issues/643) | Fail-closed documentation accountability and CI validation enforcement | cli-val-02, cli-val-03, cli-val-04 |
+
+### Track E - Deterministic Pre-Implementation Assurance
+
+Core owns durable assurance interfaces and dogfood/readiness evidence. The
+modules repository owns executable validators, CLI/workflow behavior, stable
+publication, checkpoints/conformance, and external adapters. Checkpoints reuse
+the approved seal during implementation; final range conformance remains a
+separate authority class.
+
+| Order | Change | Issue | Positioning | Blocked by |
+|---:|---|---|---|---|
+| 1 | `preflight-01-design-contract-core` | [#682](https://github.com/nold-ai/specfact-cli/issues/682) | Design-contract, validation-result, canonical digest, approval-seal, and side-effect-free verifier interfaces | architecture/governance/traceability/OpenSpec import are upstream inputs, not reowned blockers |
+| 2 | `preflight-03-dogfood-hardening-and-release` (core) | [#683](https://github.com/nold-ai/specfact-cli/issues/683) | Identity-bound C14 dogfood evidence and bounded readiness decision | core C14 [#680](https://github.com/nold-ai/specfact-cli/issues/680) |
+| 3 | `preflight-05-implementation-conformance` (core) | [#684](https://github.com/nold-ai/specfact-cli/issues/684) | Worktree/index/range snapshots, sealed-obligation mapping, local checkpoint/final conformance results, findings, authority, and pure verifier | signed modules hardening/publication [#432](https://github.com/nold-ai/specfact-cli-modules/issues/432) |
+
+The cross-repository dependency sequence is:
+
+`core #682 -> modules #431 -> core C14 #680/#683 -> modules #432 -> core #684 -> modules #434 -> core #251 -> core #253 -> modules #433`.
+Modules #432 also unblocks modules C15 #417, which remains upstream of core C15
+issue #679. Native GitHub relationships, not this prose alone, are authoritative
+for readiness.
 
 ## Modify queue before implementation
 
@@ -117,13 +153,29 @@ Update each proposal first, then run strict OpenSpec validation.
 | `architecture-01-solution-layer` | Reduce to architecture-boundary validation and drift evidence. Do not generate architecture. |
 | `openspec-01-intent-trace` | Done 2026-07-13: rescoped to import-first adapter consuming native OpenSpec and Spec Kit artifacts with deterministic pass/fail gates. |
 | `dogfooding-01-full-chain-e2e-proof` | Rewrite proof around real PR review, JSON evidence, AI-bloat findings, remediation packets, rerun proof. |
-| `ai-integration-01-agent-skill` | Teach agents to run SpecFact validation and interpret evidence. |
-| `ai-integration-03-instruction-files` | Generate lightweight validation aliases only. |
+| `ai-integration-01-agent-skill` | Decision complete 2026-08-25: keep shared module-owned skill discovery, integrity, installation, update/uninstall, and canonical `.agents/skills` export only. |
+| `ai-integration-03-instruction-files` | Decision complete 2026-08-25: generate compact AGENTS/OpenSpec/Spec Kit and harness gate references only; no validation logic or external adapter packaging. |
 | `ai-integration-02-mcp-server` | Gate later, after CLI validation has pull; expose only 2-3 validation tools. |
 | `telemetry-01-opentelemetry-default-on` | Keep opt-in only and measure validation outcomes, not product-management workflow analytics. |
 | `architecture-02-well-architected-review` | Add explicit blocked status until architecture-01 ships and completes one usage cycle. |
 
 ## Implementation waves
+
+### Preflight assurance sequence - mandatory dependency gate
+
+1. Implement core `preflight-01-design-contract-core` [#682](https://github.com/nold-ai/specfact-cli/issues/682).
+2. Implement the unpublished modules runtime `preflight-02-assurance-runtime` [#431](https://github.com/nold-ai/specfact-cli-modules/issues/431).
+3. Complete core C14 adoption [#680](https://github.com/nold-ai/specfact-cli/issues/680).
+4. Run the exact preflight loop through core dogfood/readiness [#683](https://github.com/nold-ai/specfact-cli/issues/683).
+5. Harden, sign, and publish the stable modules release [#432](https://github.com/nold-ai/specfact-cli-modules/issues/432) from accepted dogfood evidence only.
+6. Implement core seal-bound checkpoint/conformance contracts [#684](https://github.com/nold-ai/specfact-cli/issues/684).
+7. Implement, dogfood, sign, and publish modules checkpoint/conformance runtime [#434](https://github.com/nold-ai/specfact-cli-modules/issues/434).
+8. Use that release for #251 -> #253 -> external adapters #433. Modules C15 #417 -> core C15 #679 may proceed from the stable #432 handoff independently.
+
+Every implementation item starts in its own issue-linked worktree and dedicated
+session. Proposal-stage preflight review may refine another pending change only
+with its owner’s explicit approval; any refinement invalidates prior readiness
+and requires a complete rerun.
 
 ### Wave 1 - Scope cleanup and archives
 
@@ -154,8 +206,8 @@ Update each proposal first, then run strict OpenSpec validation.
 
 ### Wave 4 - AI IDE validation loop
 
-- `ai-integration-01-agent-skill`
-- `ai-integration-03-instruction-files`
+- `ai-integration-01-agent-skill` after the signed preflight workflow exists.
+- `ai-integration-03-instruction-files` after canonical installation/export is released.
 - Dogfooding slice: run review on a real repo, emit JSON evidence, identify
   AI-bloat findings, hand remediation packets to an AI IDE, rerun review, and
   show improved evidence.
@@ -172,6 +224,9 @@ Update each proposal first, then run strict OpenSpec validation.
   `openspec-01`; it blocks the paired modules command/persistence patch.
 - `architecture-02`, `telemetry-01`, and `ai-integration-02` only after pull
   from the validation loop exists.
+- core/modules `preflight-05` after the signed #432 handoff and before generic
+  installation/instructions; modules `preflight-04-harness-adapters` only after
+  #253 and the signed #434 checkpoint/conformance handoff.
 
 ## Wave exit gates
 
@@ -187,6 +242,8 @@ A wave is complete only when all listed criteria are auditable:
   packets, rerun proof, and improved evidence on a real repository slice.
 - **Wave 5**: External planning artifacts are consumed as inputs. They are not
   positioned as workflows SpecFact replaces.
+- **Preflight sequence**: Exact C14 dogfood evidence produces a bounded go/no-go
+  decision; stable publication and downstream installation stay blocked on no-go.
 
 ## Ownership authority
 
@@ -204,6 +261,7 @@ Rename or reframe parent issues where possible:
 | [#257](https://github.com/nold-ai/specfact-cli/issues/257) | AI IDE validation integration |
 | [#258](https://github.com/nold-ai/specfact-cli/issues/258) | Evidence dogfooding and governance |
 | [#285](https://github.com/nold-ai/specfact-cli/issues/285) | CLI validation trust |
+| [#681](https://github.com/nold-ai/specfact-cli/issues/681) | Deterministic pre-implementation change assurance Feature under #285 |
 
 Set GitHub **Type** to Epic on the project board and link child issues via
 **Relationships -> tracks** or by setting the project **Parent** field. Project

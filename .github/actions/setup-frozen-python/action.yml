@@ -7,7 +7,7 @@ runs:
     - name: Set up uv
       uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
       with:
-        enable-cache: true
+        enable-cache: false
         cache-dependency-glob: uv.lock
     - name: Validate dependency trust before synchronization
       shell: bash

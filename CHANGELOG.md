@@ -10,6 +10,61 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.55.4] - 2026-09-02
+
+### Security
+
+- **Git dependency hardening:** upgrade the runtime GitPython floor and frozen
+  graph from 3.1.58 to 3.1.61, closing CVE-2026-78675 through CVE-2026-78678
+  while avoiding the follow-on security and compatibility regressions in 3.1.59
+  and 3.1.60.
+- **Frozen security tooling:** upgrade Semgrep to 1.175.0 and MCP to 1.29.0,
+  remove the superseded MCP vulnerability exception, and enforce both reviewed
+  security floors before synchronization.
+- **Release workflow isolation:** disable persistent Python and Requirements
+  Code Review caches, make the compatibility fixture schedule-only, and verify
+  its immutable commit and tree before exporting its path.
+- **Review dependency boundaries:** authenticate the isolated Code Review lock
+  against its source input and restrict its Pylint license exception to that
+  exact environment.
+- **Requirements proof authority:** re-execute the base-authenticated proof plan
+  on the fresh consumer and reconcile only consumer-generated JUnit.
+
+### Fixed
+
+- Fail closed on incomplete OpenSpec archive moves, failed Git enumeration,
+  repository-shadowed pytest imports, malformed bootstrap authority bytes, and
+  dash-prefixed documentation paths.
+
+---
+
+## [0.55.3] - 2026-08-29
+
+### Fixed
+
+- **Module scope diagnostics:** preserve valid user-scoped module installations
+  when a project-local copy takes precedence, and replace routine uninstall
+  advice with non-destructive origin guidance.
+- **Module registry package:** advance the bundled `module-registry` package to
+  `0.1.35` and refresh its manifest integrity metadata for the updated
+  diagnostics.
+
+---
+
+## [0.55.2] - 2026-08-27
+
+### Security
+
+- **Frozen delivery dependencies:** require patched pip 26.2 or newer in
+  development tooling, refresh the frozen graph to pip 26.2.1, and incorporate
+  the compatible pending Hatchling and setuptools updates for the `dev`
+  baseline. Upgrade the development-only publication client to Twine 7 so
+  Hatchling 1.32's Core Metadata 2.5 output remains publishable, and require
+  pip-tools 7.6.1 so module dependency resolution remains compatible with pip
+  26.2.
+
+---
+
 ## [0.55.1] - 2026-08-06
 
 ### Fixed

@@ -1,5 +1,6 @@
 {
   "minimum_versions": {
-    "semgrep": "1.171.0"
+    "mcp": "1.28.1",
+    "semgrep": "1.175.0"
   }
 }

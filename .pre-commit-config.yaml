@@ -29,6 +29,7 @@ repos:
             pyproject\.toml|
             uv\.lock|
             requirements/ci/locked\.txt|
+            requirements/code-review/(requirements\.in|locked\.txt)|
             ci/dependency-trust-exceptions\.json|
             ci/security-tool-minimum-versions\.json|
             scripts/check_dependency_trust_exceptions\.py
@@ -44,6 +45,7 @@ repos:
             pyproject\.toml|
             uv\.lock|
             requirements/ci/locked\.txt|
+            requirements/code-review/(requirements\.in|locked\.txt)|
             ci/vulnerability-audit-exceptions\.json|
             scripts/security_audit_gate\.py
           )$
@@ -86,6 +88,7 @@ repos:
         name: "CLI Block 1 — markdown auto-fix (when Markdown staged)"
         entry: ./scripts/pre-commit-quality-checks.sh block1-markdown-fix
         language: system
+        pass_filenames: false
         files: \.(md|mdc)$
         verbose: true
 

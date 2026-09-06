@@ -7,7 +7,6 @@ on:
     branches: [main, dev]
   push:
     branches: [main, dev]
-  workflow_dispatch:
   schedule:
     - cron: "17 3 * * 1"
 
@@ -54,6 +53,8 @@ jobs:
               - 'pyproject.toml'
               - 'uv.lock'
               - 'requirements/ci/locked.txt'
+              - 'requirements/code-review/requirements.in'
+              - 'requirements/code-review/locked.txt'
               - 'modules/**/module-package.yaml'
               - 'src/specfact_cli/modules/**/module-package.yaml'
               - 'scripts/check_license_compliance.py'
@@ -82,7 +83,7 @@ jobs:
           PR_HEAD_REF="${PR_HEAD_REF:-}"
           PR_BASE_SHA="${PR_BASE_SHA:-}"
           PR_HEAD_SHA="${PR_HEAD_SHA:-}"
-          if [ "$EVENT_NAME" = "workflow_dispatch" ] || [ "$EVENT_NAME" = "schedule" ]; then
+          if [ "$EVENT_NAME" = "schedule" ]; then
             {
               echo "code_changed=true"
               echo "workflow_changed=true"
@@ -184,35 +185,35 @@ jobs:
           persist-credentials: false
 
       - name: Skip when no workflow changes are present
-        if: needs.changes.outputs.workflow_changed != 'true' && github.event_name != 'workflow_dispatch'
+        if: needs.changes.outputs.workflow_changed != 'true'
         run: |
           echo "✅ No workflow changes detected; skipping workflow lint."
 
       - name: Set up Python 3.12
-        if: needs.changes.outputs.workflow_changed == 'true' || github.event_name == 'workflow_dispatch'
+        if: needs.changes.outputs.workflow_changed == 'true'
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.12"
 
       - name: Set up frozen lint dependencies
-        if: needs.changes.outputs.workflow_changed == 'true' || github.event_name == 'workflow_dispatch'
+        if: needs.changes.outputs.workflow_changed == 'true'
         uses: ./.github/actions/setup-frozen-python
 
       - name: Set up Go for actionlint
-        if: needs.changes.outputs.workflow_changed == 'true' || github.event_name == 'workflow_dispatch'
+        if: needs.changes.outputs.workflow_changed == 'true'
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c
         with:
           go-version: "1.24"
           cache: false
 
       - name: Install pinned actionlint
-        if: needs.changes.outputs.workflow_changed == 'true' || github.event_name == 'workflow_dispatch'
+        if: needs.changes.outputs.workflow_changed == 'true'
         run: |
           go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.11
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
       - name: Run workflow lint
-        if: needs.changes.outputs.workflow_changed == 'true' || github.event_name == 'workflow_dispatch'
+        if: needs.changes.outputs.workflow_changed == 'true'
         run: |
           echo "🔍 Running actionlint for workflow changes..."
           bash scripts/run_actionlint.sh
@@ -365,6 +366,7 @@ jobs:
           PYTEST_ADDOPTS: "-r fEw"
         run: |
           echo "🧪 Running full test suite (direct smart-test-full, Python 3.12)..."
+          unset GITHUB_BASE_REF
           python tools/smart_test_coverage.py run --level full
 
       - name: Generate coverage XML for quality gates
@@ -430,10 +432,12 @@ jobs:
       - name: Set up frozen compatibility dependencies
         uses: ./.github/actions/setup-frozen-python
       - name: Run Python 3.11 compatibility tests
+        shell: bash
         run: |
           echo "🔁 Python 3.11 compatibility checks"
           mkdir -p logs/compat-py311
           COMPAT_LOG="logs/compat-py311/compat_$(date -u +%Y%m%d_%H%M%S).log"
+          unset GITHUB_BASE_REF
           {
             python -m pytest -r fEw tests/unit tests/integration
             python -m coverage xml -o logs/compat-py311/coverage.xml || true
@@ -861,7 +865,7 @@ jobs:
     name: Runtime Discovery Smoke (Windows)
     runs-on: windows-latest
     needs: [changes, verify-module-signatures]
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'schedule'
     permissions:
       contents: read
     steps:
@@ -920,7 +924,7 @@ jobs:
     name: Mutation Baseline (Advisory)
     runs-on: ubuntu-latest
     needs: [changes]
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'schedule'
     permissions:
       contents: read
     steps:
@@ -1072,10 +1076,23 @@ jobs:
       - name: Set up frozen license-check dependencies
         uses: ./.github/actions/setup-frozen-python
 
+      - name: Install frozen Code Review license scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/check_reproducible_delivery.py
+          review_tools="${RUNNER_TEMP}/specfact-code-review-license-scope"
+          uv venv --python "${pythonLocation}/bin/python" "$review_tools"
+          uv pip install \
+            --python "${review_tools}/bin/python" \
+            --require-hashes \
+            -r requirements/code-review/locked.txt
+          echo "REVIEW_TOOLS_PYTHON=${review_tools}/bin/python" >> "$GITHUB_ENV"
+
       - name: Run license compliance gate
         run: |
           echo "🔍 Running license compliance gate..."
-          python scripts/check_license_compliance.py
+          python scripts/check_license_compliance.py --code-review-python "$REVIEW_TOOLS_PYTHON"
 
   dependency-trust:
     name: Dependency Trust Gate
@@ -1122,6 +1139,7 @@ jobs:
         run: |
           echo "🔍 Running CVE security audit..."
           python scripts/security_audit_gate.py
+          python scripts/security_audit_gate.py --requirement requirements/code-review/locked.txt
 
   reproducible-delivery:
     name: Reproducible Delivery Evidence
@@ -1218,7 +1236,7 @@ jobs:
   dependency-compatibility:
     name: Dependency Compatibility (Advisory)
     runs-on: ubuntu-latest
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'schedule'
     continue-on-error: true
     permissions:
       contents: read
@@ -1226,6 +1244,38 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
+
+      - name: Read immutable module fixture
+        id: compatibility-modules-fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture_ref="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          fixture_tree="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["tree"])')"
+          echo "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"
+          echo "tree=${fixture_tree}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout module bundles repo
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+          repository: nold-ai/specfact-cli-modules
+          path: specfact-cli-modules
+          ref: ${{ steps.compatibility-modules-fixture.outputs.ref }}
+
+      - name: Verify immutable module fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          actual="$(git -C specfact-cli-modules rev-parse HEAD)"
+          expected_tree="${{ steps.compatibility-modules-fixture.outputs.tree }}"
+          actual_tree="$(git -C specfact-cli-modules rev-parse 'HEAD^{tree}')"
+          test "$actual" = "$expected"
+          test "$actual_tree" = "$expected_tree"
+
+      - name: Export module bundles path
+        run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
 
       - name: Set up Python 3.12
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
@@ -1239,12 +1289,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          compatibility_deselections=(
+            --deselect=tests/unit/scripts/test_dependency_trust_review.py
+            --deselect=tests/unit/scripts/test_reproducible_delivery.py
+          )
           uv lock --upgrade
           uv sync --locked --all-extras
-          python -m pytest tests/unit -q
+          python -m pytest -q "${compatibility_deselections[@]}" tests/unit
           uv lock --resolution lowest-direct
-          uv sync --locked --all-extras
-          python -m pytest tests/unit -q
+          uv sync --locked --all-extras --resolution lowest-direct
+          python -m pytest -q "${compatibility_deselections[@]}" tests/unit
 
   package-validation:
     name: Package Validation (uvx/pip)

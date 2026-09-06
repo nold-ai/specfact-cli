@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling==1.31.0"]
+requires = ["hatchling==1.32.0"]
 build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.55.1"
+version = "0.55.4"
 description = "AI-bloat defense CLI for Python teams. Run deterministic code review, cleanup forecasts, and spec/contract evidence for AI-assisted and brownfield delivery."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -87,7 +87,7 @@ dependencies = [
     
     # Git operations
     # gitpython: CVE history (CVE-2022-24439, CVE-2023-41040, CVE-2023-40590). Phase 2: replace with dulwich.
-    "gitpython>=3.1.58",
+    "gitpython>=3.1.61",
     
     # YAML utilities
     "ruamel.yaml>=0.18.16",
@@ -117,8 +117,9 @@ telemetry = [
 ]
 
 dev = [
-    "hatchling==1.31.0",  # Frozen PEP 517 backend used by delivery wheel builds.
-    "setuptools>=83.0.0,<84",
+    "hatchling==1.32.0",  # Frozen PEP 517 backend used by delivery wheel builds.
+    "setuptools>=83.0.0,<85",
+    "pip>=26.2",  # CVE-2026-13346 is fixed in pip 26.2; tooling-only, not a core runtime dependency.
     "pytest>=8.4.2",
     "pytest-cov>=7.0.0",
     "pytest-mock>=3.15.1",
@@ -131,14 +132,14 @@ dev = [
     "radon>=6.0.1",
     "tomlkit>=0.13.3",  # Style-preserving TOML library (recommended successor to pytoml)
     "types-PyYAML>=6.0.12.20250516",
-    "pip-tools>=7.5.1",
+    "pip-tools>=7.6.1",  # First release compatible with patched pip 26.2 tooling APIs.
     "build>=1.2.2",
-    "twine>=6.1.0",
+    "twine>=7.0",
     "pipx>=1.7.1",
     "pre-commit>=4.0.1",
     "mutmut>=3.3.1",  # Scheduled mutation baseline; frozen with the contributor toolchain.
     "yamllint>=1.37.1",  # GPL-3.0-or-later — dev-only exception; replace with a non-GPL YAML lint path in Phase 2.
-    "semgrep>=1.171.0",  # LGPL-2.1 — required for code analysis; invoked as subprocess (accepted exception)
+    "semgrep>=1.175.0",  # LGPL-2.1 — reviewed security floor; requirements/ci/locked.txt freezes the exact Semgrep/MCP pair.
 
     # Same contract exploration stack as [contracts] (extras cannot self-reference)
     "crosshair-tool>=0.0.97",
@@ -159,7 +160,7 @@ dev = [
 ]
 
 scanning = [
-    "semgrep>=1.171.0",  # Optional: Only needed for code scanning features
+    "semgrep>=1.175.0",  # Optional: Only needed for code scanning features
 ]
 
 enhanced-analysis = [
@@ -195,8 +196,9 @@ python = "3.12"
 dependencies = [
     # CVE-2026-59890 is fixed in Setuptools 83.0.0. Semgrep 1.171+ supports
     # the patched build-tool line, which removes the former compatibility cap.
-    "setuptools>=83.0.0,<84",
-    "pip-tools",
+    "setuptools>=83.0.0,<85",
+    "pip>=26.2",  # Keep Hatch tooling on the patched CVE-2026-13346 line.
+    "pip-tools>=7.6.1",  # Match the first pip-tools release compatible with pip 26.2.
     "pytest",
     "pytest-cov",
     "pytest-mock",
@@ -207,7 +209,7 @@ dependencies = [
     "ruff>=0.14.2",
     "radon>=6.0.1",
     "yamllint>=1.37.1",  # GPL-3.0-or-later — dev/test-only exception. Phase 2: replace with non-GPL YAML lint path.
-    "semgrep>=1.171.0",  # LGPL-2.1 — required for code analysis; invoked as subprocess (accepted exception)
+    "semgrep>=1.175.0",  # LGPL-2.1 — reviewed security floor; requirements/ci/locked.txt freezes the exact Semgrep/MCP pair.
     # Contract-First Development Dependencies
     "icontract>=2.7.1",
     "beartype>=0.22.4",
@@ -228,7 +230,7 @@ validate-prompts = "python tools/validate_prompts.py"
 bandit-scan = "bandit -r src/ -ll"
 license-check = "python scripts/check_license_compliance.py"
 # Wrap pip-audit so JSON parsing and CVSS threshold checks fail closed.
-security-audit = "python scripts/security_audit_gate.py"
+security-audit = "python scripts/security_audit_gate.py && python scripts/security_audit_gate.py --requirement requirements/code-review/locked.txt"
 refresh-frozen-delivery = "python scripts/refresh_reproducible_delivery.py"
 # Development scripts
 test = "pytest {args}"

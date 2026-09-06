@@ -1,0 +1,92 @@
+# Change: Fix release promotion security gates
+
+## Why
+
+The frozen development graph on `dev` still resolves `mcp==1.23.3` through
+Semgrep 1.171.0, leaving three published MCP advisories in both authoritative
+lock representations. GitHub CodeQL also reports one shared cache-persistence
+sink as 24 duplicate workflow dataflows. The currently proposed PR #698 grew a
+PR-controlled amendment/provenance subsystem with two unresolved P1 findings;
+that subsystem is unnecessary now that an organization-required workflow
+authenticates an unedited member capability against the exact repository, pull
+request, branch, commit, and tree.
+
+During final pull-request verification, the frozen runtime graph also began
+reporting four newly published GitPython 3.1.58 advisories. GitPython 3.1.61 is
+the first compatible release that includes those fixes and restores the public
+`Actor.name_email_regex` attribute removed accidentally in 3.1.60.
+
+## What Changes
+
+- Disable persistent `uv` and post-fixture npm caches and retain the
+  compatibility lane only on the protected scheduled trigger.
+- Verify the immutable module fixture commit and tree before exporting its path.
+- Upgrade only the optional development/scanning tool edge to Semgrep 1.175.0
+  and its compatible fixed `mcp==1.29.0`; remove the obsolete MCP waiver.
+- Upgrade the runtime GitPython floor and frozen graph from 3.1.58 to 3.1.61;
+  avoid the follow-on security issues in 3.1.59 and compatibility regression in
+  3.1.60.
+- Make the local version gate evaluate staged follow-up metadata against the
+  fetched target branch so one unreleased patch does not require repeated bumps;
+  preserve strict `HEAD`-relative checks for later version changes and fail
+  closed on invalid explicit base revisions in CI.
+- Bind Code Review lock inputs and license exceptions to their exact isolated
+  environment and require the hash-locked export to equal a fresh constrained
+  resolution before installation.
+- Fail closed when Git cannot prove a native OpenSpec archive, and preserve
+  ordinary active-change deletes and renames using one immutable merge base.
+- Resolve installed pytest before adding the repository root, classify malformed
+  bootstrap authority as metadata failure, and protect `rg` path arguments.
+- Remove GitHub credentials from proof execution and run Code Review on a fresh
+  runner that authenticates the exact head and installs frozen tools before it
+  downloads retained evidence by immutable artifact identity.
+- Make that fresh consumer independently execute the base-authenticated proof
+  plan and reconcile only its own JUnit instead of trusting producer-uploaded
+  results, within the explicit assumption that reviewed mapped tests and the
+  production code they import do not deliberately attack the pytest process.
+- Permit one review-driven late amendment to use a test-only RED segment from
+  an exact verified cycle base, bound to live run/artifact metadata and an
+  expiring member authority for the final pull-request commit and tree.
+- Archive completed change #689 and release the next patch version, 0.55.4.
+- Do not replay PR #698's general amendment subsystem, final-producer authority,
+  expanded AST provenance framework, or systemd executor.
+
+## Capabilities
+
+### Modified Capabilities
+
+- `trustworthy-green-checks`: remove persistent privileged caches and dynamic
+  manual fixture execution while preserving required checks.
+- `dep-license-gate`: select a compatible fixed Semgrep/MCP graph and scope
+  license exceptions to the exact reviewed interpreter.
+- `requirements-runtime-proof-delivery`: authenticate archive selection and
+  prevent repository-root pytest shadowing without a new proof framework.
+
+## Impact
+
+- **Affected code:** CI setup/orchestration, frozen dependency policy, license
+  and archive checks, two small Requirements helpers, release metadata, and
+  focused tests.
+- **Security:** clears six duplicate MCP alert manifestations without an
+  exception and removes the shared CodeQL cache sink. The CodeQL exploit path is
+  unproven on the current immutable fixture, so the cache change is classified
+  as fail-closed hardening rather than a confirmed compromise. Requirements
+  execution isolates producer artifacts, configuration, plugins, startup hooks,
+  credentials, and the later review runner; it is not a sandbox for intentionally
+  hostile Python executed inside pytest.
+- **Compatibility:** the GitPython runtime floor changes from 3.1.58 to 3.1.61;
+  focused Git callers, worktree behavior, the packaged wheel, and the full suite
+  remain compatible. There are no public CLI/API changes. Twine 7.0.0,
+  Hatchling 1.32.0, Setuptools `<85`, pip 26.2.1, and Ruby JSON 2.21.2 are
+  already present and unchanged on `dev`.
+- **Documentation:** update the dependency trust record and changelog; README,
+  public guides, landing page, and navigation are unaffected.
+- **Rollback:** revert the security PR. After publication, correct through a
+  forward patch; yank only an unsafe PyPI artifact and never rewrite a tag.
+
+## Source Tracking
+
+- **GitHub Issue**: #692
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/692>
+- **Repository**: nold-ai/specfact-cli
+- **Last Synced Status**: open; in progress; assigned; labels bug/openspec/QA/security

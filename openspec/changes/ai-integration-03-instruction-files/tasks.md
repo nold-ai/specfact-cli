@@ -1,31 +1,35 @@
 # Tasks: ai-integration-03-instruction-files
 
-## 1. Branch and dependency guardrails
+All tasks below are future implementation work. This rescope completes none of them and creates no generated instruction or `TDD_EVIDENCE.md`.
 
-- [ ] 1.1 Create dedicated worktree branch `feature/ai-integration-03-instruction-files` from `dev` before implementation work: `scripts/worktree.sh create feature/ai-integration-03-instruction-files`.
-- [ ] 1.2 Verify prerequisite changes are implemented or explicitly accepted as parallel work.
-- [ ] 1.3 Reconfirm scope against the 2026-02-15 architecture integration plan and this proposal.
+## 1. Dedicated session, worktree, and readiness
 
-## 2. Spec-first and test-first preparation
+- [ ] 1.1 In a dedicated issue-linked session, create `feature/ai-integration-03-instruction-files` from current `origin/dev` in a new core worktree before any implementation edit.
+- [ ] 1.2 Refresh hierarchy metadata and verify #253 retains parent #372, is blocked by #251, has complete labels/project/assignee, and is not concurrently `In Progress`.
+- [ ] 1.3 Verify #251's released inventory/descriptor contract and current OpenSpec/Spec Kit primary-source behavior before fixing the target matrix.
 
-- [ ] 2.1 Finalize `specs/` deltas for all listed capabilities and cross-check scenario completeness.
-- [ ] 2.2 Add/update tests mapped to new and modified scenarios.
-- [ ] 2.3 Run targeted tests to capture failing-first behavior and record results in `TDD_EVIDENCE.md`.
+## 2. Specification and failing-first evidence
 
-## 3. Implementation
+- [ ] 2.1 Finalize gate fields, managed markers, inventories, OpenSpec ordering, Spec Kit extension compatibility, and invocation resolution without validator or adapter packaging scope.
+- [ ] 2.2 Add tests mapped to idempotency, malformed markers, user-content preservation, OpenSpec/Spec Kit ordering, and harness-native invocation fixtures.
+- [ ] 2.3 Run targeted tests before production edits and record failing-first results in a newly created `TDD_EVIDENCE.md`.
 
-- [ ] 3.1 Implement minimal production code required to satisfy the new scenarios.
-- [ ] 3.2 Add/update contract decorators and type enforcement on public APIs.
-- [ ] 3.3 Update command wiring, adapters, and models required by this change scope only.
-- [ ] 3.4 Keep generated aliases lightweight by emitting a one-line `specfact-code-review` clean-code reference instead of copying the full charter into every IDE instruction file.
+## 3. Minimal instruction implementation
 
-## 4. Validation and documentation
+- [ ] 3.1 Implement previewable managed-section generation for AGENTS.md and the approved core-owned target files.
+- [ ] 3.2 Implement installed-metadata invocation resolution and safe inventory-backed update/removal.
+- [ ] 3.3 Implement OpenSpec and Spec Kit ordering references while respecting each upstream tool's context ownership.
+- [ ] 3.4 Keep detailed preflight workflow content, validators, and external adapter packages out of core.
 
-- [ ] 4.1 Re-run tests and quality gates until all changed scenarios pass.
-- [ ] 4.2 Update user-facing docs and navigation for changed/added commands and workflows.
-- [ ] 4.3 Run `openspec validate ai-integration-03-instruction-files --strict` and resolve all issues.
+## 4. Passing evidence and quality gates
 
-## 5. Delivery
+- [ ] 4.1 Re-run mapped tests and fixture matrices and capture passing evidence after implementation.
+- [ ] 4.2 Run required format, type, lint, contract, smart-test, test, and SpecFact code-review gates; resolve all findings.
+- [ ] 4.3 Run `openspec status --change ai-integration-03-instruction-files --json` and `openspec validate ai-integration-03-instruction-files --strict`.
+- [ ] 4.4 Document preview, ownership markers, uninstall, OpenSpec/Spec Kit ordering, and limits using observed behavior.
 
-- [ ] 5.1 Update `openspec/CHANGE_ORDER.md` status/dependency notes if implementation sequencing changed.
-- [ ] 5.2 Open a PR from `feature/ai-integration-03-instruction-files` to `dev` with spec/test/code/docs evidence.
+## 5. Delivery and post-merge cleanup
+
+- [ ] 5.1 Hand the exact managed-section and invocation contract to modules `preflight-04-harness-adapters`.
+- [ ] 5.2 Open the implementation PR to `dev` as the final pre-merge task, linking #253, #251, and downstream adapter issue.
+- [ ] 5.3 After merge, run `openspec archive ai-integration-03-instruction-files`, update ordering/wiki source state, and remove the dedicated worktree and merged branch.

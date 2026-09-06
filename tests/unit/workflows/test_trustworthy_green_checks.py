@@ -16,6 +16,7 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PYPROJECT = REPO_ROOT / "pyproject.toml"
 PR_ORCHESTRATOR = REPO_ROOT / ".github" / "workflows" / "pr-orchestrator.yml"
+REQUIREMENTS_EVIDENCE = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"
 DOCS_REVIEW = REPO_ROOT / ".github" / "workflows" / "docs-review.yml"
 SPECFACT_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "specfact.yml"
 SIGN_MODULES = REPO_ROOT / ".github" / "workflows" / "sign-modules.yml"
@@ -88,6 +89,15 @@ def _find_named_step(job_name: str, step_name: str) -> dict[str, Any]:
     return step
 
 
+def _find_requirements_final_step(step_name: str) -> dict[str, Any]:
+    workflow = _load_yaml(REQUIREMENTS_EVIDENCE)
+    jobs = cast(dict[str, dict[str, Any]], workflow["jobs"])
+    final_steps = cast(list[dict[str, Any]], jobs["requirements-evidence-final"]["steps"])
+    step = next((item for item in final_steps if item.get("name") == step_name), None)
+    assert step is not None, f"Expected {step_name!r} step in final Requirements job"
+    return step
+
+
 def _normalized_condition(value: object) -> str:
     assert isinstance(value, str), "Expected workflow condition to be a string"
     return " ".join(value.replace('"', "'").split())
@@ -96,6 +106,20 @@ def _normalized_condition(value: object) -> str:
 def _assert_condition_contains(value: object, expected: str, *, context: str) -> None:
     normalized = _normalized_condition(value)
     assert expected in normalized, f"{context}; got {value!r}"
+
+
+def _assert_unsets_github_base_ref_before(step: dict[str, Any], command_fragment: str) -> None:
+    run_clause = step.get("run")
+    assert isinstance(run_clause, str), "Test step must define a shell run block"
+    lines = [line.strip() for line in run_clause.splitlines()]
+    assert lines.count("unset GITHUB_BASE_REF") == 1
+    unset_index = lines.index("unset GITHUB_BASE_REF")
+    command_index = next(
+        (index for index, line in enumerate(lines) if command_fragment in line),
+        None,
+    )
+    assert command_index is not None, f"Expected test launcher containing {command_fragment!r}"
+    assert unset_index < command_index, "GITHUB_BASE_REF must be unset before the test launcher"
 
 
 def test_pr_orchestrator_pypi_version_check_gated_on_version_sources() -> None:
@@ -135,6 +159,50 @@ def test_pr_orchestrator_version_sync_uses_base_sha_on_clean_ci_checkout() -> No
     assert "github.event.before" in run_clause, (
         "Version-source sync step must compare against the push 'before' SHA when applicable"
     )
+
+
+def test_primary_test_process_does_not_inherit_github_base_ref() -> None:
+    """The primary pytest launcher must not inherit pull-request routing state."""
+    step = _find_named_step("tests", "Run full test suite (direct smart-test-full)")
+    _assert_unsets_github_base_ref_before(step, "python tools/smart_test_coverage.py")
+
+
+def test_compatibility_test_process_does_not_inherit_github_base_ref() -> None:
+    """The Python 3.11 pytest launcher must not inherit pull-request routing state."""
+    step = _find_named_step("compat-py311", "Run Python 3.11 compatibility tests")
+    assert step.get("shell") == "bash", "Compatibility test isolation requires an explicit Bash shell"
+    _assert_unsets_github_base_ref_before(step, "python -m pytest")
+
+
+def test_only_test_processes_override_github_base_ref() -> None:
+    """Only the two test run blocks may remove GitHub's authentic base reference."""
+    workflow = _load_yaml(PR_ORCHESTRATOR)
+    workflow_environment = workflow.get("env")
+    assert not (isinstance(workflow_environment, dict) and "GITHUB_BASE_REF" in workflow_environment), (
+        "Workflow-level GITHUB_BASE_REF overrides are forbidden"
+    )
+
+    clearers: set[tuple[str, str]] = set()
+    for job_name, job in _load_jobs().items():
+        job_environment = job.get("env")
+        assert not (isinstance(job_environment, dict) and "GITHUB_BASE_REF" in job_environment), (
+            f"Job {job_name!r} must retain GitHub's authentic base reference"
+        )
+        for step in _load_job_steps(job_name):
+            step_environment = step.get("env")
+            assert not (isinstance(step_environment, dict) and "GITHUB_BASE_REF" in step_environment), (
+                "Reserved GitHub variables cannot be overridden through workflow env"
+            )
+            run_clause = step.get("run")
+            if isinstance(run_clause, str) and "unset GITHUB_BASE_REF" in {
+                line.strip() for line in run_clause.splitlines()
+            }:
+                clearers.add((job_name, str(step.get("name", ""))))
+
+    assert clearers == {
+        ("tests", "Run full test suite (direct smart-test-full)"),
+        ("compat-py311", "Run Python 3.11 compatibility tests"),
+    }
 
 
 def test_pr_orchestrator_required_checks_trigger_on_every_pr_head_commit() -> None:
@@ -434,6 +502,84 @@ def test_core_ci_uses_immutable_modules_fixture() -> None:
     assert "git -C specfact-cli-modules rev-parse HEAD" in raw
 
 
+def test_requirements_final_verifier_archives_trusted_module_fixture_lock() -> None:
+    """The final trusted delivery check must receive its base-sourced fixture lock."""
+    materialize = _find_requirements_final_step("Materialize trusted final Requirements core")
+    run_clause = cast(str, materialize["run"])
+    assert "ci/module-fixture.lock.json" in run_clause
+    assert 'test -f "$trusted_root/ci/module-fixture.lock.json"' in run_clause
+
+
+def test_requirements_final_review_keeps_verified_node_in_restricted_path() -> None:
+    """The final BasedPyright review must use the exact setup-node runtime."""
+    setup = _find_requirements_final_step("Set up reviewed Code Review Node runtime for final verdict")
+    install = cast(str, _find_requirements_final_step("Install frozen Code Review tools for final verdict")["run"])
+    review = cast(str, _find_requirements_final_step("Run Code Review with trusted final Requirements context")["run"])
+    assert setup["uses"] == "actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e"
+    assert cast(dict[str, str], setup["with"])["node-version"] == "24.16.0"
+    assert 'node_path="$(command -v node)"' in install
+    assert '[[ "$node_path" =~ ^/[A-Za-z0-9._/-]+/node$ && -x "$node_path" ]]' in install
+    assert 'test "$("$node_path" --version)" = "v24.16.0"' in install
+    assert '[[ "$node_bin" == /* && -d "$node_bin" ]]' in install
+    assert "FINAL_NODE_BIN=" in install
+    assert "${FINAL_NODE_BIN}" in review
+    assert 'test "$("${FINAL_NODE_BIN}/node" --version)" = "v24.16.0"' in review
+    assert review.index("${FINAL_NODE_BIN}") < review.index("${FINAL_BASEDPYRIGHT_ROOT}/node_modules/.bin")
+
+
+def test_requirements_final_review_prefers_full_verifier_python() -> None:
+    """BasedPyright must inspect code with the frozen full verifier environment."""
+    review = cast(str, _find_requirements_final_step("Run Code Review with trusted final Requirements context")["run"])
+    path_clause = next(line for line in review.splitlines() if line.startswith("PATH="))
+    assert path_clause.index("${FINAL_VERIFIER_ROOT}/bin") < path_clause.index(
+        "${RUNNER_TEMP}/final-code-review-tools/bin"
+    )
+
+
+def test_requirements_final_review_marks_no_python_target_path() -> None:
+    """A successful no-target review must explicitly suppress only its artifact."""
+    review = cast(str, _find_requirements_final_step("Run Code Review with trusted final Requirements context")["run"])
+    upload = _find_requirements_final_step("Upload final Code Review evidence artifact")
+    no_review_marker = "printf 'review-required=false\\n' >> \"$GITHUB_OUTPUT\""
+    review_marker = "printf 'review-required=true\\n' >> \"$GITHUB_OUTPUT\""
+    no_targets = 'if [[ "${#review_paths[@]}" -eq 0 ]]; then'
+
+    assert review.index(no_review_marker) < review.index("git diff --name-only")
+    assert review.index(no_targets) < review.index("exit 0") < review.index(review_marker)
+    assert upload["if"] == "always() && steps.run-final-code-review.outputs.review-required == 'true'"
+
+
+def test_requirements_final_review_requires_artifact_for_python_targets() -> None:
+    """A Python target must declare review before execution and require its report."""
+    review = cast(str, _find_requirements_final_step("Run Code Review with trusted final Requirements context")["run"])
+    upload = _find_requirements_final_step("Upload final Code Review evidence artifact")
+    review_marker = "printf 'review-required=true\\n' >> \"$GITHUB_OUTPUT\""
+
+    assert review.index(review_marker) < review.index('"${isolated_specfact[@]}" code review run')
+    assert upload["uses"] == "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+    assert upload["if"] == "always() && steps.run-final-code-review.outputs.review-required == 'true'"
+    upload_options = cast(dict[str, str], upload["with"])
+    assert upload_options["path"] == "${{ runner.temp }}/final-code-review.json"
+    assert upload_options["if-no-files-found"] == "error"
+
+
+def test_requirements_final_review_persists_failure_before_enforcement() -> None:
+    """A failing final review must retain its report without weakening the verdict."""
+    workflow = _load_yaml(REQUIREMENTS_EVIDENCE)
+    jobs = cast(dict[str, dict[str, Any]], workflow["jobs"])
+    steps = cast(list[dict[str, Any]], jobs["requirements-evidence-final"]["steps"])
+    review = _find_requirements_final_step("Run Code Review with trusted final Requirements context")
+    upload = _find_requirements_final_step("Upload final Code Review evidence artifact")
+    enforce = _find_requirements_final_step("Enforce final Code Review verdict")
+
+    assert review["id"] == "run-final-code-review"
+    assert review["continue-on-error"] is True
+    assert upload["if"] == "always() && steps.run-final-code-review.outputs.review-required == 'true'"
+    assert enforce["if"] == "steps.run-final-code-review.outcome == 'failure'"
+    assert enforce["run"] == "exit 1"
+    assert steps.index(review) < steps.index(upload) < steps.index(enforce)
+
+
 def test_license_gate_runs_for_every_frozen_dependency_graph_change() -> None:
     """Transitive lock/export refreshes must receive the license policy gate."""
     raw = PR_ORCHESTRATOR.read_text(encoding="utf-8")
@@ -464,8 +610,14 @@ def test_advisory_dependency_compatibility_lane_cannot_block_delivery() -> None:
     job = _load_jobs()["dependency-compatibility"]
     assert job.get("continue-on-error") is True
     assert "schedule" in str(job.get("if", ""))
-    raw = "\n".join(str(step.get("run", "")) for step in _load_job_steps("dependency-compatibility"))
+    steps = _load_job_steps("dependency-compatibility")
+    raw = "\n".join(str(step.get("run", "")) for step in steps)
     assert "uv lock --upgrade" in raw
+    assert "uv sync --locked --all-extras --resolution lowest-direct" in raw
+    assert any(step.get("name") == "Checkout module bundles repo" for step in steps)
+    assert "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" in raw
+    assert "--deselect=tests/unit/scripts/test_dependency_trust_review.py" in raw
+    assert "--deselect=tests/unit/scripts/test_reproducible_delivery.py" in raw
 
 
 def test_package_runtime_matrix_proves_all_declared_python_versions() -> None:
@@ -613,6 +765,94 @@ def test_publish_modules_bundled_snapshot_targets_core_repository() -> None:
             assert "${BUNDLED_REGISTRY_DOWNLOAD_BASE_URL}" in block
 
 
+def _assert_module_release_identity(raw: str) -> None:
+    assert 'RELEASE_TAG="${MODULE_SLUG}-v${MODULE_VERSION}"' in raw
+    assert 'RELEASE_TAG="${{ steps.entry.outputs.module_slug }}-v${{ steps.entry.outputs.module_version }}"' in raw
+    assert '--download-base-url "${BUNDLED_REGISTRY_DOWNLOAD_BASE_URL}/${RELEASE_TAG}"' in raw
+    assert raw.count('git merge-base --is-ancestor "${SOURCE_SHA}"') >= 2
+
+
+def _assert_module_release_retry_safety(raw: str) -> None:
+    assert raw.count('gh release create "${RELEASE_TAG}"') >= 2
+    assert raw.count('gh release download "${RELEASE_TAG}"') >= 2
+    assert "scripts/sign-modules.py" not in raw
+    assert "SPECFACT_MODULE_PRIVATE_SIGN_KEY" not in raw
+    assert raw.count('git diff --exit-code -- "${MODULE_PATH}"') >= 1
+    assert raw.count('git diff --exit-code -- "${MODULE_DIR}"') >= 1
+    assert raw.count("--verify-tag") >= 2
+    assert '--target "${SOURCE_SHA}"' not in raw
+    assert 'git push origin "${SOURCE_SHA}:refs/tags/${RELEASE_TAG}"' in raw
+    assert "Release creation did not succeed; verifying an existing immutable release." in raw
+
+
+def _assert_module_release_precedes_snapshot(raw: str) -> None:
+    for publication_block in raw.split("python scripts/update-registry-index.py")[:-1]:
+        assert publication_block.rfind('gh release download "${RELEASE_TAG}"') > publication_block.rfind(
+            'gh release create "${RELEASE_TAG}"'
+        )
+        assert publication_block.rfind('sha256sum "${DOWNLOADED_ASSET}"') > publication_block.rfind(
+            'gh release download "${RELEASE_TAG}"'
+        )
+
+
+def _publish_module_steps_by_name() -> dict[str, dict[str, Any]]:
+    workflow = _load_yaml(PUBLISH_MODULES)
+    jobs = cast(dict[str, Any], workflow["jobs"])
+    publish = cast(dict[str, Any], jobs["publish"])
+    steps = cast(list[dict[str, Any]], publish["steps"])
+    return {str(step.get("name", "")): step for step in steps}
+
+
+def _assert_publication_source_is_authenticated_first(steps_by_name: dict[str, dict[str, Any]]) -> None:
+    step_names = list(steps_by_name)
+    assert "Authenticate protected source" in step_names
+    authentication_index = step_names.index("Authenticate protected source")
+    protected_steps = ("Set up Python", "Install dependencies", "Verify checked-in module manifests (strict policy)")
+    assert all(authentication_index < step_names.index(step) for step in protected_steps)
+
+
+def _assert_candidate_publication_values_are_environment_bound(steps_by_name: dict[str, dict[str, Any]]) -> None:
+    run_scripts = "\n".join(str(step.get("run", "")) for step in steps_by_name.values())
+    candidate_expressions = (
+        "${{ github.event.inputs.module_path }}",
+        "${{ steps.resolve.outputs.module_path }}",
+        "${{ steps.entry.outputs.module_id }}",
+        "${{ steps.entry.outputs.module_slug }}",
+        "${{ steps.entry.outputs.module_version }}",
+    )
+    assert "Resolve module path (manual)" not in steps_by_name
+    assert all(expression not in run_scripts for expression in candidate_expressions)
+
+
+def _assert_one_validated_module_path_is_reused(steps_by_name: dict[str, dict[str, Any]]) -> None:
+    resolver = steps_by_name["Resolve and validate module path"]
+    resolver_env = cast(dict[str, str], resolver["env"])
+    assert resolver_env["INPUT_MODULE_PATH"] == "${{ github.event.inputs.module_path }}"
+    assert resolver_env["TAG_MODULE_PATH"] == "${{ steps.resolve.outputs.module_path }}"
+    resolver_script = str(resolver["run"])
+    assert all(
+        boundary in resolver_script
+        for boundary in ("resolve(strict=True)", "allowed_roots", "module-package.yaml", "is_symlink()")
+    )
+    for consumer_name in ("Read module metadata", "Package module"):
+        consumer = steps_by_name[consumer_name]
+        consumer_env = cast(dict[str, str], consumer["env"])
+        assert consumer_env["MODULE_PATH"] == "${{ steps.module.outputs.module_path }}"
+        assert '"${MODULE_PATH}"' in str(consumer["run"])
+
+
+def test_publish_modules_verifies_release_asset_before_snapshot_update() -> None:
+    """Bundled metadata may advance only after a protected, tag-qualified asset is verified."""
+    raw = PUBLISH_MODULES.read_text(encoding="utf-8")
+    _assert_module_release_identity(raw)
+    _assert_module_release_retry_safety(raw)
+    _assert_module_release_precedes_snapshot(raw)
+    publish_steps = _publish_module_steps_by_name()
+    _assert_publication_source_is_authenticated_first(publish_steps)
+    _assert_candidate_publication_values_are_environment_bound(publish_steps)
+    _assert_one_validated_module_path_is_reused(publish_steps)
+
+
 CANONICAL_VERSION_SOURCE_REGEX = r"^(pyproject\.toml|setup\.py|src/__init__\.py|src/specfact_cli/__init__\.py)$"
 
 
@@ -657,6 +897,19 @@ def test_pr_orchestrator_package_validation_waits_for_dependency_gates() -> None
     assert "dependency-trust" in needs
 
 
+def test_license_gate_audits_the_frozen_code_review_environment() -> None:
+    """Isolated review tools remain inside the blocking GPL/AGPL policy boundary."""
+    workflow = PR_ORCHESTRATOR.read_text(encoding="utf-8")
+    assert "requirements/code-review/requirements.in" in workflow
+    assert "requirements/code-review/locked.txt" in workflow
+    steps = _load_job_steps("license-check")
+    commands = "\n".join(str(step.get("run", "")) for step in steps)
+    assert "uv pip install" in commands
+    assert "requirements/code-review/locked.txt" in commands
+    assert "--code-review-python" in commands
+    assert "--additional-python" not in commands
+
+
 def test_dependency_trust_is_a_standalone_ci_and_pre_commit_gate() -> None:
     """Known alerted releases must be blocked locally and by a visible CI status."""
     jobs = _load_jobs()
@@ -679,10 +932,11 @@ def test_dependency_trust_is_a_standalone_ci_and_pre_commit_gate() -> None:
 
 
 def test_frozen_cve_audit_is_a_standalone_ci_and_pre_commit_gate() -> None:
-    """The advisory database must audit the committed requirements graph, not an ambient environment."""
+    """The advisory database must audit every committed frozen requirements graph."""
     steps = _load_job_steps("security-audit")
     commands = "\n".join(str(step.get("run", "")) for step in steps)
     assert "scripts/security_audit_gate.py" in commands
+    assert "--requirement requirements/code-review/locked.txt" in commands
 
     hooks = _load_hooks()
     by_id = {str(hook["id"]): hook for hook in hooks}
@@ -690,7 +944,10 @@ def test_frozen_cve_audit_is_a_standalone_ci_and_pre_commit_gate() -> None:
     assert cve_hook.get("pass_filenames") is False
     assert cve_hook.get("entry") == "hatch run security-audit"
     assert "requirements/ci/locked" in str(cve_hook.get("files", ""))
+    assert "requirements/code-review/" in str(cve_hook.get("files", ""))
     assert "vulnerability-audit-exceptions" in str(cve_hook.get("files", ""))
+    hatch_scripts = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))["tool"]["hatch"]["envs"]["default"]["scripts"]
+    assert "--requirement requirements/code-review/locked.txt" in hatch_scripts["security-audit"]
 
 
 def _assert_docs_dependabot_monitoring() -> None:

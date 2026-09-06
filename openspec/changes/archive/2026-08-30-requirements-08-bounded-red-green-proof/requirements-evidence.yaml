@@ -1,0 +1,70 @@
+schema_version: "2"
+requirements:
+  openspec:requirements-08-bounded-red-green-proof:requirements-bounded-red-green-proof:explicit-three-commit-boundary:
+    rationale: "A finite Git mutation policy replaces unbounded Python/pytest dependency inference."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#665"
+      - "nold-ai/specfact-cli#671"
+      - "nold-ai/specfact-cli#675"
+    touchpoints:
+      - id: bounded-red-green-contract
+        kind: specification
+        locator: "specs/requirements-bounded-red-green-proof/spec.md"
+    verification_cases:
+      - case_id: R08-CORE-001-S01
+        scenario_id: explicit-three-commit-boundary
+        method: inspection
+        intent: "Inspect the planned B < R < H <= D ancestry/delivery binding and all three complete declared transition allowlists, including accepted mapping, failing-before evidence, and pre-R readiness-validation evidence in B..R."
+        observable: "The specification requires an external administrator/issuer ceremony for protected signed R/H checkpoint tags, maps the pre-R CHANGE_VALIDATION readiness section, derives tag names from change ID plus frozen mapping digest, rejects candidate-controlled SHA sources, preserves the exact frozen failing/readiness section bytes from R through D, and rejects every undeclared or disallowed B..R, R..H, or H..D path/rename endpoint without runtime dependency inference. Before accepting R, task 2.10 must convert applicable cases to exact test selectors and declare the schema-accepted path-role sets in this sidecar."
+  openspec:requirements-08-bounded-red-green-proof:requirements-bounded-red-green-proof:authoritative-runtime-replay:
+    rationale: "Historical chronology is strongest when red, green-checkpoint, and delivered-head executions are replayed together."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#665"
+    touchpoints:
+      - id: bounded-replay-runner
+        kind: planned_ci_workflow
+        locator: ".github/workflows/requirements-evidence.yml"
+    verification_cases:
+      - case_id: R08-CORE-002-S01
+        scenario_id: authoritative-runtime-replay
+        method: inspection
+        intent: "Inspect the planned requirement to replay identical exact selectors with mapped expected-failure identities at R, H, and distinct delivered head D in one pinned, network-isolated environment."
+        observable: "The specification requires each selector's single red failure marker to match its frozen expected_failure_id, then one pass at H and one retained pass at distinct D; wrong same-class failures and unavailable isolation remain unproven."
+  openspec:requirements-08-bounded-red-green-proof:requirements-bounded-red-green-proof:bound-proof-attestation:
+    rationale: "Every claim must identify its snapshots, inputs, tools, limits, trust boundary, and verifier epoch."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#665"
+    touchpoints:
+      - id: bounded-proof-attestation
+        kind: planned_artifact
+        locator: ".specfact/requirements-red-green.json"
+    verification_cases:
+      - case_id: R08-CORE-003-S01
+        scenario_id: bound-proof-attestation
+        method: inspection
+        intent: "Inspect the versioned capsule bindings and core/Requirements-module ownership boundary."
+        observable: "Core validates protected signed checkpoint tags and produces Git/execution facts, including mapped and observed red failure identities, while the signed Requirements module validates exact checkpoint/identity/hash relationships without executing Git or tests."
+      - case_id: R08-CORE-003-S02
+        scenario_id: bound-proof-attestation
+        method: inspection
+        intent: "Inspect the negative verifier-promotion rule before strict enforcement."
+        observable: "A candidate verifier or policy change remains shadow-only and unproven until independently promoted under a new epoch."
+  openspec:requirements-08-bounded-red-green-proof:requirements-bounded-red-green-proof:fail-closed-unproven-state:
+    rationale: "Missing mandatory facts cannot become a green result."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#665"
+    touchpoints:
+      - id: bounded-proof-policy
+        kind: planned_policy
+        locator: "requirements-bounded-red-green-proof"
+    verification_cases:
+      - case_id: R08-CORE-004-S01
+        scenario_id: fail-closed-unproven-state
+        method: inspection
+        intent: "Inspect the planned fail-closed behavior for unresolved history, execution, isolation, capsule, scope, or identity."
+        observable: "The specification requires an explicit unproven chronology result and non-zero strict enforcement."
+      - case_id: R08-CORE-004-S02
+        scenario_id: fail-closed-unproven-state
+        method: inspection
+        intent: "Inspect that an unproven R08 claim cannot erase or inflate R07 current execution."
+        observable: "Only red_green_chronology becomes unproven; current_execution and independent Code Review remain unchanged."

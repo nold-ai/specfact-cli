@@ -6,13 +6,16 @@ import argparse
 import ast
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
+import tempfile
 from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import cast
-from xml.etree import ElementTree
+from xml.parsers import expat
 
 from beartype import beartype
 from icontract import ensure
@@ -21,6 +24,12 @@ from icontract import ensure
 GIT_OBJECT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 DIGEST_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
 MAX_TEST_BLOB_BYTES = 10 * 1024 * 1024
+MAX_JUNIT_BYTES = 10 * 1024 * 1024
+TOOLCHAIN_PROPERTY_NAMES = {
+    "runner": "specfact.runner",
+    "python": "specfact.python",
+    "pytest": "specfact.pytest",
+}
 GOVERNED_PRODUCTION_PREFIXES = (
     ".github/",
     "ci/",
@@ -31,9 +40,79 @@ GOVERNED_PRODUCTION_PREFIXES = (
     "resources/schemas/",
     "resources/mappings/",
     "resources/keys/",
+    "requirements/",
     "modules/bundle-mapper/",
 )
-GOVERNED_PRODUCTION_FILES = {"pyproject.toml", "setup.py", "uv.lock", "requirements/ci/locked.txt"}
+GOVERNED_PRODUCTION_FILES = {"pyproject.toml", "setup.py", "uv.lock"}
+
+
+@dataclass(frozen=True)
+class ParsedJunit:
+    """Only the bounded JUnit facts needed by retained-proof validation."""
+
+    cases: tuple[dict[str, tuple[str, ...]], ...]
+    has_failure: bool
+
+
+class _JunitCollector:
+    """Reject declarations and collect testcase properties without building a tree."""
+
+    def __init__(self) -> None:
+        self.cases: list[dict[str, list[str]]] = []
+        self.current_case: dict[str, list[str]] | None = None
+        self.has_failure = False
+
+    def _start(self, name: str, attributes: dict[str, str]) -> None:
+        if name == "testcase":
+            if self.current_case is not None:
+                raise ValueError("prior-red-proof-invalid")
+            self.current_case = {}
+            return
+        if self.current_case is None:
+            return
+        if name in {"failure", "error"}:
+            self.has_failure = True
+        elif name == "property":
+            self._record_property(attributes)
+
+    def _record_property(self, attributes: dict[str, str]) -> None:
+        property_name = attributes.get("name")
+        value = attributes.get("value")
+        if property_name is not None and value is not None and self.current_case is not None:
+            self.current_case.setdefault(property_name, []).append(value)
+
+    def _end(self, name: str) -> None:
+        if name == "testcase" and self.current_case is not None:
+            self.cases.append(self.current_case)
+            self.current_case = None
+
+    def _reject_declaration(self, *_arguments: object) -> int:
+        raise ValueError("prior-red-proof-invalid")
+
+    def _result(self) -> ParsedJunit:
+        if self.current_case is not None:
+            raise ValueError("prior-red-proof-invalid")
+        cases = tuple({name: tuple(values) for name, values in case.items()} for case in self.cases)
+        return ParsedJunit(cases=cases, has_failure=self.has_failure)
+
+
+def _parse_junit(payload: bytes) -> ParsedJunit:
+    """Parse bounded XML while rejecting DTD, entity, and external references."""
+    if len(payload) > MAX_JUNIT_BYTES:
+        raise ValueError("prior-red-proof-invalid")
+    collector = _JunitCollector()
+    parser = expat.ParserCreate()
+    parser.StartElementHandler = collector._start
+    parser.EndElementHandler = collector._end
+    parser.StartDoctypeDeclHandler = collector._reject_declaration
+    parser.EntityDeclHandler = collector._reject_declaration
+    parser.ExternalEntityRefHandler = collector._reject_declaration
+    parser.SetParamEntityParsing(expat.XML_PARAM_ENTITY_PARSING_NEVER)
+    try:
+        parser.Parse(payload, True)
+    except (expat.ExpatError, ValueError) as error:
+        raise ValueError("prior-red-proof-invalid") from error
+    return collector._result()
 
 
 def _git(repo_root: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
@@ -64,7 +143,7 @@ def _validated_execution_proof(report: dict[str, object]) -> dict[str, object]:
     return cast(dict[str, object], execution_proof)
 
 
-def _validated_selectors(execution_proof: dict[str, object]) -> list[object]:
+def _validated_selectors(execution_proof: dict[str, object]) -> list[str]:
     source_ref = execution_proof.get("source_ref")
     selectors = execution_proof.get("selectors")
     if (
@@ -72,9 +151,10 @@ def _validated_selectors(execution_proof: dict[str, object]) -> list[object]:
         or GIT_OBJECT_PATTERN.fullmatch(source_ref) is None
         or not isinstance(selectors, list)
         or not selectors
+        or not all(isinstance(selector, str) and selector for selector in selectors)
     ):
         raise ValueError("prior-red-proof-invalid")
-    return selectors
+    return cast(list[str], selectors)
 
 
 def _selector_paths(report: dict[str, object]) -> tuple[str, list[str]]:
@@ -109,67 +189,234 @@ def _applicable_conftest_paths(test_path: str) -> set[str]:
     return paths
 
 
-def _python_module_path(repo_root: Path, source_ref: str, module_parts: Sequence[str]) -> str | None:
-    """Resolve a repository-local Python module at the red source."""
+def _python_module_paths(module_parts: Sequence[str]) -> set[str]:
+    """Return possible paths for a repository-local module, including an absent target."""
+    if not module_parts:
+        return set()
     module_path = PurePosixPath(*module_parts)
-    for candidate in (module_path.with_suffix(".py"), module_path / "__init__.py"):
-        candidate_path = candidate.as_posix()
-        if _test_path_exists_at_ref(repo_root, source_ref, candidate_path):
-            return candidate_path
-    return None
+    paths = {module_path.with_suffix(".py").as_posix(), (module_path / "__init__.py").as_posix()}
+    for parent_depth in range(1, len(module_parts)):
+        parent_path = PurePosixPath(*module_parts[:parent_depth])
+        paths.add((parent_path / "__init__.py").as_posix())
+    return paths
 
 
-def _imported_python_paths(repo_root: Path, source_ref: str, test_path: str) -> set[str]:
-    """Return transitive repository-local Python imports used by a selected test."""
-    pending = [test_path]
+def _same_scope_children(node: ast.AST) -> list[ast.AST]:
+    """Return child nodes evaluated in the parent's lexical scope."""
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        return [*node.decorator_list, node.args, *([node.returns] if node.returns else [])]
+    if isinstance(node, ast.ClassDef):
+        return [*node.decorator_list, *node.bases, *node.keywords]
+    if isinstance(node, ast.Lambda):
+        return [node.args]
+    return list(ast.iter_child_nodes(node))
+
+
+def _same_scope_nodes(statements: Sequence[ast.stmt]) -> list[ast.AST]:
+    """Return nodes evaluated in one lexical scope, excluding dormant bodies."""
+    pending: list[ast.AST] = list(statements)
+    nodes: list[ast.AST] = []
+    while pending:
+        node = pending.pop()
+        nodes.append(node)
+        pending.extend(_same_scope_children(node))
+    return nodes
+
+
+def _pytest_plugin_assignments(
+    tree: ast.AST,
+) -> list[ast.Assign | ast.AnnAssign | ast.AugAssign | ast.NamedExpr]:
+    """Return assignments that can bind the imported module's plugin name."""
+    assignments: list[ast.Assign | ast.AnnAssign | ast.AugAssign | ast.NamedExpr] = []
+    assignment_types = (ast.Assign, ast.AnnAssign, ast.AugAssign, ast.NamedExpr)
+    if isinstance(tree, ast.Module):
+        assignments.extend(node for node in _same_scope_nodes(tree.body) if isinstance(node, assignment_types))
+    scope_types = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+    for scope in (node for node in ast.walk(tree) if isinstance(node, scope_types)):
+        scope_nodes = _same_scope_nodes(scope.body)
+        binds_module_name = any(isinstance(node, ast.Global) and "pytest_plugins" in node.names for node in scope_nodes)
+        if binds_module_name:
+            assignments.extend(node for node in scope_nodes if isinstance(node, assignment_types))
+    return assignments
+
+
+def _destructured_assignment_groups(
+    target: ast.List | ast.Tuple, value: ast.List | ast.Tuple
+) -> list[tuple[ast.expr, ast.expr]]:
+    """Pair literal sequence targets with values using Python unpacking rules."""
+    starred_indexes = [index for index, item in enumerate(target.elts) if isinstance(item, ast.Starred)]
+    if not starred_indexes:
+        return list(zip(target.elts, value.elts, strict=True)) if len(target.elts) == len(value.elts) else []
+    if len(starred_indexes) != 1 or len(value.elts) < len(target.elts) - 1:
+        return []
+    starred_index = starred_indexes[0]
+    trailing_count = len(target.elts) - starred_index - 1
+    assigned_groups: list[ast.expr] = [*value.elts[:starred_index]]
+    assigned_groups.append(
+        ast.List(elts=list(value.elts[starred_index : len(value.elts) - trailing_count or None]), ctx=ast.Load())
+    )
+    assigned_groups.extend(value.elts[-trailing_count:] if trailing_count else [])
+    return list(zip(target.elts, assigned_groups, strict=True))
+
+
+def _assigned_values(target: ast.expr, value: ast.expr) -> list[tuple[str, ast.expr]]:
+    """Return literal value nodes paired with names in a direct assignment target."""
+    if isinstance(target, ast.Name):
+        return [(target.id, value)]
+    if isinstance(target, ast.Starred):
+        return _assigned_values(target.value, value)
+    if not isinstance(target, (ast.List, ast.Tuple)) or not isinstance(value, (ast.List, ast.Tuple)):
+        return []
+    return [
+        pair
+        for item, assigned in _destructured_assignment_groups(target, value)
+        for pair in _assigned_values(item, assigned)
+    ]
+
+
+def _literal_plugin_paths(value_node: ast.expr) -> list[list[str]]:
+    """Return literal plugin paths represented by one assignment value."""
+    try:
+        value = ast.literal_eval(value_node)
+    except (ValueError, TypeError):
+        return []
+    declared_plugins = [value] if isinstance(value, str) else value
+    if not isinstance(declared_plugins, (list, tuple)):
+        return []
+    return [plugin.split(".") for plugin in declared_plugins if isinstance(plugin, str)]
+
+
+def _pytest_plugin_names(tree: ast.AST) -> list[list[str]]:
+    """Return literal ``pytest_plugins`` names that can bind module state."""
+    plugin_names: list[list[str]] = []
+    for node in _pytest_plugin_assignments(tree):
+        if node.value is None:
+            continue
+        targets = node.targets if isinstance(node, ast.Assign) else (node.target,)
+        assigned_values = [pair for target in targets for pair in _assigned_values(target, node.value)]
+        for assigned_name, value_node in assigned_values:
+            if assigned_name != "pytest_plugins":
+                continue
+            plugin_names.extend(_literal_plugin_paths(value_node))
+    return plugin_names
+
+
+def _import_module_names(tree: ast.AST, current_path: str) -> list[list[str]]:
+    """Return imported module names, including relative import candidates."""
+    current_package = list(PurePosixPath(current_path).parent.parts)
+    module_names = _pytest_plugin_names(tree)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            module_names.extend(alias.name.split(".") for alias in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            parent_parts = current_package[: max(len(current_package) - node.level + 1, 0)] if node.level else []
+            base_parts = parent_parts + (node.module.split(".") if node.module else [])
+            module_names.append(base_parts)
+            module_names.extend(base_parts + alias.name.split(".") for alias in node.names if alias.name != "*")
+    return module_names
+
+
+def _python_tree_at_ref(repo_root: Path, source_ref: str, path: str) -> ast.AST | None:
+    """Parse committed Python source without consulting mutable worktree bytes."""
+    result = _git(repo_root, "show", f"{source_ref}:{path}")
+    try:
+        return ast.parse(result.stdout) if result.returncode == 0 else None
+    except SyntaxError:
+        return None
+
+
+def _imported_python_paths(repo_root: Path, source_ref: str, source_paths: Sequence[str]) -> set[str]:
+    """Return transitive repository-local Python imports used by pytest inputs."""
+    pending = list(source_paths)
     imported_paths: set[str] = set()
     while pending:
         current_path = pending.pop()
-        result = _git(repo_root, "show", f"{source_ref}:{current_path}")
-        try:
-            tree = ast.parse(result.stdout) if result.returncode == 0 else None
-        except SyntaxError:
-            tree = None
+        tree = _python_tree_at_ref(repo_root, source_ref, current_path)
         if tree is None:
             continue
-        current_package = list(PurePosixPath(current_path).parent.parts)
-        for node in ast.walk(tree):
-            module_names: list[list[str]] = []
-            if isinstance(node, ast.Import):
-                module_names.extend(alias.name.split(".") for alias in node.names)
-            elif isinstance(node, ast.ImportFrom):
-                parent_parts = current_package[: max(len(current_package) - node.level + 1, 0)] if node.level else []
-                base_parts = parent_parts + (node.module.split(".") if node.module else [])
-                module_names.append(base_parts)
-                module_names.extend(base_parts + alias.name.split(".") for alias in node.names if alias.name != "*")
-            for module_parts in module_names:
-                imported_path = _python_module_path(repo_root, source_ref, module_parts)
-                if imported_path is not None and imported_path not in imported_paths:
-                    imported_paths.add(imported_path)
-                    pending.append(imported_path)
+        discovered_paths = {
+            imported_path
+            for module_parts in _import_module_names(tree, current_path)
+            for imported_path in _python_module_paths(module_parts)
+        }
+        for imported_path in discovered_paths - imported_paths:
+            imported_paths.add(imported_path)
+            if _test_path_exists_at_ref(repo_root, source_ref, imported_path):
+                pending.append(imported_path)
     return imported_paths
 
 
-def _validate_retained_red_junit(red_proof_path: Path, report: dict[str, object]) -> None:
+def _validate_retained_red_junit(
+    red_proof_path: Path, report: dict[str, object], *, junit_path: Path | None = None
+) -> ParsedJunit:
     """Bind the released report to a retained failing JUnit artifact."""
     execution_proof = _validated_execution_proof(report)
     expected_digest = execution_proof.get("junit_digest")
-    junit_path = red_proof_path.with_suffix(".xml")
+    retained_junit_path = junit_path or red_proof_path.with_suffix(".xml")
     try:
-        payload = junit_path.read_bytes()
-        root = ElementTree.fromstring(payload)
-    except (OSError, ElementTree.ParseError) as error:
+        if retained_junit_path.stat().st_size > MAX_JUNIT_BYTES:
+            raise ValueError("prior-red-proof-invalid")
+        payload = retained_junit_path.read_bytes()
+        parsed_junit = _parse_junit(payload)
+    except (OSError, ValueError) as error:
         raise ValueError("prior-red-proof-invalid") from error
     actual_digest = f"sha256:{hashlib.sha256(payload).hexdigest()}"
-    if expected_digest != actual_digest or (root.find(".//failure") is None and root.find(".//error") is None):
+    if expected_digest != actual_digest or not parsed_junit.has_failure:
         raise ValueError("prior-red-proof-invalid")
-    junit_selectors = {
-        str(property_node.get("value"))
-        for property_node in root.findall(".//property[@name='specfact.selector']")
-        if property_node.get("value") is not None
-    }
-    if junit_selectors != set(_validated_selectors(execution_proof)):
+    expected_selectors = set(_validated_selectors(execution_proof))
+    concrete_selectors = [selector for case in parsed_junit.cases for selector in case.get("specfact.selector", ())]
+    normalized_selectors = _normalize_junit_selectors(concrete_selectors, expected_selectors)
+    if set(normalized_selectors) != expected_selectors:
         raise ValueError("prior-red-proof-invalid")
+    return parsed_junit
+
+
+def _case_property(properties: dict[str, tuple[str, ...]], name: str) -> str:
+    """Return one non-empty JUnit case property or reject ambiguous producer evidence."""
+    values = properties.get(name, ())
+    if len(values) != 1 or not values[0]:
+        raise ValueError("prior-red-proof-invalid")
+    return values[0]
+
+
+def _normalize_junit_selector(selector: str, expected_selectors: set[str]) -> str:
+    """Map one exact pytest parameter case to an unambiguous governed selector."""
+    if selector in expected_selectors:
+        return selector
+    matches = [
+        expected
+        for expected in expected_selectors
+        if selector.startswith(f"{expected}[") and selector.endswith("]") and len(selector) > len(expected) + 2
+    ]
+    if len(matches) != 1:
+        raise ValueError("prior-red-proof-invalid")
+    return matches[0]
+
+
+def _normalize_junit_selectors(selectors: Sequence[str], expected_selectors: set[str]) -> list[str]:
+    """Map unique pytest parameter cases to their governed selectors."""
+    if len(selectors) != len(set(selectors)):
+        raise ValueError("prior-red-proof-invalid")
+    return [_normalize_junit_selector(selector, expected_selectors) for selector in selectors]
+
+
+def _toolchain_identity_from_junit(junit: ParsedJunit, selectors: Sequence[object]) -> dict[str, str]:
+    """Return one consistent toolchain identity emitted by every selected pytest case."""
+    expected_selectors = {selector for selector in selectors if isinstance(selector, str)}
+    concrete_selectors = [_case_property(properties, "specfact.selector") for properties in junit.cases]
+    normalized_selectors = _normalize_junit_selectors(concrete_selectors, expected_selectors)
+    identities = [
+        (
+            _case_property(properties, TOOLCHAIN_PROPERTY_NAMES["runner"]),
+            _case_property(properties, TOOLCHAIN_PROPERTY_NAMES["python"]),
+            _case_property(properties, TOOLCHAIN_PROPERTY_NAMES["pytest"]),
+        )
+        for properties in junit.cases
+    ]
+    if set(normalized_selectors) != expected_selectors or len(set(identities)) != 1:
+        raise ValueError("prior-red-proof-invalid")
+    identity = identities[0]
+    return dict(zip(TOOLCHAIN_PROPERTY_NAMES, identity, strict=True))
 
 
 def _artifact_is_tracked(repo_root: Path, artifact_path: Path) -> bool:
@@ -263,7 +510,7 @@ def _test_path_exists_at_ref(repo_root: Path, source_ref: str, test_path: str) -
 def _test_path_is_regular_at_ref(repo_root: Path, source_ref: str, test_path: str) -> bool:
     """Reject symlink selectors because pytest follows bytes not bound by their Git blob."""
     result = _git(repo_root, "ls-tree", source_ref, "--", test_path)
-    return result.returncode == 0 and result.stdout.startswith("100644 blob ")
+    return result.returncode == 0 and result.stdout.startswith(("100644 blob ", "100755 blob "))
 
 
 def _blob_digest_at_ref(repo_root: Path, source_ref: str, test_path: str) -> str | None:
@@ -304,6 +551,93 @@ def _validated_toolchain_identity(value: object) -> None:
         raise ValueError("prior-red-proof-invalid")
 
 
+def _write_report_atomically(red_proof_path: Path, report: dict[str, object]) -> None:
+    """Replace the report only after every producer binding has validated."""
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=red_proof_path.parent, prefix=f".{red_proof_path.name}.", delete=False
+        ) as handle:
+            temporary_path = Path(handle.name)
+            json.dump(report, handle, indent=2, sort_keys=True)
+            handle.write("\n")
+        os.replace(temporary_path, red_proof_path)
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+
+
+def _validate_binding_artifact_paths(red_proof_path: Path, junit_path: Path, repo_root: Path) -> None:
+    """Reject mutable source-controlled or link-indirected producer artifacts."""
+    paths = (red_proof_path, junit_path)
+    if any(path.is_symlink() or _artifact_is_tracked(repo_root, path) for path in paths):
+        raise ValueError("prior-red-proof-invalid")
+
+
+def _red_source_identities(repo_root: Path, base_ref: str, source_ref: str) -> tuple[str, str]:
+    """Return a committed source tree and merge base for one test-only red source."""
+    if not _is_ancestor(repo_root, base_ref, source_ref):
+        raise ValueError("prior-red-proof-invalid")
+    changed_paths = _changed_paths_in_history(repo_root, base_ref, source_ref)
+    if changed_paths is None or _has_governed_production_path(changed_paths):
+        raise ValueError("prior-red-proof-invalid")
+    source_tree_result = _git(repo_root, "rev-parse", f"{source_ref}^{{tree}}")
+    merge_base_result = _git(repo_root, "merge-base", base_ref, source_ref)
+    identities = (source_tree_result.stdout.strip(), merge_base_result.stdout.strip())
+    if (
+        source_tree_result.returncode
+        or merge_base_result.returncode
+        or any(GIT_OBJECT_PATTERN.fullmatch(identity) is None for identity in identities)
+    ):
+        raise ValueError("prior-red-proof-invalid")
+    return identities
+
+
+def _selected_test_digests(repo_root: Path, source_ref: str, selector_paths: Sequence[str]) -> dict[str, str]:
+    """Bind every selected regular test to its immutable source-commit blob."""
+    digests: dict[str, str] = {}
+    for test_path in selector_paths:
+        digest = _blob_digest_at_ref(repo_root, source_ref, test_path)
+        if digest is None or not _test_path_is_regular_at_ref(repo_root, source_ref, test_path):
+            raise ValueError("prior-red-proof-invalid")
+        digests[test_path] = digest
+    return digests
+
+
+def _merge_execution_bindings(execution_proof: dict[str, object], bindings: dict[str, object]) -> None:
+    """Add absent bindings while rejecting any producer-supplied contradiction."""
+    conflicts = {
+        field for field, value in bindings.items() if field in execution_proof and execution_proof[field] != value
+    }
+    if conflicts:
+        raise ValueError("prior-red-proof-invalid")
+    execution_proof.update(bindings)
+
+
+@beartype
+@ensure(lambda result: result is None)
+def bind_red_proof(red_proof_path: Path, repo_root: Path, *, base_ref: str, junit_path: Path | None = None) -> None:
+    """Add immutable core-owned provenance to one freshly reconciled red report."""
+    retained_junit_path = junit_path or red_proof_path.with_suffix(".xml")
+    _validate_binding_artifact_paths(red_proof_path, retained_junit_path, repo_root)
+    report = _read_red_proof(red_proof_path)
+    root = _validate_retained_red_junit(red_proof_path, report, junit_path=retained_junit_path)
+    source_ref, selector_paths = _selector_paths(report)
+    if not _valid_report_digests(report):
+        raise ValueError("prior-red-proof-invalid")
+    source_tree, merge_base = _red_source_identities(repo_root, base_ref, source_ref)
+    execution_proof = _validated_execution_proof(report)
+    bindings: dict[str, object] = {
+        "source_tree": source_tree,
+        "merge_base": merge_base,
+        "test_file_digests": _selected_test_digests(repo_root, source_ref, selector_paths),
+        "toolchain_identity": _toolchain_identity_from_junit(root, _validated_selectors(execution_proof)),
+    }
+    _merge_execution_bindings(execution_proof, bindings)
+    _validate_execution_bindings(report, repo_root, base_ref, junit_root=root)
+    _write_report_atomically(red_proof_path, report)
+
+
 def _validated_test_file_digests(value: object, selector_paths: Sequence[str]) -> dict[str, object]:
     """Return selector-complete test digests or reject the proof."""
     if not isinstance(value, dict):
@@ -315,14 +649,22 @@ def _validated_test_file_digests(value: object, selector_paths: Sequence[str]) -
 
 
 def _validate_execution_bindings(
-    report: dict[str, object], repo_root: Path, base_ref: str, source_ref: str, selector_paths: Sequence[str]
+    report: dict[str, object],
+    repo_root: Path,
+    base_ref: str,
+    *,
+    junit_root: ParsedJunit,
 ) -> None:
     """Verify every source, test, plan, and toolchain binding required by the red-proof contract."""
+    source_ref, selector_paths = _selector_paths(report)
     execution_proof = _validated_execution_proof(report)
     source_tree = execution_proof.get("source_tree")
     merge_base = execution_proof.get("merge_base")
     test_file_digests = _validated_test_file_digests(execution_proof.get("test_file_digests"), selector_paths)
-    _validated_toolchain_identity(execution_proof.get("toolchain_identity"))
+    toolchain_identity = execution_proof.get("toolchain_identity")
+    _validated_toolchain_identity(toolchain_identity)
+    if toolchain_identity != _toolchain_identity_from_junit(junit_root, _validated_selectors(execution_proof)):
+        raise ValueError("prior-red-proof-invalid")
     actual_tree = _git(repo_root, "rev-parse", f"{source_ref}^{{tree}}").stdout.strip()
     actual_merge_base = _git(repo_root, "merge-base", base_ref, source_ref).stdout.strip()
     if not _valid_report_digests(report) or source_tree != actual_tree or merge_base != actual_merge_base:
@@ -349,16 +691,24 @@ def validate_prior_red_proof(red_proof_path: Path, repo_root: Path, *, base_ref:
         return ["prior-red-proof-invalid"]
     try:
         report = _read_red_proof(red_proof_path)
-        _validate_retained_red_junit(red_proof_path, report)
-        source_ref, selector_paths = _selector_paths(report)
+        junit_root = _validate_retained_red_junit(red_proof_path, report)
+        source_ref, _ = _selector_paths(report)
     except ValueError as error:
         return [str(error)]
     if not _red_source_precedes_final(repo_root, base_ref, source_ref, final_ref):
         return ["tdd-order-unproven"]
     try:
-        _validate_execution_bindings(report, repo_root, base_ref, source_ref, selector_paths)
+        _validate_execution_bindings(report, repo_root, base_ref, junit_root=junit_root)
     except ValueError as error:
         return [str(error)]
+    return _validate_red_history_freshness(report, repo_root, base_ref, source_ref, final_ref)
+
+
+def _validate_red_history_freshness(
+    report: dict[str, object], repo_root: Path, base_ref: str, source_ref: str, final_ref: str
+) -> list[str]:
+    """Reject production-before-red and changed proof inputs after the red source."""
+    _, selector_paths = _selector_paths(report)
     paths_before_red = _changed_paths_in_history(repo_root, base_ref, source_ref)
     if paths_before_red is None:
         return ["tdd-order-unproven"]
@@ -372,10 +722,10 @@ def validate_prior_red_proof(red_proof_path: Path, repo_root: Path, *, base_ref:
             repo_root, source_ref, test_path
         ):
             return ["prior-red-proof-invalid"]
+        pytest_inputs = {test_path, *_applicable_conftest_paths(test_path)}
         proof_inputs = {
-            test_path,
-            *_applicable_conftest_paths(test_path),
-            *_imported_python_paths(repo_root, source_ref, test_path),
+            *pytest_inputs,
+            *_imported_python_paths(repo_root, source_ref, sorted(pytest_inputs)),
         }
         if not proof_inputs.isdisjoint(paths_after_red):
             return ["stale-red-proof"]
@@ -384,14 +734,15 @@ def validate_prior_red_proof(red_proof_path: Path, repo_root: Path, *, base_ref:
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--prior-red-proof", type=Path, required=True, help="Runner-produced red reconciliation report."
-    )
+    proof_mode = parser.add_mutually_exclusive_group(required=True)
+    proof_mode.add_argument("--prior-red-proof", type=Path, help="Runner-produced red reconciliation report.")
+    proof_mode.add_argument("--bind-red-proof", type=Path, help="Fresh red report to bind before artifact upload.")
+    parser.add_argument("--junit", type=Path, help="JUnit artifact written beside a fresh bind-mode report.")
     parser.add_argument("--repo-root", type=Path, default=Path.cwd(), help="Repository containing both Git sources.")
     parser.add_argument(
         "--base-ref", required=True, help="Pull-request base ref used to detect pre-red production changes."
     )
-    parser.add_argument("--final-ref", required=True, help="Final source commit under reconciliation.")
+    parser.add_argument("--final-ref", help="Final source commit under reconciliation.")
     return parser
 
 
@@ -400,6 +751,24 @@ def _build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     """Print provenance findings for the workflow's retained diagnostic report."""
     arguments = _build_parser().parse_args(argv)
+    if arguments.bind_red_proof is not None:
+        if arguments.junit is None:
+            sys.stderr.write("prior-red-proof-invalid\n")
+            return 1
+        try:
+            bind_red_proof(
+                arguments.bind_red_proof,
+                arguments.repo_root.resolve(),
+                base_ref=arguments.base_ref,
+                junit_path=arguments.junit,
+            )
+        except (OSError, ValueError, subprocess.SubprocessError) as error:
+            sys.stderr.write(f"{error}\n")
+            return 1
+        return 0
+    if arguments.prior_red_proof is None or arguments.final_ref is None:
+        sys.stderr.write("prior-red-proof-invalid\n")
+        return 1
     findings = validate_prior_red_proof(
         arguments.prior_red_proof,
         arguments.repo_root.resolve(),

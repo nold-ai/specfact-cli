@@ -1,0 +1,33 @@
+schema_version: "2"
+requirements:
+  openspec:fix-frozen-dependency-security-baseline:dep-license-gate:automated-cve-and-security-audit-gate:
+    rationale: "The patched frozen tooling graph must remain publishable without expanding SpecFact's core runtime dependencies."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#686"
+    touchpoints:
+      - id: frozen-tooling-constraints
+        kind: config_file
+        locator: "pyproject.toml"
+      - id: frozen-resolution
+        kind: lock_file
+        locator: "uv.lock"
+      - id: hashed-audit-export
+        kind: lock_file
+        locator: "requirements/ci/locked.txt"
+    verification_cases:
+      - case_id: SECURITY-686-S01
+        scenario_id: automated-cve-and-security-audit-gate
+        method: test
+        intent: "Prove both tooling surfaces require the fixed pip line while core and setup metadata remain pip-free."
+        observable: "The policy test fails when either tooling floor is absent or pip enters the runtime dependency surface."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_reproducible_delivery.py::test_reproducible_delivery_pins_patched_pip_to_tooling_only
+      - case_id: SECURITY-686-S02
+        scenario_id: automated-cve-and-security-audit-gate
+        method: test
+        intent: "Prove the locked Hatchling backend and Twine 7 publication client preserve the native metadata format."
+        observable: "The policy test requires Hatchling 1.32, Twine 7, and no legacy Core Metadata override."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_reproducible_delivery.py::test_reproducible_delivery_wheel_build_uses_a_locked_backend

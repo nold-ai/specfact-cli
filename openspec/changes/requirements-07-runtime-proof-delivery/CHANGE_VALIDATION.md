@@ -1,66 +1,53 @@
-# Change Validation Report: requirements-07-runtime-proof-delivery
+# Change Validation: Planning Correction
 
-**Validation Date:** 2026-08-05 (Europe/Berlin)
-**Change Proposal:** [proposal.md](./proposal.md)
-**Validation Method:** dependency dry-run using a temporary workspace and the
-immutable merged Modules #379 fixture.
+## Status
 
-## Executive Summary
+`PLANNED — IMPLEMENTATION EVIDENCE NOT YET AVAILABLE`
 
-- Breaking Changes: 0 detected
-- Dependent Files: 6 direct core integration files
-- Impact Level: Medium
-- Validation Result: Pass
-- User Decision: Pin only the published immutable fixture; do not use a
-  mutable module branch.
+This branch changes OpenSpec planning artifacts only. It deliberately does not claim that the corrected R07 behavior is implemented or verified.
 
-## Dependency Analysis
+## Current delivery-tree validation contract
 
-Merged Modules PR #379 adds an optional `--legacy-tdd-evidence` input to
-`requirements reconcile`. It accepts a final-stage, digest-bound legacy TDD
-ledger basis when no `--prior-red-proof` is supplied, and rejects the ambiguous
-combination. The option is additive and does not change existing red-JUnit
-reconciliation callers.
+- Planning command: `openspec validate --all --strict`.
+- Required per-change command before and after implementation: `openspec validate requirements-07-runtime-proof-delivery --strict`.
+- The authoritative planning result is the final successful SpecFact CLI Validation check on PR #674 whose recorded `head_sha` equals the PR delivery head.
+- The exact final head SHA, workflow run URL, status, and result belong in the PR/check-suite delivery record after the last content commit. They are intentionally not hard-coded here: adding a commit's own SHA to this file would change that SHA and create an impossible self-reference.
+- The earlier run for `4b12860a70c9e29dd67a01bd5f3cd55dcb86af60` is historical planning evidence only and is not evidence for the final PR tree.
+- No implementation validation result, focused-test count, failing-before artifact, or passing-after artifact exists yet.
 
-Required core updates:
+## Planning sources and constraints
 
-- `.github/workflows/requirements-evidence.yml` must verify the legacy ledger
-  digest, generate the bounded reconciliation input, and forward it only to
-  final reconciliation.
-- `ci/module-fixture.lock.json` and fixture assertions pin only the merged
-  #379 commit `69f075819be5e1ceca1446b026b0417f19e584ca`.
-- Workflow regression tests must cover the valid ledger path and stale or
-  ambiguous input rejection.
-- The runtime-discovery smoke registry must derive the recursive
-  `bundle_dependencies` closure of its bounded root module set so newly
-  declared modules-side dependencies remain installable in the isolated smoke
-  fixture.
-- The runtime-proof OpenSpec requirement and evidence mapping must explicitly
-  record the legacy migration exception without weakening normal red-JUnit
-  proof.
+- Applied sources: `AGENTS.md`, `openspec/config.yaml`, and `docs/agent-rules/40-openspec-and-tdd.md`, `60-github-change-governance.md`, and `70-release-commit-and-docs.md`.
+- GitHub governance check, live-read 2026-08-13T21:49:59Z: issue #662 exists and is open; type is User Story; parent is Feature #374; labels are `enhancement`, `openspec`, and `change-proposal`; assignee is `djm81`; its recorded blocker modules #368 is closed/completed. The ephemeral hierarchy cache was unavailable in this connector-only workspace, so the documented live-GitHub fallback was used.
+- Unverified stop condition: project assignment/project status is not exposed by the current connector, so concurrency and project readiness are not proven. Task B.3 requires a fresh cache/project check and stops implementation while either remains unavailable or ambiguous.
+- Internal wiki: unavailable in this workspace; `tasks.md` requires the exact post-merge source-page and graph-rebuild follow-up.
+- Affected planning files: `README.md`, `proposal.md`, `design.md`, `tasks.md`, `CHANGE_VALIDATION.md`, `TDD_EVIDENCE.md`, `requirements-evidence.yaml`, and both R07 delta specifications.
+- Excluded or unavailable dependencies: corrected signed modules release, accepted report-schema identity, approved signing-key/trust-root identity, internal-wiki checkout, and final R06-to-R07 archive verification.
 
-The modules reconciliation code validates the supplied record shape and its
-mapping/plan binding, but it cannot read the core repository ledger. Core must
-therefore verify that the record's `ledger_digest` equals the committed
-`TDD_EVIDENCE.md` bytes before invoking the module.
+## Future pre-implementation readiness evidence
 
-## Impact Assessment
+Before tests or source edits, task B.3 SHALL append a readiness section recording the fresh hierarchy/project/concurrency/dependency checks, source timestamps, signed-module prerequisites, exact pre-change validation commands/results, environment limitations, and stop conditions. This phase is explicitly allowed by the closed change allowlist and is not implementation or passing evidence.
 
-- **Code Impact:** CI workflow, fixture lock, and the internal
-  runtime-discovery smoke registry; no public core command signature changes.
-- **Test Impact:** workflow contract coverage and evidence-mapping selector
-  coverage require additions.
-- **Documentation Impact:** the active change specification and design require
-  a narrowly scoped migration exception. No published user documentation is
-  affected until the pinned module release is available.
-- **Release Impact:** dependency pin update follows the published modules
-  release; no separate core version bump is required for this workflow-only
-  remediation.
+## Required implementation evidence
 
-## OpenSpec Validation
+At implementation finalization, in a separate section, this file SHALL record validation scope and impact, affected files, exact commands, actual outcomes and test counts, focused and full tests, skipped or unavailable tests/dependencies with reasons, artifact locations and identities, environment limitations, approved signer/trust-root verification, and release hygiene. Planning evidence, failing-before evidence, and passing-after evidence remain separate.
 
-- **Command:** `openspec validate requirements-07-runtime-proof-delivery --strict`
-- **Status:** Pass
-- **Internal Wiki:** no matching `wiki/sources/requirements-07-runtime-proof-delivery.md`
-  exists in the sibling internal checkout; record the follow-up rather than
-  creating or assuming a mirror update.
+## Validated planning boundaries
+
+- R07 owns current-run exact-selector planning, execution, JUnit reconciliation, publication, and independent review handoff.
+- R08 owns bounded historical red-to-green replay.
+- Static inference of complete Python/pytest execution inputs is out of scope.
+- The module report must separate `current_execution` from `red_green_chronology` before core implementation begins.
+- The signed fixture must bind repository commit/tree, package and report-schema versions, manifest integrity, approved signing-key fingerprint or trust-root, and signature.
+- Code Review must consume current-run evidence without requiring or synthesizing R08 chronology.
+
+## Blockers before implementation can pass
+
+1. The paired modules planning change must be implemented and released as a signed immutable fixture.
+2. The module release must expose the accepted current-execution report schema/version and preserve chronology as a separate optional claim.
+3. Focused failing tests, exact selectors, and failing-before evidence must be recorded before production changes.
+4. Core must consume the signed module report without restoring legacy-ledger or static dependency-closure behavior.
+5. Full PR scope and all mandatory tools must resolve; unresolved evidence is not pass.
+6. Issue/project/type metadata, internal-wiki follow-up, and disposable R06-to-R07 archive verification remain incomplete.
+
+Historical green reports and the existing TDD ledger predate this correction and are not evidence that the corrected contract is satisfied.

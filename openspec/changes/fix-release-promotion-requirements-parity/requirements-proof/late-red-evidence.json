@@ -1,0 +1,26 @@
+{
+  "artifact_digest": "sha256:33699997a9426e758894b08882b56a68269cddb0c1a35e8ed4c640cfc9efa8d3",
+  "artifact_id": 9992549271,
+  "base_branch": "dev",
+  "change_id": "fix-release-promotion-requirements-parity",
+  "cycle_base_commit": "14726b9274a586f591899bf941f7081458dec027",
+  "cycle_base_tree": "8797eec7f4f6e9ed654611997535516642fd1531",
+  "failed_selectors": [
+    "tests/unit/scripts/test_requirements_promotion_reuse.py::test_exact_protected_promotion_produces_canonical_attestation",
+    "tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_workflow_revalidates_promotion_reuse_in_all_stages"
+  ],
+  "head_branch": "bugfix/692-promotion-final-context",
+  "issue": 692,
+  "junit_digest": "sha256:52141cdb93e21b4766eb16ddd6974d9ecfad6c7a17697f8d5fc5e77e20992446",
+  "kind": "late-review-red-proof",
+  "mapping_digest": "sha256:a0610b168a628cca0c96ad1bb2c08dc839d222c93092dd7bb9aabbdd4050ce32",
+  "plan_digest": "sha256:079fd5785cf28c6ef4724990b65fc63c3f70d75bf114cd7969b18f387eb854e9",
+  "plan_report_digest": "sha256:94254e4aaae42c483d1ad8c3d42a3e3ba91b9e84728e6e066124497510d40159",
+  "pull_request": 717,
+  "red_commit": "3cb4ed08c051302c23830a2471cadbb40f33b638",
+  "red_tree": "96b8791dc6282ff47a21fa7da953d998dfa5310c",
+  "report_digest": "sha256:7051e4c40cdaa51381b4d5c74faacf56c2418bfe432836e755e4f0502fdc8075",
+  "repository": "nold-ai/specfact-cli",
+  "run_id": 34044017472,
+  "schema_version": "1"
+}

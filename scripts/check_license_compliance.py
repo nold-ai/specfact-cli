@@ -10,17 +10,21 @@ Exit codes:
 
 Usage:
   python scripts/check_license_compliance.py
+  python scripts/check_license_compliance.py --additional-python /path/to/tool-env/bin/python
+  python scripts/check_license_compliance.py --code-review-python /path/to/review-env/bin/python
   hatch run license-check
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import re
 import subprocess
 import sys
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 import yaml
 from beartype import beartype
@@ -51,6 +55,13 @@ _GPL_EXPRESSIONS = frozenset(
 )
 
 _GPL_TOKEN_RE = re.compile(r"(?<![A-Za-z])(?:AGPL|GPL)", re.IGNORECASE)
+EnvironmentAllowlistScope = Literal["dev-only", "code-review-only"]
+_ALLOWLIST_SCOPES = frozenset({"dev-only", "code-review-only", "module-manifest"})
+
+
+def _is_valid_allowlist_scope(scope: object) -> bool:
+    """Return whether a parsed allowlist scope is a supported string value."""
+    return isinstance(scope, str) and scope in _ALLOWLIST_SCOPES
 
 
 @beartype
@@ -72,6 +83,7 @@ def _validate_allowlist_entry(entry: object, *, index: int, allowlist_path: Path
     lic = entry_map.get("license")
     reason = entry_map.get("reason", "")
     version = entry_map.get("version")
+    scope = entry_map.get("scope")
     if not isinstance(pkg, str) or not pkg.strip():
         raise RuntimeError(f"Allowlist exceptions[{index}] must include non-empty 'package' in {allowlist_path}")
     if not isinstance(lic, str) or not lic.strip():
@@ -80,6 +92,8 @@ def _validate_allowlist_entry(entry: object, *, index: int, allowlist_path: Path
         raise RuntimeError(f"Allowlist exceptions[{index}] must include non-empty 'reason' for package {pkg!r}")
     if version is not None and (not isinstance(version, str) or not version.strip()):
         raise RuntimeError(f"Allowlist exceptions[{index}] has invalid 'version' for package {pkg!r}")
+    if not _is_valid_allowlist_scope(scope):
+        raise RuntimeError(f"Allowlist exceptions[{index}] has invalid 'scope' for package {pkg!r}")
     return cast(dict[str, str], entry_map)
 
 
@@ -143,11 +157,14 @@ def _load_manifest_license_map(map_path: Path | None = None) -> dict[str, str]:
     return out
 
 
-def _run_pip_licenses() -> str:
+def _run_pip_licenses(python_executable: Path | None = None) -> str:
     """Run pip-licenses and return raw JSON output string (empty if the subprocess fails)."""
+    command = [sys.executable, "-m", "piplicenses", "--format=json"]
+    if python_executable is not None:
+        command.extend(("--python", str(python_executable)))
     try:
         result = subprocess.run(
-            [sys.executable, "-m", "piplicenses", "--format=json"],
+            command,
             capture_output=True,
             text=True,
             timeout=60,
@@ -219,13 +236,19 @@ def _allowlist_version_matches_observed(
 
 @beartype
 def _matching_allowlist_entries(
-    entries: list[dict[str, str]], license_expr: str, version: str, *, require_version: bool = False
+    entries: list[dict[str, str]],
+    license_expr: str,
+    version: str,
+    *,
+    allowlist_scope: EnvironmentAllowlistScope = "dev-only",
+    require_version: bool = False,
 ) -> list[dict[str, str]]:
     """Return reviewed entries matching observed license metadata and version."""
     return [
         entry
         for entry in entries
-        if _allowlist_license_matches_observed(str(entry.get("license", "")), license_expr)
+        if entry.get("scope") == allowlist_scope
+        and _allowlist_license_matches_observed(str(entry.get("license", "")), license_expr)
         and _allowlist_version_matches_observed(entry, version, require_version=require_version)
     ]
 
@@ -240,9 +263,22 @@ def _emit_allowlist_exception(name: str, version: str, license_expr: str, entrie
 
 
 @beartype
-def _evaluate_mixed_gpl_metadata(name: str, version: str, license_expr: str, entries: list[dict[str, str]]) -> int:
+def _evaluate_mixed_gpl_metadata(
+    name: str,
+    version: str,
+    license_expr: str,
+    entries: list[dict[str, str]],
+    *,
+    allowlist_scope: EnvironmentAllowlistScope,
+) -> int:
     """Require a version-specific review for metadata mixing GPL and permissive terms."""
-    reviewed_entries = _matching_allowlist_entries(entries, license_expr, version, require_version=True)
+    reviewed_entries = _matching_allowlist_entries(
+        entries,
+        license_expr,
+        version,
+        allowlist_scope=allowlist_scope,
+        require_version=True,
+    )
     if reviewed_entries:
         _emit_allowlist_exception(name, version, license_expr, reviewed_entries)
         return 0
@@ -257,6 +293,8 @@ def _evaluate_mixed_gpl_metadata(name: str, version: str, license_expr: str, ent
 def _evaluate_env_package(
     pkg: dict[str, Any],
     allowlist: dict[str, list[dict[str, str]]],
+    *,
+    allowlist_scope: EnvironmentAllowlistScope = "dev-only",
 ) -> int:
     """Return 1 when the package is a GPL violation, else 0."""
     name = str(pkg.get("Name", ""))
@@ -271,12 +309,23 @@ def _evaluate_env_package(
     entries_all = allowlist.get(name_lower, [])
 
     if _is_mixed_gpl_metadata(license_expr):
-        return _evaluate_mixed_gpl_metadata(name, version, license_expr, entries_all)
+        return _evaluate_mixed_gpl_metadata(
+            name,
+            version,
+            license_expr,
+            entries_all,
+            allowlist_scope=allowlist_scope,
+        )
 
     if not _is_gpl(license_expr):
         return 0
 
-    entries = _matching_allowlist_entries(entries_all, license_expr, version)
+    entries = _matching_allowlist_entries(
+        entries_all,
+        license_expr,
+        version,
+        allowlist_scope=allowlist_scope,
+    )
     if entries:
         _emit_allowlist_exception(name, version, license_expr, entries)
         return 0
@@ -290,6 +339,8 @@ def _evaluate_env_package(
 def scan_installed_environment(
     allowlist: dict[str, list[dict[str, str]]] | None = None,
     allowlist_path: Path | None = None,
+    python_executable: Path | None = None,
+    allowlist_scope: EnvironmentAllowlistScope = "dev-only",
 ) -> int:
     """
     Scan the installed Python environment for GPL/AGPL packages.
@@ -297,6 +348,8 @@ def scan_installed_environment(
     Args:
         allowlist: Pre-loaded allowlist dict {package_lower: [entry, ...]}. If None, loads from disk.
         allowlist_path: Path to license_allowlist.yaml override.
+        python_executable: Optional interpreter whose installed distributions are scanned.
+        allowlist_scope: Exact environment scope whose reviewed exceptions may apply.
 
     Returns:
         0 on clean pass, 1 on violation.
@@ -304,7 +357,7 @@ def scan_installed_environment(
     if allowlist is None:
         allowlist = _load_allowlist(allowlist_path)
 
-    raw = _run_pip_licenses()
+    raw = _run_pip_licenses(python_executable)
     if not raw.strip():
         _emit(
             "ERROR: pip-licenses produced no usable output — cannot verify licenses (fail closed)",
@@ -322,9 +375,10 @@ def scan_installed_environment(
 
     violations = 0
     for pkg in packages:
-        violations += _evaluate_env_package(pkg, allowlist)
+        violations += _evaluate_env_package(pkg, allowlist, allowlist_scope=allowlist_scope)
 
-    _emit(f"\nEnvironment scan: {len(packages)} packages checked, {violations} violation(s)")
+    target = str(python_executable) if python_executable is not None else str(sys.executable)
+    _emit(f"\nEnvironment scan ({target}): {len(packages)} packages checked, {violations} violation(s)")
     return 1 if violations > 0 else 0
 
 
@@ -514,10 +568,31 @@ def scan_module_manifests(
     return 1 if violations > 0 else 0
 
 
+def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
+    """Parse explicit additional environments that remain inside the license boundary."""
+    parser = argparse.ArgumentParser(description="Check repository Python dependency licenses.")
+    parser.add_argument(
+        "--additional-python",
+        action="append",
+        default=[],
+        type=Path,
+        help="Additional Python interpreter whose installed distributions must be scanned.",
+    )
+    parser.add_argument(
+        "--code-review-python",
+        action="append",
+        default=[],
+        type=Path,
+        help="Hash-locked Code Review interpreter eligible for Code Review-only exceptions.",
+    )
+    return parser.parse_args(argv)
+
+
 @beartype
 @ensure(lambda result: result in (0, 1))
-def main() -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     """Run both env and manifest scans. Return combined exit code."""
+    args = _parse_args(argv)
     try:
         allowlist = _load_allowlist()
     except RuntimeError as exc:
@@ -530,6 +605,16 @@ def main() -> int:
 
     _emit("\n--- Installed environment scan ---")
     env_exit = scan_installed_environment(allowlist=allowlist)
+    for python_executable in args.additional_python:
+        _emit(f"\n--- Additional environment scan: {python_executable} ---")
+        env_exit |= scan_installed_environment(allowlist=allowlist, python_executable=python_executable)
+    for python_executable in args.code_review_python:
+        _emit(f"\n--- Code Review environment scan: {python_executable} ---")
+        env_exit |= scan_installed_environment(
+            allowlist=allowlist,
+            python_executable=python_executable,
+            allowlist_scope="code-review-only",
+        )
 
     _emit("\n--- Module manifest scan ---")
     try:

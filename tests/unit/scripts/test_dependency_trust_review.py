@@ -246,4 +246,4 @@ def test_semgrep_lock_below_reviewed_security_floor_fails_before_install(tmp_pat
 
     errors = checker.validate_frozen_dependency_policy(register_path, lock_path, today=date(2026, 7, 24))
 
-    assert errors == ["semgrep==1.70.1 is below the reviewed security floor 1.171.0"]
+    assert errors == ["semgrep==1.70.1 is below the reviewed security floor 1.175.0"]

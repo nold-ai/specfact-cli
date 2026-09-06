@@ -7,6 +7,7 @@
 #   reason   — why the exception is accepted
 #   scope    — where the exception applies:
 #              "dev-only"         → accepted in dev env scan, BLOCKED in module manifests
+#              "code-review-only" → accepted only in the hash-locked isolated review environment
 #              "module-manifest"  → accepted in module manifest scan (e.g. LGPL subprocess use)
 # Package names should stay lowercase to match normalized pip/package metadata.
 #
@@ -28,6 +29,16 @@ exceptions:
       Hatch/pre-commit/CI until a non-GPL replacement is adopted. Must NEVER
       appear in module manifests.
     scope: dev-only
+
+  - package: pylint
+    version: "4.0.7"
+    license: GPL-2.0-or-later
+    reason: >
+      Hash-locked isolated Code Review environment only; never installed by the
+      runtime package or a module manifest. Phase 2: replace Pylint with the
+      existing Ruff/BasedPyright review path once equivalent semantic findings
+      and the full-enforcement report contract are preserved.
+    scope: code-review-only
 
   - package: docutils
     version: "0.23"

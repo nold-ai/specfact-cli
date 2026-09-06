@@ -1,0 +1,105 @@
+schema_version: "2"
+x-planning-rationale: &planning-rationale "The proposal must make this requirement reviewable before implementation begins."
+x-planning-touchpoints: &planning-touchpoints
+  - id: openspec-source-spec
+    kind: config_file
+    locator: "openspec/changes/preflight-05-implementation-conformance/specs/preflight-implementation-conformance-contracts/spec.md"
+x-planning-observable: &planning-observable >-
+  Strict OpenSpec validation retains the requirement and its scenarios
+  without claiming implementation or test execution.
+requirements:
+  openspec:preflight-05-implementation-conformance:preflight-implementation-conformance-contracts:closed-implementation-assurance-finding-classes:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#684"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: PF05C-001
+        scenario_id: closed-implementation-assurance-finding-classes
+        method: inspection
+        intent: "Inspect the closed implementation assurance finding classes planning contract before implementation."
+        observable: *planning-observable
+      - case_id: PF05C-008
+        scenario_id: closed-implementation-assurance-finding-classes
+        method: inspection
+        intent: >-
+          Inspect the reconciled semantic-evidence violation scenario, stable
+          identities, and finding precedence before implementation.
+        observable: *planning-observable
+  openspec:preflight-05-implementation-conformance:preflight-implementation-conformance-contracts:explicit-implementation-assurance-limits:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#684"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: PF05C-002
+        scenario_id: explicit-implementation-assurance-limits
+        method: inspection
+        intent: "Inspect the explicit implementation assurance limits planning contract before implementation."
+        observable: *planning-observable
+  openspec:preflight-05-implementation-conformance:preflight-implementation-conformance-contracts:sealed-obligation-mapping:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#684"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: PF05C-003
+        scenario_id: sealed-obligation-mapping
+        method: inspection
+        intent: "Inspect checkpoint subset and exhaustive result-bound final range obligation mapping before implementation."
+        observable: *planning-observable
+  openspec:preflight-05-implementation-conformance:preflight-implementation-conformance-contracts:side-effect-free-implementation-assurance-verifier:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#684"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: PF05C-004
+        scenario_id: side-effect-free-implementation-assurance-verifier
+        method: inspection
+        intent: "Inspect the side effect free implementation assurance verifier planning contract before implementation."
+        observable: *planning-observable
+      - case_id: PF05C-009
+        scenario_id: side-effect-free-implementation-assurance-verifier
+        method: inspection
+        intent: >-
+          Inspect kind-specific verifier inputs so local checkpoints omit
+          range-only delivery-target identity while final range comparison
+          requires it.
+        observable: *planning-observable
+  openspec:preflight-05-implementation-conformance:preflight-implementation-conformance-contracts:versioned-implementation-snapshot:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#684"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: PF05C-005
+        scenario_id: versioned-implementation-snapshot
+        method: inspection
+        intent: >-
+          Inspect independent worktree, index, and range snapshot boundaries;
+          immutable implementation-lineage-origin baseline identity across
+          successor seals; origin-to-head ancestry; exact authorized
+          current-delivery-head equality; and complete origin-to-delivery-head
+          manifest coverage. Verify that the manifest contract explicitly covers
+          untracked paths where applicable, additions, deletions, both rename
+          endpoints, file-mode changes, symlink targets, byte-preserving path
+          identity, and invalid-absence results. Also inspect role-independent
+          public-interface observation completeness and provenance-bound absent
+          tombstones before implementation.
+        observable: *planning-observable
+  openspec:preflight-05-implementation-conformance:preflight-implementation-conformance-contracts:separate-local-checkpoint-result:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#684"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: PF05C-006
+        scenario_id: separate-local-checkpoint-result
+        method: inspection
+        intent: "Inspect local checkpoint states and authority separation before implementation."
+        observable: *planning-observable
+  openspec:preflight-05-implementation-conformance:preflight-implementation-conformance-contracts:immutable-implementation-conformance-result:
+    rationale: *planning-rationale
+    stakeholder_refs: ["nold-ai/specfact-cli#684"]
+    touchpoints: *planning-touchpoints
+    verification_cases:
+      - case_id: PF05C-007
+        scenario_id: immutable-implementation-conformance-result
+        method: inspection
+        intent: "Inspect immutable range requirements for final conformance before implementation."
+        observable: *planning-observable
