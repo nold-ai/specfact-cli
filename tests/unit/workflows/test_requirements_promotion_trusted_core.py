@@ -46,14 +46,17 @@ def _assert_materializes_from_exact_main_base(tmp_path: Path, step_name: str, ro
 
 
 def test_promotion_trusted_core_materializes_from_exact_main_base(tmp_path: Path) -> None:
-    """The producer-side trusted core must retain the frozen review inputs."""
-    _assert_materializes_from_exact_main_base(
-        tmp_path, "Materialize trusted Requirements core", "TRUSTED_REQUIREMENTS_ROOT"
+    """Both trusted cores must retain the frozen review inputs."""
+    failures: list[str] = []
+    steps = (
+        ("Materialize trusted Requirements core", "TRUSTED_REQUIREMENTS_ROOT"),
+        ("Materialize trusted final Requirements core", "FINAL_TRUSTED_ROOT"),
     )
-
-
-def test_final_promotion_trusted_core_materializes_from_exact_main_base(tmp_path: Path) -> None:
-    """The final trusted core must retain the frozen review inputs."""
-    _assert_materializes_from_exact_main_base(
-        tmp_path, "Materialize trusted final Requirements core", "FINAL_TRUSTED_ROOT"
-    )
+    for step_name, root_variable in steps:
+        step_tmp_path = tmp_path / root_variable
+        step_tmp_path.mkdir()
+        try:
+            _assert_materializes_from_exact_main_base(step_tmp_path, step_name, root_variable)
+        except AssertionError as error:
+            failures.append(f"{step_name}: {error}")
+    assert not failures, "\n\n".join(failures)
