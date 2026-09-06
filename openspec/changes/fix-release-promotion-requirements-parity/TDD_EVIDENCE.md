@@ -180,3 +180,249 @@ access without requiring loader-side module registration. The previously
 masked selector-identity test also supplies the legacy scope that its synthetic
 `verified`/`final` artifact models. The exact three failed selectors pass on
 Python 3.11.15 and Python 3.12.13 (`3 passed` on each interpreter).
+
+## Main-relative trusted-core materialization regression
+
+After PR #715 merged, PR #691 Requirements run `33999408584`, attempt 2,
+authenticated the exact promotion and passed its producer. The fresh consumer
+then failed in job `101395635109` before validation because `git archive` asked
+the `main` merge base for `requirements/code-review/requirements.in`, which
+exists only on `dev`. The runtime uses the frozen
+`requirements/code-review/locked.txt`; it never consumes the source input.
+This hosted failure is the RED evidence for making both main-relative trusted
+core manifests materializable without weakening the frozen review environment.
+The strengthened regression executed both materialization steps against the
+exact `origin/main` merge base and failed twice (`2 failed`) because that base
+does not contain the Code Review source input or frozen lock.
+
+At `2026-09-06T12:53:44Z`, both materializers passed against that same base
+after adding a fail-closed bootstrap limited to base commit
+`b1e517e60e669eaba15a18ecfa83ef5a9df65276` and the exact commit, tree, and two
+blob identities from already-merged security commit
+`3ea3d9b4492ade6ec5683fac83c5b5090b0cb547`. The focused workflow and security
+surface passed (`104 passed`), the direct materialization regression passed
+(`1 passed`), `actionlint .github/workflows/requirements-evidence.yml` passed,
+and strict OpenSpec validation and `git diff --check` passed.
+
+## Trusted-core source-identity review regression
+
+CodeRabbit comment `3944012887` correctly identified that the first regression
+proved only that both files materialized, not that the workflow authenticated
+their exact archive source and relationship to the promotion history. The
+test-authored mapping digest
+`sha256:151e13b42ce1075789dd72dcea1c2f438910a7835b4d67798e4fa2149a0177d2`
+was approved by exact, unedited issue #692 MEMBER comment `5559422472`.
+
+The authorized append-only proof cycle retained these immutable commits:
+
+- C4 commit: `21e312e5c48a5e5e6271ff609960fceb0f698249`
+- C4 tree: `efca20a7f2d5e6f32593a21f40358dfc85fab6a0`
+- R4 test-only commit: `415f01725c9a0451e1b8f70cdf0e1382212f8844`
+- R4 tree: `efabf76f5a371cd120b4bcb8439439776afd32fb`
+- GitHub Actions run: `34035393659`
+- artifact: `9989994962` (`requirements-evidence`)
+- service artifact digest:
+  `sha256:211be475f482b91426577ba332c7720b0ebbe9a16fd31a72a012c879f95e4234`
+- evidence JSON SHA-256:
+  `12be4e9bbe708387b0d7f03a85abdf618d94efbbd6cec16659fa6491315ebd42`
+- plan report SHA-256:
+  `94254e4aaae42c483d1ad8c3d42a3e3ba91b9e84728e6e066124497510d40159`
+- JUnit SHA-256:
+  `c79b182e321a79f0cf05093b92c35637d034eee8946c36b4fb1c4249982a2bdf`
+- result: six collected cases, with only the mapped trusted-core selector
+  failing because the C4 tree intentionally contained one archive rather than
+  the required authenticated base/source split
+
+At `2026-09-06T13:19:08Z`, G4 restored both bootstrap blocks exactly and the
+strengthened selector passed. It asserts the exact legacy base, source commit,
+source tree, two source blobs, base-to-source and source-to-HEAD ancestry, both
+archive source sets, and rejects a removed base-to-source relationship. The
+four-file Requirements proof/workflow surface passed (`72 passed`), workflow
+lint passed, strict OpenSpec validation passed, and `git diff --check` passed.
+
+## Spec-first bootstrap recovery
+
+Independent review found that the mapped test and RED proof preceded the exact
+normative OpenSpec exception even though they preceded the implementation. The
+normative scenario and task were therefore aligned at signed commit
+`698694589540557c317a39a8dece6f2517a0dac0` before a new append-only proof
+cycle. The mapping and its approved source digest remained unchanged.
+
+The spec-first recovery retained these immutable commits and artifact:
+
+- C5 commit: `90e30c33e1083945c6b26bc30e06b5b420838356`
+- C5 tree: `36516710f0acd4143ce34ba883678b9702f9f21c`
+- R5 test-only commit: `154bfd19fd7089aec13ec1a7473af13ea08b1035`
+- R5 tree: `b606ac80e3adb4e3aa75f9543e4663f26658fc81`
+- GitHub Actions run: `34036583353`
+- artifact: `9990355198` (`requirements-evidence`)
+- service artifact digest:
+  `sha256:76a50e25c076843d4758f1af0cb09a2fb4137efac50230202bbc494ffee875a2`
+- evidence JSON SHA-256:
+  `257667df94d43287bbe2b757db6aa2f383ab5886a90f95c9f087d82ebe261a5e`
+- plan report SHA-256:
+  `94254e4aaae42c483d1ad8c3d42a3e3ba91b9e84728e6e066124497510d40159`
+- JUnit SHA-256:
+  `5ac750b03b62a444c0b00b9b461651958add9fb9108f3299f984841ba2bcb25b`
+- result: six collected cases and exactly one failure, the mapped trusted-core
+  selector, because C5 intentionally retained only the invalid single archive
+
+R5 strengthens the same approved selector to require the base-relative default,
+the disjunctive missing-input trigger, the exact immutable source identities,
+both ancestry directions, and rejection of an altered default, conjunction, or
+ancestry guard. At `2026-09-06T13:39:24Z`, G5 restored the reviewed production
+blocks and exact PR #716 predicates. The four-file Requirements proof/workflow
+surface passed (`72 passed`), workflow lint passed, strict OpenSpec validation
+passed, and `git diff --check` passed.
+
+## Late-review artifact lane regression
+
+The normative late-review scenario was clarified at signed spec-first commit
+`96672969f7c8aff4be9c087d9f6a3cfbe222f3ec`. Its direct signed test-only child
+`50b2373ce87f2a5b5c92b54f989776b7cb9e3207` parameterized the existing exact
+failed-selector regression over the PR #704 and PR #716 proof scopes. At
+`2026-09-06T13:47:53Z`, the PR #704 case passed and the PR #716 case failed only
+because the latter required `red/red` while the immutable R5 artifact and the
+ordinary final Requirements lane authenticate `verified/final`.
+
+The green correction changes only PR #716's declared maturity and run stage to
+`verified/final`. It retains the exact repository, pull request, branch,
+commit, tree, run, artifact, digest, test-only, failed-selector, freshness, and
+final-report checks; the R5 manifest and artifact bytes remain unchanged.
+The focused regression passed both proof scopes, and the four-file Requirements
+proof/workflow surface passed all 73 collected cases.
+
+Independent review then found that the first clarification touched a second
+active change and its new selector was not part of the approved parity mapping.
+The final append-only recovery therefore uses only the already mapped
+`REQ-PROMOTION-004` selector and retains the approved mapping bytes:
+
+- Spec-only commit `24218c7eceb125dc2107c1348389bd44fd6179de`
+  (tree `5b96d8cc5c07dcf81d0f274aff08d6a124ede220`) removes the second-change
+  delta and adds the final-lane semantic to the mapped parity scenario.
+- Cycle-base commit `f7accc92223a4184af3c9eb5728007ae22a8d51d`
+  (tree `75ae13c95c0da357edd24c5855122b553fc33780`) temporarily restores only
+  PR #716's mismatched `red/red` scope.
+- Its direct test-only child
+  `cc9097ddd777c97865547fa848cdd239b416a2ac` (tree
+  `aa2b14d2b267f5d685d4379f52d7c6f96c8dbe1e`) strengthens the existing
+  mapped promotion-stage selector and removes the superseded unmapped
+  parameter case. The mapped selector failed only on the exact missing
+  `verified/final` scope; the unchanged selector-order control passed.
+
+The green candidate restores only PR #716's `verified/final` values. No mapping,
+review evidence, immutable manifest, or retained artifact byte changed.
+The mapped regression and unchanged selector-order control passed, followed by
+all 72 cases in the four-file Requirements proof/workflow surface.
+
+## Fresh mapped final-lane proof
+
+The mapped test change correctly made the older R5 artifact stale, so the final
+candidate does not reuse or relax that proof. A new append-only cycle retained:
+
+- C8 commit `22e458f0a28d708c1287dbf62a30184c6f8b7523` with tree
+  `79e4a1b03741e3537bb762ef138366ce0647b342`, which temporarily removed
+  the old manifest and mapped assertion and restored only PR #716's `red/red`
+  mismatch.
+- Its direct test-only child
+  `4858b3a863c433a0ce5496bb8a1a4e2d6b736b20` with tree
+  `c052de7c6aba2d76be7865b1d3667c34bb796df0`, which restored only the
+  existing mapped `REQ-PROMOTION-004` assertion.
+- Requirements Evidence run `34037707935` and immutable artifact `9990694902`
+  with service digest
+  `sha256:cfffe81dfceea8357b76b9474257caa9ecff0db49ec8bbfc3560655fd36aae3a`.
+- Report, plan-report, and JUnit digests respectively
+  `sha256:5d074828304a81c00ffad3cd79ea851c07f346c9eecfa7778ac53d76ebf9fee3`,
+  `sha256:94254e4aaae42c483d1ad8c3d42a3e3ba91b9e84728e6e066124497510d40159`,
+  and `sha256:ee269ead68a195e30eda1be5bd6dfd330b8983f4eb89c07996bdb2951b70a505`.
+
+The run collected all six approved selectors with exactly the mapped promotion
+stage selector failing and zero errors or skips. The final candidate restores
+PR #716's `verified/final` scope, retains the mapped test bytes, and binds this
+fresh artifact without changing the approved mapping or review evidence.
+
+## Reviewed final-lane proof
+
+The fresh final run exposed one blocking `CC18` finding in the trusted-core
+test helper. Four information-only bloat suggestions and two type-check
+warnings were classified as non-blocking and intentionally left unchanged.
+The required helper refactor split identity, ordering, and archive assertions
+without altering any assertion or selector behavior; Radon reduced the wrapper
+from complexity 18 to 1 and the highest extracted helper to 12.
+
+The post-review append-only cycle retained:
+
+- C9 commit `f502f28e4f13dc6a5e0e7d1c58de3d1b0a49a5dc` with tree
+  `e5ac7624669128c46f8c2be6ca9672f3c94451dc`, containing the CC18-only
+  test refactor plus the temporary manifest removal, mapped assertion removal,
+  and PR #716 `red/red` proof configuration.
+- Its direct test-only child
+  `7b51700a7f10f25ce908f55d0b652c0d709b4a72` with tree
+  `556302e49d80c06cfb0b5eaf9c6950a77eb02ae4`, restoring only the mapped
+  `REQ-PROMOTION-004` assertion.
+- Requirements Evidence run `34038160697` and artifact `9990828779` with
+  service digest
+  `sha256:43a3bb17b610e174f96457f3fca58266d1e8b7c9bb29dd834bcdf4bd7b82cbcb`.
+- Report, plan-report, and JUnit digests respectively
+  `sha256:f893ab930e794b1d1445702f36053c99c8377dccb8354569722425ab27739645`,
+  `sha256:94254e4aaae42c483d1ad8c3d42a3e3ba91b9e84728e6e066124497510d40159`,
+  and `sha256:ad28dc8dad83f2238a33df993f32d5ddd1dda8191b5016b959cc602a3e564e36`.
+
+All six approved selectors ran; five passed and only the mapped final-lane
+selector failed, with zero errors or skips. The final candidate restores
+`verified/final`, preserves the reviewed helper and mapped test bytes, and
+binds the post-review artifact without changing mapping or review evidence.
+
+## Mixed trusted-input fail-closed regression
+
+CodeRabbit comment `3944088952` identified a valid trust-boundary defect: both
+materializers entered the legacy bootstrap when either Code Review input was
+missing. A mixed base could therefore replace the one base-relative input that
+was present. The existing specification already required every mixed state to
+fail closed, so no normative scope or approved mapping changed.
+
+At `2026-09-06T14:32:00Z`, the exact local RED command was:
+
+```shell
+/Users/dom/.codex/worktrees/323f/specfact-cli/.venv/bin/python -m pytest -q tests/unit/workflows/test_requirements_promotion_trusted_core.py
+```
+
+It collected one mapped test and failed because the workflow lacked the new
+presence probes and explicit pair-state dispatch. The final append-only hosted
+proof retains:
+
+- C11 commit `ed3fe4d0cca8641d1169fbdb692fc1c76c41b7f8` with tree
+  `c9f9b3fecda1728087ce4fcd053f5315ad2a172e`, retaining the temporarily
+  unreachable 17 PR #716 late-RED predicates and recording the approved review
+  threshold
+- its direct test-only child
+  `ce5d09d355ba705aa9f861e377515f5b82a063c1` with tree
+  `1d528effda913eb7d432010bae41881a7afac64e`, which finalized only the
+  approved `REQ-PROMOTION-004B` selector and passed Code Review with zero
+  findings
+- Requirements Evidence run `34039534709` and artifact `9991241676`, created
+  at `2026-09-06T14:34:08Z`, with service digest
+  `sha256:60b006ac943352551c15a159aab13685ba7ec9cada3ac235ab0e0309fec4009b`
+- report, plan-report, and JUnit digests respectively
+  `sha256:916f6bee520b0e224f4821502b68c51b00b8b56f9c3e578224ecbfa59d1f06f5`,
+  `sha256:94254e4aaae42c483d1ad8c3d42a3e3ba91b9e84728e6e066124497510d40159`,
+  and `sha256:84d620083f18fdebefeed30a74f8ec799556c995eb11ae0d5ce12bb0440e5029`
+
+The hosted JUnit collected all six approved selectors, with five passing and
+only `REQ-PROMOTION-004B` failing; it recorded zero errors and zero skips. The
+green implementation probes both inputs independently, permits only the
+complete pair and exact legacy absent pair, rejects both mixed permutations,
+and rejects any unexpected state. Both materializers retain the exact base,
+source, tree, blob, ancestry, and archive-source checks. At
+`2026-09-06T14:37:00Z`, the exact passing commands were:
+
+```shell
+/Users/dom/.codex/worktrees/323f/specfact-cli/.venv/bin/python -m pytest -q tests/unit/workflows/test_requirements_promotion_trusted_core.py
+/Users/dom/.codex/worktrees/323f/specfact-cli/.venv/bin/python -m pytest -q tests/unit/workflows/test_requirements_evidence_delivery_workflow.py tests/unit/workflows/test_requirements_promotion_trusted_core.py
+```
+
+They passed `1/1` and `27/27` tests respectively, with the final test bytes
+identical to R11. The 17 late-RED predicates were restored exactly. CodeRabbit
+comment `3944074309`, requesting retroactive command detail for older proof
+cycles, is minor documentation cleanup and was explicitly dispositioned as
+non-blocking rather than expanding this security fix further.

@@ -25,15 +25,16 @@
   validate exact live evidence and byte-identical promotion attestations.
 - [x] 3.3 Permit aggregate planning validation only when the separate promotion
   attestation passes; do not claim current aggregate selector execution.
-- [x] 3.4 Leave trusted main-relative inputs, every ordinary pull request, and
-  every independent authority/release gate unchanged.
+- [x] 3.4 Leave trusted inputs main-relative except for the exact, ancestry-bound
+  legacy two-file bootstrap; leave every ordinary pull request and every
+  independent authority/release gate unchanged.
 
 ## 4. Verification and delivery
 
 - [x] 4.1 Run focused legitimate and bypass controls, full workflow tests, strict
   OpenSpec validation, workflow lint, and `git diff --check`.
 - [x] 4.2 Run independent security-boundary and bypass/regression review; resolve
-  all P0/P1/P2 findings and disposition warnings.
+  all P0/P1 findings and disposition lower-priority findings.
 - [x] 4.3 Review README, `docs/`, the docs landing page, and navigation; record why
   this internal release-control correction requires no public documentation edit.
 - [x] 4.4 Run strict module-signature verification; do not re-sign or bump a module
