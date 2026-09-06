@@ -274,3 +274,20 @@ ancestry guard. At `2026-09-06T13:39:24Z`, G5 restored the reviewed production
 blocks and exact PR #716 predicates. The four-file Requirements proof/workflow
 surface passed (`72 passed`), workflow lint passed, strict OpenSpec validation
 passed, and `git diff --check` passed.
+
+## Late-review artifact lane regression
+
+The normative late-review scenario was clarified at signed spec-first commit
+`96672969f7c8aff4be9c087d9f6a3cfbe222f3ec`. Its direct signed test-only child
+`50b2373ce87f2a5b5c92b54f989776b7cb9e3207` parameterized the existing exact
+failed-selector regression over the PR #704 and PR #716 proof scopes. At
+`2026-09-06T13:47:53Z`, the PR #704 case passed and the PR #716 case failed only
+because the latter required `red/red` while the immutable R5 artifact and the
+ordinary final Requirements lane authenticate `verified/final`.
+
+The green correction changes only PR #716's declared maturity and run stage to
+`verified/final`. It retains the exact repository, pull request, branch,
+commit, tree, run, artifact, digest, test-only, failed-selector, freshness, and
+final-report checks; the R5 manifest and artifact bytes remain unchanged.
+The focused regression passed both proof scopes, and the four-file Requirements
+proof/workflow surface passed all 73 collected cases.
