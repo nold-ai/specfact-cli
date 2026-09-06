@@ -1,8 +1,11 @@
 """Regression tests for main-relative Requirements promotion inputs."""
 
+import os
+import subprocess
 from pathlib import Path
 from typing import Any, cast
 
+import pytest
 import yaml
 
 
@@ -20,9 +23,34 @@ def _step_command(name: str) -> str:
     raise AssertionError(f"Missing workflow step: {name}")
 
 
-def test_promotion_trusted_core_archives_only_required_review_lock() -> None:
-    """Main-relative consumers must not request an unused dev-only source file."""
-    for name in ("Materialize trusted Requirements core", "Materialize trusted final Requirements core"):
-        command = _step_command(name)
-        assert "requirements/code-review/locked.txt" in command
-        assert "requirements/code-review/requirements.in" not in command
+@pytest.mark.parametrize(
+    ("step_name", "root_variable"),
+    (
+        ("Materialize trusted Requirements core", "TRUSTED_REQUIREMENTS_ROOT"),
+        ("Materialize trusted final Requirements core", "FINAL_TRUSTED_ROOT"),
+    ),
+)
+def test_promotion_trusted_core_materializes_from_exact_main_base(
+    tmp_path: Path, step_name: str, root_variable: str
+) -> None:
+    """Every archived path must resolve while the frozen review lock remains present."""
+    github_environment = tmp_path / "github-environment"
+    completed = subprocess.run(
+        ["bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", _step_command(step_name)],
+        cwd=REPO_ROOT,
+        env={
+            **os.environ,
+            "GITHUB_BASE_REF": "main",
+            "GITHUB_ENV": str(github_environment),
+            "RUNNER_TEMP": str(tmp_path),
+        },
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert completed.returncode == 0, completed.stderr
+    exported = dict(line.split("=", maxsplit=1) for line in github_environment.read_text().splitlines())
+    trusted_root = Path(exported[root_variable])
+    assert (trusted_root / "requirements/code-review/requirements.in").is_file()
+    assert (trusted_root / "requirements/code-review/locked.txt").is_file()

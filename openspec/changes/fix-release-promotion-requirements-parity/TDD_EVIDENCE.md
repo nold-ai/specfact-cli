@@ -189,5 +189,8 @@ then failed in job `101395635109` before validation because `git archive` asked
 the `main` merge base for `requirements/code-review/requirements.in`, which
 exists only on `dev`. The runtime uses the frozen
 `requirements/code-review/locked.txt`; it never consumes the source input.
-This hosted failure is the RED evidence for limiting both main-relative trusted
-core manifests to files required by their consumers.
+This hosted failure is the RED evidence for making both main-relative trusted
+core manifests materializable without weakening the frozen review environment.
+The strengthened regression executed both materialization steps against the
+exact `origin/main` merge base and failed twice (`2 failed`) because that base
+does not contain the Code Review source input or frozen lock.
