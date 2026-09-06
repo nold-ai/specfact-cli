@@ -5,7 +5,6 @@ import subprocess
 from pathlib import Path
 from typing import Any, cast
 
-import pytest
 import yaml
 
 
@@ -23,17 +22,7 @@ def _step_command(name: str) -> str:
     raise AssertionError(f"Missing workflow step: {name}")
 
 
-@pytest.mark.parametrize(
-    ("step_name", "root_variable"),
-    (
-        ("Materialize trusted Requirements core", "TRUSTED_REQUIREMENTS_ROOT"),
-        ("Materialize trusted final Requirements core", "FINAL_TRUSTED_ROOT"),
-    ),
-)
-def test_promotion_trusted_core_materializes_from_exact_main_base(
-    tmp_path: Path, step_name: str, root_variable: str
-) -> None:
-    """Every archived path must resolve while the frozen review lock remains present."""
+def _assert_materializes_from_exact_main_base(tmp_path: Path, step_name: str, root_variable: str) -> None:
     github_environment = tmp_path / "github-environment"
     completed = subprocess.run(
         ["bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", _step_command(step_name)],
@@ -54,3 +43,17 @@ def test_promotion_trusted_core_materializes_from_exact_main_base(
     trusted_root = Path(exported[root_variable])
     assert (trusted_root / "requirements/code-review/requirements.in").is_file()
     assert (trusted_root / "requirements/code-review/locked.txt").is_file()
+
+
+def test_promotion_trusted_core_materializes_from_exact_main_base(tmp_path: Path) -> None:
+    """The producer-side trusted core must retain the frozen review inputs."""
+    _assert_materializes_from_exact_main_base(
+        tmp_path, "Materialize trusted Requirements core", "TRUSTED_REQUIREMENTS_ROOT"
+    )
+
+
+def test_final_promotion_trusted_core_materializes_from_exact_main_base(tmp_path: Path) -> None:
+    """The final trusted core must retain the frozen review inputs."""
+    _assert_materializes_from_exact_main_base(
+        tmp_path, "Materialize trusted final Requirements core", "FINAL_TRUSTED_ROOT"
+    )
