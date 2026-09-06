@@ -127,7 +127,6 @@ def test_self_bundle_dependency_does_not_recurse(name: str) -> None:
     with (
         TemporaryDirectory() as tmp_dir,
         patch.object(module_installer, "install_module", _unexpected_install),
-        patch.object(module_installer, "discover_all_modules", return_value=[]),
         patch.object(module_installer, "resolve_dependencies", return_value=[]),
         patch.object(module_installer, "install_resolved_pip_requirements", return_value=None),
     ):
