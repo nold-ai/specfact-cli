@@ -63,7 +63,7 @@ class _ProofScope(NamedTuple):
 
 _PROOF_SCOPES = (
     _ProofScope("fix-release-promotion-security-gates", 704, "bugfix/692-release-review-followup", "verified", "final"),
-    _ProofScope("fix-release-promotion-requirements-parity", 715, "bugfix/692-promotion-exit-code", "red", "red"),
+    _ProofScope("fix-release-promotion-requirements-parity", 716, "bugfix/692-promotion-core-manifest", "red", "red"),
 )
 
 

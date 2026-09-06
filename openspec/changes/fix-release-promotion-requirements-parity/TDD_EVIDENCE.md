@@ -203,3 +203,39 @@ blob identities from already-merged security commit
 surface passed (`104 passed`), the direct materialization regression passed
 (`1 passed`), `actionlint .github/workflows/requirements-evidence.yml` passed,
 and strict OpenSpec validation and `git diff --check` passed.
+
+## Trusted-core source-identity review regression
+
+CodeRabbit comment `3944012887` correctly identified that the first regression
+proved only that both files materialized, not that the workflow authenticated
+their exact archive source and relationship to the promotion history. The
+test-authored mapping digest
+`sha256:151e13b42ce1075789dd72dcea1c2f438910a7835b4d67798e4fa2149a0177d2`
+was approved by exact, unedited issue #692 MEMBER comment `5559422472`.
+
+The authorized append-only proof cycle retained these immutable commits:
+
+- C4 commit: `21e312e5c48a5e5e6271ff609960fceb0f698249`
+- C4 tree: `efca20a7f2d5e6f32593a21f40358dfc85fab6a0`
+- R4 test-only commit: `415f01725c9a0451e1b8f70cdf0e1382212f8844`
+- R4 tree: `efabf76f5a371cd120b4bcb8439439776afd32fb`
+- GitHub Actions run: `34035393659`
+- artifact: `9989994962` (`requirements-evidence`)
+- service artifact digest:
+  `sha256:211be475f482b91426577ba332c7720b0ebbe9a16fd31a72a012c879f95e4234`
+- evidence JSON SHA-256:
+  `12be4e9bbe708387b0d7f03a85abdf618d94efbbd6cec16659fa6491315ebd42`
+- plan report SHA-256:
+  `94254e4aaae42c483d1ad8c3d42a3e3ba91b9e84728e6e066124497510d40159`
+- JUnit SHA-256:
+  `c79b182e321a79f0cf05093b92c35637d034eee8946c36b4fb1c4249982a2bdf`
+- result: six collected cases, with only the mapped trusted-core selector
+  failing because the C4 tree intentionally contained one archive rather than
+  the required authenticated base/source split
+
+At `2026-09-06T13:19:08Z`, G4 restored both bootstrap blocks exactly and the
+strengthened selector passed. It asserts the exact legacy base, source commit,
+source tree, two source blobs, base-to-source and source-to-HEAD ancestry, both
+archive source sets, and rejects a removed base-to-source relationship. The
+four-file Requirements proof/workflow surface passed (`72 passed`), workflow
+lint passed, strict OpenSpec validation passed, and `git diff --check` passed.
