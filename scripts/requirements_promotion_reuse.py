@@ -601,7 +601,7 @@ def _validate_selectors(reported: list[str], planned: list[str], junit_payload: 
 
 def _validate_evidence(
     producer_archive: Path, execution_archive: Path, source_sha: str
-) -> tuple[bytes, str, str, str, list[str]]:
+) -> tuple[str, str, str, list[str]]:
     report_payload, producer_plan_payload, junit_payload = _evidence_payloads(producer_archive, execution_archive)
     report = _object(_json_value(report_payload))
     plan_report = _object(_json_value(producer_plan_payload))
@@ -609,11 +609,11 @@ def _validate_evidence(
     mapping_digest, plan_digest, selectors = _report_evidence(report, source_sha, junit_digest)
     planned_selectors = _plan_evidence(plan_report, mapping_digest, plan_digest)
     _validate_selectors(selectors, planned_selectors, junit_payload)
-    return report_payload, mapping_digest, plan_digest, junit_digest, selectors
+    return mapping_digest, plan_digest, junit_digest, selectors
 
 
-def _build_validation(inputs: PromotionInputs, *, git_runner: GitRunner = _run_git) -> tuple[dict[str, object], bytes]:
-    """Return the canonical attestation and exact authenticated report bytes."""
+def build_attestation(inputs: PromotionInputs, *, git_runner: GitRunner = _run_git) -> dict[str, object]:
+    """Return one canonical attestation or fail closed on any incomplete binding."""
     try:
         pull_request, base_sha, head_sha = _validate_event(inputs.event)
         head_tree, previous_dev_sha, source_sha = _validate_git(inputs.repo_root, base_sha, head_sha, git_runner)
@@ -632,10 +632,10 @@ def _build_validation(inputs: PromotionInputs, *, git_runner: GitRunner = _run_g
             source_run=_SourceRun(requirements_run_id, source_branch, source_sha),
             files=_ArtifactFiles(inputs.producer_archive, inputs.execution_archive),
         )
-        verified_evidence, mapping_digest, plan_digest, junit_digest, selectors = _validate_evidence(
+        mapping_digest, plan_digest, junit_digest, selectors = _validate_evidence(
             inputs.producer_archive, inputs.execution_archive, source_sha
         )
-        attestation: dict[str, object] = {
+        return {
             "schema_version": "1",
             "claim": "promotion-reused",
             "repository": {"id": REPOSITORY_ID, "full_name": REPOSITORY},
@@ -671,16 +671,10 @@ def _build_validation(inputs: PromotionInputs, *, git_runner: GitRunner = _run_g
                 "selectors": selectors,
             },
         }
-        return attestation, verified_evidence
     except Exception as error:
         if isinstance(error, PromotionReuseError):
             raise
         raise PromotionReuseError("promotion-reuse-invalid") from error
-
-
-def build_attestation(inputs: PromotionInputs, *, git_runner: GitRunner = _run_git) -> dict[str, object]:
-    """Return one canonical attestation or fail closed on any incomplete binding."""
-    return _build_validation(inputs, git_runner=git_runner)[0]
 
 
 def _argument_error(message: str) -> NoReturn:
@@ -705,7 +699,6 @@ def _arguments(argv: Sequence[str] | None) -> argparse.Namespace:
     ):
         parser.add_argument(f"--{name}", type=Path, required=True)
     parser.add_argument("--expected-attestation", type=Path)
-    parser.add_argument("--verified-evidence-output", type=Path)
     return parser.parse_args(argv)
 
 
@@ -742,14 +735,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             producer_archive=arguments.producer_archive,
             execution_archive=arguments.execution_archive,
         )
-        attestation, verified_evidence = _build_validation(inputs)
+        attestation = build_attestation(inputs)
         payload = _canonical_json(attestation)
         if arguments.expected_attestation is not None and _regular_payload(arguments.expected_attestation) != payload:
             _reject()
-        if arguments.verified_evidence_output is not None:
-            if arguments.verified_evidence_output.resolve() == arguments.output.resolve():
-                _reject()
-            _write_output(arguments.verified_evidence_output, verified_evidence)
         _write_output(arguments.output, payload)
     except Exception:
         sys.stderr.write("promotion-reuse-invalid\n")
