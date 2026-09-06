@@ -122,6 +122,9 @@ requirements:
       - id: workflow-contract-tests
         kind: test_file
         locator: "tests/unit/workflows/test_requirements_evidence_delivery_workflow.py"
+      - id: promotion-trusted-core-tests
+        kind: test_file
+        locator: "tests/unit/workflows/test_requirements_promotion_trusted_core.py"
     verification_cases:
       - case_id: REQ-PROMOTION-004
         scenario_id: promotion-stages-independently-validate-reuse
@@ -135,3 +138,15 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_workflow_revalidates_promotion_reuse_in_all_stages
+      - case_id: REQ-PROMOTION-004B
+        scenario_id: promotion-stages-independently-validate-reuse
+        method: test
+        intent: >-
+          Inspect both trusted-core materializers against the exact current
+          main merge base before authoring the bounded bootstrap.
+        observable: >-
+          Both Code Review inputs materialize from main when present or from one
+          exact already-merged source commit only for the exact legacy base.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_requirements_promotion_trusted_core.py::test_promotion_trusted_core_materializes_from_exact_main_base
