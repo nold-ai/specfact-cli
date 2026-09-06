@@ -50,15 +50,20 @@ def _archive_block(command: str, source: str) -> str:
     return command.split(marker, maxsplit=1)[1].split("| tar -x -C", maxsplit=1)[0]
 
 
-def _assert_bootstrap_identities(command: str) -> None:
-    """Require both source archives and every immutable bootstrap identity."""
-    assert command.count("git archive ") == 2
-    assert BASE_RELATIVE_REVIEW_SOURCE in command
+def _assert_presence_dispatch_identifiers(command: str) -> None:
+    """Require independent probes and a closed pair-state dispatch."""
     assert INPUT_PRESENT_DEFAULT in command
     assert LOCK_PRESENT_DEFAULT in command
     assert INPUT_PRESENT_PROBE in command
     assert LOCK_PRESENT_PROBE in command
     assert PAIR_DISPATCH in command
+
+
+def _assert_bootstrap_identities(command: str) -> None:
+    """Require both source archives and every immutable bootstrap identity."""
+    _assert_presence_dispatch_identifiers(command)
+    assert command.count("git archive ") == 2
+    assert BASE_RELATIVE_REVIEW_SOURCE in command
     assert f'test "$base_commit" = "{LEGACY_BASE}"' in command
     assert f'review_source="{REVIEW_SOURCE}"' in command
     assert REVIEW_TREE in command
@@ -78,6 +83,8 @@ def _assert_bootstrap_order(command: str) -> None:
 
 def _case_block(command: str, label: str, next_label: str) -> str:
     """Return one exact state-dispatch branch body."""
+    assert label in command
+    assert next_label in command
     return command.split(label, maxsplit=1)[1].split(next_label, maxsplit=1)[0]
 
 
