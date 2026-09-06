@@ -67,8 +67,8 @@ _PROOF_SCOPES = (
         "fix-release-promotion-requirements-parity",
         717,
         "bugfix/692-promotion-final-context",
-        "red",
-        "red",
+        "verified",
+        "final",
     ),
     _ProofScope(
         "fix-release-promotion-requirements-parity",
