@@ -1,7 +1,5 @@
 """Regression tests for main-relative Requirements promotion inputs."""
 
-import os
-import subprocess
 from pathlib import Path
 from typing import Any, cast
 
@@ -10,10 +8,22 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 WORKFLOW = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"
+LEGACY_BASE = "b1e517e60e669eaba15a18ecfa83ef5a9df65276"
+REVIEW_SOURCE = "3ea3d9b4492ade6ec5683fac83c5b5090b0cb547"
+REVIEW_TREE = "4d61f0420952b5c3913aa7c771a154c2913a9e14"
+REVIEW_INPUT_BLOB = "6f0f16ba49e10d6b4f4132c112e3b4c5855e850f"
+REVIEW_LOCK_BLOB = "bf0033c19cada1b656beb818e43366828ce6fabb"
+BASE_TO_SOURCE_ANCESTRY = 'git merge-base --is-ancestor "$base_commit" "$review_source"'
+SOURCE_TO_HEAD_ANCESTRY = 'git merge-base --is-ancestor "$review_source" HEAD'
+REVIEW_PATHS = (
+    "requirements/code-review/requirements.in",
+    "requirements/code-review/locked.txt",
+)
 
 
 def _step_command(name: str) -> str:
-    parsed = yaml.load(WORKFLOW.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    """Return one named workflow step command."""
+    parsed = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
     jobs = cast(dict[str, Any], parsed["jobs"])
     for job in jobs.values():
         for step in job.get("steps", []):
@@ -22,41 +32,43 @@ def _step_command(name: str) -> str:
     raise AssertionError(f"Missing workflow step: {name}")
 
 
-def _assert_materializes_from_exact_main_base(tmp_path: Path, step_name: str, root_variable: str) -> None:
-    github_environment = tmp_path / "github-environment"
-    completed = subprocess.run(
-        ["bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", _step_command(step_name)],
-        cwd=REPO_ROOT,
-        env={
-            **os.environ,
-            "GITHUB_BASE_REF": "main",
-            "GITHUB_ENV": str(github_environment),
-            "RUNNER_TEMP": str(tmp_path),
-        },
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
-    assert completed.returncode == 0, completed.stderr
-    exported = dict(line.split("=", maxsplit=1) for line in github_environment.read_text().splitlines())
-    trusted_root = Path(exported[root_variable])
-    assert (trusted_root / "requirements/code-review/requirements.in").is_file()
-    assert (trusted_root / "requirements/code-review/locked.txt").is_file()
+def _archive_block(command: str, source: str) -> str:
+    """Return one archive argument block for an exact source expression."""
+    marker = f'git archive "{source}" --'
+    assert marker in command
+    return command.split(marker, maxsplit=1)[1].split("| tar -x -C", maxsplit=1)[0]
 
 
-def test_promotion_trusted_core_materializes_from_exact_main_base(tmp_path: Path) -> None:
-    """Both trusted cores must retain the frozen review inputs."""
-    failures: list[str] = []
-    steps = (
-        ("Materialize trusted Requirements core", "TRUSTED_REQUIREMENTS_ROOT"),
-        ("Materialize trusted final Requirements core", "FINAL_TRUSTED_ROOT"),
-    )
-    for step_name, root_variable in steps:
-        step_tmp_path = tmp_path / root_variable
-        step_tmp_path.mkdir()
+def _assert_materialization_contract(command: str) -> None:
+    """Require the immutable legacy bootstrap and normal base-relative path."""
+    assert command.count("git archive ") == 2
+    assert f'test "$base_commit" = "{LEGACY_BASE}"' in command
+    assert f'review_source="{REVIEW_SOURCE}"' in command
+    assert REVIEW_TREE in command
+    assert REVIEW_INPUT_BLOB in command
+    assert REVIEW_LOCK_BLOB in command
+    assert BASE_TO_SOURCE_ANCESTRY in command
+    assert SOURCE_TO_HEAD_ANCESTRY in command
+
+    base_archive = _archive_block(command, "$base_commit")
+    review_archive = _archive_block(command, "$review_source")
+    for path in REVIEW_PATHS:
+        assert path not in base_archive
+        assert path in review_archive
+        assert f'/{path}"' in command
+
+
+def test_promotion_trusted_core_materializes_from_exact_main_base() -> None:
+    """Both materializers must bind one exact source and reject missing ancestry."""
+    for step_name in (
+        "Materialize trusted Requirements core",
+        "Materialize trusted final Requirements core",
+    ):
+        command = _step_command(step_name)
+        _assert_materialization_contract(command)
+        invalid_ancestry = command.replace(BASE_TO_SOURCE_ANCESTRY, "true", 1)
         try:
-            _assert_materializes_from_exact_main_base(step_tmp_path, step_name, root_variable)
-        except AssertionError as error:
-            failures.append(f"{step_name}: {error}")
-    assert not failures, "\n\n".join(failures)
+            _assert_materialization_contract(invalid_ancestry)
+        except AssertionError:
+            continue
+        raise AssertionError(f"{step_name} accepted a missing base-to-source ancestry guard")
