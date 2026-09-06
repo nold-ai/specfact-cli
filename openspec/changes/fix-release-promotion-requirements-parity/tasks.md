@@ -28,7 +28,7 @@
 - [x] 3.4 Leave trusted inputs main-relative except for the exact, ancestry-bound
   legacy two-file bootstrap; leave every ordinary pull request and every
   independent authority/release gate unchanged.
-- [ ] 3.5 Preserve the exact authenticated producer report bytes through both
+- [x] 3.5 Preserve the exact authenticated producer report bytes through both
   promotion Code Review boundaries; never substitute the aggregate planning
   report for verified evidence.
 

@@ -1564,14 +1564,14 @@ def test_workflow_revalidates_promotion_reuse_in_all_stages() -> None:
         _assert_promotion_stage_boundary(workflow, stage)
     _assert_promotion_plan_and_attestation_contract(workflow)
     late_red_validator = (REPO_ROOT / "scripts" / "requirements_late_red_proof.py").read_text(encoding="utf-8")
-    expected_pr716_scope = """    _ProofScope(
+    expected_pr717_scope = """    _ProofScope(
         "fix-release-promotion-requirements-parity",
-        716,
-        "bugfix/692-promotion-core-manifest",
+        717,
+        "bugfix/692-promotion-final-context",
         "verified",
         "final",
     ),"""
-    assert expected_pr716_scope in late_red_validator
+    assert expected_pr717_scope in late_red_validator
 
 
 def test_same_named_fork_does_not_enter_promotion_path() -> None:

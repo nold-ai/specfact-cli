@@ -1,25 +1,26 @@
 {
-  "artifact_digest": "sha256:60b006ac943352551c15a159aab13685ba7ec9cada3ac235ab0e0309fec4009b",
-  "artifact_id": 9991241676,
+  "artifact_digest": "sha256:fa851f93d2ededdf7533b35ef57ef1d3f2c8863521b6dffa0fd84f1d55e07661",
+  "artifact_id": 9992286643,
   "base_branch": "dev",
   "change_id": "fix-release-promotion-requirements-parity",
-  "cycle_base_commit": "ed3fe4d0cca8641d1169fbdb692fc1c76c41b7f8",
-  "cycle_base_tree": "c9f9b3fecda1728087ce4fcd053f5315ad2a172e",
+  "cycle_base_commit": "82adb14babf699381a50601e2c7c5c79703d1d39",
+  "cycle_base_tree": "f80d3e4d3403a0514053a02f52a034c9a2c423fb",
   "failed_selectors": [
-    "tests/unit/workflows/test_requirements_promotion_trusted_core.py::test_promotion_trusted_core_materializes_from_exact_main_base"
+    "tests/unit/scripts/test_requirements_promotion_reuse.py::test_exact_protected_promotion_produces_canonical_attestation",
+    "tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_workflow_revalidates_promotion_reuse_in_all_stages"
   ],
-  "head_branch": "bugfix/692-promotion-core-manifest",
+  "head_branch": "bugfix/692-promotion-final-context",
   "issue": 692,
-  "junit_digest": "sha256:84d620083f18fdebefeed30a74f8ec799556c995eb11ae0d5ce12bb0440e5029",
+  "junit_digest": "sha256:5c9be9e09b94d718f90c98aa25bc97d375042bc1504b648b4a09c93441dd40a6",
   "kind": "late-review-red-proof",
   "mapping_digest": "sha256:a0610b168a628cca0c96ad1bb2c08dc839d222c93092dd7bb9aabbdd4050ce32",
   "plan_digest": "sha256:079fd5785cf28c6ef4724990b65fc63c3f70d75bf114cd7969b18f387eb854e9",
   "plan_report_digest": "sha256:94254e4aaae42c483d1ad8c3d42a3e3ba91b9e84728e6e066124497510d40159",
-  "pull_request": 716,
-  "red_commit": "ce5d09d355ba705aa9f861e377515f5b82a063c1",
-  "red_tree": "1d528effda913eb7d432010bae41881a7afac64e",
-  "report_digest": "sha256:916f6bee520b0e224f4821502b68c51b00b8b56f9c3e578224ecbfa59d1f06f5",
+  "pull_request": 717,
+  "red_commit": "65facaa2788b5809ab7b48cf6ef69c9756ae8991",
+  "red_tree": "9ecacd5c48ef6ff6311af5bc7b29787a1db1f8a1",
+  "report_digest": "sha256:7702fe9dbe0921301ed95572dba0254222ddefb14c2906e307506deaf775033d",
   "repository": "nold-ai/specfact-cli",
-  "run_id": 34039534709,
+  "run_id": 34043136896,
   "schema_version": "1"
 }
