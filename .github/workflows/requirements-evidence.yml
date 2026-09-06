@@ -1015,6 +1015,20 @@ jobs:
           set -euo pipefail
           base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" HEAD)"
           [[ "$base_commit" =~ ^[0-9a-f]{40}$ ]]
+          review_source="$base_commit"
+          if ! git cat-file -e "${base_commit}:requirements/code-review/requirements.in" 2>/dev/null \
+            || ! git cat-file -e "${base_commit}:requirements/code-review/locked.txt" 2>/dev/null; then
+            test "$base_commit" = "b1e517e60e669eaba15a18ecfa83ef5a9df65276"
+            review_source="3ea3d9b4492ade6ec5683fac83c5b5090b0cb547"
+            test "$(git rev-parse "${review_source}^{tree}")" = \
+              "4d61f0420952b5c3913aa7c771a154c2913a9e14"
+            test "$(git rev-parse "${review_source}:requirements/code-review/requirements.in")" = \
+              "6f0f16ba49e10d6b4f4132c112e3b4c5855e850f"
+            test "$(git rev-parse "${review_source}:requirements/code-review/locked.txt")" = \
+              "bf0033c19cada1b656beb818e43366828ce6fabb"
+            git merge-base --is-ancestor "$base_commit" "$review_source"
+            git merge-base --is-ancestor "$review_source" HEAD
+          fi
           trusted_core_root="${RUNNER_TEMP}/trusted-requirements"
           mkdir -p "$trusted_core_root"
           git archive "$base_commit" -- \
@@ -1029,15 +1043,19 @@ jobs:
             scripts/requirements_proof_pytest_plugin.py \
             scripts/requirements_proof_provenance.py \
             requirements/ci/locked.txt \
-            requirements/code-review/requirements.in \
-            requirements/code-review/locked.txt \
             tools/basedpyright/package.json \
             tools/basedpyright/package-lock.json \
+            | tar -x -C "$trusted_core_root"
+          git archive "$review_source" -- \
+            requirements/code-review/requirements.in \
+            requirements/code-review/locked.txt \
             | tar -x -C "$trusted_core_root"
           test -f "$trusted_core_root/src/specfact_cli/cli.py"
           test -f "$trusted_core_root/scripts/check_reproducible_delivery.py"
           test -f "$trusted_core_root/scripts/requirements_proof_executor.py"
           test -f "$trusted_core_root/scripts/requirements_proof_pytest_plugin.py"
+          test -f "$trusted_core_root/requirements/code-review/requirements.in"
+          test -f "$trusted_core_root/requirements/code-review/locked.txt"
           {
             echo "TRUSTED_REQUIREMENTS_ROOT=$trusted_core_root"
             echo "TRUSTED_REQUIREMENTS_CORE=$trusted_core_root/src"
@@ -1926,6 +1944,20 @@ jobs:
           set -euo pipefail
           base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" HEAD)"
           [[ "$base_commit" =~ ^[0-9a-f]{40}$ ]]
+          review_source="$base_commit"
+          if ! git cat-file -e "${base_commit}:requirements/code-review/requirements.in" 2>/dev/null \
+            || ! git cat-file -e "${base_commit}:requirements/code-review/locked.txt" 2>/dev/null; then
+            test "$base_commit" = "b1e517e60e669eaba15a18ecfa83ef5a9df65276"
+            review_source="3ea3d9b4492ade6ec5683fac83c5b5090b0cb547"
+            test "$(git rev-parse "${review_source}^{tree}")" = \
+              "4d61f0420952b5c3913aa7c771a154c2913a9e14"
+            test "$(git rev-parse "${review_source}:requirements/code-review/requirements.in")" = \
+              "6f0f16ba49e10d6b4f4132c112e3b4c5855e850f"
+            test "$(git rev-parse "${review_source}:requirements/code-review/locked.txt")" = \
+              "bf0033c19cada1b656beb818e43366828ce6fabb"
+            git merge-base --is-ancestor "$base_commit" "$review_source"
+            git merge-base --is-ancestor "$review_source" HEAD
+          fi
           trusted_root="${RUNNER_TEMP}/final-trusted-requirements"
           mkdir -p "$trusted_root"
           git archive "$base_commit" -- \
@@ -1934,15 +1966,19 @@ jobs:
             scripts/check_reproducible_delivery.py \
             scripts/requirements_proof_provenance.py \
             requirements/ci/locked.txt \
-            requirements/code-review/requirements.in \
-            requirements/code-review/locked.txt \
             tools/basedpyright/package.json \
             tools/basedpyright/package-lock.json \
+            | tar -x -C "$trusted_root"
+          git archive "$review_source" -- \
+            requirements/code-review/requirements.in \
+            requirements/code-review/locked.txt \
             | tar -x -C "$trusted_root"
           test -f "$trusted_root/src/specfact_cli/cli.py"
           test -f "$trusted_root/ci/module-fixture.lock.json"
           test -f "$trusted_root/scripts/check_reproducible_delivery.py"
           test -f "$trusted_root/scripts/requirements_proof_provenance.py"
+          test -f "$trusted_root/requirements/code-review/requirements.in"
+          test -f "$trusted_root/requirements/code-review/locked.txt"
           {
             printf 'FINAL_TRUSTED_ROOT=%s\n' "$trusted_root"
             printf 'FINAL_TRUSTED_CORE=%s\n' "$trusted_root/src"

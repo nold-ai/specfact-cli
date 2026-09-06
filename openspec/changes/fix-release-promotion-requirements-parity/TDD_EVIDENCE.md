@@ -194,3 +194,12 @@ core manifests materializable without weakening the frozen review environment.
 The strengthened regression executed both materialization steps against the
 exact `origin/main` merge base and failed twice (`2 failed`) because that base
 does not contain the Code Review source input or frozen lock.
+
+At `2026-09-06T12:53:44Z`, both materializers passed against that same base
+after adding a fail-closed bootstrap limited to base commit
+`b1e517e60e669eaba15a18ecfa83ef5a9df65276` and the exact commit, tree, and two
+blob identities from already-merged security commit
+`3ea3d9b4492ade6ec5683fac83c5b5090b0cb547`. The focused workflow and security
+surface passed (`104 passed`), the direct materialization regression passed
+(`1 passed`), `actionlint .github/workflows/requirements-evidence.yml` passed,
+and strict OpenSpec validation and `git diff --check` passed.
