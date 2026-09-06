@@ -10,6 +10,17 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.55.5] - 2026-09-06
+
+### Security
+
+- **Marketplace dependency trust boundary:** verify selected marketplace
+  artifacts before dependency side effects, exclude repository-discovered
+  module declarations from unrelated pip installs, and reject pip options,
+  local paths, VCS references, and direct URLs before invoking pip tooling.
+
+---
+
 ## [0.55.4] - 2026-09-02
 
 ### Security

@@ -138,6 +138,20 @@ class TestResolveDependenciesAggregates:
         assert "requests" in msg
         assert "Suggest" in msg or "force" in msg or "skip-deps" in msg
 
+    def test_rejects_unsafe_requirement_before_resolution(self) -> None:
+        module = ModulePackageMetadata(
+            name="unsafe-module",
+            version="0.1.0",
+            commands=["unsafe"],
+            pip_dependencies=["attacker @ https://attacker.example/package.tar.gz"],
+        )
+        with (
+            patch("specfact_cli.registry.dependency_resolver.subprocess.run") as mock_run,
+            pytest.raises(DependencyConflictError, match="unsafe pip requirement"),
+        ):
+            resolve_dependencies([module])
+        mock_run.assert_not_called()
+
 
 class TestInstallResolvedPipRequirements:
     """Tests for install_resolved_pip_requirements."""
@@ -184,3 +198,34 @@ class TestInstallResolvedPipRequirements:
             mock_run.return_value = bad
             with pytest.raises(PipDependencyInstallError):
                 install_resolved_pip_requirements(["x==1"])
+
+    @pytest.mark.parametrize(
+        "unsafe_requirement",
+        [
+            "--index-url=https://attacker.example/simple",
+            "../attacker-package",
+            "attacker @ file:///tmp/attacker-package",
+            "attacker @ git+https://attacker.example/package.git",
+        ],
+    )
+    def test_rejects_non_index_requirement_before_pip(
+        self,
+        unsafe_requirement: str,
+    ) -> None:
+        with (
+            patch("specfact_cli.registry.dependency_resolver._pip_module_available", return_value=True),
+            patch("specfact_cli.registry.dependency_resolver.subprocess.run") as mock_run,
+            pytest.raises(PipDependencyInstallError, match="unsafe pip requirement"),
+        ):
+            install_resolved_pip_requirements([unsafe_requirement])
+        mock_run.assert_not_called()
+
+    def test_accepts_named_pep508_requirement(self) -> None:
+        ok = MagicMock(returncode=0)
+        requirement = 'requests[socks]>=2.31; python_version >= "3.11"'
+        with (
+            patch("specfact_cli.registry.dependency_resolver._pip_module_available", return_value=True),
+            patch("specfact_cli.registry.dependency_resolver.subprocess.run", return_value=ok) as mock_run,
+        ):
+            install_resolved_pip_requirements([requirement])
+        assert requirement in mock_run.call_args.args[0]
