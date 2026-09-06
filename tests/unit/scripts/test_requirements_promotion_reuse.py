@@ -581,6 +581,7 @@ def test_exact_protected_promotion_produces_canonical_attestation(
     assert "git_facts" not in inspect.signature(validator.build_attestation).parameters
     assert len(inspect.signature(validator.build_attestation).parameters) == 2
     assert verified_evidence == _archive_files(fixture.producer_archive)["requirements-evidence.json"]
+    assert json.loads(verified_evidence)["execution_proof"]["run_stage"] == "final"
     assert attestation["claim"] == "promotion-reused"
     assert attestation["promotion"] == {
         "base_ref": "main",
