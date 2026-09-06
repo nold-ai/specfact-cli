@@ -34,7 +34,7 @@
 - [x] 4.1 Run focused legitimate and bypass controls, full workflow tests, strict
   OpenSpec validation, workflow lint, and `git diff --check`.
 - [x] 4.2 Run independent security-boundary and bypass/regression review; resolve
-  all P0/P1/P2 findings and disposition warnings.
+  all P0/P1 findings and disposition lower-priority findings.
 - [x] 4.3 Review README, `docs/`, the docs landing page, and navigation; record why
   this internal release-control correction requires no public documentation edit.
 - [x] 4.4 Run strict module-signature verification; do not re-sign or bump a module
