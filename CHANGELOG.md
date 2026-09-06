@@ -10,6 +10,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.55.5] - 2026-09-06
+
+### Security
+
+- **Repository-confined IDE exports:** reject symlinked or out-of-repository
+  prompt export roots before cleanup or writes, preventing attacker-controlled
+  repositories from deleting or overwriting external files.
+
+---
+
 ## [0.55.4] - 2026-09-02
 
 ### Security
