@@ -63,7 +63,16 @@ run's exact unexpired, digest-bound producer and fresh-execution artifacts.
 Producer, fresh execution, and final verification SHALL each fetch and validate
 the live source evidence and SHALL agree on one canonical promotion attestation.
 Trusted core, retained-RED ancestry, Code Review, and release gates SHALL remain
-`main`-relative.
+`main`-relative. For the exact legacy `main` base
+`b1e517e60e669eaba15a18ecfa83ef5a9df65276` only, a trusted-core materializer
+MAY obtain only the two absent frozen Code Review inputs from source commit
+`3ea3d9b4492ade6ec5683fac83c5b5090b0cb547` after authenticating tree
+`4d61f0420952b5c3913aa7c771a154c2913a9e14`, input blob
+`6f0f16ba49e10d6b4f4132c112e3b4c5855e850f`, lock blob
+`bf0033c19cada1b656beb818e43366828ce6fabb`, and
+base-to-source-to-candidate ancestry. Any other missing, mixed, changed, or
+unrelated source state SHALL fail closed. The exception SHALL not apply when the
+base contains both inputs.
 
 #### Scenario: Promotion stages independently agree
 
@@ -73,4 +82,5 @@ Trusted core, retained-RED ancestry, Code Review, and release gates SHALL remain
 - **AND** SHALL require its canonical attestation bytes to equal the prior-stage
   attestation
 - **AND** trusted core, retained-RED ancestry, Code Review, and release gates
-  SHALL remain `main`-relative.
+  SHALL remain `main`-relative except for the exact, ancestry-bound legacy
+  two-input bootstrap defined above.

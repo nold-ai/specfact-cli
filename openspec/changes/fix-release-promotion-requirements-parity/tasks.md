@@ -25,8 +25,9 @@
   validate exact live evidence and byte-identical promotion attestations.
 - [x] 3.3 Permit aggregate planning validation only when the separate promotion
   attestation passes; do not claim current aggregate selector execution.
-- [x] 3.4 Leave trusted main-relative inputs, every ordinary pull request, and
-  every independent authority/release gate unchanged.
+- [x] 3.4 Leave trusted inputs main-relative except for the exact, ancestry-bound
+  legacy two-file bootstrap; leave every ordinary pull request and every
+  independent authority/release gate unchanged.
 
 ## 4. Verification and delivery
 
