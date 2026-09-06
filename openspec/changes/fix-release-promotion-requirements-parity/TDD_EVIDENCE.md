@@ -372,3 +372,57 @@ All six approved selectors ran; five passed and only the mapped final-lane
 selector failed, with zero errors or skips. The final candidate restores
 `verified/final`, preserves the reviewed helper and mapped test bytes, and
 binds the post-review artifact without changing mapping or review evidence.
+
+## Mixed trusted-input fail-closed regression
+
+CodeRabbit comment `3944088952` identified a valid trust-boundary defect: both
+materializers entered the legacy bootstrap when either Code Review input was
+missing. A mixed base could therefore replace the one base-relative input that
+was present. The existing specification already required every mixed state to
+fail closed, so no normative scope or approved mapping changed.
+
+At `2026-09-06T14:32:00Z`, the exact local RED command was:
+
+```shell
+/Users/dom/.codex/worktrees/323f/specfact-cli/.venv/bin/python -m pytest -q tests/unit/workflows/test_requirements_promotion_trusted_core.py
+```
+
+It collected one mapped test and failed because the workflow lacked the new
+presence probes and explicit pair-state dispatch. The final append-only hosted
+proof retains:
+
+- C11 commit `ed3fe4d0cca8641d1169fbdb692fc1c76c41b7f8` with tree
+  `c9f9b3fecda1728087ce4fcd053f5315ad2a172e`, retaining the temporarily
+  unreachable 17 PR #716 late-RED predicates and recording the approved review
+  threshold
+- its direct test-only child
+  `ce5d09d355ba705aa9f861e377515f5b82a063c1` with tree
+  `1d528effda913eb7d432010bae41881a7afac64e`, which finalized only the
+  approved `REQ-PROMOTION-004B` selector and passed Code Review with zero
+  findings
+- Requirements Evidence run `34039534709` and artifact `9991241676`, created
+  at `2026-09-06T14:34:08Z`, with service digest
+  `sha256:60b006ac943352551c15a159aab13685ba7ec9cada3ac235ab0e0309fec4009b`
+- report, plan-report, and JUnit digests respectively
+  `sha256:916f6bee520b0e224f4821502b68c51b00b8b56f9c3e578224ecbfa59d1f06f5`,
+  `sha256:94254e4aaae42c483d1ad8c3d42a3e3ba91b9e84728e6e066124497510d40159`,
+  and `sha256:84d620083f18fdebefeed30a74f8ec799556c995eb11ae0d5ce12bb0440e5029`
+
+The hosted JUnit collected all six approved selectors, with five passing and
+only `REQ-PROMOTION-004B` failing; it recorded zero errors and zero skips. The
+green implementation probes both inputs independently, permits only the
+complete pair and exact legacy absent pair, rejects both mixed permutations,
+and rejects any unexpected state. Both materializers retain the exact base,
+source, tree, blob, ancestry, and archive-source checks. At
+`2026-09-06T14:37:00Z`, the exact passing commands were:
+
+```shell
+/Users/dom/.codex/worktrees/323f/specfact-cli/.venv/bin/python -m pytest -q tests/unit/workflows/test_requirements_promotion_trusted_core.py
+/Users/dom/.codex/worktrees/323f/specfact-cli/.venv/bin/python -m pytest -q tests/unit/workflows/test_requirements_evidence_delivery_workflow.py tests/unit/workflows/test_requirements_promotion_trusted_core.py
+```
+
+They passed `1/1` and `27/27` tests respectively, with the final test bytes
+identical to R11. The 17 late-RED predicates were restored exactly. CodeRabbit
+comment `3944074309`, requesting retroactive command detail for older proof
+cycles, is minor documentation cleanup and was explicitly dispositioned as
+non-blocking rather than expanding this security fix further.
