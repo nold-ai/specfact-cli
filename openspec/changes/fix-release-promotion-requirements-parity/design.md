@@ -84,6 +84,10 @@ and revalidate live GitHub metadata and prior artifacts, then compare canonical
 attestation bytes. The report never claims that aggregate selectors were
 executed in the promotion run.
 
+The fresh consumer and final verifier pass the exact authenticated producer
+report bytes to their Code Review boundary. The aggregate planning report
+remains a separate planning input and must never replace those verified bytes.
+
 The trusted main-relative verifier/core base, retained-RED ancestry, and both
 Code Review passes remain based on the real `main..dev` delta. Only duplicate
 aggregate Requirements selector execution is replaced by authenticated reuse.
