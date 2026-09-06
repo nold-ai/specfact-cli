@@ -42,8 +42,8 @@ def _archive_block(command: str, source: str) -> str:
     return command.split(marker, maxsplit=1)[1].split("| tar -x -C", maxsplit=1)[0]
 
 
-def _assert_materialization_contract(command: str) -> None:
-    """Require the immutable legacy bootstrap and normal base-relative path."""
+def _assert_bootstrap_identities(command: str) -> None:
+    """Require both source archives and every immutable bootstrap identity."""
     assert command.count("git archive ") == 2
     assert BASE_RELATIVE_REVIEW_SOURCE in command
     assert MISSING_INPUT_CONDITION in command
@@ -55,15 +55,29 @@ def _assert_materialization_contract(command: str) -> None:
     assert REVIEW_LOCK_BLOB in command
     assert BASE_TO_SOURCE_ANCESTRY in command
     assert SOURCE_TO_HEAD_ANCESTRY in command
+
+
+def _assert_bootstrap_order(command: str) -> None:
+    """Require the base-relative default and fail-closed exception ordering."""
     assert command.index(BASE_RELATIVE_REVIEW_SOURCE) < command.index(MISSING_INPUT_CONDITION)
     assert command.index(MISSING_LOCK_DISJUNCTION) < command.index(f'test "$base_commit" = "{LEGACY_BASE}"')
 
+
+def _assert_archive_sources(command: str) -> None:
+    """Require only Code Review inputs to come from the review source."""
     base_archive = _archive_block(command, "$base_commit")
     review_archive = _archive_block(command, "$review_source")
     for path in REVIEW_PATHS:
         assert path not in base_archive
         assert path in review_archive
         assert f'/{path}"' in command
+
+
+def _assert_materialization_contract(command: str) -> None:
+    """Require the immutable legacy bootstrap and normal base-relative path."""
+    _assert_bootstrap_identities(command)
+    _assert_bootstrap_order(command)
+    _assert_archive_sources(command)
 
 
 def test_promotion_trusted_core_materializes_from_exact_main_base() -> None:
