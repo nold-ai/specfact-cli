@@ -180,3 +180,14 @@ access without requiring loader-side module registration. The previously
 masked selector-identity test also supplies the legacy scope that its synthetic
 `verified`/`final` artifact models. The exact three failed selectors pass on
 Python 3.11.15 and Python 3.12.13 (`3 passed` on each interpreter).
+
+## Main-relative trusted-core materialization regression
+
+After PR #715 merged, PR #691 Requirements run `33999408584`, attempt 2,
+authenticated the exact promotion and passed its producer. The fresh consumer
+then failed in job `101395635109` before validation because `git archive` asked
+the `main` merge base for `requirements/code-review/requirements.in`, which
+exists only on `dev`. The runtime uses the frozen
+`requirements/code-review/locked.txt`; it never consumes the source input.
+This hosted failure is the RED evidence for limiting both main-relative trusted
+core manifests to files required by their consumers.
