@@ -10,6 +10,17 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.55.5] - 2026-09-07
+
+### Security
+
+- **Project module command trust:** require cryptographic integrity and signature
+  verification before repository-local modules register executable commands,
+  unless unsigned loading is explicitly enabled for local development, and bind
+  official category bundles to their canonical `nold-ai` module identities.
+
+---
+
 ## [0.55.4] - 2026-09-02
 
 ### Security
