@@ -167,6 +167,7 @@ def run_evidence_command(
     environment = {key: value for key, value in os.environ.items() if key in ALLOWED_ENVIRONMENT_KEYS}
     environment["SPECFACT_MODULES_REPO"] = str(fixture_root.resolve())
     environment["SPECFACT_MODULES_ROOTS"] = str((fixture_root / "packages").resolve())
+    environment["SPECFACT_MODULES_EXCLUSIVE"] = "1"
     environment.pop("SPECFACT_CLI_MODULES_REPO", None)
     try:
         exit_code = command_runner(arguments, environment)

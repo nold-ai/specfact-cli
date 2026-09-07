@@ -287,6 +287,7 @@ def test_failed_command_writes_missing_diagnostic_reports_and_exports_fixture_ro
     assert observed == 1
     assert observed_environment["SPECFACT_MODULES_REPO"] == str(fixture.resolve())
     assert observed_environment["SPECFACT_MODULES_ROOTS"] == str((fixture / "packages").resolve())
+    assert observed_environment["SPECFACT_MODULES_EXCLUSIVE"] == "1"
     assert observed_environment["PATH"] == os.environ["PATH"]
     assert "SPECFACT_TEST_SECRET" not in observed_environment
     assert "PYTHONPATH" not in observed_environment
