@@ -73,6 +73,33 @@ def test_install_module_downloads_extracts_and_registers(monkeypatch, tmp_path: 
     assert installed.parent == install_root
 
 
+def test_install_module_verifies_official_artifact_before_dependencies(monkeypatch, tmp_path: Path) -> None:
+    """Official marketplace artifacts must be authenticated before manifest dependencies are processed."""
+    tarball = _create_module_tarball(tmp_path, "specfact-backlog")
+    monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_args, **_kwargs: tarball)
+    events: list[str] = []
+
+    def reject_unsigned_artifact(*_args, **kwargs) -> bool:
+        events.append("verify")
+        assert kwargs["require_integrity"] is True
+        assert kwargs["require_signature"] is True
+        return False
+
+    def record_dependency_install(*_args, **_kwargs) -> None:
+        events.append("dependencies")
+
+    monkeypatch.setattr(module_installer, "verify_module_artifact", reject_unsigned_artifact)
+    monkeypatch.setattr(module_installer, "_install_bundle_dependencies_for_module", record_dependency_install)
+
+    with pytest.raises(ValueError, match="failed integrity verification"):
+        install_module(
+            "nold-ai/specfact-backlog",
+            InstallModuleOptions(install_root=tmp_path / "marketplace-modules"),
+        )
+
+    assert events == ["verify"]
+
+
 def test_install_module_to_default_marketplace_path(monkeypatch, tmp_path: Path) -> None:
     tarball = _create_module_tarball(tmp_path, "drift")
     monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_args, **_kwargs: tarball)
