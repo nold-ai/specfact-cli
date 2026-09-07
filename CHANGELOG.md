@@ -10,6 +10,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.55.5] - 2026-09-06
+
+### Security
+
+- Authenticate official marketplace module artifacts with required signed
+  integrity metadata before resolving manifest-declared bundle or pip
+  dependencies.
+
+---
+
 ## [0.55.4] - 2026-09-02
 
 ### Security
