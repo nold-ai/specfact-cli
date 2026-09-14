@@ -1,0 +1,25 @@
+
+tests/unit/workflows/test_trustworthy_green_checks.py::test_docs_review_uses_immutable_modules_fixture_and_frozen_environment FAILED [100%]
+
+=================================== FAILURES ===================================
+____ test_docs_review_uses_immutable_modules_fixture_and_frozen_environment ____
+
+    def test_docs_review_uses_immutable_modules_fixture_and_frozen_environment() -> None:
+        """Docs command validation must not silently drift with branch or resolver state."""
+        raw = DOCS_REVIEW.read_text(encoding="utf-8")
+>       _assert_immutable_modules_fixture(raw)
+
+tests/unit/workflows/test_trustworthy_green_checks.py:700:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+raw = '# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json\n# yamllint disable rule:line-lengt...     with:\n          name: docs-review-logs\n          path: logs/docs-review/\n          if-no-files-found: ignore\n'
+
+    def _assert_immutable_modules_fixture(raw: str) -> None:
+        """Assert the shared immutable module-fixture safeguards for workflow text."""
+>       assert "ci/module-fixture.lock.json" in raw
+E       assert 'ci/module-fixture.lock.json' in '# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json\n# yamllint disable rule:line-length rule:truthy\nname: Docs Review\n\non:\n  pull_request:\n    branches: [main, dev]\n    paths:\n      - "**/*.md"\n      - "**/*.mdc"\n      - ".github/**"\n      - "docs/**"\n      - "resources/**"\n      - "src/specfact_cli/resources/**"\n      - "docs/.doc-frontmatter-enforced"\n      - "tests/unit/docs/**"\n      - "tests/unit/workflows/test_docs_module_fixture.py"\n      - "tests/unit/scripts/test_doc_frontmatter/**"\n      - "tests/integration/scripts/test_doc_frontmatter/**"\n      - "tests/helpers/doc_frontmatter.py"\n      - "tests/helpers/doc_frontmatter_fixtures.py"\n      - "tests/helpers/doc_frontmatter_types.py"\n      - "scripts/check-docs-commands.py"\n      - "scripts/check-command-contract.py"\n      - "scripts/check-documentation-accountability.py"\n      - "scripts/generate-command-overview.py"\n      - "docs/reference/commands.generated.*"\n      - "llms.txt"\n      - "scripts/check-cross-site-links.py"\n      - "scripts/check_doc_frontmatter.py"\n      - "scripts/validate_agent_rule_applies_when.py"\n      - "scripts/check_version_sources.py...e documentation accountability\n        run: python scripts/check-documentation-accountability.py\n\n      - name: Cross-site links (warn-only; live site may lag deploys)\n        continue-on-error: true\n        run: python scripts/check-cross-site-links.py --warn-only\n\n      - name: Validate documentation frontmatter (enforced paths; aligns with local docs-validate / pre-commit)\n        run: python scripts/check_doc_frontmatter.py\n\n      - name: Validate agent-rules applies_when canonical task signals\n        run: python scripts/validate_agent_rule_applies_when.py\n\n      - name: Run docs review test suites\n        run: |\n          mkdir -p logs/docs-review\n          DOCS_REVIEW_LOG="logs/docs-review/docs-review_$(date -u +%Y%m%d_%H%M%S).log"\n          python -m pytest tests/unit/docs/ tests/unit/scripts/test_doc_frontmatter/ tests/integration/scripts/test_doc_frontmatter/ -q 2>&1 | tee "$DOCS_REVIEW_LOG"\n          exit "${PIPESTATUS[0]:-$?}"\n\n      - name: Upload docs review logs\n        if: always()\n        uses: actions/upload-artifact@v4\n        with:\n          name: docs-review-logs\n          path: logs/docs-review/\n          if-no-files-found: ignore\n'
+
+tests/unit/workflows/test_trustworthy_green_checks.py:686: AssertionError
+=========================== short test summary info ============================
+FAILED tests/unit/workflows/test_trustworthy_green_checks.py::test_docs_review_uses_immutable_modules_fixture_and_frozen_environment
+============================== 1 failed in 0.07s ===============================

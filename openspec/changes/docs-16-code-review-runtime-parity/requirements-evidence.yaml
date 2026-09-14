@@ -1,0 +1,307 @@
+schema_version: '2'
+requirements:
+  ? openspec:docs-16-code-review-runtime-parity:code-review-module:portable-runtime-registration-is-documented-at-the-core-handoff
+  : rationale: Maintainers must discover the installed portable review interface from the core command reference.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#728
+      - nold-ai/specfact-cli-modules#473
+    touchpoints:
+      - id: runtime-handoff
+        kind: documentation
+        locator: docs/modules/code-review.md
+      - id: command-contract
+        kind: config_file
+        locator: docs/reference/commands.generated.json
+    verification_cases:
+      - case_id: DOCS16-01
+        scenario_id: portable-runtime-registration-is-documented-at-the-core-handoff
+        method: test
+        intent: Check runtime subcommands and explicit project selection flags.
+        observable: Runtime inspect and prepare plus run project-config/project-runtime exist.
+        selector:
+          runner: pytest
+          node_id: tests/unit/docs/test_code_review_command_parity.py::test_generated_contract_documents_portable_runtime_registration
+  openspec:docs-16-code-review-runtime-parity:generated-command-overview:documentation-uses-its-own-immutable-module-source:
+    rationale: Documentation can adopt reviewed module commands without replacing the approved Requirements execution
+      fixture.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#728
+      - nold-ai/specfact-cli-modules#473
+    touchpoints:
+      - id: docs-ci
+        kind: ci_workflow
+        locator: .github/workflows/docs-review.yml
+      - id: cli-validation
+        kind: ci_workflow
+        locator: .github/workflows/pr-orchestrator.yml
+      - id: docs-lock
+        kind: config_file
+        locator: ci/docs-module-fixture.lock.json
+    verification_cases:
+      - case_id: DOCS16-02
+        scenario_id: documentation-uses-its-own-immutable-module-source
+        method: test
+        intent: Verify that Requirements fixture identity remains unchanged.
+        observable: Approved repository, commit and tree stay exact.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_docs_module_fixture.py::test_requirements_fixture_authority_stays_at_approved_release
+      - case_id: DOCS16-03-01
+        scenario_id: documentation-uses-its-own-immutable-module-source
+        method: test
+        intent: Execute workflow verification against real mismatched Git fixtures.
+        observable: Invalid repository, mutable commit, differing tree or dirty checkout fails.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[None-docs-review.yml-docs-review]
+      - case_id: DOCS16-03-02
+        scenario_id: documentation-uses-its-own-immutable-module-source
+        method: test
+        intent: Execute workflow verification against real mismatched Git fixtures.
+        observable: Invalid repository, mutable commit, differing tree or dirty checkout fails.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[None-pr-orchestrator.yml-cli-validation]
+      - case_id: DOCS16-03-03
+        scenario_id: documentation-uses-its-own-immutable-module-source
+        method: test
+        intent: Execute workflow verification against real mismatched Git fixtures.
+        observable: Invalid repository, mutable commit, differing tree or dirty checkout fails.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[repository-docs-review.yml-docs-review]
+      - case_id: DOCS16-03-04
+        scenario_id: documentation-uses-its-own-immutable-module-source
+        method: test
+        intent: Execute workflow verification against real mismatched Git fixtures.
+        observable: Invalid repository, mutable commit, differing tree or dirty checkout fails.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[repository-pr-orchestrator.yml-cli-validation]
+      - case_id: DOCS16-03-05
+        scenario_id: documentation-uses-its-own-immutable-module-source
+        method: test
+        intent: Execute workflow verification against real mismatched Git fixtures.
+        observable: Invalid repository, mutable commit, differing tree or dirty checkout fails.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[commit-docs-review.yml-docs-review]
+      - case_id: DOCS16-03-06
+        scenario_id: documentation-uses-its-own-immutable-module-source
+        method: test
+        intent: Execute workflow verification against real mismatched Git fixtures.
+        observable: Invalid repository, mutable commit, differing tree or dirty checkout fails.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[commit-pr-orchestrator.yml-cli-validation]
+      - case_id: DOCS16-03-07
+        scenario_id: documentation-uses-its-own-immutable-module-source
+        method: test
+        intent: Execute workflow verification against real mismatched Git fixtures.
+        observable: Invalid repository, mutable commit, differing tree or dirty checkout fails.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[tree-docs-review.yml-docs-review]
+      - case_id: DOCS16-03-08
+        scenario_id: documentation-uses-its-own-immutable-module-source
+        method: test
+        intent: Execute workflow verification against real mismatched Git fixtures.
+        observable: Invalid repository, mutable commit, differing tree or dirty checkout fails.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[tree-pr-orchestrator.yml-cli-validation]
+      - case_id: DOCS16-03-09
+        scenario_id: documentation-uses-its-own-immutable-module-source
+        method: test
+        intent: Execute workflow verification against real mismatched Git fixtures.
+        observable: Invalid repository, mutable commit, differing tree or dirty checkout fails.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[mutable-commit-docs-review.yml-docs-review]
+      - case_id: DOCS16-03-10
+        scenario_id: documentation-uses-its-own-immutable-module-source
+        method: test
+        intent: Execute workflow verification against real mismatched Git fixtures.
+        observable: Invalid repository, mutable commit, differing tree or dirty checkout fails.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[mutable-commit-pr-orchestrator.yml-cli-validation]
+      - case_id: DOCS16-03-11
+        scenario_id: documentation-uses-its-own-immutable-module-source
+        method: test
+        intent: Execute workflow verification against real mismatched Git fixtures.
+        observable: Invalid repository, mutable commit, differing tree or dirty checkout fails.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[dirty-docs-review.yml-docs-review]
+      - case_id: DOCS16-03-12
+        scenario_id: documentation-uses-its-own-immutable-module-source
+        method: test
+        intent: Execute workflow verification against real mismatched Git fixtures.
+        observable: Invalid repository, mutable commit, differing tree or dirty checkout fails.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[dirty-pr-orchestrator.yml-cli-validation]
+  ? openspec:docs-16-code-review-runtime-parity:generated-command-overview:code-review-command-parity-includes-options-and-subgroups
+  : rationale: Normalized command parity must retain real parameters and use explicit documentation context.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#728
+      - nold-ai/specfact-cli-modules#473
+    touchpoints:
+      - id: command-generator
+        kind: cli_command
+        locator: scripts/generate-command-overview.py
+      - id: command-validator
+        kind: cli_command
+        locator: scripts/check-command-contract.py
+      - id: core-command-reference
+        kind: documentation
+        locator: docs/reference/commands.generated.md
+      - id: agent-command-reference
+        kind: documentation
+        locator: llms.txt
+    verification_cases:
+      - case_id: DOCS16-04-01
+        scenario_id: code-review-command-parity-includes-options-and-subgroups
+        method: test
+        intent: Exercise the parity gate against controlled generated-contract mutations without an external checkout.
+        observable: Missing paths, ordinary options, arguments and subgroup entries each fail comparison.
+        selector:
+          runner: pytest
+          node_id: tests/unit/docs/test_code_review_command_parity.py::test_parity_gate_rejects_changed_contract[path]
+      - case_id: DOCS16-04-02
+        scenario_id: code-review-command-parity-includes-options-and-subgroups
+        method: test
+        intent: Exercise the parity gate against controlled generated-contract mutations without an external checkout.
+        observable: Missing paths, ordinary options, arguments and subgroup entries each fail comparison.
+        selector:
+          runner: pytest
+          node_id: tests/unit/docs/test_code_review_command_parity.py::test_parity_gate_rejects_changed_contract[options]
+      - case_id: DOCS16-04-03
+        scenario_id: code-review-command-parity-includes-options-and-subgroups
+        method: test
+        intent: Exercise the parity gate against controlled generated-contract mutations without an external checkout.
+        observable: Missing paths, ordinary options, arguments and subgroup entries each fail comparison.
+        selector:
+          runner: pytest
+          node_id: tests/unit/docs/test_code_review_command_parity.py::test_parity_gate_rejects_changed_contract[arguments]
+      - case_id: DOCS16-04-04
+        scenario_id: code-review-command-parity-includes-options-and-subgroups
+        method: test
+        intent: Exercise the parity gate against controlled generated-contract mutations without an external checkout.
+        observable: Missing paths, ordinary options, arguments and subgroup entries each fail comparison.
+        selector:
+          runner: pytest
+          node_id: tests/unit/docs/test_code_review_command_parity.py::test_parity_gate_rejects_changed_contract[subcommands]
+      - case_id: DOCS16-05-01
+        scenario_id: code-review-command-parity-includes-options-and-subgroups
+        method: test
+        intent: Run the documentation gate shell without the required source context.
+        observable: Both documentation jobs fail before pytest starts.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_docs_module_fixture.py::test_docs_gate_fails_before_pytest_without_explicit_context[docs-review]
+      - case_id: DOCS16-05-02
+        scenario_id: code-review-command-parity-includes-options-and-subgroups
+        method: test
+        intent: Run the documentation gate shell without the required source context.
+        observable: Both documentation jobs fail before pytest starts.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_docs_module_fixture.py::test_docs_gate_fails_before_pytest_without_explicit_context[cli-validation]
+      - case_id: DOCS16-06-01
+        scenario_id: code-review-command-parity-includes-options-and-subgroups
+        method: test
+        intent: Inspect real Click and Typer positional parameters.
+        observable: Display name, required status and variadic arity are retained.
+        selector:
+          runner: pytest
+          node_id: tests/unit/docs/test_code_review_command_parity.py::test_generator_preserves_positional_argument_contract[False--1-None-Argument]
+      - case_id: DOCS16-06-02
+        scenario_id: code-review-command-parity-includes-options-and-subgroups
+        method: test
+        intent: Inspect real Click and Typer positional parameters.
+        observable: Display name, required status and variadic arity are retained.
+        selector:
+          runner: pytest
+          node_id: tests/unit/docs/test_code_review_command_parity.py::test_generator_preserves_positional_argument_contract[False--1-None-TyperArgument]
+      - case_id: DOCS16-06-03
+        scenario_id: code-review-command-parity-includes-options-and-subgroups
+        method: test
+        intent: Inspect real Click and Typer positional parameters.
+        observable: Display name, required status and variadic arity are retained.
+        selector:
+          runner: pytest
+          node_id: tests/unit/docs/test_code_review_command_parity.py::test_generator_preserves_positional_argument_contract[True-1-INPUT-Argument]
+      - case_id: DOCS16-06-04
+        scenario_id: code-review-command-parity-includes-options-and-subgroups
+        method: test
+        intent: Inspect real Click and Typer positional parameters.
+        observable: Display name, required status and variadic arity are retained.
+        selector:
+          runner: pytest
+          node_id: tests/unit/docs/test_code_review_command_parity.py::test_generator_preserves_positional_argument_contract[True-1-INPUT-TyperArgument]
+      - case_id: DOCS16-07-01
+        scenario_id: code-review-command-parity-includes-options-and-subgroups
+        method: test
+        intent: Select documentation source with a distinct execution source present.
+        observable: Only documentation source enters the generator import path.
+        selector:
+          runner: pytest
+          node_id: tests/unit/docs/test_code_review_command_parity.py::test_explicit_docs_source_takes_precedence_over_execution_source[generate-command-overview.py]
+      - case_id: DOCS16-07-02
+        scenario_id: code-review-command-parity-includes-options-and-subgroups
+        method: test
+        intent: Select documentation source with a distinct execution source present.
+        observable: Only documentation source enters the generator import path.
+        selector:
+          runner: pytest
+          node_id: tests/unit/docs/test_code_review_command_parity.py::test_explicit_docs_source_takes_precedence_over_execution_source[check-command-contract.py]
+      - case_id: DOCS16-08-01
+        scenario_id: code-review-command-parity-includes-options-and-subgroups
+        method: test
+        intent: Supply invalid explicit documentation source with a valid execution fallback.
+        observable: Generator fails instead of importing the execution fixture.
+        selector:
+          runner: pytest
+          node_id: tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[generate-command-overview.py-empty]
+      - case_id: DOCS16-08-02
+        scenario_id: code-review-command-parity-includes-options-and-subgroups
+        method: test
+        intent: Supply invalid explicit documentation source with a valid execution fallback.
+        observable: Generator fails instead of importing the execution fixture.
+        selector:
+          runner: pytest
+          node_id: tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[generate-command-overview.py-missing]
+      - case_id: DOCS16-08-03
+        scenario_id: code-review-command-parity-includes-options-and-subgroups
+        method: test
+        intent: Supply invalid explicit documentation source with a valid execution fallback.
+        observable: Generator fails instead of importing the execution fixture.
+        selector:
+          runner: pytest
+          node_id: tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[generate-command-overview.py-file]
+      - case_id: DOCS16-08-04
+        scenario_id: code-review-command-parity-includes-options-and-subgroups
+        method: test
+        intent: Supply invalid explicit documentation source with a valid execution fallback.
+        observable: Generator fails instead of importing the execution fixture.
+        selector:
+          runner: pytest
+          node_id: tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[check-command-contract.py-empty]
+      - case_id: DOCS16-08-05
+        scenario_id: code-review-command-parity-includes-options-and-subgroups
+        method: test
+        intent: Supply invalid explicit documentation source with a valid execution fallback.
+        observable: Generator fails instead of importing the execution fixture.
+        selector:
+          runner: pytest
+          node_id: tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[check-command-contract.py-missing]
+      - case_id: DOCS16-08-06
+        scenario_id: code-review-command-parity-includes-options-and-subgroups
+        method: test
+        intent: Supply invalid explicit documentation source with a valid execution fallback.
+        observable: Generator fails instead of importing the execution fixture.
+        selector:
+          runner: pytest
+          node_id: tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[check-command-contract.py-file]

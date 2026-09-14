@@ -14,6 +14,7 @@ on:
       - "src/specfact_cli/resources/**"
       - "docs/.doc-frontmatter-enforced"
       - "tests/unit/docs/**"
+      - "tests/unit/workflows/test_docs_module_fixture.py"
       - "tests/unit/scripts/test_doc_frontmatter/**"
       - "tests/integration/scripts/test_doc_frontmatter/**"
       - "tests/helpers/doc_frontmatter.py"
@@ -33,7 +34,7 @@ on:
       - "pyproject.toml"
       - "uv.lock"
       - "requirements/ci/locked.txt"
-      - "ci/module-fixture.lock.json"
+      - "ci/docs-module-fixture.lock.json"
       - ".github/actions/setup-frozen-python/**"
       - ".github/workflows/docs-review.yml"
   push:
@@ -47,6 +48,7 @@ on:
       - "src/specfact_cli/resources/**"
       - "docs/.doc-frontmatter-enforced"
       - "tests/unit/docs/**"
+      - "tests/unit/workflows/test_docs_module_fixture.py"
       - "tests/unit/scripts/test_doc_frontmatter/**"
       - "tests/integration/scripts/test_doc_frontmatter/**"
       - "tests/helpers/doc_frontmatter.py"
@@ -66,7 +68,7 @@ on:
       - "pyproject.toml"
       - "uv.lock"
       - "requirements/ci/locked.txt"
-      - "ci/module-fixture.lock.json"
+      - "ci/docs-module-fixture.lock.json"
       - ".github/actions/setup-frozen-python/**"
       - ".github/workflows/docs-review.yml"
   workflow_dispatch:
@@ -92,11 +94,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          repository="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])')"
-          commit="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          repository="$(python -c 'import json; print(json.load(open("ci/docs-module-fixture.lock.json", encoding="utf-8"))["repository"])')"
+          commit="$(python -c 'import json; print(json.load(open("ci/docs-module-fixture.lock.json", encoding="utf-8"))["commit"])')"
           [[ "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]
           test "$repository" = "nold-ai/specfact-cli-modules"
+          tree="$(python -c 'import json; print(json.load(open("ci/docs-module-fixture.lock.json", encoding="utf-8"))["tree"])')"
           [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$tree" =~ ^[0-9a-f]{40}$ ]]
           printf 'repository=%s\n' "$repository" >> "$GITHUB_OUTPUT"
           printf 'commit=%s\n' "$commit" >> "$GITHUB_OUTPUT"
 
@@ -112,14 +116,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          expected_repository="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])')"
-          expected="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          expected_repository="$(python -c 'import json; print(json.load(open("ci/docs-module-fixture.lock.json", encoding="utf-8"))["repository"])')"
+          expected="$(python -c 'import json; print(json.load(open("ci/docs-module-fixture.lock.json", encoding="utf-8"))["commit"])')"
           test "$expected_repository" = "${{ steps.modules-fixture.outputs.repository }}"
           actual="$(git -C specfact-cli-modules rev-parse HEAD)"
           test "$actual" = "$expected"
+          expected_tree="$(python -c 'import json; print(json.load(open("ci/docs-module-fixture.lock.json", encoding="utf-8"))["tree"])')"
+          actual_tree="$(git -C specfact-cli-modules rev-parse 'HEAD^{tree}')"
+          test "$actual_tree" = "$expected_tree"
+          test -z "$(git -C specfact-cli-modules status --porcelain --untracked-files=all)"
 
       - name: Export module command source path
-        run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
+        run: |
+          echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
+          echo "SPECFACT_DOCS_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
 
       - name: Set up Python 3.12
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
@@ -131,6 +141,14 @@ jobs:
 
       - name: Validate docs dependency security floor
         run: python -m pytest tests/unit/docs/test_docs_validation_scripts.py::test_docs_json_gem_uses_the_patched_security_floor -q
+
+      - name: Validate documentation fixture and Code Review command parity
+        run: |
+          test -n "${SPECFACT_DOCS_MODULES_REPO:?Documentation fixture is required}"
+          python -m pytest \
+            tests/unit/docs/test_code_review_command_parity.py \
+            tests/unit/docs/test_llms_overview_freshness.py \
+            tests/unit/workflows/test_docs_module_fixture.py -q
 
       - name: Validate docs command examples
         run: python scripts/check-docs-commands.py

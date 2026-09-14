@@ -536,7 +536,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          fixture_ref="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          fixture_ref="$(python -c 'import json; print(json.load(open("ci/docs-module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          repository="$(python -c 'import json; print(json.load(open("ci/docs-module-fixture.lock.json", encoding="utf-8"))["repository"])')"
+          tree="$(python -c 'import json; print(json.load(open("ci/docs-module-fixture.lock.json", encoding="utf-8"))["tree"])')"
+          test "$repository" = "nold-ai/specfact-cli-modules"
+          [[ "$fixture_ref" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$tree" =~ ^[0-9a-f]{40}$ ]]
           echo "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout module command sources
@@ -547,14 +552,20 @@ jobs:
           path: specfact-cli-modules
           ref: ${{ steps.modules-fixture.outputs.ref }}
       - name: Export module command source path
-        run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
+        run: |
+          echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
+          echo "SPECFACT_DOCS_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
       - name: Verify immutable module fixture
         shell: bash
         run: |
           set -euo pipefail
-          expected="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          expected="$(python -c 'import json; print(json.load(open("ci/docs-module-fixture.lock.json", encoding="utf-8"))["commit"])')"
           actual="$(git -C specfact-cli-modules rev-parse HEAD)"
           test "$actual" = "$expected"
+          expected_tree="$(python -c 'import json; print(json.load(open("ci/docs-module-fixture.lock.json", encoding="utf-8"))["tree"])')"
+          actual_tree="$(git -C specfact-cli-modules rev-parse 'HEAD^{tree}')"
+          test "$actual_tree" = "$expected_tree"
+          test -z "$(git -C specfact-cli-modules status --porcelain --untracked-files=all)"
       - name: Set up Python 3.12
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
@@ -574,6 +585,11 @@ jobs:
           "$RUNNER_TEMP/specfact-cli-validation/bin/specfact-cli" --help
       - name: Validate CLI commands
         run: |
+          test -n "${SPECFACT_DOCS_MODULES_REPO:?Documentation fixture is required}"
+          python -m pytest \
+            tests/unit/docs/test_code_review_command_parity.py \
+            tests/unit/docs/test_llms_overview_freshness.py \
+            tests/unit/workflows/test_docs_module_fixture.py -q
           echo "🔍 Validating CLI commands..."
           python scripts/generate-command-overview.py --check
           python scripts/check-command-contract.py

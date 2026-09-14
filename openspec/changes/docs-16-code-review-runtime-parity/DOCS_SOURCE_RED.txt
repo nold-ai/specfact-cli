@@ -1,0 +1,118 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.13.14, pytest-9.1.1, pluggy-1.6.0
+rootdir: <core-worktree>
+configfile: pyproject.toml
+plugins: mock-3.15.1, cov-7.1.0, xdist-3.8.0, timeout-2.4.0, asyncio-1.4.0, anyio-4.14.2, hypothesis-6.161.1
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 11 items / 5 deselected / 6 selected
+
+tests/unit/docs/test_code_review_command_parity.py::test_code_review_generated_contract_matches_reviewed_module_source SKIPPED [ 16%]
+tests/unit/docs/test_code_review_command_parity.py::test_explicit_docs_source_takes_precedence_over_execution_source FAILED [ 33%]
+tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[empty] FAILED [ 50%]
+tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[missing] FAILED [ 66%]
+tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[file] FAILED [ 83%]
+tests/unit/docs/test_code_review_command_parity.py::test_generic_generator_callers_keep_execution_source_discovery PASSED [100%]
+
+=================================== FAILURES ===================================
+_______ test_explicit_docs_source_takes_precedence_over_execution_source _______
+
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-389/test_explicit_docs_source_take0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10b636780>
+
+    def test_explicit_docs_source_takes_precedence_over_execution_source(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        generator = _load_generator()
+        documentation = tmp_path / "documentation"
+        execution = tmp_path / "execution"
+        for root in (documentation, execution):
+            (root / "packages/example/src").mkdir(parents=True)
+        monkeypatch.setenv("SPECFACT_DOCS_MODULES_REPO", str(documentation))
+        monkeypatch.setenv("SPECFACT_MODULES_REPO", str(execution))
+        monkeypatch.setattr(sys, "path", sys.path.copy())
+        generator._ensure_imports()
+>       assert str(documentation / "packages/example/src") in sys.path
+E       AssertionError: assert '/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-389/test_explicit_docs_source_take0/documentation/packages/example/src' in ['/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-389/test_explicit_docs_source_take0/execution/packages/example/src', '<core-worktree>/src', '<core-worktree>/tools', '<core-worktree>', '/Users/dom/.local/share/uv/python/cpython-3.13.14-macos-aarch64-none/lib/python313.zip', '/Users/dom/.local/share/uv/python/cpython-3.13.14-macos-aarch64-none/lib/python3.13', ...]
+E        +  where '/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-389/test_explicit_docs_source_take0/documentation/packages/example/src' = str((PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-389/test_explicit_docs_source_take0/documentation') / 'packages/example/src'))
+E        +  and   ['/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-389/test_explicit_docs_source_take0/execution/packages/example/src', '<core-worktree>/src', '<core-worktree>/tools', '<core-worktree>', '/Users/dom/.local/share/uv/python/cpython-3.13.14-macos-aarch64-none/lib/python313.zip', '/Users/dom/.local/share/uv/python/cpython-3.13.14-macos-aarch64-none/lib/python3.13', ...] = sys.path
+
+tests/unit/docs/test_code_review_command_parity.py:93: AssertionError
+__________ test_invalid_explicit_docs_source_cannot_fall_back[empty] ___________
+
+kind = 'empty'
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-389/test_invalid_explicit_docs_sou0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10b67fbf0>
+
+    @pytest.mark.parametrize("kind", ["empty", "missing", "file"])
+    def test_invalid_explicit_docs_source_cannot_fall_back(
+        kind: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        generator = _load_generator()
+        execution = tmp_path / "execution"
+        (execution / "packages/example/src").mkdir(parents=True)
+        documentation = tmp_path / "documentation"
+        if kind == "file":
+            documentation.write_text("not a repository")
+        monkeypatch.setenv("SPECFACT_DOCS_MODULES_REPO", "" if kind == "empty" else str(documentation))
+        monkeypatch.setenv("SPECFACT_MODULES_REPO", str(execution))
+        monkeypatch.setattr(sys, "path", sys.path.copy())
+>       with pytest.raises(ValueError, match="SPECFACT_DOCS_MODULES_REPO"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/unit/docs/test_code_review_command_parity.py:111: Failed
+_________ test_invalid_explicit_docs_source_cannot_fall_back[missing] __________
+
+kind = 'missing'
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-389/test_invalid_explicit_docs_sou1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10b673130>
+
+    @pytest.mark.parametrize("kind", ["empty", "missing", "file"])
+    def test_invalid_explicit_docs_source_cannot_fall_back(
+        kind: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        generator = _load_generator()
+        execution = tmp_path / "execution"
+        (execution / "packages/example/src").mkdir(parents=True)
+        documentation = tmp_path / "documentation"
+        if kind == "file":
+            documentation.write_text("not a repository")
+        monkeypatch.setenv("SPECFACT_DOCS_MODULES_REPO", "" if kind == "empty" else str(documentation))
+        monkeypatch.setenv("SPECFACT_MODULES_REPO", str(execution))
+        monkeypatch.setattr(sys, "path", sys.path.copy())
+>       with pytest.raises(ValueError, match="SPECFACT_DOCS_MODULES_REPO"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/unit/docs/test_code_review_command_parity.py:111: Failed
+___________ test_invalid_explicit_docs_source_cannot_fall_back[file] ___________
+
+kind = 'file'
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-389/test_invalid_explicit_docs_sou2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10b6717b0>
+
+    @pytest.mark.parametrize("kind", ["empty", "missing", "file"])
+    def test_invalid_explicit_docs_source_cannot_fall_back(
+        kind: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        generator = _load_generator()
+        execution = tmp_path / "execution"
+        (execution / "packages/example/src").mkdir(parents=True)
+        documentation = tmp_path / "documentation"
+        if kind == "file":
+            documentation.write_text("not a repository")
+        monkeypatch.setenv("SPECFACT_DOCS_MODULES_REPO", "" if kind == "empty" else str(documentation))
+        monkeypatch.setenv("SPECFACT_MODULES_REPO", str(execution))
+        monkeypatch.setattr(sys, "path", sys.path.copy())
+>       with pytest.raises(ValueError, match="SPECFACT_DOCS_MODULES_REPO"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/unit/docs/test_code_review_command_parity.py:111: Failed
+=========================== short test summary info ============================
+SKIPPED [1] tests/unit/docs/test_code_review_command_parity.py:39: The immutable documentation module fixture is not configured
+FAILED tests/unit/docs/test_code_review_command_parity.py::test_explicit_docs_source_takes_precedence_over_execution_source
+FAILED tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[empty]
+FAILED tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[missing]
+FAILED tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[file]
+============= 4 failed, 1 passed, 1 skipped, 5 deselected in 0.14s =============

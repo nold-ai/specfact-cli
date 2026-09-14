@@ -1,0 +1,112 @@
+# TDD evidence
+
+## Readiness and spec-first preparation
+
+On 2026-09-14 Europe/Berlin, core issue #728 was created and verified with native parent #356, owner djm81, bug/documentation/openspec/change-proposal/code-review labels, SpecFact CLI project Todo, and empty blocking/blocked-by lists. Base: 45776bf0ee64e0a9cef07ee5d3c324114d8ac44f. No competing documentation scope was found in core #725/#726.
+
+The dedicated worktree was bootstrapped with frozen `uv sync --locked --all-extras`; offline setup lacked hatchling1.32.0, so the locked online sync completed. Hatch environment setup and smart/contract status preflight completed. Core CLI version remained0.55.4.
+
+OpenSpec requirements were written before tests. `openspec validate docs-16-code-review-runtime-parity --strict` passed.
+
+## RED before production edits
+
+`SPECFACT_MODULES_REPO=<reviewed-module-source> .venv/bin/python -m pytest tests/unit/docs/test_code_review_command_parity.py tests/unit/workflows/test_docs_module_fixture.py -q` reported **3 failed, 1 passed**. The source used for reproduction was the active modules PR474 worktree, not final fixture acceptance. Failures show missing runtime commands/project options and the Docs Review workflow still selecting the Requirements lock. Requirements approved identity regression passes unchanged.
+
+See sanitized `COMMAND_PARITY_RED.txt`. Production/workflow/generated artifacts and candidate fixture identity remain unchanged at this checkpoint. Final signed modules commit/tree and GREEN evidence are pending.
+
+## Internal mirror
+
+A corresponding source page and graph rebuild were prepared in a separate internal worktree for owner review. The original sibling checkout is unchanged; no private wiki text is copied into this repository. Rebuild produced broader graph changes from its existing baseline; those require owner review before any internal publication.
+
+Additional workflow-shell RED before production changes: 3 failed / 5 passed. Executing the existing read/verify steps against real local Git fixtures showed a mismatched tree and dirty source accepted; repository, mutable-ref, and commit mismatch checks already rejected correctly. See DOCS_FIXTURE_RED.txt. Clean immutable source is part of the recorded design; this strengthens the docs-only adoption boundary.
+
+Root inspection found CLI Command Validation also runs generated documentation checks against the shared older execution fixture. Before extending that one job, a spec scenario and RED regression were added: 3 failed / 7 passed. See DOCS_CONTEXT_RED.txt. Scope is limited to the cli-validation job, explicit docs-context tests, and Docs Review; all other orchestrator jobs remain unchanged.
+
+## Generator argument and local source separation
+
+The first canonical regeneration exposed an additional real mismatch: core omitted the review `FILES` positional argument. Existing Click and Typer arguments have an `opts` attribute, so the old attribute-absence check discarded them. After adding the positional-metadata scenario, four Click/Typer required/optional/variadic regression cases failed with empty argument metadata before the generator change (`ARGUMENT_METADATA_RED.txt`). Explicit parameter classes now preserve display name, arity and required status; canonical regeneration also restores positional arguments for other existing commands.
+
+Canonical commit hooks regenerate documentation and execute Requirements evidence within one shell. A separate documented generator context is therefore necessary: after the local-source scenario, precedence and invalid-context tests produced **4 failed, 1 passed, 1 context skip** (`DOCS_SOURCE_RED.txt`). The generator now uses `SPECFACT_DOCS_MODULES_REPO` exclusively when explicitly provided and rejects empty/unavailable sources. Ordinary callers retain prior discovery. Only the generator child process updates its module-source environment; the Requirements fixture and authority are unchanged.
+
+Independent review reproduced the older Docs Review workflow test's shared-lock assertion (`EXISTING_WORKFLOW_RED.txt`). Its existing trust helper now accepts an explicit expected fixture for Docs Review while preserving the approved default for standalone contract execution and all other trust assertions.
+
+## Reviewed immutable input and current GREEN
+
+The docs-only fixture selects modules commit `1d6f035c42fbfadf0d853eabd7f90315b7b36278`, tree `ee18bcef1378575b6fec14536f957e2d8d25e82c`. The parent delivery task independently verified all seven signatures with the publisher public key. Code Review version is `0.50.0`, payload checksum `sha256:3bc137548254eaa4093b1be9427089142acc6fc1bcfd356b555ff01fd37c6500`. This is a signed candidate source identity, not a public registry acceptance claim. A private clean detached checkout preserves this input while subsequent module implementation continues.
+
+On 2026-09-14 Europe/Berlin, Python 3.13.14 validation of `tests/unit/docs`, `tests/unit/workflows`, and `tests/unit/scripts/test_reproducible_delivery.py` reported **213 passed, 1 skipped in 12.78 seconds**. The skip is an existing opt-in live HTTP handoff URL check. All substantive parity and fixture checks executed. Independent review additionally passed all 58 existing trustworthy-green workflow tests and the 33 focused changed-scope tests, reporting no remaining actionable findings.
+
+Canonical generator `--check`, command contract (**117 command paths**), docs command examples (**393 unique prefixes**), documentation accountability, enforced frontmatter, agent-rule signals, format and lint passed. The BasedPyright authority check analyzed 663 files with **0 errors**; its existing 1,532 advisory warnings remain visible in the full JSON. Frozen delivery verification passed with unchanged lock/export inputs, and workflow actionlint passed.
+
+The repository YAML wrapper exited zero but printed pre-existing non-workflow YAML errors in unchanged `requirements-07-runtime-proof-delivery` and archived `requirements-08` files; this is not a claim that all existing YAML is clean. Contract auto selected no modified runtime source files and performed no new contract exploration. The initial smart run could not initialize the default host UV/Hatch cache; a retry uses isolated temporary caches and the supported Python 3.13 test environment. The supported private-cache retry passed; final results are recorded below.
+
+The isolated internal mirror was updated for the generator and source-context scope and rebuilt through its canonical script. A clean module checkout with the canonical directory name corrected path-derived repository labels; its graph still reflects pre-existing baseline task-count changes. Internal publication remains separately reviewed. No wiki bodies are included here.
+
+## Final scoped gates and review dispositions
+
+`HATCH_TEST_ENV=py3.13 hatch run smart-test` completed its configured full-suite policy run with **3,153 passed, 10 skipped, 2 existing lark deprecation warnings in 207.25 seconds**, exit 0. This describes the repository's selected Hatch suite, not every optional matrix or external integration. Reported source/tool coverage was 64%. No application behavior was added and contract auto correctly selected no changed runtime source files. After advisory cleanup (type annotations and non-nested equivalent fixture setup), affected docs/workflow/reproducibility tests passed again: **213 passed, 1 opt-in HTTP skip in 17.07 seconds**. Final canonical format and lint passed.
+
+The schema-2 Requirements sidecar maps three requirements to eight verification cases. The canonical staged gate against the unchanged approved execution fixture `69f075819be5e1ceca1446b026b0417f19e584ca` passed at **planned** maturity. That is plan completeness, not stakeholder acceptance or protected delivery proof. The documentation fixture is separate and the same shell can run generator freshness and Requirements validation without changing execution authority.
+
+Fresh staged-file SpecFact review used `code review run --bug-hunt --json --out .specfact/code-review.json` and the approved execution fixture. At **2026-09-14T21:15:11.657550Z** it reported **PASS_WITH_ADVISORY, 0 errors, 5 warnings**. Semgrep's initial empty-trust-store tool errors were resolved by selecting the environment's certifi trust bundle; no analyzer was skipped. New nesting and type-inference advisories were fixed and the review repeated.
+
+The following exact unchanged findings are explicitly dispositioned for this documentation scope; no rule suppression or broad waiver was added. Each named declaration is present unchanged in core base `45776bf0ee64e0a9cef07ee5d3c324114d8ac44f`:
+
+- `MISSING_ICONTRACT` on generator `build_records` and `main`: unchanged CLI-script entry boundaries, with output contracts covered by generated parity/freshness and focused tests. Adding a new runtime contract dependency or altering unrelated CLI entry behavior is outside this change. The parent Codex review task accepted this narrow legacy boundary exception.
+- `banned-generic-public-names` on `test_primary_test_process_does_not_inherit_github_base_ref`, `test_compatibility_test_process_does_not_inherit_github_base_ref`, and `test_only_test_processes_override_github_base_ref`: false positives on the substring `process` in precise pytest launcher-test names, not generic production APIs. The parent Codex review task accepted retaining these unchanged trust-test names.
+
+Independent Semgrep OSS SAST completed six rules on 299 tracked targets with zero findings; its accepted-baseline gate passed. The independent Bandit `-r src/ -ll` gate passed with no medium/high findings. Changed YAML (both workflows and the new sidecar) passes direct yamllint; the unrelated pre-existing YAML defects noted above remain visible. Signature/public registry acceptance is owned by the modules release task, and the final documentation fixture identity will be refreshed if that task receives another signed candidate.
+
+## Final signed source refresh and live validator boundary
+
+The final documentation source was refreshed to signed modules commit `1ac16e237b5f155962d602b488e4a5e8fa2f3c94`, tree `123472110299f01947b659f6b441b6add774d793`, authored predecessor `17ba3078`, Code Review `0.50.0`, payload checksum `sha256:6a1f342d9da63a39761f44616fa1fd679cd46ad4443386be1f70d7c5ab544bab`. Canonical publisher-key verification independently passed all seven manifests; the bot added only the signature. Both private documentation clones are clean at the supplied identity. The Git source signature remains distinct from public registry installation acceptance.
+
+Canonical regeneration produced no changes to the already-staged JSON/Markdown/llms artifacts after this worker-only module update. Initial final-pin focused checks passed **91 tests in 6.28 seconds**. Running the complete canonical documentation checks with separate source variables exposed a remaining boundary: the live `check-command-contract.py` validator still selected the older execution fixture and rejected the three runtime command paths. The local-context scenario was clarified to include live validation before extending tests. Its four explicit-source/invalid-source cases failed while the generic fallback case passed (`CONTRACT_DOCS_SOURCE_RED.txt`).
+
+The live documentation validator now honors the same explicit documentation source and rejects empty/unavailable choices; ordinary caller discovery and Requirements execution authority stay unchanged. After implementation, **218 affected docs/workflow/reproducibility tests passed, 1 existing opt-in HTTP check skipped, in 9.53 seconds**. The separate-source shell passes generator freshness, all **117 command paths**, and **393 documented command prefixes**. Final canonical format and lint passed. This bounded documentation-loader change required affected validation; the earlier configured full-suite result is retained with its original scope and input.
+
+The canonical modular pre-commit hook is installed in the private Git common directory. No commit or push has been made by the delegated documentation task. The private wiki mirror and its canonical graph were refreshed for the final signed source and live-validator scope.
+
+Final live-validator advisory remediation extracted source selection from import-path setup and added a verified JSON dictionary type annotation. The repeated affected suite passed **218 tests with 1 opt-in HTTP skip in 10.00 seconds**; canonical format/lint and all 117 live command paths passed. Fresh review at **2026-09-14T21:31:59.493916Z** reports **PASS_WITH_ADVISORY, 0 errors, 6 warnings**. No introduced complexity/type/nesting findings remain.
+
+The six remaining warnings are the five exact dispositions above plus `MISSING_ICONTRACT` on the unchanged `scripts/check-command-contract.py` `main` CLI-script boundary. The parent Codex review task accepted the same narrow legacy entry-boundary exception. AST comparison against core base `45776bf0ee64e0a9cef07ee5d3c324114d8ac44f` confirms all three CLI declarations/bodies and all three precisely named pytest functions are unchanged. Existing and focused live-command tests validate the entry boundary and source-selection behavior; no broad suppression was added.
+
+## Canonical test-authored planning and execution receipt
+
+The first canonical commit attempt stopped before creating a commit because scripts/CI changes require **test-authored** planning and the review record was absent. The earlier planned result above was insufficient. The evidence correction preserves the approved execution fixture and does not change hook, executor, or workflow authority.
+
+The generated-parity specification now also requires self-contained comparator fault tests for the Requirements executor, which intentionally does not inherit `SPECFACT_DOCS_MODULES_REPO`. A controlled generated contract with the runtime option removed failed the existing parity comparison (`PARITY_PROOF_RED.txt`). Four new cases exercise the actual comparator with positive controls and independent path, option, argument and subgroup mutations. Live signed-source parity remains mandatory in the separate documentation jobs.
+
+The sidecar's three requirements now enumerate **32 unique exact pytest selectors**, expanding the earlier eight semantic case groups into collected parameter instances. Workflow context cases use stable selector-safe IDs. All 32 executed independently without the documentation environment variable: **32 passed, zero skips in 1.75 seconds**. The updated parity/fixture suite passed **38 tests in 1.71 seconds**.
+
+Independent AI reviewer `Codex:/root/review_core_docs` accepted only the mapping and test design, after independently recomputing source mapping digest `sha256:39345cbeb452dae3587ecba1d2d5c2d0bbd83dd0bd1606ec9ee28360777c9e87`. The factual [AI review ledger](https://github.com/nold-ai/specfact-cli/issues/728#issuecomment-5671231444), recorded at `2026-09-14T21:44:40Z`, is bound by `requirements-proof/review-evidence.json`. This is neither human/stakeholder acceptance nor protected RED, verified execution, or public release acceptance.
+
+The canonical staged command passed with no findings:
+
+```sh
+hatch run python scripts/requirements_evidence_delivery_gate.py \
+  --repo-root . --staged --required-maturity test-authored \
+  --output /private/tmp/specfact-473-core-docs-test-authored.json \
+  --summary /private/tmp/specfact-473-core-docs-test-authored.md \
+  --review-evidence openspec/changes/docs-16-code-review-runtime-parity/requirements-proof/review-evidence.json \
+  --plan-output /private/tmp/specfact-473-core-docs-executable-plan.json
+hatch run python scripts/requirements_proof_executor.py \
+  --plan /private/tmp/specfact-473-core-docs-executable-plan.json \
+  --repo-root . --junit /private/tmp/specfact-473-core-docs-executor-junit.xml
+```
+
+The actual canonical executor passed **32 tests, zero skips in 1.56 seconds**, on macOS with Python **3.12.13** and pytest **9.1.1**. Its JUnit contains exactly one result for each declared selector and the recorded interpreter/tool properties. Its **32 existing `record_property`/`xunit2` compatibility warnings remain visible**; this is not a zero-warning run. The aggregate executable mapping digest is `sha256:cf5e54f5ac5b443f3434685fd6818eb8a51642638da73d17ebe7cfdb4c405e27`, and plan digest is `sha256:4ccbfe56599656a3ef8f914d3e1e0c08e32ba8da3918ecdfaad2eb8ab4396f09`. These differ from the source mapping digest because the delivery gate composes source-qualified cases.
+
+Fresh staged SpecFact review at **2026-09-14T21:43:54.226605Z** reports **PASS_WITH_ADVISORY, zero errors, the same six explicitly approved unchanged warnings**. No new warning exception or suppression was introduced.
+
+### Protected verification remains outstanding
+
+The unchanged Requirements workflow selects `verified` maturity for changes under `.github`, `ci`, or `scripts`. After successful test-authored planning it executes this plan and reconciles final results. The pinned validator emits `prior-red-proof-missing` when final execution has neither a matching retained RED proof nor explicitly authorized legacy evidence. This is an anticipated policy result from inspecting the workflow and validator, not a claim that public CI has already run.
+
+The ordinary retained-RED route searches failed earlier pull-request runs on the same branch, verifies source ancestry between the current base and head, and validates the retained report/JUnit provenance. The current change has no such protected RED artifact. Raw local failing-before transcripts and the AI test-design ledger do not substitute for it, and several preservation cases already passed before implementation; no all-32-failed claim is made. Existing late-RED and legacy bootstrap routes are bound to other named changes/PR identities and cannot be reused for this change. A separate authentic, policy-supported proof cycle or separately governed bounded authority change is still required before protected verified acceptance. This documentation patch does not change that authority.
+
+## Round 17 signed documentation source refresh
+
+The documentation fixture now selects signed modules commit `2e095f1350fecb7e7eda0bcfba6bad89a6d82c88`, tree `8846ce1b47538ea78d600b7c82bfd2ccd1761ee2`, authored predecessor `e703ea827887a384d847f16c98c950ada204962c`, Code Review `0.50.0`, payload checksum `sha256:8c9304e96f9c8a4c2a7b54988e2f6c67336a59af46d32be252c737e497d5ca97`. The parent Codex task independently verified all seven manifests with the public publisher key and verified that the bot added only the signature. Both isolated documentation clones are clean at this identity. Prior receipts above retain their original source identities. The approved Requirements execution fixture remains `69f075819be5e1ceca1446b026b0417f19e584ca`.
+
+Canonical regeneration after this worker-only update produced no change to the staged generated JSON, Markdown or llms artifacts. Generator freshness, all 117 live command paths, and all 393 documented prefixes passed. The final source-specific parity/freshness/fixture/trust-workflow selection passed **100 tests in 5.29 seconds**. Strict OpenSpec and the unchanged source-mapping test-authored gate were rerun for this exact documentation identity. No protected verified or public registry acceptance is inferred.

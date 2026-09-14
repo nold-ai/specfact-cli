@@ -1,0 +1,70 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.13.14, pytest-9.1.1, pluggy-1.6.0
+rootdir: <core-repository>
+configfile: pyproject.toml
+plugins: mock-3.15.1, cov-7.1.0, xdist-3.8.0, timeout-2.4.0, asyncio-1.4.0, anyio-4.14.2, hypothesis-6.161.1
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 10 items
+
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_review_uses_independent_verified_module_fixture[docs-review.yml-docs-review] FAILED [ 10%]
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_review_uses_independent_verified_module_fixture[pr-orchestrator.yml-cli-validation] FAILED [ 20%]
+tests/unit/workflows/test_docs_module_fixture.py::test_requirements_fixture_authority_stays_at_approved_release PASSED [ 30%]
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[None] PASSED [ 40%]
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[repository] PASSED [ 50%]
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[commit] PASSED [ 60%]
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[tree] PASSED [ 70%]
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[mutable-commit] PASSED [ 80%]
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[dirty] PASSED [ 90%]
+tests/unit/docs/test_llms_overview_freshness.py::test_requirements_source_does_not_select_documentation_fixture FAILED [100%]
+
+=================================== FAILURES ===================================
+_ test_docs_review_uses_independent_verified_module_fixture[docs-review.yml-docs-review] _
+
+filename = 'docs-review.yml', job = 'docs-review'
+
+    @pytest.mark.parametrize(("filename", "job"), [("docs-review.yml", "docs-review"), ("pr-orchestrator.yml", "cli-validation")])
+    def test_docs_review_uses_independent_verified_module_fixture(filename: str, job: str) -> None:
+        workflow = yaml.safe_load((REPO_ROOT / ".github/workflows" / filename).read_text(encoding="utf-8"))
+        steps = workflow["jobs"][job]["steps"]
+        scripts = "\n".join(step.get("run", "") for step in steps)
+        assert "ci/docs-module-fixture.lock.json" in scripts
+        assert "ci/module-fixture.lock.json" not in scripts
+        assert "HEAD^{tree}" in scripts
+        assert "test_code_review_command_parity.py" in scripts
+        assert "test_docs_module_fixture.py" in scripts
+>       assert "test_llms_overview_freshness.py" in scripts
+E       assert 'test_llms_overview_freshness.py' in '\nset -euo pipefail\nrepository="$(python -c \'import json; print(json.load(open("ci/docs-module-fixture.lock.json", encoding="utf-8"))["repository"])\')"\ncommit="$(python -c \'import json; print(json.load(open("ci/docs-module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\n[[ "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]\ntest "$repository" = "nold-ai/specfact-cli-modules"\ntree="$(python -c \'import json; print(json.load(open("ci/docs-module-fixture.lock.json", encoding="utf-8"))["tree"])\')"\n[[ "$commit" =~ ^[0-9a-f]{40}$ ]]\n[[ "$tree" =~ ^[0-9a-f]{40}$ ]]\nprintf \'repository=%s\\n\' "$repository" >> "$GITHUB_OUTPUT"\nprintf \'commit=%s\\n\' "$commit" >> "$GITHUB_OUTPUT"\n\n\nset -euo pipefail\nexpected_repository="$(python -c \'import json; print(json.load(open("ci/docs-module-fixture.lock.json", encoding="utf-8"))["repository"])\')"\nexpected="$(python -c \'import json; print(json.load(open("ci/docs-module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\ntest "$expected_repository" = "${{ steps.modules-fixture.outputs.repository }}"\nactual="$(git -C specfact-cli-modules rev-parse HEAD)"\ntest "$actual" = "$expected"\nexpected_tree="$(python -c \'im...son", encoding="utf-8"))["tree"])\')"\nactual_tree="$(git -C specfact-cli-modules rev-parse \'HEAD^{tree}\')"\ntest "$actual_tree" = "$expected_tree"\ntest -z "$(git -C specfact-cli-modules status --porcelain --untracked-files=all)"\n\necho "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"\n\n\npython -m pytest tests/unit/docs/test_docs_validation_scripts.py::test_docs_json_gem_uses_the_patched_security_floor -q\npython -m pytest tests/unit/docs/test_code_review_command_parity.py tests/unit/workflows/test_docs_module_fixture.py -q\npython scripts/check-docs-commands.py\npython scripts/generate-command-overview.py --check\npython scripts/check-command-contract.py\npython scripts/check-documentation-accountability.py\npython scripts/check-cross-site-links.py --warn-only\npython scripts/check_doc_frontmatter.py\npython scripts/validate_agent_rule_applies_when.py\nmkdir -p logs/docs-review\nDOCS_REVIEW_LOG="logs/docs-review/docs-review_$(date -u +%Y%m%d_%H%M%S).log"\npython -m pytest tests/unit/docs/ tests/unit/scripts/test_doc_frontmatter/ tests/integration/scripts/test_doc_frontmatter/ -q 2>&1 | tee "$DOCS_REVIEW_LOG"\nexit "${PIPESTATUS[0]:-$?}"\n\n'
+
+tests/unit/workflows/test_docs_module_fixture.py:28: AssertionError
+_ test_docs_review_uses_independent_verified_module_fixture[pr-orchestrator.yml-cli-validation] _
+
+filename = 'pr-orchestrator.yml', job = 'cli-validation'
+
+    @pytest.mark.parametrize(("filename", "job"), [("docs-review.yml", "docs-review"), ("pr-orchestrator.yml", "cli-validation")])
+    def test_docs_review_uses_independent_verified_module_fixture(filename: str, job: str) -> None:
+        workflow = yaml.safe_load((REPO_ROOT / ".github/workflows" / filename).read_text(encoding="utf-8"))
+        steps = workflow["jobs"][job]["steps"]
+        scripts = "\n".join(step.get("run", "") for step in steps)
+>       assert "ci/docs-module-fixture.lock.json" in scripts
+E       assert 'ci/docs-module-fixture.lock.json' in '\nset -euo pipefail\nfixture_ref="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\necho "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"\n\n\necho "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"\nset -euo pipefail\nexpected="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\nactual="$(git -C specfact-cli-modules rev-parse HEAD)"\ntest "$actual" = "$expected"\n\n\n\nset -euo pipefail\necho "Building and installing SpecFact CLI wheel..."\nuv build --wheel\npython -m venv "$RUNNER_TEMP/specfact-cli-validation"\n"$RUNNER_TEMP/specfact-cli-validation/bin/python" -m pip install --require-hashes -r requirements/ci/locked.txt\n"$RUNNER_TEMP/specfact-cli-validation/bin/python" -m pip install --no-deps dist/*.whl\n"$RUNNER_TEMP/specfact-cli-validation/bin/specfact" --help\n"$RUNNER_TEMP/specfact-cli-validation/bin/specfact-cli" --help\n\necho "🔍 Validating CLI commands..."\npython scripts/generate-command-overview.py --check\npython scripts/check-command-contract.py\npython scripts/check-docs-commands.py\necho "✅ CLI validation complete"\n'
+
+tests/unit/workflows/test_docs_module_fixture.py:23: AssertionError
+________ test_requirements_source_does_not_select_documentation_fixture ________
+
+tmp_path = PosixPath('<pytest-temp>')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10bb566d0>
+
+    def test_requirements_source_does_not_select_documentation_fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        (tmp_path / "packages").mkdir()
+        monkeypatch.setenv("SPECFACT_MODULES_REPO", str(tmp_path))
+        monkeypatch.delenv("SPECFACT_DOCS_MODULES_REPO", raising=False)
+>       assert _modules_repo_root() is None
+E       AssertionError: assert PosixPath('<pytest-temp>') is None
+E        +  where PosixPath('<pytest-temp>') = _modules_repo_root()
+
+tests/unit/docs/test_llms_overview_freshness.py:104: AssertionError
+=========================== short test summary info ============================
+FAILED tests/unit/workflows/test_docs_module_fixture.py::test_docs_review_uses_independent_verified_module_fixture[docs-review.yml-docs-review]
+FAILED tests/unit/workflows/test_docs_module_fixture.py::test_docs_review_uses_independent_verified_module_fixture[pr-orchestrator.yml-cli-validation]
+FAILED tests/unit/docs/test_llms_overview_freshness.py::test_requirements_source_does_not_select_documentation_fixture
+========================= 3 failed, 7 passed in 1.62s ==========================
