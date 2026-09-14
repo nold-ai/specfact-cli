@@ -14,6 +14,7 @@ from typing import Any, get_type_hints
 
 import click
 import typer
+from typer.core import TyperArgument
 from typer.main import get_command
 
 
@@ -54,12 +55,22 @@ def _paired_worktree_repo(source_marker: str, target_marker: str) -> Path | None
 
 def _ensure_imports() -> None:
     os.environ.setdefault("TEST_MODE", "true")
-    modules_repo = os.environ.get("SPECFACT_MODULES_REPO", "").strip()
-    module_repo_candidates = [
-        Path(modules_repo).expanduser() if modules_repo else None,
-        REPO_ROOT.parent / "specfact-cli-modules",
-        _paired_worktree_repo("specfact-cli-worktrees", "specfact-cli-modules-worktrees"),
-    ]
+    module_repo_candidates: list[Path | None]
+    documentation_repo = os.environ.get("SPECFACT_DOCS_MODULES_REPO")
+    if documentation_repo is not None:
+        documentation_repo = documentation_repo.strip()
+        candidate = Path(documentation_repo).expanduser()
+        if not documentation_repo or not (candidate / "packages").is_dir():
+            raise ValueError("SPECFACT_DOCS_MODULES_REPO must select an available module source checkout")
+        module_repo_candidates = [candidate]
+        os.environ["SPECFACT_MODULES_REPO"] = str(candidate.resolve())
+    else:
+        modules_repo = os.environ.get("SPECFACT_MODULES_REPO", "").strip()
+        module_repo_candidates = [
+            Path(modules_repo).expanduser() if modules_repo else None,
+            REPO_ROOT.parent / "specfact-cli-modules",
+            _paired_worktree_repo("specfact-cli-worktrees", "specfact-cli-modules-worktrees"),
+        ]
     for candidate in module_repo_candidates:
         if candidate is None:
             continue
@@ -135,10 +146,10 @@ def _command_options(command: Any) -> list[str]:
 def _command_arguments(command: Any) -> list[dict[str, Any]]:
     arguments: list[dict[str, Any]] = []
     for param in command.params:
-        if not hasattr(param, "opts") and hasattr(param, "human_readable_name"):
+        if isinstance(param, (click.Argument, TyperArgument)):
             arguments.append(
                 {
-                    "name": param.human_readable_name,
+                    "name": param.metavar or param.human_readable_name.upper(),
                     "required": bool(param.required),
                     "nargs": param.nargs,
                 }
@@ -204,7 +215,7 @@ def _walk(
         "hidden": bool(getattr(command, "hidden", False)),
         "deprecated": bool(getattr(command, "deprecated", False)),
     }
-    records = [record]
+    records: list[dict[str, Any]] = [record]
     for name, child in sorted(children.items()):
         records.extend(_walk(child, (*path, name), source, owner_package, install_prerequisite))
     return records
@@ -349,7 +360,7 @@ def _desired_outputs() -> dict[Path, str]:
 
 
 def _check(outputs: dict[Path, str]) -> int:
-    failures = []
+    failures: list[Path] = []
     for path, expected in outputs.items():
         actual = path.read_text(encoding="utf-8") if path.exists() else ""
         if actual != expected:
