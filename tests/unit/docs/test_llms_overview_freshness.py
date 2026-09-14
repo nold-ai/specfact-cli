@@ -2,8 +2,8 @@
 
 The pre-commit command-overview gate only fires when specific paths are staged, so a
 commit that bypasses it (merge commits, --no-verify, bot commits) can land a stale
-llms.txt. A stale llms.txt misleads agents worse than a missing one, so this test
-re-runs the generator in --check mode on every test run.
+llms.txt. A stale llms.txt misleads agents worse than a missing one, so documentation jobs
+re-run the generator in --check mode against their separately reviewed fixture.
 """
 
 from __future__ import annotations
@@ -27,31 +27,13 @@ GENERATED_ARTIFACTS = (
 
 
 def _modules_repo_root() -> Path | None:
-    configured = os.environ.get("SPECFACT_MODULES_REPO", "").strip()
-    candidates = [Path(configured).expanduser()] if configured else []
-    candidates.append(REPO_ROOT.parent / "specfact-cli-modules")
-    if "specfact-cli-worktrees" in REPO_ROOT.parts:
-        marker = REPO_ROOT.parts.index("specfact-cli-worktrees")
-        candidates.append(Path(*REPO_ROOT.parts[:marker]) / "specfact-cli-modules")
-    return next((candidate for candidate in candidates if (candidate / "packages").is_dir()), None)
-
-
-def _paired_worktree_modules_repo() -> Path | None:
-    """Mirror the generator's paired-worktree candidate (specfact-cli-worktrees layout)."""
-    parts = REPO_ROOT.parts
-    if "specfact-cli-worktrees" not in parts:
+    """Only the dedicated documentation context selects source for freshness."""
+    configured = os.environ.get("SPECFACT_DOCS_MODULES_REPO", "").strip()
+    if not configured:
         return None
-    marker_index = parts.index("specfact-cli-worktrees")
-    base = Path(*parts[:marker_index])
-    suffix = Path(*parts[marker_index + 1 :])
-    return base / "specfact-cli-modules-worktrees" / suffix
-
-
-def _modules_repo_available() -> bool:
-    if _modules_repo_root() is not None:
-        return True
-    paired = _paired_worktree_modules_repo()
-    return paired is not None and (paired / "packages").is_dir()
+    root = Path(configured).expanduser()
+    assert (root / "packages").is_dir(), "Configured documentation module fixture is unavailable"
+    return root
 
 
 def test_generated_command_artifacts_exist() -> None:
@@ -73,13 +55,12 @@ def test_generated_command_contract_covers_requirements_module() -> None:
 
 def test_llms_and_command_overview_are_current() -> None:
     """llms.txt and the generated command reference must match the current CLI surface."""
-    if not _modules_repo_available():
-        pytest.skip("specfact-cli-modules packages checkout not available")
+    modules_root = _modules_repo_root()
+    if modules_root is None:
+        pytest.skip("Dedicated documentation module fixture is not configured in this job")
 
     env = os.environ.copy()
-    modules_root = _modules_repo_root()
-    if modules_root is not None:
-        env["SPECFACT_MODULES_REPO"] = str(modules_root)
+    env["SPECFACT_MODULES_REPO"] = str(modules_root)
 
     result = subprocess.run(
         [sys.executable, str(GENERATOR), "--check"],
@@ -95,3 +76,12 @@ def test_llms_and_command_overview_are_current() -> None:
         "Regenerate with 'hatch run generate-command-overview' and commit the result.\n"
         f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
     )
+
+
+def test_requirements_source_does_not_select_documentation_fixture(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "packages").mkdir()
+    monkeypatch.setenv("SPECFACT_MODULES_REPO", str(tmp_path))
+    monkeypatch.delenv("SPECFACT_DOCS_MODULES_REPO", raising=False)
+    assert _modules_repo_root() is None

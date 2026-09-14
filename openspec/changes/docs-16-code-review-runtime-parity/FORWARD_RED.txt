@@ -1,0 +1,1558 @@
+
+tests/unit/docs/test_code_review_command_parity.py::test_generated_contract_documents_portable_runtime_registration FAILED [  2%]
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[repository-pr-orchestrator.yml-cli-validation] FAILED [  5%]
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[tree-docs-review.yml-docs-review] FAILED [  7%]
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[tree-pr-orchestrator.yml-cli-validation] FAILED [ 10%]
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[dirty-docs-review.yml-docs-review] FAILED [ 13%]
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[dirty-pr-orchestrator.yml-cli-validation] FAILED [ 15%]
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_review_uses_independent_verified_module_fixture[docs-review.yml-docs-review] FAILED [ 18%]
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_review_uses_independent_verified_module_fixture[pr-orchestrator.yml-cli-validation] FAILED [ 21%]
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_gate_fails_before_pytest_without_explicit_context[docs-review] FAILED [ 23%]
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_gate_fails_before_pytest_without_explicit_context[cli-validation] FAILED [ 26%]
+tests/unit/docs/test_code_review_command_parity.py::test_generator_preserves_positional_argument_contract[False--1-None-Argument] FAILED [ 28%]
+tests/unit/docs/test_code_review_command_parity.py::test_generator_preserves_positional_argument_contract[False--1-None-TyperArgument] FAILED [ 31%]
+tests/unit/docs/test_code_review_command_parity.py::test_generator_preserves_positional_argument_contract[True-1-INPUT-Argument] FAILED [ 34%]
+tests/unit/docs/test_code_review_command_parity.py::test_generator_preserves_positional_argument_contract[True-1-INPUT-TyperArgument] FAILED [ 36%]
+tests/unit/docs/test_code_review_command_parity.py::test_explicit_docs_source_takes_precedence_over_execution_source[generate-command-overview.py] FAILED [ 39%]
+tests/unit/docs/test_code_review_command_parity.py::test_explicit_docs_source_takes_precedence_over_execution_source[check-command-contract.py] FAILED [ 42%]
+tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[generate-command-overview.py-empty] FAILED [ 44%]
+tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[generate-command-overview.py-missing] FAILED [ 47%]
+tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[generate-command-overview.py-file] FAILED [ 50%]
+tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[check-command-contract.py-empty] FAILED [ 52%]
+tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[check-command-contract.py-missing] FAILED [ 55%]
+tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[check-command-contract.py-file] FAILED [ 57%]
+tests/unit/workflows/test_docs_module_authentication.py::test_docs_jobs_authenticate_actual_signed_payloads[missing-signature-docs-review.yml-docs-review] FAILED [ 60%]
+tests/unit/workflows/test_docs_module_authentication.py::test_docs_jobs_authenticate_actual_signed_payloads[missing-signature-pr-orchestrator.yml-cli-validation] FAILED [ 63%]
+tests/unit/workflows/test_docs_module_authentication.py::test_docs_jobs_authenticate_actual_signed_payloads[invalid-signature-docs-review.yml-docs-review] FAILED [ 65%]
+tests/unit/workflows/test_docs_module_authentication.py::test_docs_jobs_authenticate_actual_signed_payloads[invalid-signature-pr-orchestrator.yml-cli-validation] FAILED [ 68%]
+tests/unit/workflows/test_docs_module_authentication.py::test_docs_jobs_authenticate_actual_signed_payloads[payload-mismatch-docs-review.yml-docs-review] FAILED [ 71%]
+tests/unit/workflows/test_docs_module_authentication.py::test_docs_jobs_authenticate_actual_signed_payloads[payload-mismatch-pr-orchestrator.yml-cli-validation] FAILED [ 73%]
+tests/unit/workflows/test_docs_module_authentication.py::test_docs_jobs_authenticate_actual_signed_payloads[wrong-key-docs-review.yml-docs-review] FAILED [ 76%]
+tests/unit/workflows/test_docs_module_authentication.py::test_docs_jobs_authenticate_actual_signed_payloads[wrong-key-pr-orchestrator.yml-cli-validation] FAILED [ 78%]
+tests/unit/workflows/test_docs_module_authentication.py::test_docs_jobs_authenticate_actual_signed_payloads[missing-manifest-docs-review.yml-docs-review] FAILED [ 81%]
+tests/unit/workflows/test_docs_module_authentication.py::test_docs_jobs_authenticate_actual_signed_payloads[missing-manifest-pr-orchestrator.yml-cli-validation] FAILED [ 84%]
+tests/unit/workflows/test_docs_module_authentication.py::test_docs_jobs_authenticate_actual_signed_payloads[empty-fixture-docs-review.yml-docs-review] FAILED [ 86%]
+tests/unit/workflows/test_docs_module_authentication.py::test_docs_jobs_authenticate_actual_signed_payloads[empty-fixture-pr-orchestrator.yml-cli-validation] FAILED [ 89%]
+tests/unit/workflows/test_docs_module_authentication.py::test_docs_jobs_authenticate_actual_signed_payloads[extra-unsigned-source-docs-review.yml-docs-review] FAILED [ 92%]
+tests/unit/workflows/test_docs_module_authentication.py::test_docs_jobs_authenticate_actual_signed_payloads[extra-unsigned-source-pr-orchestrator.yml-cli-validation] FAILED [ 94%]
+tests/unit/workflows/test_docs_module_authentication.py::test_docs_authentication_precedes_exports_and_uses_core_base[docs-review.yml-docs-review] FAILED [ 97%]
+tests/unit/workflows/test_docs_module_authentication.py::test_docs_authentication_precedes_exports_and_uses_core_base[pr-orchestrator.yml-cli-validation] FAILED [100%]
+
+=================================== FAILURES ===================================
+_______ test_generated_contract_documents_portable_runtime_registration ________
+
+    def test_generated_contract_documents_portable_runtime_registration() -> None:
+        records = json.loads((REPO_ROOT / "docs/reference/commands.generated.json").read_text(encoding="utf-8"))
+        surface = _command_surface(records)
+>       assert "runtime" in surface["specfact code review"]["subcommands"]
+E       AssertionError: assert 'runtime' in ['ledger', 'rules', 'run']
+
+tests/unit/docs/test_code_review_command_parity.py:51: AssertionError
+_ test_docs_fixture_checks_reject_actual_identity_mismatches[repository-pr-orchestrator.yml-cli-validation] _
+
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_docs_fixture_checks_rejec0')
+mismatch = 'repository', filename = 'pr-orchestrator.yml'
+job = 'cli-validation'
+
+    @pytest.mark.parametrize(
+        ("filename", "job"), [("docs-review.yml", "docs-review"), ("pr-orchestrator.yml", "cli-validation")]
+    )
+    @pytest.mark.parametrize("mismatch", [None, "repository", "commit", "tree", "mutable-commit", "dirty"])
+    def test_docs_fixture_checks_reject_actual_identity_mismatches(
+        tmp_path: Path, mismatch: str | None, filename: str, job: str
+    ) -> None:
+        identity = _fixture_repository(tmp_path)
+        if mismatch in ("commit", "tree"):
+            identity[mismatch] = "a" * 40
+        if mismatch == "repository":
+            identity["repository"] = "example/unreviewed"
+        if mismatch == "mutable-commit":
+            identity["commit"] = "dev"
+        if mismatch == "dirty":
+            (tmp_path / "specfact-cli-modules/unreviewed.py").write_text("raise RuntimeError('unreviewed')\n")
+        (tmp_path / "ci").mkdir()
+        for name in ("module-fixture.lock.json", "docs-module-fixture.lock.json"):
+            (tmp_path / "ci" / name).write_text(json.dumps(identity))
+        workflow = yaml.safe_load((REPO_ROOT / ".github/workflows" / filename).read_text())
+        steps = {step.get("name"): step for step in workflow["jobs"][job]["steps"]}
+        script = steps["Read immutable module fixture"]["run"] + steps["Verify immutable module fixture"]["run"]
+        script = script.replace("${{ steps.modules-fixture.outputs.repository }}", "nold-ai/specfact-cli-modules")
+        environment = {
+            **os.environ,
+            "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+            "GITHUB_OUTPUT": str(tmp_path / "outputs"),
+        }
+        result = subprocess.run(["bash", "-c", script], cwd=tmp_path, env=environment, capture_output=True, text=True)
+>       assert (result.returncode == 0) is (mismatch is None), result.stderr
+E       AssertionError:
+E       assert (0 == 0) is ('repository' is None)
+E        +  where 0 = CompletedProcess(args=['bash', '-c', 'set -euo pipefail\nfixture_ref="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\necho "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"\nset -euo pipefail\nexpected="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\nactual="$(git -C specfact-cli-modules rev-parse HEAD)"\ntest "$actual" = "$expected"\n'], returncode=0, stdout='', stderr='').returncode
+
+tests/unit/workflows/test_docs_module_fixture.py:104: AssertionError
+_ test_docs_fixture_checks_reject_actual_identity_mismatches[tree-docs-review.yml-docs-review] _
+
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_docs_fixture_checks_rejec1')
+mismatch = 'tree', filename = 'docs-review.yml', job = 'docs-review'
+
+    @pytest.mark.parametrize(
+        ("filename", "job"), [("docs-review.yml", "docs-review"), ("pr-orchestrator.yml", "cli-validation")]
+    )
+    @pytest.mark.parametrize("mismatch", [None, "repository", "commit", "tree", "mutable-commit", "dirty"])
+    def test_docs_fixture_checks_reject_actual_identity_mismatches(
+        tmp_path: Path, mismatch: str | None, filename: str, job: str
+    ) -> None:
+        identity = _fixture_repository(tmp_path)
+        if mismatch in ("commit", "tree"):
+            identity[mismatch] = "a" * 40
+        if mismatch == "repository":
+            identity["repository"] = "example/unreviewed"
+        if mismatch == "mutable-commit":
+            identity["commit"] = "dev"
+        if mismatch == "dirty":
+            (tmp_path / "specfact-cli-modules/unreviewed.py").write_text("raise RuntimeError('unreviewed')\n")
+        (tmp_path / "ci").mkdir()
+        for name in ("module-fixture.lock.json", "docs-module-fixture.lock.json"):
+            (tmp_path / "ci" / name).write_text(json.dumps(identity))
+        workflow = yaml.safe_load((REPO_ROOT / ".github/workflows" / filename).read_text())
+        steps = {step.get("name"): step for step in workflow["jobs"][job]["steps"]}
+        script = steps["Read immutable module fixture"]["run"] + steps["Verify immutable module fixture"]["run"]
+        script = script.replace("${{ steps.modules-fixture.outputs.repository }}", "nold-ai/specfact-cli-modules")
+        environment = {
+            **os.environ,
+            "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+            "GITHUB_OUTPUT": str(tmp_path / "outputs"),
+        }
+        result = subprocess.run(["bash", "-c", script], cwd=tmp_path, env=environment, capture_output=True, text=True)
+>       assert (result.returncode == 0) is (mismatch is None), result.stderr
+E       AssertionError:
+E       assert (0 == 0) is ('tree' is None)
+E        +  where 0 = CompletedProcess(args=['bash', '-c', 'set -euo pipefail\nrepository="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])\')"\ncommit="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\n[[ "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]\ntest "$repository" = "nold-ai/specfact-cli-modules"\n[[ "$commit" =~ ^[0-9a-f]{40}$ ]]\nprintf \'repository=%s\\n\' "$repository" >> "$GITHUB_OUTPUT"\nprintf \'commit=%s\\n\' "$commit" >> "$GITHUB_OUTPUT"\nset -euo pipefail\nexpected_repository="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])\')"\nexpected="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\ntest "$expected_repository" = "nold-ai/specfact-cli-modules"\nactual="$(git -C specfact-cli-modules rev-parse HEAD)"\ntest "$actual" = "$expected"\n'], returncode=0, stdout='', stderr='').returncode
+
+tests/unit/workflows/test_docs_module_fixture.py:104: AssertionError
+_ test_docs_fixture_checks_reject_actual_identity_mismatches[tree-pr-orchestrator.yml-cli-validation] _
+
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_docs_fixture_checks_rejec2')
+mismatch = 'tree', filename = 'pr-orchestrator.yml', job = 'cli-validation'
+
+    @pytest.mark.parametrize(
+        ("filename", "job"), [("docs-review.yml", "docs-review"), ("pr-orchestrator.yml", "cli-validation")]
+    )
+    @pytest.mark.parametrize("mismatch", [None, "repository", "commit", "tree", "mutable-commit", "dirty"])
+    def test_docs_fixture_checks_reject_actual_identity_mismatches(
+        tmp_path: Path, mismatch: str | None, filename: str, job: str
+    ) -> None:
+        identity = _fixture_repository(tmp_path)
+        if mismatch in ("commit", "tree"):
+            identity[mismatch] = "a" * 40
+        if mismatch == "repository":
+            identity["repository"] = "example/unreviewed"
+        if mismatch == "mutable-commit":
+            identity["commit"] = "dev"
+        if mismatch == "dirty":
+            (tmp_path / "specfact-cli-modules/unreviewed.py").write_text("raise RuntimeError('unreviewed')\n")
+        (tmp_path / "ci").mkdir()
+        for name in ("module-fixture.lock.json", "docs-module-fixture.lock.json"):
+            (tmp_path / "ci" / name).write_text(json.dumps(identity))
+        workflow = yaml.safe_load((REPO_ROOT / ".github/workflows" / filename).read_text())
+        steps = {step.get("name"): step for step in workflow["jobs"][job]["steps"]}
+        script = steps["Read immutable module fixture"]["run"] + steps["Verify immutable module fixture"]["run"]
+        script = script.replace("${{ steps.modules-fixture.outputs.repository }}", "nold-ai/specfact-cli-modules")
+        environment = {
+            **os.environ,
+            "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+            "GITHUB_OUTPUT": str(tmp_path / "outputs"),
+        }
+        result = subprocess.run(["bash", "-c", script], cwd=tmp_path, env=environment, capture_output=True, text=True)
+>       assert (result.returncode == 0) is (mismatch is None), result.stderr
+E       AssertionError:
+E       assert (0 == 0) is ('tree' is None)
+E        +  where 0 = CompletedProcess(args=['bash', '-c', 'set -euo pipefail\nfixture_ref="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\necho "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"\nset -euo pipefail\nexpected="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\nactual="$(git -C specfact-cli-modules rev-parse HEAD)"\ntest "$actual" = "$expected"\n'], returncode=0, stdout='', stderr='').returncode
+
+tests/unit/workflows/test_docs_module_fixture.py:104: AssertionError
+_ test_docs_fixture_checks_reject_actual_identity_mismatches[dirty-docs-review.yml-docs-review] _
+
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_docs_fixture_checks_rejec3')
+mismatch = 'dirty', filename = 'docs-review.yml', job = 'docs-review'
+
+    @pytest.mark.parametrize(
+        ("filename", "job"), [("docs-review.yml", "docs-review"), ("pr-orchestrator.yml", "cli-validation")]
+    )
+    @pytest.mark.parametrize("mismatch", [None, "repository", "commit", "tree", "mutable-commit", "dirty"])
+    def test_docs_fixture_checks_reject_actual_identity_mismatches(
+        tmp_path: Path, mismatch: str | None, filename: str, job: str
+    ) -> None:
+        identity = _fixture_repository(tmp_path)
+        if mismatch in ("commit", "tree"):
+            identity[mismatch] = "a" * 40
+        if mismatch == "repository":
+            identity["repository"] = "example/unreviewed"
+        if mismatch == "mutable-commit":
+            identity["commit"] = "dev"
+        if mismatch == "dirty":
+            (tmp_path / "specfact-cli-modules/unreviewed.py").write_text("raise RuntimeError('unreviewed')\n")
+        (tmp_path / "ci").mkdir()
+        for name in ("module-fixture.lock.json", "docs-module-fixture.lock.json"):
+            (tmp_path / "ci" / name).write_text(json.dumps(identity))
+        workflow = yaml.safe_load((REPO_ROOT / ".github/workflows" / filename).read_text())
+        steps = {step.get("name"): step for step in workflow["jobs"][job]["steps"]}
+        script = steps["Read immutable module fixture"]["run"] + steps["Verify immutable module fixture"]["run"]
+        script = script.replace("${{ steps.modules-fixture.outputs.repository }}", "nold-ai/specfact-cli-modules")
+        environment = {
+            **os.environ,
+            "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+            "GITHUB_OUTPUT": str(tmp_path / "outputs"),
+        }
+        result = subprocess.run(["bash", "-c", script], cwd=tmp_path, env=environment, capture_output=True, text=True)
+>       assert (result.returncode == 0) is (mismatch is None), result.stderr
+E       AssertionError:
+E       assert (0 == 0) is ('dirty' is None)
+E        +  where 0 = CompletedProcess(args=['bash', '-c', 'set -euo pipefail\nrepository="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])\')"\ncommit="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\n[[ "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]\ntest "$repository" = "nold-ai/specfact-cli-modules"\n[[ "$commit" =~ ^[0-9a-f]{40}$ ]]\nprintf \'repository=%s\\n\' "$repository" >> "$GITHUB_OUTPUT"\nprintf \'commit=%s\\n\' "$commit" >> "$GITHUB_OUTPUT"\nset -euo pipefail\nexpected_repository="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])\')"\nexpected="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\ntest "$expected_repository" = "nold-ai/specfact-cli-modules"\nactual="$(git -C specfact-cli-modules rev-parse HEAD)"\ntest "$actual" = "$expected"\n'], returncode=0, stdout='', stderr='').returncode
+
+tests/unit/workflows/test_docs_module_fixture.py:104: AssertionError
+_ test_docs_fixture_checks_reject_actual_identity_mismatches[dirty-pr-orchestrator.yml-cli-validation] _
+
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_docs_fixture_checks_rejec4')
+mismatch = 'dirty', filename = 'pr-orchestrator.yml', job = 'cli-validation'
+
+    @pytest.mark.parametrize(
+        ("filename", "job"), [("docs-review.yml", "docs-review"), ("pr-orchestrator.yml", "cli-validation")]
+    )
+    @pytest.mark.parametrize("mismatch", [None, "repository", "commit", "tree", "mutable-commit", "dirty"])
+    def test_docs_fixture_checks_reject_actual_identity_mismatches(
+        tmp_path: Path, mismatch: str | None, filename: str, job: str
+    ) -> None:
+        identity = _fixture_repository(tmp_path)
+        if mismatch in ("commit", "tree"):
+            identity[mismatch] = "a" * 40
+        if mismatch == "repository":
+            identity["repository"] = "example/unreviewed"
+        if mismatch == "mutable-commit":
+            identity["commit"] = "dev"
+        if mismatch == "dirty":
+            (tmp_path / "specfact-cli-modules/unreviewed.py").write_text("raise RuntimeError('unreviewed')\n")
+        (tmp_path / "ci").mkdir()
+        for name in ("module-fixture.lock.json", "docs-module-fixture.lock.json"):
+            (tmp_path / "ci" / name).write_text(json.dumps(identity))
+        workflow = yaml.safe_load((REPO_ROOT / ".github/workflows" / filename).read_text())
+        steps = {step.get("name"): step for step in workflow["jobs"][job]["steps"]}
+        script = steps["Read immutable module fixture"]["run"] + steps["Verify immutable module fixture"]["run"]
+        script = script.replace("${{ steps.modules-fixture.outputs.repository }}", "nold-ai/specfact-cli-modules")
+        environment = {
+            **os.environ,
+            "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+            "GITHUB_OUTPUT": str(tmp_path / "outputs"),
+        }
+        result = subprocess.run(["bash", "-c", script], cwd=tmp_path, env=environment, capture_output=True, text=True)
+>       assert (result.returncode == 0) is (mismatch is None), result.stderr
+E       AssertionError:
+E       assert (0 == 0) is ('dirty' is None)
+E        +  where 0 = CompletedProcess(args=['bash', '-c', 'set -euo pipefail\nfixture_ref="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\necho "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"\nset -euo pipefail\nexpected="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\nactual="$(git -C specfact-cli-modules rev-parse HEAD)"\ntest "$actual" = "$expected"\n'], returncode=0, stdout='', stderr='').returncode
+
+tests/unit/workflows/test_docs_module_fixture.py:104: AssertionError
+_ test_docs_review_uses_independent_verified_module_fixture[docs-review.yml-docs-review] _
+
+filename = 'docs-review.yml', job = 'docs-review'
+
+    @pytest.mark.parametrize(
+        ("filename", "job"), [("docs-review.yml", "docs-review"), ("pr-orchestrator.yml", "cli-validation")]
+    )
+    def test_docs_review_uses_independent_verified_module_fixture(filename: str, job: str) -> None:
+        workflow = yaml.safe_load((REPO_ROOT / ".github/workflows" / filename).read_text(encoding="utf-8"))
+        steps = workflow["jobs"][job]["steps"]
+        scripts = "\n".join(step.get("run", "") for step in steps)
+>       assert "ci/docs-module-fixture.lock.json" in scripts
+E       assert 'ci/docs-module-fixture.lock.json' in '\nset -euo pipefail\nrepository="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])\')"\ncommit="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\n[[ "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]\ntest "$repository" = "nold-ai/specfact-cli-modules"\n[[ "$commit" =~ ^[0-9a-f]{40}$ ]]\nprintf \'repository=%s\\n\' "$repository" >> "$GITHUB_OUTPUT"\nprintf \'commit=%s\\n\' "$commit" >> "$GITHUB_OUTPUT"\n\n\nset -euo pipefail\nexpected_repository="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])\')"\nexpected="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\ntest "$expected_repository" = "${{ steps.modules-fixture.outputs.repository }}"\nactual="$(git -C specfact-cli-modules rev-parse HEAD)"\ntest "$actual" = "$expected"\n\necho "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"\n\n\npython -m pytest tests/unit/docs/test_docs_validation_scripts.py::test_docs_json_gem_uses_the_patched_security_floor -q\npython scripts/check-docs-commands.py\npython scripts/generate-command-overview.py --check\npython scripts/check-command-contract.py\npython scripts/check-documentation-accountability.py\npython scripts/check-cross-site-links.py --warn-only\npython scripts/check_doc_frontmatter.py\npython scripts/validate_agent_rule_applies_when.py\nmkdir -p logs/docs-review\nDOCS_REVIEW_LOG="logs/docs-review/docs-review_$(date -u +%Y%m%d_%H%M%S).log"\npython -m pytest tests/unit/docs/ tests/unit/scripts/test_doc_frontmatter/ tests/integration/scripts/test_doc_frontmatter/ -q 2>&1 | tee "$DOCS_REVIEW_LOG"\nexit "${PIPESTATUS[0]:-$?}"\n\n'
+
+tests/unit/workflows/test_docs_module_fixture.py:25: AssertionError
+_ test_docs_review_uses_independent_verified_module_fixture[pr-orchestrator.yml-cli-validation] _
+
+filename = 'pr-orchestrator.yml', job = 'cli-validation'
+
+    @pytest.mark.parametrize(
+        ("filename", "job"), [("docs-review.yml", "docs-review"), ("pr-orchestrator.yml", "cli-validation")]
+    )
+    def test_docs_review_uses_independent_verified_module_fixture(filename: str, job: str) -> None:
+        workflow = yaml.safe_load((REPO_ROOT / ".github/workflows" / filename).read_text(encoding="utf-8"))
+        steps = workflow["jobs"][job]["steps"]
+        scripts = "\n".join(step.get("run", "") for step in steps)
+>       assert "ci/docs-module-fixture.lock.json" in scripts
+E       assert 'ci/docs-module-fixture.lock.json' in '\nset -euo pipefail\nfixture_ref="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\necho "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"\n\n\necho "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"\nset -euo pipefail\nexpected="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\nactual="$(git -C specfact-cli-modules rev-parse HEAD)"\ntest "$actual" = "$expected"\n\n\n\nset -euo pipefail\necho "Building and installing SpecFact CLI wheel..."\nuv build --wheel\npython -m venv "$RUNNER_TEMP/specfact-cli-validation"\n"$RUNNER_TEMP/specfact-cli-validation/bin/python" -m pip install --require-hashes -r requirements/ci/locked.txt\n"$RUNNER_TEMP/specfact-cli-validation/bin/python" -m pip install --no-deps dist/*.whl\n"$RUNNER_TEMP/specfact-cli-validation/bin/specfact" --help\n"$RUNNER_TEMP/specfact-cli-validation/bin/specfact-cli" --help\n\necho "🔍 Validating CLI commands..."\npython scripts/generate-command-overview.py --check\npython scripts/check-command-contract.py\npython scripts/check-docs-commands.py\necho "✅ CLI validation complete"\n'
+
+tests/unit/workflows/test_docs_module_fixture.py:25: AssertionError
+___ test_docs_gate_fails_before_pytest_without_explicit_context[docs-review] ___
+
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_docs_gate_fails_before_py0')
+filename = 'docs-review.yml', job = 'docs-review'
+step_name = 'Validate documentation fixture and Code Review command parity'
+
+    @pytest.mark.parametrize(
+        ("filename", "job", "step_name"),
+        [
+            ("docs-review.yml", "docs-review", "Validate documentation fixture and Code Review command parity"),
+            ("pr-orchestrator.yml", "cli-validation", "Validate CLI commands"),
+        ],
+        ids=["docs-review", "cli-validation"],
+    )
+    def test_docs_gate_fails_before_pytest_without_explicit_context(
+        tmp_path: Path, filename: str, job: str, step_name: str
+    ) -> None:
+        workflow = yaml.safe_load((REPO_ROOT / ".github/workflows" / filename).read_text())
+        matching_steps = [step for step in workflow["jobs"][job]["steps"] if step.get("name") == step_name]
+>       assert len(matching_steps) == 1, f"Required documentation context gate is missing: {step_name}"
+E       AssertionError: Required documentation context gate is missing: Validate documentation fixture and Code Review command parity
+E       assert 0 == 1
+E        +  where 0 = len([])
+
+tests/unit/workflows/test_docs_module_fixture.py:120: AssertionError
+_ test_docs_gate_fails_before_pytest_without_explicit_context[cli-validation] __
+
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_docs_gate_fails_before_py1')
+filename = 'pr-orchestrator.yml', job = 'cli-validation'
+step_name = 'Validate CLI commands'
+
+    @pytest.mark.parametrize(
+        ("filename", "job", "step_name"),
+        [
+            ("docs-review.yml", "docs-review", "Validate documentation fixture and Code Review command parity"),
+            ("pr-orchestrator.yml", "cli-validation", "Validate CLI commands"),
+        ],
+        ids=["docs-review", "cli-validation"],
+    )
+    def test_docs_gate_fails_before_pytest_without_explicit_context(
+        tmp_path: Path, filename: str, job: str, step_name: str
+    ) -> None:
+        workflow = yaml.safe_load((REPO_ROOT / ".github/workflows" / filename).read_text())
+        matching_steps = [step for step in workflow["jobs"][job]["steps"] if step.get("name") == step_name]
+        assert len(matching_steps) == 1, f"Required documentation context gate is missing: {step_name}"
+        step = matching_steps[0]
+        environment = {key: value for key, value in os.environ.items() if key != "SPECFACT_DOCS_MODULES_REPO"}
+        result = subprocess.run(["bash", "-c", step["run"]], cwd=tmp_path, env=environment, capture_output=True, text=True)
+>       assert result.returncode != 0
+E       assert 0 != 0
+E        +  where 0 = CompletedProcess(args=['bash', '-c', 'echo "🔍 Validating CLI commands..."\npython scripts/generate-command-overview.py --check\npython scripts/check-command-contract.py\npython scripts/check-docs-commands.py\necho "✅ CLI validation complete"\n'], returncode=0, stdout='🔍 Validating CLI commands...\n✅ CLI validation complete\n', stderr="python: can't open file '/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_docs_gate_fails_before_py1/scripts/generate-command-overview.py': [Errno 2] No such file or directory\npython: can't open file '/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_docs_gate_fails_before_py1/scripts/check-command-contract.py': [Errno 2] No such file or directory\npython: can't open file '/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_docs_gate_fails_before_py1/scripts/check-docs-commands.py': [Errno 2] No such file or directory\n").returncode
+
+tests/unit/workflows/test_docs_module_fixture.py:124: AssertionError
+_ test_generator_preserves_positional_argument_contract[False--1-None-Argument] _
+
+argument_type = <class 'click.core.Argument'>, required = False, nargs = -1
+metavar = None
+
+    @pytest.mark.parametrize("argument_type", [click.Argument, TyperArgument])
+    @pytest.mark.parametrize(("required", "nargs", "metavar"), [(False, -1, None), (True, 1, "INPUT")])
+    def test_generator_preserves_positional_argument_contract(
+        argument_type: type[click.Argument] | type[TyperArgument], required: bool, nargs: int, metavar: str | None
+    ) -> None:
+        generator = _load_command_script()
+        argument = argument_type(param_decls=["files"], required=required, nargs=nargs, metavar=metavar)
+        command = SimpleNamespace(params=[argument, click.Option(["--json"], is_flag=True)])
+>       assert generator._command_arguments(command) == [{"name": metavar or "FILES", "required": required, "nargs": nargs}]
+E       AssertionError: assert [] == [{'name': 'FI... 'nargs': -1}]
+E
+E         Right contains one more item: {'name': 'FILES', 'required': False, 'nargs': -1}
+E
+E         Full diff:
+E         + []
+E         - [
+E         -     {...
+E
+E         ...Full output truncated (5 lines hidden), use '-vv' to show
+
+tests/unit/docs/test_code_review_command_parity.py:76: AssertionError
+_ test_generator_preserves_positional_argument_contract[False--1-None-TyperArgument] _
+
+argument_type = <class 'typer.core.TyperArgument'>, required = False, nargs = -1
+metavar = None
+
+    @pytest.mark.parametrize("argument_type", [click.Argument, TyperArgument])
+    @pytest.mark.parametrize(("required", "nargs", "metavar"), [(False, -1, None), (True, 1, "INPUT")])
+    def test_generator_preserves_positional_argument_contract(
+        argument_type: type[click.Argument] | type[TyperArgument], required: bool, nargs: int, metavar: str | None
+    ) -> None:
+        generator = _load_command_script()
+        argument = argument_type(param_decls=["files"], required=required, nargs=nargs, metavar=metavar)
+        command = SimpleNamespace(params=[argument, click.Option(["--json"], is_flag=True)])
+>       assert generator._command_arguments(command) == [{"name": metavar or "FILES", "required": required, "nargs": nargs}]
+E       AssertionError: assert [] == [{'name': 'FI... 'nargs': -1}]
+E
+E         Right contains one more item: {'name': 'FILES', 'required': False, 'nargs': -1}
+E
+E         Full diff:
+E         + []
+E         - [
+E         -     {...
+E
+E         ...Full output truncated (5 lines hidden), use '-vv' to show
+
+tests/unit/docs/test_code_review_command_parity.py:76: AssertionError
+_ test_generator_preserves_positional_argument_contract[True-1-INPUT-Argument] _
+
+argument_type = <class 'click.core.Argument'>, required = True, nargs = 1
+metavar = 'INPUT'
+
+    @pytest.mark.parametrize("argument_type", [click.Argument, TyperArgument])
+    @pytest.mark.parametrize(("required", "nargs", "metavar"), [(False, -1, None), (True, 1, "INPUT")])
+    def test_generator_preserves_positional_argument_contract(
+        argument_type: type[click.Argument] | type[TyperArgument], required: bool, nargs: int, metavar: str | None
+    ) -> None:
+        generator = _load_command_script()
+        argument = argument_type(param_decls=["files"], required=required, nargs=nargs, metavar=metavar)
+        command = SimpleNamespace(params=[argument, click.Option(["--json"], is_flag=True)])
+>       assert generator._command_arguments(command) == [{"name": metavar or "FILES", "required": required, "nargs": nargs}]
+E       AssertionError: assert [] == [{'name': 'IN..., 'nargs': 1}]
+E
+E         Right contains one more item: {'name': 'INPUT', 'required': True, 'nargs': 1}
+E
+E         Full diff:
+E         + []
+E         - [
+E         -     {...
+E
+E         ...Full output truncated (5 lines hidden), use '-vv' to show
+
+tests/unit/docs/test_code_review_command_parity.py:76: AssertionError
+_ test_generator_preserves_positional_argument_contract[True-1-INPUT-TyperArgument] _
+
+argument_type = <class 'typer.core.TyperArgument'>, required = True, nargs = 1
+metavar = 'INPUT'
+
+    @pytest.mark.parametrize("argument_type", [click.Argument, TyperArgument])
+    @pytest.mark.parametrize(("required", "nargs", "metavar"), [(False, -1, None), (True, 1, "INPUT")])
+    def test_generator_preserves_positional_argument_contract(
+        argument_type: type[click.Argument] | type[TyperArgument], required: bool, nargs: int, metavar: str | None
+    ) -> None:
+        generator = _load_command_script()
+        argument = argument_type(param_decls=["files"], required=required, nargs=nargs, metavar=metavar)
+        command = SimpleNamespace(params=[argument, click.Option(["--json"], is_flag=True)])
+>       assert generator._command_arguments(command) == [{"name": metavar or "FILES", "required": required, "nargs": nargs}]
+E       AssertionError: assert [] == [{'name': 'IN..., 'nargs': 1}]
+E
+E         Right contains one more item: {'name': 'INPUT', 'required': True, 'nargs': 1}
+E
+E         Full diff:
+E         + []
+E         - [
+E         -     {...
+E
+E         ...Full output truncated (5 lines hidden), use '-vv' to show
+
+tests/unit/docs/test_code_review_command_parity.py:76: AssertionError
+_ test_explicit_docs_source_takes_precedence_over_execution_source[generate-command-overview.py] _
+
+filename = 'generate-command-overview.py'
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_explicit_docs_source_take0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10b355230>
+
+    @pytest.mark.parametrize("filename", ["generate-command-overview.py", "check-command-contract.py"])
+    def test_explicit_docs_source_takes_precedence_over_execution_source(
+        filename: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        generator = _load_command_script(filename)
+        monkeypatch.setenv("SPECFACT_COMMAND_CONTRACT_USE_REAL_HOME", "1")
+        documentation = tmp_path / "documentation"
+        execution = tmp_path / "execution"
+        for root in (documentation, execution):
+            (root / "packages/example/src").mkdir(parents=True)
+        monkeypatch.setenv("SPECFACT_DOCS_MODULES_REPO", str(documentation))
+        monkeypatch.setenv("SPECFACT_MODULES_REPO", str(execution))
+        monkeypatch.setattr(sys, "path", sys.path.copy())
+        generator._ensure_imports()
+>       assert str(documentation / "packages/example/src") in sys.path
+E       AssertionError: assert '/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_explicit_docs_source_take0/documentation/packages/example/src' in ['/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_explicit_docs_source_take0/execution/packages/example/src', '/private/tmp/specfact-473-core-docs-tdd', '/private/tmp/specfact-473-core-docs-tdd/tests/unit/workflows', '/private/tmp/specfact-473-core-docs-tdd/tests/unit/docs', '/private/tmp/specfact-473-core-docs-execution-fixture/packages/specfact-codebase/src', '/private/tmp/specfact-473-core-docs-execution-fixture/packages/specfact-code-review/src', ...]
+E        +  where '/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_explicit_docs_source_take0/documentation/packages/example/src' = str((PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_explicit_docs_source_take0/documentation') / 'packages/example/src'))
+E        +  and   ['/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_explicit_docs_source_take0/execution/packages/example/src', '/private/tmp/specfact-473-core-docs-tdd', '/private/tmp/specfact-473-core-docs-tdd/tests/unit/workflows', '/private/tmp/specfact-473-core-docs-tdd/tests/unit/docs', '/private/tmp/specfact-473-core-docs-execution-fixture/packages/specfact-codebase/src', '/private/tmp/specfact-473-core-docs-execution-fixture/packages/specfact-code-review/src', ...] = sys.path
+
+tests/unit/docs/test_code_review_command_parity.py:93: AssertionError
+_ test_explicit_docs_source_takes_precedence_over_execution_source[check-command-contract.py] _
+
+filename = 'check-command-contract.py'
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_explicit_docs_source_take1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10b3559c0>
+
+    @pytest.mark.parametrize("filename", ["generate-command-overview.py", "check-command-contract.py"])
+    def test_explicit_docs_source_takes_precedence_over_execution_source(
+        filename: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        generator = _load_command_script(filename)
+        monkeypatch.setenv("SPECFACT_COMMAND_CONTRACT_USE_REAL_HOME", "1")
+        documentation = tmp_path / "documentation"
+        execution = tmp_path / "execution"
+        for root in (documentation, execution):
+            (root / "packages/example/src").mkdir(parents=True)
+        monkeypatch.setenv("SPECFACT_DOCS_MODULES_REPO", str(documentation))
+        monkeypatch.setenv("SPECFACT_MODULES_REPO", str(execution))
+        monkeypatch.setattr(sys, "path", sys.path.copy())
+        generator._ensure_imports()
+>       assert str(documentation / "packages/example/src") in sys.path
+E       AssertionError: assert '/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_explicit_docs_source_take1/documentation/packages/example/src' in ['/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_explicit_docs_source_take1/execution/packages/example/src', '/private/tmp/specfact-473-core-docs-tdd', '/private/tmp/specfact-473-core-docs-tdd/tests/unit/workflows', '/private/tmp/specfact-473-core-docs-tdd/tests/unit/docs', '/private/tmp/specfact-473-core-docs-execution-fixture/packages/specfact-codebase/src', '/private/tmp/specfact-473-core-docs-execution-fixture/packages/specfact-code-review/src', ...]
+E        +  where '/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_explicit_docs_source_take1/documentation/packages/example/src' = str((PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_explicit_docs_source_take1/documentation') / 'packages/example/src'))
+E        +  and   ['/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_explicit_docs_source_take1/execution/packages/example/src', '/private/tmp/specfact-473-core-docs-tdd', '/private/tmp/specfact-473-core-docs-tdd/tests/unit/workflows', '/private/tmp/specfact-473-core-docs-tdd/tests/unit/docs', '/private/tmp/specfact-473-core-docs-execution-fixture/packages/specfact-codebase/src', '/private/tmp/specfact-473-core-docs-execution-fixture/packages/specfact-code-review/src', ...] = sys.path
+
+tests/unit/docs/test_code_review_command_parity.py:93: AssertionError
+_ test_invalid_explicit_docs_source_cannot_fall_back[generate-command-overview.py-empty] _
+
+kind = 'empty', filename = 'generate-command-overview.py'
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_invalid_explicit_docs_sou0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10b359d10>
+
+    @pytest.mark.parametrize("kind", ["empty", "missing", "file"])
+    @pytest.mark.parametrize("filename", ["generate-command-overview.py", "check-command-contract.py"])
+    def test_invalid_explicit_docs_source_cannot_fall_back(
+        kind: str, filename: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        generator = _load_command_script(filename)
+        monkeypatch.setenv("SPECFACT_COMMAND_CONTRACT_USE_REAL_HOME", "1")
+        execution = tmp_path / "execution"
+        (execution / "packages/example/src").mkdir(parents=True)
+        documentation = tmp_path / "documentation"
+        if kind == "file":
+            documentation.write_text("not a repository")
+        monkeypatch.setenv("SPECFACT_DOCS_MODULES_REPO", "" if kind == "empty" else str(documentation))
+        monkeypatch.setenv("SPECFACT_MODULES_REPO", str(execution))
+        monkeypatch.setattr(sys, "path", sys.path.copy())
+>       with pytest.raises(ValueError, match="SPECFACT_DOCS_MODULES_REPO"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/unit/docs/test_code_review_command_parity.py:113: Failed
+_ test_invalid_explicit_docs_source_cannot_fall_back[generate-command-overview.py-missing] _
+
+kind = 'missing', filename = 'generate-command-overview.py'
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_invalid_explicit_docs_sou1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10b35b430>
+
+    @pytest.mark.parametrize("kind", ["empty", "missing", "file"])
+    @pytest.mark.parametrize("filename", ["generate-command-overview.py", "check-command-contract.py"])
+    def test_invalid_explicit_docs_source_cannot_fall_back(
+        kind: str, filename: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        generator = _load_command_script(filename)
+        monkeypatch.setenv("SPECFACT_COMMAND_CONTRACT_USE_REAL_HOME", "1")
+        execution = tmp_path / "execution"
+        (execution / "packages/example/src").mkdir(parents=True)
+        documentation = tmp_path / "documentation"
+        if kind == "file":
+            documentation.write_text("not a repository")
+        monkeypatch.setenv("SPECFACT_DOCS_MODULES_REPO", "" if kind == "empty" else str(documentation))
+        monkeypatch.setenv("SPECFACT_MODULES_REPO", str(execution))
+        monkeypatch.setattr(sys, "path", sys.path.copy())
+>       with pytest.raises(ValueError, match="SPECFACT_DOCS_MODULES_REPO"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/unit/docs/test_code_review_command_parity.py:113: Failed
+_ test_invalid_explicit_docs_source_cannot_fall_back[generate-command-overview.py-file] _
+
+kind = 'file', filename = 'generate-command-overview.py'
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_invalid_explicit_docs_sou2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10b2cd250>
+
+    @pytest.mark.parametrize("kind", ["empty", "missing", "file"])
+    @pytest.mark.parametrize("filename", ["generate-command-overview.py", "check-command-contract.py"])
+    def test_invalid_explicit_docs_source_cannot_fall_back(
+        kind: str, filename: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        generator = _load_command_script(filename)
+        monkeypatch.setenv("SPECFACT_COMMAND_CONTRACT_USE_REAL_HOME", "1")
+        execution = tmp_path / "execution"
+        (execution / "packages/example/src").mkdir(parents=True)
+        documentation = tmp_path / "documentation"
+        if kind == "file":
+            documentation.write_text("not a repository")
+        monkeypatch.setenv("SPECFACT_DOCS_MODULES_REPO", "" if kind == "empty" else str(documentation))
+        monkeypatch.setenv("SPECFACT_MODULES_REPO", str(execution))
+        monkeypatch.setattr(sys, "path", sys.path.copy())
+>       with pytest.raises(ValueError, match="SPECFACT_DOCS_MODULES_REPO"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/unit/docs/test_code_review_command_parity.py:113: Failed
+_ test_invalid_explicit_docs_source_cannot_fall_back[check-command-contract.py-empty] _
+
+kind = 'empty', filename = 'check-command-contract.py'
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_invalid_explicit_docs_sou3')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10b2a14d0>
+
+    @pytest.mark.parametrize("kind", ["empty", "missing", "file"])
+    @pytest.mark.parametrize("filename", ["generate-command-overview.py", "check-command-contract.py"])
+    def test_invalid_explicit_docs_source_cannot_fall_back(
+        kind: str, filename: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        generator = _load_command_script(filename)
+        monkeypatch.setenv("SPECFACT_COMMAND_CONTRACT_USE_REAL_HOME", "1")
+        execution = tmp_path / "execution"
+        (execution / "packages/example/src").mkdir(parents=True)
+        documentation = tmp_path / "documentation"
+        if kind == "file":
+            documentation.write_text("not a repository")
+        monkeypatch.setenv("SPECFACT_DOCS_MODULES_REPO", "" if kind == "empty" else str(documentation))
+        monkeypatch.setenv("SPECFACT_MODULES_REPO", str(execution))
+        monkeypatch.setattr(sys, "path", sys.path.copy())
+>       with pytest.raises(ValueError, match="SPECFACT_DOCS_MODULES_REPO"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/unit/docs/test_code_review_command_parity.py:113: Failed
+_ test_invalid_explicit_docs_source_cannot_fall_back[check-command-contract.py-missing] _
+
+kind = 'missing', filename = 'check-command-contract.py'
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_invalid_explicit_docs_sou4')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10b2a11d0>
+
+    @pytest.mark.parametrize("kind", ["empty", "missing", "file"])
+    @pytest.mark.parametrize("filename", ["generate-command-overview.py", "check-command-contract.py"])
+    def test_invalid_explicit_docs_source_cannot_fall_back(
+        kind: str, filename: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        generator = _load_command_script(filename)
+        monkeypatch.setenv("SPECFACT_COMMAND_CONTRACT_USE_REAL_HOME", "1")
+        execution = tmp_path / "execution"
+        (execution / "packages/example/src").mkdir(parents=True)
+        documentation = tmp_path / "documentation"
+        if kind == "file":
+            documentation.write_text("not a repository")
+        monkeypatch.setenv("SPECFACT_DOCS_MODULES_REPO", "" if kind == "empty" else str(documentation))
+        monkeypatch.setenv("SPECFACT_MODULES_REPO", str(execution))
+        monkeypatch.setattr(sys, "path", sys.path.copy())
+>       with pytest.raises(ValueError, match="SPECFACT_DOCS_MODULES_REPO"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/unit/docs/test_code_review_command_parity.py:113: Failed
+_ test_invalid_explicit_docs_source_cannot_fall_back[check-command-contract.py-file] _
+
+kind = 'file', filename = 'check-command-contract.py'
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_invalid_explicit_docs_sou5')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10b3452b0>
+
+    @pytest.mark.parametrize("kind", ["empty", "missing", "file"])
+    @pytest.mark.parametrize("filename", ["generate-command-overview.py", "check-command-contract.py"])
+    def test_invalid_explicit_docs_source_cannot_fall_back(
+        kind: str, filename: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        generator = _load_command_script(filename)
+        monkeypatch.setenv("SPECFACT_COMMAND_CONTRACT_USE_REAL_HOME", "1")
+        execution = tmp_path / "execution"
+        (execution / "packages/example/src").mkdir(parents=True)
+        documentation = tmp_path / "documentation"
+        if kind == "file":
+            documentation.write_text("not a repository")
+        monkeypatch.setenv("SPECFACT_DOCS_MODULES_REPO", "" if kind == "empty" else str(documentation))
+        monkeypatch.setenv("SPECFACT_MODULES_REPO", str(execution))
+        monkeypatch.setattr(sys, "path", sys.path.copy())
+>       with pytest.raises(ValueError, match="SPECFACT_DOCS_MODULES_REPO"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/unit/docs/test_code_review_command_parity.py:113: Failed
+_ test_docs_jobs_authenticate_actual_signed_payloads[missing-signature-docs-review.yml-docs-review] _
+
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_docs_jobs_authenticate_ac0')
+filename = 'docs-review.yml', job = 'docs-review'
+mutation = 'missing-signature'
+
+    @pytest.mark.parametrize(("filename", "job"), JOBS)
+    @pytest.mark.parametrize(
+        "mutation",
+        [
+            "valid",
+            "missing-signature",
+            "invalid-signature",
+            "payload-mismatch",
+            "wrong-key",
+            "missing-manifest",
+            "empty-fixture",
+            "extra-unsigned-source",
+        ],
+    )
+    def test_docs_jobs_authenticate_actual_signed_payloads(tmp_path: Path, filename: str, job: str, mutation: str) -> None:
+        modules, trusted = _signed_sources(tmp_path)
+        _mutate_source(modules, trusted, mutation)
+        identity = _commit_source(modules)
+        (tmp_path / "ci").mkdir()
+        for name in ("module-fixture.lock.json", "docs-module-fixture.lock.json"):
+            (tmp_path / "ci" / name).write_text(json.dumps(identity))
+        wrapper = REPO_ROOT / "scripts/verify_docs_module_source.py"
+        if wrapper.exists():
+            (tmp_path / "scripts").mkdir()
+            shutil.copyfile(wrapper, tmp_path / "scripts" / wrapper.name)
+        names = {
+            "Read immutable module fixture",
+            "Verify immutable module fixture",
+            "Authenticate module command sources",
+            "Export module command source path",
+        }
+        script = "\n".join(step["run"] for step in _workflow_steps(filename, job) if step.get("name") in names)
+        script = script.replace("${{ steps.modules-fixture.outputs.repository }}", "nold-ai/specfact-cli-modules")
+        environment = {
+            **os.environ,
+            "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+            "GITHUB_OUTPUT": str(tmp_path / "outputs"),
+            "GITHUB_ENV": str(tmp_path / "environment"),
+            "GITHUB_WORKSPACE": str(tmp_path),
+            "VERIFY_MODULES_PR": "--skip-checksum-verification",
+        }
+        result = subprocess.run(["bash", "-c", script], cwd=tmp_path, env=environment, capture_output=True, text=True)
+>       assert (result.returncode == 0) is (mutation == "valid"), result.stdout + result.stderr
+E       AssertionError:
+E       assert (0 == 0) is ('missing-signature' == 'valid'
+E        +  where 0 = CompletedProcess(args=['bash', '-c', 'set -euo pipefail\nrepository="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])\')"\ncommit="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\n[[ "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]\ntest "$repository" = "nold-ai/specfact-cli-modules"\n[[ "$commit" =~ ^[0-9a-f]{40}$ ]]\nprintf \'repository=%s\\n\' "$repository" >> "$GITHUB_OUTPUT"\nprintf \'commit=%s\\n\' "$commit" >> "$GITHUB_OUTPUT"\n\nset -euo pipefail\nexpected_repository="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])\')"\nexpected="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\ntest "$expected_repository" = "nold-ai/specfact-cli-modules"\nactual="$(git -C specfact-cli-modules rev-parse HEAD)"\ntest "$actual" = "$expected"\n\necho "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"'], returncode=0, stdout='', stderr='').returncode
+E
+E         - valid
+E         + missing-signature)
+
+tests/unit/workflows/test_docs_module_authentication.py:167: AssertionError
+_ test_docs_jobs_authenticate_actual_signed_payloads[missing-signature-pr-orchestrator.yml-cli-validation] _
+
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_docs_jobs_authenticate_ac1')
+filename = 'pr-orchestrator.yml', job = 'cli-validation'
+mutation = 'missing-signature'
+
+    @pytest.mark.parametrize(("filename", "job"), JOBS)
+    @pytest.mark.parametrize(
+        "mutation",
+        [
+            "valid",
+            "missing-signature",
+            "invalid-signature",
+            "payload-mismatch",
+            "wrong-key",
+            "missing-manifest",
+            "empty-fixture",
+            "extra-unsigned-source",
+        ],
+    )
+    def test_docs_jobs_authenticate_actual_signed_payloads(tmp_path: Path, filename: str, job: str, mutation: str) -> None:
+        modules, trusted = _signed_sources(tmp_path)
+        _mutate_source(modules, trusted, mutation)
+        identity = _commit_source(modules)
+        (tmp_path / "ci").mkdir()
+        for name in ("module-fixture.lock.json", "docs-module-fixture.lock.json"):
+            (tmp_path / "ci" / name).write_text(json.dumps(identity))
+        wrapper = REPO_ROOT / "scripts/verify_docs_module_source.py"
+        if wrapper.exists():
+            (tmp_path / "scripts").mkdir()
+            shutil.copyfile(wrapper, tmp_path / "scripts" / wrapper.name)
+        names = {
+            "Read immutable module fixture",
+            "Verify immutable module fixture",
+            "Authenticate module command sources",
+            "Export module command source path",
+        }
+        script = "\n".join(step["run"] for step in _workflow_steps(filename, job) if step.get("name") in names)
+        script = script.replace("${{ steps.modules-fixture.outputs.repository }}", "nold-ai/specfact-cli-modules")
+        environment = {
+            **os.environ,
+            "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+            "GITHUB_OUTPUT": str(tmp_path / "outputs"),
+            "GITHUB_ENV": str(tmp_path / "environment"),
+            "GITHUB_WORKSPACE": str(tmp_path),
+            "VERIFY_MODULES_PR": "--skip-checksum-verification",
+        }
+        result = subprocess.run(["bash", "-c", script], cwd=tmp_path, env=environment, capture_output=True, text=True)
+>       assert (result.returncode == 0) is (mutation == "valid"), result.stdout + result.stderr
+E       AssertionError:
+E       assert (0 == 0) is ('missing-signature' == 'valid'
+E        +  where 0 = CompletedProcess(args=['bash', '-c', 'set -euo pipefail\nfixture_ref="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\necho "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"\n\necho "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"\nset -euo pipefail\nexpected="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\nactual="$(git -C specfact-cli-modules rev-parse HEAD)"\ntest "$actual" = "$expected"\n'], returncode=0, stdout='', stderr='').returncode
+E
+E         - valid
+E         + missing-signature)
+
+tests/unit/workflows/test_docs_module_authentication.py:167: AssertionError
+_ test_docs_jobs_authenticate_actual_signed_payloads[invalid-signature-docs-review.yml-docs-review] _
+
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_docs_jobs_authenticate_ac2')
+filename = 'docs-review.yml', job = 'docs-review'
+mutation = 'invalid-signature'
+
+    @pytest.mark.parametrize(("filename", "job"), JOBS)
+    @pytest.mark.parametrize(
+        "mutation",
+        [
+            "valid",
+            "missing-signature",
+            "invalid-signature",
+            "payload-mismatch",
+            "wrong-key",
+            "missing-manifest",
+            "empty-fixture",
+            "extra-unsigned-source",
+        ],
+    )
+    def test_docs_jobs_authenticate_actual_signed_payloads(tmp_path: Path, filename: str, job: str, mutation: str) -> None:
+        modules, trusted = _signed_sources(tmp_path)
+        _mutate_source(modules, trusted, mutation)
+        identity = _commit_source(modules)
+        (tmp_path / "ci").mkdir()
+        for name in ("module-fixture.lock.json", "docs-module-fixture.lock.json"):
+            (tmp_path / "ci" / name).write_text(json.dumps(identity))
+        wrapper = REPO_ROOT / "scripts/verify_docs_module_source.py"
+        if wrapper.exists():
+            (tmp_path / "scripts").mkdir()
+            shutil.copyfile(wrapper, tmp_path / "scripts" / wrapper.name)
+        names = {
+            "Read immutable module fixture",
+            "Verify immutable module fixture",
+            "Authenticate module command sources",
+            "Export module command source path",
+        }
+        script = "\n".join(step["run"] for step in _workflow_steps(filename, job) if step.get("name") in names)
+        script = script.replace("${{ steps.modules-fixture.outputs.repository }}", "nold-ai/specfact-cli-modules")
+        environment = {
+            **os.environ,
+            "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+            "GITHUB_OUTPUT": str(tmp_path / "outputs"),
+            "GITHUB_ENV": str(tmp_path / "environment"),
+            "GITHUB_WORKSPACE": str(tmp_path),
+            "VERIFY_MODULES_PR": "--skip-checksum-verification",
+        }
+        result = subprocess.run(["bash", "-c", script], cwd=tmp_path, env=environment, capture_output=True, text=True)
+>       assert (result.returncode == 0) is (mutation == "valid"), result.stdout + result.stderr
+E       AssertionError:
+E       assert (0 == 0) is ('invalid-signature' == 'valid'
+E        +  where 0 = CompletedProcess(args=['bash', '-c', 'set -euo pipefail\nrepository="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])\')"\ncommit="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\n[[ "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]\ntest "$repository" = "nold-ai/specfact-cli-modules"\n[[ "$commit" =~ ^[0-9a-f]{40}$ ]]\nprintf \'repository=%s\\n\' "$repository" >> "$GITHUB_OUTPUT"\nprintf \'commit=%s\\n\' "$commit" >> "$GITHUB_OUTPUT"\n\nset -euo pipefail\nexpected_repository="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])\')"\nexpected="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\ntest "$expected_repository" = "nold-ai/specfact-cli-modules"\nactual="$(git -C specfact-cli-modules rev-parse HEAD)"\ntest "$actual" = "$expected"\n\necho "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"'], returncode=0, stdout='', stderr='').returncode
+E
+E         - valid
+E         + invalid-signature)
+
+tests/unit/workflows/test_docs_module_authentication.py:167: AssertionError
+_ test_docs_jobs_authenticate_actual_signed_payloads[invalid-signature-pr-orchestrator.yml-cli-validation] _
+
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_docs_jobs_authenticate_ac3')
+filename = 'pr-orchestrator.yml', job = 'cli-validation'
+mutation = 'invalid-signature'
+
+    @pytest.mark.parametrize(("filename", "job"), JOBS)
+    @pytest.mark.parametrize(
+        "mutation",
+        [
+            "valid",
+            "missing-signature",
+            "invalid-signature",
+            "payload-mismatch",
+            "wrong-key",
+            "missing-manifest",
+            "empty-fixture",
+            "extra-unsigned-source",
+        ],
+    )
+    def test_docs_jobs_authenticate_actual_signed_payloads(tmp_path: Path, filename: str, job: str, mutation: str) -> None:
+        modules, trusted = _signed_sources(tmp_path)
+        _mutate_source(modules, trusted, mutation)
+        identity = _commit_source(modules)
+        (tmp_path / "ci").mkdir()
+        for name in ("module-fixture.lock.json", "docs-module-fixture.lock.json"):
+            (tmp_path / "ci" / name).write_text(json.dumps(identity))
+        wrapper = REPO_ROOT / "scripts/verify_docs_module_source.py"
+        if wrapper.exists():
+            (tmp_path / "scripts").mkdir()
+            shutil.copyfile(wrapper, tmp_path / "scripts" / wrapper.name)
+        names = {
+            "Read immutable module fixture",
+            "Verify immutable module fixture",
+            "Authenticate module command sources",
+            "Export module command source path",
+        }
+        script = "\n".join(step["run"] for step in _workflow_steps(filename, job) if step.get("name") in names)
+        script = script.replace("${{ steps.modules-fixture.outputs.repository }}", "nold-ai/specfact-cli-modules")
+        environment = {
+            **os.environ,
+            "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+            "GITHUB_OUTPUT": str(tmp_path / "outputs"),
+            "GITHUB_ENV": str(tmp_path / "environment"),
+            "GITHUB_WORKSPACE": str(tmp_path),
+            "VERIFY_MODULES_PR": "--skip-checksum-verification",
+        }
+        result = subprocess.run(["bash", "-c", script], cwd=tmp_path, env=environment, capture_output=True, text=True)
+>       assert (result.returncode == 0) is (mutation == "valid"), result.stdout + result.stderr
+E       AssertionError:
+E       assert (0 == 0) is ('invalid-signature' == 'valid'
+E        +  where 0 = CompletedProcess(args=['bash', '-c', 'set -euo pipefail\nfixture_ref="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\necho "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"\n\necho "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"\nset -euo pipefail\nexpected="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\nactual="$(git -C specfact-cli-modules rev-parse HEAD)"\ntest "$actual" = "$expected"\n'], returncode=0, stdout='', stderr='').returncode
+E
+E         - valid
+E         + invalid-signature)
+
+tests/unit/workflows/test_docs_module_authentication.py:167: AssertionError
+_ test_docs_jobs_authenticate_actual_signed_payloads[payload-mismatch-docs-review.yml-docs-review] _
+
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_docs_jobs_authenticate_ac4')
+filename = 'docs-review.yml', job = 'docs-review', mutation = 'payload-mismatch'
+
+    @pytest.mark.parametrize(("filename", "job"), JOBS)
+    @pytest.mark.parametrize(
+        "mutation",
+        [
+            "valid",
+            "missing-signature",
+            "invalid-signature",
+            "payload-mismatch",
+            "wrong-key",
+            "missing-manifest",
+            "empty-fixture",
+            "extra-unsigned-source",
+        ],
+    )
+    def test_docs_jobs_authenticate_actual_signed_payloads(tmp_path: Path, filename: str, job: str, mutation: str) -> None:
+        modules, trusted = _signed_sources(tmp_path)
+        _mutate_source(modules, trusted, mutation)
+        identity = _commit_source(modules)
+        (tmp_path / "ci").mkdir()
+        for name in ("module-fixture.lock.json", "docs-module-fixture.lock.json"):
+            (tmp_path / "ci" / name).write_text(json.dumps(identity))
+        wrapper = REPO_ROOT / "scripts/verify_docs_module_source.py"
+        if wrapper.exists():
+            (tmp_path / "scripts").mkdir()
+            shutil.copyfile(wrapper, tmp_path / "scripts" / wrapper.name)
+        names = {
+            "Read immutable module fixture",
+            "Verify immutable module fixture",
+            "Authenticate module command sources",
+            "Export module command source path",
+        }
+        script = "\n".join(step["run"] for step in _workflow_steps(filename, job) if step.get("name") in names)
+        script = script.replace("${{ steps.modules-fixture.outputs.repository }}", "nold-ai/specfact-cli-modules")
+        environment = {
+            **os.environ,
+            "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+            "GITHUB_OUTPUT": str(tmp_path / "outputs"),
+            "GITHUB_ENV": str(tmp_path / "environment"),
+            "GITHUB_WORKSPACE": str(tmp_path),
+            "VERIFY_MODULES_PR": "--skip-checksum-verification",
+        }
+        result = subprocess.run(["bash", "-c", script], cwd=tmp_path, env=environment, capture_output=True, text=True)
+>       assert (result.returncode == 0) is (mutation == "valid"), result.stdout + result.stderr
+E       AssertionError:
+E       assert (0 == 0) is ('payload-mismatch' == 'valid'
+E        +  where 0 = CompletedProcess(args=['bash', '-c', 'set -euo pipefail\nrepository="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])\')"\ncommit="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\n[[ "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]\ntest "$repository" = "nold-ai/specfact-cli-modules"\n[[ "$commit" =~ ^[0-9a-f]{40}$ ]]\nprintf \'repository=%s\\n\' "$repository" >> "$GITHUB_OUTPUT"\nprintf \'commit=%s\\n\' "$commit" >> "$GITHUB_OUTPUT"\n\nset -euo pipefail\nexpected_repository="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])\')"\nexpected="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\ntest "$expected_repository" = "nold-ai/specfact-cli-modules"\nactual="$(git -C specfact-cli-modules rev-parse HEAD)"\ntest "$actual" = "$expected"\n\necho "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"'], returncode=0, stdout='', stderr='').returncode
+E
+E         - valid
+E         + payload-mismatch)
+
+tests/unit/workflows/test_docs_module_authentication.py:167: AssertionError
+_ test_docs_jobs_authenticate_actual_signed_payloads[payload-mismatch-pr-orchestrator.yml-cli-validation] _
+
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_docs_jobs_authenticate_ac5')
+filename = 'pr-orchestrator.yml', job = 'cli-validation'
+mutation = 'payload-mismatch'
+
+    @pytest.mark.parametrize(("filename", "job"), JOBS)
+    @pytest.mark.parametrize(
+        "mutation",
+        [
+            "valid",
+            "missing-signature",
+            "invalid-signature",
+            "payload-mismatch",
+            "wrong-key",
+            "missing-manifest",
+            "empty-fixture",
+            "extra-unsigned-source",
+        ],
+    )
+    def test_docs_jobs_authenticate_actual_signed_payloads(tmp_path: Path, filename: str, job: str, mutation: str) -> None:
+        modules, trusted = _signed_sources(tmp_path)
+        _mutate_source(modules, trusted, mutation)
+        identity = _commit_source(modules)
+        (tmp_path / "ci").mkdir()
+        for name in ("module-fixture.lock.json", "docs-module-fixture.lock.json"):
+            (tmp_path / "ci" / name).write_text(json.dumps(identity))
+        wrapper = REPO_ROOT / "scripts/verify_docs_module_source.py"
+        if wrapper.exists():
+            (tmp_path / "scripts").mkdir()
+            shutil.copyfile(wrapper, tmp_path / "scripts" / wrapper.name)
+        names = {
+            "Read immutable module fixture",
+            "Verify immutable module fixture",
+            "Authenticate module command sources",
+            "Export module command source path",
+        }
+        script = "\n".join(step["run"] for step in _workflow_steps(filename, job) if step.get("name") in names)
+        script = script.replace("${{ steps.modules-fixture.outputs.repository }}", "nold-ai/specfact-cli-modules")
+        environment = {
+            **os.environ,
+            "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+            "GITHUB_OUTPUT": str(tmp_path / "outputs"),
+            "GITHUB_ENV": str(tmp_path / "environment"),
+            "GITHUB_WORKSPACE": str(tmp_path),
+            "VERIFY_MODULES_PR": "--skip-checksum-verification",
+        }
+        result = subprocess.run(["bash", "-c", script], cwd=tmp_path, env=environment, capture_output=True, text=True)
+>       assert (result.returncode == 0) is (mutation == "valid"), result.stdout + result.stderr
+E       AssertionError:
+E       assert (0 == 0) is ('payload-mismatch' == 'valid'
+E        +  where 0 = CompletedProcess(args=['bash', '-c', 'set -euo pipefail\nfixture_ref="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\necho "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"\n\necho "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"\nset -euo pipefail\nexpected="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\nactual="$(git -C specfact-cli-modules rev-parse HEAD)"\ntest "$actual" = "$expected"\n'], returncode=0, stdout='', stderr='').returncode
+E
+E         - valid
+E         + payload-mismatch)
+
+tests/unit/workflows/test_docs_module_authentication.py:167: AssertionError
+_ test_docs_jobs_authenticate_actual_signed_payloads[wrong-key-docs-review.yml-docs-review] _
+
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_docs_jobs_authenticate_ac6')
+filename = 'docs-review.yml', job = 'docs-review', mutation = 'wrong-key'
+
+    @pytest.mark.parametrize(("filename", "job"), JOBS)
+    @pytest.mark.parametrize(
+        "mutation",
+        [
+            "valid",
+            "missing-signature",
+            "invalid-signature",
+            "payload-mismatch",
+            "wrong-key",
+            "missing-manifest",
+            "empty-fixture",
+            "extra-unsigned-source",
+        ],
+    )
+    def test_docs_jobs_authenticate_actual_signed_payloads(tmp_path: Path, filename: str, job: str, mutation: str) -> None:
+        modules, trusted = _signed_sources(tmp_path)
+        _mutate_source(modules, trusted, mutation)
+        identity = _commit_source(modules)
+        (tmp_path / "ci").mkdir()
+        for name in ("module-fixture.lock.json", "docs-module-fixture.lock.json"):
+            (tmp_path / "ci" / name).write_text(json.dumps(identity))
+        wrapper = REPO_ROOT / "scripts/verify_docs_module_source.py"
+        if wrapper.exists():
+            (tmp_path / "scripts").mkdir()
+            shutil.copyfile(wrapper, tmp_path / "scripts" / wrapper.name)
+        names = {
+            "Read immutable module fixture",
+            "Verify immutable module fixture",
+            "Authenticate module command sources",
+            "Export module command source path",
+        }
+        script = "\n".join(step["run"] for step in _workflow_steps(filename, job) if step.get("name") in names)
+        script = script.replace("${{ steps.modules-fixture.outputs.repository }}", "nold-ai/specfact-cli-modules")
+        environment = {
+            **os.environ,
+            "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+            "GITHUB_OUTPUT": str(tmp_path / "outputs"),
+            "GITHUB_ENV": str(tmp_path / "environment"),
+            "GITHUB_WORKSPACE": str(tmp_path),
+            "VERIFY_MODULES_PR": "--skip-checksum-verification",
+        }
+        result = subprocess.run(["bash", "-c", script], cwd=tmp_path, env=environment, capture_output=True, text=True)
+>       assert (result.returncode == 0) is (mutation == "valid"), result.stdout + result.stderr
+E       AssertionError:
+E       assert (0 == 0) is ('wrong-key' == 'valid'
+E        +  where 0 = CompletedProcess(args=['bash', '-c', 'set -euo pipefail\nrepository="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])\')"\ncommit="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\n[[ "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]\ntest "$repository" = "nold-ai/specfact-cli-modules"\n[[ "$commit" =~ ^[0-9a-f]{40}$ ]]\nprintf \'repository=%s\\n\' "$repository" >> "$GITHUB_OUTPUT"\nprintf \'commit=%s\\n\' "$commit" >> "$GITHUB_OUTPUT"\n\nset -euo pipefail\nexpected_repository="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])\')"\nexpected="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\ntest "$expected_repository" = "nold-ai/specfact-cli-modules"\nactual="$(git -C specfact-cli-modules rev-parse HEAD)"\ntest "$actual" = "$expected"\n\necho "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"'], returncode=0, stdout='', stderr='').returncode
+E
+E         - valid
+E         + wrong-key)
+
+tests/unit/workflows/test_docs_module_authentication.py:167: AssertionError
+_ test_docs_jobs_authenticate_actual_signed_payloads[wrong-key-pr-orchestrator.yml-cli-validation] _
+
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_docs_jobs_authenticate_ac7')
+filename = 'pr-orchestrator.yml', job = 'cli-validation', mutation = 'wrong-key'
+
+    @pytest.mark.parametrize(("filename", "job"), JOBS)
+    @pytest.mark.parametrize(
+        "mutation",
+        [
+            "valid",
+            "missing-signature",
+            "invalid-signature",
+            "payload-mismatch",
+            "wrong-key",
+            "missing-manifest",
+            "empty-fixture",
+            "extra-unsigned-source",
+        ],
+    )
+    def test_docs_jobs_authenticate_actual_signed_payloads(tmp_path: Path, filename: str, job: str, mutation: str) -> None:
+        modules, trusted = _signed_sources(tmp_path)
+        _mutate_source(modules, trusted, mutation)
+        identity = _commit_source(modules)
+        (tmp_path / "ci").mkdir()
+        for name in ("module-fixture.lock.json", "docs-module-fixture.lock.json"):
+            (tmp_path / "ci" / name).write_text(json.dumps(identity))
+        wrapper = REPO_ROOT / "scripts/verify_docs_module_source.py"
+        if wrapper.exists():
+            (tmp_path / "scripts").mkdir()
+            shutil.copyfile(wrapper, tmp_path / "scripts" / wrapper.name)
+        names = {
+            "Read immutable module fixture",
+            "Verify immutable module fixture",
+            "Authenticate module command sources",
+            "Export module command source path",
+        }
+        script = "\n".join(step["run"] for step in _workflow_steps(filename, job) if step.get("name") in names)
+        script = script.replace("${{ steps.modules-fixture.outputs.repository }}", "nold-ai/specfact-cli-modules")
+        environment = {
+            **os.environ,
+            "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+            "GITHUB_OUTPUT": str(tmp_path / "outputs"),
+            "GITHUB_ENV": str(tmp_path / "environment"),
+            "GITHUB_WORKSPACE": str(tmp_path),
+            "VERIFY_MODULES_PR": "--skip-checksum-verification",
+        }
+        result = subprocess.run(["bash", "-c", script], cwd=tmp_path, env=environment, capture_output=True, text=True)
+>       assert (result.returncode == 0) is (mutation == "valid"), result.stdout + result.stderr
+E       AssertionError:
+E       assert (0 == 0) is ('wrong-key' == 'valid'
+E        +  where 0 = CompletedProcess(args=['bash', '-c', 'set -euo pipefail\nfixture_ref="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\necho "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"\n\necho "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"\nset -euo pipefail\nexpected="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\nactual="$(git -C specfact-cli-modules rev-parse HEAD)"\ntest "$actual" = "$expected"\n'], returncode=0, stdout='', stderr='').returncode
+E
+E         - valid
+E         + wrong-key)
+
+tests/unit/workflows/test_docs_module_authentication.py:167: AssertionError
+_ test_docs_jobs_authenticate_actual_signed_payloads[missing-manifest-docs-review.yml-docs-review] _
+
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_docs_jobs_authenticate_ac8')
+filename = 'docs-review.yml', job = 'docs-review', mutation = 'missing-manifest'
+
+    @pytest.mark.parametrize(("filename", "job"), JOBS)
+    @pytest.mark.parametrize(
+        "mutation",
+        [
+            "valid",
+            "missing-signature",
+            "invalid-signature",
+            "payload-mismatch",
+            "wrong-key",
+            "missing-manifest",
+            "empty-fixture",
+            "extra-unsigned-source",
+        ],
+    )
+    def test_docs_jobs_authenticate_actual_signed_payloads(tmp_path: Path, filename: str, job: str, mutation: str) -> None:
+        modules, trusted = _signed_sources(tmp_path)
+        _mutate_source(modules, trusted, mutation)
+        identity = _commit_source(modules)
+        (tmp_path / "ci").mkdir()
+        for name in ("module-fixture.lock.json", "docs-module-fixture.lock.json"):
+            (tmp_path / "ci" / name).write_text(json.dumps(identity))
+        wrapper = REPO_ROOT / "scripts/verify_docs_module_source.py"
+        if wrapper.exists():
+            (tmp_path / "scripts").mkdir()
+            shutil.copyfile(wrapper, tmp_path / "scripts" / wrapper.name)
+        names = {
+            "Read immutable module fixture",
+            "Verify immutable module fixture",
+            "Authenticate module command sources",
+            "Export module command source path",
+        }
+        script = "\n".join(step["run"] for step in _workflow_steps(filename, job) if step.get("name") in names)
+        script = script.replace("${{ steps.modules-fixture.outputs.repository }}", "nold-ai/specfact-cli-modules")
+        environment = {
+            **os.environ,
+            "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+            "GITHUB_OUTPUT": str(tmp_path / "outputs"),
+            "GITHUB_ENV": str(tmp_path / "environment"),
+            "GITHUB_WORKSPACE": str(tmp_path),
+            "VERIFY_MODULES_PR": "--skip-checksum-verification",
+        }
+        result = subprocess.run(["bash", "-c", script], cwd=tmp_path, env=environment, capture_output=True, text=True)
+>       assert (result.returncode == 0) is (mutation == "valid"), result.stdout + result.stderr
+E       AssertionError:
+E       assert (0 == 0) is ('missing-manifest' == 'valid'
+E        +  where 0 = CompletedProcess(args=['bash', '-c', 'set -euo pipefail\nrepository="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])\')"\ncommit="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\n[[ "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]\ntest "$repository" = "nold-ai/specfact-cli-modules"\n[[ "$commit" =~ ^[0-9a-f]{40}$ ]]\nprintf \'repository=%s\\n\' "$repository" >> "$GITHUB_OUTPUT"\nprintf \'commit=%s\\n\' "$commit" >> "$GITHUB_OUTPUT"\n\nset -euo pipefail\nexpected_repository="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])\')"\nexpected="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\ntest "$expected_repository" = "nold-ai/specfact-cli-modules"\nactual="$(git -C specfact-cli-modules rev-parse HEAD)"\ntest "$actual" = "$expected"\n\necho "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"'], returncode=0, stdout='', stderr='').returncode
+E
+E         - valid
+E         + missing-manifest)
+
+tests/unit/workflows/test_docs_module_authentication.py:167: AssertionError
+_ test_docs_jobs_authenticate_actual_signed_payloads[missing-manifest-pr-orchestrator.yml-cli-validation] _
+
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_docs_jobs_authenticate_ac9')
+filename = 'pr-orchestrator.yml', job = 'cli-validation'
+mutation = 'missing-manifest'
+
+    @pytest.mark.parametrize(("filename", "job"), JOBS)
+    @pytest.mark.parametrize(
+        "mutation",
+        [
+            "valid",
+            "missing-signature",
+            "invalid-signature",
+            "payload-mismatch",
+            "wrong-key",
+            "missing-manifest",
+            "empty-fixture",
+            "extra-unsigned-source",
+        ],
+    )
+    def test_docs_jobs_authenticate_actual_signed_payloads(tmp_path: Path, filename: str, job: str, mutation: str) -> None:
+        modules, trusted = _signed_sources(tmp_path)
+        _mutate_source(modules, trusted, mutation)
+        identity = _commit_source(modules)
+        (tmp_path / "ci").mkdir()
+        for name in ("module-fixture.lock.json", "docs-module-fixture.lock.json"):
+            (tmp_path / "ci" / name).write_text(json.dumps(identity))
+        wrapper = REPO_ROOT / "scripts/verify_docs_module_source.py"
+        if wrapper.exists():
+            (tmp_path / "scripts").mkdir()
+            shutil.copyfile(wrapper, tmp_path / "scripts" / wrapper.name)
+        names = {
+            "Read immutable module fixture",
+            "Verify immutable module fixture",
+            "Authenticate module command sources",
+            "Export module command source path",
+        }
+        script = "\n".join(step["run"] for step in _workflow_steps(filename, job) if step.get("name") in names)
+        script = script.replace("${{ steps.modules-fixture.outputs.repository }}", "nold-ai/specfact-cli-modules")
+        environment = {
+            **os.environ,
+            "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+            "GITHUB_OUTPUT": str(tmp_path / "outputs"),
+            "GITHUB_ENV": str(tmp_path / "environment"),
+            "GITHUB_WORKSPACE": str(tmp_path),
+            "VERIFY_MODULES_PR": "--skip-checksum-verification",
+        }
+        result = subprocess.run(["bash", "-c", script], cwd=tmp_path, env=environment, capture_output=True, text=True)
+>       assert (result.returncode == 0) is (mutation == "valid"), result.stdout + result.stderr
+E       AssertionError:
+E       assert (0 == 0) is ('missing-manifest' == 'valid'
+E        +  where 0 = CompletedProcess(args=['bash', '-c', 'set -euo pipefail\nfixture_ref="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\necho "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"\n\necho "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"\nset -euo pipefail\nexpected="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\nactual="$(git -C specfact-cli-modules rev-parse HEAD)"\ntest "$actual" = "$expected"\n'], returncode=0, stdout='', stderr='').returncode
+E
+E         - valid
+E         + missing-manifest)
+
+tests/unit/workflows/test_docs_module_authentication.py:167: AssertionError
+_ test_docs_jobs_authenticate_actual_signed_payloads[empty-fixture-docs-review.yml-docs-review] _
+
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_docs_jobs_authenticate_ac10')
+filename = 'docs-review.yml', job = 'docs-review', mutation = 'empty-fixture'
+
+    @pytest.mark.parametrize(("filename", "job"), JOBS)
+    @pytest.mark.parametrize(
+        "mutation",
+        [
+            "valid",
+            "missing-signature",
+            "invalid-signature",
+            "payload-mismatch",
+            "wrong-key",
+            "missing-manifest",
+            "empty-fixture",
+            "extra-unsigned-source",
+        ],
+    )
+    def test_docs_jobs_authenticate_actual_signed_payloads(tmp_path: Path, filename: str, job: str, mutation: str) -> None:
+        modules, trusted = _signed_sources(tmp_path)
+        _mutate_source(modules, trusted, mutation)
+        identity = _commit_source(modules)
+        (tmp_path / "ci").mkdir()
+        for name in ("module-fixture.lock.json", "docs-module-fixture.lock.json"):
+            (tmp_path / "ci" / name).write_text(json.dumps(identity))
+        wrapper = REPO_ROOT / "scripts/verify_docs_module_source.py"
+        if wrapper.exists():
+            (tmp_path / "scripts").mkdir()
+            shutil.copyfile(wrapper, tmp_path / "scripts" / wrapper.name)
+        names = {
+            "Read immutable module fixture",
+            "Verify immutable module fixture",
+            "Authenticate module command sources",
+            "Export module command source path",
+        }
+        script = "\n".join(step["run"] for step in _workflow_steps(filename, job) if step.get("name") in names)
+        script = script.replace("${{ steps.modules-fixture.outputs.repository }}", "nold-ai/specfact-cli-modules")
+        environment = {
+            **os.environ,
+            "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+            "GITHUB_OUTPUT": str(tmp_path / "outputs"),
+            "GITHUB_ENV": str(tmp_path / "environment"),
+            "GITHUB_WORKSPACE": str(tmp_path),
+            "VERIFY_MODULES_PR": "--skip-checksum-verification",
+        }
+        result = subprocess.run(["bash", "-c", script], cwd=tmp_path, env=environment, capture_output=True, text=True)
+>       assert (result.returncode == 0) is (mutation == "valid"), result.stdout + result.stderr
+E       AssertionError:
+E       assert (0 == 0) is ('empty-fixture' == 'valid'
+E        +  where 0 = CompletedProcess(args=['bash', '-c', 'set -euo pipefail\nrepository="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])\')"\ncommit="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\n[[ "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]\ntest "$repository" = "nold-ai/specfact-cli-modules"\n[[ "$commit" =~ ^[0-9a-f]{40}$ ]]\nprintf \'repository=%s\\n\' "$repository" >> "$GITHUB_OUTPUT"\nprintf \'commit=%s\\n\' "$commit" >> "$GITHUB_OUTPUT"\n\nset -euo pipefail\nexpected_repository="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])\')"\nexpected="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\ntest "$expected_repository" = "nold-ai/specfact-cli-modules"\nactual="$(git -C specfact-cli-modules rev-parse HEAD)"\ntest "$actual" = "$expected"\n\necho "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"'], returncode=0, stdout='', stderr='').returncode
+E
+E         - valid
+E         + empty-fixture)
+
+tests/unit/workflows/test_docs_module_authentication.py:167: AssertionError
+_ test_docs_jobs_authenticate_actual_signed_payloads[empty-fixture-pr-orchestrator.yml-cli-validation] _
+
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_docs_jobs_authenticate_ac11')
+filename = 'pr-orchestrator.yml', job = 'cli-validation'
+mutation = 'empty-fixture'
+
+    @pytest.mark.parametrize(("filename", "job"), JOBS)
+    @pytest.mark.parametrize(
+        "mutation",
+        [
+            "valid",
+            "missing-signature",
+            "invalid-signature",
+            "payload-mismatch",
+            "wrong-key",
+            "missing-manifest",
+            "empty-fixture",
+            "extra-unsigned-source",
+        ],
+    )
+    def test_docs_jobs_authenticate_actual_signed_payloads(tmp_path: Path, filename: str, job: str, mutation: str) -> None:
+        modules, trusted = _signed_sources(tmp_path)
+        _mutate_source(modules, trusted, mutation)
+        identity = _commit_source(modules)
+        (tmp_path / "ci").mkdir()
+        for name in ("module-fixture.lock.json", "docs-module-fixture.lock.json"):
+            (tmp_path / "ci" / name).write_text(json.dumps(identity))
+        wrapper = REPO_ROOT / "scripts/verify_docs_module_source.py"
+        if wrapper.exists():
+            (tmp_path / "scripts").mkdir()
+            shutil.copyfile(wrapper, tmp_path / "scripts" / wrapper.name)
+        names = {
+            "Read immutable module fixture",
+            "Verify immutable module fixture",
+            "Authenticate module command sources",
+            "Export module command source path",
+        }
+        script = "\n".join(step["run"] for step in _workflow_steps(filename, job) if step.get("name") in names)
+        script = script.replace("${{ steps.modules-fixture.outputs.repository }}", "nold-ai/specfact-cli-modules")
+        environment = {
+            **os.environ,
+            "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+            "GITHUB_OUTPUT": str(tmp_path / "outputs"),
+            "GITHUB_ENV": str(tmp_path / "environment"),
+            "GITHUB_WORKSPACE": str(tmp_path),
+            "VERIFY_MODULES_PR": "--skip-checksum-verification",
+        }
+        result = subprocess.run(["bash", "-c", script], cwd=tmp_path, env=environment, capture_output=True, text=True)
+>       assert (result.returncode == 0) is (mutation == "valid"), result.stdout + result.stderr
+E       AssertionError:
+E       assert (0 == 0) is ('empty-fixture' == 'valid'
+E        +  where 0 = CompletedProcess(args=['bash', '-c', 'set -euo pipefail\nfixture_ref="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\necho "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"\n\necho "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"\nset -euo pipefail\nexpected="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\nactual="$(git -C specfact-cli-modules rev-parse HEAD)"\ntest "$actual" = "$expected"\n'], returncode=0, stdout='', stderr='').returncode
+E
+E         - valid
+E         + empty-fixture)
+
+tests/unit/workflows/test_docs_module_authentication.py:167: AssertionError
+_ test_docs_jobs_authenticate_actual_signed_payloads[extra-unsigned-source-docs-review.yml-docs-review] _
+
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_docs_jobs_authenticate_ac12')
+filename = 'docs-review.yml', job = 'docs-review'
+mutation = 'extra-unsigned-source'
+
+    @pytest.mark.parametrize(("filename", "job"), JOBS)
+    @pytest.mark.parametrize(
+        "mutation",
+        [
+            "valid",
+            "missing-signature",
+            "invalid-signature",
+            "payload-mismatch",
+            "wrong-key",
+            "missing-manifest",
+            "empty-fixture",
+            "extra-unsigned-source",
+        ],
+    )
+    def test_docs_jobs_authenticate_actual_signed_payloads(tmp_path: Path, filename: str, job: str, mutation: str) -> None:
+        modules, trusted = _signed_sources(tmp_path)
+        _mutate_source(modules, trusted, mutation)
+        identity = _commit_source(modules)
+        (tmp_path / "ci").mkdir()
+        for name in ("module-fixture.lock.json", "docs-module-fixture.lock.json"):
+            (tmp_path / "ci" / name).write_text(json.dumps(identity))
+        wrapper = REPO_ROOT / "scripts/verify_docs_module_source.py"
+        if wrapper.exists():
+            (tmp_path / "scripts").mkdir()
+            shutil.copyfile(wrapper, tmp_path / "scripts" / wrapper.name)
+        names = {
+            "Read immutable module fixture",
+            "Verify immutable module fixture",
+            "Authenticate module command sources",
+            "Export module command source path",
+        }
+        script = "\n".join(step["run"] for step in _workflow_steps(filename, job) if step.get("name") in names)
+        script = script.replace("${{ steps.modules-fixture.outputs.repository }}", "nold-ai/specfact-cli-modules")
+        environment = {
+            **os.environ,
+            "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+            "GITHUB_OUTPUT": str(tmp_path / "outputs"),
+            "GITHUB_ENV": str(tmp_path / "environment"),
+            "GITHUB_WORKSPACE": str(tmp_path),
+            "VERIFY_MODULES_PR": "--skip-checksum-verification",
+        }
+        result = subprocess.run(["bash", "-c", script], cwd=tmp_path, env=environment, capture_output=True, text=True)
+>       assert (result.returncode == 0) is (mutation == "valid"), result.stdout + result.stderr
+E       AssertionError:
+E       assert (0 == 0) is ('extra-unsigned-source' == 'valid'
+E        +  where 0 = CompletedProcess(args=['bash', '-c', 'set -euo pipefail\nrepository="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])\')"\ncommit="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\n[[ "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]\ntest "$repository" = "nold-ai/specfact-cli-modules"\n[[ "$commit" =~ ^[0-9a-f]{40}$ ]]\nprintf \'repository=%s\\n\' "$repository" >> "$GITHUB_OUTPUT"\nprintf \'commit=%s\\n\' "$commit" >> "$GITHUB_OUTPUT"\n\nset -euo pipefail\nexpected_repository="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])\')"\nexpected="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\ntest "$expected_repository" = "nold-ai/specfact-cli-modules"\nactual="$(git -C specfact-cli-modules rev-parse HEAD)"\ntest "$actual" = "$expected"\n\necho "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"'], returncode=0, stdout='', stderr='').returncode
+E
+E         - valid
+E         + extra-unsigned-source)
+
+tests/unit/workflows/test_docs_module_authentication.py:167: AssertionError
+_ test_docs_jobs_authenticate_actual_signed_payloads[extra-unsigned-source-pr-orchestrator.yml-cli-validation] _
+
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-435/test_docs_jobs_authenticate_ac13')
+filename = 'pr-orchestrator.yml', job = 'cli-validation'
+mutation = 'extra-unsigned-source'
+
+    @pytest.mark.parametrize(("filename", "job"), JOBS)
+    @pytest.mark.parametrize(
+        "mutation",
+        [
+            "valid",
+            "missing-signature",
+            "invalid-signature",
+            "payload-mismatch",
+            "wrong-key",
+            "missing-manifest",
+            "empty-fixture",
+            "extra-unsigned-source",
+        ],
+    )
+    def test_docs_jobs_authenticate_actual_signed_payloads(tmp_path: Path, filename: str, job: str, mutation: str) -> None:
+        modules, trusted = _signed_sources(tmp_path)
+        _mutate_source(modules, trusted, mutation)
+        identity = _commit_source(modules)
+        (tmp_path / "ci").mkdir()
+        for name in ("module-fixture.lock.json", "docs-module-fixture.lock.json"):
+            (tmp_path / "ci" / name).write_text(json.dumps(identity))
+        wrapper = REPO_ROOT / "scripts/verify_docs_module_source.py"
+        if wrapper.exists():
+            (tmp_path / "scripts").mkdir()
+            shutil.copyfile(wrapper, tmp_path / "scripts" / wrapper.name)
+        names = {
+            "Read immutable module fixture",
+            "Verify immutable module fixture",
+            "Authenticate module command sources",
+            "Export module command source path",
+        }
+        script = "\n".join(step["run"] for step in _workflow_steps(filename, job) if step.get("name") in names)
+        script = script.replace("${{ steps.modules-fixture.outputs.repository }}", "nold-ai/specfact-cli-modules")
+        environment = {
+            **os.environ,
+            "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+            "GITHUB_OUTPUT": str(tmp_path / "outputs"),
+            "GITHUB_ENV": str(tmp_path / "environment"),
+            "GITHUB_WORKSPACE": str(tmp_path),
+            "VERIFY_MODULES_PR": "--skip-checksum-verification",
+        }
+        result = subprocess.run(["bash", "-c", script], cwd=tmp_path, env=environment, capture_output=True, text=True)
+>       assert (result.returncode == 0) is (mutation == "valid"), result.stdout + result.stderr
+E       AssertionError:
+E       assert (0 == 0) is ('extra-unsigned-source' == 'valid'
+E        +  where 0 = CompletedProcess(args=['bash', '-c', 'set -euo pipefail\nfixture_ref="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\necho "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"\n\necho "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"\nset -euo pipefail\nexpected="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\nactual="$(git -C specfact-cli-modules rev-parse HEAD)"\ntest "$actual" = "$expected"\n'], returncode=0, stdout='', stderr='').returncode
+E
+E         - valid
+E         + extra-unsigned-source)
+
+tests/unit/workflows/test_docs_module_authentication.py:167: AssertionError
+_ test_docs_authentication_precedes_exports_and_uses_core_base[docs-review.yml-docs-review] _
+
+filename = 'docs-review.yml', job = 'docs-review'
+
+    @pytest.mark.parametrize(("filename", "job"), JOBS)
+    def test_docs_authentication_precedes_exports_and_uses_core_base(filename: str, job: str) -> None:
+        steps = _workflow_steps(filename, job)
+        names = [step.get("name", "") for step in steps]
+>       assert "Authenticate module command sources" in names
+E       AssertionError: assert 'Authenticate module command sources' in ['', 'Read immutable module fixture', 'Checkout module command sources', 'Verify immutable module fixture', 'Export module command source path', 'Set up Python 3.12', ...]
+
+tests/unit/workflows/test_docs_module_authentication.py:175: AssertionError
+_ test_docs_authentication_precedes_exports_and_uses_core_base[pr-orchestrator.yml-cli-validation] _
+
+filename = 'pr-orchestrator.yml', job = 'cli-validation'
+
+    @pytest.mark.parametrize(("filename", "job"), JOBS)
+    def test_docs_authentication_precedes_exports_and_uses_core_base(filename: str, job: str) -> None:
+        steps = _workflow_steps(filename, job)
+        names = [step.get("name", "") for step in steps]
+>       assert "Authenticate module command sources" in names
+E       AssertionError: assert 'Authenticate module command sources' in ['', 'Read immutable module fixture', 'Checkout module command sources', 'Export module command source path', 'Verify immutable module fixture', 'Set up Python 3.12', ...]
+
+tests/unit/workflows/test_docs_module_authentication.py:175: AssertionError
+=============================== warnings summary ===============================
+tests/unit/docs/test_code_review_command_parity.py::test_generated_contract_documents_portable_runtime_registration
+  tests/unit/docs/test_code_review_command_parity.py:48: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    def test_generated_contract_documents_portable_runtime_registration() -> None:
+
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[repository-pr-orchestrator.yml-cli-validation]
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[tree-docs-review.yml-docs-review]
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[tree-pr-orchestrator.yml-cli-validation]
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[dirty-docs-review.yml-docs-review]
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[dirty-pr-orchestrator.yml-cli-validation]
+  tests/unit/workflows/test_docs_module_fixture.py:75: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    @pytest.mark.parametrize(
+
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_review_uses_independent_verified_module_fixture[docs-review.yml-docs-review]
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_review_uses_independent_verified_module_fixture[pr-orchestrator.yml-cli-validation]
+  tests/unit/workflows/test_docs_module_fixture.py:18: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    @pytest.mark.parametrize(
+
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_gate_fails_before_pytest_without_explicit_context[docs-review]
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_gate_fails_before_pytest_without_explicit_context[cli-validation]
+  tests/unit/workflows/test_docs_module_fixture.py:107: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    @pytest.mark.parametrize(
+
+tests/unit/docs/test_code_review_command_parity.py::test_generator_preserves_positional_argument_contract[False--1-None-Argument]
+tests/unit/docs/test_code_review_command_parity.py::test_generator_preserves_positional_argument_contract[False--1-None-TyperArgument]
+tests/unit/docs/test_code_review_command_parity.py::test_generator_preserves_positional_argument_contract[True-1-INPUT-Argument]
+tests/unit/docs/test_code_review_command_parity.py::test_generator_preserves_positional_argument_contract[True-1-INPUT-TyperArgument]
+  tests/unit/docs/test_code_review_command_parity.py:68: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    @pytest.mark.parametrize("argument_type", [click.Argument, TyperArgument])
+
+tests/unit/docs/test_code_review_command_parity.py::test_explicit_docs_source_takes_precedence_over_execution_source[generate-command-overview.py]
+tests/unit/docs/test_code_review_command_parity.py::test_explicit_docs_source_takes_precedence_over_execution_source[check-command-contract.py]
+  tests/unit/docs/test_code_review_command_parity.py:79: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    @pytest.mark.parametrize("filename", ["generate-command-overview.py", "check-command-contract.py"])
+
+tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[generate-command-overview.py-empty]
+tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[generate-command-overview.py-missing]
+tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[generate-command-overview.py-file]
+tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[check-command-contract.py-empty]
+tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[check-command-contract.py-missing]
+tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[check-command-contract.py-file]
+  tests/unit/docs/test_code_review_command_parity.py:98: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    @pytest.mark.parametrize("kind", ["empty", "missing", "file"])
+
+tests/unit/workflows/test_docs_module_authentication.py: 14 warnings
+  tests/unit/workflows/test_docs_module_authentication.py:125: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    @pytest.mark.parametrize(("filename", "job"), JOBS)
+
+tests/unit/workflows/test_docs_module_authentication.py::test_docs_authentication_precedes_exports_and_uses_core_base[docs-review.yml-docs-review]
+tests/unit/workflows/test_docs_module_authentication.py::test_docs_authentication_precedes_exports_and_uses_core_base[pr-orchestrator.yml-cli-validation]
+  tests/unit/workflows/test_docs_module_authentication.py:171: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    @pytest.mark.parametrize(("filename", "job"), JOBS)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+----- generated xml file: /private/tmp/specfact-473-core-tdd-red-final.xml -----
+=========================== short test summary info ============================
+FAILED tests/unit/docs/test_code_review_command_parity.py::test_generated_contract_documents_portable_runtime_registration
+FAILED tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[repository-pr-orchestrator.yml-cli-validation]
+FAILED tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[tree-docs-review.yml-docs-review]
+FAILED tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[tree-pr-orchestrator.yml-cli-validation]
+FAILED tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[dirty-docs-review.yml-docs-review]
+FAILED tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[dirty-pr-orchestrator.yml-cli-validation]
+FAILED tests/unit/workflows/test_docs_module_fixture.py::test_docs_review_uses_independent_verified_module_fixture[docs-review.yml-docs-review]
+FAILED tests/unit/workflows/test_docs_module_fixture.py::test_docs_review_uses_independent_verified_module_fixture[pr-orchestrator.yml-cli-validation]
+FAILED tests/unit/workflows/test_docs_module_fixture.py::test_docs_gate_fails_before_pytest_without_explicit_context[docs-review]
+FAILED tests/unit/workflows/test_docs_module_fixture.py::test_docs_gate_fails_before_pytest_without_explicit_context[cli-validation]
+FAILED tests/unit/docs/test_code_review_command_parity.py::test_generator_preserves_positional_argument_contract[False--1-None-Argument]
+FAILED tests/unit/docs/test_code_review_command_parity.py::test_generator_preserves_positional_argument_contract[False--1-None-TyperArgument]
+FAILED tests/unit/docs/test_code_review_command_parity.py::test_generator_preserves_positional_argument_contract[True-1-INPUT-Argument]
+FAILED tests/unit/docs/test_code_review_command_parity.py::test_generator_preserves_positional_argument_contract[True-1-INPUT-TyperArgument]
+FAILED tests/unit/docs/test_code_review_command_parity.py::test_explicit_docs_source_takes_precedence_over_execution_source[generate-command-overview.py]
+FAILED tests/unit/docs/test_code_review_command_parity.py::test_explicit_docs_source_takes_precedence_over_execution_source[check-command-contract.py]
+FAILED tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[generate-command-overview.py-empty]
+FAILED tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[generate-command-overview.py-missing]
+FAILED tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[generate-command-overview.py-file]
+FAILED tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[check-command-contract.py-empty]
+FAILED tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[check-command-contract.py-missing]
+FAILED tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[check-command-contract.py-file]
+FAILED tests/unit/workflows/test_docs_module_authentication.py::test_docs_jobs_authenticate_actual_signed_payloads[missing-signature-docs-review.yml-docs-review]
+FAILED tests/unit/workflows/test_docs_module_authentication.py::test_docs_jobs_authenticate_actual_signed_payloads[missing-signature-pr-orchestrator.yml-cli-validation]
+FAILED tests/unit/workflows/test_docs_module_authentication.py::test_docs_jobs_authenticate_actual_signed_payloads[invalid-signature-docs-review.yml-docs-review]
+FAILED tests/unit/workflows/test_docs_module_authentication.py::test_docs_jobs_authenticate_actual_signed_payloads[invalid-signature-pr-orchestrator.yml-cli-validation]
+FAILED tests/unit/workflows/test_docs_module_authentication.py::test_docs_jobs_authenticate_actual_signed_payloads[payload-mismatch-docs-review.yml-docs-review]
+FAILED tests/unit/workflows/test_docs_module_authentication.py::test_docs_jobs_authenticate_actual_signed_payloads[payload-mismatch-pr-orchestrator.yml-cli-validation]
+FAILED tests/unit/workflows/test_docs_module_authentication.py::test_docs_jobs_authenticate_actual_signed_payloads[wrong-key-docs-review.yml-docs-review]
+FAILED tests/unit/workflows/test_docs_module_authentication.py::test_docs_jobs_authenticate_actual_signed_payloads[wrong-key-pr-orchestrator.yml-cli-validation]
+FAILED tests/unit/workflows/test_docs_module_authentication.py::test_docs_jobs_authenticate_actual_signed_payloads[missing-manifest-docs-review.yml-docs-review]
+FAILED tests/unit/workflows/test_docs_module_authentication.py::test_docs_jobs_authenticate_actual_signed_payloads[missing-manifest-pr-orchestrator.yml-cli-validation]
+FAILED tests/unit/workflows/test_docs_module_authentication.py::test_docs_jobs_authenticate_actual_signed_payloads[empty-fixture-docs-review.yml-docs-review]
+FAILED tests/unit/workflows/test_docs_module_authentication.py::test_docs_jobs_authenticate_actual_signed_payloads[empty-fixture-pr-orchestrator.yml-cli-validation]
+FAILED tests/unit/workflows/test_docs_module_authentication.py::test_docs_jobs_authenticate_actual_signed_payloads[extra-unsigned-source-docs-review.yml-docs-review]
+FAILED tests/unit/workflows/test_docs_module_authentication.py::test_docs_jobs_authenticate_actual_signed_payloads[extra-unsigned-source-pr-orchestrator.yml-cli-validation]
+FAILED tests/unit/workflows/test_docs_module_authentication.py::test_docs_authentication_precedes_exports_and_uses_core_base[docs-review.yml-docs-review]
+FAILED tests/unit/workflows/test_docs_module_authentication.py::test_docs_authentication_precedes_exports_and_uses_core_base[pr-orchestrator.yml-cli-validation]
+======================= 38 failed, 38 warnings in 2.67s ========================

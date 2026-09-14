@@ -1,0 +1,61 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.13.14, pytest-9.1.1, pluggy-1.6.0
+rootdir: <core-repository>
+configfile: pyproject.toml
+plugins: mock-3.15.1, cov-7.1.0, xdist-3.8.0, timeout-2.4.0, asyncio-1.4.0, anyio-4.14.2, hypothesis-6.161.1
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 4 items
+
+tests/unit/docs/test_code_review_command_parity.py::test_code_review_generated_contract_matches_reviewed_module_source FAILED [ 25%]
+tests/unit/docs/test_code_review_command_parity.py::test_generated_contract_documents_portable_runtime_registration FAILED [ 50%]
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_review_uses_independent_verified_module_fixture FAILED [ 75%]
+tests/unit/workflows/test_docs_module_fixture.py::test_requirements_fixture_authority_stays_at_approved_release PASSED [100%]
+
+=================================== FAILURES ===================================
+______ test_code_review_generated_contract_matches_reviewed_module_source ______
+
+    def test_code_review_generated_contract_matches_reviewed_module_source() -> None:
+        configured = os.environ.get("SPECFACT_MODULES_REPO", "").strip()
+        if not configured:
+            pytest.skip("The immutable documentation module fixture is not configured")
+        module_path = Path(configured) / "docs/reference/commands.generated.json"
+        module_records = json.loads(module_path.read_text(encoding="utf-8"))
+        core_records = json.loads((REPO_ROOT / "docs/reference/commands.generated.json").read_text(encoding="utf-8"))
+        expected, actual = _command_surface(module_records), _command_surface(core_records)
+        assert expected, "Reviewed module fixture has no Code Review contract"
+>       assert actual == expected, "Core Code Review command paths, arguments, options or subcommands differ"
+E       AssertionError: Core Code Review command paths, arguments, options or subcommands differ
+E       assert {'specfact co...ds': []}, ...} == {'specfact co...ds': []}, ...}
+E
+E         Omitting 8 identical items, use -vv to show
+E         Differing items:
+E         {'specfact code review run': {'arguments': [], 'options': ['--bug-hunt', '--enforcement', '--exclude-tests', '--fix', '--focus', '--include-noise', ...], 'subcommands': []}} != {'specfact code review run': {'arguments': [{'name': 'FILES', 'nargs': -1, 'required': False}], 'options': ['--base-ref', '--bug-hunt', '--enforcement', '--exclude-tests', '--fix', '--focus', ...], 'subcommands': []}}
+E         {'specfact code review': {'arguments': [], 'options': [], 'subcommands': ['ledger', 'rules', 'run']}} != {'specfact code re...
+E
+E         ...Full output truncated (149 lines hidden), use '-vv' to show
+
+tests/unit/docs/test_code_review_command_parity.py:40: AssertionError
+_______ test_generated_contract_documents_portable_runtime_registration ________
+
+    def test_generated_contract_documents_portable_runtime_registration() -> None:
+        records = json.loads((REPO_ROOT / "docs/reference/commands.generated.json").read_text(encoding="utf-8"))
+        surface = _command_surface(records)
+>       assert "runtime" in surface["specfact code review"]["subcommands"]
+E       AssertionError: assert 'runtime' in ['ledger', 'rules', 'run']
+
+tests/unit/docs/test_code_review_command_parity.py:46: AssertionError
+__________ test_docs_review_uses_independent_verified_module_fixture ___________
+
+    def test_docs_review_uses_independent_verified_module_fixture() -> None:
+        workflow = yaml.safe_load((REPO_ROOT / ".github/workflows/docs-review.yml").read_text(encoding="utf-8"))
+        steps = workflow["jobs"]["docs-review"]["steps"]
+        scripts = "\n".join(step.get("run", "") for step in steps)
+>       assert "ci/docs-module-fixture.lock.json" in scripts
+E       assert 'ci/docs-module-fixture.lock.json' in '\nset -euo pipefail\nrepository="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])\')"\ncommit="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\n[[ "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]\ntest "$repository" = "nold-ai/specfact-cli-modules"\n[[ "$commit" =~ ^[0-9a-f]{40}$ ]]\nprintf \'repository=%s\\n\' "$repository" >> "$GITHUB_OUTPUT"\nprintf \'commit=%s\\n\' "$commit" >> "$GITHUB_OUTPUT"\n\n\nset -euo pipefail\nexpected_repository="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])\')"\nexpected="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\ntest "$expected_repository" = "${{ steps.modules-fixture.outputs.repository }}"\nactual="$(git -C specfact-cli-modules rev-parse HEAD)"\ntest "$actual" = "$expected"\n\necho "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"\n\n\npython -m pytest tests/unit/docs/test_docs_validation_scripts.py::test_docs_json_gem_uses_the_patched_security_floor -q\npython scripts/check-docs-commands.py\npython scripts/generate-command-overview.py --check\npython scripts/check-command-contract.py\npython scripts/check-documentation-accountability.py\npython scripts/check-cross-site-links.py --warn-only\npython scripts/check_doc_frontmatter.py\npython scripts/validate_agent_rule_applies_when.py\nmkdir -p logs/docs-review\nDOCS_REVIEW_LOG="logs/docs-review/docs-review_$(date -u +%Y%m%d_%H%M%S).log"\npython -m pytest tests/unit/docs/ tests/unit/scripts/test_doc_frontmatter/ tests/integration/scripts/test_doc_frontmatter/ -q 2>&1 | tee "$DOCS_REVIEW_LOG"\nexit "${PIPESTATUS[0]:-$?}"\n\n'
+
+tests/unit/workflows/test_docs_module_fixture.py:18: AssertionError
+=========================== short test summary info ============================
+FAILED tests/unit/docs/test_code_review_command_parity.py::test_code_review_generated_contract_matches_reviewed_module_source
+FAILED tests/unit/docs/test_code_review_command_parity.py::test_generated_contract_documents_portable_runtime_registration
+FAILED tests/unit/workflows/test_docs_module_fixture.py::test_docs_review_uses_independent_verified_module_fixture
+========================= 3 failed, 1 passed in 0.70s ==========================

@@ -8,7 +8,7 @@ active changes should be implemented.
 
 | Bucket | Count | Location |
 |---|---:|---|
-| **Active-tree entries** | 27 | [`openspec/changes/`](changes/) |
+| **Active-tree entries** | 28 | [`openspec/changes/`](changes/) |
 | **Parking-lot entries** | 21 | [`openspec/parking-lot/`](parking-lot/) |
 | **Archived** | 119 | [`openspec/changes/archive/`](changes/archive/) |
 
@@ -52,7 +52,7 @@ brownfield delivery. The active roadmap should make that thesis stronger:
 
 ## Active tracks
 
-The 27 active changes group into four product tracks plus one reliability lane.
+The 28 active changes group into four product tracks plus one reliability lane.
 Tracks can run in parallel; within a track, follow the order column.
 
 ### Track A - Validation Evidence Spine
@@ -104,6 +104,12 @@ planning workflows.
 | Parked | `requirements-03-backlog-sync` | [#244](https://github.com/nold-ai/specfact-cli/issues/244) | Read-first drift evidence; no write-back critical path. Deprioritized 2026-07-13 behind openspec-01 | requirements-02; modules `sync-01` |
 | Gated | `architecture-02-well-architected-review` | [#524](https://github.com/nold-ai/specfact-cli/issues/524) | Architecture-boundary review findings | architecture-01 shipped plus one usage cycle |
 | Gated | `telemetry-01-opentelemetry-default-on` | [#518](https://github.com/nold-ai/specfact-cli/issues/518) | Opt-in validation outcome telemetry only | governance-01 evidence fields |
+
+### Scoped documentation follow-up
+
+| Change | Issue | Scope | Dependency |
+|---|---|---|---|
+| `docs-16-code-review-runtime-parity` | [#728](https://github.com/nold-ai/specfact-cli/issues/728) | Docs-only immutable module source and generated Code Review runtime parity | final signed modules PR [#474](https://github.com/nold-ai/specfact-cli-modules/pull/474) identity for fixture finalization; no Requirements authority changes |
 
 ### Track D - CLI Validation Trust
 

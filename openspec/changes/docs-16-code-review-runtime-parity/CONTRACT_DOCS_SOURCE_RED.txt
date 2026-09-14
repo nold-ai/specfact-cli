@@ -1,0 +1,125 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.13.14, pytest-9.1.1, pluggy-1.6.0
+rootdir: <core-worktree>
+configfile: pyproject.toml
+plugins: mock-3.15.1, cov-7.1.0, xdist-3.8.0, timeout-2.4.0, asyncio-1.4.0, anyio-4.14.2, hypothesis-6.161.1
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 16 items / 11 deselected / 5 selected
+
+tests/unit/docs/test_code_review_command_parity.py::test_explicit_docs_source_takes_precedence_over_execution_source[check-command-contract.py] FAILED [ 20%]
+tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[check-command-contract.py-empty] FAILED [ 40%]
+tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[check-command-contract.py-missing] FAILED [ 60%]
+tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[check-command-contract.py-file] FAILED [ 80%]
+tests/unit/docs/test_code_review_command_parity.py::test_generic_generator_callers_keep_execution_source_discovery[check-command-contract.py] PASSED [100%]
+
+=================================== FAILURES ===================================
+_ test_explicit_docs_source_takes_precedence_over_execution_source[check-command-contract.py] _
+
+filename = 'check-command-contract.py'
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-403/test_explicit_docs_source_take0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1099269e0>
+
+    @pytest.mark.parametrize("filename", ["generate-command-overview.py", "check-command-contract.py"])
+    def test_explicit_docs_source_takes_precedence_over_execution_source(
+        filename: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        generator = _load_command_script(filename)
+        monkeypatch.setenv("SPECFACT_COMMAND_CONTRACT_USE_REAL_HOME", "1")
+        documentation = tmp_path / "documentation"
+        execution = tmp_path / "execution"
+        for root in (documentation, execution):
+            (root / "packages/example/src").mkdir(parents=True)
+        monkeypatch.setenv("SPECFACT_DOCS_MODULES_REPO", str(documentation))
+        monkeypatch.setenv("SPECFACT_MODULES_REPO", str(execution))
+        monkeypatch.setattr(sys, "path", sys.path.copy())
+        generator._ensure_imports()
+>       assert str(documentation / "packages/example/src") in sys.path
+E       AssertionError: assert '/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-403/test_explicit_docs_source_take0/documentation/packages/example/src' in ['/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-403/test_explicit_docs_source_take0/execution/packages/example/src', '<core-worktree>/src', '<core-worktree>/tools', '<core-worktree>', '/Users/dom/.local/share/uv/python/cpython-3.13.14-macos-aarch64-none/lib/python313.zip', '/Users/dom/.local/share/uv/python/cpython-3.13.14-macos-aarch64-none/lib/python3.13', ...]
+E        +  where '/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-403/test_explicit_docs_source_take0/documentation/packages/example/src' = str((PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-403/test_explicit_docs_source_take0/documentation') / 'packages/example/src'))
+E        +  and   ['/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-403/test_explicit_docs_source_take0/execution/packages/example/src', '<core-worktree>/src', '<core-worktree>/tools', '<core-worktree>', '/Users/dom/.local/share/uv/python/cpython-3.13.14-macos-aarch64-none/lib/python313.zip', '/Users/dom/.local/share/uv/python/cpython-3.13.14-macos-aarch64-none/lib/python3.13', ...] = sys.path
+
+tests/unit/docs/test_code_review_command_parity.py:95: AssertionError
+_ test_invalid_explicit_docs_source_cannot_fall_back[check-command-contract.py-empty] _
+
+kind = 'empty', filename = 'check-command-contract.py'
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-403/test_invalid_explicit_docs_sou0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x109692780>
+
+    @pytest.mark.parametrize("kind", ["empty", "missing", "file"])
+    @pytest.mark.parametrize("filename", ["generate-command-overview.py", "check-command-contract.py"])
+    def test_invalid_explicit_docs_source_cannot_fall_back(
+        kind: str, filename: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        generator = _load_command_script(filename)
+        monkeypatch.setenv("SPECFACT_COMMAND_CONTRACT_USE_REAL_HOME", "1")
+        execution = tmp_path / "execution"
+        (execution / "packages/example/src").mkdir(parents=True)
+        documentation = tmp_path / "documentation"
+        if kind == "file":
+            documentation.write_text("not a repository")
+        monkeypatch.setenv("SPECFACT_DOCS_MODULES_REPO", "" if kind == "empty" else str(documentation))
+        monkeypatch.setenv("SPECFACT_MODULES_REPO", str(execution))
+        monkeypatch.setattr(sys, "path", sys.path.copy())
+>       with pytest.raises(ValueError, match="SPECFACT_DOCS_MODULES_REPO"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/unit/docs/test_code_review_command_parity.py:115: Failed
+_ test_invalid_explicit_docs_source_cannot_fall_back[check-command-contract.py-missing] _
+
+kind = 'missing', filename = 'check-command-contract.py'
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-403/test_invalid_explicit_docs_sou1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10996a330>
+
+    @pytest.mark.parametrize("kind", ["empty", "missing", "file"])
+    @pytest.mark.parametrize("filename", ["generate-command-overview.py", "check-command-contract.py"])
+    def test_invalid_explicit_docs_source_cannot_fall_back(
+        kind: str, filename: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        generator = _load_command_script(filename)
+        monkeypatch.setenv("SPECFACT_COMMAND_CONTRACT_USE_REAL_HOME", "1")
+        execution = tmp_path / "execution"
+        (execution / "packages/example/src").mkdir(parents=True)
+        documentation = tmp_path / "documentation"
+        if kind == "file":
+            documentation.write_text("not a repository")
+        monkeypatch.setenv("SPECFACT_DOCS_MODULES_REPO", "" if kind == "empty" else str(documentation))
+        monkeypatch.setenv("SPECFACT_MODULES_REPO", str(execution))
+        monkeypatch.setattr(sys, "path", sys.path.copy())
+>       with pytest.raises(ValueError, match="SPECFACT_DOCS_MODULES_REPO"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/unit/docs/test_code_review_command_parity.py:115: Failed
+_ test_invalid_explicit_docs_source_cannot_fall_back[check-command-contract.py-file] _
+
+kind = 'file', filename = 'check-command-contract.py'
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-403/test_invalid_explicit_docs_sou2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10995ebe0>
+
+    @pytest.mark.parametrize("kind", ["empty", "missing", "file"])
+    @pytest.mark.parametrize("filename", ["generate-command-overview.py", "check-command-contract.py"])
+    def test_invalid_explicit_docs_source_cannot_fall_back(
+        kind: str, filename: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        generator = _load_command_script(filename)
+        monkeypatch.setenv("SPECFACT_COMMAND_CONTRACT_USE_REAL_HOME", "1")
+        execution = tmp_path / "execution"
+        (execution / "packages/example/src").mkdir(parents=True)
+        documentation = tmp_path / "documentation"
+        if kind == "file":
+            documentation.write_text("not a repository")
+        monkeypatch.setenv("SPECFACT_DOCS_MODULES_REPO", "" if kind == "empty" else str(documentation))
+        monkeypatch.setenv("SPECFACT_MODULES_REPO", str(execution))
+        monkeypatch.setattr(sys, "path", sys.path.copy())
+>       with pytest.raises(ValueError, match="SPECFACT_DOCS_MODULES_REPO"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/unit/docs/test_code_review_command_parity.py:115: Failed
+=========================== short test summary info ============================
+FAILED tests/unit/docs/test_code_review_command_parity.py::test_explicit_docs_source_takes_precedence_over_execution_source[check-command-contract.py]
+FAILED tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[check-command-contract.py-empty]
+FAILED tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[check-command-contract.py-missing]
+FAILED tests/unit/docs/test_code_review_command_parity.py::test_invalid_explicit_docs_source_cannot_fall_back[check-command-contract.py-file]
+================== 4 failed, 1 passed, 11 deselected in 0.75s ==================

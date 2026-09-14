@@ -1,0 +1,144 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.13.14, pytest-9.1.1, pluggy-1.6.0
+rootdir: <core-worktree>
+configfile: pyproject.toml
+plugins: mock-3.15.1, cov-7.1.0, xdist-3.8.0, timeout-2.4.0, asyncio-1.4.0, anyio-4.14.2, hypothesis-6.161.1
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 6 items / 2 deselected / 4 selected
+
+tests/unit/docs/test_code_review_command_parity.py::test_generator_preserves_positional_argument_contract[False--1-None-Argument] FAILED [ 25%]
+tests/unit/docs/test_code_review_command_parity.py::test_generator_preserves_positional_argument_contract[False--1-None-TyperArgument] FAILED [ 50%]
+tests/unit/docs/test_code_review_command_parity.py::test_generator_preserves_positional_argument_contract[True-1-INPUT-Argument] FAILED [ 75%]
+tests/unit/docs/test_code_review_command_parity.py::test_generator_preserves_positional_argument_contract[True-1-INPUT-TyperArgument] FAILED [100%]
+
+=================================== FAILURES ===================================
+_ test_generator_preserves_positional_argument_contract[False--1-None-Argument] _
+
+argument_type = <class 'click.core.Argument'>, required = False, nargs = -1
+metavar = None
+
+    @pytest.mark.parametrize("argument_type", [click.Argument, TyperArgument])
+    @pytest.mark.parametrize(("required", "nargs", "metavar"), [(False, -1, None), (True, 1, "INPUT")])
+    def test_generator_preserves_positional_argument_contract(
+        argument_type: type[click.Argument] | type[TyperArgument], required: bool, nargs: int, metavar: str | None
+    ) -> None:
+        spec = importlib.util.spec_from_file_location("command_overview", REPO_ROOT / "scripts/generate-command-overview.py")
+        assert spec and spec.loader
+        generator = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(generator)
+        argument = argument_type(param_decls=["files"], required=required, nargs=nargs, metavar=metavar)
+        command = click.Command("review", params=[argument, click.Option(["--json"], is_flag=True)])
+>       assert generator._command_arguments(command) == [
+            {"name": metavar or "FILES", "required": required, "nargs": nargs}
+        ]
+E       AssertionError: assert [] == [{'name': 'FI... 'nargs': -1}]
+E
+E         Right contains one more item: {'name': 'FILES', 'required': False, 'nargs': -1}
+E
+E         Full diff:
+E         + []
+E         - [
+E         -     {...
+E
+E         ...Full output truncated (5 lines hidden), use '-vv' to show
+
+tests/unit/docs/test_code_review_command_parity.py:69: AssertionError
+_ test_generator_preserves_positional_argument_contract[False--1-None-TyperArgument] _
+
+argument_type = <class 'typer.core.TyperArgument'>, required = False, nargs = -1
+metavar = None
+
+    @pytest.mark.parametrize("argument_type", [click.Argument, TyperArgument])
+    @pytest.mark.parametrize(("required", "nargs", "metavar"), [(False, -1, None), (True, 1, "INPUT")])
+    def test_generator_preserves_positional_argument_contract(
+        argument_type: type[click.Argument] | type[TyperArgument], required: bool, nargs: int, metavar: str | None
+    ) -> None:
+        spec = importlib.util.spec_from_file_location("command_overview", REPO_ROOT / "scripts/generate-command-overview.py")
+        assert spec and spec.loader
+        generator = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(generator)
+        argument = argument_type(param_decls=["files"], required=required, nargs=nargs, metavar=metavar)
+        command = click.Command("review", params=[argument, click.Option(["--json"], is_flag=True)])
+>       assert generator._command_arguments(command) == [
+            {"name": metavar or "FILES", "required": required, "nargs": nargs}
+        ]
+E       AssertionError: assert [] == [{'name': 'FI... 'nargs': -1}]
+E
+E         Right contains one more item: {'name': 'FILES', 'required': False, 'nargs': -1}
+E
+E         Full diff:
+E         + []
+E         - [
+E         -     {...
+E
+E         ...Full output truncated (5 lines hidden), use '-vv' to show
+
+tests/unit/docs/test_code_review_command_parity.py:69: AssertionError
+_ test_generator_preserves_positional_argument_contract[True-1-INPUT-Argument] _
+
+argument_type = <class 'click.core.Argument'>, required = True, nargs = 1
+metavar = 'INPUT'
+
+    @pytest.mark.parametrize("argument_type", [click.Argument, TyperArgument])
+    @pytest.mark.parametrize(("required", "nargs", "metavar"), [(False, -1, None), (True, 1, "INPUT")])
+    def test_generator_preserves_positional_argument_contract(
+        argument_type: type[click.Argument] | type[TyperArgument], required: bool, nargs: int, metavar: str | None
+    ) -> None:
+        spec = importlib.util.spec_from_file_location("command_overview", REPO_ROOT / "scripts/generate-command-overview.py")
+        assert spec and spec.loader
+        generator = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(generator)
+        argument = argument_type(param_decls=["files"], required=required, nargs=nargs, metavar=metavar)
+        command = click.Command("review", params=[argument, click.Option(["--json"], is_flag=True)])
+>       assert generator._command_arguments(command) == [
+            {"name": metavar or "FILES", "required": required, "nargs": nargs}
+        ]
+E       AssertionError: assert [] == [{'name': 'IN..., 'nargs': 1}]
+E
+E         Right contains one more item: {'name': 'INPUT', 'required': True, 'nargs': 1}
+E
+E         Full diff:
+E         + []
+E         - [
+E         -     {...
+E
+E         ...Full output truncated (5 lines hidden), use '-vv' to show
+
+tests/unit/docs/test_code_review_command_parity.py:69: AssertionError
+_ test_generator_preserves_positional_argument_contract[True-1-INPUT-TyperArgument] _
+
+argument_type = <class 'typer.core.TyperArgument'>, required = True, nargs = 1
+metavar = 'INPUT'
+
+    @pytest.mark.parametrize("argument_type", [click.Argument, TyperArgument])
+    @pytest.mark.parametrize(("required", "nargs", "metavar"), [(False, -1, None), (True, 1, "INPUT")])
+    def test_generator_preserves_positional_argument_contract(
+        argument_type: type[click.Argument] | type[TyperArgument], required: bool, nargs: int, metavar: str | None
+    ) -> None:
+        spec = importlib.util.spec_from_file_location("command_overview", REPO_ROOT / "scripts/generate-command-overview.py")
+        assert spec and spec.loader
+        generator = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(generator)
+        argument = argument_type(param_decls=["files"], required=required, nargs=nargs, metavar=metavar)
+        command = click.Command("review", params=[argument, click.Option(["--json"], is_flag=True)])
+>       assert generator._command_arguments(command) == [
+            {"name": metavar or "FILES", "required": required, "nargs": nargs}
+        ]
+E       AssertionError: assert [] == [{'name': 'IN..., 'nargs': 1}]
+E
+E         Right contains one more item: {'name': 'INPUT', 'required': True, 'nargs': 1}
+E
+E         Full diff:
+E         + []
+E         - [
+E         -     {...
+E
+E         ...Full output truncated (5 lines hidden), use '-vv' to show
+
+tests/unit/docs/test_code_review_command_parity.py:69: AssertionError
+=========================== short test summary info ============================
+FAILED tests/unit/docs/test_code_review_command_parity.py::test_generator_preserves_positional_argument_contract[False--1-None-Argument]
+FAILED tests/unit/docs/test_code_review_command_parity.py::test_generator_preserves_positional_argument_contract[False--1-None-TyperArgument]
+FAILED tests/unit/docs/test_code_review_command_parity.py::test_generator_preserves_positional_argument_contract[True-1-INPUT-Argument]
+FAILED tests/unit/docs/test_code_review_command_parity.py::test_generator_preserves_positional_argument_contract[True-1-INPUT-TyperArgument]
+======================= 4 failed, 2 deselected in 0.08s ========================
