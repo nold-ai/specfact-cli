@@ -1,0 +1,103 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.13.14, pytest-9.1.1, pluggy-1.6.0
+rootdir: <core-repository>
+configfile: pyproject.toml
+plugins: mock-3.15.1, cov-7.1.0, xdist-3.8.0, timeout-2.4.0, asyncio-1.4.0, anyio-4.14.2, hypothesis-6.161.1
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 8 items
+
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_review_uses_independent_verified_module_fixture FAILED [ 12%]
+tests/unit/workflows/test_docs_module_fixture.py::test_requirements_fixture_authority_stays_at_approved_release PASSED [ 25%]
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[None] PASSED [ 37%]
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[repository] PASSED [ 50%]
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[commit] PASSED [ 62%]
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[tree] FAILED [ 75%]
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[mutable-commit] PASSED [ 87%]
+tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[dirty] FAILED [100%]
+
+=================================== FAILURES ===================================
+__________ test_docs_review_uses_independent_verified_module_fixture ___________
+
+    def test_docs_review_uses_independent_verified_module_fixture() -> None:
+        workflow = yaml.safe_load((REPO_ROOT / ".github/workflows/docs-review.yml").read_text(encoding="utf-8"))
+        steps = workflow["jobs"]["docs-review"]["steps"]
+        scripts = "\n".join(step.get("run", "") for step in steps)
+>       assert "ci/docs-module-fixture.lock.json" in scripts
+E       assert 'ci/docs-module-fixture.lock.json' in '\nset -euo pipefail\nrepository="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])\')"\ncommit="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\n[[ "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]\ntest "$repository" = "nold-ai/specfact-cli-modules"\n[[ "$commit" =~ ^[0-9a-f]{40}$ ]]\nprintf \'repository=%s\\n\' "$repository" >> "$GITHUB_OUTPUT"\nprintf \'commit=%s\\n\' "$commit" >> "$GITHUB_OUTPUT"\n\n\nset -euo pipefail\nexpected_repository="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])\')"\nexpected="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\ntest "$expected_repository" = "${{ steps.modules-fixture.outputs.repository }}"\nactual="$(git -C specfact-cli-modules rev-parse HEAD)"\ntest "$actual" = "$expected"\n\necho "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"\n\n\npython -m pytest tests/unit/docs/test_docs_validation_scripts.py::test_docs_json_gem_uses_the_patched_security_floor -q\npython scripts/check-docs-commands.py\npython scripts/generate-command-overview.py --check\npython scripts/check-command-contract.py\npython scripts/check-documentation-accountability.py\npython scripts/check-cross-site-links.py --warn-only\npython scripts/check_doc_frontmatter.py\npython scripts/validate_agent_rule_applies_when.py\nmkdir -p logs/docs-review\nDOCS_REVIEW_LOG="logs/docs-review/docs-review_$(date -u +%Y%m%d_%H%M%S).log"\npython -m pytest tests/unit/docs/ tests/unit/scripts/test_doc_frontmatter/ tests/integration/scripts/test_doc_frontmatter/ -q 2>&1 | tee "$DOCS_REVIEW_LOG"\nexit "${PIPESTATUS[0]:-$?}"\n\n'
+
+tests/unit/workflows/test_docs_module_fixture.py:22: AssertionError
+_______ test_docs_fixture_checks_reject_actual_identity_mismatches[tree] _______
+
+tmp_path = PosixPath('<pytest-temp>')
+mismatch = 'tree'
+
+    @pytest.mark.parametrize("mismatch", [None, "repository", "commit", "tree", "mutable-commit", "dirty"])
+    def test_docs_fixture_checks_reject_actual_identity_mismatches(tmp_path: Path, mismatch: str | None) -> None:
+        identity = _fixture_repository(tmp_path)
+        if mismatch in ("commit", "tree"):
+            identity[mismatch] = "a" * 40
+        elif mismatch == "repository":
+            identity["repository"] = "example/unreviewed"
+        elif mismatch == "mutable-commit":
+            identity["commit"] = "dev"
+        elif mismatch == "dirty":
+            (tmp_path / "specfact-cli-modules/unreviewed.py").write_text("raise RuntimeError('unreviewed')\n")
+        (tmp_path / "ci").mkdir()
+        for name in ("module-fixture.lock.json", "docs-module-fixture.lock.json"):
+            (tmp_path / "ci" / name).write_text(json.dumps(identity))
+        workflow = yaml.safe_load((REPO_ROOT / ".github/workflows/docs-review.yml").read_text())
+        steps = {step.get("name"): step for step in workflow["jobs"]["docs-review"]["steps"]}
+        script = steps["Read immutable module fixture"]["run"] + steps["Verify immutable module fixture"]["run"]
+        script = script.replace("${{ steps.modules-fixture.outputs.repository }}", "nold-ai/specfact-cli-modules")
+        environment = {
+            **os.environ,
+            "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+            "GITHUB_OUTPUT": str(tmp_path / "outputs"),
+        }
+        result = subprocess.run(["bash", "-c", script], cwd=tmp_path, env=environment, capture_output=True, text=True)
+>       assert (result.returncode == 0) is (mismatch is None), result.stderr
+E       AssertionError:
+E       assert (0 == 0) is ('tree' is None)
+E        +  where 0 = CompletedProcess(args=['bash', '-c', 'set -euo pipefail\nrepository="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])\')"\ncommit="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\n[[ "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]\ntest "$repository" = "nold-ai/specfact-cli-modules"\n[[ "$commit" =~ ^[0-9a-f]{40}$ ]]\nprintf \'repository=%s\\n\' "$repository" >> "$GITHUB_OUTPUT"\nprintf \'commit=%s\\n\' "$commit" >> "$GITHUB_OUTPUT"\nset -euo pipefail\nexpected_repository="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])\')"\nexpected="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\ntest "$expected_repository" = "nold-ai/specfact-cli-modules"\nactual="$(git -C specfact-cli-modules rev-parse HEAD)"\ntest "$actual" = "$expected"\n'], returncode=0, stdout='', stderr='').returncode
+
+tests/unit/workflows/test_docs_module_fixture.py:78: AssertionError
+______ test_docs_fixture_checks_reject_actual_identity_mismatches[dirty] _______
+
+tmp_path = PosixPath('<pytest-temp>')
+mismatch = 'dirty'
+
+    @pytest.mark.parametrize("mismatch", [None, "repository", "commit", "tree", "mutable-commit", "dirty"])
+    def test_docs_fixture_checks_reject_actual_identity_mismatches(tmp_path: Path, mismatch: str | None) -> None:
+        identity = _fixture_repository(tmp_path)
+        if mismatch in ("commit", "tree"):
+            identity[mismatch] = "a" * 40
+        elif mismatch == "repository":
+            identity["repository"] = "example/unreviewed"
+        elif mismatch == "mutable-commit":
+            identity["commit"] = "dev"
+        elif mismatch == "dirty":
+            (tmp_path / "specfact-cli-modules/unreviewed.py").write_text("raise RuntimeError('unreviewed')\n")
+        (tmp_path / "ci").mkdir()
+        for name in ("module-fixture.lock.json", "docs-module-fixture.lock.json"):
+            (tmp_path / "ci" / name).write_text(json.dumps(identity))
+        workflow = yaml.safe_load((REPO_ROOT / ".github/workflows/docs-review.yml").read_text())
+        steps = {step.get("name"): step for step in workflow["jobs"]["docs-review"]["steps"]}
+        script = steps["Read immutable module fixture"]["run"] + steps["Verify immutable module fixture"]["run"]
+        script = script.replace("${{ steps.modules-fixture.outputs.repository }}", "nold-ai/specfact-cli-modules")
+        environment = {
+            **os.environ,
+            "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+            "GITHUB_OUTPUT": str(tmp_path / "outputs"),
+        }
+        result = subprocess.run(["bash", "-c", script], cwd=tmp_path, env=environment, capture_output=True, text=True)
+>       assert (result.returncode == 0) is (mismatch is None), result.stderr
+E       AssertionError:
+E       assert (0 == 0) is ('dirty' is None)
+E        +  where 0 = CompletedProcess(args=['bash', '-c', 'set -euo pipefail\nrepository="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])\')"\ncommit="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\n[[ "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]\ntest "$repository" = "nold-ai/specfact-cli-modules"\n[[ "$commit" =~ ^[0-9a-f]{40}$ ]]\nprintf \'repository=%s\\n\' "$repository" >> "$GITHUB_OUTPUT"\nprintf \'commit=%s\\n\' "$commit" >> "$GITHUB_OUTPUT"\nset -euo pipefail\nexpected_repository="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])\')"\nexpected="$(python -c \'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])\')"\ntest "$expected_repository" = "nold-ai/specfact-cli-modules"\nactual="$(git -C specfact-cli-modules rev-parse HEAD)"\ntest "$actual" = "$expected"\n'], returncode=0, stdout='', stderr='').returncode
+
+tests/unit/workflows/test_docs_module_fixture.py:78: AssertionError
+=========================== short test summary info ============================
+FAILED tests/unit/workflows/test_docs_module_fixture.py::test_docs_review_uses_independent_verified_module_fixture
+FAILED tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[tree]
+FAILED tests/unit/workflows/test_docs_module_fixture.py::test_docs_fixture_checks_reject_actual_identity_mismatches[dirty]
+========================= 3 failed, 5 passed in 0.77s ==========================

@@ -52,6 +52,27 @@ def _paired_worktree_repo(source_marker: str, target_marker: str) -> Path | None
     return base / target_marker / suffix
 
 
+def _module_source_candidates() -> list[Path]:
+    """Select documentation inputs independently of the execution fixture."""
+    candidates: list[Path]
+    documentation_repo = os.environ.get("SPECFACT_DOCS_MODULES_REPO")
+    if documentation_repo is not None:
+        documentation_repo = documentation_repo.strip()
+        candidate = Path(documentation_repo).expanduser()
+        if not documentation_repo or not (candidate / "packages").is_dir():
+            raise ValueError("SPECFACT_DOCS_MODULES_REPO must select an available module source checkout")
+        candidates = [candidate]
+        os.environ["SPECFACT_MODULES_REPO"] = str(candidate.resolve())
+    else:
+        modules_repo = os.environ.get("SPECFACT_MODULES_REPO", "").strip()
+        candidates = [Path(modules_repo).expanduser()] if modules_repo else []
+        candidates.append(REPO_ROOT.parent / "specfact-cli-modules")
+        paired_modules_repo = _paired_worktree_repo("specfact-cli-worktrees", "specfact-cli-modules-worktrees")
+        if paired_modules_repo is not None:
+            candidates.append(paired_modules_repo)
+    return candidates
+
+
 def _ensure_imports() -> None:
     os.environ.setdefault("TEST_MODE", "true")
     global _TEMP_HOME
@@ -61,13 +82,7 @@ def _ensure_imports() -> None:
     src = str(REPO_ROOT / "src")
     if src not in sys.path:
         sys.path.insert(0, src)
-    modules_repo = os.environ.get("SPECFACT_MODULES_REPO", "").strip()
-    candidates = [Path(modules_repo).expanduser()] if modules_repo else []
-    candidates.append(REPO_ROOT.parent / "specfact-cli-modules")
-    paired_modules_repo = _paired_worktree_repo("specfact-cli-worktrees", "specfact-cli-modules-worktrees")
-    if paired_modules_repo is not None:
-        candidates.append(paired_modules_repo)
-    for candidate in candidates:
+    for candidate in _module_source_candidates():
         if candidate is None:
             continue
         packages_dir = candidate / "packages"
@@ -101,7 +116,7 @@ def _has_required_argument(record: dict[str, Any]) -> bool:
     arguments = record.get("arguments")
     if not isinstance(arguments, list):
         return False
-    return any(isinstance(argument, dict) and argument.get("required") for argument in arguments)
+    return any(isinstance(argument, dict) and cast(dict[str, Any], argument).get("required") for argument in arguments)
 
 
 def _is_group(record: dict[str, Any]) -> bool:

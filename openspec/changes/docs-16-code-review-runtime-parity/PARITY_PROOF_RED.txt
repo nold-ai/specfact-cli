@@ -1,0 +1,39 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.13.14, pytest-9.1.1, pluggy-1.6.0
+rootdir: <core-worktree>
+configfile: pyproject.toml
+plugins: mock-3.15.1, cov-7.1.0, xdist-3.8.0, timeout-2.4.0, asyncio-1.4.0, anyio-4.14.2, hypothesis-6.161.1
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 1 item
+
+tests/unit/docs/test_code_review_command_parity.py::test_code_review_generated_contract_matches_reviewed_module_source FAILED [100%]
+
+=================================== FAILURES ===================================
+______ test_code_review_generated_contract_matches_reviewed_module_source ______
+
+    def test_code_review_generated_contract_matches_reviewed_module_source() -> None:
+        configured = os.environ.get("SPECFACT_DOCS_MODULES_REPO", "").strip()
+        if not configured:
+            pytest.skip("The immutable documentation module fixture is not configured")
+        module_path = Path(configured) / "docs/reference/commands.generated.json"
+        module_records = json.loads(module_path.read_text(encoding="utf-8"))
+        core_records = json.loads((REPO_ROOT / "docs/reference/commands.generated.json").read_text(encoding="utf-8"))
+        expected, actual = _command_surface(module_records), _command_surface(core_records)
+        assert expected, "Reviewed module fixture has no Code Review contract"
+>       assert actual == expected, "Core Code Review command paths, arguments, options or subcommands differ"
+E       AssertionError: Core Code Review command paths, arguments, options or subcommands differ
+E       assert {'specfact co...ds': []}, ...} == {'specfact co...ds': []}, ...}
+E
+E         Omitting 12 identical items, use -vv to show
+E         Differing items:
+E         {'specfact code review run': {'arguments': [{'name': 'FILES', 'nargs': -1, 'required': False}], 'options': ['--base-ref', '--bug-hunt', '--enforcement', '--exclude-tests', '--fix', '--focus', ...], 'subcommands': []}} != {'specfact code review run': {'arguments': [{'name': 'FILES', 'nargs': -1, 'required': False}], 'options': ['--base-ref', '--bug-hunt', '--enforcement', '--exclude-tests', '--fix', '--focus', ...], 'subcommands': []}}
+E
+E         Full diff:
+E           {...
+E
+E         ...Full output truncated (130 lines hidden), use '-vv' to show
+
+tests/unit/docs/test_code_review_command_parity.py:45: AssertionError
+=========================== short test summary info ============================
+FAILED tests/unit/docs/test_code_review_command_parity.py::test_code_review_generated_contract_matches_reviewed_module_source
+============================== 1 failed in 0.07s ===============================
