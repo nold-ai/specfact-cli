@@ -5,40 +5,6 @@ name: Docs Review
 on:
   pull_request:
     branches: [main, dev]
-    paths:
-      - "**/*.md"
-      - "**/*.mdc"
-      - ".github/**"
-      - "docs/**"
-      - "resources/**"
-      - "src/specfact_cli/resources/**"
-      - "docs/.doc-frontmatter-enforced"
-      - "tests/unit/docs/**"
-      - "tests/unit/workflows/test_docs_module_fixture.py"
-      - "tests/unit/workflows/test_docs_module_authentication.py"
-      - "tests/unit/scripts/test_doc_frontmatter/**"
-      - "tests/integration/scripts/test_doc_frontmatter/**"
-      - "tests/helpers/doc_frontmatter.py"
-      - "tests/helpers/doc_frontmatter_fixtures.py"
-      - "tests/helpers/doc_frontmatter_types.py"
-      - "scripts/check-docs-commands.py"
-      - "scripts/check-command-contract.py"
-      - "scripts/check-documentation-accountability.py"
-      - "scripts/generate-command-overview.py"
-      - "scripts/verify_docs_module_source.py"
-      - "docs/reference/commands.generated.*"
-      - "llms.txt"
-      - "scripts/check-cross-site-links.py"
-      - "scripts/check_doc_frontmatter.py"
-      - "scripts/validate_agent_rule_applies_when.py"
-      - "scripts/check_version_sources.py"
-      - "docs/agent-rules/INDEX.md"
-      - "pyproject.toml"
-      - "uv.lock"
-      - "requirements/ci/locked.txt"
-      - "ci/docs-module-fixture.lock.json"
-      - ".github/actions/setup-frozen-python/**"
-      - ".github/workflows/docs-review.yml"
   push:
     branches: [main, dev]
     paths:

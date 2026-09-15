@@ -5,10 +5,6 @@ name: SpecFact CLI Validation
 on:
   pull_request:
     branches: [main, dev]
-    paths-ignore:
-      - "docs/**"
-      - "**.md"
-      - "**.mdc"
   push:
     branches: [main, dev]
     paths-ignore:
