@@ -105,6 +105,12 @@ planning workflows.
 | Gated | `architecture-02-well-architected-review` | [#524](https://github.com/nold-ai/specfact-cli/issues/524) | Architecture-boundary review findings | architecture-01 shipped plus one usage cycle |
 | Gated | `telemetry-01-opentelemetry-default-on` | [#518](https://github.com/nold-ai/specfact-cli/issues/518) | Opt-in validation outcome telemetry only | governance-01 evidence fields |
 
+### Release-blocking workflow trigger fix
+
+| Change | Issue | Scope | Dependency |
+|---|---|---|---|
+| `required-check-workflow-trigger-parity` | [#733](https://github.com/nold-ai/specfact-cli/issues/733) | Native required check triggers for every supported PR; preserve push filters | none; unblocks PR #732 and release PR #731 |
+
 ### Scoped documentation follow-up
 
 | Change | Issue | Scope | Dependency |
