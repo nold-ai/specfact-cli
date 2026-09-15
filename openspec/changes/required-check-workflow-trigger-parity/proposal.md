@@ -20,4 +20,4 @@ Documentation research: GitHub's required-status-check troubleshooting documenta
 
 Bug #733 under existing Feature #355 / Epic #194. Owner djm81; labels bug, openspec, change-proposal, devops-backlog; SpecFact CLI project In Progress owned by this task. No native blocked-by dependencies. High priority is recorded in the issue because this project has no Priority field. This fix unblocks PR #732 and release PR #731. The completed parent feature is not reopened.
 
-Base ancestry synchronization commit: `bffeea78cb6f9db8f41b5207aa15ba77cb278ba2`, with the exact original dev tree `a696d32965bdc1f702684f8d981dc28ece3e9ffd`. Existing documentation proof tests and retained evidence remain unchanged.
+Fresh cycle base: public dev `a4a04786588d61fbc9105137dbaf0236fce009ee`, tree `a696d32965bdc1f702684f8d981dc28ece3e9ffd`. The earlier PR #732 attempt contained an ancestry merge and its RED binding was rejected; this new branch excludes that merge, preserves the test/mapping bytes and does not rewrite history. Existing documentation proof tests and retained evidence remain unchanged.
