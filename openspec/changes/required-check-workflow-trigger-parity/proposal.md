@@ -7,12 +7,13 @@ Docs Review and Contract Validation are required checks, but their workflow-leve
 ## What Changes
 
 - Remove pull-request path filters from Docs Review and SpecFact CLI Validation.
-- Preserve `main`/`dev` branch scope, push filters, job behavior, immutable fixtures, permissions, and authority policy.
+- Preserve `main`/`dev` branch scope, complete push filters, validation behavior, immutable fixtures, permissions, and authority policy.
+- Skip optional PR comment publication for fork tokens while retaining actual validation and its failure gate.
 - Add prospective regression tests and authenticated failing-first/passing-after evidence for both required workflows.
 
 ## Impact
 
-Affected specification: `required-check-workflow-triggers`. Production scope is two workflow trigger blocks. More PRs run the existing docs and contract jobs; CI cost increases by those existing jobs per previously filtered PR. No runtime API, package version, dependency, or signed module content changes. Rollback is a reviewed revert but restores the missing-check defect.
+Affected specification: `required-check-workflow-triggers`. Production scope is two workflow trigger blocks and the optional comment step condition. More PRs run the existing docs and contract jobs; CI cost increases by those existing jobs per previously filtered PR. No runtime API, package version, dependency, or signed module content changes. Rollback is a reviewed revert but restores the missing-check defect.
 
 Documentation research: GitHub's required-status-check troubleshooting documentation, accessed 2026-09-15 Europe/Berlin, confirms `workflow_dispatch` is ineligible and workflow path filtering leaves required checks pending: <https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks>. End-user command documentation and navigation remain accurate; this change affects maintainer CI only.
 
