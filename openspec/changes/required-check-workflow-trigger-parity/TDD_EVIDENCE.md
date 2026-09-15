@@ -64,4 +64,17 @@ After specifying the scenario, three supplemental tests executed the actual work
 
 The complete focused selection passed **102 tests in 9.42 seconds**. Review then identified a generic test name and an oversized inline harness; the supplemental test was renamed from `handles` to `tolerates` and the unchanged harness became a module constant. All **6 affected supplemental cases passed in 0.16 seconds** afterward. Formatting, typing/lint (zero errors/warnings/notes), workflow lint and docs checks passed. Fresh bug-hunt review at `2026-09-15T22:07:58.569384Z`: **PASS, score 120, zero findings**. Independent diff review found no findings.
 
+## Typed supplemental harness and prose review
+
+Review comments `4020675400` and `4020675405` prompted prose wrapping and strict Pydantic validation of the native
+JavaScript harness result. The harness now exposes typed requests, warnings and HTTP status before assertions; existing
+production behavior and all six assertions remain unchanged. The repository already depends on Pydantic and its canonical
+code conventions require validated models. Markdown line-length enforcement is disabled locally, so the formatting
+comment's claimed lint failure was not reproduced; the requested narrow readability improvement is applied anyway.
+
+All **6 affected tests passed in 0.19 seconds**. Ruff lint/format, targeted authoritative BasedPyright (zero errors, warnings
+or notes), Markdown lint and strict OpenSpec validation passed. Fresh SpecFact review with `--bug-hunt` at
+`2026-09-15T22:20:54.489518Z` returned **PASS, score 120, zero findings**. Frozen Requirements tests, mapping and independent
+review receipt remain byte-for-byte unchanged from accepted RED commit `cd763c12`.
+
 The Node harness runs on the existing hosted Ubuntu test jobs, which do not use minimal containers. It stubs remote APIs and filesystem access; no GitHub comment is sent by these tests. The source mapping, aggregate mapping, plan identity and complete protected two-case plan remain unchanged. These three API cases are supplemental regression evidence, not added protected selectors. Current-head canonical verification remains required.

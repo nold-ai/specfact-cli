@@ -7,6 +7,7 @@ from typing import Any, cast
 
 import pytest
 import yaml
+from pydantic import BaseModel, Field
 
 
 WORKFLOW_ROOT = Path(__file__).resolve().parents[3] / ".github" / "workflows"
@@ -78,6 +79,20 @@ const context = {issue: {number: 1}, repo: {owner: 'test-owner', repo: 'test-rep
 """
 
 
+class CommentRequest(BaseModel):
+    """Observed request fields relevant to the comment regression."""
+
+    body: str = Field(description="Validation report submitted as the PR comment body.")
+
+
+class CommentObservation(BaseModel):
+    """Typed output from the native JavaScript comment harness."""
+
+    warnings: list[str] = Field(description="Warnings emitted by the workflow script.")
+    requests: list[CommentRequest] = Field(description="Comment API requests attempted by the workflow script.")
+    error: int | None = Field(description="Uncaught HTTP status, or null when the workflow script completes.")
+
+
 def _load_workflow(filename: str) -> dict[str, Any]:
     return cast(dict[str, Any], yaml.safe_load((WORKFLOW_ROOT / filename).read_text(encoding="utf-8")))
 
@@ -124,8 +139,8 @@ def test_optional_comment_tolerates_only_permission_denial(api_status: int) -> N
         timeout=20,
     )
     assert result.returncode == 0, result.stderr
-    observed = json.loads(result.stdout)
-    assert len(observed["requests"]) == 1
-    assert observed["requests"][0]["body"] == "validation report"
-    assert observed["error"] == (500 if api_status == 500 else None)
-    assert len(observed["warnings"]) == (1 if api_status == 403 else 0)
+    observed = CommentObservation.model_validate_json(result.stdout, strict=True)
+    assert len(observed.requests) == 1
+    assert observed.requests[0].body == "validation report"
+    assert observed.error == (500 if api_status == 500 else None)
+    assert len(observed.warnings) == (1 if api_status == 403 else 0)
