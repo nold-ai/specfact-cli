@@ -1,0 +1,144 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.12.13, pytest-9.1.1, pluggy-1.6.0
+rootdir: /private/tmp/specfact-733-trigger-fix
+configfile: pyproject.toml
+plugins: mock-3.15.1, cov-7.1.0, xdist-3.8.0, anyio-4.15.1, hypothesis-6.168.0
+collected 6 items / 3 deselected / 3 selected
+
+tests/unit/workflows/test_required_check_review_followups.py::test_optional_comment_handles_only_permission_denial[201] PASSED [ 33%]
+tests/unit/workflows/test_required_check_review_followups.py::test_optional_comment_handles_only_permission_denial[403] FAILED [ 66%]
+tests/unit/workflows/test_required_check_review_followups.py::test_optional_comment_handles_only_permission_denial[500] FAILED [100%]
+
+=================================== FAILURES ===================================
+__________ test_optional_comment_handles_only_permission_denial[403] ___________
+
+api_status = 403
+
+    @pytest.mark.parametrize("api_status", [201, 403, 500])
+    def test_optional_comment_handles_only_permission_denial(api_status: int) -> None:
+        """Execute the workflow script so read-only tokens cannot fail optional publication."""
+        workflow = _load_workflow("specfact.yml")
+        steps = workflow["jobs"]["specfact-validation"]["steps"]
+        script = next(step["with"]["script"] for step in steps if step.get("name") == "Post PR comment")
+        harness = r"""
+    const input = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+    const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+    const warnings = [];
+    const requests = [];
+    const github = {rest: {issues: {createComment: async (request) => {
+      requests.push(request);
+      if (input.status !== 201) throw Object.assign(new Error('API rejected'), {status: input.status});
+      return {status: 201};
+    }}}};
+    const filesystem = {existsSync: () => true, readFileSync: () => 'validation report'};
+    const context = {issue: {number: 1}, repo: {owner: 'test-owner', repo: 'test-repo'}};
+    (async () => {
+      let error = null;
+      try {
+        await new AsyncFunction('require', 'github', 'context', 'core', input.script)(
+          () => filesystem, github, context, {warning: (message) => warnings.push(message)});
+      } catch (failure) { error = failure.status; }
+      process.stdout.write(JSON.stringify({warnings, requests, error}));
+    })();
+    """
+        result = subprocess.run(
+            ["node", "--unhandled-rejections=strict", "-e", harness],
+            input=json.dumps({"script": script, "status": api_status}),
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=20,
+        )
+>       assert result.returncode == 0, result.stderr
+E       AssertionError: [eval]:8
+E           if (input.status !== 201) throw Object.assign(new Error('API rejected'), {status: input.status});
+E                                                         ^
+E         
+E         Error: API rejected
+E             at Object.createComment ([eval]:8:49)
+E             at eval (eval at <anonymous> ([eval]:16:11), <anonymous>:7:22)
+E             at [eval]:16:82
+E             at [eval]:20:3
+E             at runScriptInThisContext (node:internal/vm:219:10)
+E             at node:internal/process/execution:485:12
+E             at [eval]-wrapper:6:24
+E             at runScriptInContext (node:internal/process/execution:483:60)
+E             at evalFunction (node:internal/process/execution:317:30)
+E             at evalTypeScript (node:internal/process/execution:329:3) {
+E           status: 403
+E         }
+E         
+E         Node.js v26.8.2
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['node', '--unhandled-rejections=strict', '-e', "\nconst input = JSON.parse(require('fs').readFileSync(0, 'utf8'));\nconst AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;\nconst warnings = [];\nconst requests = [];\nconst github = {rest: {issues: {createComment: async (request) => {\n  requests.push(request);\n  if (input.status !== 201) throw Object.assign(new Error('API rejected'), {status: input.status});\n  return {status: 201};\n}}}};\nconst filesystem = {existsSync: () => true, readFileSync: () => 'validation report'};\nconst context = {issue: {number: 1}, repo: {owner: 'test-owner', repo: 'test-repo'}};\n(async () => {\n  let error = null;\n  try {\n    await new AsyncFunction('require', 'github', 'context', 'core', input.script)(\n      () => filesystem, github, context, {warning: (message) => warnings.push(message)});\n  } catch (failure) { error = failure.status; }\n  process.stdout.write(JSON.stringify({warnings, requests, error}));\n})();\n"], returncode=1, stdout='{"warnings":[],"requests":[{"issue_number":1,"owner":"test-owner","repo":"test-repo","body":"validation report"}],"error":null}', stderr="[eval]:8\n  if (input.status !== 201) throw Object.assign(new Error('API rejected'), {status: input.status});\n                                                ^\n\nError: API rejected\n    at Object.createComment ([eval]:8:49)\n    at eval (eval at <anonymous> ([eval]:16:11), <anonymous>:7:22)\n    at [eval]:16:82\n    at [eval]:20:3\n    at runScriptInThisContext (node:internal/vm:219:10)\n    at node:internal/process/execution:485:12\n    at [eval]-wrapper:6:24\n    at runScriptInContext (node:internal/process/execution:483:60)\n    at evalFunction (node:internal/process/execution:317:30)\n    at evalTypeScript (node:internal/process/execution:329:3) {\n  status: 403\n}\n\nNode.js v26.8.2\n").returncode
+
+tests/unit/workflows/test_required_check_review_followups.py:123: AssertionError
+__________ test_optional_comment_handles_only_permission_denial[500] ___________
+
+api_status = 500
+
+    @pytest.mark.parametrize("api_status", [201, 403, 500])
+    def test_optional_comment_handles_only_permission_denial(api_status: int) -> None:
+        """Execute the workflow script so read-only tokens cannot fail optional publication."""
+        workflow = _load_workflow("specfact.yml")
+        steps = workflow["jobs"]["specfact-validation"]["steps"]
+        script = next(step["with"]["script"] for step in steps if step.get("name") == "Post PR comment")
+        harness = r"""
+    const input = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+    const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+    const warnings = [];
+    const requests = [];
+    const github = {rest: {issues: {createComment: async (request) => {
+      requests.push(request);
+      if (input.status !== 201) throw Object.assign(new Error('API rejected'), {status: input.status});
+      return {status: 201};
+    }}}};
+    const filesystem = {existsSync: () => true, readFileSync: () => 'validation report'};
+    const context = {issue: {number: 1}, repo: {owner: 'test-owner', repo: 'test-repo'}};
+    (async () => {
+      let error = null;
+      try {
+        await new AsyncFunction('require', 'github', 'context', 'core', input.script)(
+          () => filesystem, github, context, {warning: (message) => warnings.push(message)});
+      } catch (failure) { error = failure.status; }
+      process.stdout.write(JSON.stringify({warnings, requests, error}));
+    })();
+    """
+        result = subprocess.run(
+            ["node", "--unhandled-rejections=strict", "-e", harness],
+            input=json.dumps({"script": script, "status": api_status}),
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=20,
+        )
+>       assert result.returncode == 0, result.stderr
+E       AssertionError: [eval]:8
+E           if (input.status !== 201) throw Object.assign(new Error('API rejected'), {status: input.status});
+E                                                         ^
+E         
+E         Error: API rejected
+E             at Object.createComment ([eval]:8:49)
+E             at eval (eval at <anonymous> ([eval]:16:11), <anonymous>:7:22)
+E             at [eval]:16:82
+E             at [eval]:20:3
+E             at runScriptInThisContext (node:internal/vm:219:10)
+E             at node:internal/process/execution:485:12
+E             at [eval]-wrapper:6:24
+E             at runScriptInContext (node:internal/process/execution:483:60)
+E             at evalFunction (node:internal/process/execution:317:30)
+E             at evalTypeScript (node:internal/process/execution:329:3) {
+E           status: 500
+E         }
+E         
+E         Node.js v26.8.2
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['node', '--unhandled-rejections=strict', '-e', "\nconst input = JSON.parse(require('fs').readFileSync(0, 'utf8'));\nconst AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;\nconst warnings = [];\nconst requests = [];\nconst github = {rest: {issues: {createComment: async (request) => {\n  requests.push(request);\n  if (input.status !== 201) throw Object.assign(new Error('API rejected'), {status: input.status});\n  return {status: 201};\n}}}};\nconst filesystem = {existsSync: () => true, readFileSync: () => 'validation report'};\nconst context = {issue: {number: 1}, repo: {owner: 'test-owner', repo: 'test-repo'}};\n(async () => {\n  let error = null;\n  try {\n    await new AsyncFunction('require', 'github', 'context', 'core', input.script)(\n      () => filesystem, github, context, {warning: (message) => warnings.push(message)});\n  } catch (failure) { error = failure.status; }\n  process.stdout.write(JSON.stringify({warnings, requests, error}));\n})();\n"], returncode=1, stdout='{"warnings":[],"requests":[{"issue_number":1,"owner":"test-owner","repo":"test-repo","body":"validation report"}],"error":null}', stderr="[eval]:8\n  if (input.status !== 201) throw Object.assign(new Error('API rejected'), {status: input.status});\n                                                ^\n\nError: API rejected\n    at Object.createComment ([eval]:8:49)\n    at eval (eval at <anonymous> ([eval]:16:11), <anonymous>:7:22)\n    at [eval]:16:82\n    at [eval]:20:3\n    at runScriptInThisContext (node:internal/vm:219:10)\n    at node:internal/process/execution:485:12\n    at [eval]-wrapper:6:24\n    at runScriptInContext (node:internal/process/execution:483:60)\n    at evalFunction (node:internal/process/execution:317:30)\n    at evalTypeScript (node:internal/process/execution:329:3) {\n  status: 500\n}\n\nNode.js v26.8.2\n").returncode
+
+tests/unit/workflows/test_required_check_review_followups.py:123: AssertionError
+=========================== short test summary info ============================
+FAILED tests/unit/workflows/test_required_check_review_followups.py::test_optional_comment_handles_only_permission_denial[403]
+FAILED tests/unit/workflows/test_required_check_review_followups.py::test_optional_comment_handles_only_permission_denial[500]
+================== 2 failed, 1 passed, 3 deselected in 0.16s ===================
