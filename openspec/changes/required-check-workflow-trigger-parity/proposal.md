@@ -8,7 +8,7 @@ Docs Review and Contract Validation are required checks, but their workflow-leve
 
 - Remove pull-request path filters from Docs Review and SpecFact CLI Validation.
 - Preserve `main`/`dev` branch scope, complete push filters, validation behavior, immutable fixtures, permissions, and authority policy.
-- Skip optional PR comment publication for fork tokens while retaining actual validation and its failure gate.
+- Skip optional PR comment publication for forks and warn on API permission denial for other read-only tokens while retaining actual validation and its failure gate.
 - Add prospective regression tests and authenticated failing-first/passing-after evidence for both required workflows.
 
 ## Impact

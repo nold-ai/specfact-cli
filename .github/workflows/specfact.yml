@@ -156,12 +156,17 @@ jobs:
             const commentPath = '${{ steps.pr-comment.outputs.comment_path }}';
             if (fs.existsSync(commentPath)) {
               const comment = fs.readFileSync(commentPath, 'utf8');
-              github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: comment
-              });
+              try {
+                await github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: comment
+                });
+              } catch (error) {
+                if (error.status !== 403) throw error;
+                core.warning('Optional PR comment was not posted: token permission denied (HTTP 403).');
+              }
             }
 
       - name: Upload validation report

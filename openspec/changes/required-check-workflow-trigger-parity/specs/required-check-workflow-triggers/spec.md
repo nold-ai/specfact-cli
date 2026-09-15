@@ -30,3 +30,11 @@ Docs Review and SpecFact CLI Validation SHALL use native pull-request triggers f
 - **GIVEN** the complete established push filter lists for both required workflows
 - **WHEN** the pull-request trigger fix is reviewed
 - **THEN** regression checks reject any added or removed push pattern, including patterns beyond the original representative subset
+
+#### Scenario: Same-repository read-only tokens cannot fail optional comments
+
+- **GIVEN** a same-repository pull request whose token cannot create a comment, including a Dependabot event
+- **WHEN** the optional comment API returns HTTP 403
+- **THEN** the awaited request is handled with a visible warning
+- **AND** validation and its existing failure policy remain authoritative
+- **AND** successful requests complete normally while non-permission API failures remain visible as errors

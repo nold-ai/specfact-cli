@@ -1,5 +1,7 @@
 """Supplemental review regressions; the retained Requirements tests stay frozen."""
 
+import json
+import subprocess
 from pathlib import Path
 from typing import Any, cast
 
@@ -53,6 +55,29 @@ PUSH_BASELINES = [
 ]
 
 
+COMMENT_API_HARNESS = r"""
+const input = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+const warnings = [];
+const requests = [];
+const github = {rest: {issues: {createComment: async (request) => {
+  requests.push(request);
+  if (input.status !== 201) throw Object.assign(new Error('API rejected'), {status: input.status});
+  return {status: 201};
+}}}};
+const filesystem = {existsSync: () => true, readFileSync: () => 'validation report'};
+const context = {issue: {number: 1}, repo: {owner: 'test-owner', repo: 'test-repo'}};
+(async () => {
+  let error = null;
+  try {
+    await new AsyncFunction('require', 'github', 'context', 'core', input.script)(
+      () => filesystem, github, context, {warning: (message) => warnings.push(message)});
+  } catch (failure) { error = failure.status; }
+  process.stdout.write(JSON.stringify({warnings, requests, error}));
+})();
+"""
+
+
 def _load_workflow(filename: str) -> dict[str, Any]:
     return cast(dict[str, Any], yaml.safe_load((WORKFLOW_ROOT / filename).read_text(encoding="utf-8")))
 
@@ -81,3 +106,26 @@ def test_fork_comment_is_optional_without_skipping_validation() -> None:
     failure = steps["Fail workflow if validation failed"]
     assert failure["if"] == "steps.repro.outputs.exit_code != '0' && steps.validation.outputs.mode == 'block'"
     assert "exit 1" in failure["run"]
+
+
+@pytest.mark.parametrize("api_status", [201, 403, 500])
+def test_optional_comment_tolerates_only_permission_denial(api_status: int) -> None:
+    """Execute the workflow script so read-only tokens cannot fail optional publication."""
+    workflow = _load_workflow("specfact.yml")
+    steps = workflow["jobs"]["specfact-validation"]["steps"]
+    script = next(step["with"]["script"] for step in steps if step.get("name") == "Post PR comment")
+
+    result = subprocess.run(
+        ["node", "--unhandled-rejections=strict", "-e", COMMENT_API_HARNESS],
+        input=json.dumps({"script": script, "status": api_status}),
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=20,
+    )
+    assert result.returncode == 0, result.stderr
+    observed = json.loads(result.stdout)
+    assert len(observed["requests"]) == 1
+    assert observed["requests"][0]["body"] == "validation report"
+    assert observed["error"] == (500 if api_status == 500 else None)
+    assert len(observed["warnings"]) == (1 if api_status == 403 else 0)
