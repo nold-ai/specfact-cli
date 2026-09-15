@@ -226,7 +226,13 @@
     ]
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "ADAPTER",
+        "nargs": 1,
+        "required": true
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact backlog ceremony flow",
     "deprecated": false,
@@ -242,7 +248,13 @@
     "subcommands": []
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "ADAPTER",
+        "nargs": 1,
+        "required": true
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact backlog ceremony pi-summary",
     "deprecated": false,
@@ -258,7 +270,13 @@
     "subcommands": []
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "ADAPTER",
+        "nargs": 1,
+        "required": true
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact backlog ceremony planning",
     "deprecated": false,
@@ -274,7 +292,13 @@
     "subcommands": []
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "ADAPTER",
+        "nargs": 1,
+        "required": true
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact backlog ceremony refinement",
     "deprecated": false,
@@ -288,7 +312,13 @@
     "subcommands": []
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "ADAPTER",
+        "nargs": 1,
+        "required": true
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact backlog ceremony standup",
     "deprecated": false,
@@ -304,7 +334,13 @@
     "subcommands": []
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "ADAPTER",
+        "nargs": 1,
+        "required": true
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact backlog daily",
     "deprecated": false,
@@ -395,7 +431,13 @@
     "subcommands": []
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "ITEM_ID",
+        "nargs": 1,
+        "required": true
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact backlog delta impact",
     "deprecated": false,
@@ -432,7 +474,13 @@
     "subcommands": []
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "ADAPTER_ARG",
+        "nargs": 1,
+        "required": false
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact backlog delta status",
     "deprecated": false,
@@ -536,7 +584,13 @@
     "subcommands": []
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "ADAPTER",
+        "nargs": 1,
+        "required": true
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact backlog refine",
     "deprecated": false,
@@ -702,7 +756,13 @@
     ]
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "BUNDLE",
+        "nargs": 1,
+        "required": false
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact code drift detect",
     "deprecated": false,
@@ -720,7 +780,13 @@
     "subcommands": []
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "BUNDLE",
+        "nargs": 1,
+        "required": false
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact code import",
     "deprecated": false,
@@ -774,7 +840,13 @@
     "subcommands": []
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "BUNDLE",
+        "nargs": 1,
+        "required": false
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact code import from-code",
     "deprecated": false,
@@ -861,7 +933,8 @@
     "subcommands": [
       "ledger",
       "rules",
-      "run"
+      "run",
+      "runtime"
     ]
   },
   {
@@ -993,18 +1066,26 @@
     "subcommands": []
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "FILES",
+        "nargs": -1,
+        "required": false
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact code review run",
     "deprecated": false,
     "hidden": false,
     "install_prerequisite": "specfact module install nold-ai/specfact-code-review",
     "options": [
+      "--base-ref",
       "--bug-hunt",
       "--enforcement",
       "--exclude-tests",
       "--fix",
       "--focus",
+      "--head-ref",
       "--include-noise",
       "--include-tests",
       "--instructions",
@@ -1015,12 +1096,67 @@
       "--no-tests",
       "--out",
       "--path",
+      "--pr-context-file",
       "--preview-fixes",
+      "--project-config",
+      "--project-runtime",
       "--requirements-evidence",
       "--scope",
       "--score-only",
       "--suppress-noise",
       "--with-mutation"
+    ],
+    "owner_package": "nold-ai/specfact-code-review",
+    "owner_repo": "nold-ai/specfact-cli-modules",
+    "short_help": "",
+    "source": "specfact_code_review.review.commands:app",
+    "subcommands": []
+  },
+  {
+    "arguments": [],
+    "bare_invocation": "requires-subcommand",
+    "command": "specfact code review runtime",
+    "deprecated": false,
+    "hidden": false,
+    "install_prerequisite": "specfact module install nold-ai/specfact-code-review",
+    "options": [],
+    "owner_package": "nold-ai/specfact-code-review",
+    "owner_repo": "nold-ai/specfact-cli-modules",
+    "short_help": "",
+    "source": "specfact_code_review.review.commands:app",
+    "subcommands": [
+      "inspect",
+      "prepare"
+    ]
+  },
+  {
+    "arguments": [],
+    "bare_invocation": "executes",
+    "command": "specfact code review runtime inspect",
+    "deprecated": false,
+    "hidden": false,
+    "install_prerequisite": "specfact module install nold-ai/specfact-code-review",
+    "options": [
+      "--json",
+      "--project-config"
+    ],
+    "owner_package": "nold-ai/specfact-code-review",
+    "owner_repo": "nold-ai/specfact-cli-modules",
+    "short_help": "",
+    "source": "specfact_code_review.review.commands:app",
+    "subcommands": []
+  },
+  {
+    "arguments": [],
+    "bare_invocation": "executes",
+    "command": "specfact code review runtime prepare",
+    "deprecated": false,
+    "hidden": false,
+    "install_prerequisite": "specfact module install nold-ai/specfact-code-review",
+    "options": [
+      "--json",
+      "--offline",
+      "--project-config"
     ],
     "owner_package": "nold-ai/specfact-code-review",
     "owner_repo": "nold-ai/specfact-cli-modules",
@@ -1062,7 +1198,18 @@
     ]
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "BUNDLE_NAME",
+        "nargs": 1,
+        "required": true
+      },
+      {
+        "name": "REPO_PATH",
+        "nargs": 1,
+        "required": true
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact code validate sidecar init",
     "deprecated": false,
@@ -1076,7 +1223,18 @@
     "subcommands": []
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "BUNDLE_NAME",
+        "nargs": 1,
+        "required": true
+      },
+      {
+        "name": "REPO_PATH",
+        "nargs": 1,
+        "required": true
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact code validate sidecar run",
     "deprecated": false,
@@ -1132,7 +1290,13 @@
     ]
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "BUNDLE",
+        "nargs": 1,
+        "required": false
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact govern enforce sdd",
     "deprecated": false,
@@ -1183,7 +1347,13 @@
     ]
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "PATCH_FILE",
+        "nargs": 1,
+        "required": true
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact govern patch apply",
     "deprecated": false,
@@ -1277,7 +1447,13 @@
     ]
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "URL",
+        "nargs": 1,
+        "required": true
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact module add-registry",
     "deprecated": false,
@@ -1313,7 +1489,18 @@
     ]
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "ALIAS_NAME",
+        "nargs": 1,
+        "required": true
+      },
+      {
+        "name": "COMMAND_NAME",
+        "nargs": 1,
+        "required": true
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact module alias create",
     "deprecated": false,
@@ -1343,7 +1530,13 @@
     "subcommands": []
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "ALIAS_NAME",
+        "nargs": 1,
+        "required": true
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact module alias remove",
     "deprecated": false,
@@ -1357,7 +1550,13 @@
     "subcommands": []
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "MODULE_ID",
+        "nargs": 1,
+        "required": false
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact module disable",
     "deprecated": false,
@@ -1373,7 +1572,13 @@
     "subcommands": []
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "MODULE_ID",
+        "nargs": 1,
+        "required": false
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact module doctor",
     "deprecated": false,
@@ -1389,7 +1594,13 @@
     "subcommands": []
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "MODULE_ID",
+        "nargs": 1,
+        "required": false
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact module enable",
     "deprecated": false,
@@ -1424,7 +1635,13 @@
     "subcommands": []
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "MODULE_IDS",
+        "nargs": -1,
+        "required": true
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact module install",
     "deprecated": false,
@@ -1481,7 +1698,13 @@
     "subcommands": []
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "REGISTRY_ID",
+        "nargs": 1,
+        "required": true
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact module remove-registry",
     "deprecated": false,
@@ -1495,7 +1718,13 @@
     "subcommands": []
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "QUERY",
+        "nargs": 1,
+        "required": true
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact module search",
     "deprecated": false,
@@ -1509,7 +1738,13 @@
     "subcommands": []
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "MODULE_NAME",
+        "nargs": 1,
+        "required": true
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact module show",
     "deprecated": false,
@@ -1523,7 +1758,13 @@
     "subcommands": []
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "MODULE_NAMES",
+        "nargs": -1,
+        "required": true
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact module uninstall",
     "deprecated": false,
@@ -1540,7 +1781,13 @@
     "subcommands": []
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "MODULE_NAMES",
+        "nargs": -1,
+        "required": false
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact module upgrade",
     "deprecated": false,
@@ -1941,7 +2188,13 @@
     "subcommands": []
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "BUNDLE",
+        "nargs": 1,
+        "required": false
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact project sync intelligent",
     "deprecated": false,
@@ -2135,7 +2388,13 @@
     "subcommands": []
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "SOURCE_PATH",
+        "nargs": 1,
+        "required": false
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact requirements import",
     "deprecated": false,
@@ -2236,7 +2495,18 @@
     ]
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "OLD_SPEC",
+        "nargs": 1,
+        "required": true
+      },
+      {
+        "name": "NEW_SPEC",
+        "nargs": 1,
+        "required": true
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact spec backward-compat",
     "deprecated": false,
@@ -2250,7 +2520,13 @@
     "subcommands": []
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "SPEC_PATH",
+        "nargs": 1,
+        "required": false
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact spec generate-tests",
     "deprecated": false,
@@ -2290,7 +2566,13 @@
     "subcommands": []
   },
   {
-    "arguments": [],
+    "arguments": [
+      {
+        "name": "SPEC_PATH",
+        "nargs": 1,
+        "required": false
+      }
+    ],
     "bare_invocation": "executes",
     "command": "specfact spec validate",
     "deprecated": false,

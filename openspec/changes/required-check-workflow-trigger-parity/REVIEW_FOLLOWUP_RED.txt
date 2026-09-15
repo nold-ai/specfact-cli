@@ -1,0 +1,27 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.12.13, pytest-9.1.1, pluggy-1.6.0
+rootdir: /private/tmp/specfact-733-trigger-fix
+configfile: pyproject.toml
+plugins: mock-3.15.1, cov-7.1.0, xdist-3.8.0, anyio-4.15.1, hypothesis-6.168.0
+collected 3 items
+
+tests/unit/workflows/test_required_check_review_followups.py::test_complete_push_filters_remain_unchanged[docs-review.yml-paths-expected_patterns0] PASSED [ 33%]
+tests/unit/workflows/test_required_check_review_followups.py::test_complete_push_filters_remain_unchanged[specfact.yml-paths-ignore-expected_patterns1] PASSED [ 66%]
+tests/unit/workflows/test_required_check_review_followups.py::test_fork_comment_is_optional_without_skipping_validation FAILED [100%]
+
+=================================== FAILURES ===================================
+__________ test_fork_comment_is_optional_without_skipping_validation ___________
+
+    def test_fork_comment_is_optional_without_skipping_validation() -> None:
+        """A read-only fork token must not turn optional comments into validation failures."""
+        workflow = _load_workflow("specfact.yml")
+        job = workflow["jobs"]["specfact-validation"]
+        steps = {step["name"]: step for step in job["steps"] if "name" in step}
+        comment = steps["Post PR comment"]
+>       assert "github.event.pull_request.head.repo.full_name == github.repository" in comment["if"]
+E       assert 'github.event.pull_request.head.repo.full_name == github.repository' in "always() && github.event_name == 'pull_request' && steps.pr-comment.outputs.comment_path != ''"
+
+tests/unit/workflows/test_required_check_review_followups.py:76: AssertionError
+=========================== short test summary info ============================
+FAILED tests/unit/workflows/test_required_check_review_followups.py::test_fork_comment_is_optional_without_skipping_validation
+========================= 1 failed, 2 passed in 0.08s ==========================

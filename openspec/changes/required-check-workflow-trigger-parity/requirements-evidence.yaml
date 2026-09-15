@@ -1,0 +1,30 @@
+schema_version: '2'
+requirements:
+  openspec:required-check-workflow-trigger-parity:required-check-workflow-triggers:required-checks-trigger-for-every-supported-pull-request:
+    rationale: Required status checks must be emitted on native PR events regardless of changed paths.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#733
+    touchpoints:
+      - id: docs-required-trigger
+        kind: ci_workflow
+        locator: .github/workflows/docs-review.yml
+      - id: contract-required-trigger
+        kind: ci_workflow
+        locator: .github/workflows/specfact.yml
+    verification_cases:
+      - case_id: REQUIRED-TRIGGER-733-DOCS
+        scenario_id: required-checks-trigger-for-every-supported-pull-request
+        method: test
+        intent: Prevent suppressed Docs Review checks on ancestry-only or unrelated-file PRs.
+        observable: Native PR trigger accepts both supported branches without filters and retains the required job and push filters.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_required_check_workflow_triggers.py::test_required_workflow_emits_native_pr_check[docs-review]
+      - case_id: REQUIRED-TRIGGER-733-CONTRACT
+        scenario_id: required-checks-trigger-for-every-supported-pull-request
+        method: test
+        intent: Prevent suppressed Contract Validation checks on documentation-only PRs.
+        observable: Native PR trigger accepts both supported branches without filters and retains the required job and push filters.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_required_check_workflow_triggers.py::test_required_workflow_emits_native_pr_check[contract-validation]

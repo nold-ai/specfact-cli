@@ -1,0 +1,5 @@
+REJECTED docs-review.yml: remove-pattern pyproject.toml
+REJECTED docs-review.yml: add-broad-pattern **
+REJECTED specfact.yml: remove-pattern **.mdc
+REJECTED specfact.yml: add-broad-pattern **
+4 of 4 independent disposable mutations rejected; repository workflows unchanged.
