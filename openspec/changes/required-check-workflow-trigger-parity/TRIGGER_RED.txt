@@ -1,0 +1,102 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.12.13, pytest-9.1.1, pluggy-1.6.0
+rootdir: /private/tmp/specfact-731-main-sync
+configfile: pyproject.toml
+plugins: mock-3.15.1, cov-7.1.0, xdist-3.8.0, anyio-4.15.1, hypothesis-6.168.0
+collected 2 items
+
+tests/unit/workflows/test_required_check_workflow_triggers.py::test_required_workflow_emits_native_pr_check[docs-review] FAILED [ 50%]
+tests/unit/workflows/test_required_check_workflow_triggers.py::test_required_workflow_emits_native_pr_check[contract-validation] FAILED [100%]
+
+=================================== FAILURES ===================================
+__________ test_required_workflow_emits_native_pr_check[docs-review] ___________
+
+filename = 'docs-review.yml', job_id = 'docs-review', check_name = 'Docs Review'
+push_filter = 'paths'
+required_push_patterns = {'**/*.md', '.github/workflows/docs-review.yml', 'docs/**'}
+
+    @pytest.mark.parametrize(
+        ("filename", "job_id", "check_name", "push_filter", "required_push_patterns"),
+        [
+            (
+                "docs-review.yml",
+                "docs-review",
+                "Docs Review",
+                "paths",
+                {"docs/**", "**/*.md", ".github/workflows/docs-review.yml"},
+            ),
+            (
+                "specfact.yml",
+                "specfact-validation",
+                "Contract Validation",
+                "paths-ignore",
+                {"docs/**", "**.md", "**.mdc"},
+            ),
+        ],
+        ids=["docs-review", "contract-validation"],
+    )
+    def test_required_workflow_emits_native_pr_check(
+        filename: str,
+        job_id: str,
+        check_name: str,
+        push_filter: str,
+        required_push_patterns: set[str],
+    ) -> None:
+        """Path-filtered workflows cannot satisfy required PR checks on all changes."""
+        workflow = cast(dict[str, Any], yaml.safe_load((WORKFLOW_ROOT / filename).read_text(encoding="utf-8")))
+        events = cast(dict[str, Any], workflow.get("on", cast(dict[object, Any], workflow).get(True)))
+        pull_request = events["pull_request"]
+        assert set(pull_request["branches"]) == {"main", "dev"}
+>       assert "paths" not in pull_request, f"{filename} suppresses required PR checks using paths"
+E       AssertionError: docs-review.yml suppresses required PR checks using paths
+E       assert 'paths' not in {'branches': ['main', 'dev'], 'paths': ['**/*.md', '**/*.mdc', '.github/**', 'docs/**', 'resources/**', 'src/specfact_cli/resources/**', ...]}
+
+tests/unit/workflows/test_required_check_workflow_triggers.py:45: AssertionError
+______ test_required_workflow_emits_native_pr_check[contract-validation] _______
+
+filename = 'specfact.yml', job_id = 'specfact-validation'
+check_name = 'Contract Validation', push_filter = 'paths-ignore'
+required_push_patterns = {'**.md', '**.mdc', 'docs/**'}
+
+    @pytest.mark.parametrize(
+        ("filename", "job_id", "check_name", "push_filter", "required_push_patterns"),
+        [
+            (
+                "docs-review.yml",
+                "docs-review",
+                "Docs Review",
+                "paths",
+                {"docs/**", "**/*.md", ".github/workflows/docs-review.yml"},
+            ),
+            (
+                "specfact.yml",
+                "specfact-validation",
+                "Contract Validation",
+                "paths-ignore",
+                {"docs/**", "**.md", "**.mdc"},
+            ),
+        ],
+        ids=["docs-review", "contract-validation"],
+    )
+    def test_required_workflow_emits_native_pr_check(
+        filename: str,
+        job_id: str,
+        check_name: str,
+        push_filter: str,
+        required_push_patterns: set[str],
+    ) -> None:
+        """Path-filtered workflows cannot satisfy required PR checks on all changes."""
+        workflow = cast(dict[str, Any], yaml.safe_load((WORKFLOW_ROOT / filename).read_text(encoding="utf-8")))
+        events = cast(dict[str, Any], workflow.get("on", cast(dict[object, Any], workflow).get(True)))
+        pull_request = events["pull_request"]
+        assert set(pull_request["branches"]) == {"main", "dev"}
+        assert "paths" not in pull_request, f"{filename} suppresses required PR checks using paths"
+>       assert "paths-ignore" not in pull_request, f"{filename} suppresses required PR checks using paths-ignore"
+E       AssertionError: specfact.yml suppresses required PR checks using paths-ignore
+E       assert 'paths-ignore' not in {'branches': ['main', 'dev'], 'paths-ignore': ['docs/**', '**.md', '**.mdc']}
+
+tests/unit/workflows/test_required_check_workflow_triggers.py:46: AssertionError
+=========================== short test summary info ============================
+FAILED tests/unit/workflows/test_required_check_workflow_triggers.py::test_required_workflow_emits_native_pr_check[docs-review]
+FAILED tests/unit/workflows/test_required_check_workflow_triggers.py::test_required_workflow_emits_native_pr_check[contract-validation]
+============================== 2 failed in 0.59s ===============================
