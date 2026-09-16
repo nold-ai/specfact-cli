@@ -1,9 +1,13 @@
 # Design
 
 Execute a small isolated Python block in each source-consuming workflow. Load only the canonical verifier and public
-key from the separate base checkout. Require the seven public bundles and a signed filesystem payload for every
-packages/*/src import root before exports. Do not execute the PR-owned wrapper. Current main lacks that wrapper, so
-changing only its path would break bootstrap. The canonical verifier CLI scans another layout; use its existing API.
+key from the separate base checkout. For this release, the minimum required bundle set is backlog, codebase,
+code-review, govern, project, requirements and spec (each with the `specfact-` prefix). This seven-bundle minimum is a
+release invariant, not a permanent aggregate manifest or an upper bound. Authenticate the signed per-module manifest
+and filesystem payload for every `packages/*/src` import root, including any additional exported roots, before exports.
+Changing the required minimum requires an explicit reviewed update. Do not execute the PR-owned wrapper. Current main
+lacks that wrapper, so changing only its path would break bootstrap. The canonical verifier CLI scans another layout;
+use its existing API.
 
 This removes the wrapper dependency. It does not establish protected authority around PR-controlled workflow YAML.
 The existing base-SHA checkout, identity checks, least-privilege permissions and export ordering remain unchanged.

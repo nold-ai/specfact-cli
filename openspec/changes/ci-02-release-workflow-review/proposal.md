@@ -23,5 +23,9 @@ Rollback uses a reviewed revert and restores the known validation gaps.
 ## Source Tracking
 
 Bug #736, parent Feature #355 / Epic #194, assigned djm81, existing bug/openspec/change-proposal/devops-backlog labels,
-SpecFact CLI project, High priority in issue body. No prerequisite implementation blockers. This task owns In Progress.
-Fresh base is origin/dev 2f9567e28e98b082801b13ff02e863933ce2f0f2. Separate docs17/#728 supplies module fixture proof.
+SpecFact CLI project, High priority in issue body. No prerequisite blocked implementation of these workflow corrections.
+This task owns In Progress. Fresh base is origin/dev 2f9567e28e98b082801b13ff02e863933ce2f0f2.
+
+Release PR #731 still requires the final accepted CI-signed documentation fixture and authenticated RED/GREEN evidence
+from docs17/#728. That release prerequisite remains unresolved: retained RED and unchanged core-manifest checks do not
+constitute final module acceptance. It does not block implementation of this independent workflow correction.
