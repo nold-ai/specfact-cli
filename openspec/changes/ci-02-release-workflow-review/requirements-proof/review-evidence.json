@@ -1,0 +1,9 @@
+{
+  "schema_version": "1",
+  "decision": "accepted",
+  "reviewer_id": "Codex:/root/pytest_discovery_fix",
+  "reviewer_role": "independent AI code reviewer",
+  "recorded_at": "2026-09-16T06:31:07.084827Z",
+  "reference": "https://github.com/nold-ai/specfact-cli/issues/736#issuecomment-5693099661",
+  "mapping_digest": "sha256:cf5b813e163bdc5ae711df3d0363da1c16302de6eaed8829e8b8eab04d853ce4"
+}

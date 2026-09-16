@@ -1,0 +1,119 @@
+schema_version: '2'
+requirements:
+  ? openspec:ci-02-release-workflow-review:release-workflow-authentication:authentication-does-not-execute-the-reviewed-wrapper
+  : rationale: Authenticate valid sources and reject invalid sources independently of the reviewed wrapper.
+    stakeholder_refs:
+    - nold-ai/specfact-cli#736
+    touchpoints:
+    - id: auth
+      kind: ci_workflow
+      locator: .github/workflows/docs-review.yml
+    - id: cli-source-auth
+      kind: ci_workflow
+      locator: .github/workflows/pr-orchestrator.yml
+    verification_cases:
+    - case_id: CI02-AUTH-VALID-DOCS-REVIEW
+      scenario_id: authentication-does-not-execute-the-reviewed-wrapper
+      method: test
+      intent: Authenticate valid sources and reject invalid sources independently of the reviewed wrapper.
+      observable: Authenticate valid sources and reject invalid sources independently of the reviewed wrapper.
+      selector:
+        runner: pytest
+        node_id: tests/unit/workflows/test_release_workflow_review.py::test_authentication_ignores_reviewed_wrapper[valid-docs-review.yml-docs-review]
+    - case_id: CI02-AUTH-VALID-CLI-VALIDATION
+      scenario_id: authentication-does-not-execute-the-reviewed-wrapper
+      method: test
+      intent: Authenticate valid sources and reject invalid sources independently of the reviewed wrapper.
+      observable: Authenticate valid sources and reject invalid sources independently of the reviewed wrapper.
+      selector:
+        runner: pytest
+        node_id: tests/unit/workflows/test_release_workflow_review.py::test_authentication_ignores_reviewed_wrapper[valid-pr-orchestrator.yml-cli-validation]
+    - case_id: CI02-AUTH-MISSING-SIGNATURE-DOCS-REVIEW
+      scenario_id: authentication-does-not-execute-the-reviewed-wrapper
+      method: test
+      intent: Authenticate valid sources and reject invalid sources independently of the reviewed wrapper.
+      observable: Authenticate valid sources and reject invalid sources independently of the reviewed wrapper.
+      selector:
+        runner: pytest
+        node_id: tests/unit/workflows/test_release_workflow_review.py::test_authentication_ignores_reviewed_wrapper[missing-signature-docs-review.yml-docs-review]
+    - case_id: CI02-AUTH-MISSING-SIGNATURE-CLI-VALIDATION
+      scenario_id: authentication-does-not-execute-the-reviewed-wrapper
+      method: test
+      intent: Authenticate valid sources and reject invalid sources independently of the reviewed wrapper.
+      observable: Authenticate valid sources and reject invalid sources independently of the reviewed wrapper.
+      selector:
+        runner: pytest
+        node_id: tests/unit/workflows/test_release_workflow_review.py::test_authentication_ignores_reviewed_wrapper[missing-signature-pr-orchestrator.yml-cli-validation]
+    - case_id: CI02-AUTH-PAYLOAD-MISMATCH-DOCS-REVIEW
+      scenario_id: authentication-does-not-execute-the-reviewed-wrapper
+      method: test
+      intent: Authenticate valid sources and reject invalid sources independently of the reviewed wrapper.
+      observable: Authenticate valid sources and reject invalid sources independently of the reviewed wrapper.
+      selector:
+        runner: pytest
+        node_id: tests/unit/workflows/test_release_workflow_review.py::test_authentication_ignores_reviewed_wrapper[payload-mismatch-docs-review.yml-docs-review]
+    - case_id: CI02-AUTH-PAYLOAD-MISMATCH-CLI-VALIDATION
+      scenario_id: authentication-does-not-execute-the-reviewed-wrapper
+      method: test
+      intent: Authenticate valid sources and reject invalid sources independently of the reviewed wrapper.
+      observable: Authenticate valid sources and reject invalid sources independently of the reviewed wrapper.
+      selector:
+        runner: pytest
+        node_id: tests/unit/workflows/test_release_workflow_review.py::test_authentication_ignores_reviewed_wrapper[payload-mismatch-pr-orchestrator.yml-cli-validation]
+    - case_id: CI02-AUTH-EXTRA-UNSIGNED-SOURCE-DOCS-REVIEW
+      scenario_id: authentication-does-not-execute-the-reviewed-wrapper
+      method: test
+      intent: Authenticate valid sources and reject invalid sources independently of the reviewed wrapper.
+      observable: Authenticate valid sources and reject invalid sources independently of the reviewed wrapper.
+      selector:
+        runner: pytest
+        node_id: tests/unit/workflows/test_release_workflow_review.py::test_authentication_ignores_reviewed_wrapper[extra-unsigned-source-docs-review.yml-docs-review]
+    - case_id: CI02-AUTH-EXTRA-UNSIGNED-SOURCE-CLI-VALIDATION
+      scenario_id: authentication-does-not-execute-the-reviewed-wrapper
+      method: test
+      intent: Authenticate valid sources and reject invalid sources independently of the reviewed wrapper.
+      observable: Authenticate valid sources and reject invalid sources independently of the reviewed wrapper.
+      selector:
+        runner: pytest
+        node_id: tests/unit/workflows/test_release_workflow_review.py::test_authentication_ignores_reviewed_wrapper[extra-unsigned-source-pr-orchestrator.yml-cli-validation]
+  openspec:ci-02-release-workflow-review:release-workflow-authentication:native-workflow-tests-have-an-explicit-runtime:
+    rationale: All native JavaScript test jobs explicitly provision pinned Node before tests.
+    stakeholder_refs:
+    - nold-ai/specfact-cli#736
+    touchpoints:
+    - id: node
+      kind: ci_workflow
+      locator: .github/workflows/pr-orchestrator.yml
+    verification_cases:
+    - case_id: CI02-NODE-TESTS
+      scenario_id: native-workflow-tests-have-an-explicit-runtime
+      method: test
+      intent: All native JavaScript test jobs explicitly provision pinned Node before tests.
+      observable: All native JavaScript test jobs explicitly provision pinned Node before tests.
+      selector:
+        runner: pytest
+        node_id: tests/unit/workflows/test_release_workflow_review.py::test_native_javascript_jobs_prepare_pinned_node[tests]
+    - case_id: CI02-NODE-COMPAT-PY311
+      scenario_id: native-workflow-tests-have-an-explicit-runtime
+      method: test
+      intent: All native JavaScript test jobs explicitly provision pinned Node before tests.
+      observable: All native JavaScript test jobs explicitly provision pinned Node before tests.
+      selector:
+        runner: pytest
+        node_id: tests/unit/workflows/test_release_workflow_review.py::test_native_javascript_jobs_prepare_pinned_node[compat-py311]
+    - case_id: CI02-NODE-DEPENDENCY-COMPATIBILITY
+      scenario_id: native-workflow-tests-have-an-explicit-runtime
+      method: test
+      intent: All native JavaScript test jobs explicitly provision pinned Node before tests.
+      observable: All native JavaScript test jobs explicitly provision pinned Node before tests.
+      selector:
+        runner: pytest
+        node_id: tests/unit/workflows/test_release_workflow_review.py::test_native_javascript_jobs_prepare_pinned_node[dependency-compatibility]
+    - case_id: CI02-NODE-LOCAL
+      scenario_id: native-workflow-tests-have-an-explicit-runtime
+      method: test
+      intent: Make the local dependency discoverable.
+      observable: Contributing prerequisites identify pinned Node runtime.
+      selector:
+        runner: pytest
+        node_id: tests/unit/workflows/test_release_workflow_review.py::test_local_prerequisites_declare_native_node_runtime
