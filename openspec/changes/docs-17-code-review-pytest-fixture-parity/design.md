@@ -27,3 +27,7 @@ final accepted CI-signed module source; tests, helpers and mapping stay byte-ide
 
 This is native pytest plus adapter contract evidence. It is not full capsule acceptance, cross-platform execution support
 or authority to publish an unsigned/unmerged candidate. Public signed release and Linux corpus acceptance remain separate.
+
+The dedicated Hatch test environment must declare `pytest-cov`, matching the existing development dependency and
+frozen CI graph, because the native subprocess deliberately loads that plugin. Missing plugins remain setup errors;
+local bootstrap failure does not replace the six retained behavioral RED cases. This adds no adapter or proof override.
