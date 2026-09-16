@@ -8,13 +8,15 @@ active changes should be implemented.
 
 | Bucket | Count | Location |
 |---|---:|---|
-| **Active-tree entries** | 28 | [`openspec/changes/`](changes/) |
+| **Active-tree entries** | 35 | [`openspec/changes/`](changes/) |
 | **Parking-lot entries** | 21 | [`openspec/parking-lot/`](parking-lot/) |
-| **Archived** | 119 | [`openspec/changes/archive/`](changes/archive/) |
+| **Archived** | 120 | [`openspec/changes/archive/`](changes/archive/) |
 
-`openspec list` reflects the active tree and no longer presents the closed R08
-proposal as active work. Under an explicit owner decision on 2026-08-30, its
-complete historical folder was relocated to the dated archive without running
+Active-tree entries count direct change folders, excluding `archive/`. They
+include merged changes awaiting native archival, so this is not a count of
+unfinished implementations. `openspec list` reflects this tree and no longer
+presents the closed R08 proposal as active work. Under an explicit owner decision
+on 2026-08-30, its complete historical folder was relocated to the dated archive without running
 `openspec archive`; no unimplemented delta entered canonical specifications.
 Completed changes still use native OpenSpec archival. Parking-lot proposals are
 paused pending external signal, such as paying customer pull, third-party
@@ -52,8 +54,9 @@ brownfield delivery. The active roadmap should make that thesis stronger:
 
 ## Active tracks
 
-The 28 active changes group into four product tracks plus one reliability lane.
-Tracks can run in parallel; within a track, follow the order column.
+The inventory includes five product tracks and scoped reliability and documentation
+follow-ups. Tracks can run in parallel; within a track, follow the order column
+and the explicit dependencies below.
 
 ### Track A - Validation Evidence Spine
 
@@ -110,12 +113,14 @@ planning workflows.
 | Change | Issue | Scope | Dependency |
 |---|---|---|---|
 | `required-check-workflow-trigger-parity` | [#733](https://github.com/nold-ai/specfact-cli/issues/733) | Native required check triggers for every supported PR; preserve push filters | none; unblocks PR #732 and release PR #731 |
+| `ci-02-release-workflow-review` | [#736](https://github.com/nold-ai/specfact-cli/issues/736) | Base-owned module authentication, explicit Node runtime and supplemental filter evidence; merged in PR [#738](https://github.com/nold-ai/specfact-cli/pull/738), archival pending | required-check-workflow-trigger-parity (merged); precedes docs-17 fixture finalization |
 
 ### Scoped documentation follow-up
 
 | Change | Issue | Scope | Dependency |
 |---|---|---|---|
 | `docs-16-code-review-runtime-parity` | [#728](https://github.com/nold-ai/specfact-cli/issues/728) | Docs-only immutable module source and generated Code Review runtime parity | final signed modules PR [#474](https://github.com/nold-ai/specfact-cli-modules/pull/474) identity for fixture finalization; no Requirements authority changes |
+| `docs-17-code-review-pytest-fixture-parity` | [#728](https://github.com/nold-ai/specfact-cli/issues/728) | Fresh authenticated native pytest RED/GREEN proof and corrected signed documentation fixture; PR [#737](https://github.com/nold-ai/specfact-cli/pull/737) has local GREEN; protected reconciliation pending | ci-02 (merged); accepted CI-signed modules PR [#478](https://github.com/nold-ai/specfact-cli-modules/pull/478) before fixture GREEN and release PR #731 |
 
 ### Track D - CLI Validation Trust
 

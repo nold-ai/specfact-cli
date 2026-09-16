@@ -1,0 +1,62 @@
+schema_version: '2'
+requirements:
+  ? openspec:docs-17-code-review-pytest-fixture-parity:generated-command-overview:documentation-fixture-preserves-portable-pytest-evidence
+  : rationale: Documentation must select a publisher-authenticated module that preserves actual portable pytest evidence.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#728
+      - nold-ai/specfact-cli-modules#473
+      - nold-ai/specfact-cli-modules#477
+    touchpoints:
+      - id: signed-documentation-module-selection
+        kind: config_file
+        locator: ci/docs-module-fixture.lock.json
+    verification_cases:
+      - case_id: DOCS17-PYTEST-SKIP
+        scenario_id: documentation-fixture-preserves-portable-pytest-evidence
+        method: test
+        intent: Reject a real skipped native test.
+        observable: Successful authenticated acquisition and actual native pytest exit zero precede an error TEST_OUTCOME_NOT_PASS.
+        selector:
+          runner: pytest
+          node_id: tests/unit/docs/test_code_review_fixture_pytest_policy.py::test_documentation_fixture_enforces_portable_pytest_policy[skip]
+      - case_id: DOCS17-PYTEST-XFAIL
+        scenario_id: documentation-fixture-preserves-portable-pytest-evidence
+        method: test
+        intent: Reject a real native expected failure.
+        observable: Successful authenticated acquisition and actual native pytest exit zero precede an error TEST_OUTCOME_NOT_PASS.
+        selector:
+          runner: pytest
+          node_id: tests/unit/docs/test_code_review_fixture_pytest_policy.py::test_documentation_fixture_enforces_portable_pytest_policy[xfail]
+      - case_id: DOCS17-PYTEST-XPASS
+        scenario_id: documentation-fixture-preserves-portable-pytest-evidence
+        method: test
+        intent: Reject a non-strict unexpected pass with a reason.
+        observable: Successful authenticated acquisition and actual native pytest exit zero precede an error TEST_OUTCOME_NOT_PASS.
+        selector:
+          runner: pytest
+          node_id: tests/unit/docs/test_code_review_fixture_pytest_policy.py::test_documentation_fixture_enforces_portable_pytest_policy[xpass]
+      - case_id: DOCS17-PYTEST-XPASS-EMPTY
+        scenario_id: documentation-fixture-preserves-portable-pytest-evidence
+        method: test
+        intent: Reject a non-strict unexpected pass even with an empty reason.
+        observable: Successful authenticated acquisition and actual native pytest exit zero precede an error TEST_OUTCOME_NOT_PASS.
+        selector:
+          runner: pytest
+          node_id: tests/unit/docs/test_code_review_fixture_pytest_policy.py::test_documentation_fixture_enforces_portable_pytest_policy[xpass-empty]
+      - case_id: DOCS17-PYTEST-MISSING-SOURCE-COVERAGE
+        scenario_id: documentation-fixture-preserves-portable-pytest-evidence
+        method: test
+        intent: Reject absent reviewed-source coverage after actual passing tests.
+        observable: Successful authenticated acquisition and actual native pytest exit zero precede an error missing-source
+          coverage diagnostic.
+        selector:
+          runner: pytest
+          node_id: tests/unit/docs/test_code_review_fixture_pytest_policy.py::test_documentation_fixture_enforces_portable_pytest_policy[missing-source-coverage]
+      - case_id: DOCS17-PYTEST-LOW-SOURCE-COVERAGE
+        scenario_id: documentation-fixture-preserves-portable-pytest-evidence
+        method: test
+        intent: Retain the review coverage floor when native pytest uses a zero floor.
+        observable: Successful authenticated acquisition and actual native pytest exit zero precede an error TEST_COVERAGE_LOW.
+        selector:
+          runner: pytest
+          node_id: tests/unit/docs/test_code_review_fixture_pytest_policy.py::test_documentation_fixture_enforces_portable_pytest_policy[low-source-coverage]
