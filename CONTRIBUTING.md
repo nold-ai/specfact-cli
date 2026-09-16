@@ -43,6 +43,7 @@ This project adheres to the [Code of Conduct](CODE_OF_CONDUCT.md). By participat
 ### Prerequisites
 
 - Python 3.11–3.13
+- Node.js 24.16.0 for native workflow regression tests and the locked BasedPyright runner
 - [uv](https://docs.astral.sh/uv/) for the frozen project environment
 - Docker (for containerized development)
 - Git
