@@ -1054,6 +1054,32 @@ def test_fresh_consumer_uses_authenticated_base_core_for_validation() -> None:
     assert all('"${GITHUB_WORKSPACE}/src"' not in command for command in (reconcile, review))
 
 
+def test_fresh_verifier_launchers_exclude_pull_request_module_roots() -> None:
+    """PR-controlled workspace modules cannot shadow authenticated verifier modules."""
+    parsed = yaml.load(
+        (REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml").read_text(encoding="utf-8"),
+        Loader=yaml.BaseLoader,
+    )
+    workflow_text = (REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml").read_text(encoding="utf-8")
+    confined_launcher = (
+        'original_cwd = os.getcwd(); os.chdir(os.environ["RUNNER_TEMP"]); '
+        'os.environ["HOME"] = os.environ["RUNNER_TEMP"]; '
+        'os.environ["SPECFACT_REPO_ROOT"] = os.environ["RUNNER_TEMP"]'
+    )
+
+    assert workflow_text.count(confined_launcher) == 4
+    for step_name in (
+        "Reconcile Requirements evidence on fresh runner",
+        "Run Code Review with finalized Requirements context",
+        "Reconcile final Requirements verdict on fresh runner",
+        "Run Code Review with trusted final Requirements context",
+    ):
+        command = _step_by_name(parsed, step_name)["run"]
+        assert isinstance(command, str)
+        assert confined_launcher in command
+        assert command.index("from specfact_cli.cli import cli_main") < command.index("os.chdir(original_cwd)")
+
+
 def test_fresh_consumer_binds_each_legacy_lane_to_approved_digests() -> None:
     """Matching attacker-controlled ledger fields cannot mint a legacy final verdict."""
     parsed = yaml.load(

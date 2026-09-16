@@ -4,6 +4,19 @@ Change: `fix-release-promotion-security-gates`
 
 Baseline: `origin/dev@4fd96d6d804da70cc7ceca83b8adce21f7da561c`
 
+## Fresh-verifier module discovery confinement (2026-09-07)
+
+- Spec first: added the pull-request module-shadowing scenario to the
+  `requirements-runtime-proof-delivery` delta before test or workflow changes.
+- RED: `hatch run pytest -q tests/unit/workflows/test_requirements_evidence_delivery_workflow.py -k fresh_verifier_launchers_exclude_pull_request_module_roots`
+  failed because all four fresh Requirements and Code Review launchers still
+  inherited the pull-request checkout and runner home as implicit module roots.
+- GREEN: after confining `HOME` and `SPECFACT_REPO_ROOT` before CLI import, the
+  focused workflow file passed 27/27 tests and
+  `openspec validate fix-release-promotion-security-gates --strict` passed.
+- Internal wiki follow-up: the sibling `specfact-cli-internal` checkout was not
+  available, so task 5.5 records the required mirror and graph rebuild.
+
 ## Failing before
 
 Timestamp: 2026-09-02 00:17:45 Europe/Berlin
