@@ -229,6 +229,12 @@ jobs:
       pull-requests: write
     runs-on: ubuntu-latest
     steps:
+      - name: Set up Node for native workflow tests
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
+        with:
+          node-version: "24.16.0"
+
       - name: Skip full run (dev→main PR)
         if: needs.changes.outputs.skip_expensive_tests_dev_to_main == 'true'
         run: |
@@ -398,6 +404,11 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Set up Node for native workflow tests
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: "24.16.0"
+
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
@@ -536,7 +547,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          fixture_ref="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          fixture_ref="$(python -c 'import json; print(json.load(open("ci/docs-module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          repository="$(python -c 'import json; print(json.load(open("ci/docs-module-fixture.lock.json", encoding="utf-8"))["repository"])')"
+          tree="$(python -c 'import json; print(json.load(open("ci/docs-module-fixture.lock.json", encoding="utf-8"))["tree"])')"
+          test "$repository" = "nold-ai/specfact-cli-modules"
+          [[ "$fixture_ref" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$tree" =~ ^[0-9a-f]{40}$ ]]
           echo "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout module command sources
@@ -546,21 +562,73 @@ jobs:
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
           ref: ${{ steps.modules-fixture.outputs.ref }}
-      - name: Export module command source path
-        run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
       - name: Verify immutable module fixture
         shell: bash
         run: |
           set -euo pipefail
-          expected="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          expected="$(python -c 'import json; print(json.load(open("ci/docs-module-fixture.lock.json", encoding="utf-8"))["commit"])')"
           actual="$(git -C specfact-cli-modules rev-parse HEAD)"
           test "$actual" = "$expected"
+          expected_tree="$(python -c 'import json; print(json.load(open("ci/docs-module-fixture.lock.json", encoding="utf-8"))["tree"])')"
+          actual_tree="$(git -C specfact-cli-modules rev-parse 'HEAD^{tree}')"
+          test "$actual_tree" = "$expected_tree"
+          test -z "$(git -C specfact-cli-modules status --porcelain --untracked-files=all)"
       - name: Set up Python 3.12
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.12"
       - name: Set up frozen CLI validation dependencies
         uses: ./.github/actions/setup-frozen-python
+      - name: Checkout trusted module verifier
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          path: trusted-core-docs
+          persist-credentials: false
+
+      - name: Authenticate module command sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -I - <<'PY'
+          import importlib.util
+          from pathlib import Path
+
+          modules = Path("specfact-cli-modules").resolve(strict=True)
+          trusted = Path("trusted-core-docs").resolve(strict=True)
+          verifier_path = (trusted / "scripts/verify-modules-signature.py").resolve(strict=True)
+          key_path = (trusted / "resources/keys/module-signing-public.pem").resolve(strict=True)
+          for path in (verifier_path, key_path):
+              if not path.is_relative_to(trusted) or path.is_relative_to(modules):
+                  raise ValueError("Authentication inputs must come from the separate base checkout")
+          spec = importlib.util.spec_from_file_location("trusted_docs_module_verifier", verifier_path)
+          if spec is None or spec.loader is None:
+              raise ValueError("Cannot load the base module verifier")
+          verifier = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(verifier)
+          required = {f"specfact-{name}" for name in (
+              "backlog", "codebase", "code-review", "govern", "project", "requirements", "spec"
+          )}
+          bundles = {source.parent.name: source.parent for source in (modules / "packages").glob("*/src")
+                     if source.is_dir()}
+          if missing := required - bundles.keys():
+              raise ValueError(f"Missing required documentation bundles: {', '.join(sorted(missing))}")
+          public_key = key_path.read_text(encoding="utf-8")
+          for name, bundle in sorted(bundles.items()):
+              manifest = bundle / "module-package.yaml"
+              if not manifest.is_file():
+                  raise ValueError(f"Missing documentation module manifest: {name}")
+              verifier.verify_manifest(
+                  manifest, require_signature=True, public_key_pem=public_key,
+                  payload_from_filesystem=True, verify_checksum=True,
+              )
+          print(f"Authenticated {len(bundles)} documentation bundles using the base verifier.")
+          PY
+
+      - name: Export module command source path
+        run: |
+          echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
+          echo "SPECFACT_DOCS_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
       - name: Build and install CLI wheel
         shell: bash
         run: |
@@ -574,6 +642,12 @@ jobs:
           "$RUNNER_TEMP/specfact-cli-validation/bin/specfact-cli" --help
       - name: Validate CLI commands
         run: |
+          test -n "${SPECFACT_DOCS_MODULES_REPO:?Documentation fixture is required}"
+          python -m pytest \
+            tests/unit/docs/test_code_review_command_parity.py \
+            tests/unit/docs/test_llms_overview_freshness.py \
+            tests/unit/workflows/test_docs_module_fixture.py \
+            tests/unit/workflows/test_docs_module_authentication.py -q
           echo "🔍 Validating CLI commands..."
           python scripts/generate-command-overview.py --check
           python scripts/check-command-contract.py
@@ -1241,6 +1315,11 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Set up Node for native workflow tests
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: "24.16.0"
+
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false

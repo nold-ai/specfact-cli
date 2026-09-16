@@ -5,37 +5,6 @@ name: Docs Review
 on:
   pull_request:
     branches: [main, dev]
-    paths:
-      - "**/*.md"
-      - "**/*.mdc"
-      - ".github/**"
-      - "docs/**"
-      - "resources/**"
-      - "src/specfact_cli/resources/**"
-      - "docs/.doc-frontmatter-enforced"
-      - "tests/unit/docs/**"
-      - "tests/unit/scripts/test_doc_frontmatter/**"
-      - "tests/integration/scripts/test_doc_frontmatter/**"
-      - "tests/helpers/doc_frontmatter.py"
-      - "tests/helpers/doc_frontmatter_fixtures.py"
-      - "tests/helpers/doc_frontmatter_types.py"
-      - "scripts/check-docs-commands.py"
-      - "scripts/check-command-contract.py"
-      - "scripts/check-documentation-accountability.py"
-      - "scripts/generate-command-overview.py"
-      - "docs/reference/commands.generated.*"
-      - "llms.txt"
-      - "scripts/check-cross-site-links.py"
-      - "scripts/check_doc_frontmatter.py"
-      - "scripts/validate_agent_rule_applies_when.py"
-      - "scripts/check_version_sources.py"
-      - "docs/agent-rules/INDEX.md"
-      - "pyproject.toml"
-      - "uv.lock"
-      - "requirements/ci/locked.txt"
-      - "ci/module-fixture.lock.json"
-      - ".github/actions/setup-frozen-python/**"
-      - ".github/workflows/docs-review.yml"
   push:
     branches: [main, dev]
     paths:
@@ -47,6 +16,8 @@ on:
       - "src/specfact_cli/resources/**"
       - "docs/.doc-frontmatter-enforced"
       - "tests/unit/docs/**"
+      - "tests/unit/workflows/test_docs_module_fixture.py"
+      - "tests/unit/workflows/test_docs_module_authentication.py"
       - "tests/unit/scripts/test_doc_frontmatter/**"
       - "tests/integration/scripts/test_doc_frontmatter/**"
       - "tests/helpers/doc_frontmatter.py"
@@ -56,6 +27,7 @@ on:
       - "scripts/check-command-contract.py"
       - "scripts/check-documentation-accountability.py"
       - "scripts/generate-command-overview.py"
+      - "scripts/verify_docs_module_source.py"
       - "docs/reference/commands.generated.*"
       - "llms.txt"
       - "scripts/check-cross-site-links.py"
@@ -66,7 +38,7 @@ on:
       - "pyproject.toml"
       - "uv.lock"
       - "requirements/ci/locked.txt"
-      - "ci/module-fixture.lock.json"
+      - "ci/docs-module-fixture.lock.json"
       - ".github/actions/setup-frozen-python/**"
       - ".github/workflows/docs-review.yml"
   workflow_dispatch:
@@ -92,11 +64,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          repository="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])')"
-          commit="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          repository="$(python -c 'import json; print(json.load(open("ci/docs-module-fixture.lock.json", encoding="utf-8"))["repository"])')"
+          commit="$(python -c 'import json; print(json.load(open("ci/docs-module-fixture.lock.json", encoding="utf-8"))["commit"])')"
           [[ "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]
           test "$repository" = "nold-ai/specfact-cli-modules"
+          tree="$(python -c 'import json; print(json.load(open("ci/docs-module-fixture.lock.json", encoding="utf-8"))["tree"])')"
           [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$tree" =~ ^[0-9a-f]{40}$ ]]
           printf 'repository=%s\n' "$repository" >> "$GITHUB_OUTPUT"
           printf 'commit=%s\n' "$commit" >> "$GITHUB_OUTPUT"
 
@@ -112,14 +86,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          expected_repository="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])')"
-          expected="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          expected_repository="$(python -c 'import json; print(json.load(open("ci/docs-module-fixture.lock.json", encoding="utf-8"))["repository"])')"
+          expected="$(python -c 'import json; print(json.load(open("ci/docs-module-fixture.lock.json", encoding="utf-8"))["commit"])')"
           test "$expected_repository" = "${{ steps.modules-fixture.outputs.repository }}"
           actual="$(git -C specfact-cli-modules rev-parse HEAD)"
           test "$actual" = "$expected"
-
-      - name: Export module command source path
-        run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
+          expected_tree="$(python -c 'import json; print(json.load(open("ci/docs-module-fixture.lock.json", encoding="utf-8"))["tree"])')"
+          actual_tree="$(git -C specfact-cli-modules rev-parse 'HEAD^{tree}')"
+          test "$actual_tree" = "$expected_tree"
+          test -z "$(git -C specfact-cli-modules status --porcelain --untracked-files=all)"
 
       - name: Set up Python 3.12
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
@@ -129,8 +104,68 @@ jobs:
       - name: Set up frozen documentation dependencies
         uses: ./.github/actions/setup-frozen-python
 
+      - name: Checkout trusted module verifier
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          path: trusted-core-docs
+          persist-credentials: false
+
+      - name: Authenticate module command sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -I - <<'PY'
+          import importlib.util
+          from pathlib import Path
+
+          modules = Path("specfact-cli-modules").resolve(strict=True)
+          trusted = Path("trusted-core-docs").resolve(strict=True)
+          verifier_path = (trusted / "scripts/verify-modules-signature.py").resolve(strict=True)
+          key_path = (trusted / "resources/keys/module-signing-public.pem").resolve(strict=True)
+          for path in (verifier_path, key_path):
+              if not path.is_relative_to(trusted) or path.is_relative_to(modules):
+                  raise ValueError("Authentication inputs must come from the separate base checkout")
+          spec = importlib.util.spec_from_file_location("trusted_docs_module_verifier", verifier_path)
+          if spec is None or spec.loader is None:
+              raise ValueError("Cannot load the base module verifier")
+          verifier = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(verifier)
+          required = {f"specfact-{name}" for name in (
+              "backlog", "codebase", "code-review", "govern", "project", "requirements", "spec"
+          )}
+          bundles = {source.parent.name: source.parent for source in (modules / "packages").glob("*/src")
+                     if source.is_dir()}
+          if missing := required - bundles.keys():
+              raise ValueError(f"Missing required documentation bundles: {', '.join(sorted(missing))}")
+          public_key = key_path.read_text(encoding="utf-8")
+          for name, bundle in sorted(bundles.items()):
+              manifest = bundle / "module-package.yaml"
+              if not manifest.is_file():
+                  raise ValueError(f"Missing documentation module manifest: {name}")
+              verifier.verify_manifest(
+                  manifest, require_signature=True, public_key_pem=public_key,
+                  payload_from_filesystem=True, verify_checksum=True,
+              )
+          print(f"Authenticated {len(bundles)} documentation bundles using the base verifier.")
+          PY
+
+      - name: Export module command source path
+        run: |
+          echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
+          echo "SPECFACT_DOCS_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
+
       - name: Validate docs dependency security floor
         run: python -m pytest tests/unit/docs/test_docs_validation_scripts.py::test_docs_json_gem_uses_the_patched_security_floor -q
+
+      - name: Validate documentation fixture and Code Review command parity
+        run: |
+          test -n "${SPECFACT_DOCS_MODULES_REPO:?Documentation fixture is required}"
+          python -m pytest \
+            tests/unit/docs/test_code_review_command_parity.py \
+            tests/unit/docs/test_llms_overview_freshness.py \
+            tests/unit/workflows/test_docs_module_fixture.py \
+            tests/unit/workflows/test_docs_module_authentication.py -q
 
       - name: Validate docs command examples
         run: python scripts/check-docs-commands.py

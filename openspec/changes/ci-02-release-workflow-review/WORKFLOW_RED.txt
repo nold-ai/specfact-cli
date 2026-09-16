@@ -1,0 +1,390 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.12.13, pytest-9.1.1, pluggy-1.6.0
+rootdir: /private/tmp/specfact-731-workflow-review
+configfile: pyproject.toml
+plugins: mock-3.15.1, cov-7.1.0, xdist-3.8.0, anyio-4.15.1, hypothesis-6.168.0
+collected 12 items
+
+tests/unit/workflows/test_release_workflow_review.py::test_authentication_ignores_reviewed_wrapper[valid-docs-review.yml-docs-review] FAILED [  8%]
+tests/unit/workflows/test_release_workflow_review.py::test_authentication_ignores_reviewed_wrapper[valid-pr-orchestrator.yml-cli-validation] FAILED [ 16%]
+tests/unit/workflows/test_release_workflow_review.py::test_authentication_ignores_reviewed_wrapper[missing-signature-docs-review.yml-docs-review] FAILED [ 25%]
+tests/unit/workflows/test_release_workflow_review.py::test_authentication_ignores_reviewed_wrapper[missing-signature-pr-orchestrator.yml-cli-validation] FAILED [ 33%]
+tests/unit/workflows/test_release_workflow_review.py::test_authentication_ignores_reviewed_wrapper[payload-mismatch-docs-review.yml-docs-review] FAILED [ 41%]
+tests/unit/workflows/test_release_workflow_review.py::test_authentication_ignores_reviewed_wrapper[payload-mismatch-pr-orchestrator.yml-cli-validation] FAILED [ 50%]
+tests/unit/workflows/test_release_workflow_review.py::test_authentication_ignores_reviewed_wrapper[extra-unsigned-source-docs-review.yml-docs-review] FAILED [ 58%]
+tests/unit/workflows/test_release_workflow_review.py::test_authentication_ignores_reviewed_wrapper[extra-unsigned-source-pr-orchestrator.yml-cli-validation] FAILED [ 66%]
+tests/unit/workflows/test_release_workflow_review.py::test_native_javascript_jobs_prepare_pinned_node[tests] FAILED [ 75%]
+tests/unit/workflows/test_release_workflow_review.py::test_native_javascript_jobs_prepare_pinned_node[compat-py311] FAILED [ 83%]
+tests/unit/workflows/test_release_workflow_review.py::test_native_javascript_jobs_prepare_pinned_node[dependency-compatibility] FAILED [ 91%]
+tests/unit/workflows/test_release_workflow_review.py::test_local_prerequisites_declare_native_node_runtime FAILED [100%]
+
+=================================== FAILURES ===================================
+_ test_authentication_ignores_reviewed_wrapper[valid-docs-review.yml-docs-review] _
+
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-616/test_authentication_ignores_re0')
+filename = 'docs-review.yml', job = 'docs-review', mutation = 'valid'
+
+    @pytest.mark.parametrize(("filename", "job"), JOBS)
+    @pytest.mark.parametrize("mutation", ["valid", "missing-signature", "payload-mismatch", "extra-unsigned-source"])
+    def test_authentication_ignores_reviewed_wrapper(tmp_path: Path, filename: str, job: str, mutation: str) -> None:
+        """Run actual authentication with signed fixtures and a deliberately hostile wrapper."""
+        modules, trusted = _signed_sources(tmp_path)
+        _mutate_source(modules, trusted, mutation)
+        scripts = tmp_path / "scripts"
+        scripts.mkdir()
+        wrapper = scripts / "verify_docs_module_source.py"
+        wrapper.write_text("raise RuntimeError('PR wrapper executed')\n" if mutation == "valid" else "pass\n")
+        assert not (trusted / "scripts/verify_docs_module_source.py").exists()
+        names = {"Authenticate module command sources", "Export module command source path"}
+        script = "\n".join(step["run"] for step in _steps(filename, job) if step.get("name") in names)
+        environment = {
+            **os.environ,
+            "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+            "GITHUB_ENV": str(tmp_path / "exports"),
+            "GITHUB_WORKSPACE": str(tmp_path),
+        }
+        result = subprocess.run(
+            ["bash", "-c", script], cwd=tmp_path, env=environment, capture_output=True, text=True, check=False, timeout=30
+        )
+>       assert (result.returncode == 0) is (mutation == "valid"), result.stdout + result.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-616/test_authentication_ignores_re0/scripts/verify_docs_module_source.py", line 1, in <module>
+E             raise RuntimeError('PR wrapper executed')
+E         RuntimeError: PR wrapper executed
+E         
+E       assert (1 == 0) is ('valid' == 'valid'
+E        +  where 1 = CompletedProcess(args=['bash', '-c', 'set -euo pipefail\npython -I scripts/verify_docs_module_source.py \\\n  --modules-root specfact-cli-modules \\\n  --trusted-core-root trusted-core-docs\n\necho "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"\necho "SPECFACT_DOCS_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"\n'], returncode=1, stdout='', stderr='Traceback (most recent call last):\n  File "/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-616/test_authentication_ignores_re0/scripts/verify_docs_module_source.py", line 1, in <module>\n    raise RuntimeError(\'PR wrapper executed\')\nRuntimeError: PR wrapper executed\n').returncode
+E         
+E           valid)
+
+tests/unit/workflows/test_release_workflow_review.py:48: AssertionError
+_ test_authentication_ignores_reviewed_wrapper[valid-pr-orchestrator.yml-cli-validation] _
+
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-616/test_authentication_ignores_re1')
+filename = 'pr-orchestrator.yml', job = 'cli-validation', mutation = 'valid'
+
+    @pytest.mark.parametrize(("filename", "job"), JOBS)
+    @pytest.mark.parametrize("mutation", ["valid", "missing-signature", "payload-mismatch", "extra-unsigned-source"])
+    def test_authentication_ignores_reviewed_wrapper(tmp_path: Path, filename: str, job: str, mutation: str) -> None:
+        """Run actual authentication with signed fixtures and a deliberately hostile wrapper."""
+        modules, trusted = _signed_sources(tmp_path)
+        _mutate_source(modules, trusted, mutation)
+        scripts = tmp_path / "scripts"
+        scripts.mkdir()
+        wrapper = scripts / "verify_docs_module_source.py"
+        wrapper.write_text("raise RuntimeError('PR wrapper executed')\n" if mutation == "valid" else "pass\n")
+        assert not (trusted / "scripts/verify_docs_module_source.py").exists()
+        names = {"Authenticate module command sources", "Export module command source path"}
+        script = "\n".join(step["run"] for step in _steps(filename, job) if step.get("name") in names)
+        environment = {
+            **os.environ,
+            "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+            "GITHUB_ENV": str(tmp_path / "exports"),
+            "GITHUB_WORKSPACE": str(tmp_path),
+        }
+        result = subprocess.run(
+            ["bash", "-c", script], cwd=tmp_path, env=environment, capture_output=True, text=True, check=False, timeout=30
+        )
+>       assert (result.returncode == 0) is (mutation == "valid"), result.stdout + result.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-616/test_authentication_ignores_re1/scripts/verify_docs_module_source.py", line 1, in <module>
+E             raise RuntimeError('PR wrapper executed')
+E         RuntimeError: PR wrapper executed
+E         
+E       assert (1 == 0) is ('valid' == 'valid'
+E        +  where 1 = CompletedProcess(args=['bash', '-c', 'set -euo pipefail\npython -I scripts/verify_docs_module_source.py \\\n  --modules-root specfact-cli-modules \\\n  --trusted-core-root trusted-core-docs\n\necho "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"\necho "SPECFACT_DOCS_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"\n'], returncode=1, stdout='', stderr='Traceback (most recent call last):\n  File "/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-616/test_authentication_ignores_re1/scripts/verify_docs_module_source.py", line 1, in <module>\n    raise RuntimeError(\'PR wrapper executed\')\nRuntimeError: PR wrapper executed\n').returncode
+E         
+E           valid)
+
+tests/unit/workflows/test_release_workflow_review.py:48: AssertionError
+_ test_authentication_ignores_reviewed_wrapper[missing-signature-docs-review.yml-docs-review] _
+
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-616/test_authentication_ignores_re2')
+filename = 'docs-review.yml', job = 'docs-review'
+mutation = 'missing-signature'
+
+    @pytest.mark.parametrize(("filename", "job"), JOBS)
+    @pytest.mark.parametrize("mutation", ["valid", "missing-signature", "payload-mismatch", "extra-unsigned-source"])
+    def test_authentication_ignores_reviewed_wrapper(tmp_path: Path, filename: str, job: str, mutation: str) -> None:
+        """Run actual authentication with signed fixtures and a deliberately hostile wrapper."""
+        modules, trusted = _signed_sources(tmp_path)
+        _mutate_source(modules, trusted, mutation)
+        scripts = tmp_path / "scripts"
+        scripts.mkdir()
+        wrapper = scripts / "verify_docs_module_source.py"
+        wrapper.write_text("raise RuntimeError('PR wrapper executed')\n" if mutation == "valid" else "pass\n")
+        assert not (trusted / "scripts/verify_docs_module_source.py").exists()
+        names = {"Authenticate module command sources", "Export module command source path"}
+        script = "\n".join(step["run"] for step in _steps(filename, job) if step.get("name") in names)
+        environment = {
+            **os.environ,
+            "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+            "GITHUB_ENV": str(tmp_path / "exports"),
+            "GITHUB_WORKSPACE": str(tmp_path),
+        }
+        result = subprocess.run(
+            ["bash", "-c", script], cwd=tmp_path, env=environment, capture_output=True, text=True, check=False, timeout=30
+        )
+>       assert (result.returncode == 0) is (mutation == "valid"), result.stdout + result.stderr
+E       AssertionError: 
+E       assert (0 == 0) is ('missing-signature' == 'valid'
+E        +  where 0 = CompletedProcess(args=['bash', '-c', 'set -euo pipefail\npython -I scripts/verify_docs_module_source.py \\\n  --modules-root specfact-cli-modules \\\n  --trusted-core-root trusted-core-docs\n\necho "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"\necho "SPECFACT_DOCS_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"\n'], returncode=0, stdout='', stderr='').returncode
+E         
+E         - valid
+E         + missing-signature)
+
+tests/unit/workflows/test_release_workflow_review.py:48: AssertionError
+_ test_authentication_ignores_reviewed_wrapper[missing-signature-pr-orchestrator.yml-cli-validation] _
+
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-616/test_authentication_ignores_re3')
+filename = 'pr-orchestrator.yml', job = 'cli-validation'
+mutation = 'missing-signature'
+
+    @pytest.mark.parametrize(("filename", "job"), JOBS)
+    @pytest.mark.parametrize("mutation", ["valid", "missing-signature", "payload-mismatch", "extra-unsigned-source"])
+    def test_authentication_ignores_reviewed_wrapper(tmp_path: Path, filename: str, job: str, mutation: str) -> None:
+        """Run actual authentication with signed fixtures and a deliberately hostile wrapper."""
+        modules, trusted = _signed_sources(tmp_path)
+        _mutate_source(modules, trusted, mutation)
+        scripts = tmp_path / "scripts"
+        scripts.mkdir()
+        wrapper = scripts / "verify_docs_module_source.py"
+        wrapper.write_text("raise RuntimeError('PR wrapper executed')\n" if mutation == "valid" else "pass\n")
+        assert not (trusted / "scripts/verify_docs_module_source.py").exists()
+        names = {"Authenticate module command sources", "Export module command source path"}
+        script = "\n".join(step["run"] for step in _steps(filename, job) if step.get("name") in names)
+        environment = {
+            **os.environ,
+            "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+            "GITHUB_ENV": str(tmp_path / "exports"),
+            "GITHUB_WORKSPACE": str(tmp_path),
+        }
+        result = subprocess.run(
+            ["bash", "-c", script], cwd=tmp_path, env=environment, capture_output=True, text=True, check=False, timeout=30
+        )
+>       assert (result.returncode == 0) is (mutation == "valid"), result.stdout + result.stderr
+E       AssertionError: 
+E       assert (0 == 0) is ('missing-signature' == 'valid'
+E        +  where 0 = CompletedProcess(args=['bash', '-c', 'set -euo pipefail\npython -I scripts/verify_docs_module_source.py \\\n  --modules-root specfact-cli-modules \\\n  --trusted-core-root trusted-core-docs\n\necho "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"\necho "SPECFACT_DOCS_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"\n'], returncode=0, stdout='', stderr='').returncode
+E         
+E         - valid
+E         + missing-signature)
+
+tests/unit/workflows/test_release_workflow_review.py:48: AssertionError
+_ test_authentication_ignores_reviewed_wrapper[payload-mismatch-docs-review.yml-docs-review] _
+
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-616/test_authentication_ignores_re4')
+filename = 'docs-review.yml', job = 'docs-review', mutation = 'payload-mismatch'
+
+    @pytest.mark.parametrize(("filename", "job"), JOBS)
+    @pytest.mark.parametrize("mutation", ["valid", "missing-signature", "payload-mismatch", "extra-unsigned-source"])
+    def test_authentication_ignores_reviewed_wrapper(tmp_path: Path, filename: str, job: str, mutation: str) -> None:
+        """Run actual authentication with signed fixtures and a deliberately hostile wrapper."""
+        modules, trusted = _signed_sources(tmp_path)
+        _mutate_source(modules, trusted, mutation)
+        scripts = tmp_path / "scripts"
+        scripts.mkdir()
+        wrapper = scripts / "verify_docs_module_source.py"
+        wrapper.write_text("raise RuntimeError('PR wrapper executed')\n" if mutation == "valid" else "pass\n")
+        assert not (trusted / "scripts/verify_docs_module_source.py").exists()
+        names = {"Authenticate module command sources", "Export module command source path"}
+        script = "\n".join(step["run"] for step in _steps(filename, job) if step.get("name") in names)
+        environment = {
+            **os.environ,
+            "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+            "GITHUB_ENV": str(tmp_path / "exports"),
+            "GITHUB_WORKSPACE": str(tmp_path),
+        }
+        result = subprocess.run(
+            ["bash", "-c", script], cwd=tmp_path, env=environment, capture_output=True, text=True, check=False, timeout=30
+        )
+>       assert (result.returncode == 0) is (mutation == "valid"), result.stdout + result.stderr
+E       AssertionError: 
+E       assert (0 == 0) is ('payload-mismatch' == 'valid'
+E        +  where 0 = CompletedProcess(args=['bash', '-c', 'set -euo pipefail\npython -I scripts/verify_docs_module_source.py \\\n  --modules-root specfact-cli-modules \\\n  --trusted-core-root trusted-core-docs\n\necho "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"\necho "SPECFACT_DOCS_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"\n'], returncode=0, stdout='', stderr='').returncode
+E         
+E         - valid
+E         + payload-mismatch)
+
+tests/unit/workflows/test_release_workflow_review.py:48: AssertionError
+_ test_authentication_ignores_reviewed_wrapper[payload-mismatch-pr-orchestrator.yml-cli-validation] _
+
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-616/test_authentication_ignores_re5')
+filename = 'pr-orchestrator.yml', job = 'cli-validation'
+mutation = 'payload-mismatch'
+
+    @pytest.mark.parametrize(("filename", "job"), JOBS)
+    @pytest.mark.parametrize("mutation", ["valid", "missing-signature", "payload-mismatch", "extra-unsigned-source"])
+    def test_authentication_ignores_reviewed_wrapper(tmp_path: Path, filename: str, job: str, mutation: str) -> None:
+        """Run actual authentication with signed fixtures and a deliberately hostile wrapper."""
+        modules, trusted = _signed_sources(tmp_path)
+        _mutate_source(modules, trusted, mutation)
+        scripts = tmp_path / "scripts"
+        scripts.mkdir()
+        wrapper = scripts / "verify_docs_module_source.py"
+        wrapper.write_text("raise RuntimeError('PR wrapper executed')\n" if mutation == "valid" else "pass\n")
+        assert not (trusted / "scripts/verify_docs_module_source.py").exists()
+        names = {"Authenticate module command sources", "Export module command source path"}
+        script = "\n".join(step["run"] for step in _steps(filename, job) if step.get("name") in names)
+        environment = {
+            **os.environ,
+            "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+            "GITHUB_ENV": str(tmp_path / "exports"),
+            "GITHUB_WORKSPACE": str(tmp_path),
+        }
+        result = subprocess.run(
+            ["bash", "-c", script], cwd=tmp_path, env=environment, capture_output=True, text=True, check=False, timeout=30
+        )
+>       assert (result.returncode == 0) is (mutation == "valid"), result.stdout + result.stderr
+E       AssertionError: 
+E       assert (0 == 0) is ('payload-mismatch' == 'valid'
+E        +  where 0 = CompletedProcess(args=['bash', '-c', 'set -euo pipefail\npython -I scripts/verify_docs_module_source.py \\\n  --modules-root specfact-cli-modules \\\n  --trusted-core-root trusted-core-docs\n\necho "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"\necho "SPECFACT_DOCS_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"\n'], returncode=0, stdout='', stderr='').returncode
+E         
+E         - valid
+E         + payload-mismatch)
+
+tests/unit/workflows/test_release_workflow_review.py:48: AssertionError
+_ test_authentication_ignores_reviewed_wrapper[extra-unsigned-source-docs-review.yml-docs-review] _
+
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-616/test_authentication_ignores_re6')
+filename = 'docs-review.yml', job = 'docs-review'
+mutation = 'extra-unsigned-source'
+
+    @pytest.mark.parametrize(("filename", "job"), JOBS)
+    @pytest.mark.parametrize("mutation", ["valid", "missing-signature", "payload-mismatch", "extra-unsigned-source"])
+    def test_authentication_ignores_reviewed_wrapper(tmp_path: Path, filename: str, job: str, mutation: str) -> None:
+        """Run actual authentication with signed fixtures and a deliberately hostile wrapper."""
+        modules, trusted = _signed_sources(tmp_path)
+        _mutate_source(modules, trusted, mutation)
+        scripts = tmp_path / "scripts"
+        scripts.mkdir()
+        wrapper = scripts / "verify_docs_module_source.py"
+        wrapper.write_text("raise RuntimeError('PR wrapper executed')\n" if mutation == "valid" else "pass\n")
+        assert not (trusted / "scripts/verify_docs_module_source.py").exists()
+        names = {"Authenticate module command sources", "Export module command source path"}
+        script = "\n".join(step["run"] for step in _steps(filename, job) if step.get("name") in names)
+        environment = {
+            **os.environ,
+            "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+            "GITHUB_ENV": str(tmp_path / "exports"),
+            "GITHUB_WORKSPACE": str(tmp_path),
+        }
+        result = subprocess.run(
+            ["bash", "-c", script], cwd=tmp_path, env=environment, capture_output=True, text=True, check=False, timeout=30
+        )
+>       assert (result.returncode == 0) is (mutation == "valid"), result.stdout + result.stderr
+E       AssertionError: 
+E       assert (0 == 0) is ('extra-unsigned-source' == 'valid'
+E        +  where 0 = CompletedProcess(args=['bash', '-c', 'set -euo pipefail\npython -I scripts/verify_docs_module_source.py \\\n  --modules-root specfact-cli-modules \\\n  --trusted-core-root trusted-core-docs\n\necho "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"\necho "SPECFACT_DOCS_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"\n'], returncode=0, stdout='', stderr='').returncode
+E         
+E         - valid
+E         + extra-unsigned-source)
+
+tests/unit/workflows/test_release_workflow_review.py:48: AssertionError
+_ test_authentication_ignores_reviewed_wrapper[extra-unsigned-source-pr-orchestrator.yml-cli-validation] _
+
+tmp_path = PosixPath('/private/var/folders/ly/2wl4sfj179qfn8n46plbft6h0000gn/T/pytest-of-dom/pytest-616/test_authentication_ignores_re7')
+filename = 'pr-orchestrator.yml', job = 'cli-validation'
+mutation = 'extra-unsigned-source'
+
+    @pytest.mark.parametrize(("filename", "job"), JOBS)
+    @pytest.mark.parametrize("mutation", ["valid", "missing-signature", "payload-mismatch", "extra-unsigned-source"])
+    def test_authentication_ignores_reviewed_wrapper(tmp_path: Path, filename: str, job: str, mutation: str) -> None:
+        """Run actual authentication with signed fixtures and a deliberately hostile wrapper."""
+        modules, trusted = _signed_sources(tmp_path)
+        _mutate_source(modules, trusted, mutation)
+        scripts = tmp_path / "scripts"
+        scripts.mkdir()
+        wrapper = scripts / "verify_docs_module_source.py"
+        wrapper.write_text("raise RuntimeError('PR wrapper executed')\n" if mutation == "valid" else "pass\n")
+        assert not (trusted / "scripts/verify_docs_module_source.py").exists()
+        names = {"Authenticate module command sources", "Export module command source path"}
+        script = "\n".join(step["run"] for step in _steps(filename, job) if step.get("name") in names)
+        environment = {
+            **os.environ,
+            "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+            "GITHUB_ENV": str(tmp_path / "exports"),
+            "GITHUB_WORKSPACE": str(tmp_path),
+        }
+        result = subprocess.run(
+            ["bash", "-c", script], cwd=tmp_path, env=environment, capture_output=True, text=True, check=False, timeout=30
+        )
+>       assert (result.returncode == 0) is (mutation == "valid"), result.stdout + result.stderr
+E       AssertionError: 
+E       assert (0 == 0) is ('extra-unsigned-source' == 'valid'
+E        +  where 0 = CompletedProcess(args=['bash', '-c', 'set -euo pipefail\npython -I scripts/verify_docs_module_source.py \\\n  --modules-root specfact-cli-modules \\\n  --trusted-core-root trusted-core-docs\n\necho "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"\necho "SPECFACT_DOCS_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"\n'], returncode=0, stdout='', stderr='').returncode
+E         
+E         - valid
+E         + extra-unsigned-source)
+
+tests/unit/workflows/test_release_workflow_review.py:48: AssertionError
+____________ test_native_javascript_jobs_prepare_pinned_node[tests] ____________
+
+job = 'tests'
+
+    @pytest.mark.parametrize("job", ["tests", "compat-py311", "dependency-compatibility"])
+    def test_native_javascript_jobs_prepare_pinned_node(job: str) -> None:
+        """Require explicit runtime setup before commands that can collect the native tests."""
+        steps = _steps("pr-orchestrator.yml", job)
+        setup = [step for step in steps if step.get("uses") == NODE_ACTION]
+>       assert len(setup) == 1, f"{job} must explicitly prepare the pinned Node runtime"
+E       AssertionError: tests must explicitly prepare the pinned Node runtime
+E       assert 0 == 1
+E        +  where 0 = len([])
+
+tests/unit/workflows/test_release_workflow_review.py:57: AssertionError
+________ test_native_javascript_jobs_prepare_pinned_node[compat-py311] _________
+
+job = 'compat-py311'
+
+    @pytest.mark.parametrize("job", ["tests", "compat-py311", "dependency-compatibility"])
+    def test_native_javascript_jobs_prepare_pinned_node(job: str) -> None:
+        """Require explicit runtime setup before commands that can collect the native tests."""
+        steps = _steps("pr-orchestrator.yml", job)
+        setup = [step for step in steps if step.get("uses") == NODE_ACTION]
+>       assert len(setup) == 1, f"{job} must explicitly prepare the pinned Node runtime"
+E       AssertionError: compat-py311 must explicitly prepare the pinned Node runtime
+E       assert 0 == 1
+E        +  where 0 = len([])
+
+tests/unit/workflows/test_release_workflow_review.py:57: AssertionError
+__ test_native_javascript_jobs_prepare_pinned_node[dependency-compatibility] ___
+
+job = 'dependency-compatibility'
+
+    @pytest.mark.parametrize("job", ["tests", "compat-py311", "dependency-compatibility"])
+    def test_native_javascript_jobs_prepare_pinned_node(job: str) -> None:
+        """Require explicit runtime setup before commands that can collect the native tests."""
+        steps = _steps("pr-orchestrator.yml", job)
+        setup = [step for step in steps if step.get("uses") == NODE_ACTION]
+>       assert len(setup) == 1, f"{job} must explicitly prepare the pinned Node runtime"
+E       AssertionError: dependency-compatibility must explicitly prepare the pinned Node runtime
+E       assert 0 == 1
+E        +  where 0 = len([])
+
+tests/unit/workflows/test_release_workflow_review.py:57: AssertionError
+_____________ test_local_prerequisites_declare_native_node_runtime _____________
+
+    def test_local_prerequisites_declare_native_node_runtime() -> None:
+        """Developers can reproduce native workflow tests outside hosted runners."""
+        prerequisites = (REPO_ROOT / "CONTRIBUTING.md").read_text().split("### Prerequisites", 1)[1]
+        prerequisites = prerequisites.split("### ", 1)[0]
+>       assert f"Node.js {NODE_VERSION}" in prerequisites
+E       AssertionError: assert 'Node.js 24.16.0' in '\n\n- Python 3.11–3.13\n- [uv](https://docs.astral.sh/uv/) for the frozen project environment\n- Docker (for containerized development)\n- Git\n\n'
+
+tests/unit/workflows/test_release_workflow_review.py:74: AssertionError
+------------ generated xml file: /private/tmp/specfact-736-red.xml -------------
+=========================== short test summary info ============================
+FAILED tests/unit/workflows/test_release_workflow_review.py::test_authentication_ignores_reviewed_wrapper[valid-docs-review.yml-docs-review]
+FAILED tests/unit/workflows/test_release_workflow_review.py::test_authentication_ignores_reviewed_wrapper[valid-pr-orchestrator.yml-cli-validation]
+FAILED tests/unit/workflows/test_release_workflow_review.py::test_authentication_ignores_reviewed_wrapper[missing-signature-docs-review.yml-docs-review]
+FAILED tests/unit/workflows/test_release_workflow_review.py::test_authentication_ignores_reviewed_wrapper[missing-signature-pr-orchestrator.yml-cli-validation]
+FAILED tests/unit/workflows/test_release_workflow_review.py::test_authentication_ignores_reviewed_wrapper[payload-mismatch-docs-review.yml-docs-review]
+FAILED tests/unit/workflows/test_release_workflow_review.py::test_authentication_ignores_reviewed_wrapper[payload-mismatch-pr-orchestrator.yml-cli-validation]
+FAILED tests/unit/workflows/test_release_workflow_review.py::test_authentication_ignores_reviewed_wrapper[extra-unsigned-source-docs-review.yml-docs-review]
+FAILED tests/unit/workflows/test_release_workflow_review.py::test_authentication_ignores_reviewed_wrapper[extra-unsigned-source-pr-orchestrator.yml-cli-validation]
+FAILED tests/unit/workflows/test_release_workflow_review.py::test_native_javascript_jobs_prepare_pinned_node[tests]
+FAILED tests/unit/workflows/test_release_workflow_review.py::test_native_javascript_jobs_prepare_pinned_node[compat-py311]
+FAILED tests/unit/workflows/test_release_workflow_review.py::test_native_javascript_jobs_prepare_pinned_node[dependency-compatibility]
+FAILED tests/unit/workflows/test_release_workflow_review.py::test_local_prerequisites_declare_native_node_runtime
+============================== 12 failed in 0.52s ==============================

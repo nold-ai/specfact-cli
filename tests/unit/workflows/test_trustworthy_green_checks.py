@@ -681,9 +681,9 @@ def test_blocking_lint_has_no_pylint_or_dill_dependency() -> None:
     assert 'name = "dill"' not in lock_text
 
 
-def _assert_immutable_modules_fixture(raw: str) -> None:
+def _assert_immutable_modules_fixture(raw: str, fixture: str = "ci/module-fixture.lock.json") -> None:
     """Assert the shared immutable module-fixture safeguards for workflow text."""
-    assert "ci/module-fixture.lock.json" in raw
+    assert fixture in raw
     assert 'repository="$(python -c' in raw
     assert 'test "$repository" = "nold-ai/specfact-cli-modules"' in raw
     assert "steps.modules-fixture.outputs.repository" in raw
@@ -697,7 +697,7 @@ def _assert_immutable_modules_fixture(raw: str) -> None:
 def test_docs_review_uses_immutable_modules_fixture_and_frozen_environment() -> None:
     """Docs command validation must not silently drift with branch or resolver state."""
     raw = DOCS_REVIEW.read_text(encoding="utf-8")
-    _assert_immutable_modules_fixture(raw)
+    _assert_immutable_modules_fixture(raw, "ci/docs-module-fixture.lock.json")
     assert "hatch run" not in raw
 
 

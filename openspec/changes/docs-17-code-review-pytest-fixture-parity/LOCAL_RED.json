@@ -1,0 +1,282 @@
+{
+  "scope": "Local native pytest and portable adapter contract; not protected CI RED or full capsule acceptance",
+  "suite": {
+    "name": "pytest",
+    "errors": "0",
+    "failures": "6",
+    "skipped": "0",
+    "tests": "6",
+    "time": "5.267",
+    "timestamp": "2026-09-16T08:31:08.097450+02:00",
+    "hostname": "dom-m5-pro.local"
+  },
+  "junit_sha256": "47fc488253a0d701eacf6e07a6ddf4b2134339f0f0c388b8ef59d0c86238ba44",
+  "test_sha256": "59d3246a1d4960bb8dbaeecbd314b442178673382b2ee2aec0ed39a9f9895551",
+  "acquisition": {
+    "expected": {
+      "repository": "nold-ai/specfact-cli-modules",
+      "commit": "2e095f1350fecb7e7eda0bcfba6bad89a6d82c88",
+      "tree": "8846ce1b47538ea78d600b7c82bfd2ccd1761ee2"
+    },
+    "actual_commit": "2e095f1350fecb7e7eda0bcfba6bad89a6d82c88",
+    "actual_tree": "8846ce1b47538ea78d600b7c82bfd2ccd1761ee2",
+    "verified_bundles": 7,
+    "manifest_version": "0.50.0",
+    "manifest_sha256": "5c2f8a0ee637b6318f8a8c56dc05788b2a31e6b38fe1d7074024a2ec6f83cfd9",
+    "trusted_inputs_sha256": {
+      "scripts/verify_docs_module_source.py": "71fa674070f1054e0ef89eec171fb7cb8cd1f8b8e319c1080377cc37d65cf30d",
+      "scripts/verify-modules-signature.py": "2f49690bb50a03a2fa3c4d0cb8c757ed542d6edeed623ac2df05661e60aef824",
+      "resources/keys/module-signing-public.pem": "4e54ffb02307e1a85c166c40aba6d1bc40fbb9a8ef40bf756f8870e5bb08d1c8"
+    },
+    "transport": "private-public-https-exact-commit-fetch",
+    "seconds": 2.518045082993922
+  },
+  "cases": [
+    {
+      "name": "test_documentation_fixture_enforces_portable_pytest_policy[skip]",
+      "failure": "AssertionError: documentation fixture permits falsely passing portable pytest evidence: skip\nassert False",
+      "native_exit": 0,
+      "native_reports": [
+        {
+          "phase": "setup",
+          "outcome": "passed",
+          "has_xfail": false,
+          "wasxfail": null
+        },
+        {
+          "phase": "call",
+          "outcome": "passed",
+          "has_xfail": false,
+          "wasxfail": null
+        },
+        {
+          "phase": "teardown",
+          "outcome": "passed",
+          "has_xfail": false,
+          "wasxfail": null
+        },
+        {
+          "phase": "setup",
+          "outcome": "passed",
+          "has_xfail": false,
+          "wasxfail": null
+        },
+        {
+          "phase": "call",
+          "outcome": "skipped",
+          "has_xfail": false,
+          "wasxfail": null
+        },
+        {
+          "phase": "teardown",
+          "outcome": "passed",
+          "has_xfail": false,
+          "wasxfail": null
+        }
+      ],
+      "coverage_files": [
+        "src/app.py"
+      ],
+      "findings": []
+    },
+    {
+      "name": "test_documentation_fixture_enforces_portable_pytest_policy[xfail]",
+      "failure": "AssertionError: documentation fixture permits falsely passing portable pytest evidence: xfail\nassert False",
+      "native_exit": 0,
+      "native_reports": [
+        {
+          "phase": "setup",
+          "outcome": "passed",
+          "has_xfail": false,
+          "wasxfail": null
+        },
+        {
+          "phase": "call",
+          "outcome": "passed",
+          "has_xfail": false,
+          "wasxfail": null
+        },
+        {
+          "phase": "teardown",
+          "outcome": "passed",
+          "has_xfail": false,
+          "wasxfail": null
+        },
+        {
+          "phase": "setup",
+          "outcome": "passed",
+          "has_xfail": false,
+          "wasxfail": null
+        },
+        {
+          "phase": "call",
+          "outcome": "skipped",
+          "has_xfail": true,
+          "wasxfail": "expected"
+        },
+        {
+          "phase": "teardown",
+          "outcome": "passed",
+          "has_xfail": false,
+          "wasxfail": null
+        }
+      ],
+      "coverage_files": [
+        "src/app.py"
+      ],
+      "findings": []
+    },
+    {
+      "name": "test_documentation_fixture_enforces_portable_pytest_policy[xpass]",
+      "failure": "AssertionError: documentation fixture permits falsely passing portable pytest evidence: xpass\nassert False",
+      "native_exit": 0,
+      "native_reports": [
+        {
+          "phase": "setup",
+          "outcome": "passed",
+          "has_xfail": false,
+          "wasxfail": null
+        },
+        {
+          "phase": "call",
+          "outcome": "passed",
+          "has_xfail": false,
+          "wasxfail": null
+        },
+        {
+          "phase": "teardown",
+          "outcome": "passed",
+          "has_xfail": false,
+          "wasxfail": null
+        },
+        {
+          "phase": "setup",
+          "outcome": "passed",
+          "has_xfail": false,
+          "wasxfail": null
+        },
+        {
+          "phase": "call",
+          "outcome": "passed",
+          "has_xfail": true,
+          "wasxfail": "expected"
+        },
+        {
+          "phase": "teardown",
+          "outcome": "passed",
+          "has_xfail": false,
+          "wasxfail": null
+        }
+      ],
+      "coverage_files": [
+        "src/app.py"
+      ],
+      "findings": []
+    },
+    {
+      "name": "test_documentation_fixture_enforces_portable_pytest_policy[xpass-empty]",
+      "failure": "AssertionError: documentation fixture permits falsely passing portable pytest evidence: xpass-empty\nassert False",
+      "native_exit": 0,
+      "native_reports": [
+        {
+          "phase": "setup",
+          "outcome": "passed",
+          "has_xfail": false,
+          "wasxfail": null
+        },
+        {
+          "phase": "call",
+          "outcome": "passed",
+          "has_xfail": false,
+          "wasxfail": null
+        },
+        {
+          "phase": "teardown",
+          "outcome": "passed",
+          "has_xfail": false,
+          "wasxfail": null
+        },
+        {
+          "phase": "setup",
+          "outcome": "passed",
+          "has_xfail": false,
+          "wasxfail": null
+        },
+        {
+          "phase": "call",
+          "outcome": "passed",
+          "has_xfail": true,
+          "wasxfail": ""
+        },
+        {
+          "phase": "teardown",
+          "outcome": "passed",
+          "has_xfail": false,
+          "wasxfail": null
+        }
+      ],
+      "coverage_files": [
+        "src/app.py"
+      ],
+      "findings": []
+    },
+    {
+      "name": "test_documentation_fixture_enforces_portable_pytest_policy[missing-source-coverage]",
+      "failure": "AssertionError: documentation fixture permits falsely passing portable pytest evidence: missing-source-coverage\nassert False",
+      "native_exit": 0,
+      "native_reports": [
+        {
+          "phase": "setup",
+          "outcome": "passed",
+          "has_xfail": false,
+          "wasxfail": null
+        },
+        {
+          "phase": "call",
+          "outcome": "passed",
+          "has_xfail": false,
+          "wasxfail": null
+        },
+        {
+          "phase": "teardown",
+          "outcome": "passed",
+          "has_xfail": false,
+          "wasxfail": null
+        }
+      ],
+      "coverage_files": [
+        "src/other.py"
+      ],
+      "findings": []
+    },
+    {
+      "name": "test_documentation_fixture_enforces_portable_pytest_policy[low-source-coverage]",
+      "failure": "AssertionError: documentation fixture permits falsely passing portable pytest evidence: low-source-coverage\nassert False",
+      "native_exit": 0,
+      "native_reports": [
+        {
+          "phase": "setup",
+          "outcome": "passed",
+          "has_xfail": false,
+          "wasxfail": null
+        },
+        {
+          "phase": "call",
+          "outcome": "passed",
+          "has_xfail": false,
+          "wasxfail": null
+        },
+        {
+          "phase": "teardown",
+          "outcome": "passed",
+          "has_xfail": false,
+          "wasxfail": null
+        }
+      ],
+      "coverage_files": [
+        "src/app.py"
+      ],
+      "findings": []
+    }
+  ]
+}
