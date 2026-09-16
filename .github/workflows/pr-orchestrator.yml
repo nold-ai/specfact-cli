@@ -229,6 +229,12 @@ jobs:
       pull-requests: write
     runs-on: ubuntu-latest
     steps:
+      - name: Set up Node for native workflow tests
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
+        with:
+          node-version: "24.16.0"
+
       - name: Skip full run (dev→main PR)
         if: needs.changes.outputs.skip_expensive_tests_dev_to_main == 'true'
         run: |
@@ -398,6 +404,11 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Set up Node for native workflow tests
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: "24.16.0"
+
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
@@ -579,9 +590,40 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python -I scripts/verify_docs_module_source.py \
-            --modules-root specfact-cli-modules \
-            --trusted-core-root trusted-core-docs
+          python -I - <<'PY'
+          import importlib.util
+          from pathlib import Path
+
+          modules = Path("specfact-cli-modules").resolve(strict=True)
+          trusted = Path("trusted-core-docs").resolve(strict=True)
+          verifier_path = (trusted / "scripts/verify-modules-signature.py").resolve(strict=True)
+          key_path = (trusted / "resources/keys/module-signing-public.pem").resolve(strict=True)
+          for path in (verifier_path, key_path):
+              if not path.is_relative_to(trusted) or path.is_relative_to(modules):
+                  raise ValueError("Authentication inputs must come from the separate base checkout")
+          spec = importlib.util.spec_from_file_location("trusted_docs_module_verifier", verifier_path)
+          if spec is None or spec.loader is None:
+              raise ValueError("Cannot load the base module verifier")
+          verifier = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(verifier)
+          required = {f"specfact-{name}" for name in (
+              "backlog", "codebase", "code-review", "govern", "project", "requirements", "spec"
+          )}
+          bundles = {source.parent.name: source.parent for source in (modules / "packages").glob("*/src")
+                     if source.is_dir()}
+          if missing := required - bundles.keys():
+              raise ValueError(f"Missing required documentation bundles: {', '.join(sorted(missing))}")
+          public_key = key_path.read_text(encoding="utf-8")
+          for name, bundle in sorted(bundles.items()):
+              manifest = bundle / "module-package.yaml"
+              if not manifest.is_file():
+                  raise ValueError(f"Missing documentation module manifest: {name}")
+              verifier.verify_manifest(
+                  manifest, require_signature=True, public_key_pem=public_key,
+                  payload_from_filesystem=True, verify_checksum=True,
+              )
+          print(f"Authenticated {len(bundles)} documentation bundles using the base verifier.")
+          PY
 
       - name: Export module command source path
         run: |
@@ -1273,6 +1315,11 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Set up Node for native workflow tests
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: "24.16.0"
+
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
