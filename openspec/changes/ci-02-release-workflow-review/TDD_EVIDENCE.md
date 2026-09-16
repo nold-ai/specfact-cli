@@ -82,3 +82,15 @@ span. Fresh `specfact code review run --bug-hunt --json` on the new Python test 
 at 2026-09-16T06:58:57.134259Z. Logs and reports are retained in `/private/tmp/specfact-738-*`; hosted GREEN remains
 the delivery authority. The reviewed test file SHA256 is
 `468c7edbe079096a7c03fbeef9c175384143aec8da8bc048ba09fd1690007aa3`.
+
+## Review clarifications
+
+The measured 64% line coverage exceeds the unchanged executable threshold of 50% in
+`pyproject.toml` `[tool.coverage.report].fail_under`. `openspec/config.yaml` explicitly makes the 80% target optional
+when contract-first gates are satisfied. Both hosted Contract Validation and Contract-First CI passed at02f8ed01.
+The separate 80% contract-coverage threshold is not a line-coverage threshold. No coverage configuration was changed;
+we do not claim 80% total or 100% critical-path coverage. The completed task records the configured passing gates.
+
+Review also clarified explicit pre-acceptance module-signature verification and cleanup, plus the post-acceptance
+OpenSpec archive command. All four core manifests passed strict verification; this workflow-only implementation
+changes no signed module assets. Generated archive changes remain a post-merge action, preserving current proof.
