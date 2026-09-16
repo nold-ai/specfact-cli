@@ -85,12 +85,24 @@ the delivery authority. The reviewed test file SHA256 is
 
 ## Review clarifications
 
-The measured 64% line coverage exceeds the unchanged executable threshold of 50% in
-`pyproject.toml` `[tool.coverage.report].fail_under`. `openspec/config.yaml` explicitly makes the 80% target optional
-when contract-first gates are satisfied. Both hosted Contract Validation and Contract-First CI passed at02f8ed01.
-The separate 80% contract-coverage threshold is not a line-coverage threshold. No coverage configuration was changed;
-we do not claim 80% total or 100% critical-path coverage. The completed task records the configured passing gates.
+The measured 64% line coverage passes the configured 50% executable floor in
+`pyproject.toml` `[tool.coverage.report].fail_under`. `openspec/config.yaml` describes an 80% target as optional when
+contract-first gates are satisfied. Both hosted Contract Validation and Contract-First CI passed at02f8ed01; their
+separate contract-coverage threshold does not establish 80% line coverage.
 
-Review also clarified explicit pre-acceptance module-signature verification and cleanup, plus the post-acceptance
-OpenSpec archive command. All four core manifests passed strict verification; this workflow-only implementation
-changes no signed module assets. Generated archive changes remain a post-merge action, preserving current proof.
+Legacy `.cursor/rules/python-github-rules.mdc` and `.cursor/rules/spec-fact-cli-rules.mdc` also state minimum 80%
+overall and 100% critical-path coverage. Those claims are not met by the recorded run, and this evidence does not
+claim universal policy compliance or an overriding waiver. The bounded workflow-scope disposition records that
+conflicting guidance as an unresolved policy-reconciliation follow-up. Completed gate status refers only to actual
+configured execution. No coverage threshold, production `src/` or `tools/` Python, or governing instruction file
+changed in ci-02. No introduced coverage regression has been demonstrated; without an independent base run, we do
+not claim that measured baseline coverage was unchanged.
+
+Review also clarified the core signature gate and cleanup, plus the post-acceptance OpenSpec archive command. All four
+unchanged core manifests passed strict verification; this workflow-only implementation changes no signed module assets.
+That check is not acceptance of the external documentation module source. The documentation lock still selects commit
+`2e095f1350fecb7e7eda0bcfba6bad89a6d82c88`, tree `8846ce1b47538ea78d600b7c82bfd2ccd1761ee2`, review bundle
+`0.50.0`. Its authenticated docs17 RED is evidence of the remaining behavior gaps, not final fixture acceptance.
+Verification of the exact accepted CI-signed replacement, its signed documentation fixture and frozen docs17 GREEN
+remain outstanding prerequisites for release PR #731. No such completed evidence is claimed here. Generated archive
+changes remain a post-merge action, preserving current proof.
