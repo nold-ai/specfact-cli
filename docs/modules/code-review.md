@@ -38,11 +38,19 @@ For bundle-deep command usage, keep the modules docs open alongside this core ha
 
 ## Prepare an external project runtime
 
-Code Review 0.50.0 discovers project configuration before dependency-sensitive capsule analysis. `runtime inspect --json` reports discovery without installing dependencies; `runtime prepare --json` exposes the preparation used by `review run` and returns an attachable descriptor.
+Code Review 0.50.0 discovers project configuration before dependency-sensitive capsule analysis.
+`runtime inspect --json` reports discovery without installing dependencies; `runtime prepare --json` exposes the
+preparation used by `review run` and returns an attachable descriptor.
 
-Use `specfact code review run --project-config PATH` to select an explicit project configuration, or `specfact code review run --project-runtime PATH` to attach a prepared descriptor. Conflicting environments require an explicit selection. Preparation support is Linux x86-64 on CPython 3.11, 3.12 and 3.13; Windows and macOS do not yet provide automatic capsule runtime handoff.
+Use `specfact code review run --project-config PATH` to select an explicit project configuration, or
+`specfact code review run --project-runtime PATH` to attach a prepared descriptor. Conflicting environments require
+an explicit selection. Preparation support is Linux x86-64 on CPython 3.11, 3.12 and 3.13; Windows and macOS do not yet
+provide automatic capsule runtime handoff.
 
-Configuration selection, supported package managers, isolated preparation, offline reuse and runtime evidence are specified in the canonical [Code Review run guide](https://modules.specfact.io/bundles/code-review/run/). These command references describe the reviewed 0.50.0 source surface; availability in a public installation depends on registry publication.
+Configuration selection, supported package managers, isolated preparation, offline reuse and runtime evidence are
+specified in the canonical [Code Review run guide](https://modules.specfact.io/bundles/code-review/run/). These
+command references describe the reviewed 0.50.0 source surface; availability in a public installation depends on
+registry publication.
 
 ## AI-shaped bloat advisories
 
