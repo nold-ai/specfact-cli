@@ -36,7 +36,6 @@ from specfact_cli.registry.marketplace_client import download_module
 from specfact_cli.registry.module_discovery import (
     MARKETPLACE_MODULES_ROOT as DISCOVERY_MARKETPLACE_MODULES_ROOT,
     USER_MODULES_ROOT as DISCOVERY_USER_MODULES_ROOT,
-    discover_all_modules,
 )
 from specfact_cli.registry.module_security import assert_module_allowed, ensure_publisher_trusted
 from specfact_cli.runtime import is_debug_mode
@@ -919,9 +918,10 @@ def _install_bundle_dependencies_for_module(module_id: str, ctx: _BundleDepsInst
             dependency.version_specifier,
         )
     try:
-        all_metas = [e.metadata for e in discover_all_modules()]
-        all_metas.append(ctx.metadata_obj)
-        resolved = resolve_dependencies(all_metas, allow_unvalidated=True)
+        # Discovery includes repository-controlled project modules. They remain
+        # available to diagnostics, but must never become pip execution input
+        # while installing this separately selected marketplace artifact.
+        resolved = resolve_dependencies([ctx.metadata_obj], allow_unvalidated=True)
     except DependencyConflictError as dep_err:
         if not ctx.force:
             raise ValueError(
@@ -1015,6 +1015,16 @@ def install_module(
             metadata, module_name, o.trust_non_official, o.non_interactive
         )
         metadata_obj = _metadata_obj_from_install_dict(metadata, manifest_module_name)
+
+        # Both pip resolution and recursive module installation can execute
+        # code. Establish artifact integrity before either side effect. Atomic
+        # placement verifies again to defend against staging-time mutation.
+        if not verify_module_artifact(
+            extracted_module_dir,
+            metadata_obj,
+            allow_unsigned=os.environ.get("SPECFACT_ALLOW_UNSIGNED", "").strip().lower() in {"1", "true", "yes"},
+        ):
+            raise ValueError("Downloaded module failed integrity verification")
 
         if not o.skip_deps:
             _install_bundle_dependencies_for_module(

