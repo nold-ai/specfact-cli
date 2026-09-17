@@ -1016,6 +1016,17 @@ def install_module(
         )
         metadata_obj = _metadata_obj_from_install_dict(metadata, manifest_module_name)
 
+        official_module = module_id.startswith("nold-ai/")
+        allow_unsigned = os.environ.get("SPECFACT_ALLOW_UNSIGNED", "").strip().lower() in {"1", "true", "yes"}
+        if not verify_module_artifact(
+            extracted_module_dir,
+            metadata_obj,
+            allow_unsigned=allow_unsigned and not official_module,
+            require_integrity=official_module,
+            require_signature=official_module,
+        ):
+            raise ValueError("Downloaded module failed integrity verification")
+
         if not o.skip_deps:
             _install_bundle_dependencies_for_module(
                 module_id,

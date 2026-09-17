@@ -66,9 +66,11 @@ Install workflow enforces integrity and compatibility checks:
 2. Download module archive
 3. Validate SHA-256 checksum
 4. Validate module `core_compatibility` against current CLI version
-5. Install into selected scope root (`~/.specfact/modules` or `<repo>/.specfact/modules`)
+5. Require signed integrity verification for official `nold-ai/*` modules
+6. Resolve module-declared dependencies only after artifact verification
+7. Install into selected scope root (`~/.specfact/modules` or `<repo>/.specfact/modules`)
 
-Checksum mismatch blocks installation.
+Checksum mismatch, missing official integrity metadata, or official signature failure blocks installation before dependency processing.
 
 **Namespace enforcement**:
 
