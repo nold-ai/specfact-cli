@@ -18,11 +18,13 @@ Module packages carry **publisher** and **integrity** metadata so installation, 
 - **Signature verification**: If `integrity.signature` is present and a public key is configured, signature validation proves provenance over the same full payload.
 - **Publisher trust gate**: Non-official publishers require one-time explicit trust (interactive confirmation or `--trust-non-official` / `SPECFACT_TRUST_NON_OFFICIAL`).
 - **Denylist gate**: Modules listed in denylist are blocked before install/bootstrap regardless of source.
+- **Project execution gate**: Repository-local modules discovered under `.specfact/modules` must have valid integrity metadata and a signature verified by trusted key material before their commands are registered. `SPECFACT_ALLOW_UNSIGNED=1` is an explicit local-development override; do not enable it for untrusted repositories or pull-request CI.
+- **Official bundle identity**: A manifest cannot become an official category command by copying a `bundle` value. Recognized bundles are mounted only for the matching canonical `nold-ai/<bundle>` module identity.
 
 ## Integrity flow
 
 1. Discovery reads `module-package.yaml` and parses `integrity.checksum`.
-2. At install/bootstrap/verification time, the tool hashes the full module payload and compares it to `integrity.checksum`.
+2. At install/bootstrap/verification time, the tool hashes the full module payload and compares it to `integrity.checksum`. Project-scoped command registration additionally requires a valid signature unless unsigned loading was explicitly enabled.
 3. On mismatch, the module is skipped and a security warning is logged.
 4. Other modules continue to register; one failing trust does not block the rest.
 
