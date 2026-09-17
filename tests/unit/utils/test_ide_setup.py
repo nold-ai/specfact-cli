@@ -11,6 +11,7 @@ from specfact_cli.utils.ide_setup import (
     PROMPT_SOURCE_CORE,
     SPECFACT_COMMANDS,
     _flat_export_glob_pattern_for_prune,
+    copy_prompts_by_source_to_ide,
     copy_templates_to_ide,
     create_vscode_settings,
     detect_ide,
@@ -261,6 +262,40 @@ class TestCopyTemplatesToIDE:
 
         assert any(path.name == "specfact.backlog-add.md" for path in copied_files)
         assert (tmp_path / ".cursor" / "commands" / "specfact.backlog-add.md").exists()
+
+    def test_copy_prompts_rejects_symlinked_export_root_without_external_mutation(self, tmp_path: Path) -> None:
+        """Repository-controlled export-root symlinks must not delete or write external content."""
+        repo_path = tmp_path / "repo"
+        repo_path.mkdir()
+        external = tmp_path / "external"
+        (external / "core").mkdir(parents=True)
+        sentinel = external / "core" / "sentinel.txt"
+        sentinel.write_text("keep", encoding="utf-8")
+        (repo_path / ".cursor").mkdir()
+        (repo_path / ".cursor" / "commands").symlink_to(external, target_is_directory=True)
+        template = tmp_path / "specfact.test.md"
+        template.write_text("---\ndescription: Test\n---\n# Test\n", encoding="utf-8")
+
+        with pytest.raises(ValueError, match="IDE export directory"):
+            copy_prompts_by_source_to_ide(repo_path, "cursor", {PROMPT_SOURCE_CORE: [template]}, force=True)
+
+        assert sentinel.read_text(encoding="utf-8") == "keep"
+        assert not (external / "specfact.test.md").exists()
+
+    def test_copy_prompts_preserves_unrelated_directory_in_safe_export_root(self, tmp_path: Path) -> None:
+        """Normal repository-contained exports leave team-owned directories intact."""
+        custom_file = tmp_path / ".cursor" / "commands" / "custom" / "team.md"
+        custom_file.parent.mkdir(parents=True)
+        custom_file.write_text("keep", encoding="utf-8")
+        template = tmp_path / "specfact.test.md"
+        template.write_text("---\ndescription: Test\n---\n# Test\n", encoding="utf-8")
+
+        copied, _settings = copy_prompts_by_source_to_ide(
+            tmp_path, "cursor", {PROMPT_SOURCE_CORE: [template]}, force=True
+        )
+
+        assert copied == [tmp_path / ".cursor" / "commands" / "specfact.test.md"]
+        assert custom_file.read_text(encoding="utf-8") == "keep"
 
 
 def test_discover_prompt_template_files_falls_back_to_repo_resources(
