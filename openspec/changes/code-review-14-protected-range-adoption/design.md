@@ -170,10 +170,15 @@ impact and a linked follow-up; there is no blanket deferral.
    verifier, lock and workflow, and briefly summarize observed failures.
 3. Implement the isolated verifier, protected context flow, staged-hook schema
    handling, and shadow envelope.
-4. Reference passing CI results. Publish the authenticated verifier first,
-   then promote shadow to warning and enforcement through reviewed rollout
-   decisions; no historical development checkpoints are required.
-5. Publish a core release after final signed module/core immutable smoke.
+4. Reference passing candidate CI results, integrate the reviewed implementation
+   into `dev`, and promote through a reviewed PR to protected `main` under the
+   effective gates. The unpublished verifier cannot authorize its own integration.
+5. After final signed module/core immutable smoke, use the existing main release
+   workflow to publish the core release and select/authenticate the integrated
+   verifier from its approved immutable base or release.
+6. Only then promote trusted shadow to warning and enforcement through reviewed
+   rollout decisions. Hand the released C14 contract to #679; no historical
+   development checkpoints or candidate-authorized bootstrap are required.
 
 ## Open Questions
 

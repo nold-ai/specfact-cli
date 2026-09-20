@@ -257,7 +257,7 @@ and requires a complete rerun.
 
 ### Wave 4 - AI IDE validation loop
 
-- `ai-integration-01-agent-skill` after the signed preflight workflow exists.
+- `ai-integration-01-agent-skill` uses bounded module-owned descriptor/asset fixtures; optional preflight assets are integrated only after their own signed release.
 - `ai-integration-03-instruction-files` after canonical installation/export is released.
 - Dogfooding slice: run review on a real repo, emit JSON evidence, identify
   AI-bloat findings, hand remediation packets to an AI IDE, rerun review, and
@@ -275,9 +275,9 @@ and requires a complete rerun.
   `openspec-01`; it blocks the paired modules command/persistence patch.
 - `architecture-02`, `telemetry-01`, and `ai-integration-02` only after pull
   from the validation loop exists.
-- core/modules `preflight-05` after the signed #432 handoff and before generic
-  installation/instructions; modules `preflight-04-harness-adapters` only after
-  #253 and the signed #434 checkpoint/conformance handoff.
+- core/modules `preflight-05` after the signed #432 handoff, independently of
+  generic installation/instructions. Optional modules `preflight-04-harness-adapters`
+  require both #253 and the signed #434 checkpoint/conformance handoff.
 
 ## Wave exit gates
 
@@ -294,7 +294,8 @@ A wave is complete only when all listed criteria are auditable:
 - **Wave 5**: External planning artifacts are consumed as inputs. They are not
   positioned as workflows SpecFact replaces.
 - **Preflight sequence**: Exact C14 dogfood evidence produces a bounded go/no-go
-  decision; stable publication and downstream installation stay blocked on no-go.
+  decision; no-go blocks that optional preflight publication and its assets/adapters,
+  never generic #251/#253 delivery, C14/C15 or native review.
 
 ## Ownership authority
 

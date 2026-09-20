@@ -20,7 +20,7 @@ All tasks below are future implementation work. This planning change completes n
 
 - [ ] 2.1 Finalize the delta scenarios and exact public interface names for role-classified scope, component ownership, per-input influence/no-impact disposition, risk disposition, execution stages, and Requirements-plan references without widening into CLI, persistence, validators, skills, or adapters.
 - [ ] 2.2 Add tests mapped to every contract, influence/no-impact completeness, risk-matrix, planned-to-test-authored Requirements lifecycle, selector reconciliation, implementation-lineage/predecessor seal and monotonic sequence, canonicalization, seal, and verifier scenario.
-- [ ] 2.3 Run the targeted tests before production edits, capture expected failures, and create `TDD_EVIDENCE.md` with the red evidence.
+- [ ] 2.3 Run targeted tests before production edits and summarize meaningful failures briefly using existing local or CI output; no authored TDD ledger is required under the effective lean policy.
 
 ## 3. Minimal core implementation
 
@@ -33,10 +33,10 @@ All tasks below are future implementation work. This planning change completes n
 - [ ] 4.1 Re-run mapped tests and capture passing evidence after implementation.
 - [ ] 4.2 Run required format, type, lint, contract, smart-test, test, and SpecFact code-review gates for the touched scope; resolve all findings.
 - [ ] 4.3 Run `openspec status --change preflight-01-design-contract-core --json` and `openspec validate preflight-01-design-contract-core --strict`.
-- [ ] 4.4 Update documentation and `TDD_EVIDENCE.md` only with observed commands and results.
+- [ ] 4.4 Update documentation and concise validation notes only with observed commands and results.
 
 ## 5. Delivery and post-merge cleanup
 
-- [ ] 5.1 Reconfirm the diff contains only issue-approved scope and that downstream modules contracts reference the released core interface identity.
-- [ ] 5.2 Open the implementation PR to `dev` as the final pre-merge task, linking the issue and evidence.
+- [ ] 5.1 Reconfirm issue-approved scope and prepare the downstream interface handoff against the candidate; do not claim it is released yet.
+- [ ] 5.2 Open and integrate the reviewed implementation PR to `dev`, then promote through protected `main` and publish the core interface through the existing release workflow after required checks.
 - [ ] 5.3 Before archive, verify the released core identity was handed to modules #431 and that modules-owned signing/publication remains assigned to #432; then, from the repository root after merge, run `openspec archive preflight-01-design-contract-core`, update ordering/source mirrors, and remove the dedicated worktree and merged branch.

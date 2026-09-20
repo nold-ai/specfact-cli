@@ -12,11 +12,11 @@ The preflight loop should not be stabilized or distributed based only on its own
 
 ## What Changes
 
-- **NEW**: A core-owned dogfood evidence protocol for running the exact modules preflight loop against the current C14 core adoption change before implementation or further scope changes.
+- **NEW**: A core-owned dogfood evidence protocol for running the exact modules preflight loop against an immutable C14 planning snapshot after independent C14 delivery, replaying the pre-implementation review without gating that delivery.
 - **NEW**: Before/after records for input identities, findings, user-approved refinements, reruns, approval state, seal verification, elapsed operator steps, and false-positive/false-negative observations.
 - **NEW**: Readiness criteria that distinguish contract defects, runtime defects, source-artifact defects, and documentation/instruction defects.
 - **NEW**: A decision record that either authorizes evidence-backed modules hardening or blocks it with reproducible findings.
-- **CLARIFY**: Dogfood may propose refinements to C14 artifacts, but only the C14 owner may authorize and apply them in its dedicated issue-linked session.
+- **CLARIFY**: Dogfood may propose owner-authorized fixture refinements; real C14 defects require separately scoped follow-ups, without rewriting shipped planning history.
 
 ## Capabilities
 
@@ -38,7 +38,7 @@ The preflight loop should not be stabilized or distributed based only on its own
 
 - Parent Feature: core [#681](https://github.com/nold-ai/specfact-cli/issues/681).
 - Upstream prerequisites are core `preflight-01-design-contract-core` [#682](https://github.com/nold-ai/specfact-cli/issues/682) and modules `preflight-02-assurance-runtime` [#431](https://github.com/nold-ai/specfact-cli-modules/issues/431).
-- Blocked by core C14 adoption [#680](https://github.com/nold-ai/specfact-cli/issues/680), which consumes those prerequisites in the ordering recorded by `openspec/CHANGE_ORDER.md`; operators verify the exact issue identities and native blocker readback before dogfood.
+- Blocked by core C14 adoption [#680](https://github.com/nold-ai/specfact-cli/issues/680), delivered independently of #431; #683 requires both the C14 snapshot and the #431 runtime. Operators verify both native prerequisites before dogfood.
 - Blocks the paired modules `preflight-03-dogfood-hardening-and-release` story [#432](https://github.com/nold-ai/specfact-cli-modules/issues/432).
 
 ## Explicit Non-Goals

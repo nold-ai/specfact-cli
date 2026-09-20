@@ -18,7 +18,7 @@ Implementation discipline: use focused regression/reproduction and current-run r
 
 - [ ] 2.1 Finalize `specs/` deltas for all listed capabilities and cross-check scenario completeness.
 - [ ] 2.2 Add/update tests mapped to new and modified scenarios.
-- [ ] 2.3 Run targeted tests to capture failing-first behavior and record results in `TDD_EVIDENCE.md`.
+- [ ] 2.3 Run targeted tests before behavior edits and summarize relevant failures and subsequent passes in concise validation notes with existing local or CI references; no authored TDD ledger is required under the effective lean policy.
 
 ## 3. Implementation
 

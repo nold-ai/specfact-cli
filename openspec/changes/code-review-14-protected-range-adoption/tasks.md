@@ -8,11 +8,11 @@ This owner-requested planning amendment supersedes conflicting development-workf
 
 ## 1. Readiness and compatible signed identity
 
-- [x] 1.1 Create `feature/code-review-14-protected-range-adoption` from current `origin/dev` in a dedicated worktree.
-- [x] 1.2 Create and verify public core issue #680: User Story; parent #375; required labels; SpecFact CLI/Todo; assignee `djm81`; no unresolved upstream blocker; native blocker of #679; no concurrent implementation.
+- [ ] 1.1 At implementation start, create or verify the dedicated issue-linked worktree against current `origin/dev`; recovery-era worktree creation does not establish current ownership.
+- [ ] 1.2 Refresh and read back existing core #680 at implementation start: parent #375, User Story type, labels, assignee, project/status, actual prerequisites, downstream #679 relationship and current ownership. Resolve concurrent implementation before proceeding; retain signed producer/runtime prerequisites without restoring optional preflight #431.
 - [ ] 1.3 Select a signed C14-capable publication compatible with current core; verify packaged commit/tree, archive/signature/checksums and schema matrix. Treat the original `0.49.46` / `===0.55.1` pair as historical. Obtain a fresh signed publication if no compatible one exists.
 - [x] 1.4 Update the matching internal-wiki source, correct C14/C15 dependency links, and rebuild its graph.
-- [x] 1.5 Run `openspec validate code-review-14-protected-range-adoption --strict` before tests or production edits.
+- [ ] 1.5 Revalidate current scope and run `openspec validate code-review-14-protected-range-adoption --strict` before tests or production edits; the recovery validation is historical.
 
 ## 2. Named regression tests
 
@@ -43,19 +43,23 @@ This owner-requested planning amendment supersedes conflicting development-workf
 - [ ] 3.4 Update `scripts/pre_commit_code_review.py` only for schema 1.6 authoritative status/exit parsing; keep staged positional files and no PR authority.
 - [ ] 3.5 Stop and amend/revalidate the proposal before touching any other production path.
 
-## 4. Passing evidence and rollout
+## 4. Candidate verification
 
 - [ ] 4.1 Run the named regression tests against the candidate and reference the passing CI results.
 - [ ] 4.2 Run workflow policy tests, contracts, type, lint, focused/full tests as required, registry integrity, signature verification, and strict OpenSpec validation.
 - [ ] 4.3 Run SpecFact Code Review over the explicit base/head range and triage every finding: fix introduced/relevant defects, explain false positives, and obtain an individual documented exception with impact and linked follow-up for any real deferred finding.
-- [ ] 4.4 Run the compatibility matrix against the exact signed module and core release identity on supported Python versions.
-- [ ] 4.5 Publish/authenticate the verifier in the trusted source before enforcement; roll out shadow, warning, then enforce using current results and reviewed rollout decisions.
-- [ ] 4.6 Update version/changelog/operator guidance and publish a new core release only after final immutable smoke.
-- [ ] 4.7 Unblock the downstream C15 adoption issue #679 after the C14 core release is available.
+- [ ] 4.4 Run the compatibility matrix against the exact signed module and candidate core build identity on supported Python versions.
+- [ ] 4.5 Prepare version/changelog/operator guidance and reviewed rollout/rollback configuration; the unpublished candidate verifier cannot authorize its own integration.
 
-## 5. Delivery and cleanup
+## 5. Reviewed integration, publication and rollout
 
-- [ ] 5.1 Commit, push, and open a PR to `dev` with issue and OpenSpec references.
-- [ ] 5.2 Merge only after required gates and branch-protection checks pass.
-- [ ] 5.3 Archive with `openspec archive code-review-14-protected-range-adoption` after merge completion.
-- [ ] 5.4 Remove the worktree and prune the feature branch only after merge.
+- [ ] 5.1 Commit, push, and open the implementation PR to `dev` with issue and OpenSpec references.
+- [ ] 5.2 Integrate into `dev`, then promote through a reviewed PR to protected `main`, satisfying the effective required gates. Do not require the new verifier gate before its trusted source exists or substitute a candidate verifier for that source.
+- [ ] 5.3 Run final immutable module/core smoke and publish the core release through the existing protected-main release workflow. Select/authenticate the integrated verifier from the approved immutable base or release before enabling enforcement.
+- [ ] 5.4 Run trusted shadow, warning, then enforcement using current results and reviewed rollout decisions; preserve `FAIL`/`UNKNOWN` semantics throughout.
+- [ ] 5.5 Unblock downstream C15 adoption #679 only after the compatible C14 core release and required protected-consumer handoff are available.
+
+## 6. Cleanup
+
+- [ ] 6.1 Archive with `openspec archive code-review-14-protected-range-adoption` after completed integration and release handoff.
+- [ ] 6.2 Remove the worktree and prune the feature branch only after merge.

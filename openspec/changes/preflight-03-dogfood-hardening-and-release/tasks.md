@@ -20,13 +20,13 @@ All tasks below are future dogfood work. This planning change completes none of 
 
 - [ ] 2.1 Finalize the C14 dogfood protocol, expected-risk inventory, defect classes, evidence schema, and readiness thresholds before running the tool.
 - [ ] 2.2 Add protocol/fixture tests for evidence completeness, stale identity rejection, classification, and decision aggregation.
-- [ ] 2.3 Run those tests before any behavior edit, capture failing-first evidence, and create `TDD_EVIDENCE.md` only if implementation support is required.
+- [ ] 2.3 Run those tests before any behavior edit and summarize meaningful failures briefly using existing local or CI results; no authored TDD ledger is required under the effective lean policy.
 
 ## 3. Read-only C14 dogfood and approved refinement
 
-- [ ] 3.1 Capture the immutable starting C14/OpenSpec/GitHub/repository snapshot without editing the existing C14 worktree.
+- [ ] 3.1 Capture the delivered C14 planning snapshot for read-only pre-implementation review replay; never edit shipped history or make #680 wait for dogfood.
 - [ ] 3.2 Run the exact installed preflight loop and retain normalized result identities plus human output.
-- [ ] 3.3 Classify every observation and present exact source-owned refinements to the C14 owner.
+- [ ] 3.3 Classify every observation and present fixture corrections or separately scoped product follow-ups to the C14 owner.
 - [ ] 3.4 After any separately authorized refinement, capture a new snapshot and rerun the complete loop; never reuse prior approval.
 
 ## 4. Readiness decision and verification

@@ -11,7 +11,7 @@ This owner-requested scope amendment takes precedence over conflicting default-w
 These assurance obligations SHALL apply only when an explicitly selected
 preflight assurance policy requests them; they SHALL NOT gate ordinary MEB delivery.
 
-The dogfood protocol SHALL run the exact preflight workflow against core C14 issue #680 and its current proposal artifacts using recorded repository, issue, dependency, validator, and source identities.
+The dogfood protocol SHALL run the exact preflight workflow against core C14 issue #680 and an immutable planning snapshot after its independent delivery using recorded repository, issue, dependency, validator, and source identities.
 
 #### Scenario: Ordinary delivery has not selected preflight assurance
 
@@ -22,14 +22,14 @@ The dogfood protocol SHALL run the exact preflight workflow against core C14 iss
 
 #### Scenario: Initial dogfood snapshot is captured
 
-- **GIVEN** C14 is ready for a pre-implementation review and no concurrent ownership ambiguity exists
+- **GIVEN** C14 has been independently delivered and its immutable planning snapshot is selected for review replay without concurrent ownership ambiguity
 - **WHEN** dogfood begins
 - **THEN** the starting source identities and expected-risk inventory are recorded before refinement
 - **AND** the C14 implementation worktree is not modified by the dogfood setup.
 
 ### Requirement: User-authorized refinement only
 
-The dogfood protocol SHALL separate tool findings from source changes and SHALL require the owning user/session to authorize every material refinement.
+The dogfood protocol SHALL separate tool findings from source changes and SHALL require the owning user/session to authorize every material refinement. Replay refinements SHALL change only the selected fixture; real product corrections require separately scoped follow-ups and SHALL NOT rewrite shipped C14 history.
 
 #### Scenario: Finding requires C14 scope clarification
 
@@ -40,7 +40,7 @@ The dogfood protocol SHALL separate tool findings from source changes and SHALL 
 
 #### Scenario: Authorized C14 artifact changes
 
-- **GIVEN** the C14 owner applies an approved refinement
+- **GIVEN** the C14 owner authorizes a refinement of the selected replay fixture
 - **WHEN** dogfood resumes
 - **THEN** all prior readiness and approval state is discarded
 - **AND** a new snapshot and complete validator run are required.

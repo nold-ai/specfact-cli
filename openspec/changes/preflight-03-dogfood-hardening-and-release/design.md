@@ -27,7 +27,7 @@ Core C14 adoption is a useful first dogfood subject because it is cross-reposito
 
 ### 1. C14 is the first mandatory target
 
-The protocol runs against the current accepted core C14 change and linked issue #680 using immutable repository and GitHub identities. It records the starting artifacts before any authorized refinement. Existing C14/C15 worktrees remain untouched by this planning setup; future dogfood occurs only in the C14 owner session or a read-only snapshot.
+The protocol replays an immutable C14 planning snapshot after independent C14 delivery, using recorded repository and issue #680 identities. It records starting artifacts before authorized fixture refinements. Shipped C14 history and existing C14/C15 worktrees remain untouched; a real product defect requires a separately scoped owner-authorized follow-up, never retroactive preflight gating.
 
 ### 2. Evidence separates four defect owners
 
