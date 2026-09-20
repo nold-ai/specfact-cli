@@ -4,14 +4,6 @@ This document is the **single source of truth for active work** in this
 repository. It lists what is in flight, what is paused, and the order in which
 active changes should be implemented.
 
-## Bounded turn workflow (2026-09-20)
-
-`workflow-01-turn-orchestration` pairs [core #742](https://github.com/nold-ai/specfact-cli/issues/742) with [modules #483](https://github.com/nold-ai/specfact-cli-modules/issues/483). Both are planning/Todo. Core owns repository check-only adoption and canonical wrapper projection; modules owns the reusable runtime, producer adapters, local progress and bounded loops.
-
-Native release dependencies: modules #481 -> modules #483 -> core #742 runtime adoption. Repository projection and standalone adapter development can proceed independently. R09 #740 retains its own policy cutover; C15-specific consumption retains its own signed policy readiness. Optional preflight, full-chain graph, parked findings taxonomy and generic #251/#253 installation are related, not blanket prerequisites. No workflow receipt becomes mandatory historical delivery evidence or protected CI authority.
-
-Delivery slices: projection -> signed deterministic pre-validation/verification -> bounded local repair -> opt-in local PR automation. Verification preserves source/index contents and independent gate outcomes. Implementation uses effective governance or an explicit owner-authorized exception. Publish through normal reviewed integration and the canonical signed release path before stable downstream adoption.
-
 ## Minimal-evidence rescope (2026-09-20)
 
 The paired `requirements-09-minimal-evidence` owns the default policy correction:
@@ -50,7 +42,7 @@ Recovered from uncommitted proposal-only feature worktrees into local `dev`; rem
 
 | Bucket | Count | Location |
 |---|---:|---|
-| **Active-tree entries** | 39 | [`openspec/changes/`](changes/) |
+| **Active-tree entries** | 38 | [`openspec/changes/`](changes/) |
 | **Parking-lot entries** | 21 | [`openspec/parking-lot/`](parking-lot/) |
 | **Archived** | 120 | [`openspec/changes/archive/`](changes/archive/) |
 

@@ -4,14 +4,6 @@ This document is the living ownership contract for active SpecFact OpenSpec
 changes. It exists to keep parallel roadmap work aligned without creating a
 separate product feature for integration governance.
 
-## Ordinary workflow ownership
-
-- Paired `workflow-01-turn-orchestration` assigns reusable `specfact workflow` execution, bundled workflow skills, producer adapters and disposable local receipts to modules #483; core #742 owns repository settings, check-only gate adapters, thin wrapper projection and signed adoption/pilot.
-- This unsealed ordinary path does not replace optional preflight/checkpoint/conformance. Seal-bound behavior stays with its existing owners and applies only on explicit assurance selection.
-- R09 owns current-run Requirements claims; its module reconciler remains free of Git/test/network execution. Governance owns durable evidence envelopes, traceability owns artifact semantics, and C15 owns calibrated review policy. A workflow findings projection preserves original producer identities/outcomes and cannot fuse verdicts or silently extend ReviewReport.
-- Standalone verify and ordinary CI require no prior local receipts. Local progress cannot authenticate itself for protected CI. Generic #251/#253 still owns customer installation/export and general generated references; repository wrapper projection is a separate development convenience.
-- Release direction is modules #481 -> workflow modules #483 -> core #742 runtime adoption. Independent projection has no signed-runtime prerequisite. Related optional assurance/graph/findings work is not a blanket blocker.
-
 ## Positioning
 
 SpecFact is the local validation and AI-bloat defense CLI. Active changes SHALL

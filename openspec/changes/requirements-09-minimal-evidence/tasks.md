@@ -18,7 +18,7 @@ Planning only; all implementation tasks remain unchecked. Each numbered task is 
 - [ ] 2.2 Add ordinary PR, documentation, dependency, fork and dev-to-main cases that need no retained RED, frozen mapping or authority comment; retain the real #737/#738 acceptance and authentication controls.
 - [ ] 2.3 Add independent-verdict and module report compatibility cases; use current fixture data without copying historical logs into Git.
 
-- [ ] 2.4 Add consumer-boundary cases for fresh-session current reconciliation, rejected local authority and independent failed/unknown producer results; keep workflow #483 downstream and executor I/O outside this reconciler.
+- [ ] 2.4 Add consumer-boundary cases for fresh-session current reconciliation, rejected local authority and independent failed/unknown producer results; keep executor I/O outside this reconciler.
 
 ## 3. Implement lean delivery
 
