@@ -16,14 +16,14 @@ Implementation discipline: use focused regression/reproduction and current-run r
 
 ## 2. Test-first and failing evidence
 
-- [ ] 2.1 Add integration tests covering review -> evidence -> remediation packet -> rerun comparison.
-- [ ] 2.2 Run tests expecting initial failure and capture in `TDD_EVIDENCE.md`.
+- [ ] 2.1 Add integration cases for ordinary review -> existing CI evidence -> remediation -> rerun comparison without full-chain/RED requirements; separately retain missing-link failures for explicitly selected full-chain experiments.
+- [ ] 2.2 Observe relevant regression failures before implementation and summarize them briefly; retain detailed output in ordinary CI artifacts.
 - [ ] 2.3 Add validation checks for evidence schema, AI-bloat findings, remediation packet references, and rerun deltas.
 
 ## 3. Implementation and verification
 
-- [ ] 3.1 Implement the minimal proof harness required to run the AI-bloat defense loop.
-- [ ] 3.2 Generate JSON evidence, cleanup forecasts, remediation packets, and rerun comparison artifacts.
+- [ ] 3.1 Implement the bounded validation loop using existing CI outputs; require full-chain link evidence only when that experiment is explicitly selected.
+- [ ] 3.2 Reuse JSON outputs, remediation packets and rerun artifacts; summarize detected regressions and operational overhead.
 - [ ] 3.3 Re-run tests and quality gates until all proof scenarios pass.
 
 ## 4. Delivery

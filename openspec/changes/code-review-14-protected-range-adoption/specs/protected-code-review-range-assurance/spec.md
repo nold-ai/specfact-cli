@@ -67,6 +67,30 @@ workflow, job, and artifact identities.
 - **THEN** the effective assurance status is `UNKNOWN`
 - **AND** candidate input cannot authorize or promote itself.
 
+### Requirement: Verifier execution SHALL use independently selected trusted code
+
+Protected workflow policy SHALL select the verifier, imports/dependencies,
+configuration and trust roots from an authenticated immutable base revision or
+approved release. It SHALL execute outside candidate-controlled paths in a
+separate trusted job. Candidate code SHALL NOT run with signing or repository
+write credentials. Candidate workflow and fixture-lock edits SHALL NOT select
+or replace approval authority. A trusted verifier publication SHALL precede
+enforcement; its absence SHALL produce `UNKNOWN`, not candidate fallback.
+
+#### Scenario: Candidate replaces verifier or its authority inputs
+
+- **GIVEN** a candidate edits the verifier, its imports, workflow or fixture lock
+- **WHEN** protected verification runs
+- **THEN** it uses the independently authorized code and trust roots
+- **AND** candidate edits cannot turn rejected evidence into effective `pr_range`.
+
+#### Scenario: Trusted revision does not yet contain the verifier
+
+- **GIVEN** the independently selected trusted revision lacks the verifier
+- **WHEN** protected verification is requested
+- **THEN** it reports `UNKNOWN` and does not execute the candidate copy
+- **AND** enforce mode cannot succeed.
+
 ### Requirement: Protected workflow SHALL provide canonical trusted context
 
 The protected PR workflow SHALL write canonical context under the runner

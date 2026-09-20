@@ -8,11 +8,29 @@ This owner-requested scope amendment takes precedence over conflicting default-w
 
 ### Requirement: Compact preflight gate instructions
 
-Generated instruction sections SHALL reference the installed canonical preflight workflow and SHALL state selection, approval, stale/unknown/blocking stop, owner-authorized refinement, and rerun requirements without embedding validator logic.
+Generated sections SHALL select/validate the intended change and reference
+current tests and available installed validation commands. They SHALL add
+preflight, approved-seal, stale/unknown/blocking stops, owner-authorized
+refinement and rerun requirements only when explicit assurance policy selects
+the installed optional capability. They SHALL NOT embed validator logic.
+
+#### Scenario: Ordinary generation needs no optional assurance capability
+
+- **GIVEN** ordinary MEB policy and no preflight installation
+- **WHEN** instructions are generated
+- **THEN** they reference change validation and current tests without a seal gate
+- **AND** the missing optional capability does not block generation.
+
+#### Scenario: Selected assurance capability is unavailable
+
+- **GIVEN** an explicit policy requires preflight and its capability is not installed
+- **WHEN** instruction generation is requested
+- **THEN** it reports the missing capability and setup path
+- **AND** it does not silently downgrade the selected assurance policy.
 
 #### Scenario: AGENTS.md section is generated
 
-- **GIVEN** a verified `specfact-preflight` skill installation and a supported AGENTS.md target
+- **GIVEN** explicit assurance policy, a verified `specfact-preflight` installation and a supported AGENTS.md target
 - **WHEN** instruction generation is approved
 - **THEN** the managed section references the verified harness-native invocation
 - **AND** the section does not copy the full skill or Python validation rules.
@@ -37,22 +55,22 @@ Instruction generation SHALL update only a bounded owned section identified by s
 
 ### Requirement: OpenSpec pre-apply ordering
 
-For an OpenSpec project, generated instructions SHALL require proposal artifacts and strict validation followed by the installed preflight workflow before any apply/implementation command.
+For an OpenSpec project, instructions SHALL require proposal artifacts and strict validation before implementation. Only explicitly selected assurance policy SHALL add the installed preflight workflow and seal approval before apply.
 
 #### Scenario: Agent prepares to run OpenSpec apply
 
-- **GIVEN** proposal, specs, design, and tasks are ready
+- **GIVEN** proposal, specs, design and tasks are ready and explicit assurance policy selects installed preflight
 - **WHEN** the agent reaches `/opsx:apply`, `/openspec:apply`, or the harness-equivalent implementation step
 - **THEN** it first requires a current approved preflight seal
 - **AND** blocked, unknown, stale, or unapproved results return to the owning planning artifact.
 
 ### Requirement: Spec Kit pre-implement ordering
 
-For a Spec Kit project, generated instructions SHALL place the installed preflight workflow after the applicable specify/clarify/plan/checklist/tasks/analyze quality loop and before implementation.
+For a Spec Kit project, instructions SHALL preserve the applicable specify/clarify/plan/checklist/tasks/analyze quality loop. Only explicitly selected assurance policy SHALL add installed preflight and approval before implementation.
 
 #### Scenario: Agent prepares to run Spec Kit implement
 
-- **GIVEN** the selected feature has completed its required planning and analysis commands
+- **GIVEN** explicit assurance policy selects installed preflight and the feature has completed its required planning and analysis commands
 - **WHEN** the agent reaches `/speckit.implement` or the harness-equivalent form
 - **THEN** it first requires current preflight approval
 - **AND** findings route back to specify/clarify, plan, or tasks according to the owning artifact.

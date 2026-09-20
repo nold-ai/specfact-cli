@@ -33,7 +33,9 @@ Update contributor governance and Requirements/CI reference documentation at imp
 
 ## Dependencies and rollout
 
-Product handoff: modules #481 signed release -> core adoption/pilot -> coordinated dev/main and organization policy cutover -> obsolete default-path removal. Governance preparation does not wait for a new runtime release. Neither new story depends on the preflight or full-chain graph roadmap.
+Product handoff: modules #481 signed release -> core adoption/pilot -> coordinated dev/main and organization policy cutover -> obsolete default-path removal. Governance preparation does not wait for a new runtime release: update and review
+agent rules, templates and contributor guidance before behavior tests or code.
+Runtime enforcement changes remain coordinated with the verified pilot. Neither new story depends on the preflight or full-chain graph roadmap.
 
 Core #662 becomes replacement-reconciliation tracking; do not implement its old R07 tasks independently. See [dependency review](DEPENDENCY_REVIEW.md) for all open issues and change dispositions, including recovered C14/C15 proposals and the distinction between shipped modules C14 and pending core adoption.
 

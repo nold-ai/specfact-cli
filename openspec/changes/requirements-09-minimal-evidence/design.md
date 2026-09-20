@@ -24,7 +24,9 @@ Modules add `current` as the default reconciliation stage; explicit legacy `red`
 
 ## Bootstrap and rollout
 
-Do not make the migration prove the historical process it removes. Implement and review regression tests under existing code/security checks; use the owner-authorized MEB scope for these changes. If the old required authority gate prevents integration, prepare and review the exact organization/core policy change first and apply the coordinated policy cutover as an explicit migration step. Never add a per-PR bypass or unconditional success job.
+First update and review contributor governance, agent rules, templates and
+pre-commit guidance under the owner-authorized MEB migration, before behavior
+tests or code. Do not make the migration prove the historical process it removes. Implement and review regression tests under existing code/security checks; use the owner-authorized MEB scope for these changes. If the old required authority gate prevents integration, prepare and review the exact organization/core policy change first and apply the coordinated policy cutover as an explicit migration step. Never add a per-PR bypass or unconditional success job.
 
 Run the replacement non-blocking on representative ordinary, bugfix, executable-doc, dependency, fork, and promotion candidates. Verify current checks and trust boundaries before switching both repository and organization enforcement. Do not leave duplicate old/new test execution running for every PR after cutover.
 

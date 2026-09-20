@@ -12,13 +12,18 @@ workflow event or promote itself to `pr_range`. Core owns that separate trust
 decision because core controls the protected checkout, event payload, workflow
 identity, immutable modules fixture, and required check.
 
-The accepted handoff is the canonical signed modules publication merged by
+The historical handoff was the signed modules publication merged by
 modules PR #419 at commit `6a0d0b31` (tree
 `0531325d68ae21f75abda01ce8968f92ba1b6d06`), containing
 `specfact-code-review` `0.49.46` with strict core compatibility `===0.55.1`.
 The module was developed and smoked against core tag `v0.55.1`, commit
 `b1e517e60e669eaba15a18ecfa83ef5a9df65276`, tree
 `47984be5434d7ae65ed6908bf525a32053290337`.
+
+For current adoption, select and authenticate a signed C14-capable publication
+whose declared compatibility includes the actual core candidate, then verify
+the exact packaged pair. The historical strict pin must not be reused on a
+different core version. Request a fresh signed publication if necessary.
 
 ## Goals / Non-Goals
 
@@ -51,6 +56,19 @@ Core adds one verifier entry point that reads the immutable producer report,
 the freshly written protected context, the signed module/profile identities,
 and independently derived repository facts. It does not import producer
 selection helpers or accept producer-derived expected values as authority.
+
+Protected workflow policy selects an authenticated immutable base revision or
+approved release for the verifier, its imports/dependencies, configuration and
+trust roots. Execute it outside the candidate checkout/import path in a
+separate trusted job that consumes bounded candidate artifacts as data.
+Candidate workflow edits, verifier edits and `ci/module-fixture.lock.json`
+cannot choose approval authority. Do not run candidate code with repository
+write or signing credentials. Runner-temp context alone is not isolation.
+
+Publish and authenticate the verifier in the trusted source before enforcement.
+If that revision lacks the verifier, report `UNKNOWN`; never fall back to the
+candidate copy. The existing organization-required workflow invocation policy
+may need a bounded coordinated change to enforce this source selection.
 
 The verifier emits a separate core-owned envelope. It never edits or replaces
 the producer report.
@@ -114,9 +132,11 @@ PASS. Rollback changes only the enforcement phase and retains artifacts.
 
 The proposal's named production, test, documentation, and release paths are the
 default maximum implementation surface. Any additional path requires an
-explicit proposal update, a named failing test, strict revalidation, and review
+explicit proposal update, a relevant acceptance case, strict revalidation, and review
 of whether the work belongs to C15 or another follow-up. Generic cleanup and
-valid-but-unrelated review findings do not expand C14.
+valid-but-unrelated review findings do not expand C14 automatically. Each finding
+receives a fix, reasoned rejection, or individually approved exception with
+impact and a linked follow-up; there is no blanket deferral.
 
 ## Risks / Trade-offs
 
@@ -124,25 +144,27 @@ valid-but-unrelated review findings do not expand C14.
   the frozen matrix. Mitigation: pin commit/tree/checksums and rerun immutable
   smoke before release; update through a reviewed spec amendment.
 - **Workflow context spoofing**: candidate-controlled files could impersonate
-  event data. Mitigation: write canonical context in runner temp after checkout
-  and bind protected provenance in the verifier envelope.
+  event data or replace the verifier. Mitigation: independently select trusted
+  verifier code and roots, isolate execution from candidate code, and bind
+  canonical context and protected provenance in the envelope.
 - **Verifier/producer correlated logic**: importing producer helpers could make
   equality checks circular. Mitigation: independently derive the closed
   manifests with core-owned code and compare only serialized evidence.
 - **Scope creep**: general trust-framework refactors could make review
-  unbounded. Mitigation: enforce the file/test allowlist and defer unmatched
-  findings.
+  unbounded. Mitigation: use the file/test allowlist and individually triage unmatched
+  findings under the exception policy.
 
 ## Migration Plan
 
 1. Pin and verify the signed modules C14 publication and exact compatibility
    matrix.
-2. Add the named failing verifier and workflow tests and record the red
-   checkpoint.
+2. Add focused verifier/workflow regressions, including candidate edits to the
+   verifier, lock and workflow, and briefly summarize observed failures.
 3. Implement the isolated verifier, protected context flow, staged-hook schema
    handling, and shadow envelope.
-4. Record passing evidence, then promote shadow to warning and enforcement only
-   through explicit reviewed checkpoints.
+4. Reference passing CI results. Publish the authenticated verifier first,
+   then promote shadow to warning and enforcement through reviewed rollout
+   decisions; no historical development checkpoints are required.
 5. Publish a core release after final signed module/core immutable smoke.
 
 ## Open Questions

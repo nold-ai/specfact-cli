@@ -29,7 +29,7 @@ All tasks below are future implementation work. This planning change completes n
   path; checkpoint-subset and exhaustive final-obligation closure; protected-CI producer authorization and exact-range
   provenance; finding-class/precedence, including the reconciled semantic `violated` scenario; stale-seal; evidence; and
   assurance-limit scenarios.
-- [ ] 2.3 Run targeted tests before production edits and record failing-first results in a newly created `TDD_EVIDENCE.md`.
+- [ ] 2.3 Run relevant regression tests before production edits, summarize meaningful failures briefly, and reference ordinary CI artifacts where available; no authored TDD ledger is required.
 
 ## 3. Minimal core implementation
 
@@ -47,6 +47,6 @@ All tasks below are future implementation work. This planning change completes n
 
 ## 5. Delivery and post-merge cleanup
 
-- [ ] 5.1 Hand the exact released core implementation-assurance interface identity to paired modules #434 before #251/#253/#433 begin.
+- [ ] 5.1 Hand the exact released core implementation-assurance interface identity to paired modules #434. Optional adapters #433 require both its signed release and core #253; generic #251/#253 do not wait for this handoff.
 - [ ] 5.2 Open the implementation PR to `dev` as the final pre-merge task, linking the paired modules issue and evidence.
 - [ ] 5.3 Before archive, verify the released core identity was handed to modules #434 and that modules-owned signing/stable publication remains assigned there; then, from the repository root after merge, run `openspec archive preflight-05-implementation-conformance`, update ordering/source mirrors, and remove the dedicated worktree and merged branch.

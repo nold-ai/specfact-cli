@@ -33,7 +33,10 @@ Research reviewed on 2026-08-25:
 
 ### 1. Minimal gate contract
 
-Every generated preflight reference conveys five rules:
+Ordinary generated instructions select/validate the intended change and reference
+relevant current tests and installed validation commands. They require neither
+preflight nor an approved seal. Only an explicitly selected assurance policy
+with the installed optional capability emits these additional rules:
 
 1. select and validate the intended change before implementation;
 2. invoke the installed canonical preflight workflow in the harness-native form;
@@ -41,7 +44,7 @@ Every generated preflight reference conveys five rules:
 4. stop on blocked, unknown, stale, ambiguous, or concurrent-work results;
 5. return material refinements to the owning artifact and rerun before implementation.
 
-Detailed phases, CLI flags, evidence interpretation, and refinement dialogue remain in the module-owned skill.
+Detailed phases, CLI flags, evidence interpretation, and refinement dialogue remain in the module-owned skill. If explicitly selected policy requires an unavailable capability, report setup guidance instead of silently downgrading that policy. An absent optional capability does not block ordinary generation.
 
 ### 2. Managed sections, not full-file ownership
 
@@ -49,11 +52,11 @@ Generated instructions use stable start/end markers and an inventory containing 
 
 ### 3. OpenSpec ordering reference
 
-For OpenSpec projects, the generated section places `specfact-preflight` after proposal/spec/design/tasks are ready and strict validation succeeds, and before `/opsx:apply`, `/openspec:apply`, or equivalent implementation. It does not modify OpenSpec's own generated command files.
+When explicit assurance policy requires it, the generated OpenSpec section places `specfact-preflight` after proposal/spec/design/tasks are ready and strict validation succeeds, and before `/opsx:apply`, `/openspec:apply`, or equivalent implementation. It does not modify OpenSpec's own generated command files.
 
 ### 4. Spec Kit extension compatibility
 
-For Spec Kit, generated content integrates through the enabled `agent-context` extension or another explicitly owned project section. The base Specify CLI is not assumed to manage AGENTS.md. The reference places preflight after the relevant clarify/checklist/analyze loop and before `/speckit.implement` or its harness-native equivalent.
+For Spec Kit, generated content integrates through the enabled `agent-context` extension or another explicitly owned project section. The base Specify CLI is not assumed to manage AGENTS.md. Only explicit assurance policy adds preflight after the relevant clarify/checklist/analyze loop and before `/speckit.implement` or its harness-native equivalent. Ordinary instructions preserve upstream planning order without a seal gate.
 
 ### 5. Harness invocation comes from installed metadata
 

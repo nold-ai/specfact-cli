@@ -13,10 +13,10 @@ Once module-owned skills can be installed canonically, repositories still need s
 ## What Changes
 
 - **NEW**: Generate bounded, idempotent managed sections for root AGENTS.md and supported harness instruction files.
-- **NEW**: Generate OpenSpec-aware instructions that place preflight after proposal artifacts are ready and before any apply/implementation command.
-- **NEW**: Generate Spec Kit-aware instructions that place preflight after clarification/plan/tasks/analyze quality work and before implementation, while respecting Spec Kit's opt-in agent-context ownership.
+- **NEW**: Generate OpenSpec-aware change selection and validation references; include preflight before apply only when explicitly selected policy requires the installed optional workflow.
+- **NEW**: Generate Spec Kit-aware planning/validation references, respecting opt-in agent-context ownership. Place preflight before implementation only under an explicitly selected assurance policy.
 - **NEW**: Resolve the installed canonical skill and emit the harness-native invocation reference plus stop conditions.
-- **CLARIFY**: Instructions state the gate only: run preflight, require a current approved seal, stop on blocked/unknown/stale results, and obtain user approval for material refinement.
+- **CLARIFY**: Ordinary instructions select/validate the change and reference current tests. Only explicitly selected assurance policy adds preflight, approved-seal, stale/unknown stop and refinement approval requirements; missing selected capabilities produce setup diagnostics.
 - **EXCLUDE**: Validation logic, canonical workflow content, skill installation, and Codex/ECC/hatch3r adapter packaging remain separately owned.
 
 ## Capabilities

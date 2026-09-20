@@ -112,7 +112,7 @@ upstream intent-engineering product.
 
 | Order | Change | Issue | Positioning | Blocked by |
 |---:|---|---|---|---|
-| 1 | `ai-integration-01-agent-skill` | [#251](https://github.com/nold-ai/specfact-cli/issues/251) | Discover, verify, install, update, uninstall, and canonically export module-owned skills under `.agents/skills`; no workflow-content ownership | signed modules checkpoint/conformance release [#434](https://github.com/nold-ai/specfact-cli-modules/issues/434) |
+| 1 | `ai-integration-01-agent-skill` | [#251](https://github.com/nold-ai/specfact-cli/issues/251) | Discover, verify, install, update, uninstall, and canonically export module-owned skills under `.agents/skills`; no workflow-content ownership | bounded module-owned descriptor/asset fixtures; optional #434 assets only after their own release |
 | 2 | `ai-integration-03-instruction-files` | [#253](https://github.com/nold-ai/specfact-cli/issues/253) | Generate compact AGENTS/OpenSpec/Spec Kit and harness gate references; no validation logic or adapter packaging | ai-integration-01 |
 | 3 | `ai-integration-02-mcp-server` | [#252](https://github.com/nold-ai/specfact-cli/issues/252) | Later thin adapter with 2-3 validation tools only | CLI pull from ai-integration-01 |
 
@@ -130,7 +130,7 @@ planning workflows.
 | 3 | `openspec-01-intent-trace` | [#350](https://github.com/nold-ai/specfact-cli/issues/350) | Import-first OpenSpec and Spec Kit requirement evidence with pass/fail gates (rescoped 2026-07-13) | requirements-01/02 |
 | 4 | `requirements-04-upstream-source-readiness` | [#648](https://github.com/nold-ai/specfact-cli/issues/648) | Reject incomplete or policy-invalid native OpenSpec and Spec Kit sources before requirement normalization | openspec-01; paired modules #346 |
 | 5 | `requirements-06-evidence-enforcement` | [#657](https://github.com/nold-ai/specfact-cli/issues/657) | Enforce released Requirements evidence reports in staged pre-commit and pull-request delivery gates | released modules #361 fixture |
-| 6 | `requirements-07-runtime-proof-delivery` | [#662](https://github.com/nold-ai/specfact-cli/issues/662) | Execute exact scenario selectors and report current-run JUnit evidence independently from historical chronology | corrected modules R07 signed release |
+| 6 | `requirements-07-runtime-proof-delivery` | [#662](https://github.com/nold-ai/specfact-cli/issues/662) | Reconcile superseded R07 after replacement delivery; no independent correction pipeline | core #740 and paired modules #481 |
 | 8 | `architecture-01-solution-layer` | [#240](https://github.com/nold-ai/specfact-cli/issues/240) | Architecture-boundary records and drift validation | requirements input contracts |
 | Parked | `requirements-03-backlog-sync` | [#244](https://github.com/nold-ai/specfact-cli/issues/244) | Read-first drift evidence; no write-back critical path. Deprioritized 2026-07-13 behind openspec-01 | requirements-02; modules `sync-01` |
 | Gated | `architecture-02-well-architected-review` | [#524](https://github.com/nold-ai/specfact-cli/issues/524) | Architecture-boundary review findings | architecture-01 shipped plus one usage cycle |
@@ -172,15 +172,15 @@ separate authority class.
 | Order | Change | Issue | Positioning | Blocked by |
 |---:|---|---|---|---|
 | 1 | `preflight-01-design-contract-core` | [#682](https://github.com/nold-ai/specfact-cli/issues/682) | Design-contract, validation-result, canonical digest, approval-seal, and side-effect-free verifier interfaces | architecture/governance/traceability/OpenSpec import are upstream inputs, not reowned blockers |
-| 2 | `preflight-03-dogfood-hardening-and-release` (core) | [#683](https://github.com/nold-ai/specfact-cli/issues/683) | Identity-bound C14 dogfood evidence and bounded readiness decision | core C14 [#680](https://github.com/nold-ai/specfact-cli/issues/680) |
+| 2 | `preflight-03-dogfood-hardening-and-release` (core) | [#683](https://github.com/nold-ai/specfact-cli/issues/683) | Optional identity-bound C14 dogfood and readiness | core C14 [#680](https://github.com/nold-ai/specfact-cli/issues/680) and modules [#431](https://github.com/nold-ai/specfact-cli-modules/issues/431) |
 | 3 | `preflight-05-implementation-conformance` (core) | [#684](https://github.com/nold-ai/specfact-cli/issues/684) | Worktree/index/range snapshots, sealed-obligation mapping, local checkpoint/final conformance results, findings, authority, and pure verifier | signed modules hardening/publication [#432](https://github.com/nold-ai/specfact-cli-modules/issues/432) |
 
-The cross-repository dependency sequence is:
-
-`core #682 -> modules #431 -> core C14 #680/#683 -> modules #432 -> core #684 -> modules #434 -> core #251 -> core #253 -> modules #433`.
-Modules #432 also unblocks modules C15 #417, which remains upstream of core C15
-issue #679. Native GitHub relationships, not this prose alone, are authoritative
-for readiness.
+The optional assurance chain is core #682 -> modules #431; core #683 requires
+both #431 and independently delivered C14 #680, then #683 -> modules #432 ->
+core #684 -> modules #434. Optional adapters #433 require both #434 and
+core #253. Generic #251 -> #253 and modules C15 #417 -> core C15 #679 do not depend
+on that optional runtime chain. C15 retains its actual producer/profile/policy
+prerequisites. Native GitHub relationships must match this scope at readiness.
 
 ## Modify queue before implementation
 
@@ -206,16 +206,16 @@ Update each proposal first, then run strict OpenSpec validation.
 
 ## Implementation waves
 
-### Preflight assurance sequence - mandatory dependency gate
+### Optional preflight assurance sequence
 
 1. Implement core `preflight-01-design-contract-core` [#682](https://github.com/nold-ai/specfact-cli/issues/682).
 2. Implement the unpublished modules runtime `preflight-02-assurance-runtime` [#431](https://github.com/nold-ai/specfact-cli-modules/issues/431).
-3. Complete core C14 adoption [#680](https://github.com/nold-ai/specfact-cli/issues/680).
+3. Independently complete core C14 adoption [#680](https://github.com/nold-ai/specfact-cli/issues/680); it does not wait for preflight.
 4. Run the exact preflight loop through core dogfood/readiness [#683](https://github.com/nold-ai/specfact-cli/issues/683).
 5. Harden, sign, and publish the stable modules release [#432](https://github.com/nold-ai/specfact-cli-modules/issues/432) from accepted dogfood evidence only.
 6. Implement core seal-bound checkpoint/conformance contracts [#684](https://github.com/nold-ai/specfact-cli/issues/684).
 7. Implement, dogfood, sign, and publish modules checkpoint/conformance runtime [#434](https://github.com/nold-ai/specfact-cli-modules/issues/434).
-8. Use that release for #251 -> #253 -> external adapters #433. Modules C15 #417 -> core C15 #679 may proceed from the stable #432 handoff independently.
+8. Optional external adapters #433 consume both that release and independently delivered #253. Generic #251 -> #253 and C15 #417 -> #679 do not wait for #432/#434.
 
 Every implementation item starts in its own issue-linked worktree and dedicated
 session. Proposal-stage preflight review may refine another pending change only

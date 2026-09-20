@@ -2,6 +2,12 @@
 
 Recovered from uncommitted planning files on `feature/code-review-14-protected-range-adoption`; the source worktree contains only this proposal and its change-order edit. Imported into local `dev` and the R09 planning worktree. No runtime changes were imported. Historical readiness and version identities below are dated context and must be revalidated before implementation. Recovery validation preserves existing staged-review scenarios and classifies previously nonexistent requirement headers as ADDED, avoiding invalid archive replacements. Canonical C14 follow-up reconciliation remains a prerequisite to final C15 specification promotion.
 
+Current review correction: the old `===0.55.1` handoff does not establish
+compatibility with current core. Readiness now requires a compatible signed
+publication and independently authenticated verifier source before enforcement.
+The report below records the 2026-08-23 review only; its pass and original
+allowlist are not current implementation authorization.
+
 # Change Validation Report: code-review-14-protected-range-adoption
 
 **Validation Date**: 2026-08-23

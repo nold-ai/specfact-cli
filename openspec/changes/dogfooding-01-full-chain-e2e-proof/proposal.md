@@ -25,8 +25,9 @@ an AI IDE, rerun, and show improved evidence.
   - rerun validation and compare evidence.
 - **NEW**: Define release-readiness proof criteria for AI-bloat defense and
   validation positioning claims.
-- **NEW**: Add CI/report outputs proving the evidence loop rather than a
-  requirements-to-code lifecycle.
+- **NEW**: Reuse existing CI/report outputs for the validation loop and summarize
+  defect detection and overhead. Full-chain link evidence is required only for
+  an explicitly selected experiment.
 
 ## Capabilities
 

@@ -8,6 +8,7 @@ Planning only; all implementation tasks remain unchecked. Each numbered task is 
 - [ ] 1.2 Refresh public hierarchy and read back #740/#481, dependencies, project state, and the dependency review; resolve concurrent In Progress ownership before implementation.
 - [ ] 1.3 Revalidate these spec deltas against current runtime and the selected signed module release; reconcile superseded R07 without applying its historical task list.
 - [ ] 1.4 Prepare the exact coordinated repository/organization policy migration and rollback, including required checks, trusted workflow source, and absence of per-PR authority bypasses.
+- [ ] 1.5 Before behavior tests or implementation, update and review agent rules, OpenSpec templates and pre-commit guidance for the owner-authorized MEB migration. Remove mandatory authored run transcripts, hosted RED and proof receipts from normal work while retaining useful regression order and independent checks. Runtime enforcement changes remain in phase 4.
 
 ## 2. Specify and demonstrate regression boundaries
 
@@ -20,8 +21,7 @@ Planning only; all implementation tasks remain unchecked. Each numbered task is 
 - [ ] 3.1 Adopt the signed #481 contract after verifying its manifest/payload and supported core compatibility.
 - [ ] 3.2 Consume existing required suite outputs once per candidate/environment and emit compact current-run results plus always-published diagnostics.
 - [ ] 3.3 Replace the default multi-stage historical proof path and promotion reuse with current-candidate validation; retain explicit legacy behavior only where supported.
-- [ ] 3.4 Update agent rules, OpenSpec templates and pre-commit guidance to MEB; remove mandatory run transcripts, hosted RED and proof-receipt authoring from normal work.
-- [ ] 3.5 Update contributor/Requirements/CI documentation and verify public command examples. Keep optional assurance instructions out of default generated guidance.
+- [ ] 3.4 Update contributor/Requirements/CI documentation and verify public command examples. Keep optional assurance instructions out of default generated guidance.
 
 ## 4. Verify and activate
 

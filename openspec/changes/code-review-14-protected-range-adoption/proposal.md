@@ -31,14 +31,15 @@ a core release that fully supports C14.
   runner temporary directory immediately before invocation, passes full
   base/head refs plus `--pr-context-file`, and rolls out through explicit
   shadow, warning, and enforcement phases.
-- **UPDATE**: The immutable modules fixture is pinned to the canonical signed
-  C14 publication: modules commit `6a0d0b31`, module
-  `specfact-code-review` `0.49.46`, registry archive checksum
-  `91cdc8c2245e71eb85b9ed283f417b1e02c0f413c05751ca203b4bd2f9dc533c`,
-  manifest integrity checksum
-  `sha256:62175eace29561d22ae6c46751c4fe39b3f6e54890f4387ee571b05801c512ca`, schema-matrix digest
-  `sha256:bb826ae8317039eb5da7ce11822d5a54a2043af6341b4f6ec08b14eb4a5b52fc`,
-  and strict core compatibility `===0.55.1`.
+- **NEW**: Execute the verifier, its imports/dependencies, policy and trust roots
+  from an authenticated immutable base revision or approved release selected by
+  protected workflow policy. Candidate files, workflow edits and fixture locks
+  cannot select or replace that authority.
+- **UPDATE**: Select a signed C14-capable publication compatible with the actual
+  core candidate, verify its packaged identities, and pin the tested pair.
+  The original `6a0d0b31` / module `0.49.46` / core `===0.55.1` handoff is
+  historical, not a pin for current core. If no compatible signed publication
+  exists, obtain one before adoption; never relax compatibility to install it.
 - **UPDATE**: The existing staged pre-commit helper remains
   `explicit_files` only and consumes schema 1.6 authoritative assurance
   status/exit semantics without claiming PR authority.
@@ -64,6 +65,8 @@ named failing acceptance test proves one additional path is unavoidable:
 
 - `scripts/verify_code_review_range_assurance.py` (new isolated verifier),
 - `.github/workflows/pr-orchestrator.yml` (protected context and invocation),
+- the existing organization-required workflow invocation policy in `nold-ai/.github`
+  where needed to select the trusted verifier independently of the candidate,
 - `ci/module-fixture.lock.json` (immutable signed publication identity), and
 - `scripts/pre_commit_code_review.py` (schema 1.6 status/exit consumption only).
 
@@ -91,9 +94,11 @@ This change MUST NOT:
   inference, new analyzer rules, or unrelated CI hardening; or
 - treat review findings outside this finite C14 consumer contract as scope.
 
-If a review finding does not trace to a listed C14 acceptance test, a changed
-line, or a required repository gate regression, it is follow-up work rather
-than an addition to this change.
+Triage every finding individually. Fix introduced or relevant defects; reject
+false positives with a reason. A real pre-existing or unrelated finding needs
+an individually documented, approved exception with impact and a linked
+follow-up before deferral. The scope boundary is not a blanket waiver and
+does not automatically authorize unrelated implementation.
 
 ## Impact
 
@@ -114,6 +119,6 @@ than an addition to this change.
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/680>
 - **Repository**: nold-ai/specfact-cli
 - **Modules implementation**: nold-ai/specfact-cli-modules#416 via PR #418
-- **Signed publication**: nold-ai/specfact-cli-modules#419 at `6a0d0b31`
+- **Historical signed publication**: nold-ai/specfact-cli-modules#419 at `6a0d0b31`
 - **Downstream C15 adoption**: nold-ai/specfact-cli#679
-- **Last Synced Status**: open; Todo; parent #375; blocks #679; signed C14 handoff available; implementation not started
+- **Last Synced Status**: open; Todo; parent #375; blocks #679; current compatible signed pair and trusted verifier publication must be verified; implementation not started

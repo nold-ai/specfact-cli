@@ -38,7 +38,7 @@ SpecFact modules can own focused agent workflows, but users need one core instal
 ## Dependencies
 
 - Retains parent Feature [#372](https://github.com/nold-ai/specfact-cli/issues/372), under Epic [#257](https://github.com/nold-ai/specfact-cli/issues/257).
-- Blocked by the signed modules `preflight-05-implementation-conformance` handoff so the first installed identity includes both preflight and seal-bound implementation-check workflows.
+- Generic installation has no dependency on modules #434. Validate the descriptor and safe installation contract with bounded module-owned fixtures and signed assets where required. Optional preflight/conformance assets are consumed only after their own signed publication.
 - Blocks `ai-integration-03-instruction-files` [#253](https://github.com/nold-ai/specfact-cli/issues/253).
 
 ## Explicit Non-Goals

@@ -32,7 +32,7 @@ Pre-implementation assurance freezes what was reviewed and approved, but it deli
 ## Impact
 
 - Planning artifacts only in this phase. No production or test code, runtime command, generated snapshot/result, module, skill, adapter, manifest, signature, version, or dependency is created.
-- This change starts after the stable preflight module handoff and before generic skill installation, generated instructions, or harness adapters.
+- This optional change starts after the stable preflight module handoff. Its paired runtime #434 precedes optional adapters #433, which also need core #253. Generic #251/#253 can proceed independently.
 - Modules owns checkpoint/conformance execution, evidence extraction, rendering, bounded agent handoff, persistence, and release in the paired change.
 
 ## Dependencies

@@ -27,7 +27,10 @@ and AI-bloat defense loop on real project artifacts.
 ## Decisions
 
 - Use a bounded PR or demo repository slice to keep proof practical and repeatable.
-- Require machine-readable evidence output and rerun comparison artifacts.
+- Reuse machine-readable validation output and rerun comparison artifacts;
+  summarize defect detection and overhead without a new evidence framework.
+- Require full-chain links only for an explicitly selected experiment, preserving
+  its missing-link failure semantics without making it the ordinary workflow.
 - Couple proof completion to the validation-positioning wave exit criteria.
 
 ## Risks / Trade-offs

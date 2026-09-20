@@ -41,9 +41,12 @@ Core records exactly which files it installed and their digests. Reinstall is id
 
 Two modules cannot silently claim the same canonical skill ID. Untrusted, unsigned where policy requires signing, incompatible, or digest-mismatched assets are not installed. Diagnostics identify the competing identities and remediation options.
 
-### 5. First consumer follows checkpoint/conformance publication
+### 5. Generic installation is independently testable
 
-The signed modules #434 identity supplies `specfact-preflight` and the bounded implementation-check workflow. #251 discovers and exports them unchanged. This proves the generic mechanism but does not couple the installer to preflight or checkpoint semantics.
+Use a bounded module-owned descriptor/asset fixture, signed where required,
+to verify discovery and byte-preserving export. No preflight release blocks
+the generic mechanism. Once published, optional #434 assets can use the same
+contract unchanged; the installer does not own their workflow semantics.
 
 ## Risks / Trade-offs
 

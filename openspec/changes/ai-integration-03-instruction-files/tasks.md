@@ -19,14 +19,14 @@ All tasks below are future implementation work. This rescope completes none of t
 ## 2. Specification and failing-first evidence
 
 - [ ] 2.1 Finalize gate fields, managed markers, inventories, OpenSpec ordering, Spec Kit extension compatibility, and invocation resolution without validator or adapter packaging scope.
-- [ ] 2.2 Add tests mapped to idempotency, malformed markers, user-content preservation, OpenSpec/Spec Kit ordering, and harness-native invocation fixtures.
-- [ ] 2.3 Run targeted tests before production edits and record failing-first results in a newly created `TDD_EVIDENCE.md`.
+- [ ] 2.2 Add tests mapped to idempotency, malformed markers, user-content preservation, OpenSpec/Spec Kit ordering, harness-native invocation, ordinary no-seal defaults, selected assurance policy, and missing-selected-capability diagnostics.
+- [ ] 2.3 Run relevant regression tests before production edits, summarize meaningful failures briefly, and reference ordinary CI artifacts where available; no authored TDD ledger is required.
 
 ## 3. Minimal instruction implementation
 
 - [ ] 3.1 Implement previewable managed-section generation for AGENTS.md and the approved core-owned target files.
 - [ ] 3.2 Implement installed-metadata invocation resolution and safe inventory-backed update/removal.
-- [ ] 3.3 Implement OpenSpec and Spec Kit ordering references while respecting each upstream tool's context ownership.
+- [ ] 3.3 Implement OpenSpec and Spec Kit ordering references while respecting upstream context ownership; emit assurance gates only for explicit policy and installed optional capability.
 - [ ] 3.4 Keep detailed preflight workflow content, validators, and external adapter packages out of core.
 
 ## 4. Passing evidence and quality gates
