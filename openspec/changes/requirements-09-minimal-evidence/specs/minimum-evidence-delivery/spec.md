@@ -83,6 +83,25 @@ Ordinary current-run consumers SHALL remain usable without prior local workflow 
 
 Exactly-once acceptance SHALL apply per canonical selector within a selected execution unit: candidate source identity, environment/matrix lane, logical suite or shard and designated job attempt. Distinct required matrix units SHALL remain separate; each unit SHALL satisfy its own complete expected selector set. Core SHALL select the current authoritative units/attempts from trusted workflow metadata, not whichever artifact passes. A newer designated attempt that is pending, failed, cancelled or unavailable SHALL NOT fall back to an older passing attempt. Ambiguous attempt selection or duplicate selected outcomes inside one unit SHALL remain non-passing. The module SHALL compare supplied unit identity without performing Git, test or network operations; local declarations alone SHALL NOT establish CI authority.
 
+The shared execution-unit identity SHALL be a compact UTF-8 JSON array with
+this fixed field order:
+`[candidate_binding, environment_binding, matrix_lane, suite_or_shard, provider, run_id, run_attempt, job_id]`.
+Candidate and environment bindings SHALL preserve their existing report/plan
+values, types and normalization; the remaining six fields SHALL be strings.
+The tuple SHALL NOT replace the existing binding checks.
+Matrix lane and suite/shard SHALL use stable configured identifiers, never
+ambiguous display names; an absent matrix lane is the empty string. For GitHub,
+provider is `github-actions` and run ID, run attempt and actual job execution ID
+are canonical decimal strings from trusted metadata (job ID is the actual
+execution ID, not the logical `GITHUB_JOB` name); reruns retain distinct
+attempt/job identities. Local execution uses provider `local`, the current
+invocation ID, attempt `1` and the selected command's configured job ID, without
+claiming CI authority. Core selection and module comparison SHALL use exact
+ordered-field equality after parsing this same representation, using existing
+binding normalization and ignoring object-member order and JSON whitespace. Missing or ambiguous required identity SHALL remain non-passing.
+This reuses existing bindings and execution metadata; no new hash, registry,
+receipt, extra execution or approval protocol is required.
+
 #### Scenario: A selector runs in two required matrix environments
 
 - **GIVEN** one ordinary passing outcome for a selected selector in each of two distinct required execution units
@@ -101,3 +120,10 @@ Exactly-once acceptance SHALL apply per canonical selector within a selected exe
 - **GIVEN** two outcomes for one canonical selected selector in the same execution unit
 - **WHEN** reconciliation evaluates acceptance
 - **THEN** the duplicate is rejected even when both outcomes say passed.
+
+#### Scenario: Different runs or job retries contain the same selector
+
+- **GIVEN** results share a selector, candidate and environment but differ in run, attempt or actual job execution ID
+- **WHEN** the supplied execution-unit identities are compared
+- **THEN** they remain distinct and only the currently designated trusted unit can satisfy its selection
+- **AND** malformed or ambiguous identity cannot collapse them into one passing unit.

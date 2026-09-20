@@ -80,9 +80,11 @@ requires a new snapshot, full validation rerun, and explicit approval. Normal
 implementation snapshots remain separate evidence against that unchanged seal.
 
 General AGENTS.md, OpenSpec, Spec Kit, and command-harness instructions MUST
-contain only the compact gate and installed workflow reference. The signed
-module skill is the canonical workflow source; Python validators are the
-canonical determinate checks.
+include the compact preflight gate and installed preflight workflow reference
+only when the assurance policy explicitly selects that installed capability.
+Ordinary instructions retain applicable validation guidance without a preflight
+prerequisite. Within selected preflight, the signed module skill is the canonical
+workflow source and Python validators are the canonical determinate checks.
 
 ## Wave Gates
 

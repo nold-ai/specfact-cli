@@ -74,6 +74,25 @@ Accessed 2026-09-20. The MEB policy is a repository design decision informed by 
 
 Exactly once is per canonical selector within the current selected candidate/environment/logical suite-or-shard/job-attempt unit, not globally across the matrix. Core derives the required unit set and current designated attempts from trusted CI metadata; each unit must satisfy its expected selector set. Do not cherry-pick older passing attempts when the current designated attempt is pending, failed, cancelled or unavailable. Ambiguous selection or duplicates inside one unit remain non-passing. Modules only compares supplied unit identities alongside the existing plan/source/environment binding. Reuse existing CI metadata and outputs; no historical transcript, extra suite or new approval protocol is introduced.
 
+The shared execution-unit identity SHALL be a compact UTF-8 JSON array with
+this fixed field order:
+`[candidate_binding, environment_binding, matrix_lane, suite_or_shard, provider, run_id, run_attempt, job_id]`.
+Candidate and environment bindings SHALL preserve their existing report/plan
+values, types and normalization; the remaining six fields SHALL be strings.
+The tuple SHALL NOT replace the existing binding checks.
+Matrix lane and suite/shard SHALL use stable configured identifiers, never
+ambiguous display names; an absent matrix lane is the empty string. For GitHub,
+provider is `github-actions` and run ID, run attempt and actual job execution ID
+are canonical decimal strings from trusted metadata (job ID is the actual
+execution ID, not the logical `GITHUB_JOB` name); reruns retain distinct
+attempt/job identities. Local execution uses provider `local`, the current
+invocation ID, attempt `1` and the selected command's configured job ID, without
+claiming CI authority. Core selection and module comparison SHALL use exact
+ordered-field equality after parsing this same representation, using existing
+binding normalization and ignoring object-member order and JSON whitespace. Missing or ambiguous required identity SHALL remain non-passing.
+This reuses existing bindings and execution metadata; no new hash, registry,
+receipt, extra execution or approval protocol is required.
+
 ## Current-run consumer boundary
 
 Current reconciliation requires no prior session receipt and preserves independent producer outcomes. Local progress cannot establish chronology or protected CI authority. Executors remain outside the pure Requirements reconciler, which performs no Git, test or network operations.

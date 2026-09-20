@@ -74,3 +74,10 @@ Protected C15 enforcement SHALL activate only after the reviewed consumer implem
 - **GIVEN** schema 1.7 consumer tests pass but the authenticated source still provides only the C14 verifier
 - **WHEN** C15 activation readiness is evaluated
 - **THEN** activation remains incomplete until reviewed integration, trusted publication and trusted-source shadow validation finish.
+
+#### Scenario: Trusted enforcement is rolled back to shadow
+
+- **GIVEN** activated C15 enforcement and an authorized rollback through trusted policy
+- **WHEN** maintainers return execution to shadow mode
+- **THEN** the validated consumer and schema 1.7 report remain, including truthful non-passing outcomes
+- **AND** rollback restores neither severity-count fallback nor candidate-controlled approval authority.
