@@ -8,7 +8,17 @@ This owner-requested scope amendment takes precedence over conflicting default-w
 
 ### Requirement: Identity-bound C14 dogfood run
 
+These assurance obligations SHALL apply only when an explicitly selected
+preflight assurance policy requests them; they SHALL NOT gate ordinary MEB delivery.
+
 The dogfood protocol SHALL run the exact preflight workflow against core C14 issue #680 and its current proposal artifacts using recorded repository, issue, dependency, validator, and source identities.
+
+#### Scenario: Ordinary delivery has not selected preflight assurance
+
+- **GIVEN** ordinary MEB delivery has not selected a preflight assurance policy
+- **WHEN** implementation or delivery readiness is evaluated
+- **THEN** no preflight seal, checkpoint, successor approval, or historical chronology is required
+- **AND** required current checks still apply, without claiming that unevaluated optional assurance passed.
 
 #### Scenario: Initial dogfood snapshot is captured
 
@@ -47,6 +57,9 @@ Every dogfood observation SHALL be assigned to core contract, modules runtime, s
 - **AND** the observation cannot justify an implementation task until discriminating evidence is captured.
 
 ### Requirement: Readiness decision criteria
+
+These assurance obligations SHALL apply only when an explicitly selected
+preflight assurance policy requests them; they SHALL NOT gate ordinary MEB delivery.
 
 The core dogfood change SHALL emit a go/no-go decision for modules hardening based on deterministic completion, approval safety, stale-input invalidation, renderer parity, and evidence-backed issue classification.
 
