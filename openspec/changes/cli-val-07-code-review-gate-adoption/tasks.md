@@ -9,7 +9,7 @@ This owner-requested planning amendment supersedes conflicting development-workf
 ## 1. Worktree and readiness
 
 - [x] 1.1 Create `feature/cli-val-07-code-review-gate-adoption` from core `dev` in the required sibling worktree.
-- [x] 1.2 Create public issue [#679](https://github.com/nold-ai/specfact-cli/issues/679) and verify parent #375, labels, assignee, User Story type, SpecFact CLI/Todo project metadata, and all six native blocked-by relationships from live GitHub.
+- [ ] 1.2 At implementation start, refresh and read back existing core [#679](https://github.com/nold-ai/specfact-cli/issues/679): parent #375, labels, assignee, User Story/project status, ownership and current blocked-by relationships. Reconcile them against the retained signed C14/C15, profile, policy and exception prerequisites; do not preserve the historical blocker count or restore optional preflight dependencies. Resolve any concurrent core ownership before proceeding.
 - [ ] 1.3 Verify C14 protected adoption and the signed C15 schema 1.7 module release are available.
 - [ ] 1.4 Verify the paired modules issue is not concurrently in progress elsewhere.
 - [ ] 1.5 Stop production implementation if any readiness item is incomplete.
