@@ -4,9 +4,9 @@ Consume current_execution independently from optional chronology. No global grap
 
 This owner-requested scope amendment takes precedence over conflicting default-workflow or dependency wording below. It changes planning only; runtime policy is unchanged. [Replacement policy](../../../requirements-09-minimal-evidence/proposal.md).
 
-## MODIFIED Requirements
+## ADDED Requirements
 
-### Requirement: Sidecar Validation
+### Requirement: Full Chain Sidecar Inputs
 
 The sidecar validation capability SHALL support full-chain payload checks in addition to spec-code checks.
 

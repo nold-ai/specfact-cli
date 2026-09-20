@@ -44,5 +44,9 @@ This change implements proposal scope for `governance-01-evidence-output` from t
 
 ## Open Questions
 
-- Dependency summary: Depends on validation-02-full-chain-engine and policy-02-packs-and-modes.
+- Dependency summary: Core depends on policy-02-packs-and-modes; validation-02 is a downstream envelope producer, not a prerequisite for this contract.
 - Whether additional cross-change sequencing constraints should be hard-blocked in `openspec/CHANGE_ORDER.md`.
+
+## Current contract and archival boundary — 2026-09-20
+
+The core envelope contract can precede graph producers. Runtime emitters consume that contract; graph consumers may integrate later using the existing envelope. Serialization requirements are additive and do not replace the producer-owned Full Chain Validation or Policy Engine requirements during archival. Full-chain availability is required only for actual full-chain emission, not for delivering the envelope or serializing current-only results. R09 and workflow adoption remain independent of this broader emitter feature. Earlier wording that requires validation-02 before the whole envelope is historical.

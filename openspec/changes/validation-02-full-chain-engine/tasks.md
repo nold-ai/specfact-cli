@@ -37,3 +37,8 @@ Implementation discipline: use focused regression/reproduction and current-run r
 
 - [ ] 5.1 Update `openspec/CHANGE_ORDER.md` status/dependency notes if implementation sequencing changed.
 - [ ] 5.2 Open a PR from `feature/validation-02-full-chain-engine` to `dev` with spec/test/code/docs evidence.
+
+## Current-evidence boundary acceptance
+
+- [ ] Test current-only verification without history, incomplete mappings alongside passing tests, and independent failed producer gates; retain producer statuses and references.
+- [ ] Verify native archival preserves the normative boundaries and adds serialization requirements without replacing producer-owned validation or policy requirements.
