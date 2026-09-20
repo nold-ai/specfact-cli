@@ -18,7 +18,7 @@
 ## Dependency Review
 
 - Parent Feature: core [#372](https://github.com/nold-ai/specfact-cli/issues/372).
-- Native blocker to be updated: signed modules checkpoint/conformance handoff [#434](https://github.com/nold-ai/specfact-cli-modules/issues/434).
+- Generic discovery/install/export has no native #434 blocker. Optional checkpoint/conformance assets from [#434](https://github.com/nold-ai/specfact-cli-modules/issues/434) are integrated only after their signed publication.
 - Native downstream verified: core [#253](https://github.com/nold-ai/specfact-cli/issues/253).
 - GitHub readback verified the retained User Story parent #372, project `SpecFact CLI` / `Todo`, assignee `djm81`, and the required labels.
 

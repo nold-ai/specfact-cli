@@ -8,7 +8,7 @@ Planning only; all implementation tasks remain unchecked. Each numbered task is 
 - [ ] 1.2 Refresh public hierarchy and read back #740/#481, dependencies, project state, and the dependency review; resolve concurrent In Progress ownership before implementation.
 - [ ] 1.3 Revalidate these spec deltas against current runtime and the selected signed module release; reconcile superseded R07 without applying its historical task list.
 - [ ] 1.4 Prepare the exact coordinated repository/organization policy migration and rollback, including required checks, trusted workflow source, and absence of per-PR authority bypasses.
-- [ ] 1.5 Before behavior tests or implementation, update and review agent rules, OpenSpec templates and pre-commit guidance for the owner-authorized MEB migration. Remove mandatory authored run transcripts, hosted RED and proof receipts from normal work while retaining useful regression order and independent checks. Runtime enforcement changes remain in phase 4.
+- [ ] 1.5 Before behavior tests or implementation, update and review agent rules, `openspec/config.yaml`, OpenSpec templates and pre-commit guidance using the configured-gate mapping in design.md for the owner-authorized MEB migration. Remove mandatory authored run transcripts, hosted RED and proof receipts from normal work while retaining useful regression order and independent checks. Runtime enforcement changes remain in phase 4.
 
 ## 2. Specify and demonstrate regression boundaries
 
@@ -25,7 +25,7 @@ Planning only; all implementation tasks remain unchecked. Each numbered task is 
 
 ## 4. Verify and activate
 
-- [ ] 4.1 Run focused/full affected tests and applicable format/type/lint/contracts, independent security, code review, OpenSpec, frozen delivery, and signature checks. Fix relevant findings without restarting historical proof ceremonies.
+- [ ] 4.1 Run focused/full affected tests and applicable format/type/lint/contracts, independent security, code review, OpenSpec, frozen delivery, and signature checks. Keep a fresh `.specfact/code-review.json` for the reviewed candidate and disposition every finding by fix, reasoned rejection, or individually authorized documented exception before completion; do not restart historical proof ceremonies.
 - [ ] 4.2 Pilot representative PR paths in non-blocking mode and verify evidence identity, job conclusion propagation, artifact retention and required-check emission.
 - [ ] 4.3 Apply the reviewed coordinated repository and organization enforcement cutover, verify readback on dev/main, and remove obsolete default-path proof helpers/tests that only implement retired policy.
 - [ ] 4.4 Review ten representative PRs using existing CI data; record concise overhead/regression observations and resolve cutover defects. Do not add a metrics gate.

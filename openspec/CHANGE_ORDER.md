@@ -12,6 +12,12 @@ current-run contract -> core adoption/pilot -> coordinated organization/reposito
 cutover. Existing corrected R07 is superseded planning, not an additional prerequisite.
 R08 remains abandoned. Runtime and branch rules have not changed in this planning update.
 
+For every independently runnable change rescoped here, check effective governance
+at implementation start. Lean evidence tasks apply after the governance migration
+is merged or under an explicit owner-authorized exception; otherwise current
+requirements still apply. A proposal does not bypass required checks. This
+transition does not add a dependency on the complete R09 runtime rollout.
+
 Optional preflight keeps core #682 -> modules #431, then core #683 after both
 modules #431 and independently delivered C14 #680 -> modules #432 -> core #684/modules #434.
 Remove default dependencies C14 #680 <- #431, C15 #417 <- #432, generic skills

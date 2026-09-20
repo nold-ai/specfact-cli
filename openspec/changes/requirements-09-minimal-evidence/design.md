@@ -16,6 +16,23 @@ Measured additions plus deletions in run transcripts, TDD ledgers, mappings, and
 8. Existing preflight/seal/checkpoint work is an optional product capability. Its guarantees remain meaningful inside that explicit mode. It is not a prerequisite to ship C14/C15, native execution, generic skills, or lean generated instructions.
 9. R09 replaces the unimplemented R07 correction rather than duplicating its workflow. R08 remains abandoned. No new capsule, seal service, checkpoint tag protocol, AST/import closure inference, or proof-specific caching framework.
 
+## Configured gate migration
+
+| Existing gate | Ordinary MEB handling |
+| --- | --- |
+| Spec-first and useful failing-before/passing-after work | Retain development order and relevant regression reproduction; note an impractical reproduction and alternative negative control. |
+| `TDD_EVIDENCE.md`, committed transcripts and hosted RED proof | Replace the mandatory authored ledger with concise validation notes and current CI artifacts. Preserve historical records and explicit legacy chronology semantics; do not fabricate missing history. |
+| `.specfact/code-review.json` | Where the existing code-review gate applies, retain its fresh report for the reviewed candidate before OpenSpec completion, with each finding fixed, rejected with reasons, or covered by an individually authorized documented exception. Reuse the existing review output; no duplicate suite or new committed receipt. |
+| Applicable test, contract, lint/type, independent security, signed-module and delivery checks | Retain their actual outcomes and source/authentication checks. Missing required output is not success. |
+| OpenSpec validation and archival | Retain strict validation and native archival of completed changes; never apply superseded unimplemented deltas. |
+
+This mapping adds no review run or JSON obligation to planning-only amendments.
+It is enacted through the governance preparation below;
+planning text alone does not change active hooks, required checks or repository
+rules. Independently runnable changes use the effective governance at session
+start, or an explicit owner-authorized scope exception, until that migration is
+merged. They do not acquire a dependency on the complete R09 runtime rollout.
+
 ## Ownership and interfaces
 
 Modules #481 owns current reconciliation, v3 report claims, legacy compatibility, and review-context consumption. Core owns revision selection, safe execution/original job outputs, artifact collection, trusted enforcement and platform integration. The same change ID is paired across repositories; each story owns only its repository's implementation.

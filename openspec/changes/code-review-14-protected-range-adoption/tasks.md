@@ -30,7 +30,7 @@ This owner-requested planning amendment supersedes conflicting development-workf
   - [ ] `test_trusted_consumer_rejects_candidate_or_untrusted_project_runtime`
   - [ ] `test_candidate_verifier_lock_and_workflow_cannot_replace_trusted_authority`
   - [ ] `test_missing_trusted_verifier_is_unknown_without_candidate_fallback`
-- [ ] 2.2 Add focused workflow contract tests in `tests/unit/workflows/test_code_review_14_protected_range.py` for trusted verifier/import/config/root selection and job isolation, runner-temp context timing, full refs, separate artifacts, compatible signed fixture, and shadow/warning/enforce behavior.
+- [ ] 2.2 Add focused workflow contract tests in `tests/unit/workflows/test_code_review_14_protected_range.py` for trusted verifier/import/config/root selection and job isolation, independent context regeneration across separate runners, missing/mismatched context rejection, context digest binding, full refs, separate artifacts, compatible signed fixture, and shadow/warning/enforce behavior.
 - [ ] 2.3 Add focused staged-hook tests in `tests/unit/scripts/test_pre_commit_code_review.py` proving schema 1.6 status/exit consumption and continued `explicit_files` assurance.
 - [ ] 2.4 Select the focused regression cases needed to demonstrate the affected behavior; no frozen selector inventory or development checkpoint.
 - [ ] 2.5 Observe relevant failures before production edits and summarize the reproduction briefly; retain detailed output in ordinary CI artifacts when applicable.
@@ -39,7 +39,7 @@ This owner-requested planning amendment supersedes conflicting development-workf
 
 - [ ] 3.1 Pin `ci/module-fixture.lock.json` to the verified compatible signed C14-capable publication selected in 1.3 and verify commit/tree/archive/signature/manifest/matrix identities.
 - [ ] 3.2 Implement `scripts/verify_code_review_range_assurance.py` to independently derive the closed C14 manifest set and emit a separate verifier-bound envelope.
-- [ ] 3.3 Update the PR orchestrator and bounded organization invocation policy to select authenticated verifier code/dependencies/roots independently of candidate files. Isolate trusted execution, write canonical runner-temp context, pass full refs plus `--pr-context-file`, and retain separate producer/envelope artifacts. Missing trusted verifier is `UNKNOWN`, never candidate fallback.
+- [ ] 3.3 Update the PR orchestrator and bounded organization invocation policy to select authenticated verifier code/dependencies/roots independently of candidate files. Isolate trusted execution; regenerate canonical event/run/revision context independently in each job, compare and bind its digest, pass full refs plus `--pr-context-file`, and retain separate producer/envelope artifacts. Never rely on sharing producer runner-temp files. Missing trusted verifier is `UNKNOWN`, never candidate fallback.
 - [ ] 3.4 Update `scripts/pre_commit_code_review.py` only for schema 1.6 authoritative status/exit parsing; keep staged positional files and no PR authority.
 - [ ] 3.5 Stop and amend/revalidate the proposal before touching any other production path.
 

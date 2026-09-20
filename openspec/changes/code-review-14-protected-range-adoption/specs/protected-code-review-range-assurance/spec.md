@@ -97,14 +97,27 @@ The protected PR workflow SHALL write canonical context under the runner
 temporary directory immediately before producer invocation, pass full base and
 head refs plus `--pr-context-file`, preserve producer report and verifier
 envelope as separate immutable artifacts, and bind protected event/workflow/job
-provenance.
+provenance. The separate trusted verifier job SHALL independently regenerate
+canonical context from authenticated protected event/run data and immutable
+base/head identities, compare its digest with the producer report, and bind the
+regenerated digest to verifier input and output envelope. It SHALL NOT trust
+producer-local files or require a shared runner filesystem. Shared context
+SHALL exclude runner paths and per-job identities; producer-job/artifact and
+verifier-job provenance SHALL be authenticated and bound separately.
+
+#### Scenario: Producer and verifier use separate runners
+
+- **GIVEN** the producer runner's temporary context is unavailable to the verifier
+- **WHEN** the trusted job independently regenerates context for the same event/run and revisions
+- **THEN** matching canonical context digests permit the remaining verification
+- **AND** missing protected data or a different event/run or revision yields `UNKNOWN`.
 
 #### Scenario: Candidate checkout contains a lookalike context file
 
 - **GIVEN** candidate-controlled repository content contains a file resembling
   protected PR context
 - **WHEN** the protected workflow invokes the producer and verifier
-- **THEN** only the freshly written runner-temporary context is trusted
+- **THEN** the producer uses freshly generated runner-temporary context and the verifier uses its independently regenerated context
 - **AND** the candidate file cannot affect effective assurance.
 
 ### Requirement: C14 enforcement SHALL be staged and reversible

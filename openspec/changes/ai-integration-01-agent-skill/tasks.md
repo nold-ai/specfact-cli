@@ -15,6 +15,7 @@ All tasks below are future implementation work. This rescope completes none of t
 - [ ] 1.1 In a dedicated issue-linked session, create `feature/ai-integration-01-agent-skill` from current `origin/dev` in a new core worktree before any implementation edit.
 - [ ] 1.2 Refresh hierarchy metadata and verify #251 retains parent #372, complete labels/project/assignee, absence of a generic modules #434 prerequisite, and no concurrent `In Progress` owner.
 - [ ] 1.3 Verify the bounded module-owned descriptor/asset fixture and core module discovery/safe-write contracts against current repository reality.
+- [ ] 1.4 Check effective contributor governance at session start. The lean evidence task below applies after its governance migration or an explicit owner-authorized exception; otherwise follow current evidence requirements. Do not block this independent feature on the complete R09 runtime rollout.
 
 ## 2. Specification and failing-first evidence
 

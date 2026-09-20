@@ -111,10 +111,18 @@ files. It may parse schema 1.6 `assurance_status` and authoritative exit
 semantics for truthful summaries, but it cannot accept PR context, emit a
 verifier envelope, or claim `pr_range`.
 
-The workflow writes its canonical context under `${RUNNER_TEMP}` immediately
-before producer invocation, passes full base/head refs and
-`--pr-context-file`, retains producer report and verifier envelope as separate
-artifacts, and ensures candidate code cannot pre-create the trusted context.
+Each job independently derives the same canonical context from authenticated
+protected event/run data and immutable base/head identities. The producer job
+writes its local copy under `${RUNNER_TEMP}` immediately before invocation and
+passes full refs plus `--pr-context-file`. The trusted verifier regenerates its
+own copy; it never trusts or expects access to the producer runner's file.
+Canonical serialization and digest cover the same event/run and revision fields
+in both jobs; runner paths and per-job identities are not shared context fields.
+Authenticate producer-job/artifact provenance separately and bind verifier-job
+provenance in the envelope. Compare the producer report's context digest with the trusted
+regenerated digest and bind that digest to verifier input and output envelope.
+Missing protected data or a mismatch yields `UNKNOWN`. Retain producer report
+and envelope separately; no new context-transfer artifact is required.
 
 ### Decision 5: Stage enforcement without weakening evidence
 
