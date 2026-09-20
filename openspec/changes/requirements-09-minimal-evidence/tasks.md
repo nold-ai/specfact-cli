@@ -14,7 +14,7 @@ Planning only; all implementation tasks remain unchecked. Each numbered task is 
 
 ## 2. Specify and demonstrate regression boundaries
 
-- [ ] 2.1 Add focused cases for missing/empty/malformed/wrong-revision JUnit, exact selected outcomes, and no promotion of local/self-declared metadata to CI authority; observe meaningful failures before code changes.
+- [ ] 2.1 Add focused cases for missing/empty/malformed/wrong-revision JUnit, exact selected outcomes (ordinary pass versus XFAIL, strict/non-strict XPASS, and empty `wasxfail` markers), and no promotion of local/self-declared metadata to CI authority; observe meaningful failures before code changes.
 - [ ] 2.2 Add ordinary PR, documentation, dependency, fork and dev-to-main cases that need no retained RED, frozen mapping or authority comment; retain the real #737/#738 acceptance and authentication controls.
 - [ ] 2.3 Add independent-verdict and module report compatibility cases; use current fixture data without copying historical logs into Git.
 

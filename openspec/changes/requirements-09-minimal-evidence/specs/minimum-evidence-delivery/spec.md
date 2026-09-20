@@ -2,21 +2,28 @@
 
 ### Requirement: Minimum Current-Run Delivery Evidence
 
-Ordinary delivery SHALL derive a compact current-run result from existing required validation outputs at the candidate source identity. It SHALL NOT require historical RED commits, frozen mappings, approval receipts, retained-history replay or authority comments. Historical chronology and current execution SHALL remain independent claims.
+Ordinary delivery SHALL derive a compact current-run result from existing required validation outputs at the candidate source identity. It SHALL NOT require historical RED commits, frozen mappings, approval receipts, retained-history replay or authority comments. Historical chronology and current execution SHALL remain independent claims. A required selected acceptance case SHALL be collected exactly once and produce an ordinary pass without `wasxfail` or equivalent xfail outcome metadata, including empty-valued markers; XFAIL and XPASS SHALL NOT satisfy acceptance.
 
 #### Scenario: Ordinary implementation has current passing results
 
 - **GIVEN** required validation ran against the candidate revision
-- **AND** every selected acceptance test was collected exactly once and passed
+- **AND** every selected acceptance test was collected exactly once and produced an ordinary pass without xfail outcome metadata
 - **WHEN** ordinary delivery evaluates its MEB
 - **THEN** current execution may pass without prior RED evidence
 - **AND** chronology remains not evaluated and no correctness or complete-coverage claim is inferred.
 
 #### Scenario: Required current results are incomplete
 
-- **GIVEN** required output is missing, empty, malformed, wrong-revision, or a selected case is missing, duplicated, failed, errored or skipped
+- **GIVEN** required output is missing, empty, malformed, wrong-revision, or a selected case is missing, duplicated, failed, errored, skipped, XFAIL or XPASS
 - **WHEN** delivery reconciles the result
 - **THEN** acceptance proof SHALL remain non-passing with actionable diagnostics.
+
+#### Scenario: Non-strict XPASS resembles a passed call
+
+- **GIVEN** a selected case has a passed call outcome with `wasxfail` or equivalent xfail metadata, even if the marker is empty
+- **WHEN** current-run reconciliation evaluates acceptance
+- **THEN** the case SHALL remain non-passing evidence rather than an ordinary pass
+- **AND** a zero pytest exit code SHALL NOT override that result.
 
 ### Requirement: Independent Gates and Bounded Collection
 
