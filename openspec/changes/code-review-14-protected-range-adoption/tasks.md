@@ -45,11 +45,11 @@ This owner-requested planning amendment supersedes conflicting development-workf
 
 ## 4. Candidate verification
 
-- [ ] 4.1 Run the named regression tests against the candidate and reference the passing CI results.
-- [ ] 4.2 Run workflow policy tests, contracts, type, lint, focused/full tests as required, registry integrity, signature verification, and strict OpenSpec validation.
-- [ ] 4.3 Run SpecFact Code Review over the explicit base/head range and triage every finding: fix introduced/relevant defects, explain false positives, and obtain an individual documented exception with impact and linked follow-up for any real deferred finding.
-- [ ] 4.4 Run the compatibility matrix against the exact signed module and candidate core build identity on supported Python versions.
-- [ ] 4.5 Prepare version/changelog/operator guidance and reviewed rollout/rollback configuration; the unpublished candidate verifier cannot authorize its own integration.
+- [ ] 4.1 Set the intended core release version and prepare changelog/operator guidance and reviewed rollout/rollback configuration before candidate verification. Confirm the selected signed module's declared compatibility includes that resulting core version; the unpublished candidate verifier cannot authorize its own integration.
+- [ ] 4.2 Run the named regression tests against the candidate and reference the passing CI results.
+- [ ] 4.3 Run workflow policy tests, contracts, type, lint, focused/full tests as required, registry integrity, signature verification, and strict OpenSpec validation.
+- [ ] 4.4 Run SpecFact Code Review over the explicit base/head range and triage every finding: fix introduced/relevant defects, explain false positives, and obtain an individual documented exception with impact and linked follow-up for any real deferred finding.
+- [ ] 4.5 Run the compatibility matrix against the exact signed module and resulting candidate core build on supported Python versions. If the core version or signed module changes before publication, repeat the affected compatibility checks against the new identities.
 
 ## 5. Reviewed integration, publication and rollout
 
