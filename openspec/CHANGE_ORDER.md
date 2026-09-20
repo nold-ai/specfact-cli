@@ -4,11 +4,39 @@ This document is the **single source of truth for active work** in this
 repository. It lists what is in flight, what is paused, and the order in which
 active changes should be implemented.
 
+## Minimal-evidence rescope (2026-09-20)
+
+The paired `requirements-09-minimal-evidence` owns the default policy correction:
+[core #740](https://github.com/nold-ai/specfact-cli/issues/740) and [modules #481](https://github.com/nold-ai/specfact-cli-modules/issues/481). Implementation order is signed modules
+current-run contract -> core adoption/pilot -> coordinated organization/repository
+cutover. Existing corrected R07 is superseded planning, not an additional prerequisite.
+R08 remains abandoned. Runtime and branch rules have not changed in this planning update.
+
+Optional preflight keeps core #682 -> modules #431, then core #683 after both
+modules #431 and independently delivered C14 #680 -> modules #432 -> core #684/modules #434.
+Remove default dependencies C14 #680 <- #431, C15 #417 <- #432, generic skills
+core #251 <- #434, and native execution #460 <- #434. Optional adapters #433 require
+both #434 and core #253 explicitly. C14/C15 retain their actual producer, layout,
+policy/profile/exception and release prerequisites. No full-chain graph or preflight
+release blocks the new MEB stories. This section supersedes contradictory historical
+ordering prose below; individual affected proposals carry the same scope amendment.
+
+Core #680/#679 and modules #417 were recovered from uncommitted planning-only feature worktrees into local `dev` and the R09 planning worktrees on 2026-09-20. Remote integration remains pending. All three remain planned; no implementation was imported. Modules C14 #416 shipped and is closed, but its existing proposal remains unarchived on dev; it is distinct from core C14 adoption #680.
+
+## Recovered planning proposals (2026-09-20)
+
+Recovered from uncommitted proposal-only feature worktrees into local `dev`; remote integration is still pending. These are planned changes, not active implementations. Optional preflight does not block them; signed runtime, policy/profile and exception prerequisites remain.
+
+| Change | Issue | Status / prerequisites |
+|---|---|---|
+| `code-review-14-protected-range-adoption` | [#680](https://github.com/nold-ai/specfact-cli/issues/680) | Planned core consumer; shipped signed C14 producer and runtime/layout compatibility |
+| `cli-val-07-code-review-gate-adoption` | [#679](https://github.com/nold-ai/specfact-cli/issues/679) | Planned C15 consumer; core C14, signed modules C15, profile, policy and exceptions |
+
 ## Status snapshot
 
 | Bucket | Count | Location |
 |---|---:|---|
-| **Active-tree entries** | 35 | [`openspec/changes/`](changes/) |
+| **Active-tree entries** | 38 | [`openspec/changes/`](changes/) |
 | **Parking-lot entries** | 21 | [`openspec/parking-lot/`](parking-lot/) |
 | **Archived** | 120 | [`openspec/changes/archive/`](changes/archive/) |
 
@@ -307,3 +335,9 @@ repo root. Do not move folders manually.
 - [`INTEGRATION.md`](INTEGRATION.md) - cross-change ownership contract
 - [`config.yaml`](config.yaml) - repo-wide OpenSpec rules and context
 - [`specfact-cli-modules/openspec/CHANGE_ORDER.md`](https://github.com/nold-ai/specfact-cli-modules/blob/main/openspec/CHANGE_ORDER.md) - module-side companion plan
+
+## Lean evidence delivery
+
+| Change | Issue | Dependency |
+|---|---|---|
+| `requirements-09-minimal-evidence` | [#740](https://github.com/nold-ai/specfact-cli/issues/740) | signed modules #481 for runtime adoption |

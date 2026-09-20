@@ -1,5 +1,13 @@
 # Tasks: governance-01-evidence-output
 
+## Scope rescope — 2026-09-20
+
+Emit compact current-run observations and artifact references; historical chronology is separate and optional. Do not require a RED ledger, seal lineage, or the complete validation graph just to record lean CI results. Existing graph-output integration remains this issue's scope; <https://github.com/nold-ai/specfact-cli/issues/740> must not depend on its delivery.
+
+This owner-requested scope amendment takes precedence over conflicting default-workflow or dependency wording below. It changes planning only; runtime policy is unchanged. [Replacement policy](../requirements-09-minimal-evidence/proposal.md).
+
+Implementation discipline: use focused regression/reproduction and current-run results. Any task requiring immutable hosted RED, frozen test authoring or approval receipts merely to implement this feature is superseded; tests of an explicitly selected optional seal feature remain in scope.
+
 ## 1. Branch and dependency guardrails
 
 - [ ] 1.1 Create dedicated worktree branch `feature/governance-01-evidence-output` from `dev` before implementation work: `scripts/worktree.sh create feature/governance-01-evidence-output`.

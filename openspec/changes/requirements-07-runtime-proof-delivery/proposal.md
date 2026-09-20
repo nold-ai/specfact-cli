@@ -1,5 +1,11 @@
 # Change: Deliver Current-Run Requirements Evidence in Local and CI Gates
 
+## Scope rescope — 2026-09-20
+
+Unimplemented corrected R07 delivery ownership transfers to <https://github.com/nold-ai/specfact-cli/issues/740> and <https://github.com/nold-ai/specfact-cli-modules/issues/481>. Keep this issue open solely to reconcile the replacement after delivery; do not implement a competing R07 pipeline or wait for abandoned R08. Replace its old native blocker on closed modules #368 with <https://github.com/nold-ai/specfact-cli/issues/740>. Existing shipped behavior remains historical context.
+
+This owner-requested scope amendment takes precedence over conflicting default-workflow or dependency wording below. It changes planning only; runtime policy is unchanged. [Replacement policy](../requirements-09-minimal-evidence/proposal.md).
+
 ## Why
 
 Issue #662 asks SpecFact to execute exact tests linked to changed requirement scenarios and to report whether those tests were collected and passed in the current delivery run. The existing R07 implementation mixed that bounded observation with a stronger historical claim: proving that the tests failed earlier and remained unchanged through arbitrary Python and pytest dependency behavior.
@@ -55,4 +61,3 @@ That stronger claim caused the gate to grow into a static approximation of pytes
 - **Paired Modules Change**: corrected `requirements-07-scenario-runtime-proof` and [modules PR #412](https://github.com/nold-ai/specfact-cli-modules/pull/412)
 - **Follow-up**: `requirements-08-bounded-red-green-proof`
 - **Planning correction date**: 2026-08-13
-

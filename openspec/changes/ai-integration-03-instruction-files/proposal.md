@@ -1,5 +1,11 @@
 # Change: Generated AGENTS, OpenSpec, Spec Kit, and Harness Instructions
 
+## Scope rescope — 2026-09-20
+
+Generate lean validation references by default from the installed inventory. Emit approved-seal, preflight, checkpoint, or stop-on-stale instructions only for an explicitly selected assurance policy and installed optional capability. Do not inject those gates into every AGENTS/OpenSpec/Spec Kit workflow. Keep #251 as the prerequisite.
+
+This owner-requested scope amendment takes precedence over conflicting default-workflow or dependency wording below. It changes planning only; runtime policy is unchanged. [Replacement policy](../requirements-09-minimal-evidence/proposal.md).
+
 ## Why
 
 Once module-owned skills can be installed canonically, repositories still need small, deterministic instruction references that tell agents when the workflow is mandatory and how to invoke it in the active harness. Those references must preserve upstream OpenSpec/Spec Kit ownership and avoid copying the preflight loop or validator rules into every instruction file.

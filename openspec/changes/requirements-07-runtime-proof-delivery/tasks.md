@@ -1,5 +1,13 @@
 # Tasks: Correct R07 to Current-Run Requirements Evidence
 
+## Scope rescope — 2026-09-20
+
+Unimplemented corrected R07 delivery ownership transfers to <https://github.com/nold-ai/specfact-cli/issues/740> and <https://github.com/nold-ai/specfact-cli-modules/issues/481>. Keep this issue open solely to reconcile the replacement after delivery; do not implement a competing R07 pipeline or wait for abandoned R08. Replace its old native blocker on closed modules #368 with <https://github.com/nold-ai/specfact-cli/issues/740>. Existing shipped behavior remains historical context.
+
+This owner-requested scope amendment takes precedence over conflicting default-workflow or dependency wording below. It changes planning only; runtime policy is unchanged. [Replacement policy](../requirements-09-minimal-evidence/proposal.md).
+
+Implementation discipline: use focused regression/reproduction and current-run results. Any task requiring immutable hosted RED, frozen test authoring or approval receipts merely to implement this feature is superseded; tests of an explicitly selected optional seal feature remain in scope.
+
 ## 0. Planning-only scope reset
 
 - [x] 0.1 Reframe R07 around issue #662 current-run acceptance criteria.

@@ -1,5 +1,11 @@
 ## Context
 
+## Scope rescope — 2026-09-20
+
+Unimplemented corrected R07 delivery ownership transfers to <https://github.com/nold-ai/specfact-cli/issues/740> and <https://github.com/nold-ai/specfact-cli-modules/issues/481>. Keep this issue open solely to reconcile the replacement after delivery; do not implement a competing R07 pipeline or wait for abandoned R08. Replace its old native blocker on closed modules #368 with <https://github.com/nold-ai/specfact-cli/issues/740>. Existing shipped behavior remains historical context.
+
+This owner-requested scope amendment takes precedence over conflicting default-workflow or dependency wording below. It changes planning only; runtime policy is unchanged. [Replacement policy](../requirements-09-minimal-evidence/proposal.md).
+
 The Requirements module owns mappings, maturity, plan construction, and reconciliation semantics. Core owns immutable module selection, Git snapshot selection, safe subprocess execution, environment limits, artifact retention, workflow ordering, and branch-protection integration.
 
 The previous R07 design treated current-run execution and historical failing-first chronology as one maturity ladder. This forced core to decide which repository inputs could change after a retained red result. For arbitrary Python and pytest, that becomes an open-ended execution model rather than a bounded evidence protocol.
@@ -70,4 +76,3 @@ The implementation must not cherry-pick PR #671 or add static rules for Python i
 4. Regenerate evidence and enable strict current-run enforcement.
 5. Implement R08 separately.
 6. Roll back by reverting the core adaptation and fixture pin; retained artifacts remain auditable.
-

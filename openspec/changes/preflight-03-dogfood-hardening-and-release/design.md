@@ -1,5 +1,11 @@
 ## Context
 
+## Scope rescope — 2026-09-20
+
+Seal, checkpoint, frozen mapping, successor approval, and historical RED/GREEN requirements in this issue apply only when an explicitly selected assurance policy requests them. They are not prerequisites for ordinary implementation, Code Review, release promotion, skill installation, or generated instructions. Keep the internal optional-feature dependency chain and source/signature integrity. Missing optional chronology is not a failed current-execution claim. No runtime policy changes in this planning update. The dogfood exercise requires both core C14 #680 and modules runtime #431; record both native prerequisites now that C14 no longer depends on #431.
+
+This owner-requested scope amendment takes precedence over conflicting default-workflow or dependency wording below. It changes planning only; runtime policy is unchanged. [Replacement policy](../requirements-09-minimal-evidence/proposal.md).
+
 Core C14 adoption is a useful first dogfood subject because it is cross-repository, evidence-sensitive, and explicitly bounded by signed module handoff and native dependency metadata. The dogfood protocol tests whether the preflight loop detects planning drift before implementation without silently becoming a second source of truth.
 
 ## Goals / Non-Goals

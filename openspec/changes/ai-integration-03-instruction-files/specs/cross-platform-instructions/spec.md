@@ -1,3 +1,9 @@
+## Scope rescope — 2026-09-20
+
+Generate lean validation references by default from the installed inventory. Emit approved-seal, preflight, checkpoint, or stop-on-stale instructions only for an explicitly selected assurance policy and installed optional capability. Do not inject those gates into every AGENTS/OpenSpec/Spec Kit workflow. Keep #251 as the prerequisite.
+
+This owner-requested scope amendment takes precedence over conflicting default-workflow or dependency wording below. It changes planning only; runtime policy is unchanged. [Replacement policy](../../../requirements-09-minimal-evidence/proposal.md).
+
 ## ADDED Requirements
 
 ### Requirement: Compact preflight gate instructions

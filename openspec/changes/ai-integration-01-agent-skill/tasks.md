@@ -1,5 +1,13 @@
 # Tasks: ai-integration-01-agent-skill
 
+## Scope rescope — 2026-09-20
+
+Remove the prerequisite on modules #434 for generic skill discovery/install/export. Validate against a bounded module-owned fixture and signed assets where used. Install optional preflight/checkpoint assets only once their own signed release exists. Keep safe writes, identity, collision handling, and inventory; this issue does not author assurance workflow content.
+
+This owner-requested scope amendment takes precedence over conflicting default-workflow or dependency wording below. It changes planning only; runtime policy is unchanged. [Replacement policy](../requirements-09-minimal-evidence/proposal.md).
+
+Implementation discipline: use focused regression/reproduction and current-run results. Any task requiring immutable hosted RED, frozen test authoring or approval receipts merely to implement this feature is superseded; tests of an explicitly selected optional seal feature remain in scope.
+
 All tasks below are future implementation work. This rescope completes none of them and creates no skill/export or `TDD_EVIDENCE.md`.
 
 ## 1. Dedicated session, worktree, and readiness

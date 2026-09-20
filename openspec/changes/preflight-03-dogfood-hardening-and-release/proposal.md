@@ -1,5 +1,11 @@
 # Change: Preflight Dogfood Evidence and Readiness Decision
 
+## Scope rescope — 2026-09-20
+
+Seal, checkpoint, frozen mapping, successor approval, and historical RED/GREEN requirements in this issue apply only when an explicitly selected assurance policy requests them. They are not prerequisites for ordinary implementation, Code Review, release promotion, skill installation, or generated instructions. Keep the internal optional-feature dependency chain and source/signature integrity. Missing optional chronology is not a failed current-execution claim. No runtime policy changes in this planning update. The dogfood exercise requires both core C14 #680 and modules runtime #431; record both native prerequisites now that C14 no longer depends on #431.
+
+This owner-requested scope amendment takes precedence over conflicting default-workflow or dependency wording below. It changes planning only; runtime policy is unchanged. [Replacement policy](../requirements-09-minimal-evidence/proposal.md).
+
 ## Why
 
 The preflight loop should not be stabilized or distributed based only on its own specification. It must first be used against the kind of dense, cross-repository change that exposed scope, dependency, ownership, and evidence drift. Core C14 adoption [#680](https://github.com/nold-ai/specfact-cli/issues/680) is the first bounded dogfood target and provides a concrete readiness gate before module hardening and publication.

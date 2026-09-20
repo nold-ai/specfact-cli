@@ -1,0 +1,18 @@
+## Recovery review — 2026-09-20
+
+Recovered from uncommitted planning files on `feature/cli-val-07-code-review-gate-adoption`; the source worktree contains only this proposal and its change-order edit. Imported into local `dev` and the R09 planning worktree. No runtime changes were imported. Historical readiness and version identities below are dated context and must be revalidated before implementation. Recovery validation preserves existing staged-review scenarios and classifies previously nonexistent requirement headers as ADDED, avoiding invalid archive replacements. Canonical C14 follow-up reconciliation remains a prerequisite to final C15 specification promotion.
+
+# Change Validation
+
+## Repository reality
+
+- Current core consumes legacy code-review reports and has no released C14
+  protected schema 1.6 verifier on `dev`.
+- No signed C15 schema 1.7 module release exists.
+- Therefore production consumer tests/code cannot truthfully be implemented or
+  validated against the planned interface yet.
+
+## Decision
+
+Validate and review the OpenSpec plan now. Keep production tests/code blocked
+until the signed upstream contracts and public readiness tasks are complete.
