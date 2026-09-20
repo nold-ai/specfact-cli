@@ -78,3 +78,26 @@ Ordinary current-run consumers SHALL remain usable without prior local workflow 
 - **GIVEN** a local workflow receipt marked successful and a required failed or unknown producer result
 - **WHEN** ordinary delivery evaluates current evidence
 - **THEN** the producer remains non-passing and local state cannot override it or grant CI authority.
+
+### Requirement: Acceptance Uniqueness Is Per Selected Execution Unit
+
+Exactly-once acceptance SHALL apply per canonical selector within a selected execution unit: candidate source identity, environment/matrix lane, logical suite or shard and designated job attempt. Distinct required matrix units SHALL remain separate; each unit SHALL satisfy its own complete expected selector set. Core SHALL select the current authoritative units/attempts from trusted workflow metadata, not whichever artifact passes. A newer designated attempt that is pending, failed, cancelled or unavailable SHALL NOT fall back to an older passing attempt. Ambiguous attempt selection or duplicate selected outcomes inside one unit SHALL remain non-passing. The module SHALL compare supplied unit identity without performing Git, test or network operations; local declarations alone SHALL NOT establish CI authority.
+
+#### Scenario: A selector runs in two required matrix environments
+
+- **GIVEN** one ordinary passing outcome for a selected selector in each of two distinct required execution units
+- **WHEN** current results are reconciled
+- **THEN** the matrix outcomes are evaluated separately rather than rejected as one duplicated global test
+- **AND** every required unit must satisfy its own expected selection.
+
+#### Scenario: A newer designated attempt has not passed
+
+- **GIVEN** an older passing attempt and a newer designated attempt that is pending, failed, cancelled or missing
+- **WHEN** current delivery selects results
+- **THEN** it does not select the older pass or merge attempts into a passing result.
+
+#### Scenario: A selector appears twice inside one selected unit
+
+- **GIVEN** two outcomes for one canonical selected selector in the same execution unit
+- **WHEN** reconciliation evaluates acceptance
+- **THEN** the duplicate is rejected even when both outcomes say passed.

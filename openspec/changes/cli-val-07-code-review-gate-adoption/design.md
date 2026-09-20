@@ -36,8 +36,8 @@ active governance exception for the same canonical rule/path/symbol.
 
 ## Rollout
 
-1. Consume the released signed C15 module in shadow.
-2. Prove consumer matrix and both repository dogfood runs.
-3. Activate changed local and protected range/full enforcement only after the
-   modules measurement gate succeeds.
-4. Roll back by returning to shadow; preserve the validated consumer and report.
+1. Consume the released signed C15 module in candidate shadow tests and prove the consumer matrix, retaining existing protected enforcement.
+2. Open and integrate the reviewed consumer implementation before deployment; publish/authenticate the integrated verifier through the normal trusted-source promotion path, including main promotion if required.
+3. Run trusted-source shadow dogfood against that authenticated verifier. Candidate tests do not supply protected authority.
+4. Activate changed local and protected range/full enforcement only after the modules measurement gate and trusted consumer evidence pass.
+5. Roll back by returning to shadow; preserve the validated consumer and report.

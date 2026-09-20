@@ -42,7 +42,7 @@ Ambiguous classification is recorded as unknown and cannot authorize hardening s
 
 ### 3. Before/after evidence is identity-bound
 
-Each run records source revisions, contract/result digests, validator identities, findings, user decisions, approved artifact edits, rerun identities, and seal verification. A narrative summary may explain results but cannot replace the machine-readable identities.
+Each run binds both independently delivered C14 #680 and the selected #431 runtime commit/tree, workflow and validator digests; #431 may still be the unpublished dogfood candidate. Missing or mismatched identity yields UNKNOWN/no-go. Each run records source revisions, contract/result digests, validator identities, findings, user decisions, approved artifact edits, rerun identities, and seal verification. A narrative summary may explain results but cannot replace the machine-readable identities.
 
 ### 4. Readiness requires observed usefulness and safety
 

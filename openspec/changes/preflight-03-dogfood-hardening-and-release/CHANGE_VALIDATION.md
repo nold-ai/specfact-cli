@@ -33,3 +33,7 @@
 ## Decision
 
 The proposal is ready for review and a planning-only PR. Dogfood and implementation remain explicitly unstarted and must begin later in a dedicated issue-linked session.
+
+## Planning review follow-up — 2026-09-20
+
+Bound both C14 #680 and exact modules #431 runtime/workflow/validator identities inside the normative dogfood requirement, including UNKNOWN/no-go on mismatch without a circular stable-release prerequisite. Strict OpenSpec and scoped Markdown/whitespace pass.

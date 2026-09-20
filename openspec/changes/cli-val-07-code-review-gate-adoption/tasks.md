@@ -8,7 +8,7 @@ This owner-requested planning amendment supersedes conflicting development-workf
 
 ## 1. Worktree and readiness
 
-- [x] 1.1 Create `feature/cli-val-07-code-review-gate-adoption` from core `dev` in the required sibling worktree.
+- [ ] 1.1 At implementation start, create or verify a dedicated issue-linked worktree from current `origin/dev`; refresh/rebase a retained worktree after checking ownership. The recovered planning branch is not completed implementation setup.
 - [ ] 1.2 At implementation start, refresh and read back existing core [#679](https://github.com/nold-ai/specfact-cli/issues/679): parent #375, labels, assignee, User Story/project status, ownership and current blocked-by relationships. Reconcile them against the retained signed C14/C15, profile, policy and exception prerequisites; do not preserve the historical blocker count or restore optional preflight dependencies. Resolve any concurrent core ownership before proceeding.
 - [ ] 1.3 Verify C14 protected adoption and the signed C15 schema 1.7 module release are available.
 - [ ] 1.4 Verify the paired modules issue is not concurrently in progress elsewhere.
@@ -36,7 +36,7 @@ This owner-requested planning amendment supersedes conflicting development-workf
 - [ ] 4.1 Implement strict schema 1.7 report projection and invariant validation.
 - [ ] 4.2 Update the pre-commit command and remove severity-count/subprocess-status fallback authority.
 - [ ] 4.3 Extend the released C14 protected verifier to validate C15 policy and waiver identities.
-- [ ] 4.4 Update workflow/config rollout to shadow first, then enforcing only after measurement acceptance.
+- [ ] 4.4 Prepare shadow-first workflow/config changes and activation controls; retain existing protected enforcement while testing the candidate. Do not activate protected C15 before reviewed integration and trusted verifier publication in phase 5.
 - [ ] 4.5 Re-run focused tests and record passing evidence.
 
 ## 5. Validation and delivery
@@ -45,4 +45,7 @@ This owner-requested planning amendment supersedes conflicting development-workf
 - [ ] 5.2 Run format, type-check, lint, yaml, contracts, smart/full tests, independent static analysis, and fresh SpecFact review evidence.
 - [ ] 5.3 Run strict OpenSpec validation and the complete schema compatibility matrix.
 - [ ] 5.4 Update contributor/CI documentation and changelog/version surfaces required by release policy.
-- [ ] 5.5 Merge only after the modules precision target and core protected-consumer evidence pass; archive only after paired completion.
+- [ ] 5.5 Open the implementation PR to dev once reviewable and integrate only after modules measurement acceptance, consumer fixtures and normal required checks pass. Candidate verifier tests are not deployed protected authority.
+- [ ] 5.6 Publish/authenticate the integrated schema 1.7 verifier and its dependencies/trust roots through the normal trusted-source release/promotion path; if that path requires main, complete reviewed dev-to-main promotion first.
+- [ ] 5.7 Run the trusted-source shadow pilot, verify the selected authenticated verifier identity, and only then activate changed local/protected C15 enforcement after measurement acceptance. Never execute the candidate verifier as protected authority.
+- [ ] 5.8 After paired delivery completes, archive natively and clean the implementation worktree after merge; record rollout/rollback validation in the delivery PR.

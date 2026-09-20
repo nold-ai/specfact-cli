@@ -24,3 +24,7 @@ rather than coexists with, C14's schema 1.6 acceptance rule.
 
 Validate and review the OpenSpec plan now. Keep production tests/code blocked
 until the signed upstream contracts and public readiness tasks are complete.
+
+## Planning review follow-up — 2026-09-20
+
+Reopened implementation-time worktree readiness and ordered reviewed integration/authenticated verifier publication before protected C15 activation; strict OpenSpec and scoped Markdown/whitespace pass. Existing canonical C14-predecessor archive notice remains expected until its native integration/archival.

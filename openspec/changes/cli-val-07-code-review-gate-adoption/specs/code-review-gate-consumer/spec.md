@@ -64,3 +64,13 @@ envelope, and trusted-base exception evidence before accepting a waived error.
 - **WHEN** protected verification runs
 - **THEN** effective assurance is UNKNOWN or FAIL as applicable
 - **AND** protected CI exits non-zero.
+
+### Requirement: Trusted Integration Precedes C15 Activation
+
+Protected C15 enforcement SHALL activate only after the reviewed consumer implementation is integrated and its schema 1.7 verifier, dependencies and trust roots are available from an authenticated source independent of the candidate. Candidate-only tests SHALL NOT authorize protected execution; existing protected policy SHALL remain until the reviewed activation.
+
+#### Scenario: Updated verifier exists only on the candidate branch
+
+- **GIVEN** schema 1.7 consumer tests pass but the authenticated source still provides only the C14 verifier
+- **WHEN** C15 activation readiness is evaluated
+- **THEN** activation remains incomplete until reviewed integration, trusted publication and trusted-source shadow validation finish.

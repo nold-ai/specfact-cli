@@ -11,7 +11,7 @@ This owner-requested scope amendment takes precedence over conflicting default-w
 These assurance obligations SHALL apply only when an explicitly selected
 preflight assurance policy requests them; they SHALL NOT gate ordinary MEB delivery.
 
-The dogfood protocol SHALL run the exact preflight workflow against core C14 issue #680 and an immutable planning snapshot after its independent delivery using recorded repository, issue, dependency, validator, and source identities.
+The dogfood protocol SHALL require both independently delivered core C14 #680 and the exact selected modules preflight runtime #431. It SHALL bind the immutable C14 planning snapshot, #431 runtime commit/tree, workflow and validator digests, repository and issue identities before execution. The #431 runtime may be an unpublished candidate under the existing dogfood protocol; this does not require its later #432 stable release. Missing or mismatched required identities SHALL yield UNKNOWN and a no-go readiness decision.
 
 #### Scenario: Ordinary delivery has not selected preflight assurance
 
@@ -22,10 +22,16 @@ The dogfood protocol SHALL run the exact preflight workflow against core C14 iss
 
 #### Scenario: Initial dogfood snapshot is captured
 
-- **GIVEN** C14 has been independently delivered and its immutable planning snapshot is selected for review replay without concurrent ownership ambiguity
+- **GIVEN** C14 has been independently delivered, its immutable planning snapshot and exact #431 runtime/workflow/validator identities are selected, and ownership is unambiguous
 - **WHEN** dogfood begins
 - **THEN** the starting source identities and expected-risk inventory are recorded before refinement
 - **AND** the C14 implementation worktree is not modified by the dogfood setup.
+
+#### Scenario: Required modules runtime identity is missing or stale
+
+- **GIVEN** the selected #431 runtime, workflow or validator identity is absent or does not match the executing inputs
+- **WHEN** dogfood readiness is evaluated
+- **THEN** the result is UNKNOWN and the hardening decision is no-go, even if C14 identity matches.
 
 ### Requirement: User-authorized refinement only
 
