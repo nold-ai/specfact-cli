@@ -12,6 +12,14 @@ Recovered from uncommitted planning files on `feature/cli-val-07-code-review-gat
 - Therefore production consumer tests/code cannot truthfully be implemented or
   validated against the planned interface yet.
 
+## Sequential specification promotion
+
+C15 modifies the existing pre-commit requirement and the protected-range
+requirement introduced by C14. Apply these replacements only after prerequisite
+C14 integration and native archival; do not archive C15 against today's missing
+protected-range capability. The schema 1.7-only blocking policy then replaces,
+rather than coexists with, C14's schema 1.6 acceptance rule.
+
 ## Decision
 
 Validate and review the OpenSpec plan now. Keep production tests/code blocked

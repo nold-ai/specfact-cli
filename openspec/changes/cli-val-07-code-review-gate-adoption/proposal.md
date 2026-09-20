@@ -48,6 +48,10 @@ parked Copilot test-generation change.
 
 ### Modified Capabilities
 
+- `pre-commit-review-gate`: replace C14's schema 1.6 blocking contract with the
+  authoritative schema 1.7 status/exit contract; preserve staged-only authority.
+- `protected-code-review-range-assurance`: advance C14's accepted producer
+  schema to 1.7 without weakening its independent range and trust verification.
 - `trustworthy-green-checks`: code-review green status is derived from validated
   report truth rather than a fallback severity count.
 - `ci-integration`: protected review enforcement pins the signed module, schema,
