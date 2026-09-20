@@ -69,3 +69,7 @@ Across ten representative PRs inspect existing GitHub data: proof-only reruns, d
 - [GitHub artifact attestations](https://docs.github.com/en/actions/concepts/security/artifact-attestations): provenance describes origin/build, not correctness or security.
 
 Accessed 2026-09-20. The MEB policy is a repository design decision informed by these sources, not a claim that they prescribe this exact implementation.
+
+## Workflow consumer boundary
+
+The paired `workflow-01-turn-orchestration` ([core #742](https://github.com/nold-ai/specfact-cli/issues/742), [modules #483](https://github.com/nold-ai/specfact-cli-modules/issues/483)) consumes current evidence without adding required session history. Standalone verification and ordinary CI need no previous workflow receipt. Operational receipts retain independent producer outcomes and cannot establish chronology or protected CI authority. The separate workflow executor may run configured checks; the R09 reconciler remains pure and performs no Git, test or network operations. Modules #481 supplies the contract consumed by workflow #483; R09 delivery does not wait for that downstream consumer. Core #740 keeps its own enforcement/policy cutover.

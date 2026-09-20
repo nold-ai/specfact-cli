@@ -41,6 +41,10 @@ Core #662 becomes replacement-reconciliation tracking; do not implement its old 
 
 Rollback restores the previous signed fixture, workflow, and ruleset together. Preserve explicit legacy readers and historical artifacts; never claim that old evidence validates a new revision.
 
+## Workflow consumer alignment
+
+The downstream `workflow-01-turn-orchestration` consumes these current claims without requiring prior local receipts, changing producer verdicts or promoting local state to protected CI authority. Its separate executor does not widen this reconciler. Modules #481 blocks workflow modules #483; the workflow is not an upstream dependency of R09.
+
 ## Source Tracking
 
 <!-- source_repo: nold-ai/specfact-cli -->

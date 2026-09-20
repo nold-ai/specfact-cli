@@ -61,3 +61,20 @@ Core SHALL migrate repository-required checks and organization-required workflow
 - **WHEN** rollout readiness is assessed
 - **THEN** cutover SHALL remain incomplete until the reviewed policies agree
 - **AND** no per-PR bypass SHALL substitute for that coordinated change.
+
+### Requirement: Workflow State Is Not Delivery Evidence
+
+Ordinary current-run consumers SHALL remain usable without prior local workflow receipts or session phases. Workflow execution SHALL remain separate from Requirements reconciliation and SHALL preserve independent producer outcomes. Local progress SHALL NOT establish historical proof or protected CI authority.
+
+#### Scenario: A harness starts in a fresh checkout
+
+- **GIVEN** current required validation inputs and no local turn receipt
+- **WHEN** ordinary verification or current reconciliation is requested
+- **THEN** the missing session history does not block the operation
+- **AND** only current identity-matching producer outputs determine their respective claims.
+
+#### Scenario: A local receipt declares success over a failing producer
+
+- **GIVEN** a local workflow receipt marked successful and a required failed or unknown producer result
+- **WHEN** ordinary delivery evaluates current evidence
+- **THEN** the producer remains non-passing and local state cannot override it or grant CI authority.
