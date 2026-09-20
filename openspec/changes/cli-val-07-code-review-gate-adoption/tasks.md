@@ -21,7 +21,7 @@ This owner-requested planning amendment supersedes conflicting development-workf
 - [ ] 2.3 Import the released producer/consumer matrix and pin signed module, schema, profile, and exception identities.
 - [x] 2.4 Update the internal wiki source page and rebuild the graph.
 - [x] 2.5 Run `openspec validate cli-val-07-code-review-gate-adoption --strict`.
-- [ ] 2.6 After prerequisite C14 integration and native archival, reconcile both MODIFIED local/protected gate requirements against the canonical C14 contract before implementation. Preserve its trust and staged/range boundaries while replacing schema 1.6-only blocking semantics; revalidate before C15 archival.
+- [ ] 2.6 After prerequisite C14 integration and native archival, reconcile the MODIFIED local, protected-range and green-check requirements against the canonical C14 contract before implementation. Preserve its trust and staged/range boundaries while replacing schema 1.6-only blocking semantics; revalidate before C15 archival.
 
 ## 3. Tests first
 

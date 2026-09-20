@@ -14,8 +14,8 @@ Recovered from uncommitted planning files on `feature/cli-val-07-code-review-gat
 
 ## Sequential specification promotion
 
-C15 modifies the existing pre-commit requirement and the protected-range
-requirement introduced by C14. Apply these replacements only after prerequisite
+C15 modifies the existing pre-commit requirement and the protected-range and
+green-check requirements introduced by C14. Apply these replacements only after prerequisite
 C14 integration and native archival; do not archive C15 against today's missing
 protected-range capability. The schema 1.7-only blocking policy then replaces,
 rather than coexists with, C14's schema 1.6 acceptance rule.
