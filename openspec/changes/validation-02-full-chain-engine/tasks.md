@@ -1,5 +1,13 @@
 # Tasks: validation-02-full-chain-engine
 
+## Scope rescope — 2026-09-20
+
+Consume current_execution independently from optional chronology. No global graph, full-chain completeness, or historical proof prerequisite for <https://github.com/nold-ai/specfact-cli/issues/740>. Missing mappings remain unassessed coverage, not fabricated completeness. Preserve graph validation for users who request that capability.
+
+This owner-requested scope amendment takes precedence over conflicting default-workflow or dependency wording below. It changes planning only; runtime policy is unchanged. [Replacement policy](../requirements-09-minimal-evidence/proposal.md).
+
+Implementation discipline: use focused regression/reproduction and current-run results. Any task requiring immutable hosted RED, frozen test authoring or approval receipts merely to implement this feature is superseded; tests of an explicitly selected optional seal feature remain in scope.
+
 ## 1. Branch and dependency guardrails
 
 - [ ] 1.1 Create dedicated worktree branch `feature/validation-02-full-chain-engine` from `dev` before implementation work: `scripts/worktree.sh create feature/validation-02-full-chain-engine`.
@@ -10,7 +18,7 @@
 
 - [ ] 2.1 Finalize `specs/` deltas for all listed capabilities and cross-check scenario completeness.
 - [ ] 2.2 Add/update tests mapped to new and modified scenarios.
-- [ ] 2.3 Run targeted tests to capture failing-first behavior and record results in `TDD_EVIDENCE.md`.
+- [ ] 2.3 Run targeted tests before behavior edits and summarize relevant failures and subsequent passes in concise validation notes with existing local or CI references; no authored TDD ledger is required under the effective lean policy.
 
 ## 3. Implementation
 
@@ -29,3 +37,8 @@
 
 - [ ] 5.1 Update `openspec/CHANGE_ORDER.md` status/dependency notes if implementation sequencing changed.
 - [ ] 5.2 Open a PR from `feature/validation-02-full-chain-engine` to `dev` with spec/test/code/docs evidence.
+
+## Current-evidence boundary acceptance
+
+- [ ] Test current-only verification without history, incomplete mappings alongside passing tests, and independent failed producer gates; retain producer statuses and references.
+- [ ] Verify native archival preserves the normative boundaries and adds serialization requirements without replacing producer-owned validation or policy requirements.

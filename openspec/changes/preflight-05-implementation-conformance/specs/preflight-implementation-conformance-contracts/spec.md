@@ -1,12 +1,28 @@
+## Scope rescope — 2026-09-20
+
+Seal, checkpoint, frozen mapping, successor approval, and historical RED/GREEN requirements in this issue apply only when an explicitly selected assurance policy requests them. They are not prerequisites for ordinary implementation, Code Review, release promotion, skill installation, or generated instructions. Keep the internal optional-feature dependency chain and source/signature integrity. Missing optional chronology is not a failed current-execution claim. No runtime policy changes in this planning update. This contract and modules #434 no longer block generic skill installation #251/#253 or native review support.
+
+This owner-requested scope amendment takes precedence over conflicting default-workflow or dependency wording below. It changes planning only; runtime policy is unchanged. [Replacement policy](../../../requirements-09-minimal-evidence/proposal.md).
+
 ## ADDED Requirements
 
 ### Requirement: Versioned implementation snapshot
+
+These assurance obligations SHALL apply only when an explicitly selected
+preflight assurance policy requests them; they SHALL NOT gate ordinary MEB delivery.
 
 The system SHALL define a versioned implementation snapshot whose kind is `worktree`, `index`, or `range` and which contains repository identity, exact kind-specific Git identity, complete changed-path manifest, public-interface records, test/evidence references, and producer, policy, toolchain, and extractor identities.
 
 The `worktree` kind SHALL bind a full base commit ID and worktree-manifest digest and include staged, unstaged, and untracked state relative to that base. The `index` kind SHALL bind a full base commit ID and exact index tree ID and exclude untracked paths unless staged as additions. The `range` kind SHALL bind full base/head commit IDs and base/head tree IDs and SHALL NOT represent untracked paths. Every snapshot base SHALL equal the seal-bound implementation-lineage origin repository/base commit/base tree, including after refinement or reapproval. A range head SHALL be proven to descend from that origin by a producer/policy/toolchain-bound ancestry attestation, SHALL equal a separately supplied policy-authorized current delivery-target commit/tree identity, and its manifest SHALL cover the complete lineage-origin-to-delivery-head range. Every kind SHALL preserve additions, deletions, both rename endpoints, before/after modes, symlink target identity, and byte-preserving path identity where those states exist. Rename interpretation SHALL be bound to producer, policy, and toolchain identity.
 
 Every governed manifest path that policy classifies as capable of defining a public interface SHALL carry normalized base/current public-interface observations regardless of whether its sealed role is `source`, `test`, `docs`, `generated`, or `evidence`. A side that does not exist by construction for an addition, deletion, or rename endpoint SHALL be represented by a normalized `absent` record/tombstone rather than omitted. The tombstone SHALL bind the same path, role, exact snapshot, extractor identity/version/configuration, policy/toolchain, and Git-transition provenance required of a present observation and SHALL contain no fabricated interface members. Deterministic comparison of `absent` with `present` SHALL derive interface additions/removals, including both rename endpoints. Missing, unsupported, incomplete, stale, ambiguous, wrong-snapshot, wrong-extractor, or unverifiable-absence observations SHALL be `unverifiable`; an omitted record, an `absent` record for an existing path, or a caller-supplied empty set SHALL NOT prove no changed interface.
+
+#### Scenario: Ordinary delivery has not selected preflight assurance
+
+- **GIVEN** ordinary MEB delivery has not selected a preflight assurance policy
+- **WHEN** implementation or delivery readiness is evaluated
+- **THEN** no preflight seal, checkpoint, successor approval, or historical chronology is required
+- **AND** required current checks still apply, without claiming that unevaluated optional assurance passed.
 
 #### Scenario: Snapshot preserves complete Git path semantics
 
@@ -52,6 +68,9 @@ Every governed manifest path that policy classifies as capable of defining a pub
 
 ### Requirement: Sealed obligation mapping
 
+These assurance obligations SHALL apply only when an explicitly selected
+preflight assurance policy requests them; they SHALL NOT gate ordinary MEB delivery.
+
 The system SHALL map approved scope roles, component ownership, interfaces, acceptance criteria, risk rows, Requirements-plan references, test intent, verification stages, and exclusions from the canonical latest valid preflight seal to normalized implementation evidence. The verifier SHALL accept a separately supplied policy-authorized canonical lineage-tip identity binding the change/lineage, latest seal digest and monotonic sequence, complete predecessor-chain digest, and authority/source identity; the selected seal SHALL equal that tip. A checkpoint MAY carry the deterministic affected subset for its sealed stage/profile. A final range result SHALL bind the obligation-map digest and SHALL require the exhaustive transitive closure for every changed governed path/interface and every applicable sealed component, acceptance criterion, risk row, Requirements case, component target, stage including `ci`, and exclusion. Every evidence record SHALL carry a producer authority class and verifiable provenance bound to its exact snapshot or range. An obligation whose earliest stage is `ci` SHALL be satisfiable only by evidence from a seal/policy-authorized protected-CI producer with authenticated provenance bound to the exact immutable range; local or caller-asserted producer identity SHALL NOT satisfy it.
 
 #### Scenario: Selected seal is not the canonical lineage tip
@@ -84,6 +103,9 @@ The system SHALL map approved scope roles, component ownership, interfaces, acce
 
 ### Requirement: Separate local checkpoint result
 
+These assurance obligations SHALL apply only when an explicitly selected
+preflight assurance policy requests them; they SHALL NOT gate ordinary MEB delivery.
+
 The system SHALL define a `DevelopmentCheckpointResult` with `PASS`, `FAIL`, `UNKNOWN`, or `NOT_APPLICABLE` status and authority limited to `local_worktree` or `local_index`.
 
 #### Scenario: Local result cannot become PR authority
@@ -102,6 +124,9 @@ The system SHALL define a `DevelopmentCheckpointResult` with `PASS`, `FAIL`, `UN
 
 ### Requirement: Immutable implementation conformance result
 
+These assurance obligations SHALL apply only when an explicitly selected
+preflight assurance policy requests them; they SHALL NOT gate ordinary MEB delivery.
+
 The system SHALL define an `ImplementationConformanceResult` that accepts only an explicit immutable range identity containing repository identity, full base and head commit IDs, base and head tree identities, the policy-authorized canonical seal-lineage tip identity, and the policy-authorized current delivery-target identity. Its complete path manifest and tree attestations SHALL bind to that exact repository, lineage-origin/current-delivery-head range, and selected latest seal.
 
 #### Scenario: Worktree evidence is supplied as final conformance
@@ -112,6 +137,9 @@ The system SHALL define an `ImplementationConformanceResult` that accepts only a
 - **AND** the missing immutable range identity is reported.
 
 ### Requirement: Closed implementation assurance finding classes
+
+These assurance obligations SHALL apply only when an explicitly selected
+preflight assurance policy requests them; they SHALL NOT gate ordinary MEB delivery.
 
 Checkpoint and conformance results SHALL distinguish mutually exclusive `missing`, `unexpected`, `modified`, `violated`, `stale`, and `unverifiable` findings with stable source and evidence identities. Classification precedence SHALL be `stale`, `unverifiable`, `unexpected`, `missing`, `modified`, then `violated`: stale identifies changed seal-bound inputs; unverifiable identifies absent, ambiguous, unsupported, or unreconciled required identity/evidence; unexpected identifies implementation without a sealed mapping; missing identifies a sealed required counterpart with no implementation/evidence; modified identifies a counterpart whose structural identity differs; violated identifies reconciled identities and executed evidence whose semantic observable differs from the sealed expectation.
 

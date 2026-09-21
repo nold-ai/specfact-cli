@@ -1,5 +1,11 @@
 ## Context
 
+## Scope rescope — 2026-09-20
+
+Remove the prerequisite on modules #434 for generic skill discovery/install/export. Validate against a bounded module-owned fixture and signed assets where used. Install optional preflight/checkpoint assets only once their own signed release exists. Keep safe writes, identity, collision handling, and inventory; this issue does not author assurance workflow content.
+
+This owner-requested scope amendment takes precedence over conflicting default-workflow or dependency wording below. It changes planning only; runtime policy is unchanged. [Replacement policy](../requirements-09-minimal-evidence/proposal.md).
+
 The original proposal mixed validation workflow content, sub-skills, and installation. The preflight architecture makes that ownership ambiguous: a signed module must own the canonical workflow it implements, while core can safely own the reusable distribution mechanism. This rescope retains issue #251 and its current Feature hierarchy while removing content ownership.
 
 ## Goals / Non-Goals
@@ -35,9 +41,12 @@ Core records exactly which files it installed and their digests. Reinstall is id
 
 Two modules cannot silently claim the same canonical skill ID. Untrusted, unsigned where policy requires signing, incompatible, or digest-mismatched assets are not installed. Diagnostics identify the competing identities and remediation options.
 
-### 5. First consumer follows checkpoint/conformance publication
+### 5. Generic installation is independently testable
 
-The signed modules #434 identity supplies `specfact-preflight` and the bounded implementation-check workflow. #251 discovers and exports them unchanged. This proves the generic mechanism but does not couple the installer to preflight or checkpoint semantics.
+Use a bounded module-owned descriptor/asset fixture, signed where required,
+to verify discovery and byte-preserving export. No preflight release blocks
+the generic mechanism. Once published, optional #434 assets can use the same
+contract unchanged; the installer does not own their workflow semantics.
 
 ## Risks / Trade-offs
 

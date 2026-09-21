@@ -1,0 +1,30 @@
+schema_version: "2"
+x-planning-context: &planning-context
+  rationale: "Make this requirement reviewable before implementation begins."
+  stakeholder_refs: ["nold-ai/specfact-cli#255"]
+x-planning-inspection: &planning-inspection
+  method: inspection
+  observable: >-
+    Strict OpenSpec validation retains the requirement and its scenarios
+    without claiming implementation or test execution.
+x-spec-1: &spec-1
+  - id: openspec-source-spec
+    kind: config_file
+    locator: "openspec/changes/dogfooding-01-full-chain-e2e-proof/specs/dogfooding-full-chain-e2e/spec.md"
+requirements:
+  openspec:dogfooding-01-full-chain-e2e-proof:dogfooding-full-chain-e2e:end-to-end-dogfooding-proof:
+    <<: *planning-context
+    touchpoints: *spec-1
+    verification_cases:
+      - <<: *planning-inspection
+        case_id: DOG01-001
+        scenario_id: end-to-end-dogfooding-proof
+        intent: "Inspect the end-to-end dogfooding proof planning contract and its scenarios."
+  openspec:dogfooding-01-full-chain-e2e-proof:dogfooding-full-chain-e2e:dogfooding-evidence-is-ci-consumable:
+    <<: *planning-context
+    touchpoints: *spec-1
+    verification_cases:
+      - <<: *planning-inspection
+        case_id: DOG01-002
+        scenario_id: dogfooding-evidence-is-ci-consumable
+        intent: "Inspect the dogfooding evidence is ci-consumable planning contract and its scenarios."

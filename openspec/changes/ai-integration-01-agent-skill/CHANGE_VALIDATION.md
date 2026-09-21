@@ -18,11 +18,19 @@
 ## Dependency Review
 
 - Parent Feature: core [#372](https://github.com/nold-ai/specfact-cli/issues/372).
-- Native blocker to be updated: signed modules checkpoint/conformance handoff [#434](https://github.com/nold-ai/specfact-cli-modules/issues/434).
+- Generic discovery/install/export has no native #434 blocker. Optional checkpoint/conformance assets from [#434](https://github.com/nold-ai/specfact-cli-modules/issues/434) are integrated only after their signed publication.
 - Native downstream verified: core [#253](https://github.com/nold-ai/specfact-cli/issues/253).
 - GitHub readback verified the retained User Story parent #372, project `SpecFact CLI` / `Todo`, assignee `djm81`, and the required labels.
 
-## Validation Record
+## Current planning validation — 2026-09-20
+
+Strict OpenSpec validation and scoped Markdown checks pass for the amended plan.
+Proposal, design, tasks and this dependency review agree: #434 does not block
+ordinary skill distribution; its optional assets require their signed publication.
+This is planning validation, not implementation readiness or CI-gate success;
+current Requirements/authority CI failures remain recorded on PR #741.
+
+## Historical validation — 2026-08-25
 
 - `openspec status --change ai-integration-01-agent-skill --json`: PASS on 2026-08-25; all required proposal artifacts reported complete.
 - `openspec validate ai-integration-01-agent-skill --strict`: PASS on 2026-08-25.
