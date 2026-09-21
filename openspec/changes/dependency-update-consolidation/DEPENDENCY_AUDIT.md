@@ -28,6 +28,14 @@ The isolated assessment compiled Pylint 4.0.8 with Python 3.12 targeting, `--no-
 
 Before implementation, repeat screening against the actual generated final graph and every selected artifact. A future resolver introducing different versions, sources, or transitives invalidates the relevant candidate review.
 
+### Dependency paths and marker coverage
+
+`baseline_records` and `candidate_records` retain every incoming primary lock edge, including project roots and optional groups. Each edge preserves the parent version, parent fork markers, raw dependency marker, requested child extras, and `parent_extra` activation condition. Record-level `resolution_markers` describe lock forks; an empty array does not mean every incoming edge is unconditional. Evaluate both kinds of conditions along the dependency chain for the target Python/platform/profile.
+
+Representative paths traverse only activated optional groups and retain requested extras in their labels. They are examples, not exhaustive profile coverage. Both snapshots place `linkify-it-py` under `extra:dev -> mutmut -> textual -> markdown-it-py[linkify]`; the baseline then reaches `uc-micro-py`, which disappears from the candidate graph. Neither package belongs to the isolated Code Review graph. libcst's incoming `pyyaml-ft` edge is restricted to `python_full_version == '3.13.*'`; its alternative `pyyaml` edge applies outside that range, while independent runtime paths also require PyYAML.
+
+Review correction on 2026-09-21: the first inventory omitted optional edges from path traversal and represented only record-level fork markers. The corrected evidence matches all 347 baseline edges across 183 external records and all 344 candidate edges across 181 records. Each graph preserves 25 conditional edges and 43 optional-group edges. These are metadata corrections against the original hash-bound snapshots; package versions, artifact identities, advisory results, and unapproved status are unchanged.
+
 ## Source PR dispositions and important candidates
 
 | Item | Verified observation | Disposition |

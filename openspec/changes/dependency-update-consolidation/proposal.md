@@ -47,7 +47,7 @@ None. This maintenance workflow consumes the existing reproducible-delivery and 
 - **Repository**: nold-ai/specfact-cli
 - **Last Synced Status**: proposed; implementation not started
 - **Parent Epic**: #194
-- **Project**: SpecFact CLI #1, Todo
+- **Project**: SpecFact CLI #1, In Progress (proposal review; dependency implementation not started)
 - **Labels**: dependencies, security, openspec, change-proposal
 - **Source PRs**: #744 and #727, both target main; consolidation implementation targets dev and follows normal release promotion.
 - **Completed foundations**: #651 and #686, both closed; references, not outstanding blockers.
