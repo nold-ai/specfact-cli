@@ -1,0 +1,93 @@
+schema_version: "2"
+requirements:
+  openspec:dependency-update-consolidation:dependency-update-consolidation:complete-dependency-assessment:
+    rationale: "Complete dependency assessment; planning acceptance only, no implementation claim."
+    stakeholder_refs: ["nold-ai/specfact-cli#747"]
+    touchpoints:
+      - id: dependency-consolidation-spec
+        kind: config_file
+        locator: openspec/changes/dependency-update-consolidation/specs/dependency-update-consolidation/spec.md
+    verification_cases:
+      - case_id: DEP-CONSOLIDATION-001
+        scenario_id: complete-dependency-assessment
+        method: inspection
+        intent: "Inspect complete dependency assessment and its Given/When/Then scenarios."
+        observable: Strict OpenSpec validation preserves the contract and scenarios without asserting execution or security clearance.
+  openspec:dependency-update-consolidation:dependency-update-consolidation:compatible-update-boundaries:
+    rationale: "Compatible update boundaries; planning acceptance only, no implementation claim."
+    stakeholder_refs: ["nold-ai/specfact-cli#747"]
+    touchpoints:
+      - id: dependency-consolidation-spec
+        kind: config_file
+        locator: openspec/changes/dependency-update-consolidation/specs/dependency-update-consolidation/spec.md
+    verification_cases:
+      - case_id: DEP-CONSOLIDATION-002
+        scenario_id: compatible-update-boundaries
+        method: inspection
+        intent: "Inspect compatible update boundaries and its Given/When/Then scenarios."
+        observable: Strict OpenSpec validation preserves the contract and scenarios without asserting execution or security clearance.
+  openspec:dependency-update-consolidation:dependency-update-consolidation:independent-vulnerability-and-malicious-package-screening:
+    rationale: "Independent vulnerability and malicious-package screening; planning acceptance only, no implementation claim."
+    stakeholder_refs: ["nold-ai/specfact-cli#747"]
+    touchpoints:
+      - id: dependency-consolidation-spec
+        kind: config_file
+        locator: openspec/changes/dependency-update-consolidation/specs/dependency-update-consolidation/spec.md
+    verification_cases:
+      - case_id: DEP-CONSOLIDATION-003
+        scenario_id: independent-vulnerability-and-malicious-package-screening
+        method: inspection
+        intent: "Inspect independent vulnerability and malicious-package screening and its Given/When/Then scenarios."
+        observable: Strict OpenSpec validation preserves the contract and scenarios without asserting execution or security clearance.
+  openspec:dependency-update-consolidation:dependency-update-consolidation:exact-and-current-security-evidence:
+    rationale: "Exact and current security evidence; planning acceptance only, no implementation claim."
+    stakeholder_refs: ["nold-ai/specfact-cli#747"]
+    touchpoints:
+      - id: dependency-consolidation-spec
+        kind: config_file
+        locator: openspec/changes/dependency-update-consolidation/specs/dependency-update-consolidation/spec.md
+    verification_cases:
+      - case_id: DEP-CONSOLIDATION-004
+        scenario_id: exact-and-current-security-evidence
+        method: inspection
+        intent: "Inspect exact and current security evidence and its Given/When/Then scenarios."
+        observable: Strict OpenSpec validation preserves the contract and scenarios without asserting execution or security clearance.
+  openspec:dependency-update-consolidation:dependency-update-consolidation:trust-policy-cannot-be-bypassed:
+    rationale: "Trust policy cannot be bypassed; planning acceptance only, no implementation claim."
+    stakeholder_refs: ["nold-ai/specfact-cli#747"]
+    touchpoints:
+      - id: dependency-consolidation-spec
+        kind: config_file
+        locator: openspec/changes/dependency-update-consolidation/specs/dependency-update-consolidation/spec.md
+    verification_cases:
+      - case_id: DEP-CONSOLIDATION-005
+        scenario_id: trust-policy-cannot-be-bypassed
+        method: inspection
+        intent: "Inspect trust policy cannot be bypassed and its Given/When/Then scenarios."
+        observable: Strict OpenSpec validation preserves the contract and scenarios without asserting execution or security clearance.
+  openspec:dependency-update-consolidation:dependency-update-consolidation:coherent-frozen-delivery-and-compatibility:
+    rationale: "Coherent frozen delivery and compatibility; planning acceptance only, no implementation claim."
+    stakeholder_refs: ["nold-ai/specfact-cli#747"]
+    touchpoints:
+      - id: dependency-consolidation-spec
+        kind: config_file
+        locator: openspec/changes/dependency-update-consolidation/specs/dependency-update-consolidation/spec.md
+    verification_cases:
+      - case_id: DEP-CONSOLIDATION-006
+        scenario_id: coherent-frozen-delivery-and-compatibility
+        method: inspection
+        intent: "Inspect coherent frozen delivery and compatibility and its Given/When/Then scenarios."
+        observable: Strict OpenSpec validation preserves the contract and scenarios without asserting execution or security clearance.
+  openspec:dependency-update-consolidation:dependency-update-consolidation:planning-evidence-is-not-implementation-completion:
+    rationale: "Planning evidence is not implementation completion; planning acceptance only, no implementation claim."
+    stakeholder_refs: ["nold-ai/specfact-cli#747"]
+    touchpoints:
+      - id: dependency-consolidation-spec
+        kind: config_file
+        locator: openspec/changes/dependency-update-consolidation/specs/dependency-update-consolidation/spec.md
+    verification_cases:
+      - case_id: DEP-CONSOLIDATION-007
+        scenario_id: planning-evidence-is-not-implementation-completion
+        method: inspection
+        intent: "Inspect planning evidence is not implementation completion and its Given/When/Then scenarios."
+        observable: Strict OpenSpec validation preserves the contract and scenarios without asserting execution or security clearance.

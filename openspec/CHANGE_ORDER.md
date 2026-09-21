@@ -38,11 +38,21 @@ Recovered from uncommitted proposal-only feature worktrees into local `dev`; rem
 | `code-review-14-protected-range-adoption` | [#680](https://github.com/nold-ai/specfact-cli/issues/680) | Planned core consumer; shipped signed C14 producer and runtime/layout compatibility |
 | `cli-val-07-code-review-gate-adoption` | [#679](https://github.com/nold-ai/specfact-cli/issues/679) | Planned C15 consumer; core C14, signed modules C15, profile, policy and exceptions |
 
+## Compatible dependency maintenance (2026-09-21)
+
+| Change | Issue | Status / prerequisites |
+|---|---|---|
+| `dependency-update-consolidation` | [#747](https://github.com/nold-ai/specfact-cli/issues/747) | Planning only; consolidate Dependabot #744 and assess #727, scan all Python dependency surfaces, require separate CVE and exact-artifact malware/provenance checks before adoption; completed #651/#686 are references, no outstanding issue prerequisite |
+
+Implementation preserves supported major lines and Python 3.11–3.13. Candidate
+security/compatibility evidence is required before installation and delivery;
+no dependency, release, runtime-policy, or signed-asset changes ship in the proposal.
+
 ## Status snapshot
 
 | Bucket | Count | Location |
 |---|---:|---|
-| **Active-tree entries** | 39 | [`openspec/changes/`](changes/) |
+| **Active-tree entries** | 40 | [`openspec/changes/`](changes/) |
 | **Parking-lot entries** | 21 | [`openspec/parking-lot/`](parking-lot/) |
 | **Archived** | 120 | [`openspec/changes/archive/`](changes/archive/) |
 
