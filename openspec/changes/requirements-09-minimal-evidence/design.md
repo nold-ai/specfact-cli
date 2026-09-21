@@ -47,14 +47,15 @@ tests or code. Do not make the migration prove the historical process it removes
 
 The delivery order is reviewed governance preparation -> signed modules #481
 publication -> core adoption and trusted pilot -> coordinated repository/organization
-cutover, with the module/workflow/policy rollback kept together. Open and integrate
+cutover -> ten-PR observation/rollback window -> obsolete helper/test removal,
+with the module/workflow/policy rollback kept together. Open and integrate
 bounded PRs as each slice becomes reviewable; trusted pilot execution uses that
 reviewed integrated source. Finalization records those PRs rather than opening
 the first PR after deployment.
 
 Run the replacement non-blocking on representative ordinary, bugfix, executable-doc, dependency, fork, and promotion candidates. Verify current checks and trust boundaries before switching both repository and organization enforcement. Do not leave duplicate old/new test execution running for every PR after cutover.
 
-Rollback restores prior module pin, workflow, and required-policy configuration together. Reader incompatibility, missing required checks, and incorrect current-result acceptance are rollback triggers. Historical records remain readable; rollback cannot relabel current-only evidence as chronology.
+Rollback restores prior module pin, workflow, and required-policy configuration together, using matching helpers and their relevant tests retained through the ten-PR observation/rollback window. Delete those obsolete helpers/tests only after that window closes and cutover defects are resolved. Reader incompatibility, missing required checks, and incorrect current-result acceptance are rollback triggers. Historical records remain readable; rollback cannot relabel current-only evidence as chronology.
 
 ## Verification and value check
 

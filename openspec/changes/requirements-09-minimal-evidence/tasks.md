@@ -31,8 +31,8 @@ Planning only; all implementation tasks remain unchecked. Each numbered task is 
 
 - [ ] 4.1 Run focused/full affected tests and applicable format/type/lint/contracts, independent security, code review, OpenSpec, frozen delivery, and signature checks. Keep a fresh `.specfact/code-review.json` for the reviewed candidate and disposition every finding by fix, reasoned rejection, or individually authorized documented exception before completion; do not restart historical proof ceremonies.
 - [ ] 4.2 Pilot representative PR paths from the reviewed, integrated trusted source in non-blocking mode and verify evidence identity, job conclusion propagation, artifact retention and required-check emission.
-- [ ] 4.3 Apply the reviewed coordinated repository and organization enforcement cutover, verify readback on dev/main, and remove obsolete default-path proof helpers/tests that only implement retired policy.
-- [ ] 4.4 Review ten representative PRs using existing CI data; record concise overhead/regression observations and resolve cutover defects. Do not add a metrics gate.
+- [ ] 4.3 Apply the reviewed coordinated repository and organization enforcement cutover and verify readback on dev/main. Retain the matching rollback helpers and their relevant tests through the observation/rollback window in 4.4.
+- [ ] 4.4 Review ten representative PRs using existing CI data; record concise overhead/regression observations and resolve cutover defects. Only after this observation/rollback window closes, remove obsolete default-path proof helpers and their relevant tests that only implement retired policy. Do not add a metrics gate.
 
 ## 5. Finalize
 
