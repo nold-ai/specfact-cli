@@ -1,0 +1,33 @@
+schema_version: "2"
+requirements:
+  openspec:fix-planning-evidence-multichange:requirements-planning-workflow:planning-only-review-evidence-selection:
+    rationale: Planning validation must not require implementation approval while implementation restrictions remain enforced.
+    touchpoints:
+      - id: requirements-workflow
+        kind: config_file
+        locator: .github/workflows/requirements-evidence.yml
+    verification_cases:
+      - case_id: planning-consumer-selection
+        scenario_id: planning-only-review-evidence-selection
+        method: test
+        intent: Execute fresh and final workflow selection for zero, one, and multiple planning changes with an unrelated approval present.
+        observable: Planning selection succeeds without any implementation review path.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_requirements_planning_scope.py::test_planned_changes_do_not_select_implementation_reviews
+      - case_id: implementation-selection-preserved
+        scenario_id: planning-only-review-evidence-selection
+        method: test
+        intent: Execute fresh and final selection above planned maturity for one and multiple active changes.
+        observable: A single implementation review path is selected and multiple changes remain rejected.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_requirements_planning_scope.py::test_implementation_review_scope_remains_enforced
+      - case_id: planning-producer-selection
+        scenario_id: planning-only-review-evidence-selection
+        method: test
+        intent: Execute producer selection with a review record present at planned and test-authored maturity.
+        observable: Only implementation evidence receives the approval record.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_requirements_planning_scope.py::test_producer_keeps_implementation_approval_out_of_planning
