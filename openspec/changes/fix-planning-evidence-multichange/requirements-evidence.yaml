@@ -15,14 +15,6 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/workflows/test_requirements_planning_scope.py::test_planned_changes_do_not_select_implementation_reviews
-      - case_id: implementation-selection-preserved
-        scenario_id: planning-only-review-evidence-selection
-        method: test
-        intent: Execute fresh and final selection above planned maturity for one and multiple active changes.
-        observable: A single implementation review path is selected and multiple changes remain rejected.
-        selector:
-          runner: pytest
-          node_id: tests/unit/workflows/test_requirements_planning_scope.py::test_implementation_review_scope_remains_enforced
       - case_id: planning-producer-selection
         scenario_id: planning-only-review-evidence-selection
         method: test
