@@ -42,7 +42,7 @@ Recovered from uncommitted proposal-only feature worktrees into local `dev`; rem
 
 | Bucket | Count | Location |
 |---|---:|---|
-| **Active-tree entries** | 38 | [`openspec/changes/`](changes/) |
+| **Active-tree entries** | 39 | [`openspec/changes/`](changes/) |
 | **Parking-lot entries** | 21 | [`openspec/parking-lot/`](parking-lot/) |
 | **Archived** | 120 | [`openspec/changes/archive/`](changes/archive/) |
 
@@ -87,6 +87,10 @@ brownfield delivery. The active roadmap should make that thesis stronger:
   are listed in the **Blocked by** column.
 
 ## Active tracks
+
+### Planning integration prerequisite
+
+`fix-planning-evidence-multichange` ([#745](https://github.com/nold-ai/specfact-cli/issues/745), PR #746) corrects planning-only review selection in the existing Requirements workflow. It unblocks coordinated planning integration in PR #741 without activating R09 or relaxing implementation proof, trusted authority, or promotion verification. PR #746 merged into dev on 2026-09-21 after its evidence checks passed; integration into planning PR #741 is in progress.
 
 The inventory includes five product tracks and scoped reliability and documentation
 follow-ups. Tracks can run in parallel; within a track, follow the order column

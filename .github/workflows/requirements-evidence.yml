@@ -686,7 +686,7 @@ jobs:
           fi
           if [[ -n "$selected_change" ]]; then
             review_evidence="openspec/changes/${selected_change}/requirements-proof/review-evidence.json"
-            if [[ -f "$review_evidence" ]]; then
+            if [[ "$planning_maturity" != "planned" && -f "$review_evidence" ]]; then
               evidence_arguments+=(--review-evidence "$review_evidence")
             fi
             candidate_red_proof="${RUNNER_TEMP}/prior-red-proof/red.json"
@@ -1564,7 +1564,7 @@ jobs:
             esac
           done < "$consumer_change_paths_file"
           review_evidence_paths=()
-          if [[ "$EVIDENCE_PROMOTION_REUSE" != "true" ]]; then
+          if [[ "$EVIDENCE_PROMOTION_REUSE" != "true" && "$planning_maturity" != "planned" ]]; then
             if [[ "${#consumer_changed_change_ids[@]}" -eq 1 ]]; then
               for selected_change in "${!consumer_changed_change_ids[@]}"; do
                 :
@@ -1575,7 +1575,7 @@ jobs:
               exit 1
             fi
           fi
-          if [[ "$EVIDENCE_PROMOTION_REUSE" != "true" ]]; then
+          if [[ "$EVIDENCE_PROMOTION_REUSE" != "true" && "$planning_maturity" != "planned" ]]; then
             if [[ "${#review_evidence_paths[@]}" -eq 0 ]]; then
               mapfile -t active_review_evidence < <(
                 find openspec/changes -path 'openspec/changes/archive' -prune -o -path '*/requirements-proof/review-evidence.json' -type f -print | sort
@@ -2454,7 +2454,7 @@ jobs:
             esac
           done < "$final_change_paths_file"
           review_evidence_paths=()
-          if [[ "$EVIDENCE_PROMOTION_REUSE" != "true" ]]; then
+          if [[ "$EVIDENCE_PROMOTION_REUSE" != "true" && "$planning_maturity" != "planned" ]]; then
             if [[ "${#final_changed_change_ids[@]}" -eq 1 ]]; then
               for selected_change in "${!final_changed_change_ids[@]}"; do
                 :
@@ -2465,7 +2465,7 @@ jobs:
               exit 1
             fi
           fi
-          if [[ "$EVIDENCE_PROMOTION_REUSE" != "true" ]]; then
+          if [[ "$EVIDENCE_PROMOTION_REUSE" != "true" && "$planning_maturity" != "planned" ]]; then
             if [[ "${#review_evidence_paths[@]}" -eq 0 ]]; then
               mapfile -t active_review_evidence < <(
                 find openspec/changes -path 'openspec/changes/archive' -prune -o -path '*/requirements-proof/review-evidence.json' -type f -print | sort
