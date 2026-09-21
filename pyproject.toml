@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling==1.32.0"]
+requires = ["hatchling==1.32.3"]
 build-backend = "hatchling.build"
 
 [project]
@@ -117,7 +117,7 @@ telemetry = [
 ]
 
 dev = [
-    "hatchling==1.32.0",  # Frozen PEP 517 backend used by delivery wheel builds.
+    "hatchling==1.32.3",  # Frozen PEP 517 backend used by delivery wheel builds.
     "setuptools>=83.0.0,<85",
     "pip>=26.2",  # CVE-2026-13346 is fixed in pip 26.2; tooling-only, not a core runtime dependency.
     "pytest>=8.4.2",
