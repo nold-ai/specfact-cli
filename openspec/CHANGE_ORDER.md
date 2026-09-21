@@ -8,7 +8,7 @@ active changes should be implemented.
 
 | Bucket | Count | Location |
 |---|---:|---|
-| **Active-tree entries** | 35 | [`openspec/changes/`](changes/) |
+| **Active-tree entries** | 36 | [`openspec/changes/`](changes/) |
 | **Parking-lot entries** | 21 | [`openspec/parking-lot/`](parking-lot/) |
 | **Archived** | 120 | [`openspec/changes/archive/`](changes/archive/) |
 
@@ -53,6 +53,10 @@ brownfield delivery. The active roadmap should make that thesis stronger:
   are listed in the **Blocked by** column.
 
 ## Active tracks
+
+### Planning integration prerequisite
+
+`fix-planning-evidence-multichange` ([#745](https://github.com/nold-ai/specfact-cli/issues/745), PR #746) corrects planning-only review selection in the existing Requirements workflow. It unblocks coordinated planning integration in PR #741 without activating R09 or relaxing implementation proof, trusted authority, or promotion verification. Merge and remote acceptance remain pending.
 
 The inventory includes five product tracks and scoped reliability and documentation
 follow-ups. Tracks can run in parallel; within a track, follow the order column

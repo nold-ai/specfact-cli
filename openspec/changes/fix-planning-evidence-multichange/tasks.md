@@ -10,14 +10,14 @@ Specs precede tests; capture failing tests before changing the workflow.
 
 ## 2. Reproduce and fix
 
-- [ ] 2.1 Add behavioral tests of actual workflow shell selection and record failing evidence.
-- [ ] 2.2 Guard implementation review selection above planned maturity across all stages.
-- [ ] 2.3 Run affected workflow tests, lint, and repository-required checks; record results.
+- [x] 2.1 Add behavioral tests of actual workflow shell selection and record failing evidence.
+- [x] 2.2 Guard implementation review selection above planned maturity across all stages.
+- [x] 2.3 Run affected workflow tests, lint, and repository-required checks; record results.
 
 ## 3. Review and deliver
 
-- [ ] 3.1 Review trust boundaries and documentation impact; synchronize the internal wiki summary.
-- [ ] 3.2 Commit signed changes, push, and open a prerequisite PR to dev linked to #745.
+- [x] 3.1 Review trust boundaries and documentation impact; synchronize the internal wiki summary.
+- [x] 3.2 Commit signed changes, push, and open a prerequisite PR to dev linked to #745.
 - [ ] 3.3 After authorized merge, refresh dependent planning PR #741 and verify remote gates.
 
 ## Post-merge
