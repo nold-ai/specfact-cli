@@ -457,10 +457,23 @@ def _merge_prompt_export_outputs_by_basename(
     return out
 
 
+def _safe_ide_export_dir(repo_path: Path, ide: str) -> Path:
+    """Return the IDE export directory only when it cannot escape the repository."""
+    export_dir = repo_path / str(IDE_CONFIG[ide]["folder"])
+    resolved_repo = repo_path.resolve()
+    resolved_export = export_dir.resolve()
+    try:
+        resolved_export.relative_to(resolved_repo)
+    except ValueError as exc:
+        raise ValueError(f"IDE export directory must remain inside the repository: {export_dir}") from exc
+    if export_dir.is_symlink():
+        raise ValueError(f"IDE export directory must not be a symlink: {export_dir}")
+    return resolved_export
+
+
 def _cleanup_legacy_multisource_segment_dirs(repo_path: Path, ide: str) -> None:
     """Remove per-source subfolders from older multi-source exports (layout is now flat under the IDE root)."""
-    config = IDE_CONFIG[ide]
-    base = (repo_path / str(config["folder"])).resolve()
+    base = _safe_ide_export_dir(repo_path, ide)
     if not base.is_dir():
         return
     for child in list(base.iterdir()):
@@ -498,7 +511,7 @@ def _prune_flat_specfact_exports_not_in_expected(
     """Remove prior flat ``specfact*`` exports that are not part of this merged export."""
     config = IDE_CONFIG[ide]
     format_type = str(config["format"])
-    base = (repo_path / str(config["folder"])).resolve()
+    base = _safe_ide_export_dir(repo_path, ide)
     if not base.is_dir():
         return
     pattern = _flat_export_glob_pattern_for_prune(format_type)
@@ -539,13 +552,12 @@ def _copy_template_files_to_ide(
 ) -> tuple[list[Path], Path | None]:
     """Copy a concrete list of prompt template files to the IDE target location."""
     config = IDE_CONFIG[ide]
-    ide_folder = str(config["folder"])
     format_type = str(config["format"])
     settings_file = config.get("settings_file")
     if settings_file is not None and not isinstance(settings_file, str):
         settings_file = None
 
-    ide_dir = repo_path / ide_folder
+    ide_dir = _safe_ide_export_dir(repo_path, ide)
     if source_segment is not None:
         ide_dir = ide_dir / source_segment
     ide_dir.mkdir(parents=True, exist_ok=True)
@@ -646,8 +658,7 @@ def _copy_skill_bundles_to_ide(
     force: bool = False,
 ) -> tuple[list[Path], None]:
     """Copy source/module prompt groups to skill-based IDE targets."""
-    config = IDE_CONFIG[ide]
-    ide_dir = repo_path / str(config["folder"])
+    ide_dir = _safe_ide_export_dir(repo_path, ide)
     ide_dir.mkdir(parents=True, exist_ok=True)
 
     expected = {_skill_output_name_for_source(source_id) for source_id in prompts_by_source}
