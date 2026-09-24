@@ -392,6 +392,25 @@ def test_get_installed_bundles_infers_bundle_from_namespaced_module_name() -> No
     assert "specfact-backlog" in bundles
 
 
+def test_get_installed_bundles_rejects_spoofed_official_bundle_identity() -> None:
+    """Manifest bundle text alone must not impersonate an official bundle."""
+    metadata = ModulePackageMetadata(
+        name="attacker/evil-requirements",
+        version="0.1.0",
+        commands=["requirements"],
+        category="requirements",
+        bundle="specfact-requirements",
+        source="project",
+    )
+
+    bundles = get_installed_bundles(
+        [(Path("/tmp/evil-requirements"), metadata)],
+        {"attacker/evil-requirements": True},
+    )
+
+    assert bundles == []
+
+
 def test_merge_module_state_preserves_existing():
     """Existing state preserved; overrides applied."""
     discovered = [("a", "1.0"), ("b", "2.0")]
@@ -782,6 +801,77 @@ def test_requirements_bundle_mounts_native_requirements_root_group(
         )
     )
     assert "list" in command_names
+
+
+def test_unsigned_project_module_requires_integrity_and_signature(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Project Python must not become a command without cryptographic verification."""
+    from specfact_cli.registry import module_packages as mp
+
+    metadata = ModulePackageMetadata(
+        name="attacker/evil-requirements",
+        version="0.1.0",
+        commands=["requirements"],
+        category="requirements",
+        bundle="specfact-requirements",
+        source="project",
+    )
+    verification_calls: list[tuple[bool, bool, bool]] = []
+
+    def reject_unverified_project(
+        _package_dir: Path,
+        _meta: ModulePackageMetadata,
+        allow_unsigned: bool = False,
+        require_integrity: bool = False,
+        require_signature: bool = False,
+    ) -> bool:
+        verification_calls.append((allow_unsigned, require_integrity, require_signature))
+        return not require_integrity and not require_signature
+
+    monkeypatch.setattr(mp, "discover_all_package_metadata", lambda: [(tmp_path / "evil", metadata)])
+    monkeypatch.setattr(mp, "verify_module_artifact", reject_unverified_project)
+    monkeypatch.setattr(mp, "read_modules_state", dict)
+
+    register_module_package_commands(allow_unsigned=False)
+
+    assert (False, True, True) in verification_calls
+    assert "requirements" not in CommandRegistry.list_commands()
+
+
+def test_explicit_unsigned_override_preserves_project_module_development(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The explicit unsigned override remains an opt-in project development path."""
+    from specfact_cli.registry import module_packages as mp
+
+    metadata = ModulePackageMetadata(
+        name="developer/local-module",
+        version="0.1.0",
+        commands=["local-command"],
+        source="project",
+    )
+    verification_calls: list[tuple[bool, bool, bool]] = []
+
+    def allow_explicit_unsigned(
+        _package_dir: Path,
+        _meta: ModulePackageMetadata,
+        allow_unsigned: bool = False,
+        require_integrity: bool = False,
+        require_signature: bool = False,
+    ) -> bool:
+        verification_calls.append((allow_unsigned, require_integrity, require_signature))
+        return allow_unsigned
+
+    monkeypatch.setattr(mp, "discover_all_package_metadata", lambda: [(tmp_path / "local", metadata)])
+    monkeypatch.setattr(mp, "verify_module_artifact", allow_explicit_unsigned)
+    monkeypatch.setattr(mp, "read_modules_state", dict)
+    monkeypatch.setattr(mp, "_check_protocol_compliance_from_source", lambda *_args, **_kwargs: [])
+
+    register_module_package_commands(allow_unsigned=True)
+
+    assert (True, False, False) in verification_calls
+    assert "local-command" in CommandRegistry.list_commands()
 
 
 def test_grouped_registration_does_not_register_flat_shim_commands(

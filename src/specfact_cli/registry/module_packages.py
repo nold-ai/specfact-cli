@@ -1207,7 +1207,8 @@ def get_installed_bundles(
     def _resolved_bundle(meta: Any) -> str | None:
         bundle_name = getattr(meta, "bundle", None)
         if isinstance(bundle_name, str) and bundle_name:
-            return bundle_name
+            expected_module_name = f"nold-ai/{bundle_name}"
+            return bundle_name if getattr(meta, "name", None) == expected_module_name else None
         module_name = getattr(meta, "name", None)
         if not isinstance(module_name, str) or "/" not in module_name:
             return None
@@ -1358,7 +1359,18 @@ def _register_service_bridges_safe(meta: Any, bridge_owner_map: dict[str, str], 
 
 
 def _module_integrity_allows_load(package_dir: Path, meta: Any, ctx: _ModuleIntegrityContext) -> bool:
-    if verify_module_artifact(package_dir, meta, allow_unsigned=ctx.allow_unsigned):
+    verify_project_signature = getattr(meta, "source", None) == "project" and not ctx.allow_unsigned
+    if verify_project_signature:
+        verified = verify_module_artifact(
+            package_dir,
+            meta,
+            allow_unsigned=False,
+            require_integrity=True,
+            require_signature=True,
+        )
+    else:
+        verified = verify_module_artifact(package_dir, meta, allow_unsigned=ctx.allow_unsigned)
+    if verified:
         return True
     if _is_builtin_module_package(package_dir):
         ctx.logger.warning(
