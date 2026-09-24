@@ -9,6 +9,7 @@ from pathlib import Path
 
 from beartype import beartype
 from icontract import ensure, require
+from packaging.requirements import InvalidRequirement, Requirement
 
 from specfact_cli.common import get_bridge_logger
 from specfact_cli.models.module_package import ModulePackageMetadata
@@ -27,6 +28,25 @@ class PipDependencyValidationUnavailableError(RuntimeError):
 
 class PipDependencyInstallError(Exception):
     """Raised when installation of resolved pip requirements fails."""
+
+
+def _unsafe_requirement_reason(requirement: str) -> str | None:
+    """Return why a requirement is unsafe for automatic pip execution, if applicable."""
+    try:
+        parsed = Requirement(requirement)
+    except InvalidRequirement:
+        return "not a valid PEP 508 named requirement"
+    if parsed.url is not None:
+        return "direct and VCS URLs are not approved for automatic installation"
+    return None
+
+
+def _validate_index_requirements(requirements: list[str]) -> None:
+    """Reject pip options, paths, and URL requirements before invoking pip tooling."""
+    for requirement in requirements:
+        reason = _unsafe_requirement_reason(requirement)
+        if reason is not None:
+            raise ValueError(f"unsafe pip requirement {requirement!r}: {reason}")
 
 
 @beartype
@@ -159,6 +179,10 @@ def resolve_dependencies(
     constraints = _collect_constraints(modules)
     if not constraints:
         return []
+    try:
+        _validate_index_requirements(constraints)
+    except ValueError as exc:
+        raise DependencyConflictError(str(exc)) from exc
     if _pip_tools_available():
         return _run_pip_compile(constraints)
     return _run_basic_resolver(constraints, allow_unvalidated=allow_unvalidated)
@@ -174,6 +198,10 @@ def install_resolved_pip_requirements(pinned: list[str]) -> None:
     """
     if not pinned:
         return
+    try:
+        _validate_index_requirements(pinned)
+    except ValueError as exc:
+        raise PipDependencyInstallError(str(exc)) from exc
     if not _pip_module_available():
         logger.warning(
             "pip is not available in this environment; skipping install of %s marketplace pip "
