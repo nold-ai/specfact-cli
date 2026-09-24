@@ -656,7 +656,7 @@ jobs:
               selected_change="${selected_change%/requirements-proof/review-evidence.json}"
             fi
           fi
-          clean_environment=(env -i "HOME=${HOME:-}" "LANG=${LANG:-}" "LC_ALL=${LC_ALL:-}" "LC_CTYPE=${LC_CTYPE:-}" "PATH=${PATH:-}" "RUNNER_TEMP=${RUNNER_TEMP}" "SPECFACT_MODULES_REPO=${SPECFACT_MODULES_REPO}" "SPECFACT_MODULES_ROOTS=${SPECFACT_MODULES_ROOTS}")
+          clean_environment=(env -i "HOME=${HOME:-}" "LANG=${LANG:-}" "LC_ALL=${LC_ALL:-}" "LC_CTYPE=${LC_CTYPE:-}" "PATH=${PATH:-}" "RUNNER_TEMP=${RUNNER_TEMP}" "SPECFACT_MODULES_REPO=${SPECFACT_MODULES_REPO}" "SPECFACT_MODULES_ROOTS=${SPECFACT_MODULES_ROOTS}" "SPECFACT_MODULES_EXCLUSIVE=1")
           evidence_arguments=(
             "${clean_environment[@]}" "${isolated_specfact[@]}" requirements evidence
             --repo-root "$GITHUB_WORKSPACE" \

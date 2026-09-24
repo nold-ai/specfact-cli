@@ -425,6 +425,7 @@ def _assert_command_contract(workflow: dict[str, object]) -> None:
     assert run_evidence["env"]["EVIDENCE_BASE_BRANCH"]  # type: ignore[index]
     assert "workflow_dispatch" not in workflow["on"]  # type: ignore[operator]
     assert run_evidence["run"].count("clean_environment=(env -i") == 1  # type: ignore[union-attr]
+    assert '"SPECFACT_MODULES_EXCLUSIVE=1"' in run_evidence["run"]  # type: ignore[operator]
     assert run_evidence["run"].count('"${clean_environment[@]}" "${isolated_specfact[@]}"') == 2  # type: ignore[union-attr]
 
 
