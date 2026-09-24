@@ -15,7 +15,7 @@ Module packages carry **publisher** and **integrity** metadata so installation, 
 
 - **Manifest metadata**: `module-package.yaml` may include `publisher` (name, email, attributes) and `integrity` (checksum, optional signature).
 - **Checksum verification**: Verification computes a deterministic hash of the full module payload (all module files, with manifest canonicalization that excludes `integrity` itself). Supported algorithms: `sha256`, `sha384`, `sha512` in `algo:hex` format.
-- **Signature verification**: If `integrity.signature` is present and a public key is configured, signature validation proves provenance over the same full payload.
+- **Signature verification**: Official `nold-ai/*` marketplace installs require a valid signature from trusted key material before dependency processing. For other module sources, a present `integrity.signature` is validated when a public key is configured.
 - **Publisher trust gate**: Non-official publishers require one-time explicit trust (interactive confirmation or `--trust-non-official` / `SPECFACT_TRUST_NON_OFFICIAL`).
 - **Denylist gate**: Modules listed in denylist are blocked before install/bootstrap regardless of source.
 
@@ -23,8 +23,9 @@ Module packages carry **publisher** and **integrity** metadata so installation, 
 
 1. Discovery reads `module-package.yaml` and parses `integrity.checksum`.
 2. At install/bootstrap/verification time, the tool hashes the full module payload and compares it to `integrity.checksum`.
-3. On mismatch, the module is skipped and a security warning is logged.
-4. Other modules continue to register; one failing trust does not block the rest.
+3. Official marketplace installs also verify the signature before resolving bundle or pip dependencies.
+4. On mismatch, missing required metadata, or signature failure, the module is skipped and a security warning is logged.
+5. Other modules continue to register; one failing trust does not block the rest.
 
 ## Signing automation
 
