@@ -1,5 +1,11 @@
 # Change: Seal-Bound Implementation Assurance Core
 
+## Owner-approved agentic SDLC amendment — 2026-10-04
+
+When selected assurance binds decision context, include its digest/source identity in cache and affected-obligation selection. Reuse existing finding categories with reason codes: decision_context_changed is stale/UNKNOWN until refreshed; required_resolution_unavailable is unverifiable/UNKNOWN; reconciled_decision_contradiction is violated/FAIL. Ordinary touched unresolved assumptions stay advisory outside assurance. No missing trace link proves missing behavior. Share #483 presentation and a single repair budget, preserving independent test/review/security outcomes; no nested loop multiplies attempts. Context contracts are prerequisites only for selected context-bound assurance, not the existing context-free optional chain or lean delivery.
+
+This planning amendment supersedes conflicting scope and prerequisite wording below. It changes no runtime behavior and completes no implementation task. See [roadmap](../../AGENTIC_SDLC_ROADMAP.md).
+
 ## Scope rescope — 2026-09-20
 
 Seal, checkpoint, frozen mapping, successor approval, and historical RED/GREEN requirements in this issue apply only when an explicitly selected assurance policy requests them. They are not prerequisites for ordinary implementation, Code Review, release promotion, skill installation, or generated instructions. Keep the internal optional-feature dependency chain and source/signature integrity. Missing optional chronology is not a failed current-execution claim. No runtime policy changes in this planning update. This contract and modules #434 no longer block generic skill installation #251/#253 or native review support.
@@ -55,3 +61,7 @@ Pre-implementation assurance freezes what was reviewed and approved, but it deli
 - **Cross-Repository Counterpart**: <https://github.com/nold-ai/specfact-cli-modules/issues/434>
 - **Last Synced Status**: proposed
 - **Sanitized**: true
+
+## Planning validation
+
+See [AGENTIC_SDLC_VALIDATION.md](../../AGENTIC_SDLC_VALIDATION.md) for actual proposal checks and the explicit Python-only analyzer applicability exception. Runtime review and release tasks remain pending.

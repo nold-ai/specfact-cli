@@ -43,3 +43,9 @@ Implementation discipline: use focused regression/reproduction and current-run r
 
 - [ ] Test current-only verification without history, incomplete mappings alongside passing tests, and independent failed producer gates; retain producer statuses and references.
 - [ ] Verify native archival preserves the normative boundaries and adds serialization requirements without replacing producer-owned validation or policy requirements.
+
+## Agentic SDLC follow-up acceptance
+
+- [ ] Verify the 2026-10-04 approved scope against live issue/release readiness before implementation.
+- [ ] Derive negative tests from the amendment scenarios before behavior edits; implement export additions only through the owning released contracts.
+- [ ] Preserve independent producer status, optional context/assurance and existing lean release dependencies; document exact versions and rollback.

@@ -2,25 +2,22 @@
 
 ### Requirement: Solution Architecture
 
-The system SHALL provide architecture derive, coverage validation, and trace outputs linked to requirements.
+The system SHALL import explicit approved boundary, component ownership, interface and ADR references from upstream artifacts and retain source identity. Architecture context SHALL remain optional and SHALL NOT generate or prescribe architecture. Structural completeness SHALL NOT constitute design-quality approval. Missing associations SHALL identify missing evidence without proving absent behavior.
 
-#### Scenario: Derive architecture from requirements
+#### Scenario: Import approved architecture context
 
-- **GIVEN** `specfact architecture derive --requirements .specfact/requirements/ --interactive`
-- **WHEN** derive completes
-- **THEN** an `.arch.yaml` artifact is created
-- **AND** components and ADR entries reference requirement rules.
+- **GIVEN** an approved upstream boundary and ADR source
+- **WHEN** the architecture adapter normalizes it
+- **THEN** source references and digests, ownership and boundary associations are preserved without upstream rewriting.
 
-#### Scenario: Validate architecture coverage
+#### Scenario: Architecture evidence unavailable
 
-- **GIVEN** requirements and architecture artifacts exist
-- **WHEN** `specfact architecture validate-coverage` runs
-- **THEN** unmapped business rules are reported
-- **AND** missing ADRs for architectural constraints are reported.
+- **GIVEN** a declared boundary without matching current extraction evidence
+- **WHEN** validation evaluates it
+- **THEN** missing evidence remains UNKNOWN or not evaluated according to selected policy, without a claim of proven missing implementation.
 
-#### Scenario: Trace command exports architecture linkage
+#### Scenario: Trace association is not satisfaction
 
-- **GIVEN** architecture and requirements data
-- **WHEN** `specfact architecture trace --format json` runs
-- **THEN** output includes requirement-to-component-to-ADR mappings
-- **AND** output is consumable by full-chain validation.
+- **GIVEN** a requirement-to-component-to-ADR link
+- **WHEN** trace output is rendered
+- **THEN** the link is presented as an association and behavioral satisfaction requires suitable current evidence.

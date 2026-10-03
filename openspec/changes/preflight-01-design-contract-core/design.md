@@ -1,3 +1,9 @@
+## Owner-approved agentic SDLC amendment — 2026-10-04
+
+An explicitly selected assurance policy may bind an accepted RequirementDecisionContext digest and its source references to the seal. Do not alter legacy plan hashes. Imported owner/answered_by strings are assertions, not authenticated approval. Owner, review date and falsifying-test links remain optional in ordinary context; selected policy may require them, and architectural decisions need not all map to tests. Readiness remains structural; a seal attests captured approval/context, not overall architecture quality. This optional binding consumes a released decision-context contract only when configured; it does not block lean #481/#740 or ordinary #483/#742.
+
+This planning amendment supersedes conflicting scope and prerequisite wording below. It changes no runtime behavior and completes no implementation task. See [roadmap](../../AGENTIC_SDLC_ROADMAP.md).
+
 ## Context
 
 ## Scope rescope — 2026-09-20
