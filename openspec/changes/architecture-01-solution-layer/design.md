@@ -1,3 +1,9 @@
+## Owner-approved agentic SDLC amendment — 2026-10-04
+
+First import approved boundaries, ownership and ADR references as optional context with exact source identity. Structural readiness is not design-quality approval. Replace architecture derivation/authoring scenarios in this change with bounded import and evidence association. Missing traceability is missing association/evidence, not proof of absent behavior. Broader analyzer review remains after architecture input delivery and one complete real usage cycle. At that stage consume maintained Import Linter Python dependency-rule results, preserving rule/configuration/version/snapshot identity, declared boundary association and original artifacts; do not build a second import-graph engine. Plant a forbidden dependency in fixtures and require its reported violation; unavailable/incomplete extraction is UNKNOWN.
+
+This planning amendment supersedes conflicting scope and prerequisite wording below. It changes no runtime behavior and completes no implementation task. See [roadmap](../../AGENTIC_SDLC_ROADMAP.md).
+
 ## Context
 
 This change implements proposal scope for `architecture-01-solution-layer` from the 2026-02-15 architecture-layer integration plan. It is proposal-stage only and defines implementation strategy without changing runtime code.

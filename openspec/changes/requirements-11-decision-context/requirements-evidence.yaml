@@ -1,0 +1,54 @@
+schema_version: '2'
+requirements:
+  openspec:requirements-11-decision-context:requirements-decision-context:optional-versioned-decision-context:
+    rationale: Make the approved planning requirement reviewable without claiming runtime
+      evidence.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#750
+    touchpoints:
+      - id: requirements-decision-context-spec
+        kind: config_file
+        locator: openspec/changes/requirements-11-decision-context/specs/requirements-decision-context/spec.md
+    verification_cases:
+      - case_id: optional-versioned-decision-context-inspection
+        scenario_id: optional-versioned-decision-context
+        method: inspection
+        intent: Inspect Optional versioned decision context and all its acceptance scenarios.
+        observable: Strict OpenSpec validation retains the requirement and scenarios. Planning
+          inspection only; tests, implementation and signed producer acceptance remain
+          pending.
+  openspec:requirements-11-decision-context:requirements-decision-context:separate-decision-context-identity:
+    rationale: Make the approved planning requirement reviewable without claiming runtime
+      evidence.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#750
+    touchpoints:
+      - id: requirements-decision-context-spec
+        kind: config_file
+        locator: openspec/changes/requirements-11-decision-context/specs/requirements-decision-context/spec.md
+    verification_cases:
+      - case_id: separate-decision-context-identity-inspection
+        scenario_id: separate-decision-context-identity
+        method: inspection
+        intent: Inspect Separate decision context identity and all its acceptance scenarios.
+        observable: Strict OpenSpec validation retains the requirement and scenarios. Planning
+          inspection only; tests, implementation and signed producer acceptance remain
+          pending.
+  openspec:requirements-11-decision-context:requirements-decision-context:assertions-and-assurance-authority-remain-distinct:
+    rationale: Make the approved planning requirement reviewable without claiming runtime
+      evidence.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#750
+    touchpoints:
+      - id: requirements-decision-context-spec
+        kind: config_file
+        locator: openspec/changes/requirements-11-decision-context/specs/requirements-decision-context/spec.md
+    verification_cases:
+      - case_id: assertions-and-assurance-authority-remain-distinct-inspection
+        scenario_id: assertions-and-assurance-authority-remain-distinct
+        method: inspection
+        intent: Inspect Assertions and assurance authority remain distinct and all its
+          acceptance scenarios.
+        observable: Strict OpenSpec validation retains the requirement and scenarios. Planning
+          inspection only; tests, implementation and signed producer acceptance remain
+          pending.
