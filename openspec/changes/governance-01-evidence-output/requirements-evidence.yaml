@@ -1,38 +1,66 @@
-schema_version: "2"
-x-planning-context: &planning-context
-  rationale: "Make this requirement reviewable before implementation begins."
-  stakeholder_refs: ["nold-ai/specfact-cli#247"]
-x-planning-inspection: &planning-inspection
+schema_version: '2'
+x-planning-context:
+  rationale: Make this requirement reviewable before implementation begins.
+  stakeholder_refs: &id001
+    - nold-ai/specfact-cli#247
+x-planning-inspection:
   method: inspection
-  observable: >-
-    Strict OpenSpec validation retains the requirement and its scenarios
-    without claiming implementation or test execution.
-x-spec-1: &spec-1
+  observable: Strict OpenSpec validation retains the requirement and its scenarios without
+    claiming implementation or test execution.
+x-spec-1: &id002
   - id: openspec-source-spec
     kind: config_file
-    locator: "openspec/changes/governance-01-evidence-output/specs/governance-evidence-output/spec.md"
+    locator: openspec/changes/governance-01-evidence-output/specs/governance-evidence-output/spec.md
 requirements:
   openspec:governance-01-evidence-output:governance-evidence-output:governance-evidence-output:
-    <<: *planning-context
-    touchpoints: *spec-1
+    rationale: Make this requirement reviewable before implementation begins.
+    stakeholder_refs: *id001
+    touchpoints: *id002
     verification_cases:
-      - <<: *planning-inspection
+      - method: inspection
+        observable: Strict OpenSpec validation retains the requirement and its scenarios
+          without claiming implementation or test execution.
         case_id: GOV01-001
         scenario_id: governance-evidence-output
-        intent: "Inspect the governance evidence output planning contract and its scenarios."
+        intent: Inspect the governance evidence output planning contract and its scenarios.
   openspec:governance-01-evidence-output:governance-evidence-output:full-chain-evidence-serialization:
-    <<: *planning-context
-    touchpoints: *spec-1
+    rationale: Make this requirement reviewable before implementation begins.
+    stakeholder_refs: *id001
+    touchpoints: *id002
     verification_cases:
-      - <<: *planning-inspection
+      - method: inspection
+        observable: Strict OpenSpec validation retains the requirement and its scenarios
+          without claiming implementation or test execution.
         case_id: GOV01-002
         scenario_id: full-chain-evidence-serialization
-        intent: "Inspect the full chain evidence serialization planning contract and its scenarios."
+        intent: Inspect the full chain evidence serialization planning contract and its
+          scenarios.
   openspec:governance-01-evidence-output:governance-evidence-output:policy-evidence-serialization:
-    <<: *planning-context
-    touchpoints: *spec-1
+    rationale: Make this requirement reviewable before implementation begins.
+    stakeholder_refs: *id001
+    touchpoints: *id002
     verification_cases:
-      - <<: *planning-inspection
+      - method: inspection
+        observable: Strict OpenSpec validation retains the requirement and its scenarios
+          without claiming implementation or test execution.
         case_id: GOV01-003
         scenario_id: policy-evidence-serialization
-        intent: "Inspect the policy evidence serialization planning contract and its scenarios."
+        intent: Inspect the policy evidence serialization planning contract and its scenarios.
+  openspec:governance-01-evidence-output:governance-evidence-output:optional-digest-bound-standard-attestation-export:
+    rationale: Make the approved planning requirement reviewable without claiming runtime
+      evidence.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#247
+    touchpoints:
+      - id: governance-evidence-output-spec
+        kind: config_file
+        locator: openspec/changes/governance-01-evidence-output/specs/governance-evidence-output/spec.md
+    verification_cases:
+      - case_id: optional-digest-bound-standard-attestation-export-inspection
+        scenario_id: optional-digest-bound-standard-attestation-export
+        method: inspection
+        intent: Inspect Optional digest-bound standard attestation export and all its acceptance
+          scenarios.
+        observable: Strict OpenSpec validation retains the requirement and scenarios. Planning
+          inspection only; tests, implementation and signed producer acceptance remain
+          pending.

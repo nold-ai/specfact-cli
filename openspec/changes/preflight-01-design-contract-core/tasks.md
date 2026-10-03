@@ -40,3 +40,9 @@ All tasks below are future implementation work. This planning change completes n
 - [ ] 5.1 Reconfirm issue-approved scope and prepare the downstream interface handoff against the candidate; do not claim it is released yet.
 - [ ] 5.2 Open and integrate the reviewed implementation PR to `dev`, then promote through protected `main` and publish the core interface through the existing release workflow after required checks.
 - [ ] 5.3 Before archive, verify the released core identity was handed to modules #431 and that modules-owned signing/publication remains assigned to #432; then, from the repository root after merge, run `openspec archive preflight-01-design-contract-core`, update ordering/source mirrors, and remove the dedicated worktree and merged branch.
+
+## Agentic SDLC follow-up acceptance
+
+- [ ] Verify the 2026-10-04 approved scope against live issue/release readiness before implementation.
+- [ ] Derive negative tests from the amendment scenarios before behavior edits; implement seal additions only through the owning released contracts.
+- [ ] Preserve independent producer status, optional context/assurance and existing lean release dependencies; document exact versions and rollback.

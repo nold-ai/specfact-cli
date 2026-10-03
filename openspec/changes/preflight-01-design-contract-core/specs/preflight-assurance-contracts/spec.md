@@ -195,3 +195,19 @@ The system SHALL describe preflight readiness as structural and provenance assur
 - **WHEN** a consumer renders the outcome
 - **THEN** it may state that exact reviewed inputs were approved and remain unchanged
 - **AND** it SHALL NOT state that the design or implementation is correct solely because verification succeeded.
+
+### Requirement: Optional decision context binding
+
+An explicitly selected assurance policy MAY bind a versioned decision-context digest and original sources to a seal. Imported owner/disposition strings SHALL NOT authenticate approval. Legacy plan hashes SHALL remain unchanged. Missing optional context SHALL NOT block ordinary delivery or existing context-free optional assurance. Structural readiness SHALL NOT be represented as architecture quality approval.
+
+#### Scenario: Accepted decision changes after binding
+
+- **GIVEN** a seal bound to an accepted decision digest
+- **WHEN** the decision changes
+- **THEN** context-bound assurance is stale until reviewed context is rebound; ordinary current execution remains a separate claim.
+
+#### Scenario: Imported answer has no authority
+
+- **GIVEN** an imported answered_by value without authenticated approval
+- **WHEN** a required approval is evaluated
+- **THEN** the answer is retained as an assertion and cannot satisfy the authenticated obligation.

@@ -4,6 +4,21 @@ This document is the **single source of truth for active work** in this
 repository. It lists what is in flight, what is paused, and the order in which
 active changes should be implemented.
 
+## Agentic SDLC adjustments (2026-10-04)
+
+The owner-approved [delivery roadmap](AGENTIC_SDLC_ROADMAP.md) adds bounded compatibility, optional decision-context, ecosystem and calibration stories. It preserves the lean release chain and keeps context-bound assurance opt-in. This section supersedes stale status/dependency wording below. Modules #481 is **In Progress**, with takeover authorized; follow-up fetched issues are Todo. Runtime work is not completed by this planning update. Core #742 tracking is live, but its proposal is not on the fetched core dev base.
+
+| Order | Owning work | Delivery and dependency boundary |
+|---|---|---|
+| 1 | Modules [#481](https://github.com/nold-ai/specfact-cli-modules/issues/481) / core [#740](https://github.com/nold-ai/specfact-cli/issues/740) | Pure current-run reconciliation, then core protected execution/rollout. No context, graph, seal or telemetry prerequisite. |
+| 2 | Core [#749](https://github.com/nold-ai/specfact-cli/issues/749) / modules [#490](https://github.com/nold-ai/specfact-cli-modules/issues/490) | Pinned upstream profiles: shared core contract before module consumption; does not block ordinary lean delivery. |
+| 3 | Core [#750](https://github.com/nold-ai/specfact-cli/issues/750) / modules [#491](https://github.com/nold-ai/specfact-cli-modules/issues/491) | Optional context and separate digest: shared core contract before module consumption; does not block ordinary lean delivery. |
+| 4 | Modules [#483](https://github.com/nold-ai/specfact-cli-modules/issues/483) / core [#742](https://github.com/nold-ai/specfact-cli/issues/742) | Signed #481 -> signed #483 -> core runtime adoption. Context-bound integration is optional; standalone adapter/projection development is independent. |
+| 5 | Modules [#492](https://github.com/nold-ai/specfact-cli-modules/issues/492) | Thin Spec Kit invocation extension, GitHub Action/summary and located SARIF projection. Native JSON is authoritative. Hook import compatibility waits for the exact supported extension profile; full workflow use waits for released #483. |
+| 6 | Modules [#164](https://github.com/nold-ai/specfact-cli-modules/issues/164) / core [#240](https://github.com/nold-ai/specfact-cli/issues/240), then modules [#230](https://github.com/nold-ai/specfact-cli-modules/issues/230) / core [#524](https://github.com/nold-ai/specfact-cli/issues/524) | Approved inputs first; one real usage cycle precedes Import Linter evidence. No duplicate graph engine or architecture authoring. |
+| 7 | Core [#682](https://github.com/nold-ai/specfact-cli/issues/682) / modules [#431](https://github.com/nold-ai/specfact-cli-modules/issues/431), core [#684](https://github.com/nold-ai/specfact-cli/issues/684) / modules [#434](https://github.com/nold-ai/specfact-cli-modules/issues/434) | Optional context binding and affected obligations. Preserve the context-free optional assurance chain; selected context binding alone waits for its contracts. Share #483 budgets. |
+| 8 | Modules [#169](https://github.com/nold-ai/specfact-cli-modules/issues/169) / core [#247](https://github.com/nold-ai/specfact-cli/issues/247); modules [#493](https://github.com/nold-ai/specfact-cli-modules/issues/493) | Optional Statement v1/SCAI v0.3 export and a separate exploratory pilot. No new signer/store or analytics platform; #170/#171 remain later consumers. |
+
 ## Minimal-evidence rescope (2026-09-20)
 
 The paired `requirements-09-minimal-evidence` owns the default policy correction:
@@ -42,7 +57,7 @@ Recovered from uncommitted proposal-only feature worktrees into local `dev`; rem
 
 | Bucket | Count | Location |
 |---|---:|---|
-| **Active-tree entries** | 39 | [`openspec/changes/`](changes/) |
+| **Active-tree entries** | 41 | [`openspec/changes/`](changes/) |
 | **Parking-lot entries** | 21 | [`openspec/parking-lot/`](parking-lot/) |
 | **Archived** | 120 | [`openspec/changes/archive/`](changes/archive/) |
 
