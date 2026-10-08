@@ -56,7 +56,7 @@ Recovered from uncommitted proposal-only feature worktrees into local `dev`; rem
 
 | Bucket | Count | Location |
 |---|---:|---|
-| **Active-tree entries** | 39 | [`openspec/changes/`](changes/) |
+| **Active-tree entries** | 40 | [`openspec/changes/`](changes/) |
 | **Parking-lot entries** | 21 | [`openspec/parking-lot/`](parking-lot/) |
 | **Archived** | 120 | [`openspec/changes/archive/`](changes/archive/) |
 
