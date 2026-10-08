@@ -6,7 +6,7 @@ focused scenarios; do not copy #748's broader inspection-only mapping into a ver
 Two early assumptions: patched packages resolve together and analyzer failures indicate a
 production regression. The three-package graph fails Semgrep/PyJWT and virtualenv/discovery
 constraints. The five-package candidate resolves exactly PyJWT 2.15.1, urllib3 2.8.0,
-virtualenv 21.7.13, Semgrep 1.179.0 and python-discovery 1.6.0. Unchanged dev reproduction
+virtualenv 21.11.0, Semgrep 1.179.0 and python-discovery 1.6.0. Unchanged dev reproduction
 shows the analyzer fixture fails by staging .git/config before invoking production code.
 
 Publish spec/tests/agent acceptance first with unchanged locks and the broken fixture;
@@ -23,3 +23,18 @@ Obtain independent patch review and applicable native/quality/security/Python ma
 Integrate through normal review, then update #755 and obtain its new exact-head member grant.
 Roll back coherent inputs only to a reviewed safe graph, retaining evidence. Broader #748
 scope and all planned workflow runtime tasks remain outside this repair.
+
+## Evidence boundary corrected after first hosted run
+
+The released RED contract requires every selected pytest case to fail. The initial hosted
+plan was rejected because only the JWT option regression failed; the legitimate control
+and fixture cases passed in that frozen validator environment. Preserve the rejection.
+Select only the actually failing JWT regression for native RED/final execution. The
+legitimate control and all three analyzer tests remain independently required in focused
+checks and the full current-head suite; their inspection cases do not assert native
+execution proof or waive failures. Do not change tests merely to manufacture RED.
+
+Source review disproved virtualenv 21.7.13's completeness: default background seed updates
+can cache unverified wheels when PyPI metadata is blocked. The minimum source-complete
+candidate is 21.11.0, which raises UnverifiedWheelError on unavailable metadata/digest.
+Re-resolve and screen this revised exact candidate before adoption.

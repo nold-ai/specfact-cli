@@ -20,12 +20,11 @@ requirements:
         node_id: tests/unit/security/test_frozen_jwt_compatibility.py::test_inspection_preserves_options_and_expiry_on_reuse
     - case_id: DEP-SEC-002
       scenario_id: caller-owned-jwt-verification-options
-      method: test
-      intent: Normal signed token and trailing signature padding remain supported.
-      observable: Normal signed token and trailing signature padding remain supported.
-      selector:
-        runner: pytest
-        node_id: tests/unit/security/test_frozen_jwt_compatibility.py::test_signed_token_and_trailing_signature_padding_remain_supported
+      method: inspection
+      intent: 'Inspect independently required test execution: tests/unit/security/test_frozen_jwt_compatibility.py::test_signed_token_and_trailing_signature_padding_remain_supported'
+      observable: Retain the exact current full-CI and focused-control results for tests/unit/security/test_frozen_jwt_compatibility.py::test_signed_token_and_trailing_signature_padding_remain_supported.
+        This inspection is not native RED/final execution proof; unavailable or failing required tests
+        block delivery.
   openspec:dependency-update-consolidation:dependency-update-consolidation:versioning-fixture-excludes-git-metadata:
     rationale: versioning fixture excludes git metadata
     stakeholder_refs:
@@ -38,28 +37,25 @@ requirements:
     verification_cases:
     - case_id: DEP-FIX-001
       scenario_id: versioning-fixture-excludes-git-metadata
-      method: test
-      intent: patch classification assertions pass.
-      observable: patch classification assertions pass.
-      selector:
-        runner: pytest
-        node_id: tests/unit/versioning/test_analyzer.py::TestChangeAnalyzer::test_detects_patch_changes
+      method: inspection
+      intent: 'Inspect independently required test execution: tests/unit/versioning/test_analyzer.py::TestChangeAnalyzer::test_detects_patch_changes'
+      observable: Retain the exact current full-CI and focused-control results for tests/unit/versioning/test_analyzer.py::TestChangeAnalyzer::test_detects_patch_changes.
+        This inspection is not native RED/final execution proof; unavailable or failing required tests
+        block delivery.
     - case_id: DEP-FIX-002
       scenario_id: versioning-fixture-excludes-git-metadata
-      method: test
-      intent: additive classification assertions pass.
-      observable: additive classification assertions pass.
-      selector:
-        runner: pytest
-        node_id: tests/unit/versioning/test_analyzer.py::TestChangeAnalyzer::test_detects_additive_changes
+      method: inspection
+      intent: 'Inspect independently required test execution: tests/unit/versioning/test_analyzer.py::TestChangeAnalyzer::test_detects_additive_changes'
+      observable: Retain the exact current full-CI and focused-control results for tests/unit/versioning/test_analyzer.py::TestChangeAnalyzer::test_detects_additive_changes.
+        This inspection is not native RED/final execution proof; unavailable or failing required tests
+        block delivery.
     - case_id: DEP-FIX-003
       scenario_id: versioning-fixture-excludes-git-metadata
-      method: test
-      intent: breaking classification assertions pass.
-      observable: breaking classification assertions pass.
-      selector:
-        runner: pytest
-        node_id: tests/unit/versioning/test_analyzer.py::TestChangeAnalyzer::test_detects_breaking_changes
+      method: inspection
+      intent: 'Inspect independently required test execution: tests/unit/versioning/test_analyzer.py::TestChangeAnalyzer::test_detects_breaking_changes'
+      observable: Retain the exact current full-CI and focused-control results for tests/unit/versioning/test_analyzer.py::TestChangeAnalyzer::test_detects_breaking_changes.
+        This inspection is not native RED/final execution proof; unavailable or failing required tests
+        block delivery.
   openspec:dependency-update-consolidation:dependency-update-consolidation:coherent-reviewed-frozen-repair:
     rationale: coherent reviewed frozen repair
     stakeholder_refs:
