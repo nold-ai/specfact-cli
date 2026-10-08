@@ -12,6 +12,9 @@ concurrent ownership on 2026-10-09 Europe/Berlin.
   urllib3, virtualenv and resolver-required Semgrep/python-discovery updates.
 - Preserve caller-owned JWT options, expiry enforcement and supported signed-token padding.
 - Restrict versioning fixture staging to generated project files; preserve real assertions.
+- Isolate the ephemeral smoke fallback's seed cache and disable periodic updates so an
+  older virtualenv's persisted unverified wheel cannot cross into this launcher.
+- Update the exact Semgrep lock sentinel while preserving its floor and MCP waiver checks.
 - Generate coherent frozen inputs after exact-artifact review and retain authentic RED/final proof.
 
 This branch contains only the focused slice. Original #748's broader inventory/build/Ruby/
@@ -31,8 +34,8 @@ None. Existing delivery, signature and Requirements controls remain authoritativ
 
 ## Impact
 
-Frozen lock/export, JWT regression tests and versioning fixture only; production analyzer
-is unchanged. Independent artifact, license, security, consumer, Python and quality gates
+Frozen lock/export, JWT/cache regression tests, smoke fallback and versioning fixture;
+production analyzer is unchanged. Independent artifact, license, security, consumer, Python and quality gates
 remain required. A passing advisory audit alone cannot establish safe adoption.
 
 ## Source Tracking

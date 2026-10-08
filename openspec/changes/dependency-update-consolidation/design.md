@@ -32,7 +32,8 @@ scope and all planned workflow runtime tasks remain outside this repair.
 The released RED contract requires every selected pytest case to fail. The initial hosted
 plan was rejected because only the JWT option regression failed; the legitimate control
 and fixture cases passed in that frozen validator environment. Preserve the rejection.
-Select only the actually failing JWT regression for native RED/final execution. The
+Select the actually failing JWT regression and, after the cache amendment, its independently
+failing caller regression for native RED/final execution. The
 legitimate control and all three analyzer tests remain independently required in focused
 checks and the full current-head suite; their inspection cases do not assert native
 execution proof or waive failures. Do not change tests merely to manufacture RED.

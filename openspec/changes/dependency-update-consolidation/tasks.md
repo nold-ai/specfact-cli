@@ -2,17 +2,18 @@
 
 - [x] Refresh dev/checks and #747 metadata; obtain focused concurrent ownership.
 - [x] Define focused scenarios and preserve original #748 and workflow runtime scope.
-- [ ] Add JWT boundary/control tests and bind acceptance without fabricated human review.
-- [ ] Publish tests/spec with unchanged locks and fixture; retain authentic RED.
+- [x] Add JWT/cache boundary and control tests; bind actual agent acceptance.
+- [x] Publish tests/spec with unchanged locks/fixture/caller; retain authentic RED.
 
 ## 2. Focused repair
 
-- [ ] Complete exact artifact, license, provenance and independent package screening.
-- [ ] Generate required dependency changes and coherent export.
-- [ ] Restrict fixture staging to generated project files.
+- [x] Complete exact artifact, license, provenance and independent package screening;
+  retain cryptographic-attestation and external-cache limitations.
+- [x] Generate required dependency changes and coherent export.
+- [x] Restrict fixture staging to generated project files and isolate smoke seed cache.
 - [ ] Verify exploit/alternate input, legitimate consumers, both audits, trust/licenses,
   reproducible delivery, Python matrix and applicable quality gates.
-- [ ] Obtain independent bypass/regression review and resolve concrete findings.
+- [x] Obtain independent bypass/regression review; confirm and repair inherited-cache finding.
 
 ## 3. Publication and baseline adoption
 
