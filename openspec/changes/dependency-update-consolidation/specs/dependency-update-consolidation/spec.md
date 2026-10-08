@@ -40,6 +40,13 @@ security and compatibility evidence, and preserve existing governance.
 - **THEN** only reviewed required updates enter coherent inputs and both audits, trust,
   licenses, affected consumers, supported Python and applicable quality gates are verified.
 
+#### Scenario: Smoke fallback does not inherit unchecked seed updates
+
+- **GIVEN** the standard venv builder fails and an older shared virtualenv cache may exist
+- **WHEN** the editable smoke launcher uses virtualenv as its fallback
+- **THEN** it seeds with isolated workspace app data and disables background periodic updates,
+  preserves the editable launcher, and never purges unrelated user cache contents.
+
 #### Scenario: Broader planning and exact authority remain separate
 
 - **GIVEN** broader #748 planning and the planning-only #755 workflow amendment

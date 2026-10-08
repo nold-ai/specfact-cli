@@ -55,3 +55,32 @@ these do not reproduce with the explicit interpreter. This is a documented local
 import-context limitation, not permission to ignore hosted or final review findings.
 Contract input detection found no authored contract changes. Hosted replacement RED
 and all repaired-input checks remain pending.
+
+## Accepted JWT RED and independently discovered cache lifecycle
+
+Authored head 0fd1d1935c26f1577b0248653a926fb5b8f2ea60, run 37859074381, artifact
+11585460994 (sha256:4f842f820f0350461a80a7f4cfab8cfe236bdb62b93c69b82527cf728147ef60)
+has native observed/required red, passed verdict. Producer/final delivery still fails
+by design at the authored phase; the accepted RED report is not merge-ready evidence.
+
+The candidate five-package graph and corrected analyzer fixture passed the five focused
+repository tests. Eight independent boundary probes passed. Both frozen audits, native
+trust/license and export parity passed; the nearest consumer batch had 174 passing cases
+and an unavailable smoke fixture. Supplying the immutable fixture separately made that
+direct-launcher smoke pass. OSS Semgrep scan/gate has zero current findings; Bandit has
+zero medium/high findings and retains existing low findings. Explicit-interpreter type
+checking has zero errors and no new JWT diagnostics. These are preliminary candidate
+checks; final stable-source checks and hosted matrix remain required.
+
+The fresh read-only reviewer confirmed inherited seed logs use the same cache paths in
+old/new virtualenv. An inert persisted entry was still selected by 21.11.0. Upgrading
+rejects new unverified downloads but does not sanitize previously compromised external
+Hatch/user caches. The repository smoke fallback must use isolated app data; no shared
+user-cache deletion is authorized or performed.
+
+After adding the cache scenario and caller regression, the unchanged caller failed the
+new test in 0.77 seconds: its captured virtualenv command omitted isolated app data and
+periodic-update suppression. Preserve this genuine failure and republish authored proof
+with unchanged locks/fixture/caller. Native RED/final mapping now contains both failing
+JWT and cache-caller regressions; acceptance is rebound. Old RED cannot substitute for
+this revised mapping.

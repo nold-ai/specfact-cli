@@ -68,6 +68,9 @@ requirements:
     - id: frozen-export
       kind: config_file
       locator: requirements/ci/locked.txt
+    - id: isolated-smoke-seed
+      kind: code_symbol
+      locator: scripts/runtime_discovery_smoke.py::_create_pip_editable_launcher
     verification_cases:
     - case_id: DEP-GRAPH-001
       scenario_id: coherent-reviewed-frozen-repair
@@ -75,3 +78,12 @@ requirements:
       intent: Review graph/export, exact artifacts and independent current gate results.
       observable: Only required reviewed updates are present; both audits, trust/licenses, consumers and
         Python matrix retain independent results. Unavailable results never imply passing.
+    - case_id: DEP-CACHE-001
+      scenario_id: coherent-reviewed-frozen-repair
+      method: test
+      intent: Fallback creation must isolate seed app data and disable background periodic updates.
+      observable: Captured virtualenv arguments use the temporary workspace cache and disable periodic
+        updates; editable launcher construction remains intact.
+      selector:
+        runner: pytest
+        node_id: tests/integration/scripts/test_runtime_discovery_smoke.py::test_pip_editable_fallback_isolates_seed_app_data

@@ -16,8 +16,11 @@ Preserve trust exceptions, signatures, release versions, gates and exact module 
 
 JWT options must remain caller-owned and expiry must remain enforced on reuse; normal signed
 tokens and trailing signature padding must work. Check urllib3 proxy TLS/body boundaries,
-virtualenv discovery/seeding and Semgrep invocation separately. Virtualenv 21.7.13 is not a
-universal downloaded-wheel integrity guarantee; disclose metadata-unavailable limitations.
+virtualenv discovery/seeding and Semgrep invocation separately. Upgrading does not sanitize
+seed-update logs inherited from an older virtualenv. Use a workspace-local app-data root and
+no periodic update for the ephemeral smoke launcher fallback; preserve ordinary editable
+installation and never delete the shared user cache. Hatch/user environments outside that
+scoped caller need separate clean recreation after a suspected cache compromise.
 
 Obtain independent patch review and applicable native/quality/security/Python matrix proof.
 Integrate through normal review, then update #755 and obtain its new exact-head member grant.
@@ -38,3 +41,8 @@ Source review disproved virtualenv 21.7.13's completeness: default background se
 can cache unverified wheels when PyPI metadata is blocked. The minimum source-complete
 candidate is 21.11.0, which raises UnverifiedWheelError on unavailable metadata/digest.
 Re-resolve and screen this revised exact candidate before adoption.
+
+The independent review and inert-cache probe confirmed that even 21.11.0 can select an
+unverified wheel already logged by an old updater. This does not invalidate rejection of
+new unverified downloads, but requires the smoke fallback's fresh local cache boundary.
+Author and reproduce its regression before changing the caller.

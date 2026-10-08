@@ -209,3 +209,38 @@ def test_runtime_discovery_smoke_uses_fresh_demo_per_launcher(tmp_path: Path, mo
     assert len(demos) == 2
     assert len({demo.resolve() for demo in demos}) == 2
     assert str(REPO_ROOT / "src") in smoke.sys.path
+
+
+def test_pip_editable_fallback_isolates_seed_app_data(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An ephemeral fallback must not select updates cached by an older virtualenv."""
+    import scripts.runtime_discovery_smoke as smoke
+
+    def failed_builder(_self: object, _venv_dir: Path) -> None:
+        raise subprocess.CalledProcessError(1, "ensurepip")
+
+    calls: list[list[str]] = []
+
+    def capture_run(command: list[str], **_kwargs: object) -> None:
+        calls.append(command)
+
+    monkeypatch.setattr(smoke.venv.EnvBuilder, "create", failed_builder)
+
+    def found_virtualenv(_name: str) -> str:
+        return "/controlled/virtualenv"
+
+    monkeypatch.setattr(smoke.shutil, "which", found_virtualenv)
+    monkeypatch.setattr(smoke, "_run", capture_run)
+
+    launcher = smoke._create_pip_editable_launcher(tmp_path)
+
+    assert calls[0] == [
+        "/controlled/virtualenv",
+        "--app-data",
+        str(tmp_path / "virtualenv-app-data"),
+        "--no-periodic-update",
+        str(tmp_path / "pip-editable-venv"),
+    ]
+    assert calls[1][1:] == ["-m", "pip", "install", "-e", str(REPO_ROOT)]
+    assert launcher == [
+        str(tmp_path / "pip-editable-venv" / ("Scripts/specfact.exe" if os.name == "nt" else "bin/specfact"))
+    ]
