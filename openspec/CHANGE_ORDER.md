@@ -4,6 +4,13 @@ This document is the **single source of truth for active work** in this
 repository. It lists what is in flight, what is paused, and the order in which
 active changes should be implemented.
 
+## Focused #747 baseline repair (2026-10-09)
+
+The owner authorized dependency-update-consolidation's focused security slice and
+versioning fixture repair to unblock #755. Original #748 remains broader planning.
+This branch covers only the focused scenarios; existing gates, authentic RED and final
+authority remain required.
+
 ## Minimal-evidence rescope (2026-09-20)
 
 The paired `requirements-09-minimal-evidence` owns the default policy correction:
@@ -42,7 +49,7 @@ Recovered from uncommitted proposal-only feature worktrees into local `dev`; rem
 
 | Bucket | Count | Location |
 |---|---:|---|
-| **Active-tree entries** | 39 | [`openspec/changes/`](changes/) |
+| **Active-tree entries** | 40 | [`openspec/changes/`](changes/) |
 | **Parking-lot entries** | 21 | [`openspec/parking-lot/`](parking-lot/) |
 | **Archived** | 120 | [`openspec/changes/archive/`](changes/archive/) |
 
