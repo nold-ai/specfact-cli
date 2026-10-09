@@ -1,0 +1,103 @@
+schema_version: '2'
+requirements:
+  openspec:dependency-update-consolidation:dependency-update-consolidation:caller-owned-jwt-verification-options:
+    rationale: caller owned jwt verification options
+    stakeholder_refs:
+      - nold-ai/specfact-cli#747
+      - nold-ai/specfact-cli#755
+    touchpoints:
+      - id: jwt-graph
+        kind: config_file
+        locator: uv.lock
+    verification_cases:
+      - case_id: DEP-SEC-001
+        scenario_id: caller-owned-jwt-verification-options
+        method: test
+        intent: Caller options remain unchanged and expiry is enforced on reuse.
+        observable: Caller options remain unchanged and expiry is enforced on reuse.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_frozen_jwt_compatibility.py::test_inspection_preserves_options_and_expiry_on_reuse
+      - case_id: DEP-SEC-002
+        scenario_id: caller-owned-jwt-verification-options
+        method: inspection
+        intent: >-
+          Inspect independently required test execution:
+          tests/unit/security/test_frozen_jwt_compatibility.py::test_signed_token_and_trailing_signature_padding_remain_supported
+        observable: >-
+          Retain the exact current full-CI and focused-control results for
+          tests/unit/security/test_frozen_jwt_compatibility.py::test_signed_token_and_trailing_signature_padding_remain_supported.
+          This inspection is not native RED/final execution proof; unavailable or failing required tests block delivery.
+  openspec:dependency-update-consolidation:dependency-update-consolidation:versioning-fixture-excludes-git-metadata:
+    rationale: versioning fixture excludes git metadata
+    stakeholder_refs:
+      - nold-ai/specfact-cli#747
+      - nold-ai/specfact-cli#755
+    touchpoints:
+      - id: fixture-staging
+        kind: config_file
+        locator: tests/unit/versioning/test_analyzer.py
+    verification_cases:
+      - case_id: DEP-FIX-001
+        scenario_id: versioning-fixture-excludes-git-metadata
+        method: inspection
+        intent: >-
+          Inspect independently required test execution:
+          tests/unit/versioning/test_analyzer.py::TestChangeAnalyzer::test_detects_patch_changes
+        observable: >-
+          Retain the exact current full-CI and focused-control results for
+          tests/unit/versioning/test_analyzer.py::TestChangeAnalyzer::test_detects_patch_changes.
+          This inspection is not native RED/final execution proof; unavailable or failing required tests block delivery.
+      - case_id: DEP-FIX-002
+        scenario_id: versioning-fixture-excludes-git-metadata
+        method: inspection
+        intent: >-
+          Inspect independently required test execution:
+          tests/unit/versioning/test_analyzer.py::TestChangeAnalyzer::test_detects_additive_changes
+        observable: >-
+          Retain the exact current full-CI and focused-control results for
+          tests/unit/versioning/test_analyzer.py::TestChangeAnalyzer::test_detects_additive_changes.
+          This inspection is not native RED/final execution proof; unavailable or failing required tests block delivery.
+      - case_id: DEP-FIX-003
+        scenario_id: versioning-fixture-excludes-git-metadata
+        method: inspection
+        intent: >-
+          Inspect independently required test execution:
+          tests/unit/versioning/test_analyzer.py::TestChangeAnalyzer::test_detects_breaking_changes
+        observable: >-
+          Retain the exact current full-CI and focused-control results for
+          tests/unit/versioning/test_analyzer.py::TestChangeAnalyzer::test_detects_breaking_changes.
+          This inspection is not native RED/final execution proof; unavailable or failing required tests block delivery.
+  openspec:dependency-update-consolidation:dependency-update-consolidation:coherent-reviewed-frozen-repair:
+    rationale: coherent reviewed frozen repair
+    stakeholder_refs:
+      - nold-ai/specfact-cli#747
+      - nold-ai/specfact-cli#755
+    touchpoints:
+      - id: frozen-lock
+        kind: config_file
+        locator: uv.lock
+      - id: frozen-export
+        kind: config_file
+        locator: requirements/ci/locked.txt
+      - id: isolated-smoke-seed
+        kind: code_symbol
+        locator: scripts/runtime_discovery_smoke.py::_create_pip_editable_launcher
+    verification_cases:
+      - case_id: DEP-GRAPH-001
+        scenario_id: coherent-reviewed-frozen-repair
+        method: inspection
+        intent: Review graph/export, exact artifacts and independent current gate results.
+        observable: >-
+          Only required reviewed updates are present; both audits, trust/licenses, consumers and Python matrix retain
+          independent results. Unavailable results never imply passing.
+      - case_id: DEP-CACHE-001
+        scenario_id: coherent-reviewed-frozen-repair
+        method: test
+        intent: Fallback creation must isolate seed app data and disable background periodic updates.
+        observable: >-
+          Captured virtualenv arguments use the temporary workspace cache and disable periodic updates; editable
+          launcher construction remains intact.
+        selector:
+          runner: pytest
+          node_id: tests/integration/scripts/test_runtime_discovery_fallback.py::test_pip_editable_fallback_uses_isolated_seed_cache
