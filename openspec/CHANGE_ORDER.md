@@ -18,6 +18,13 @@ Native release dependencies: modules #481 -> modules #483 -> core #742 runtime a
 
 Delivery slices: projection -> signed deterministic pre-validation/verification -> bounded local repair -> opt-in local PR automation. Verification preserves source/index contents and independent gate outcomes. Implementation uses effective governance or an explicit owner-authorized exception. Publish through normal reviewed integration and the canonical signed release path before stable downstream adoption.
 
+## Focused #747 baseline repair (2026-10-09)
+
+The owner authorized dependency-update-consolidation's focused security slice and
+versioning fixture repair to unblock #755. Original #748 remains broader planning.
+This branch covers only the focused scenarios; existing gates, authentic RED and final
+authority remain required.
+
 ## Minimal-evidence rescope (2026-09-20)
 
 The paired `requirements-09-minimal-evidence` owns the default policy correction:
