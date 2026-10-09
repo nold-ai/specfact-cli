@@ -242,3 +242,39 @@ The sandboxed export attempt could not resolve the package index; permitted-acce
 reexecution passed. Applicable all-change validation remains 39/40 with the known
 unrelated governance delta failure. No canonical-spec placeholder failures are counted
 as change validation. Hosted/current final checks and reconciliation are still pending.
+
+## Sixth correction batch: delivery target isolation (9 October 2026, Europe/Berlin)
+
+The human explicitly approved one additional bounded batch after five were consumed.
+Published candidate `d4835e5633b5889de0467dcd227494b34932ce23` passes ordinary hosted
+CI, including the full Python 3.12 suite and security audit; local final reconciliation
+is verified. Fresh hosted execution in run `37863820202` still imports the trusted base
+PyJWT 2.13.0 and fails the original JWT regression. Neither the local result nor the
+passing producer establishes hosted final completion. No member grant was posted for
+this candidate.
+
+The approved test-harness patch isolates the hash-pinned delivery package rather than
+changing the trusted verifier. Preparation reproduced the 2.13.0 caller-options mutation
+and passed both cases against 2.15.1 in 0.77 seconds. This is preparation evidence, not
+accepted native RED. Restore the five production/lock/fixture files to unchanged dev
+for the authored phase, retain the same requirement/case identities, and obtain fresh
+hosted RED before reapplying the screened repair. Earlier RED remains historical.
+The selected parent assertions and tests must remain unchanged from this fresh RED
+through final publication. Missing uv, network, hashes or execution fail the probe.
+
+Authored local execution of both mapped probes against unchanged dev produced two
+genuine assertion failures in 0.64 seconds. The isolated JWT probe observed the seven
+leaked disabled claim options; the cache probe observed missing isolation arguments.
+Explicit-project type checking of the revised JWT file has zero errors/warnings; Ruff
+check and selected strict OpenSpec pass. These results supplement the forthcoming
+accepted hosted RED rather than replacing it.
+
+The revised scoped self-review completed with zero blocking findings. Its one AST
+advisory suggests collapsing the low-branch probe function. Retain the explicit
+subprocess argument lists: hash enforcement, binary-only/no-dependency installation,
+isolated Python and bounded timeouts are independent, auditable security obligations.
+Reducing those lists to one line would obscure them without removing behavior.
+Markdown lint passed after removing added duplicate blank lines. The internal mirror
+was updated and its graph rebuilt for this approved probe design. An initial local
+staged planner attempt could not create the shared Git index lock under the sandbox;
+this was unavailable local evidence, not a valid native result.

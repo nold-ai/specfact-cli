@@ -52,3 +52,15 @@ The cache regression uses a separate subprocess test with unchanged parent asser
 and a bounded child caller. This matches existing integration-test conventions and
 keeps mutable implementation separate from immutable pytest support. Retain a fresh
 authored/RED/final lineage and all prior rejected evidence.
+
+## Delivery-package probe and trusted verifier separation
+
+The independent Requirements consumer retains its unchanged base verifier graph.
+The JWT regression therefore exercises the delivery package in an isolated child:
+extract the one hash-pinned PyJWT entry from the coherent CI export, install only
+its binary wheel into a temporary target with hash verification and no dependencies,
+and run Python with isolated mode and site loading disabled. Frozen parent assertions
+check the bound version, unchanged caller options and expiry on reuse. Fail on missing
+tooling, ambiguous/missing locks, install failures or unavailable execution. No verifier
+package, workflow, authority policy or gate is changed. The separate compatibility
+control and full delivery graph checks remain independently required.

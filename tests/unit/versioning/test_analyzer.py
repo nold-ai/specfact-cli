@@ -48,7 +48,7 @@ def _create_sample_bundle(base_path: Path, bundle_name: str = "test-bundle") -> 
 
 def _init_repo(base_path: Path) -> Repo:
     repo = Repo.init(base_path)
-    repo.index.add([str(p) for p in (base_path / ".specfact" / "projects").rglob("*") if p.is_file()])
+    repo.index.add([str(p) for p in base_path.rglob("*") if p.is_file()])
     repo.index.commit("init")
     return repo
 
