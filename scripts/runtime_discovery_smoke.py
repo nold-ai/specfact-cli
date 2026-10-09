@@ -269,7 +269,12 @@ def _create_pip_editable_launcher(workspace: Path) -> list[str]:
         virtualenv = shutil.which("virtualenv")
         if virtualenv is None:
             raise
-        _run([virtualenv, str(venv_dir)], cwd=REPO_ROOT, env=os.environ.copy(), timeout=120)
+        _run(
+            [virtualenv, "--app-data", str(workspace / "virtualenv-app-data"), "--no-periodic-update", str(venv_dir)],
+            cwd=REPO_ROOT,
+            env=os.environ.copy(),
+            timeout=120,
+        )
     python = venv_dir / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
     _run(
         [str(python), "-m", "pip", "install", "-e", str(REPO_ROOT)],

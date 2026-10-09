@@ -3,14 +3,14 @@
 - [x] Refresh dev/checks and #747 metadata; obtain focused concurrent ownership.
 - [x] Define focused scenarios and preserve original #748 and workflow runtime scope.
 - [x] Add JWT/cache boundary and control tests; bind actual agent acceptance.
-- [ ] Publish revised process-boundary tests/spec with unchanged locks/fixture/caller; retain fresh RED.
+- [x] Publish revised process-boundary tests/spec with unchanged locks/fixture/caller; retain fresh RED.
 
 ## 2. Focused repair
 
 - [x] Complete exact artifact, license, provenance and independent package screening;
   retain cryptographic-attestation and external-cache limitations.
-- [ ] Apply previously screened dependency changes and coherent export after fresh RED.
-- [ ] Apply fixture and isolated smoke seed-cache repair after fresh RED.
+- [x] Apply previously screened dependency changes and coherent export after fresh RED.
+- [x] Apply fixture and isolated smoke seed-cache repair after fresh RED.
 - [ ] Verify exploit/alternate input, legitimate consumers, both audits, trust/licenses,
   reproducible delivery, Python matrix and applicable quality gates.
 - [x] Obtain independent bypass/regression review; confirm and repair inherited-cache finding.

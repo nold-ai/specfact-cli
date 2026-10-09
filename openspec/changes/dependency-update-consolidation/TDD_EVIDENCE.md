@@ -210,3 +210,35 @@ failure in 0.54 seconds (missing isolated-cache arguments). New JWT/process-boun
 tests have zero explicit-project type errors/warnings. Public #747 now records the
 owner-approved focused implementation slice without replacing #748's broader plan.
 The hierarchy cache refreshed successfully with 53 issues.
+
+## Accepted process-boundary RED and final repair
+
+Fresh authored commit `2b64c8c6a169db7c61f7355cb6ddf61a464be62e`, tree
+`5f7bd033ed70120ebd63b97981bb576f9adea4ec`, ran hosted Requirements `37863114131`,
+producer job `113603337985`, artifact `11586716892`, byte digest
+`sha256:23b81974d50ffb80c4ca81dbcdec922f9207a2c59603f1965695893430568057`.
+Its two mapped selectors have accepted observed/required RED with passed verdict and
+no findings. Authored-phase final delivery is intentionally not green.
+
+Only after reading this authentic report, reapply the same five screened package
+updates, coherent export, fixture staging root, Semgrep sentinel and isolated runtime
+caller from the preserved first candidate. The selected parent test files and mapping
+remain unchanged through the final repair. This is the fifth shared correction batch;
+the earlier first candidate and rejected final provenance are retained.
+
+Current source mapping digest:
+`sha256:21363424683cbe97c5f674bddee60aee7a808d5b6adafbbf5eb159c148e53591`.
+Hosted final authority, proof, ordinary checks and current reviews remain required.
+The old first candidate's green ordinary CI is not substituted for current-head CI.
+
+Replayed pre-publication checks: seven repository regressions passed in 1.04 seconds;
+both native selectors passed in 0.48 seconds. Final SpecFact self-review
+`review-9cc9cce0-b38f-4ae2-a302-d24bb42442f6` at 2026-10-09T00:11:34Z has zero errors,
+two reproduced baseline warnings and four unchanged AST suggestions, with the explicit
+dispositions above. The isolated parent/JWT tests have zero diagnostics. Whole-project
+BasedPyright analyzed 672 files with zero errors and 1,526 baseline warnings. Ruff
+check/format, scoped YAML, coherent frozen export and strict selected OpenSpec passed.
+The sandboxed export attempt could not resolve the package index; permitted-access
+reexecution passed. Applicable all-change validation remains 39/40 with the known
+unrelated governance delta failure. No canonical-spec placeholder failures are counted
+as change validation. Hosted/current final checks and reconciliation are still pending.
