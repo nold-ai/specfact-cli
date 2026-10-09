@@ -1,0 +1,212 @@
+schema_version: '2'
+requirements:
+  openspec:workflow-01-turn-orchestration:turn-workflow-adoption:module-owned-workflow-adoption:
+    rationale: Inspect approved planning acceptance without claiming runtime or signed release evidence.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#742
+    touchpoints:
+      - id: turn-workflow-adoption-spec
+        kind: config_file
+        locator: openspec/changes/workflow-01-turn-orchestration/specs/turn-workflow-adoption/spec.md
+    verification_cases:
+      - case_id: module-owned-workflow-adoption-workflow-module-is-unavailable-inspection
+        scenario_id: module-owned-workflow-adoption
+        method: inspection
+        intent: 'Inspect planned scenario: Workflow module is unavailable.'
+        observable: an actionable installation/compatibility diagnostic is returned without a synthetic passing
+          result. Planning inspection only; runtime implementation, execution and signed acceptance remain pending.
+  openspec:workflow-01-turn-orchestration:turn-workflow-adoption:verification-preserves-repository-inputs:
+    rationale: Inspect approved planning acceptance without claiming runtime or signed release evidence.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#742
+    touchpoints:
+      - id: turn-workflow-adoption-spec
+        kind: config_file
+        locator: openspec/changes/workflow-01-turn-orchestration/specs/turn-workflow-adoption/spec.md
+    verification_cases:
+      - case_id: verification-preserves-repository-inputs-partially-staged-file-requires-a-formatting-change-inspection
+        scenario_id: verification-preserves-repository-inputs
+        method: inspection
+        intent: 'Inspect planned scenario: Partially staged file requires a formatting change.'
+        observable: it reports the index violation without formatting, staging, regenerating tracked files or substituting
+          worktree contents. Planning inspection only; runtime implementation, execution and signed acceptance remain
+          pending.
+      - case_id: verification-preserves-repository-inputs-fresh-session-verification-inspection
+        scenario_id: verification-preserves-repository-inputs
+        method: inspection
+        intent: 'Inspect planned scenario: Fresh-session verification.'
+        observable: required checks execute or reuse identity-matching current outputs without requiring prior session
+          phases or RED history. Planning inspection only; runtime implementation, execution and signed acceptance
+          remain pending.
+      - case_id: verification-preserves-repository-inputs-required-independent-gate-fails-inspection
+        scenario_id: verification-preserves-repository-inputs
+        method: inspection
+        intent: 'Inspect planned scenario: Required independent gate fails.'
+        observable: the failing producer remains non-passing and cannot be hidden by a score or findings projection.
+          Planning inspection only; runtime implementation, execution and signed acceptance remain pending.
+  openspec:workflow-01-turn-orchestration:turn-workflow-adoption:canonical-repository-skill-projection:
+    rationale: Inspect approved planning acceptance without claiming runtime or signed release evidence.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#742
+    touchpoints:
+      - id: turn-workflow-adoption-spec
+        kind: config_file
+        locator: openspec/changes/workflow-01-turn-orchestration/specs/turn-workflow-adoption/spec.md
+    verification_cases:
+      - case_id: canonical-repository-skill-projection-only-a-generated-skill-is-edited-or-removed-inspection
+        scenario_id: canonical-repository-skill-projection
+        method: inspection
+        intent: 'Inspect planned scenario: Only a generated skill is edited or removed.'
+        observable: it fails with the affected destination and a regeneration instruction without writing files.
+          Planning inspection only; runtime implementation, execution and signed acceptance remain pending.
+      - case_id: canonical-repository-skill-projection-a-destination-contains-unrelated-custom-content-inspection
+        scenario_id: canonical-repository-skill-projection
+        method: inspection
+        intent: 'Inspect planned scenario: A destination contains unrelated custom content.'
+        observable: it preserves unrelated files and rejects unsafe or colliding writes. Planning inspection only;
+          runtime implementation, execution and signed acceptance remain pending.
+  openspec:workflow-01-turn-orchestration:turn-workflow-adoption:readiness-uses-current-governance:
+    rationale: Inspect approved planning acceptance without claiming runtime or signed release evidence.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#742
+    touchpoints:
+      - id: turn-workflow-adoption-spec
+        kind: config_file
+        locator: openspec/changes/workflow-01-turn-orchestration/specs/turn-workflow-adoption/spec.md
+    verification_cases:
+      - case_id: readiness-uses-current-governance-a-planned-capability-is-new-and-its-blocker-completed-inspection
+        scenario_id: readiness-uses-current-governance
+        method: inspection
+        intent: 'Inspect planned scenario: A planned capability is new and its blocker completed.'
+        observable: neither observation alone causes stale-plan failure; current metadata and remaining applicable
+          prerequisites determine readiness. Planning inspection only; runtime implementation, execution and signed
+          acceptance remain pending.
+      - case_id: readiness-uses-current-governance-linked-issue-governance-cannot-be-verified-inspection
+        scenario_id: readiness-uses-current-governance
+        method: inspection
+        intent: 'Inspect planned scenario: Linked issue governance cannot be verified.'
+        observable: it reports the unmet check without treating a cached backlog-only PASS as complete governance
+          verification. Planning inspection only; runtime implementation, execution and signed acceptance remain
+          pending.
+  openspec:workflow-01-turn-orchestration:turn-workflow-adoption:pilot-precedes-adoption-activation:
+    rationale: Inspect approved planning acceptance without claiming runtime or signed release evidence.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#742
+    touchpoints:
+      - id: turn-workflow-adoption-spec
+        kind: config_file
+        locator: openspec/changes/workflow-01-turn-orchestration/specs/turn-workflow-adoption/spec.md
+    verification_cases:
+      - case_id: pilot-precedes-adoption-activation-only-a-candidate-workflow-build-exists-inspection
+        scenario_id: pilot-precedes-adoption-activation
+        method: inspection
+        intent: 'Inspect planned scenario: Only a candidate workflow build exists.'
+        observable: candidate testing may proceed but the signed publication prerequisite remains unresolved. Planning
+          inspection only; runtime implementation, execution and signed acceptance remain pending.
+  openspec:workflow-01-turn-orchestration:turn-workflow-adoption:signed-current-run-producer-compatibility-precedes-adoption:
+    rationale: Inspect approved planning acceptance without claiming runtime or signed release evidence.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#742
+    touchpoints:
+      - id: turn-workflow-adoption-spec
+        kind: config_file
+        locator: openspec/changes/workflow-01-turn-orchestration/specs/turn-workflow-adoption/spec.md
+    verification_cases:
+      - case_id: signed-current-run-producer-compatibility-precedes-adoption-workflow-package-is-signed-but-its-requirements-producer-is-incompatible-inspection
+        scenario_id: signed-current-run-producer-compatibility-precedes-adoption
+        method: inspection
+        intent: 'Inspect planned scenario: Workflow package is signed but its Requirements producer is incompatible.'
+        observable: the combination is rejected as not ready with an actionable diagnostic independent repository
+          projection can proceed without claiming runtime readiness. Planning inspection only; runtime implementation,
+          execution and signed acceptance remain pending.
+      - case_id: signed-current-run-producer-compatibility-precedes-adoption-installed-signed-producer-and-workflow-match-the-actual-core-inspection
+        scenario_id: signed-current-run-producer-compatibility-precedes-adoption
+        method: inspection
+        intent: 'Inspect planned scenario: Installed signed producer and workflow match the actual core.'
+        observable: the compatibility prerequisite is satisfied for that exact combination this does not activate
+          or replace the separate R09 required-policy cutover. Planning inspection only; runtime implementation,
+          execution and signed acceptance remain pending.
+  openspec:workflow-01-turn-orchestration:turn-workflow-adoption:optional-context-and-advisory-producer-feedback:
+    rationale: Inspect approved planning acceptance without claiming runtime or signed release evidence.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#742
+    touchpoints:
+      - id: turn-workflow-adoption-spec
+        kind: config_file
+        locator: openspec/changes/workflow-01-turn-orchestration/specs/turn-workflow-adoption/spec.md
+    verification_cases:
+      - case_id: optional-context-and-advisory-producer-feedback-heuristic-finding-from-trusted-producer-inspection
+        scenario_id: optional-context-and-advisory-producer-feedback
+        method: inspection
+        intent: 'Inspect planned scenario: Heuristic finding from trusted producer.'
+        observable: producer trust and heuristic basis remain distinct and the original finding is available. Planning
+          inspection only; runtime implementation, execution and signed acceptance remain pending.
+      - case_id: optional-context-and-advisory-producer-feedback-advisory-convergence-with-failed-tests-inspection
+        scenario_id: optional-context-and-advisory-producer-feedback
+        method: inspection
+        intent: 'Inspect planned scenario: Advisory convergence with failed tests.'
+        observable: the test remains failed and the result cannot pass. Planning inspection only; runtime implementation,
+          execution and signed acceptance remain pending.
+      - case_id: optional-context-and-advisory-producer-feedback-context-drift-during-verification-inspection
+        scenario_id: optional-context-and-advisory-producer-feedback
+        method: inspection
+        intent: 'Inspect planned scenario: Context drift during verification.'
+        observable: reuse is rejected for affected obligations and source/index bytes are preserved. Planning inspection
+          only; runtime implementation, execution and signed acceptance remain pending.
+      - case_id: optional-context-and-advisory-producer-feedback-nested-repair-would-exceed-budget-inspection
+        scenario_id: optional-context-and-advisory-producer-feedback
+        method: inspection
+        intent: 'Inspect planned scenario: Nested repair would exceed budget.'
+        observable: it consumes the same controller budget rather than starting a new independent attempt allowance.
+          Planning inspection only; runtime implementation, execution and signed acceptance remain pending.
+  openspec:workflow-01-turn-orchestration:turn-workflow-adoption:risk-first-repository-guidance:
+    rationale: Inspect approved planning acceptance without claiming runtime or signed release evidence.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#742
+    touchpoints:
+      - id: turn-workflow-adoption-spec
+        kind: config_file
+        locator: openspec/changes/workflow-01-turn-orchestration/specs/turn-workflow-adoption/spec.md
+    verification_cases:
+      - case_id: risk-first-repository-guidance-routine-work-requires-no-extra-lane-inspection
+        scenario_id: risk-first-repository-guidance
+        method: inspection
+        intent: 'Inspect planned scenario: Routine work requires no extra lane.'
+        observable: existing checks and review lanes remain sufficient and documentation-only work records applicability
+          without invented runtime proof. Planning inspection only; runtime implementation, execution and signed
+          acceptance remain pending.
+      - case_id: risk-first-repository-guidance-risk-boundary-has-a-critical-assumption-inspection
+        scenario_id: risk-first-repository-guidance
+        method: inspection
+        intent: 'Inspect planned scenario: Risk boundary has a critical assumption.'
+        observable: the selected assumption, smallest existing observable probe, result and limitations are recorded
+          before dependent work. Planning inspection only; runtime implementation, execution and signed acceptance
+          remain pending.
+      - case_id: risk-first-repository-guidance-assumption-cannot-establish-readiness-inspection
+        scenario_id: risk-first-repository-guidance
+        method: inspection
+        intent: 'Inspect planned scenario: Assumption cannot establish readiness.'
+        observable: disproved assumptions return to design and unsupported ones remain unresolved; independent work
+          may continue without a dependent-readiness claim. Planning inspection only; runtime implementation, execution
+          and signed acceptance remain pending.
+      - case_id: risk-first-repository-guidance-triage-respects-the-owning-policy-inspection
+        scenario_id: risk-first-repository-guidance
+        method: inspection
+        intent: 'Inspect planned scenario: Triage respects the owning policy.'
+        observable: the defect stays actionable, the preference receives an evidenced disposition and the claim
+          remains unresolved; no disposition waives a required finding or substitutes model agreement for proof.
+          Planning inspection only; runtime implementation, execution and signed acceptance remain pending.
+      - case_id: risk-first-repository-guidance-compact-correction-encounters-boundary-drift-inspection
+        scenario_id: risk-first-repository-guidance
+        method: inspection
+        intent: 'Inspect planned scenario: Compact correction encounters boundary drift.'
+        observable: review broadens and affected gates rebind to current inputs, with complete-lane fallback and
+          consumed budgets preserved across handoffs. Planning inspection only; runtime implementation, execution
+          and signed acceptance remain pending.
+      - case_id: risk-first-repository-guidance-trial-overhead-has-missing-measurements-inspection
+        scenario_id: risk-first-repository-guidance
+        method: inspection
+        intent: 'Inspect planned scenario: Trial overhead has missing measurements.'
+        observable: token categories, billed charges, elapsed time, active effort and waiting remain separate with
+          units/sources; missing values remain unknown and causal savings are not claimed. Planning inspection only;
+          runtime implementation, execution and signed acceptance remain pending.

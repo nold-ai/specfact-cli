@@ -36,6 +36,20 @@ ordering prose below; individual affected proposals carry the same scope amendme
 
 Core #680/#679 and modules #417 were recovered from uncommitted planning-only feature worktrees into local `dev` and the R09 planning worktrees on 2026-09-20. Remote integration remains pending. All three remain planned; no implementation was imported. Modules C14 #416 shipped and is closed, but its existing proposal remains unarchived on dev; it is distinct from core C14 adoption #680.
 
+## Risk-first workflow amendment (2026-10-08)
+
+Extend the existing paired `workflow-01-turn-orchestration` stories, modules [#483](https://github.com/nold-ai/specfact-cli-modules/issues/483) and core [#742](https://github.com/nold-ai/specfact-cli/issues/742), preserving the owner-approved 2026-10-04 optional-context, producer trust/basis, structured-pytest identity and shared-budget amendment. Modules owns reusable guidance/runtime; core owns wrappers/projection. Deliver skills/projection -> deterministic verification -> bounded repair -> opt-in PR automation. Skills do not activate unavailable runtime commands. The signed modules #481 -> #483 -> core #742 runtime prerequisites remain; independent projection proceeds separately. Modules #483 also retains its existing blocking relationship to core #492.
+
+Use one or two early critical-assumption probes, evidence-based finding triage and compact one-writer repair handoffs within existing gates/budgets. No default panel, pstack installation, ledger, new interfaces or policy cutover is added. Review the initial skills/projection investment after two engineer-days. Bounded trials await the next subsequently authorized nontrivial change per repository; measurements reuse available records and do not establish causal savings. Planning creation completes no implementation/trial task and does not archive either change.
+
+## Bounded turn workflow (2026-09-20)
+
+`workflow-01-turn-orchestration` pairs [core #742](https://github.com/nold-ai/specfact-cli/issues/742) with [modules #483](https://github.com/nold-ai/specfact-cli-modules/issues/483). Both are planning/Todo. Core owns repository check-only adoption and canonical wrapper projection; modules owns the reusable runtime, producer adapters, local progress and bounded loops.
+
+Native release dependencies: modules #481 -> modules #483 -> core #742 runtime adoption. Repository projection and standalone adapter development can proceed independently. R09 #740 retains its own policy cutover; C15-specific consumption retains its own signed policy readiness. Optional preflight, full-chain graph, parked findings taxonomy and generic #251/#253 installation are related, not blanket prerequisites. No workflow receipt becomes mandatory historical delivery evidence or protected CI authority.
+
+Delivery slices: projection -> signed deterministic pre-validation/verification -> bounded local repair -> opt-in local PR automation. Verification preserves source/index contents and independent gate outcomes. Implementation uses effective governance or an explicit owner-authorized exception. Publish through normal reviewed integration and the canonical signed release path before stable downstream adoption.
+
 ## Recovered planning proposals (2026-09-20)
 
 Recovered from uncommitted proposal-only feature worktrees into local `dev`; remote integration is still pending. These are planned changes, not active implementations. Optional preflight does not block them; signed runtime, policy/profile and exception prerequisites remain.
@@ -49,7 +63,7 @@ Recovered from uncommitted proposal-only feature worktrees into local `dev`; rem
 
 | Bucket | Count | Location |
 |---|---:|---|
-| **Active-tree entries** | 40 | [`openspec/changes/`](changes/) |
+| **Active-tree entries** | 41 | [`openspec/changes/`](changes/) |
 | **Parking-lot entries** | 21 | [`openspec/parking-lot/`](parking-lot/) |
 | **Archived** | 120 | [`openspec/changes/archive/`](changes/archive/) |
 
