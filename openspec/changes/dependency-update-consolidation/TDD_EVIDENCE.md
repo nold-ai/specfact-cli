@@ -286,3 +286,30 @@ commits, which the unchanged binder rejects across history. Preserve that reject
 artifact and authored head; publish the same tested assertions from unchanged dev
 without those production ancestors. Reverting production bytes does not establish
 a test-only provenance chain. No acceptance or native proof is manufactured.
+
+## Accepted isolated-delivery RED and sixth final correction
+
+The clean authored commit `0f9d114be7e4fd70083d0c1a101590c2ab9ca06d`, tree `6f0c67bc1618219aa1b621f6f2548166ca0c895e`, has
+accepted hosted RED in run `37896570864`, artifact `11600054315`, ZIP
+byte digest `sha256:b30ddc50df79e0ceb1465baaec8f3ab8872f60e5b4f9c4d458c470651d4befa0`. Its retained report is passed/pass, observed and
+required RED, with no findings. Both selected tests have genuine failures. The
+unchanged producer and binder attest the test-only source history.
+
+Only after reading this report, reapply the same five screened package changes,
+coherent export, fixture staging root, Semgrep sentinel and isolated caller from the
+preserved repair. The approved package probe and cache parent tests, mapping and
+acceptance record remain unchanged from this authenticated RED through final repair.
+This final publication consumes the sixth owner-authorized correction batch. The
+rejected earlier authored chain and all five prior batches remain accounted for.
+Current-head hosted final execution, authority and completed reviews are still
+required; preceding ordinary CI and local checks cannot establish overall green.
+
+Final pre-publication scoped suite: 25 tests passed in 2.23 seconds; both unchanged
+native selectors pass. Ruff check/format, project BasedPyright (zero errors),
+Markdown lint, selected strict OpenSpec, frozen export parity and uv lock check
+passed. All-change validation retains only the previously recorded governance delta
+failure (39/40). Final self-review completed with zero blocking findings: the same
+two baseline warnings and four unchanged AST suggestions, plus the explicitly
+disposed delivery-probe readability advisory. The earlier warning dispositions
+and the explicit security-argument rationale apply; no finding is silently waived.
+Hosted current-head checks and native final reconciliation remain independent gates.

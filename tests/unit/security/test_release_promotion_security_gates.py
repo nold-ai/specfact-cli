@@ -398,7 +398,7 @@ def test_frozen_graph_uses_fixed_semgrep_mcp_pair_without_waiver() -> None:
     assert "semgrep>=1.175.0" in scanning
 
     locked = (REPO_ROOT / "requirements" / "ci" / "locked.txt").read_text(encoding="utf-8")
-    assert "semgrep==1.175.0" in locked
+    assert "semgrep==1.179.0" in locked
     assert "mcp==1.29.0" in locked
     policy = json.loads((REPO_ROOT / "ci" / "security-tool-minimum-versions.json").read_text(encoding="utf-8"))
     assert policy["minimum_versions"] == {"mcp": "1.28.1", "semgrep": "1.175.0"}
