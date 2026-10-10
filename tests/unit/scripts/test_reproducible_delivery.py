@@ -216,8 +216,8 @@ def test_reproducible_delivery_verifier_bounds_uv_commands_and_fails_closed_on_t
 def test_reproducible_delivery_wheel_build_uses_a_locked_backend() -> None:
     """The no-isolation wheel proof must use the backend pinned in delivery inputs."""
     project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    assert project["build-system"]["requires"] == ["hatchling==1.32.0"]
-    assert "hatchling==1.32.0" in project["project"]["optional-dependencies"]["dev"]
+    assert project["build-system"]["requires"] == ["hatchling==1.32.4"]
+    assert "hatchling==1.32.4" in project["project"]["optional-dependencies"]["dev"]
     assert "twine>=7.0" in project["project"]["optional-dependencies"]["dev"]
     assert "core-metadata-version" not in project["tool"]["hatch"]["build"]["targets"]["wheel"]
 

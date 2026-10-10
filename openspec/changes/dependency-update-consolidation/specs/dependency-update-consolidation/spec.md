@@ -53,3 +53,21 @@ security and compatibility evidence, and preserve existing governance.
 - **WHEN** the focused repair is published
 - **THEN** broader tasks remain open, fixture proof cannot promote workflow runtime, and
   new exact-commit/tree authority is explicitly obtained before claiming green.
+
+### Requirement: Compatible Python Security Layer
+
+The selected Python layer SHALL use screened GitPython 3.1.62 and Hatchling 1.32.4,
+preserve the merged #756 graph and generate coherent frozen lock/export inputs.
+
+#### Scenario: Unsafe submodule checkout is rejected before cloning
+
+- **GIVEN** a submodule checkout path outside its parent repository
+- **WHEN** the hash-pinned delivery GitPython package updates that submodule
+- **THEN** it rejects the path before cloning or writing outside the repository.
+
+#### Scenario: Backend and release metadata remain coherent
+
+- **GIVEN** both Hatchling declarations and the four canonical package versions
+- **WHEN** the selected Python layer builds its wheel
+- **THEN** the backend is 1.32.4, package metadata is 0.55.5, lock/export parity holds,
+  both frozen audits pass and Python 3.11-3.13 installation preserves consumers.

@@ -313,3 +313,52 @@ two baseline warnings and four unchanged AST suggestions, plus the explicitly
 disposed delivery-probe readability advisory. The earlier warning dispositions
 and the explicit security-argument rationale apply; no finding is silently waived.
 Hosted current-head checks and native final reconciliation remain independent gates.
+
+## Authored remaining Python slice (10 October 2026, Europe/Berlin)
+
+Current dev 553b46f01c6581c96dc92133b6e77404c8df7cd9 retains merged #756
+proof, tests and frozen fixes. The owner approved the five retained PRs and
+0.55.5 release preparation. #747 metadata, #748 planning scope and the internal
+wiki were reconciled before dependency inputs changed. Earlier evidence remains
+historical; no previous RED is reused for the new containment requirement.
+
+The isolated Python 3.12.13 baseline was populated by uv sync --frozen --all-extras
+and reused by Hatch through HATCH_ENV_TYPE_VIRTUAL_PATH=.venv. The unchanged
+GitPython 3.1.61 delivery wheel reached the mocked clone boundary for ../outside;
+no real clone or outside write occurred. The new containment regression and the
+updated backend/release expectations returned three failures in 1.70 seconds.
+The final authored containment test still fails after flag-list simplification.
+The two frozen audits returned PASS; they do not cover every upstream disclosure:
+GitHub's reviewed GHSA-59cr-6r3x-644w still requires GitPython 3.1.62.
+
+Strict selected OpenSpec and staged native test-authored planning passed. The
+acceptance identifies codex:/root as implementation agent and is not a human
+Trusted Requirements Authority grant. Ruff formatting/checks and explicit-project
+BasedPyright passed with zero errors and 1,526 existing warnings. Scoped YAML
+lint passes; the full wrapper reports unrelated archived-YAML failures despite
+its zero exit code. No authored contract changed; contract detection returned its
+unchanged result. Hosted RED, candidate execution and current final CI remain pending.
+
+The first local review returned zero errors, one baseline naming warning and
+three AST suggestions. The new probe's static install flags were factored into
+a descriptive immutable tuple to reduce its function length without relaxing
+hash/index/no-dependency controls. The baseline warning and two baseline AST
+suggestions at test_release_promotion_security_gates.py:506/243 are byte-equivalent
+to dev and were already explicitly dispositioned in #756 above; preserve those
+assertions and source identities rather than altering unrelated historical proof.
+
+Exact wheel/gem hashes match registry metadata. Package source comparisons match
+upstream tags, with GitPython's sole generated __version__ substitution reconciled
+against its release metadata. All five selected packages have MIT/BSD licenses.
+No candidate package has yet executed. Public Socket screening of GitPython 3.1.62
+shows network/shell/filesystem/URL capabilities. Hatchling 1.32.4 reports a medium
+potential-vulnerability alert for its code-version source plugin; that file is
+byte-identical to the installed 1.32.0 source. This repository supplies a static
+project.version, no dynamic version and no code-source configuration. The scoped
+triage finds no new reachable code-version input in this build. This is not a
+universal safety claim, alert dismissal or security-policy exception. Current
+repository Socket checks and an explicit alert disposition remain release gates.
+
+A fresh registry check also found GitPython 3.2.0 and upstream additional security
+fixes. Its global advisory records are currently unavailable. The version decision
+was returned to the owner; 3.2.0 has not been installed or silently substituted.
