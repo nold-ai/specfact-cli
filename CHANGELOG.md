@@ -28,6 +28,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Documentation links:** adopt relative-links 0.9.1 for consistent Markdown
+  and included navigation links under configured base URLs, including rebuilds.
 - **Build backend compatibility:** synchronize the PEP 517 and development
   Hatchling pins at 1.32.4, including its version whitespace and build hook fixes.
 - Include the existing bundle-mapper assets in source distributions so rebuilding

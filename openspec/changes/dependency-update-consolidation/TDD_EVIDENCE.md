@@ -481,3 +481,55 @@ Python launcher/wheel matrix jobs, reproducible installed-package/SBOM evidence,
 both advisory audits, dependency trust/licenses, independent analysis, signatures,
 quality and both Socket checks (run 38086498399). Requirements execution/authority
 remain failed (run 38086498423); those failures cannot be replaced by local proof.
+
+## Relative-link layer evidence (10 October 2026)
+
+The same-site rebuild probe fails on locked relative-links 0.8.0 because target
+URLs remain cached (`753-red.log`). The conservatively generated parent-relative
+lock changes only relative-links to 0.9.1 and its declaration. The reviewed gem
+SHA-256 `6d5d70578c669ef9ee4c67f617d91497e0506fe5c1a059e484a900e18efb202e`
+is checked before installation. All inherited security probes and relative-link
+checks pass at root and `/preview`, including included navigation attributes,
+Markdown/nested links, fragments, external URLs and a changed target on rebuild.
+Both full-site builds pass. This compatibility update is recorded under Fixed,
+separately from redirect/feed/JSON/GitPython security changes. Python locks and
+the single 0.55.5 release version stay inherited from #744.
+
+## Final stack verification and publication checkpoint (10 October 2026)
+
+Native stack #757 is registered in the approved five-PR order. Exact action
+commits and selected Ruby artifact hash checks now make the final documentation
+workflow reproducible before candidate installation. See REVIEW_AND_PROMOTION.md
+for dispositions, immutable source identities, release checklist and rollback.
+
+The isolated verifier bug is reproduced by starting pytest with -I -S and the
+explicit trusted site path: sysconfig points to the base interpreter. Resolving
+the actual gitdb/smmap distribution roots repairs this without importing the
+candidate in the parent or changing its hash/no-dependency install controls.
+The same corrected test fails on frozen GitPython 3.1.61 (clone boundary reached)
+and passes on 3.2.0. Native authored run 38087626467 records RED gate pass; final
+run 38087716606 records verified gate pass. Their overall authored failure is
+expected while RED is retained for final reconciliation. Original failed runs
+remain historical evidence.
+
+GitHub initially rejected the commit email against the signing key. Re-signing
+uses its verified <djm81@users.noreply.github.com> identity and changes no tree.
+Native RED run 38088121368 binds the same probe to verified authored e9950388;
+current final 76a42fc8 replays it. Protected authority remains rejected; no human
+role is fabricated. The full local smart run retains 25 failed, 3189 passed, nine
+skipped and one error caused by in-process marketplace beartype replacement.
+Frozen sync restores the environment; audits, parity, trust/licenses, independent
+analysis, strict signatures, version gates and focused security/build/docs probes
+pass. Installing the committed npm runner repairs the initial missing-tool type
+and lint diagnostics (zero errors, 1526 unchanged project type warnings). These
+partial results do not complete the outstanding readiness tasks.
+
+### Ruby CI cache correction
+
+Final hosted Ruby run 38088539828 validates all three candidate artifact hashes
+then fails bundle installation because the partial vendor/cache contains only
+the selected plugins, not the rest of the frozen graph. Move these reviewed gem
+files to Bundler's installation cache under the Ruby 3.2 ABI path; leave the
+project vendor/cache absent so unchanged locked dependencies can be fetched.
+BUNDLE_FROZEN stays true, candidate hashes and version inputs stay unchanged.
+The failed run remains retained; fresh full workflow validation is required.
