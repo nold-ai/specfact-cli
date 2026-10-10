@@ -362,3 +362,62 @@ repository Socket checks and an explicit alert disposition remain release gates.
 A fresh registry check also found GitPython 3.2.0 and upstream additional security
 fixes. Its global advisory records are currently unavailable. The version decision
 was returned to the owner; 3.2.0 has not been installed or silently substituted.
+
+## Python stack implementation evidence (10 October 2026)
+
+The user approved GitPython 3.2.0 after validation. Its exact wheel SHA-256 is
+`bd70c5ec05cd2b797423e7eb312147d2458d3cca92085888fba2213f85905537`;
+the sdist is `fb92310af6844d96adc95ca066ed2e617c00e1dbd146a326626c81e72e18cc2e`.
+GitHub authenticates the 3.2.0 tag signature and commit
+`6a7180a9dfcb276755a8af99dd78155f775a6b14`. All 37 wheel Python files match
+that tag except the expected generated version substitution. The wheel metadata
+states BSD-3-Clause, Python >=3.8 and gitdb >=4.0.1,<5. Repository consumers use
+GitCmdObjectDB; no explicit GitDB backend was found. The tagged changelog lists
+six additional security fixes; missing global advisory API records do not negate
+those upstream fixes. Source: <https://github.com/gitpython-developers/GitPython/blob/3.2.0/doc/source/changes.rst>.
+
+The final authored containment probe failed on locked 3.1.61 before adoption
+(`gitpython-red-amended.log`, one failure). After the targeted refresh, the
+containment/JWT/delivery/release/versioning suite passed all 42 tests. The only
+package version changes in uv.lock are GitPython, Hatchling and project metadata;
+PyJWT 2.15.1, Semgrep 1.179.0 and virtualenv 21.11.0 remain unchanged.
+
+A real offline source build failed with both the unchanged parent backend 1.32.0
+and reviewed 1.32.4: the sdist omitted the wheel's forced bundle-mapper inclusion.
+The new actual-build regression failed before adding `/modules/bundle-mapper` to
+the sdist include list and passed afterward (one test, 0.81 seconds). The rebuilt
+wheel retains byte-identical module metadata; no signed asset changed. Both
+release artifacts now build using the hash-installed backend without resolution.
+
+One built wheel installs and exercises init/config/commit/branch/checkout/diff and
+ChangeAnalyzer consumers on Python 3.11.15, 3.12.13 and 3.13.14. CLI/package metadata
+is 0.55.5 and GitPython is 3.2.0. Extra `uv pip check` reported existing Z3 5.0.0.0
+wheel-platform metadata incompatibility (`macosx_13_3_arm64`) although imports and
+consumers pass; this advisory result is retained, not claimed green. The repository
+CI wheel protocol does not use that extra check. No Z3 version or policy changed.
+
+Both frozen advisory audits, graph/export parity, uv lock check, dependency trust,
+version sources, strict PyPI-ahead (latest 0.55.4), format, typing, lint, Bandit,
+Semgrep (zero findings) and all four strict module signatures pass locally.
+The initial license scan found test-installed Pylint in the shared validation
+environment; restoring the frozen graph yields zero license violations. The
+initial smart run observed 32 failures and one error after test-environment drift
+and externally injected module roots. Fresh scoped reproduction passes 31 tests;
+the full rerun uses child-install version constraints and the immutable fixture
+without the extra module-roots variable. Its final result is recorded separately.
+Repository-wide YAML emits existing archived/other-change errors; changed YAML
+is independently linted. Changed-test self review now has zero findings; previous
+unchanged #756 findings retain their documented historical disposition.
+
+Socket artifact views for GitPython 3.2.0 wheel and sdist show shell/filesystem/URL
+capabilities. Hatchling 1.32.4 retains a potential-vulnerability alert for its
+configuration-selected code version plugin. The flagged file is byte-identical
+with backend 1.32.0 and this project uses static version metadata, but this source
+triage does not replace the protected Socket verdict or create an exception.
+
+Hosted Requirements run 38085488787 on authored head
+`d3461301618dd76501c30498bf365e0a65d77697` stopped with `acceptance-missing`
+for 15 active sources before execution. It is authenticated diagnostic evidence,
+not native RED proof. Local planned and test-authored gates pass using the pinned
+fixture and actual agent acceptance; no human authority was fabricated. Final
+protected Requirements and Socket eligibility remain necessary before merge.

@@ -116,3 +116,11 @@ in the tagged upstream changelog. Python 3.7 removal does not affect the support
 3.11–3.13 matrix. The pure Python GitDB backend is deprecated; repository consumers
 must retain the default GitCmdObjectDB backend. Exact artifact and consumer checks
 remain required; an advisory database miss does not establish absence of risk.
+
+## Source artifact compatibility
+
+The real sdist-to-wheel build must preserve the existing forced inclusions.
+Include `/modules/bundle-mapper` in the source archive, preserving its bytes and
+signatures. This fixes the parent omission exposed by backend compatibility
+validation. Keep this ordinary packaging repair separate from security fixes in
+the changelog and retain its failing and passing actual-build regression results.

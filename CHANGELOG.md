@@ -10,6 +10,26 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.55.5] - 2026-10-10
+
+### Security
+
+- **Git dependency hardening:** raise the runtime GitPython floor and frozen
+  graph to 3.2.0, retaining the 3.1.62 submodule containment repair and the
+  additional security fixes listed in the upstream 3.2.0 changelog. Consumers
+  continue to use the default Git command object database.
+
+### Fixed
+
+- **Build backend compatibility:** synchronize the PEP 517 and development
+  Hatchling pins at 1.32.4, including its version whitespace and build hook fixes.
+- Include the existing bundle-mapper assets in source distributions so rebuilding
+  a wheel from the source archive preserves the bundled manifest.
+- Preserve the merged PyJWT, isolated seed-cache and versioning fixture repairs
+  from PR #756 while updating only the reviewed dependency layer.
+
+---
+
 ## [0.55.4] - 2026-09-02
 
 ### Security
