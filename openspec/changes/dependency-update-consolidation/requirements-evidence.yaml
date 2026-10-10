@@ -12,12 +12,13 @@ requirements:
     verification_cases:
       - case_id: DEP-SEC-001
         scenario_id: caller-owned-jwt-verification-options
-        method: test
-        intent: Caller options remain unchanged and expiry is enforced on reuse.
-        observable: Caller options remain unchanged and expiry is enforced on reuse.
-        selector:
-          runner: pytest
-          node_id: tests/unit/security/test_frozen_jwt_compatibility.py::test_inspection_preserves_options_and_expiry_on_reuse
+        method: inspection
+        intent: >-
+          Preserve completed #756 native proof and independently rerun
+          tests/unit/security/test_frozen_jwt_compatibility.py::test_inspection_preserves_options_and_expiry_on_reuse.
+        observable: >-
+          Original merged #756 proof remains unchanged; current control results are retained separately
+          and failures block delivery. This completed case is not a new RED claim.
       - case_id: DEP-SEC-002
         scenario_id: caller-owned-jwt-verification-options
         method: inspection
@@ -27,7 +28,8 @@ requirements:
         observable: >-
           Retain the exact current full-CI and focused-control results for
           tests/unit/security/test_frozen_jwt_compatibility.py::test_signed_token_and_trailing_signature_padding_remain_supported.
-          This inspection is not native RED/final execution proof; unavailable or failing required tests block delivery.
+          This inspection is not native RED/final execution proof; unavailable or failing required tests
+          block delivery.
   openspec:dependency-update-consolidation:dependency-update-consolidation:versioning-fixture-excludes-git-metadata:
     rationale: versioning fixture excludes git metadata
     stakeholder_refs:
@@ -47,7 +49,8 @@ requirements:
         observable: >-
           Retain the exact current full-CI and focused-control results for
           tests/unit/versioning/test_analyzer.py::TestChangeAnalyzer::test_detects_patch_changes.
-          This inspection is not native RED/final execution proof; unavailable or failing required tests block delivery.
+          This inspection is not native RED/final execution proof; unavailable or failing required tests
+          block delivery.
       - case_id: DEP-FIX-002
         scenario_id: versioning-fixture-excludes-git-metadata
         method: inspection
@@ -57,7 +60,8 @@ requirements:
         observable: >-
           Retain the exact current full-CI and focused-control results for
           tests/unit/versioning/test_analyzer.py::TestChangeAnalyzer::test_detects_additive_changes.
-          This inspection is not native RED/final execution proof; unavailable or failing required tests block delivery.
+          This inspection is not native RED/final execution proof; unavailable or failing required tests
+          block delivery.
       - case_id: DEP-FIX-003
         scenario_id: versioning-fixture-excludes-git-metadata
         method: inspection
@@ -67,7 +71,8 @@ requirements:
         observable: >-
           Retain the exact current full-CI and focused-control results for
           tests/unit/versioning/test_analyzer.py::TestChangeAnalyzer::test_detects_breaking_changes.
-          This inspection is not native RED/final execution proof; unavailable or failing required tests block delivery.
+          This inspection is not native RED/final execution proof; unavailable or failing required tests
+          block delivery.
   openspec:dependency-update-consolidation:dependency-update-consolidation:coherent-reviewed-frozen-repair:
     rationale: coherent reviewed frozen repair
     stakeholder_refs:
@@ -89,15 +94,57 @@ requirements:
         method: inspection
         intent: Review graph/export, exact artifacts and independent current gate results.
         observable: >-
-          Only required reviewed updates are present; both audits, trust/licenses, consumers and Python matrix retain
-          independent results. Unavailable results never imply passing.
+          Only required reviewed updates are present; both audits, trust/licenses, consumers and Python
+          matrix retain independent results. Unavailable results never imply passing.
       - case_id: DEP-CACHE-001
         scenario_id: coherent-reviewed-frozen-repair
-        method: test
-        intent: Fallback creation must isolate seed app data and disable background periodic updates.
+        method: inspection
+        intent: >-
+          Preserve completed #756 native proof and independently rerun
+          tests/integration/scripts/test_runtime_discovery_fallback.py::test_pip_editable_fallback_uses_isolated_seed_cache.
         observable: >-
-          Captured virtualenv arguments use the temporary workspace cache and disable periodic updates; editable
-          launcher construction remains intact.
+          Original merged #756 proof remains unchanged; current control results are retained separately
+          and failures block delivery. This completed case is not a new RED claim.
+  openspec:dependency-update-consolidation:dependency-update-consolidation:compatible-python-security-layer:
+    rationale: Compatible Python security layer preserving the merged repair
+    stakeholder_refs:
+      - nold-ai/specfact-cli#747
+      - nold-ai/specfact-cli#744
+    touchpoints:
+      - id: python-inputs
+        kind: config_file
+        locator: pyproject.toml
+      - id: delivery-export
+        kind: config_file
+        locator: requirements/ci/locked.txt
+    verification_cases:
+      - case_id: DEP-GIT-001
+        scenario_id: compatible-python-security-layer
+        method: test
+        intent: Reject an outside checkout before cloning.
+        observable: The hash-pinned delivery package raises ValueError before the mocked clone boundary
+          is reached.
         selector:
           runner: pytest
-          node_id: tests/integration/scripts/test_runtime_discovery_fallback.py::test_pip_editable_fallback_uses_isolated_seed_cache
+          node_id: >-
+            tests/unit/security/test_frozen_gitpython_compatibility.py::test_submodule_update_rejects_outside_checkout_before_clone
+      - case_id: DEP-PY-001
+        scenario_id: compatible-python-security-layer
+        method: inspection
+        intent: >-
+          Inspect exact source/artifact, synchronized declarations, locks, release metadata and independent
+          compatibility/gate results.
+        observable: >-
+          Only GitPython and Hatchling versions plus project metadata change in the frozen graph; prior
+          #756 versions and proof remain retained. Both audits, trust/licenses, backend builds, Python
+          matrix and consumers have current results; unavailable or failing evidence blocks readiness.
+      - case_id: DEP-BUILD-001
+        scenario_id: compatible-python-security-layer
+        method: inspection
+        intent: >-
+          Inspect the real offline build regression execution in
+          tests/integration/test_distribution_build.py::test_source_distribution_rebuild_preserves_bundle_mapper.
+        observable: >-
+          Retain its actual failing result before adding the missing source inclusion and its passing
+          result afterward. The wheel rebuilt from the sdist retains byte-identical bundle-mapper
+          metadata. This inspection does not substitute for authenticated native execution proof.
