@@ -5,7 +5,7 @@ import re
 import shutil
 import subprocess
 import sys
-import sysconfig
+from importlib.metadata import distribution
 from pathlib import Path
 
 
@@ -24,10 +24,10 @@ SUBMODULE_PROBE = """
 import json, sys
 from pathlib import Path
 from unittest.mock import patch
-sys.path.extend(sys.argv[1:3])
+sys.path.extend(sys.argv[1:-1])
 import git
 from git.objects.submodule.base import Submodule
-workspace = Path(sys.argv[3])
+workspace = Path(sys.argv[-1])
 parent = git.Repo.init(workspace / "parent")
 submodule = Submodule(parent, Submodule.NULL_BIN_SHA, name="module",
                       path="../outside", url="unused")
@@ -43,14 +43,19 @@ print(json.dumps({"version": git.__version__, "rejected": rejected,
 """
 
 
-def test_submodule_update_rejects_outside_checkout_before_clone(tmp_path: Path) -> None:
-    """An outside checkout never reaches cloning or creates an outside directory."""
+def _frozen_gitpython_requirement(tmp_path: Path) -> tuple[Path, str]:
     locked = (REPO_ROOT / "requirements/ci/locked.txt").read_text(encoding="utf-8")
     entries = re.findall(r"(?m)^gitpython==([^\s]+) \\\n((?:[ \t]+--hash=sha256:[0-9a-f]{64}(?: \\)?\n)+)", locked)
     assert len(entries) == 1, "Expected one hash-pinned GitPython delivery requirement"
     version, hashes = entries[0]
     requirement = tmp_path / "gitpython.txt"
     requirement.write_text(f"gitpython=={version} \\\n{hashes}", encoding="utf-8")
+    return requirement, version
+
+
+def test_submodule_update_rejects_outside_checkout_before_clone(tmp_path: Path) -> None:
+    """An outside checkout never reaches cloning or creates an outside directory."""
+    requirement, version = _frozen_gitpython_requirement(tmp_path)
     uv = shutil.which("uv")
     assert uv is not None, "The frozen delivery probe requires uv"
     target = tmp_path / "delivery-package"
@@ -62,14 +67,16 @@ def test_submodule_update_rejects_outside_checkout_before_clone(tmp_path: Path) 
         text=True,
         timeout=120,
     )
-    probe_arguments = [str(target), sysconfig.get_paths()["purelib"], str(tmp_path)]
+    dependency_roots = {str(distribution(package).locate_file("")) for package in ("gitdb", "smmap")}
+    probe_arguments = [str(target), *sorted(dependency_roots), str(tmp_path)]
     observed = subprocess.run(
         [sys.executable, "-I", "-S", "-c", SUBMODULE_PROBE, *probe_arguments],
-        check=True,
+        check=False,
         capture_output=True,
         text=True,
         timeout=10,
     )
+    assert observed.returncode == 0, observed.stderr
     result = json.loads(observed.stdout)
     assert result["version"] == version
     assert result["rejected"] is True

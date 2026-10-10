@@ -56,7 +56,7 @@ security and compatibility evidence, and preserve existing governance.
 
 ### Requirement: Compatible Python Security Layer
 
-The selected Python layer SHALL use screened GitPython 3.1.62 and Hatchling 1.32.4,
+The selected Python layer SHALL use screened GitPython 3.2.0 and Hatchling 1.32.4,
 preserve the merged #756 graph and generate coherent frozen lock/export inputs.
 
 #### Scenario: Unsafe submodule checkout is rejected before cloning
@@ -71,3 +71,9 @@ preserve the merged #756 graph and generate coherent frozen lock/export inputs.
 - **WHEN** the selected Python layer builds its wheel
 - **THEN** the backend is 1.32.4, package metadata is 0.55.5, lock/export parity holds,
   both frozen audits pass and Python 3.11-3.13 installation preserves consumers.
+
+#### Scenario: Source distribution rebuild retains bundled assets
+
+- **WHEN** the reviewed backend builds a wheel from the release source distribution
+- **THEN** the source distribution SHALL contain every forced wheel inclusion,
+  including the unchanged signed bundle-mapper assets.

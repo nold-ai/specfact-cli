@@ -138,3 +138,13 @@ requirements:
           Only GitPython and Hatchling versions plus project metadata change in the frozen graph; prior
           #756 versions and proof remain retained. Both audits, trust/licenses, backend builds, Python
           matrix and consumers have current results; unavailable or failing evidence blocks readiness.
+      - case_id: DEP-BUILD-001
+        scenario_id: compatible-python-security-layer
+        method: inspection
+        intent: >-
+          Inspect the real offline build regression execution in
+          tests/integration/test_distribution_build.py::test_source_distribution_rebuild_preserves_bundle_mapper.
+        observable: >-
+          Retain its actual failing result before adding the missing source inclusion and its passing
+          result afterward. The wheel rebuilt from the sdist retains byte-identical bundle-mapper
+          metadata. This inspection does not substitute for authenticated native execution proof.
