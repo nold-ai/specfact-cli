@@ -21,7 +21,7 @@ current stack readiness. Keep prior failed/rejected runs and local limitations.
 ## 3. Sequential documentation layers
 
 - [x] 3.1 Create #727 worktree from #744; raise JSON floor without Jekyll downgrade.
-- [ ] 3.2 Create #752 worktree from #727; verify redirect security and ordinary redirects.
+- [x] 3.2 Create #752 worktree from #727; verify redirect security and ordinary redirects.
 - [ ] 3.3 Create #754 worktree from #752; verify feed language/CDATA escaping and XML.
 - [ ] 3.4 Create #753 worktree from #754; verify relative links, navigation and base URLs.
 - [ ] 3.5 Regenerate each lock from its parent; remove incidental resolver churn.
