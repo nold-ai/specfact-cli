@@ -10,7 +10,7 @@ tests and historical proof remain part of this change and must be preserved.
 
 ## What Changes
 
-- EXTEND #744 with GitPython 3.1.62 and Hatchling 1.32.4, synchronized declarations,
+- EXTEND #744 with GitPython 3.2.0 and Hatchling 1.32.4, synchronized declarations,
   build expectation, generated Python lock and hash-protected CI export.
 - MODIFY #727 into compatible JSON hardening: declare `>=2.21.2,<3`, keep JSON
   2.21.2 and Jekyll 4.4.1, and strengthen the existing security-floor test.

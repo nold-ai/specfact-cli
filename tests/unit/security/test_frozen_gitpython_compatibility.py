@@ -54,31 +54,17 @@ def test_submodule_update_rejects_outside_checkout_before_clone(tmp_path: Path) 
     uv = shutil.which("uv")
     assert uv is not None, "The frozen delivery probe requires uv"
     target = tmp_path / "delivery-package"
+    install_command = [uv, *FROZEN_WHEEL_INSTALL_FLAGS, "--target", str(target), "-r", str(requirement)]
     subprocess.run(
-        [
-            uv,
-            *FROZEN_WHEEL_INSTALL_FLAGS,
-            "--target",
-            str(target),
-            "-r",
-            str(requirement),
-        ],
+        install_command,
         check=True,
         capture_output=True,
         text=True,
         timeout=120,
     )
+    probe_arguments = [str(target), sysconfig.get_paths()["purelib"], str(tmp_path)]
     observed = subprocess.run(
-        [
-            sys.executable,
-            "-I",
-            "-S",
-            "-c",
-            SUBMODULE_PROBE,
-            str(target),
-            sysconfig.get_paths()["purelib"],
-            str(tmp_path),
-        ],
+        [sys.executable, "-I", "-S", "-c", SUBMODULE_PROBE, *probe_arguments],
         check=True,
         capture_output=True,
         text=True,

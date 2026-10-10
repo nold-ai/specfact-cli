@@ -14,7 +14,7 @@ current stack readiness. Keep prior failed/rejected runs and local limitations.
 - [ ] 2.2 Reconcile #747/#748 and internal wiki; validate the approved scope strictly.
 - [ ] 2.3 Screen exact artifacts/provenance/licenses/advisories before candidate execution.
 - [ ] 2.4 Author GitPython boundary and configuration expectations; retain failing evidence.
-- [ ] 2.5 Generate coherent GitPython 3.1.62/Hatchling 1.32.4 lock and CI export.
+- [ ] 2.5 Generate coherent GitPython 3.2.0/Hatchling 1.32.4 lock and CI export.
 - [ ] 2.6 Synchronize 0.55.5 sources, generated metadata and Security/Fixed changelog.
 - [ ] 2.7 Validate both audits, trust, Python 3.11-3.13 wheel/build and affected consumers.
 

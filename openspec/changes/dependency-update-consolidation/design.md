@@ -75,7 +75,7 @@ inputs and proof. #744 owns Python/build inputs and the single 0.55.5 patch bump
 PR #727 owns the compatible JSON declaration; #752/#754/#753 own their selected
 Jekyll plugins. Generate locks conservatively and inspect parent-relative diffs.
 
-GitPython 3.1.62 closes GHSA-59cr-6r3x-644w. Its path containment regression must
+GitPython 3.2.0 closes GHSA-59cr-6r3x-644w. Its path containment regression must
 fail against the unchanged delivery wheel before adopting the screened candidate.
 Hatchling 1.32.4 restores the plugin interface broken in 1.32.3; both declarations
 and the build expectation must agree. Preserve PyJWT 2.15.1, urllib3 2.8.0,
@@ -107,3 +107,12 @@ Jekyll output, required quality/review/Requirements and module signatures.
 The promotion checklist is reviewable preparation, not authorization to merge
 or publish. Restore captured refs only with new explicit leases; restore coherent
 dependency inputs together and never represent vulnerable rollback as release-safe.
+
+## GitPython scope amendment
+
+On 10 October 2026 the user approved GitPython 3.2.0 after validation.
+It includes the 3.1.62 containment fix and six additional security fixes listed
+in the tagged upstream changelog. Python 3.7 removal does not affect the supported
+3.11–3.13 matrix. The pure Python GitDB backend is deprecated; repository consumers
+must retain the default GitCmdObjectDB backend. Exact artifact and consumer checks
+remain required; an advisory database miss does not establish absence of risk.
