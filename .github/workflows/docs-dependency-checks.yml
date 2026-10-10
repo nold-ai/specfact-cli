@@ -19,13 +19,28 @@ jobs:
       JEKYLL_ENV: production
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
       - name: Setup frozen Ruby bundle
-        uses: ruby/setup-ruby@v1
+        uses: ruby/setup-ruby@e81a8fa391b11a595c1b7ed84177cc0fe02faf83
         with:
           ruby-version: "3.2"
           bundler: "2.3.5"
           bundler-cache: false
+      - name: Download hash-reviewed plugin artifacts
+        working-directory: docs
+        run: |
+          mkdir -p vendor/cache
+          curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \
+            'https://rubygems.org/gems/jekyll-redirect-from-0.17.0.gem' -o vendor/cache/jekyll-redirect-from-0.17.0.gem
+          curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \
+            'https://rubygems.org/gems/jekyll-feed-0.18.0.gem' -o vendor/cache/jekyll-feed-0.18.0.gem
+          curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \
+            'https://rubygems.org/gems/jekyll-relative-links-0.9.1.gem' -o vendor/cache/jekyll-relative-links-0.9.1.gem
+          printf '%s\n' \
+            '703dab0428b20bb5d550ab83d3c28b65bb5ecc0f734c5e61ee680de391b3e897  vendor/cache/jekyll-redirect-from-0.17.0.gem' \
+            '8e6829f455b8764a8fa1bbb198d0ebb3525128dacc6ffe9d15f4df7388bc3647  vendor/cache/jekyll-feed-0.18.0.gem' \
+            '6d5d70578c669ef9ee4c67f617d91497e0506fe5c1a059e484a900e18efb202e  vendor/cache/jekyll-relative-links-0.9.1.gem' \
+            | sha256sum --check
       - name: Install locked documentation dependencies
         working-directory: docs
         run: |
@@ -40,7 +55,7 @@ jobs:
           bundle exec jekyll build --baseurl '' --destination '${{ runner.temp }}/docs-root'
           bundle exec jekyll build --baseurl '/preview' --destination '${{ runner.temp }}/docs-preview'
       - name: Retain built documentation and frozen inputs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: documentation-dependency-evidence
           path: |

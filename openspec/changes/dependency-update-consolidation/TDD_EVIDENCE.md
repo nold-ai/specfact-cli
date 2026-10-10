@@ -494,3 +494,32 @@ Markdown/nested links, fragments, external URLs and a changed target on rebuild.
 Both full-site builds pass. This compatibility update is recorded under Fixed,
 separately from redirect/feed/JSON/GitPython security changes. Python locks and
 the single 0.55.5 release version stay inherited from #744.
+
+## Final stack verification and publication checkpoint (10 October 2026)
+
+Native stack #757 is registered in the approved five-PR order. Exact action
+commits and selected Ruby artifact hash checks now make the final documentation
+workflow reproducible before candidate installation. See REVIEW_AND_PROMOTION.md
+for dispositions, immutable source identities, release checklist and rollback.
+
+The isolated verifier bug is reproduced by starting pytest with -I -S and the
+explicit trusted site path: sysconfig points to the base interpreter. Resolving
+the actual gitdb/smmap distribution roots repairs this without importing the
+candidate in the parent or changing its hash/no-dependency install controls.
+The same corrected test fails on frozen GitPython 3.1.61 (clone boundary reached)
+and passes on 3.2.0. Native authored run 38087626467 records RED gate pass; final
+run 38087716606 records verified gate pass. Their overall authored failure is
+expected while RED is retained for final reconciliation. Original failed runs
+remain historical evidence.
+
+GitHub initially rejected the commit email against the signing key. Re-signing
+uses its verified <djm81@users.noreply.github.com> identity and changes no tree.
+Native RED run 38088121368 binds the same probe to verified authored e9950388;
+current final 76a42fc8 replays it. Protected authority remains rejected; no human
+role is fabricated. The full local smart run retains 25 failed, 3189 passed, nine
+skipped and one error caused by in-process marketplace beartype replacement.
+Frozen sync restores the environment; audits, parity, trust/licenses, independent
+analysis, strict signatures, version gates and focused security/build/docs probes
+pass. Installing the committed npm runner repairs the initial missing-tool type
+and lint diagnostics (zero errors, 1526 unchanged project type warnings). These
+partial results do not complete the outstanding readiness tasks.

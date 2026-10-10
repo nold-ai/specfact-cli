@@ -12,7 +12,7 @@ current stack readiness. Keep prior failed/rejected runs and local limitations.
 
 - [x] 2.1 Create dedicated worktree from current dev and capture all six PR heads.
 - [x] 2.2 Reconcile #747/#748 and internal wiki; validate the approved scope strictly.
-- [ ] 2.3 Screen exact artifacts/provenance/licenses/advisories before candidate execution.
+- [x] 2.3 Screen exact artifacts/provenance/licenses/advisories before candidate execution.
 - [x] 2.4 Author GitPython boundary and configuration expectations; retain failing evidence.
 - [x] 2.5 Generate coherent GitPython 3.2.0/Hatchling 1.32.4 lock and CI export.
 - [x] 2.6 Synchronize 0.55.5 sources, generated metadata and Security/Fixed changelog.
@@ -32,9 +32,9 @@ current stack readiness. Keep prior failed/rejected runs and local limitations.
 - [ ] 4.2 Complete applicable format/type/lint/YAML/contract/smart-test gates.
 - [ ] 4.3 Retain fresh SpecFact review, independent Semgrep/Bandit and strict signatures.
 - [ ] 4.4 Retain authentic Requirements lifecycle and current final-head evidence.
-- [ ] 4.5 Publish signed commits with explicit leases and register the five-PR chain.
+- [x] 4.5 Publish signed commits with explicit leases and register the five-PR chain.
 - [ ] 4.6 Reconcile #748's proposal branch; keep broader inventory and #747 open.
-- [ ] 4.7 Verify open duplicates and record each disposition; close only covered duplicates.
+- [x] 4.7 Verify open duplicates and record each disposition; close only covered duplicates.
 - [ ] 4.8 Deliver review links, exact limitations, rollback and dev-to-main checklist.
 - [ ] 4.9 Clean up dedicated worktrees only after reviewed integration.
 
