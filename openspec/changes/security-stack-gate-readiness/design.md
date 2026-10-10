@@ -14,9 +14,10 @@ must stay unchanged across the five layers. A different mapping or plan remains 
 hard reconciliation failure; no scoped digest relaxation is introduced.
 
 Direct/console smoke runs receive workspace-owned virtual environments and an
-explicit path to the already reviewed parent runtime. Pip sees installed frozen
-packages and version constraints but has no index, preventing upgrades in the
-running pytest environment. Other launcher modes retain their existing delivery
+explicit path to the already reviewed parent runtime. Module-only dependencies are seeded into the child from an exact hash-protected
+wheel lock after artifact review. Marketplace pip then sees the reviewed parent
+runtime and child packages with union version constraints and no index. This
+prevents upgrades in the running pytest environment and fails on missing pins. Other launcher modes retain their existing delivery
 checks. Existing isolated virtualenv fallback cache controls remain intact.
 
 Organization authority executes only immutable organization policy, never PR

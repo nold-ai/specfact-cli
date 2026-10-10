@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.metadata
 import json
 import logging
 import os
@@ -261,8 +262,7 @@ def _build_local_registry(workspace: Path, modules_repo: Path) -> Path:
     return index_path
 
 
-def _create_pip_editable_launcher(workspace: Path) -> list[str]:
-    venv_dir = workspace / "pip-editable-venv"
+def _create_runtime_venv(venv_dir: Path) -> Path:
     try:
         venv.EnvBuilder(with_pip=True).create(venv_dir)
     except subprocess.CalledProcessError:
@@ -270,12 +270,23 @@ def _create_pip_editable_launcher(workspace: Path) -> list[str]:
         if virtualenv is None:
             raise
         _run(
-            [virtualenv, "--app-data", str(workspace / "virtualenv-app-data"), "--no-periodic-update", str(venv_dir)],
+            [
+                virtualenv,
+                "--app-data",
+                str(venv_dir.parent / "virtualenv-app-data"),
+                "--no-periodic-update",
+                str(venv_dir),
+            ],
             cwd=REPO_ROOT,
             env=os.environ.copy(),
             timeout=120,
         )
-    python = venv_dir / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    return venv_dir / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+
+
+def _create_pip_editable_launcher(workspace: Path) -> list[str]:
+    venv_dir = workspace / "pip-editable-venv"
+    python = _create_runtime_venv(venv_dir)
     _run(
         [str(python), "-m", "pip", "install", "-e", str(REPO_ROOT)],
         cwd=REPO_ROOT,
@@ -286,9 +297,45 @@ def _create_pip_editable_launcher(workspace: Path) -> list[str]:
     return [str(specfact)]
 
 
-def _launcher_command(name: str, workspace: Path) -> list[str]:
+def _frozen_runtime_env(env: dict[str, str], constraints: Path) -> dict[str, str]:
+    locks = (REPO_ROOT / "requirements/ci/locked.txt", REPO_ROOT / "requirements/runtime-smoke/locked.txt")
+    pins: list[str] = []
+    for line in "\n".join(lock.read_text(encoding="utf-8") for lock in locks).splitlines():
+        entry = line.strip().rstrip("\\").strip()
+        if not entry or entry.startswith(("#", "--hash=")):
+            continue
+        if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*==[^;\s]+(?:\s*;.*)?", entry) is None:
+            raise RuntimeError("Frozen smoke requirements must contain exact package pins")
+        pins.append(entry)
+    if not pins:
+        raise RuntimeError("Frozen smoke requirements are empty")
+    _write(constraints, "\n".join(pins) + "\n")
+    runtime_site = str(importlib.metadata.distribution("beartype").locate_file(""))
+    env["PYTHONPATH"] = os.pathsep.join(filter(None, [str(SRC_ROOT), env.get("PYTHONPATH", ""), runtime_site]))
+    env["SPECFACT_CHILD_PYTHONPATH"] = env["PYTHONPATH"]
+    env["PIP_CONSTRAINT"] = str(constraints)
+    env["PIP_NO_INDEX"] = "1"
+    return env
+
+
+def _create_isolated_runtime_launcher(name: str, workspace: Path) -> list[str]:
+    venv_dir = workspace / "runtime-venv"
+    python = _create_runtime_venv(venv_dir)
     if name == "direct":
-        return [sys.executable, "-m", "specfact_cli.cli"]
+        return [str(python), "-m", "specfact_cli.cli"]
+    env = _frozen_runtime_env(os.environ.copy(), workspace / "frozen-runtime-constraints.txt")
+    _run(
+        [str(python), "-m", "pip", "install", "--no-deps", "--no-build-isolation", "-e", str(REPO_ROOT)],
+        cwd=REPO_ROOT,
+        env=env,
+        timeout=180,
+    )
+    return [str(venv_dir / ("Scripts/specfact.exe" if os.name == "nt" else "bin/specfact"))]
+
+
+def _launcher_command(name: str, workspace: Path) -> list[str]:
+    if name in {"direct", "console"}:
+        return _create_isolated_runtime_launcher(name, workspace)
     if name == "hatch-source":
         hatch_launcher = _hatch_launcher_python_and_site()
         if hatch_launcher is not None:
@@ -312,8 +359,6 @@ def _launcher_command(name: str, workspace: Path) -> list[str]:
             str(REPO_ROOT),
             "specfact",
         ]
-    if name == "console":
-        return ["specfact"]
     if name == "uvx":
         return ["uvx", "--from", str(REPO_ROOT), "specfact"]
     raise ValueError(f"Unsupported launcher: {name}")
@@ -360,6 +405,18 @@ def _build_launcher_env(name: str, home: Path, index_path: Path, modules_repo: P
             "PYTHONUNBUFFERED": "1",
         }
     )
+    if name in {"direct", "console"}:
+        env = _frozen_runtime_env(env, home / "frozen-runtime-constraints.txt")
+        child_bin = home.parent / f"launcher-{name}" / "runtime-venv" / ("Scripts" if os.name == "nt" else "bin")
+        parent_prefix = Path(sys.prefix).resolve()
+        system_paths = [
+            part
+            for part in env.get("PATH", os.defpath).split(os.pathsep)
+            if part and not Path(part).resolve().is_relative_to(parent_prefix)
+        ]
+        env["PATH"] = os.pathsep.join([str(child_bin), *system_paths])
+        env.pop("VIRTUAL_ENV", None)
+        env.pop("PYTHONHOME", None)
     hatch_launcher = _hatch_launcher_python_and_site()
     if name == "hatch-source" and hatch_launcher is not None:
         _python_executable, hatch_site_path = hatch_launcher
@@ -413,12 +470,39 @@ def _assert_project_help(cli: list[str], demo: Path, env: dict[str, str]) -> Non
         raise AssertionError("`specfact sync bridge --help` still resolves as a root command")
 
 
+def _seed_frozen_module_dependencies(workspace: Path, env: dict[str, str]) -> None:
+    """Install only reviewed hash-pinned wheels into the workspace-owned child."""
+    python = workspace / "runtime-venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    seed_env = env.copy()
+    seed_env.pop("PIP_NO_INDEX", None)
+    _run(
+        [
+            str(python),
+            "-m",
+            "pip",
+            "install",
+            "--require-hashes",
+            "--no-deps",
+            "--only-binary=:all:",
+            "--index-url",
+            "https://pypi.org/simple",
+            "-r",
+            str(REPO_ROOT / "requirements/runtime-smoke/locked.txt"),
+        ],
+        cwd=REPO_ROOT,
+        env=seed_env,
+        timeout=180,
+    )
+
+
 def _smoke_launcher(name: str, workspace: Path, demo: Path, index_path: Path, modules_repo: Path) -> None:
     home = workspace / f"home-{name}"
     home.mkdir(parents=True)
     cli = _launcher_command(name, workspace / f"launcher-{name}")
     env = _build_launcher_env(name, home, index_path, modules_repo)
 
+    if name in {"direct", "console"}:
+        _seed_frozen_module_dependencies(workspace / f"launcher-{name}", env)
     _install_marketplace_modules(cli, demo, env)
     _assert_module_list_contains(_run([*cli, "module", "list"], cwd=demo, env=env))
 

@@ -1,0 +1,9 @@
+# Module-only smoke dependencies; shared packages use requirements/ci/locked.txt.
+# Match the reviewed Code Review lock and the repository basedpyright tool.
+astroid==4.0.4
+basedpyright==1.39.9
+dill==0.4.1
+lz4==4.4.5
+mccabe==0.7.0
+nodejs-wheel-binaries==24.19.0
+pylint==4.0.7

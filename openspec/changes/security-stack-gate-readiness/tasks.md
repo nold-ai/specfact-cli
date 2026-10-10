@@ -1,14 +1,14 @@
 ## 1. Authored prerequisite
 
 - [x] 1.1 Create isolated worktrees, capture current stack heads and refresh metadata.
-- [ ] 1.2 Author specs/tests and retain real failures before implementation.
-- [ ] 1.3 Validate strict OpenSpec and actual agent acceptance; mirror scope internally.
+- [x] 1.2 Author specs/tests and retain real failures before implementation.
+- [x] 1.3 Validate strict OpenSpec and actual agent acceptance; mirror scope internally.
 
 ## 2. Gate repairs
 
-- [ ] 2.1 Isolate direct/console smoke interpreter and frozen marketplace resolution.
-- [ ] 2.2 Authenticate native stack context and use it in all proof consumers.
-- [ ] 2.3 Extend immutable organization policy with tested stack ancestry checks.
+- [x] 2.1 Isolate direct/console smoke interpreter and frozen marketplace resolution.
+- [x] 2.2 Authenticate native stack context and use it in all proof consumers.
+- [x] 2.3 Extend immutable organization policy with tested stack ancestry checks.
 - [ ] 2.4 Pass native, smart, contract, quality/review, frozen/security and signature gates.
 
 ## 3. Integration and final heads

@@ -55,6 +55,7 @@ jobs:
               - 'requirements/ci/locked.txt'
               - 'requirements/code-review/requirements.in'
               - 'requirements/code-review/locked.txt'
+              - 'requirements/runtime-smoke/**'
               - 'modules/**/module-package.yaml'
               - 'src/specfact_cli/modules/**/module-package.yaml'
               - 'scripts/check_license_compliance.py'
@@ -1163,10 +1164,23 @@ jobs:
             -r requirements/code-review/locked.txt
           echo "REVIEW_TOOLS_PYTHON=${review_tools}/bin/python" >> "$GITHUB_ENV"
 
+      - name: Install frozen Code Review smoke license scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/check_reproducible_delivery.py
+          smoke_tools="${RUNNER_TEMP}/specfact-code-review-smoke-license-scope"
+          uv venv --python "${pythonLocation}/bin/python" "$smoke_tools"
+          uv pip install \
+            --python "${smoke_tools}/bin/python" \
+            --require-hashes --no-deps --only-binary :all: \
+            -r requirements/runtime-smoke/locked.txt
+          echo "SMOKE_REVIEW_TOOLS_PYTHON=${smoke_tools}/bin/python" >> "$GITHUB_ENV"
+
       - name: Run license compliance gate
         run: |
           echo "🔍 Running license compliance gate..."
-          python scripts/check_license_compliance.py --code-review-python "$REVIEW_TOOLS_PYTHON"
+          python scripts/check_license_compliance.py --code-review-python "$REVIEW_TOOLS_PYTHON" --code-review-python "$SMOKE_REVIEW_TOOLS_PYTHON"
 
   dependency-trust:
     name: Dependency Trust Gate
@@ -1214,6 +1228,7 @@ jobs:
           echo "🔍 Running CVE security audit..."
           python scripts/security_audit_gate.py
           python scripts/security_audit_gate.py --requirement requirements/code-review/locked.txt
+          python scripts/security_audit_gate.py --requirement requirements/runtime-smoke/locked.txt
 
   reproducible-delivery:
     name: Reproducible Delivery Evidence
