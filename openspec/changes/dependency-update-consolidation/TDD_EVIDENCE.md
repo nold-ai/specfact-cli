@@ -421,3 +421,23 @@ for 15 active sources before execution. It is authenticated diagnostic evidence,
 not native RED proof. Local planned and test-authored gates pass using the pinned
 fixture and actual agent acceptance; no human authority was fabricated. Final
 protected Requirements and Socket eligibility remain necessary before merge.
+
+## Compatible JSON layer evidence (10 October 2026)
+
+PR #727 starts from the signed Python implementation. The authored JSON floor
+check fails on the parent declaration (one real failure in `727-red.log`) and
+passes after declaring `>= 2.21.2`, `< 3` (all 17 documentation-script tests pass).
+Bundler 2.3.5 regenerated the lock conservatively; removing its incidental local
+macOS platform leaves only the JSON dependency bound changed. Locked JSON 2.21.2
+and Jekyll 4.4.1 and all resolved package versions remain unchanged. JSON 3 is
+explicitly deferred because Jekyll 4.4.1 requires JSON 2.x. The documentation
+security and compatibility scenarios are authored before the following Ruby
+behavior probes and implementation.
+
+The completed parent smart rerun reports 3210 passed, 13 skipped and one failed
+marketplace direct-launcher integration test. That test attempts to resolve a
+companion module against latest annotated-doc 0.0.5, conflicting with the frozen
+0.0.4 constraint. No exception or unlocked dependency update is introduced; this
+required gate remains unresolved. Hosted Requirements approval and protected
+Socket eligibility also remain pending; local agent acceptance is not human
+authority.
