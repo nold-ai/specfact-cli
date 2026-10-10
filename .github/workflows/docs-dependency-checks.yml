@@ -33,7 +33,7 @@ jobs:
           bundle install --jobs 1 --retry 3
       - name: Verify dependency security and compatibility
         working-directory: docs
-        run: bundle exec ruby ../scripts/check_jekyll_dependencies.rb redirect feed_language feed_cdata
+        run: bundle exec ruby ../scripts/check_jekyll_dependencies.rb redirect feed_language feed_cdata relative
       - name: Build root and prefixed documentation
         working-directory: docs
         run: |

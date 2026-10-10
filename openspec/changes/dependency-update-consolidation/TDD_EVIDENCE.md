@@ -481,3 +481,16 @@ Python launcher/wheel matrix jobs, reproducible installed-package/SBOM evidence,
 both advisory audits, dependency trust/licenses, independent analysis, signatures,
 quality and both Socket checks (run 38086498399). Requirements execution/authority
 remain failed (run 38086498423); those failures cannot be replaced by local proof.
+
+## Relative-link layer evidence (10 October 2026)
+
+The same-site rebuild probe fails on locked relative-links 0.8.0 because target
+URLs remain cached (`753-red.log`). The conservatively generated parent-relative
+lock changes only relative-links to 0.9.1 and its declaration. The reviewed gem
+SHA-256 `6d5d70578c669ef9ee4c67f617d91497e0506fe5c1a059e484a900e18efb202e`
+is checked before installation. All inherited security probes and relative-link
+checks pass at root and `/preview`, including included navigation attributes,
+Markdown/nested links, fragments, external URLs and a changed target on rebuild.
+Both full-site builds pass. This compatibility update is recorded under Fixed,
+separately from redirect/feed/JSON/GitPython security changes. Python locks and
+the single 0.55.5 release version stay inherited from #744.

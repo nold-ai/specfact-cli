@@ -23,8 +23,8 @@ current stack readiness. Keep prior failed/rejected runs and local limitations.
 - [x] 3.1 Create #727 worktree from #744; raise JSON floor without Jekyll downgrade.
 - [x] 3.2 Create #752 worktree from #727; verify redirect security and ordinary redirects.
 - [x] 3.3 Create #754 worktree from #752; verify feed language/CDATA escaping and XML.
-- [ ] 3.4 Create #753 worktree from #754; verify relative links, navigation and base URLs.
-- [ ] 3.5 Regenerate each lock from its parent; remove incidental resolver churn.
+- [x] 3.4 Create #753 worktree from #754; verify relative links, navigation and base URLs.
+- [x] 3.5 Regenerate each lock from its parent; remove incidental resolver churn.
 
 ## 4. Final review and publication
 
