@@ -373,3 +373,10 @@ repo root. Do not move folders manually.
 | Change | Issue | Dependency |
 |---|---|---|
 | `requirements-09-minimal-evidence` | [#740](https://github.com/nold-ai/specfact-cli/issues/740) | signed modules #481 for runtime adoption |
+
+## Security stack gate readiness (2026-10-11, Europe/Berlin)
+
+The owner resumed #747 to resolve stack #757 gates without bypasses.
+Implement `security-stack-gate-readiness` as a reviewed prerequisite before
+rebasing the approved five-layer `dependency-update-consolidation` slice.
+Keep broader dependency work deferred and #747 open.
