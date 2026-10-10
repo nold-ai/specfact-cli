@@ -1,0 +1,50 @@
+name: Documentation Dependency Compatibility
+
+on:
+  pull_request:
+    paths:
+      - "docs/**"
+      - "scripts/check_jekyll_dependencies.rb"
+      - ".github/workflows/docs-dependency-checks.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  documentation-dependencies:
+    runs-on: ubuntu-latest
+    env:
+      BUNDLE_FROZEN: "true"
+      JEKYLL_ENV: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup frozen Ruby bundle
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+          bundler: "2.3.5"
+          bundler-cache: false
+      - name: Install locked documentation dependencies
+        working-directory: docs
+        run: |
+          bundle config set --local path '${{ runner.temp }}/docs-bundle'
+          bundle install --jobs 1 --retry 3
+      - name: Verify dependency security and compatibility
+        working-directory: docs
+        run: bundle exec ruby ../scripts/check_jekyll_dependencies.rb redirect
+      - name: Build root and prefixed documentation
+        working-directory: docs
+        run: |
+          bundle exec jekyll build --baseurl '' --destination '${{ runner.temp }}/docs-root'
+          bundle exec jekyll build --baseurl '/preview' --destination '${{ runner.temp }}/docs-preview'
+      - name: Retain built documentation and frozen inputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-dependency-evidence
+          path: |
+            docs/Gemfile
+            docs/Gemfile.lock
+            ${{ runner.temp }}/docs-root
+            ${{ runner.temp }}/docs-preview

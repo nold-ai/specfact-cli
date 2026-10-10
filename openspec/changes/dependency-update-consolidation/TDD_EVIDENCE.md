@@ -441,3 +441,23 @@ companion module against latest annotated-doc 0.0.5, conflicting with the frozen
 required gate remains unresolved. Hosted Requirements approval and protected
 Socket eligibility also remain pending; local agent acceptance is not human
 authority.
+
+## Redirect layer evidence (10 October 2026)
+
+The real Jekyll output probe fails on redirect-from 0.16.0 because an unsafe
+JavaScript scheme is rendered (`752-red.log`). The earlier combined fixture
+also exposed a control-character scheme parser crash; that diagnostic is retained
+separately. Only redirect-from 0.17.0 and its declaration change in the generated
+parent-relative delivery lock. The hash-verified reviewed gem is installed from
+a local cache using a disposable platform lock; delivery inputs stay Linux-only.
+The same output probe passes at root and `/preview`, covering JavaScript/data
+scheme rejection, browser-normalized controls, ordinary redirect maps, external
+URLs, HTML attributes and JSON-script targets. The new read-only PR workflow
+installs the frozen docs bundle, runs probes and builds both deployment paths.
+
+The #727 self-review reports zero errors, 20 warnings and one information item.
+Every finding points outside the modified JSON-floor function; those functions
+are byte-identical to dev (dynamic import typing, existing duplicate loaders,
+generic test fixture class name and long navigation fixture). Record a narrow
+unchanged-baseline exception for this dependency-only layer rather than alter
+those unrelated tests or old proof. New JSON assertions have no finding.

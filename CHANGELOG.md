@@ -14,6 +14,8 @@ All notable changes to this project will be documented in this file.
 
 ### Security
 
+- **Documentation redirects:** adopt redirect-from 0.17.0 to reject unsafe
+  redirect schemes and escape HTML and JavaScript targets (GHSA-xfg6-hjrc-hpvx).
 - **Documentation JSON hardening:** require JSON >=2.21.2,<3 while retaining
   locked JSON 2.21.2 and Jekyll 4.4.1. Defer JSON 3 migration until its Jekyll
   compatibility contract is available.
