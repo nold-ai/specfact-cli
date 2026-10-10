@@ -14,6 +14,8 @@ All notable changes to this project will be documented in this file.
 
 ### Security
 
+- **Documentation feeds:** adopt feed 0.18.0 to escape language attributes
+  and CDATA content and summaries (GHSA-3gx8-pqcm-38hw).
 - **Documentation redirects:** adopt redirect-from 0.17.0 to reject unsafe
   redirect schemes and escape HTML and JavaScript targets (GHSA-xfg6-hjrc-hpvx).
 - **Documentation JSON hardening:** require JSON >=2.21.2,<3 while retaining
