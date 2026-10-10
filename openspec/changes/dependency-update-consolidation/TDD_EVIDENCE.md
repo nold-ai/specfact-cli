@@ -461,3 +461,23 @@ are byte-identical to dev (dynamic import typing, existing duplicate loaders,
 generic test fixture class name and long navigation fixture). Record a narrow
 unchanged-baseline exception for this dependency-only layer rather than alter
 those unrelated tests or old proof. New JSON assertions have no finding.
+
+## Feed layer evidence (10 October 2026)
+
+With the unchanged parent feed 0.17.0, the language probe fails its attribute
+injection assertion and the independent CDATA probe fails to parse actual output
+(`754-language-red.log`, `754-cdata-red.log`). Only feed 0.18.0 and its declared
+patch floor change in the conservatively regenerated lock. Its reviewed SHA-256
+`8e6829f455b8764a8fa1bbb198d0ebb3525128dacc6ffe9d15f4df7388bc3647`
+is checked before the local frozen installation. Language values round-trip in
+feed, alternate-link and entry attributes without injected attributes. Content
+and summary CDATA preserve the terminator text, and feed URLs honor the base URL.
+All feed and inherited redirect probes pass at root and `/preview`; both full
+Jekyll builds also succeed. Existing Minima/Sass deprecation warnings remain
+baseline output. The PR workflow runs both feed cases with the inherited checks.
+
+Published Python head 6ccc37a2 has successful hosted Tests/Compatibility, all
+Python launcher/wheel matrix jobs, reproducible installed-package/SBOM evidence,
+both advisory audits, dependency trust/licenses, independent analysis, signatures,
+quality and both Socket checks (run 38086498399). Requirements execution/authority
+remain failed (run 38086498423); those failures cannot be replaced by local proof.
