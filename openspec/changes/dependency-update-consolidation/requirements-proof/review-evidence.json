@@ -3,7 +3,7 @@
   "decision": "accepted",
   "reviewer_id": "codex:/root",
   "reviewer_role": "implementation-agent",
-  "recorded_at": "2026-10-10T21:02:10.928751+00:00",
+  "recorded_at": "2026-10-10T21:14:24.050207+00:00",
   "reference": "https://github.com/nold-ai/specfact-cli/issues/747",
-  "mapping_digest": "sha256:18768f42eaf6b9d2f727179cc40d7e83d5d7564823bd30f79ee901f8c670d031"
+  "mapping_digest": "sha256:29ca7c7d58642a1e83726a19cb5bcf58951d6bdf9e06836d9329db543b9a91ed"
 }

@@ -14,6 +14,9 @@ All notable changes to this project will be documented in this file.
 
 ### Security
 
+- **Documentation JSON hardening:** require JSON >=2.21.2,<3 while retaining
+  locked JSON 2.21.2 and Jekyll 4.4.1. Defer JSON 3 migration until its Jekyll
+  compatibility contract is available.
 - **Git dependency hardening:** raise the runtime GitPython floor and frozen
   graph to 3.2.0, retaining the 3.1.62 submodule containment repair and the
   additional security fixes listed in the upstream 3.2.0 changelog. Consumers

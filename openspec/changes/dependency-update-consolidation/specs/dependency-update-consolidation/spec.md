@@ -77,3 +77,31 @@ preserve the merged #756 graph and generate coherent frozen lock/export inputs.
 - **WHEN** the reviewed backend builds a wheel from the release source distribution
 - **THEN** the source distribution SHALL contain every forced wheel inclusion,
   including the unchanged signed bundle-mapper assets.
+
+### Requirement: Compatible Documentation Security Stack
+
+The documentation stack SHALL retain Jekyll 4.4.1 and JSON >=2.21.2,<3,
+adopt the selected redirect and feed security fixes and preserve link behavior.
+
+#### Scenario: JSON stays on the compatible patched major
+
+- **WHEN** documentation dependency inputs are regenerated
+- **THEN** JSON remains locked at 2.21.2, the declaration excludes JSON 3,
+  and Jekyll remains at 4.4.1 without incidental resolver changes.
+
+#### Scenario: Redirect output rejects script targets
+
+- **WHEN** an unsafe scheme or an HTML/JavaScript delimiter enters a redirect target
+- **THEN** the redirect plugin rejects unsafe schemes and encodes delimiters,
+  while ordinary root and prefixed HTTP/HTTPS redirects remain usable.
+
+#### Scenario: Feed metadata cannot escape XML or CDATA
+
+- **WHEN** feed language or post content contains XML/CDATA delimiters
+- **THEN** generated feed output remains parseable and preserves metadata as data.
+
+#### Scenario: Relative links preserve configured deployment paths
+
+- **WHEN** documentation builds at root or a configured base URL
+- **THEN** Markdown, included HTML links and navigation resolve to current pages,
+  preserving fragments and external targets across successive site builds.

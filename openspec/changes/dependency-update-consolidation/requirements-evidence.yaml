@@ -1,5 +1,31 @@
 schema_version: '2'
 requirements:
+  openspec:dependency-update-consolidation:dependency-update-consolidation:compatible-documentation-security-stack:
+    rationale: Compatible documentation security updates and deployment behavior
+    stakeholder_refs:
+      - nold-ai/specfact-cli#747
+      - nold-ai/specfact-cli#727
+      - nold-ai/specfact-cli#752
+      - nold-ai/specfact-cli#754
+      - nold-ai/specfact-cli#753
+    touchpoints:
+      - id: documentation-inputs
+        kind: config_file
+        locator: docs/Gemfile
+      - id: documentation-lock
+        kind: config_file
+        locator: docs/Gemfile.lock
+    verification_cases:
+      - case_id: DEP-DOCS-001
+        scenario_id: compatible-documentation-security-stack
+        method: inspection
+        intent: >-
+          Inspect the JSON declaration floor test and parent-relative Gem lock diffs, then the Ruby
+          redirect/feed/relative-link probes and full Jekyll root/prefixed builds for each applicable layer.
+        observable: >-
+          Retain actual failing and passing behavior probes, reviewed artifact hashes, dependency versions
+          and output results; JSON 2.21.2 and Jekyll 4.4.1 remain compatible without incidental graph changes.
+          Ruby probes and inspection do not substitute for protected native Requirements authority.
   openspec:dependency-update-consolidation:dependency-update-consolidation:caller-owned-jwt-verification-options:
     rationale: caller owned jwt verification options
     stakeholder_refs:
