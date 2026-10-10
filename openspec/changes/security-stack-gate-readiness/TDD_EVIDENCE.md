@@ -119,3 +119,56 @@ execution fixture. Regenerate with the separate immutable documentation fixture
 commands instead of committing an execution-fixture downgrade. No hook is skipped.
 Live GitHub metadata validation succeeds for all five unchanged heads in #757:
 each resolves root #744, protected dev 553b46f..., and consecutive parent ancestry.
+
+## Policy review repair
+
+Review of signed head 198f4326 identified a hard policy violation: the older
+Code Review fixture declares Python BasedPyright, whose wheel requires an
+unofficial Node runtime. Artifact inspection and passing checks cannot override
+`docs/agent-rules/55-dependency-hygiene.md`. The prior seven-package seed and its
+passing results are historical diagnostics, not merge readiness.
+
+Six new smoke policy/fixture controls failed before this repair. A separate trust
+control also failed because the auxiliary graph was not checked. The repair uses
+the already reviewed portable snapshot 046d366c (Code Review 0.50.1), with its
+real unmodified manifests, separately from the unchanged 69f0758 Requirements
+provider. CI authenticates the exact commit/tree and cleanliness before execution.
+The seed now contains only Lz4 4.4.5; the existing npm BasedPyright runner stays
+in use. Existing wheel-prohibition and security-floor policy now checks the
+auxiliary lock as well. No native mapped selector/fixture bytes are changed.
+Fresh full smart, frozen, security, review and native checks are required.
+
+Portable fixture validation: real direct/console marketplace smoke passes;
+19 initial policy/trust controls and 114 workflow controls pass. The complete
+smart run passes **3,238 tests, nine skipped**, 163.06 seconds, with unchanged
+64% coverage and configured threshold. All three audits, lock/export parity,
+normal parent plus Lz4-child license scans, module signatures and 0.55.5 > 0.55.4
+version gates pass. Full typing has zero errors and the same 1,526 baseline
+warnings; all seven changed Python files have zero diagnostics. Independent
+Semgrep has zero findings outside the unchanged baseline.
+
+The review's new parameter-count warning is resolved by retaining the trust
+checker's original five-parameter API: the auxiliary graph always uses its
+committed authoritative paths. The focused trust controls still reject the
+prohibited wheel. The remaining three contract warnings in the pre-existing
+stdlib-only trust checker are the same pre-dependency boundary as documented in
+its module header and dependency-hygiene rules; `python -S` positive/negative
+controls pass. Importing third-party decorators before frozen bootstrap would
+break that boundary. Existing `test_*process*` naming warnings describe actual
+pytest subprocess invariants; their bodies/selectors are unchanged and preserve
+prior test evidence. The existing version-parser information item retains an
+explicit invalid-version branch for fail-closed security-floor diagnosis.
+No rule or finding is suppressed and no new clean-code regression is accepted.
+
+Two mocked launcher-lifecycle tests now model the fixture-verification seam;
+the separate real Git commit/tree/dirty rejection tests and real marketplace
+smoke remain active. The stale blanket license assertion is narrowed to retain
+the original Code Review-only GPL boundary while requiring normal scanning of
+the sole Lz4 smoke seed. An interrupted intermediate rerun is retained as
+incomplete evidence, not a pass.
+
+Final interface verification: **3,238 passed, nine skipped**, exit 0,
+160.91 seconds; unchanged coverage 64%. Absolute-path changed-script contract
+validation passes with zero violations. Final SpecFact self-review scores 94,
+zero errors and no new clean-code regression; all remaining raw advisories have
+the explicit stdlib-boundary or unchanged-selector dispositions above.

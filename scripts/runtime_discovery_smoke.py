@@ -157,6 +157,9 @@ def _resolve_modules_repo(configured: str | None) -> Path:
     candidates: list[Path] = []
     if configured:
         candidates.append(Path(configured).expanduser())
+    smoke_repo = os.environ.get("SPECFACT_SMOKE_MODULES_REPO", "").strip()
+    if smoke_repo:
+        candidates.append(Path(smoke_repo).expanduser())
     env_repo = os.environ.get("SPECFACT_MODULES_REPO", "").strip()
     if env_repo:
         candidates.append(Path(env_repo).expanduser())
@@ -180,6 +183,19 @@ def _resolve_modules_repo(configured: str | None) -> Path:
             return candidate.resolve()
     searched = ", ".join(str(path) for path in candidates)
     raise RuntimeError(f"Could not find specfact-cli-modules with required packages. Searched: {searched}")
+
+
+def _verify_smoke_fixture(modules_repo: Path) -> None:
+    """Reject unreviewed fixture bytes before building or executing module archives."""
+    identity = json.loads((REPO_ROOT / "ci/runtime-smoke-fixture.lock.json").read_text(encoding="utf-8"))
+    if identity.get("repository") != "nold-ai/specfact-cli-modules":
+        raise RuntimeError("Smoke fixture identity does not match the reviewed repository")
+    for key, revision in (("commit", "HEAD"), ("tree", "HEAD^{tree}")):
+        actual = subprocess.check_output(["git", "-C", str(modules_repo), "rev-parse", revision], text=True).strip()
+        if actual != identity.get(key):
+            raise RuntimeError("Smoke fixture identity does not match the reviewed " + key)
+    if subprocess.check_output(["git", "-C", str(modules_repo), "status", "--porcelain"], text=True).strip():
+        raise RuntimeError("Smoke fixture identity has unreviewed working-tree bytes")
 
 
 def _module_payload_for_checksum(package_dir: Path) -> bytes:
@@ -543,6 +559,7 @@ def main() -> int:
     args = parser.parse_args()
 
     modules_repo = _resolve_modules_repo(args.modules_repo)
+    _verify_smoke_fixture(modules_repo)
     workspace_obj: tempfile.TemporaryDirectory[str] | None = None
     if args.keep_workspace:
         workspace = Path(tempfile.mkdtemp(prefix="specfact-runtime-discovery-smoke-"))

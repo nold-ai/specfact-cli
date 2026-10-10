@@ -288,6 +288,10 @@ jobs:
         if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
         uses: ./.github/actions/setup-frozen-python
 
+      - name: Set up reviewed portable runtime fixture
+        if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
+        uses: ./.github/actions/setup-runtime-smoke-fixture
+
       - name: Verify version strings are synchronized
         if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
         shell: bash
@@ -443,6 +447,9 @@ jobs:
           python-version: "3.11"
       - name: Set up frozen compatibility dependencies
         uses: ./.github/actions/setup-frozen-python
+      - name: Set up reviewed portable runtime fixture
+        uses: ./.github/actions/setup-runtime-smoke-fixture
+
       - name: Run Python 3.11 compatibility tests
         shell: bash
         run: |
@@ -922,11 +929,14 @@ jobs:
       - name: Set up frozen smoke dependencies
         uses: ./.github/actions/setup-frozen-python
 
+      - name: Set up reviewed portable runtime fixture
+        uses: ./.github/actions/setup-runtime-smoke-fixture
+
       - name: Run macOS runtime discovery smoke
         shell: bash
         run: |
           mkdir -p logs/runtime-smoke/macos
-          python scripts/runtime_discovery_smoke.py --modules-repo specfact-cli-modules --launcher direct 2>&1 | tee logs/runtime-smoke/macos/runtime-discovery.log
+          python scripts/runtime_discovery_smoke.py --modules-repo "$SPECFACT_SMOKE_MODULES_REPO" --launcher direct 2>&1 | tee logs/runtime-smoke/macos/runtime-discovery.log
 
       - name: Upload macOS runtime-smoke logs
         if: always()
@@ -981,11 +991,14 @@ jobs:
       - name: Set up frozen smoke dependencies
         uses: ./.github/actions/setup-frozen-python
 
+      - name: Set up reviewed portable runtime fixture
+        uses: ./.github/actions/setup-runtime-smoke-fixture
+
       - name: Run Windows runtime discovery smoke
         shell: bash
         run: |
           mkdir -p logs/runtime-smoke/windows
-          python scripts/runtime_discovery_smoke.py --modules-repo specfact-cli-modules --launcher direct 2>&1 | tee logs/runtime-smoke/windows/runtime-discovery.log
+          python scripts/runtime_discovery_smoke.py --modules-repo "$SPECFACT_SMOKE_MODULES_REPO" --launcher direct 2>&1 | tee logs/runtime-smoke/windows/runtime-discovery.log
 
       - name: Upload Windows runtime-smoke logs
         if: always()
@@ -1164,23 +1177,23 @@ jobs:
             -r requirements/code-review/locked.txt
           echo "REVIEW_TOOLS_PYTHON=${review_tools}/bin/python" >> "$GITHUB_ENV"
 
-      - name: Install frozen Code Review smoke license scope
+      - name: Install frozen runtime smoke license scope
         shell: bash
         run: |
           set -euo pipefail
           python scripts/check_reproducible_delivery.py
-          smoke_tools="${RUNNER_TEMP}/specfact-code-review-smoke-license-scope"
+          smoke_tools="${RUNNER_TEMP}/specfact-runtime-smoke-license-scope"
           uv venv --python "${pythonLocation}/bin/python" "$smoke_tools"
           uv pip install \
             --python "${smoke_tools}/bin/python" \
             --require-hashes --no-deps --only-binary :all: \
             -r requirements/runtime-smoke/locked.txt
-          echo "SMOKE_REVIEW_TOOLS_PYTHON=${smoke_tools}/bin/python" >> "$GITHUB_ENV"
+          echo "SMOKE_TOOLS_PYTHON=${smoke_tools}/bin/python" >> "$GITHUB_ENV"
 
       - name: Run license compliance gate
         run: |
           echo "🔍 Running license compliance gate..."
-          python scripts/check_license_compliance.py --code-review-python "$REVIEW_TOOLS_PYTHON" --code-review-python "$SMOKE_REVIEW_TOOLS_PYTHON"
+          python scripts/check_license_compliance.py --code-review-python "$REVIEW_TOOLS_PYTHON" --additional-python "$SMOKE_TOOLS_PYTHON"
 
   dependency-trust:
     name: Dependency Trust Gate

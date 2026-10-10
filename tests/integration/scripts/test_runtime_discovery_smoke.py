@@ -31,7 +31,9 @@ def _write_module_manifest(modules_repo: Path, bundle_name: str, dependencies: l
 
 
 def _resolve_modules_repo() -> Path | None:
-    configured = os.environ.get("SPECFACT_MODULES_REPO", "").strip()
+    configured = (
+        os.environ.get("SPECFACT_SMOKE_MODULES_REPO", "").strip() or os.environ.get("SPECFACT_MODULES_REPO", "").strip()
+    )
     candidates: list[Path] = []
     if configured:
         candidates.append(Path(configured).expanduser())
@@ -164,6 +166,7 @@ def test_runtime_discovery_smoke_keep_workspace_preserves_directory(
         captured["workspace"] = workspace
 
     monkeypatch.setattr(smoke, "_resolve_modules_repo", lambda _configured: tmp_path)
+    monkeypatch.setattr(smoke, "_verify_smoke_fixture", lambda _modules_repo: None)
     monkeypatch.setattr(smoke, "_create_rootless_monorepo_demo", create_demo)
     monkeypatch.setattr(smoke, "_build_local_registry", lambda workspace, _modules_repo: workspace / "index.json")
     monkeypatch.setattr(smoke, "_smoke_launcher", smoke_launcher)
@@ -194,6 +197,7 @@ def test_runtime_discovery_smoke_uses_fresh_demo_per_launcher(tmp_path: Path, mo
         return workspace / "index.json"
 
     monkeypatch.setattr(smoke, "_resolve_modules_repo", lambda _configured: tmp_path)
+    monkeypatch.setattr(smoke, "_verify_smoke_fixture", lambda _modules_repo: None)
     monkeypatch.setattr(smoke, "_create_rootless_monorepo_demo", create_demo)
     monkeypatch.setattr(smoke, "_build_local_registry", build_registry)
     monkeypatch.setattr(smoke, "_smoke_launcher", lambda _name, _workspace, _demo, _index_path, _modules_repo: None)

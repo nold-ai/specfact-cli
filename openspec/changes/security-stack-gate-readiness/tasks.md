@@ -6,7 +6,7 @@
 
 ## 2. Gate repairs
 
-- [x] 2.1 Isolate direct/console smoke interpreter and frozen marketplace resolution.
+- [x] 2.1 Isolate direct/console smoke interpreter and frozen marketplace resolution using the authenticated portable fixture and approved npm tool path.
 - [x] 2.2 Authenticate native stack context and use it in all proof consumers.
 - [x] 2.3 Extend immutable organization policy with tested stack ancestry checks.
 - [ ] 2.4 Pass native, smart, contract, quality/review, frozen/security and signature gates.

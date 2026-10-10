@@ -14,9 +14,13 @@ must stay unchanged across the five layers. A different mapping or plan remains 
 hard reconciliation failure; no scoped digest relaxation is introduced.
 
 Direct/console smoke runs receive workspace-owned virtual environments and an
-explicit path to the already reviewed parent runtime. Module-only dependencies are seeded into the child from an exact hash-protected
-wheel lock after artifact review. Marketplace pip then sees the reviewed parent
-runtime and child packages with union version constraints and no index. This
+explicit path to the already reviewed parent runtime. Runtime smoke independently
+authenticates the reviewed portable 046d366c module snapshot; native Requirements
+keeps its 69f0758 provider and original proof unchanged. Only reviewed Lz4 is
+seeded from an exact hash-protected wheel lock. BasedPyright keeps the approved
+npm runner; unofficial Node wheels are prohibited in every frozen graph.
+Marketplace pip sees the reviewed parent runtime and child packages with union
+version constraints and no index. This
 prevents upgrades in the running pytest environment and fails on missing pins. Other launcher modes retain their existing delivery
 checks. Existing isolated virtualenv fallback cache controls remain intact.
 
