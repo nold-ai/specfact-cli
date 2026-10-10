@@ -29,17 +29,18 @@ jobs:
       - name: Download hash-reviewed plugin artifacts
         working-directory: docs
         run: |
-          mkdir -p vendor/cache
+          mkdir -p "${{ runner.temp }}/docs-bundle/ruby/3.2.0/cache"
+          cd "${{ runner.temp }}/docs-bundle/ruby/3.2.0/cache"
           curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \
-            'https://rubygems.org/gems/jekyll-redirect-from-0.17.0.gem' -o vendor/cache/jekyll-redirect-from-0.17.0.gem
+            'https://rubygems.org/gems/jekyll-redirect-from-0.17.0.gem' -o jekyll-redirect-from-0.17.0.gem
           curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \
-            'https://rubygems.org/gems/jekyll-feed-0.18.0.gem' -o vendor/cache/jekyll-feed-0.18.0.gem
+            'https://rubygems.org/gems/jekyll-feed-0.18.0.gem' -o jekyll-feed-0.18.0.gem
           curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \
-            'https://rubygems.org/gems/jekyll-relative-links-0.9.1.gem' -o vendor/cache/jekyll-relative-links-0.9.1.gem
+            'https://rubygems.org/gems/jekyll-relative-links-0.9.1.gem' -o jekyll-relative-links-0.9.1.gem
           printf '%s\n' \
-            '703dab0428b20bb5d550ab83d3c28b65bb5ecc0f734c5e61ee680de391b3e897  vendor/cache/jekyll-redirect-from-0.17.0.gem' \
-            '8e6829f455b8764a8fa1bbb198d0ebb3525128dacc6ffe9d15f4df7388bc3647  vendor/cache/jekyll-feed-0.18.0.gem' \
-            '6d5d70578c669ef9ee4c67f617d91497e0506fe5c1a059e484a900e18efb202e  vendor/cache/jekyll-relative-links-0.9.1.gem' \
+            '703dab0428b20bb5d550ab83d3c28b65bb5ecc0f734c5e61ee680de391b3e897  jekyll-redirect-from-0.17.0.gem' \
+            '8e6829f455b8764a8fa1bbb198d0ebb3525128dacc6ffe9d15f4df7388bc3647  jekyll-feed-0.18.0.gem' \
+            '6d5d70578c669ef9ee4c67f617d91497e0506fe5c1a059e484a900e18efb202e  jekyll-relative-links-0.9.1.gem' \
             | sha256sum --check
       - name: Install locked documentation dependencies
         working-directory: docs

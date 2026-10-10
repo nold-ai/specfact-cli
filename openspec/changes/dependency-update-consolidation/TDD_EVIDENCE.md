@@ -523,3 +523,13 @@ analysis, strict signatures, version gates and focused security/build/docs probe
 pass. Installing the committed npm runner repairs the initial missing-tool type
 and lint diagnostics (zero errors, 1526 unchanged project type warnings). These
 partial results do not complete the outstanding readiness tasks.
+
+### Ruby CI cache correction
+
+Final hosted Ruby run 38088539828 validates all three candidate artifact hashes
+then fails bundle installation because the partial vendor/cache contains only
+the selected plugins, not the rest of the frozen graph. Move these reviewed gem
+files to Bundler's installation cache under the Ruby 3.2 ABI path; leave the
+project vendor/cache absent so unchanged locked dependencies can be fetched.
+BUNDLE_FROZEN stays true, candidate hashes and version inputs stay unchanged.
+The failed run remains retained; fresh full workflow validation is required.
