@@ -14,6 +14,8 @@ All notable changes to this project will be documented in this file.
 
 ### Security
 
+- Require JSON >=2.21.2,<3 for documentation while retaining JSON 2.21.2 and
+  Jekyll 4.4.1; defer the incompatible JSON 3 migration.
 - Raise the runtime GitPython floor and frozen graph to 3.2.0, including its
   additional submodule containment security fixes.
 

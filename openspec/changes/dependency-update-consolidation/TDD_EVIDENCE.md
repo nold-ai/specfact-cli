@@ -583,3 +583,9 @@ is the required package version. Retaining them is an explicit narrow baseline
 exception for fixture clarity; new GitPython/build tests have zero findings.
 The 0.55.6 version-sensitive controls pass (39 tests); the rebuilt 0.55.6
 sdist/wheel and all three Python wheel consumer probes also pass.
+
+Fresh #727 replay: the security-floor test genuinely fails against the new
+PR PR #744 parent (1 failure, 0.09 seconds), then all 17 documentation script tests
+pass. Bundler regenerates the lock retaining JSON 2.21.2/Jekyll 4.4.1 and all
+existing package identities; only the declared JSON bound changes. Complete
+Requirements mapping and the mapped containment test remain inherited unchanged.

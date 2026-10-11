@@ -8,8 +8,9 @@ gem "jekyll-feed", "~> 0.12"
 gem "jekyll-redirect-from", "~> 0.16"
 gem "jekyll-relative-links", "~> 0.8"
 gem "jekyll-sitemap", "~> 1.4"
-# Keep the documentation build clear of GHSA-x2f5-4prf-w687 / CVE-2026-54696.
-gem "json", ">= 2.19.9"
+# Patched JSON 2.x; JSON 3 migration is deferred until Jekyll supports it.
+# Includes GHSA-9hj4-r449-hfvc / CVE-2026-71847 and the earlier security floor.
+gem "json", ">= 2.21.2", "< 3"
 
 platforms :mingw, :x64_mingw, :mswin, :jruby do
   gem "tzinfo", ">= 1", "< 3"
