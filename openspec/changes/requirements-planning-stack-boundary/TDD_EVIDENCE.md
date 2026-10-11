@@ -82,3 +82,28 @@ proof fallback. Git object reads explicitly disable external diff and text conve
 planning/native-ancestry controls pass in 2.97 seconds, without skipped controls. The five exact mapping
 selectors also fail genuinely against an isolated immutable protected-baseline archive with final test
 bytes: zero passes, errors or skips, and exact JUnit selector identities. Mapping 61488846 is unchanged.
+
+## Final independent isolated-CLI authored phase
+
+This head intentionally contains specification and authored tests before implementation. PR #761
+remains Draft throughout this phase; passing-after claims below describe named historical candidates,
+not missing production code at this authored head. Required final execution/review gates stay enforced.
+
+First direct-import authored 436bd0a3 proves real RED, but reuse is correctly rejected as stale when
+production CLI changes. The harness now invokes the public Python -I -S script with caller-owned
+Git/GitHub response fixtures. Signed isolated authored 880b5adb has genuine native RED run 38181748242,
+and signed implementation 46e475df passes all three native Requirements stages in run 38182008657
+plus exact-head authority. These are historical for the final strengthened test-file bytes.
+
+Review strengthens two independent negative controls: both required check records remain present when
+a duplicate page record is appended, with coherent total_count=103; Unicode paths each start from the
+same immutable child checkout. Both pass against the implementation. A controlled unpublished probe
+removing duplicate-ID enforcement makes the duplicate assertion fail; that guard mutation is restored
+and never published. Existing runtime/mode loops already reset to their immutable child per case.
+
+The Unicode regression reproduces context rejection on 2c4348d1 before filesystem-decoding correction.
+The fixed prototype preserves full-proof fallback for unsupported paths without relaxing strict Git
+metadata, inherited source protection, signature or root check identities. Eleven isolated controls
+passed on the previous candidate; the two strengthened controls pass in 1.29 seconds.
+The approved exact mapping 61488846 and genuine owner acceptance remain unchanged. New authored native
+RED must precede restoration and publication of the implementation with these exact test bytes.
