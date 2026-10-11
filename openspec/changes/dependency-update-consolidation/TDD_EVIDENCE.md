@@ -589,3 +589,11 @@ PR PR #744 parent (1 failure, 0.09 seconds), then all 17 documentation script te
 pass. Bundler regenerates the lock retaining JSON 2.21.2/Jekyll 4.4.1 and all
 existing package identities; only the declared JSON bound changes. Complete
 Requirements mapping and the mapped containment test remain inherited unchanged.
+
+Fresh PR #752 replay: the redirect probe genuinely rejects the 0.16.0 parent
+for rendering a disallowed URI scheme, then passes with 0.17.0 at both root and
+/preview. Both production documentation builds pass. The exact reviewed gem hash
+is rechecked before execution. Bundler conservative regeneration changes only
+the selected plugin; Linux delivery platforms remain unchanged. CI actions are
+pinned and the selected gem is hash-checked before installation in this layer,
+without waiting for the top layer. Workflow/YAML and Ruby syntax checks pass.
