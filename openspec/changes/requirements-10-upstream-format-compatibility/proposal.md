@@ -17,7 +17,7 @@ Apply the owner-approved agentic SDLC roadmap to existing Python, OpenSpec/Spec 
 
 ### Modified Capabilities
 
-None in this proposal. Existing lean reconciliation and optional assurance retain their own ownership.
+The new effective-profile contract extends the existing `openspec-speckit-evidence-adapter` readiness surface owned by `requirements-04-upstream-source-readiness` (#648); it does not replace or duplicate its atomic import contract. Issue #648 is Done/closed on 2026-10-11 and its core readiness implementation is present on dev; revalidate its released compatibility and capability archival before independent profile archival. Existing lean reconciliation and optional assurance retain their own ownership.
 
 ## Impact
 
@@ -27,7 +27,7 @@ At implementation, update owning command help, adapter/reference and workflow gu
 
 ## Dependencies and delivery
 
-No new runtime prerequisite on #740. Modules counterpart consumes the released shared profile contract; retain legacy native import. Follow up on closed core #350/modules #168 rather than reopen them.
+This follow-up depends on the shared readiness/import contracts from `requirements-04-upstream-source-readiness` (#648). Implement additive profile recognition through those same importers; preserve their source IDs and rejection-before-persistence behavior. Do not archive independently until that prerequisite capability is integrated. No new runtime prerequisite on #740. Modules counterpart consumes the released shared profile contract; retain legacy native import. Follow up on closed core #350/modules #168 rather than reopen them.
 
 Implementation follows specification, derived tests, meaningful failing-before evidence, code, passing evidence and scope-appropriate gates. Use current repository reality and live issue readiness before work; do not interpret this planning approval as authority to bypass an In Progress owner or signed release gate.
 

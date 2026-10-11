@@ -26,4 +26,30 @@ No behavior tests were written for this documentation change. Runtime tests must
 
 Both repositories completed their applicable pre-commit checks, including Requirements planning evidence, YAML, Markdown and module/import gates where applicable. Python review and contract execution were skipped by the owning hooks because there were no applicable code targets. Core gate-blocking R07/R08 YAML formatting was corrected with parsed-value equality checks; no lifecycle, acceptance or historical proof semantics changed.
 
-Local git commit -S attempts, including an elevated terminal retry, failed with GPG No secret key. The owner authorized commit and push. Finalization uses GitHub createCommitOnBranch after applicable staged hooks pass, with expected-head concurrency protection. Accept the remote commit only after its signature is verified and its tree matches git write-tree exactly; then synchronize the local branch without changing its source or index contents. This preserves signed commit provenance without changing local signing configuration. Runtime #481 remains pending in its prepared worktree, with no behavior edits or tests yet.
+Local git commit -S attempts, including an elevated terminal retry, failed with GPG No secret key. The owner authorized commit and push. Finalization uses GitHub createCommitOnBranch after applicable staged hooks pass, with expected-head concurrency protection. Historical publication readback is recorded below; each restacked head is reverified independently. This preserves signed commit provenance without changing local signing configuration. Runtime #481 remains pending in its prepared worktree, with no behavior edits or tests yet.
+
+## Historical signature readback and refreshed planning — 2026-10-11
+
+GitHub verified original commit `faa954190bc3255929aac1c06247e23731ecb0cd` as valid,
+with tree `a9ed9f8b57ecaeb169c59fc0f9fe0e19cfa1fec0`. That is the published historical tree;
+the original local index comparison was reported at publication and is not rerun against a later index.
+Restacked signatures and exact trees require independent current-head readback; this historical result does
+not authorize a changed candidate.
+
+Refreshed dev is `4e7c38c2830f4bc53ffe78eeb0a2bfbabfc711e2`. The amended workflow proposal is already
+integrated. The owner selected #719 security implementation and planning validation for #743/#751, then
+conditioned core runtime adoption on paired modules implementation being underway. Live project readback:
+Modules #481 In Progress; #483, #490, #491, #164, #230, #431, #434 and #169 Todo. Consequently the corresponding
+runtime tasks remain deferred and unchecked; #481 progress alone does not establish a signed #483 release.
+
+All eight touched active proposals pass strict OpenSpec validation. Requirements-10 explicitly extends the
+shared readiness/import contracts from requirements-04 (#648, Done/closed) and preserves its atomic boundary;
+standalone profile import has no repair controller or #483 budget dependency. OSCAL research lines are wrapped
+without changing scope. No Python/runtime change is introduced in this layer; planning evidence is evaluated
+separately from root-stack implementation evidence and protected authority.
+
+Primary sources rechecked on 2026-10-11: [Spec Kit v1.1.0](https://github.com/github/spec-kit/releases/tag/v1.1.0)
+was published 2026-10-02; its [extension documentation](https://github.github.io/spec-kit/reference/extensions.html)
+separates invocation hooks from artifact templates. The [SCAI v0.3 contract](https://github.com/in-toto/attestation/blob/6e9183a21848f27a43c22c87459189024b1e569f/spec/predicates/scai.md)
+is pinned here for research. These sources verify the proposed interface boundaries, not executable compatibility
+or security of an unimplemented exporter. Runtime adoption must validate exact signed released pairs later.

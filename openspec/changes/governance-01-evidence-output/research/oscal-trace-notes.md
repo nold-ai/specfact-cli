@@ -1,12 +1,16 @@
 # Historical OSCAL trace draft
 
-This previously ignored delta is retained as non-normative design context. The 2026-10-04 owner-approved roadmap defers graph/index consumers; OSCAL navigation is not a prerequisite for current native JSON, summaries, SARIF or SCAI export. Any future promotion requires a separate reviewed scope and valid spec.md delta.
+This previously ignored delta is retained as non-normative design context. The 2026-10-04 owner-approved roadmap
+defers graph/index consumers; OSCAL navigation is not a prerequisite for current native JSON, summaries, SARIF or
+SCAI export. Any future promotion requires a separate reviewed scope and valid spec.md delta.
 
 ## ADDED Requirements
 
 ### Requirement: OSCAL-Aligned Evidence Envelope with Trace Fields
 
-The system SHALL extend the governance evidence JSON envelope to include a `trace` object with `upstream` and `downstream` arrays, aligned with OSCAL Assessment Results model patterns, enabling bidirectional artifact navigation from any evidence record.
+The system SHALL extend the governance evidence JSON envelope to include a `trace` object with `upstream` and
+`downstream` arrays, aligned with OSCAL Assessment Results model patterns, enabling bidirectional artifact
+navigation from any evidence record.
 
 #### Scenario: Evidence envelope contains trace links for requirement-level artifacts
 
@@ -33,7 +37,8 @@ The system SHALL extend the governance evidence JSON envelope to include a `trac
 
 ### Requirement: Artifact Hash in Evidence Envelope
 
-The system SHALL include a SHA-256 hash of the validated artifact in every evidence envelope, enabling immutable audit trail construction.
+The system SHALL include a SHA-256 hash of the validated artifact in every evidence envelope, enabling immutable
+audit trail construction.
 
 #### Scenario: Artifact hash computed and included in evidence
 

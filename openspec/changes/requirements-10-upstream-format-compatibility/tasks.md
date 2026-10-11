@@ -6,7 +6,7 @@ All tasks are future implementation. This planning PR completes no runtime task 
 
 - [ ] 1.1 Create a dedicated issue-linked worktree from current origin/dev; refresh cache and verify parent, labels, assignee, project, blockers and no concurrent In Progress owner.
 - [ ] 1.2 Verify exact released prerequisites and compatibility; refine only owner-authorized deltas against current code and paired public proposal.
-- [ ] 1.3 Finalize optional versioned contracts, source identities, offline behavior and unsupported-input diagnostics in the specs.
+- [ ] 1.3 Verify the `requirements-04-upstream-source-readiness` (#648) shared importer/readiness prerequisite and extend that existing capability without duplicating its persistence boundary. Finalize optional versioned contracts, source identities, offline behavior and unsupported-input diagnostics in the specs.
 
 ## 2. Tests before implementation
 
@@ -17,7 +17,7 @@ All tasks are future implementation. This planning PR completes no runtime task 
 ## 3. Bounded implementation
 
 - [ ] 3.1 Implement the smallest contract slice with beartype/icontract on public parsing/validation APIs; preserve existing adapters and original artifacts.
-- [ ] 3.2 Integrate only released supported producer interfaces; keep external side effects opt-in and share #483 budgets instead of adding a repair controller.
+- [ ] 3.2 Integrate only released supported producer interfaces; keep profile import offline and side-effect free, and add no repair controller or #483 budget prerequisite.
 - [ ] 3.3 Run scenario and compatibility regressions; record passing evidence, limitations and exact identities.
 
 ## 4. Documentation and review
