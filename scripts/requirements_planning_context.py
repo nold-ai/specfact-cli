@@ -92,7 +92,10 @@ def _eligible_planning_paths(context: dict[str, object]) -> bool:
     if root == head:
         return False
     root_changes = _git_changes(cast(str, context["proof_base_commit"]), root)
-    if any(change.path.startswith(".github/actions/") or change.path == WORKFLOWS[0].path for change in root_changes):
+    control_changes = _git_changes(cast(str, context["protected_base_commit"]), root)
+    if any(
+        change.path.startswith(".github/actions/") or change.path == WORKFLOWS[0].path for change in control_changes
+    ):
         return False
     covered_sources = {
         match[0]

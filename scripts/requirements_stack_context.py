@@ -265,6 +265,7 @@ def main(argv: list[str] | None = None) -> int:
             _reject()
         event = _object(json.loads(args.event.read_text()))
         context = resolve_stack_context(event, _github_json)
+        context["protected_base_commit"] = context["proof_base_commit"]
         context["proof_base_commit"] = _proof_merge_base(
             _sha(context["proof_base_commit"]), _sha(context["proof_head_commit"])
         )
