@@ -10,10 +10,17 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [0.55.5] - 2026-10-11
+## [0.55.6] - 2026-10-11
+
+### Security
+
+- Raise the runtime GitPython floor and frozen graph to 3.2.0, including its
+  additional submodule containment security fixes.
 
 ### Fixed
 
+- Update the frozen Hatchling backend to 1.32.4 and include the bundled module
+  manifest in source distributions so offline wheel rebuilding remains complete.
 - Authenticate native GitHub stack ancestry in Requirements proof reuse while
   preserving complete plan equality and original failing-first evidence.
 - Isolate direct and console marketplace smoke installations from the running

@@ -546,3 +546,40 @@ The GitPython containment, sdist rebuild and backend expectation tests genuinely
 fail (3 failures, 1.09 seconds) before dependency or packaging edits.
 Local log: approved-744-local-red.log. A new hosted native RED is required before
 implementation; prior RED and earlier implementation runs remain historical.
+
+Fresh native RED run 38119009577 on authored 8cd2a305f1276df3e877d5a55492d3c2a70c7bf7
+retains one genuine containment failure (0.42 seconds), gate pass and
+`failing-first-proven`. The workflow intentionally remains failed until final
+reconciliation; this is retained RED rather than merge-ready status.
+Full native mapping: sha256:a2ba40a8ff692cfb7bca70785bd411d1aeb54d3afd824a086a3e7a830ab88ee4.
+Full native plan: sha256:94e049b71b00de0d52b4afa8b7ce9b08729bc97ae5ae379db1682af179125461.
+Mapped test bytes remain identical through implementation and downstream replay.
+
+Fresh local Python implementation (2026-10-11): 25 focused controls pass;
+full smart testing passes with 3291 passed, 9 existing skips, 2 warnings in
+195.20 seconds and unchanged 64% coverage. The sdist rebuilds its wheel;
+hash-frozen no-resolution wheel installs and Git consumers pass on Python
+3.11.15, 3.12.13 and 3.13.14. All three audits, trust/licenses, strict module
+signatures, frozen parity, uv lock, version/PyPI-ahead, formatting/lint,
+Semgrep/Bandit and npm-authoritative typing pass (zero errors, 1522 baseline
+warnings). Current changed-Python SpecFact review passes with zero findings.
+The only frozen package version changes are GitPython and Hatchling.
+Final-head hosted/native proof and member grants remain required after publication.
+
+The required packaged-artifact version gate rejects retaining 0.55.5 after
+PR PR #758 reserved that version on protected dev. The original availability condition
+therefore selects the next available patch, 0.55.6, for the one consolidated
+release. All four sources, generated metadata and changelog are synchronized;
+no tag or release is published. The containment selector and mapping remain
+unchanged. Version-sensitive build/wheel and quality checks are repeated.
+
+Current broad Python review retains one unchanged baseline warning and two
+information findings in test_release_promotion_security_gates.py: the naming
+rule flags the nested authority subprocess probe in
+test_invalid_utf8_authority_is_stable_metadata_failure (line 506), and the
+expanded provenance/invalid-UTF8 fixture setup produces two LOC advisories.
+Those blocks are byte-identical to protected dev; the only modified assertion
+is the required package version. Retaining them is an explicit narrow baseline
+exception for fixture clarity; new GitPython/build tests have zero findings.
+The 0.55.6 version-sensitive controls pass (39 tests); the rebuilt 0.55.6
+sdist/wheel and all three Python wheel consumer probes also pass.

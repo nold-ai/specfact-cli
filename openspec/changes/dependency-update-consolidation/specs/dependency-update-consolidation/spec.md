@@ -69,7 +69,7 @@ preserve the merged #756 graph and generate coherent frozen lock/export inputs.
 
 - **GIVEN** both Hatchling declarations and the four canonical package versions
 - **WHEN** the selected Python layer builds its wheel
-- **THEN** the backend is 1.32.4, package metadata is 0.55.5, lock/export parity holds,
+- **THEN** the backend is 1.32.4, package metadata is 0.55.6, lock/export parity holds,
   both frozen audits pass and Python 3.11-3.13 installation preserves consumers.
 
 #### Scenario: Source distribution rebuild retains bundled assets

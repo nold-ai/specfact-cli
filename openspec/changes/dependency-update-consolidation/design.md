@@ -71,7 +71,7 @@ control and full delivery graph checks remain independently required.
 
 This amendment supersedes the historical focused-slice scope exclusions above.
 Start each dedicated worktree from its preceding layer and preserve merged #756
-inputs and proof. #744 owns Python/build inputs and the single 0.55.5 patch bump;
+inputs and proof. #744 owns Python/build inputs and the single 0.55.6 patch bump;
 PR #727 owns the compatible JSON declaration; #752/#754/#753 own their selected
 Jekyll plugins. Generate locks conservatively and inspect parent-relative diffs.
 

@@ -85,7 +85,7 @@ Ruby setup `e81a8fa391b11a595c1b7ed84177cc0fe02faf83` (unsigned upstream commit)
   test file's 20 warnings and one information finding are outside modified
   assertions and explicitly retained as an unchanged-baseline exception in the
   TDD ledger. No new clean-code regression is accepted.
-- Local full smart testing reports 25 failures, one error, 3189 passes and nine
+- Historical local full smart testing reported 25 failures, one error, 3189 passes and nine
   skips after marketplace installation replaces beartype inside the running
   interpreter. Earlier constrained testing retains its separate frozen/latest
   module-resolution conflict. The environment is restored with frozen sync.
@@ -126,7 +126,7 @@ each PR's final head after publication; older runs do not imply current readines
    workflow. Inspect each parent-relative lock diff after retarget/rebase. Merge
    #748's planning follow-up only once its parent is integrated; keep #747 open.
 4. Open/review the dev-to-main promotion at the integrated dev SHA. Require strict
-   module signatures and Requirements promotion parity, four synchronized 0.55.5
+   module signatures and Requirements promotion parity, four synchronized 0.55.6
    version sources, built wheel/sdist metadata and separate Security/Fixed entries.
    Recheck that PyPI still reports a lower release before tagging/publishing.
 5. Validate production documentation at the custom-domain root and configured
@@ -145,3 +145,22 @@ are preserved under the same ref prefix. Restore each original remote branch
 with an explicit lease against its current head, restore original base metadata,
 and unlink native stack #757 only as part of a deliberate rollback. Revert coherent
 inputs together if changes have merged; never reset shared dev/main history.
+
+## Fresh foundation and Python replay (2026-10-11)
+
+Policy #3 and prerequisite #758 are merged through normal required gates.
+Protected dev 30f98cc14e074802a9f21c6b84e69e743eee6442 is the new stack baseline.
+Fresh hosted RED 38119009577 is retained on 8cd2a305; the complete five-layer
+plan precedes dependency implementation and remains unchanged downstream.
+Local full smart tests now pass: 3291 passed, 9 existing skips, 195.20 seconds,
+64% coverage. All three Python audits, trust/license, strict signatures,
+Semgrep/Bandit, frozen parity, version/PyPI-ahead, typing and changed-Python
+review pass. The 0.55.5 sdist/wheel and Git consumers pass on Python 3.11-3.13.
+The historical failures above are preserved as such; final head CI, downstream
+proof reuse and exact member grants remain pending until sequential publication.
+The single 0.55.5 release includes both prerequisite and dependency fixes.
+
+Release adjustment: protected dev now reserves 0.55.5 through #758. The required
+packaged-artifact version gate requires a strictly newer version, so the single
+consolidated planned release is 0.55.6. The four canonical sources, generated
+metadata and changelog are updated together; no gate or check is relaxed.

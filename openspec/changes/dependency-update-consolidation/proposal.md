@@ -17,7 +17,7 @@ tests and historical proof remain part of this change and must be preserved.
 - EXTEND #752/#754 with redirect-from 0.17.0 and feed 0.18.0 security fixes;
   verify unsafe redirect and feed escaping boundaries alongside ordinary output.
 - EXTEND #753 with relative-links 0.9.1 and navigation/base-URL compatibility proof.
-- ADD one 0.55.5 bugfix release, subject to the live PyPI-ahead check, with all
+- ADD one 0.55.6 bugfix release, subject to the live PyPI-ahead check, with all
   canonical version sources, generated metadata and changelog synchronized.
 - MODIFY the existing PR branches into
   `dev <- #744 <- #727 <- #752 <- #754 <- #753`, retaining numbers, captured heads,
