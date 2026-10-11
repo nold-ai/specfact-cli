@@ -2,7 +2,8 @@
 
 Work began 2026-10-11; final local validation 2026-10-12 (Europe/Berlin).
 Protected baseline: dev 4e7c38c2830f4bc53ffe78eeb0a2bfbabfc711e2. Dedicated worktree,
-CPython 3.12.13, frozen uv dependencies. Owner djm81 approved exact mapping 61488846 and prerequisite exact-head grants on 2026-10-12; native publication remains pending.
+CPython 3.12.13, frozen uv dependencies. Owner djm81 approved exact mapping 61488846 and prerequisite exact-head grants
+on 2026-10-12; native publication remains pending.
 
 ## Specification, tests and genuine failing-before evidence
 
@@ -59,14 +60,17 @@ protected integration, then regenerate native proof rather than carrying stale e
 Both new helper and test scopes have zero new review findings after the complexity/typing corrections.
 Broad final review and independently measured protected-baseline review each contain the same nine
 findings, with no new findings. Two MISSING_ICONTRACT advisories concern the unchanged stdlib CLI entry points;
-the remaining unchanged findings concern existing workflow and release-fixture styles. Explicit narrow exception: these execute with -I -S before dependency installation;
+the remaining unchanged findings concern existing workflow and release-fixture styles. Explicit narrow exception: these
+execute with -I -S before dependency installation;
 adding third-party decorators to that trust boundary would break the isolated bootstrap. Existing
-contracts elsewhere, required gates and review thresholds remain unchanged. Current-head hosted/native evidence remains required before integration.
+contracts elsewhere, required gates and review thresholds remain unchanged. Current-head hosted/native evidence remains
+required before integration.
 
 ## Mapping and authority boundary
 
 Exact source mapping: sha256:61488846c84633e69d586fb818aed1be6cca123cf05e821406fdbdbfdbbb91b4.
-It maps both Requirements to five exact executable selectors. Owner djm81 accepted this exact mapping on 2026-10-12; the genuine acceptance record is included.
+It maps both Requirements to five exact executable selectors. Owner djm81 accepted this exact mapping on 2026-10-12;
+the genuine acceptance record is included.
 Normal publication is blocked by the repository's exact mapping/index-bound Requirements review gate.
 The owner authorized prerequisite exact signed-head grants after verification; native authored RED/final
 publication remains mandatory. Normal prerequisite merge authorization must follow a concrete green reviewed PR.
@@ -110,30 +114,69 @@ RED must precede restoration and publication of the implementation with these ex
 
 ## Final strengthened native authored proof
 
-Signed authored head 684b8f92fca1c514183d7b809415d8ce32eb8df4 (tree bc5d142191aaa42ab08b3c8c7016f3cb11210691) has native run 38182359051, artifact 11717743992. The exact approved mapping reconciles at RED with no findings: five genuine failures, zero passes, errors or skips. Exact-head authority succeeds. Test file SHA-256 is 476a54c9170618d0f491babd5bf628f80957a76bea3afa583a0ad10ba337fa6a.
+Signed authored head 684b8f92fca1c514183d7b809415d8ce32eb8df4 (tree bc5d142191aaa42ab08b3c8c7016f3cb11210691) has
+native run 38182359051, artifact 11717743992. The exact approved mapping reconciles at RED with no findings: five
+genuine failures, zero passes, errors or skips. Exact-head authority succeeds. Test file SHA-256 is
+476a54c9170618d0f491babd5bf628f80957a76bea3afa583a0ad10ba337fa6a.
 
-The implementation from reviewed historical candidate 46e475df is restored only after this proof; strengthened test bytes, accepted mapping and owner record remain unchanged. Final native execution, required CI and review remain pending on the newly signed implementation head.
+The implementation from reviewed historical candidate 46e475df is restored only after this proof; strengthened test
+bytes, accepted mapping and owner record remain unchanged. Final native execution, required CI and review remain
+pending on the newly signed implementation head.
 
 ## Current protected-control regression: failing before code
 
-Review identifies that root.base.sha can advance beyond the root branch's common ancestor. The existing specification already requires root proof workflow/local-action Git objects to match the protected base. Two independent regression cases use a newer protected workflow and a newly protected local action while retaining the exact successful old-root checks. Both genuinely fail on immutable candidate 2af0b8af: planning reuse is incorrectly enabled. An independent protected docs update is the positive control and passes. No imported production, mapping changes, weakened freshness or additional acceptance claims are involved. The fix must compare current protected control objects while retaining the original merge-base proof boundary.
+Review identifies that root.base.sha can advance beyond the root branch's common ancestor. The existing specification
+already requires root proof workflow/local-action Git objects to match the protected base. Two independent regression
+cases use a newer protected workflow and a newly protected local action while retaining the exact successful old-root
+checks. Both genuinely fail on immutable candidate 2af0b8af: planning reuse is incorrectly enabled. An independent
+protected docs update is the positive control and passes. No imported production, mapping changes, weakened freshness
+or additional acceptance claims are involved. The fix must compare current protected control objects while retaining
+the original merge-base proof boundary.
 
-Historical pre-correction full suite: 3301 passed, 10 disclosed skips, 2 dependency warnings in 188.89 seconds; timeout/failure log lines are deliberately injected by passing negative runner tests, not failed delivery execution. Final corrected head still requires fresh execution.
+Historical pre-correction full suite: 3301 passed, 10 disclosed skips, 2 dependency warnings in 188.89 seconds;
+timeout/failure log lines are deliberately injected by passing negative runner tests, not failed delivery execution.
+Final corrected head still requires fresh execution.
 
-The corrected helper records the current live protected base before deriving the proof merge base. Root workflow and local-action object comparison uses that current protected commit; OpenSpec source closure and full-proof fallback keep the original proof merge base. Both security regressions and the independent unchanged-control positive case pass in the isolated prototype; the normal three-stage context digest includes the preserved protected identity.
+The corrected helper records the current live protected base before deriving the proof merge base. Root workflow and
+local-action object comparison uses that current protected commit; OpenSpec source closure and full-proof fallback keep
+the original proof merge base. Both security regressions and the independent unchanged-control positive case pass in
+the isolated prototype; the normal three-stage context digest includes the preserved protected identity.
 
 ## Both proof-producing workflow controls: failing before code
 
-Final review checks the authority producer as well as the Requirements producer. The existing unchanged-proof contract applies to both. New current-protected-authority drift and root-authored-authority cases genuinely fail on signed 0c682d4d: both receive planning reuse despite changed authority objects. The other three existing protected-control cases pass; there are no collection errors or skips. The correction must include both named proof-producing workflow paths while preserving local-action rejection, current protected identity, complete-proof fallback and every exact signature/run binding. Approved mapping 61488846 and immutable mapped test bytes stay unchanged.
+Final review checks the authority producer as well as the Requirements producer. The existing unchanged-proof contract
+applies to both. New current-protected-authority drift and root-authored-authority cases genuinely fail on signed
+0c682d4d: both receive planning reuse despite changed authority objects. The other three existing protected-control
+cases pass; there are no collection errors or skips. The correction must include both named proof-producing workflow
+paths while preserving local-action rejection, current protected identity, complete-proof fallback and every exact
+signature/run binding. Approved mapping 61488846 and immutable mapped test bytes stay unchanged.
 
-After signed authored authority-control tests, the guard derives both producer paths from the existing immutable WORKFLOWS definitions; no new workflow identities or caller-controlled paths are introduced. The same current protected object comparison now rejects edits to either producer and every local action. Passing focused controls and final exact-head native/CI review must be regenerated before integration.
+After signed authored authority-control tests, the guard derives both producer paths from the existing immutable
+WORKFLOWS definitions; no new workflow identities or caller-controlled paths are introduced. The same current protected
+object comparison now rejects edits to either producer and every local action. Passing focused controls and final
+exact-head native/CI review must be regenerated before integration.
 
 ## Authenticated check-read capability: failing before configuration
 
-GitHub's installation-token check-runs API documents Checks read access; explicitly declaring any Actions permission leaves unspecified permissions at none. Official references accessed 2026-10-12 (Europe/Berlin): <https://docs.github.com/en/rest/checks/runs#list-check-runs-for-a-git-reference> and <https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#permissions>. Public-resource unauthenticated access also exists; this workflow deliberately uses its scoped GITHUB_TOKEN to authenticate root proof and should declare its exact read capability. No live authorization failure is asserted from a local user token.
+GitHub's installation-token check-runs API documents Checks read access; explicitly declaring any Actions permission
+leaves unspecified permissions at none. Official references accessed 2026-10-12 (Europe/Berlin):
+<https://docs.github.com/en/rest/checks/runs#list-check-runs-for-a-git-reference> and
+<https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#permissions>. Public-resource
+unauthenticated access also exists; this workflow deliberately uses its scoped GITHUB_TOKEN to authenticate root proof
+and should declare its exact read capability. No live authorization failure is asserted from a local user token.
 
-Three independent consumer permission assertions genuinely fail against signed 11342fd3 because checks read is absent. An initial incorrect execution-job fixture key is corrected to the verified requirements-evidence job; that KeyError is discarded as proof. The final three failures are configuration assertions with no collection errors or skips. The fix adds checks: read only to the three consumers, keeps every existing permission read-only, and adds no write scope, broad token or authority exemption. Approved mapping and exact native selected test bytes stay unchanged.
+Three independent consumer permission assertions genuinely fail against signed 11342fd3 because checks read is absent.
+An initial incorrect execution-job fixture key is corrected to the verified requirements-evidence job; that KeyError is
+discarded as proof. The final three failures are configuration assertions with no collection errors or skips. The fix
+adds checks: read only to the three consumers, keeps every existing permission read-only, and adds no write scope,
+broad token or authority exemption. Approved mapping and exact native selected test bytes stay unchanged.
 
-After signed authored permission controls, all three existing consumers declare checks: read alongside their unchanged actions/contents/issues read capabilities. Unspecified scopes stay none; no top-level broad grant, write capability, candidate policy override or proof identity relaxation is introduced. Focused workflow/ancestry/control verification and final native/CI/review remain required on the newly signed head.
+After signed authored permission controls, all three existing consumers declare checks: read alongside their unchanged
+actions/contents/issues read capabilities. Unspecified scopes stay none; no top-level broad grant, write capability,
+candidate policy override or proof identity relaxation is introduced. Focused workflow/ancestry/control verification
+and final native/CI/review remain required on the newly signed head.
 
-The first passing-after focus run catches one obsolete three-scope allow-list literal in the existing independent-consumer test. It now requires the precise four read-only capabilities, including Checks read; the equality assertion and all protected materialization, ordering and context/plan checks remain enforced. The other 54 focus cases already pass. This is capability parity with authenticated root verification, not a write-scope or gate exemption.
+The first passing-after focus run catches one obsolete three-scope allow-list literal in the existing
+independent-consumer test. It now requires the precise four read-only capabilities, including Checks read; the equality
+assertion and all protected materialization, ordering and context/plan checks remain enforced. The other 54 focus cases
+already pass. This is capability parity with authenticated root verification, not a write-scope or gate exemption.
