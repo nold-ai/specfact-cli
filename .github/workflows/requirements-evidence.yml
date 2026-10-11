@@ -16,6 +16,7 @@ jobs:
     name: Requirements evidence producer
     permissions:
       actions: read
+      checks: read
       contents: read
       issues: read
     outputs:
@@ -983,6 +984,7 @@ jobs:
     if: always()
     permissions:
       actions: read
+      checks: read
       contents: read
       issues: read
     outputs:
@@ -2014,6 +2016,7 @@ jobs:
     if: always()
     permissions:
       actions: read
+      checks: read
       contents: read
       issues: read
     runs-on: ubuntu-latest

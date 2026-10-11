@@ -662,7 +662,7 @@ def _assert_fresh_consumer_order(
     workflow: dict[str, object], outputs: dict[str, str], permissions: dict[str, str]
 ) -> None:
     assert outputs["prior-red-run-id"] == "${{ steps.prior-red-run.outputs.run-id }}"
-    assert permissions == {"actions": "read", "contents": "read", "issues": "read"}
+    assert permissions == {"actions": "read", "contents": "read", "issues": "read", "checks": "read"}
     _assert_step_order(
         workflow, "Restore Requirements evidence for Code Review", "Download retained red proof for validation"
     )
