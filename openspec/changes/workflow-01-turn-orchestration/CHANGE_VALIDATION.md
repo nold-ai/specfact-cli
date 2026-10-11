@@ -56,3 +56,20 @@ Publication hooks passed on the actual prepared candidates. Scoped mapping YAML 
 Focused repair PR [#756](https://github.com/nold-ai/specfact-cli/pull/756) merged into `dev` as `cb417b5dd5d58fbe9ce50b62cb8a75868caa5ef2` after its current-head required checks and completed reviews passed. The planning branch incorporates that signed baseline through signed merge `cc801ce532d6c88dc0584d97a7bb0eb1a9040bbd`; its diff against `dev` remains this existing workflow change and its ordering entry. Both approved ordering entries are preserved, with separate insertion anchors to avoid their original content conflict. The integrated tree has 41 direct active change folders, so its ordering count is 41. Earlier creation/publication counts above remain bound to their own historical snapshots.
 
 Integration revalidation: strict selected validation passed; strict all-change validation passed 40/41, retaining the same unrelated `governance-01-evidence-output` delta filename failure. The count-only staged inspection reported `no-impact`/`skipped`; it is not proof of broader planned maturity. Native Requirements separately passed for the complete planning diff against the merged `origin/dev` baseline: required/observed `planned`, `proposal-only` delivery, `pass` gate, no findings. Markdown lint and whitespace checks cover the changed planning documents. No behavior, planned runtime, implementation/trial task completion or policy exception is introduced. Hosted current-head required checks, completed review and a fresh member grant bound to the final planning commit/tree remain necessary; the earlier grant for `29637d9d` does not cover a new head.
+
+## Refreshed stack disposition — 2026-10-11 (Europe/Berlin)
+
+The amended proposal, design, scenarios, tasks and planned mapping are already present on refreshed dev
+`4e7c38c2830f4bc53ffe78eeb0a2bfbabfc711e2`. Replaying the old proposal must retain those newer amendments.
+No workflow runtime implementation is claimed by that integration.
+
+The owner selected verification/planning for this layer and conditioned core implementation on its paired
+modules work being underway. Live project readback on 2026-10-11: Requirements #481 In Progress, workflow
+Modules #483 Todo. No signed #483 publication is established; core #742 runtime adoption therefore remains deferred.
+Standalone projection remains independently deliverable in its owning implementation story, with all existing
+unchecked tasks and compatibility gates retained. This stack completes no runtime checkbox or trial.
+
+Validate the actual planning layer with strict OpenSpec, staged planned Requirements and applicable normal
+hooks; validate inherited #719 execution and protected exact-head authority independently through stack CI.
+The historical local planning-only exception above applies only to its dated original creation and is not used
+for this publication. Required gates, source/index preservation, producer verdicts and signatures remain enforced.
