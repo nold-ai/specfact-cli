@@ -113,3 +113,9 @@ RED must precede restoration and publication of the implementation with these ex
 Signed authored head 684b8f92fca1c514183d7b809415d8ce32eb8df4 (tree bc5d142191aaa42ab08b3c8c7016f3cb11210691) has native run 38182359051, artifact 11717743992. The exact approved mapping reconciles at RED with no findings: five genuine failures, zero passes, errors or skips. Exact-head authority succeeds. Test file SHA-256 is 476a54c9170618d0f491babd5bf628f80957a76bea3afa583a0ad10ba337fa6a.
 
 The implementation from reviewed historical candidate 46e475df is restored only after this proof; strengthened test bytes, accepted mapping and owner record remain unchanged. Final native execution, required CI and review remain pending on the newly signed implementation head.
+
+## Current protected-control regression: failing before code
+
+Review identifies that root.base.sha can advance beyond the root branch's common ancestor. The existing specification already requires root proof workflow/local-action Git objects to match the protected base. Two independent regression cases use a newer protected workflow and a newly protected local action while retaining the exact successful old-root checks. Both genuinely fail on immutable candidate 2af0b8af: planning reuse is incorrectly enabled. An independent protected docs update is the positive control and passes. No imported production, mapping changes, weakened freshness or additional acceptance claims are involved. The fix must compare current protected control objects while retaining the original merge-base proof boundary.
+
+Historical pre-correction full suite: 3301 passed, 10 disclosed skips, 2 dependency warnings in 188.89 seconds; an earlier unit-only phase timed out and the runner's complete full pass superseded it. Final corrected head still requires fresh execution.
