@@ -5,6 +5,7 @@
 require "jekyll"
 require "jekyll-redirect-from"
 require "jekyll-feed"
+require "jekyll-relative-links"
 require "rexml/document"
 require "tmpdir"
 require "fileutils"
@@ -97,11 +98,36 @@ module JekyllDependencyChecks
     puts "PASS feed content and summary CDATA: baseurl=#{baseurl.inspect}"
   end
 
+
+  def self.relative(baseurl)
+    Dir.mktmpdir("jekyll-relative-probe") do |source|
+      destination = File.join(source, "_site")
+      FileUtils.mkdir_p(File.join(source, "_includes"))
+      File.write(File.join(source, "_includes/nav.html"), '<nav><a class="nav" href="/target.md#section" title="Target">Target</a></nav>')
+      write_page(source, "target.md", {"permalink" => "/target/"}, "## Section")
+      index_content = "{% include nav.html %}\n\n[Markdown](target.md#section)\n\n[External](https://example.test/file.md#section)"
+      write_page(source, "index.md", {"permalink" => "/"}, index_content)
+      write_page(source, "nested/page.md", {"permalink" => "/nested/"}, "[Nested](../target.md#section)")
+      site = build_site(source, destination, baseurl, ["jekyll-relative-links"])
+      index = File.read(File.join(destination, "index.html"))
+      assert(index.include?("href=\"#{baseurl}/target/#section\" title=\"Target\""), "Included navigation lost rewritten URL/baseurl")
+      assert(index.include?("href=\"#{baseurl}/target/#section\">Markdown"), "Markdown link lost target/fragment/baseurl")
+      assert(index.include?("https://example.test/file.md#section"), "External Markdown URL changed")
+      nested = File.read(File.join(destination, "nested/index.html"))
+      assert(nested.include?("href=\"#{baseurl}/target/#section\""), "Nested Markdown link was not rewritten")
+      write_page(source, "target.md", {"permalink" => "/updated-target/"}, "## Section")
+      Dir.chdir(source) { site.process }
+      rebuilt = File.read(File.join(destination, "index.html"))
+      assert(rebuilt.include?("#{baseurl}/updated-target/#section") && !rebuilt.include?("#{baseurl}/target/#section"), "Rebuild retained stale link target cache")
+    end
+    puts "PASS relative links, included navigation and rebuild: baseurl=#{baseurl.inspect}"
+  end
+
 end
 
-modes = ARGV.empty? ? ["redirect", "feed_language", "feed_cdata"] : ARGV
-abort "Unknown dependency probe" unless (modes - %w[redirect feed_language feed_cdata]).empty?
+modes = ARGV.empty? ? ["redirect", "feed_language", "feed_cdata", "relative"] : ARGV
+abort "Unknown dependency probe" unless (modes - %w[redirect feed_language feed_cdata relative]).empty?
 ["", "/preview"].each do |baseurl|
   modes.each { |mode| JekyllDependencyChecks.public_send(mode, baseurl) }
 end
-puts "Validated Jekyll #{Jekyll::VERSION}, JSON #{JSON::VERSION}, redirect #{JekyllRedirectFrom::VERSION}, feed #{Gem.loaded_specs.fetch("jekyll-feed").version}"
+puts "Validated Jekyll #{Jekyll::VERSION}, JSON #{JSON::VERSION}, redirect #{JekyllRedirectFrom::VERSION}, feed #{Gem.loaded_specs.fetch("jekyll-feed").version}, relative #{Gem.loaded_specs.fetch("jekyll-relative-links").version}"

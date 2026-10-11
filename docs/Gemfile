@@ -6,7 +6,7 @@ gem "jekyll", "~> 4.3"
 gem "minima", "~> 2.5"
 gem "jekyll-feed", "~> 0.18.0"
 gem "jekyll-redirect-from", "~> 0.17.0"
-gem "jekyll-relative-links", "~> 0.8"
+gem "jekyll-relative-links", "~> 0.9.1"
 gem "jekyll-sitemap", "~> 1.4"
 # Patched JSON 2.x; JSON 3 migration is deferred until Jekyll supports it.
 # Includes GHSA-9hj4-r449-hfvc / CVE-2026-71847 and the earlier security floor.

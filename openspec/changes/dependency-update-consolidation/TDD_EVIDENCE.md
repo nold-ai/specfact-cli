@@ -604,3 +604,27 @@ redirect probes at root and /preview; both production documentation builds
 pass. The immutable gem hash is rechecked before execution and CI adds the
 same pre-install hash check. Conservative lock regeneration changes only
 jekyll-feed. Workflow/YAML and Ruby syntax checks pass.
+
+Fresh PR #753 replay: relative-links 0.8.0 genuinely fails the rebuild target
+cache control. Version 0.9.1 passes that control, rewritten links, included
+navigation and root/preview base URLs. All retained redirect/feed security
+probes and both production documentation builds pass. The reviewed gem hash
+is rechecked before execution and checked in CI before installation.
+Conservative regeneration changes only relative-links; the final Ruby lock
+matches the reviewed original package identities and has no resolver churn.
+Workflow/YAML and Ruby syntax checks pass. Final assembled local smart testing
+passes: 3291 passed, 9 existing skips, 2 warnings in 179.08 seconds, 64% coverage.
+The release-reference correction only changes CHANGE_ORDER and task 2.6;
+Python/Ruby implementation and mapped test bytes remain unchanged.
+Exact final-head hosted proof, authority, reviews and quality results must be
+read from the final PR checks, not inferred from this pre-publication snapshot.
+
+Fresh assembled Python review covers all eight changed Python paths: zero
+errors, 21 existing warnings and 3 existing information findings. The 20
+documentation fixture warnings/one information finding retain the previously
+documented narrow exception: dynamic loader type authority, generic subprocess
+probe naming and intentionally explicit duplicate fixture shapes are unchanged
+outside the JSON-floor assertion. The additional authority-fixture warning and
+two information findings are the protected-base exception recorded above.
+No finding targets the changed JSON assertions or new GitPython/build tests.
+Full npm-authoritative typing has zero errors and the same 1522 baseline warnings.

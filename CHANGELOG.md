@@ -23,6 +23,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Update jekyll-relative-links to 0.9.1 so rebuilt links, included navigation
+  and configured base URLs use current targets.
 - Update the frozen Hatchling backend to 1.32.4 and include the bundled module
   manifest in source distributions so offline wheel rebuilding remains complete.
 - Authenticate native GitHub stack ancestry in Requirements proof reuse while

@@ -114,8 +114,8 @@ each PR's final head after publication; older runs do not imply current readines
 
 ## Dev-to-main promotion checklist
 
-1. Review all five PRs and resolve the local smart-test environment failure or
-   provide an explicit repository-approved disposition. Obtain trusted
+1. Review all five PRs. The repaired local full smart suite passes; require its
+   final hosted counterparts and current exact-head authority. Obtain trusted
    Requirements authority for the actual final context; never fabricate a human
    acceptance record or relax the policy.
 2. Require final-head Python and Ruby CI, both Socket checks, advisory/trust/license
@@ -164,3 +164,13 @@ Release adjustment: protected dev now reserves 0.55.5 through #758. The required
 packaged-artifact version gate requires a strictly newer version, so the single
 consolidated planned release is 0.55.6. The four canonical sources, generated
 metadata and changelog are updated together; no gate or check is relaxed.
+
+Fresh final assembled local validation: 3291 tests passed with 9 existing skips
+in 179.08 seconds and unchanged 64% coverage. Both deployment-path Jekyll builds
+and all redirect/feed/relative-link probes pass. Every plugin lock was generated
+from its parent conservatively, retaining Linux platforms and unrelated versions.
+CI actions and each selected new plugin artifact are pinned/hash-checked in the
+first layer that adopts them. The complete proof mapping and mapped containment
+selector are identical to the new authored RED boundary. Current hosted status
+is published on the five PRs after final-head validation; these pre-publication
+notes do not substitute for that validation.
