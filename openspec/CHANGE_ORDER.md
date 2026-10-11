@@ -4,6 +4,15 @@ This document is the **single source of truth for active work** in this
 repository. It lists what is in flight, what is paused, and the order in which
 active changes should be implemented.
 
+## Authorized #747 dependency stack (2026-10-10)
+
+The owner approved `dev <- #744 <- #727 <- #752 <- #754 <- #753`, retaining
+all PR numbers, compatible JSON 2.21.2/Jekyll 4.4.1 and one 0.55.5 bugfix release.
+The merged #756 evidence remains historical and unchanged. Reconcile conflicting
+planning PR #748 and the internal wiki; broader inventory and JSON 3 migration
+remain deferred. Keep #747 open. New native RED/final evidence and ordinary quality,
+security, signature and exact authority gates remain required for this stack.
+
 ## Focused #747 baseline repair (2026-10-09)
 
 The owner authorized dependency-update-consolidation's focused security slice and

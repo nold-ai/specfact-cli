@@ -313,3 +313,223 @@ two baseline warnings and four unchanged AST suggestions, plus the explicitly
 disposed delivery-probe readability advisory. The earlier warning dispositions
 and the explicit security-argument rationale apply; no finding is silently waived.
 Hosted current-head checks and native final reconciliation remain independent gates.
+
+## Authored remaining Python slice (10 October 2026, Europe/Berlin)
+
+Current dev 553b46f01c6581c96dc92133b6e77404c8df7cd9 retains merged #756
+proof, tests and frozen fixes. The owner approved the five retained PRs and
+0.55.5 release preparation. #747 metadata, #748 planning scope and the internal
+wiki were reconciled before dependency inputs changed. Earlier evidence remains
+historical; no previous RED is reused for the new containment requirement.
+
+The isolated Python 3.12.13 baseline was populated by uv sync --frozen --all-extras
+and reused by Hatch through HATCH_ENV_TYPE_VIRTUAL_PATH=.venv. The unchanged
+GitPython 3.1.61 delivery wheel reached the mocked clone boundary for ../outside;
+no real clone or outside write occurred. The new containment regression and the
+updated backend/release expectations returned three failures in 1.70 seconds.
+The final authored containment test still fails after flag-list simplification.
+The two frozen audits returned PASS; they do not cover every upstream disclosure:
+GitHub's reviewed GHSA-59cr-6r3x-644w still requires GitPython 3.1.62.
+
+Strict selected OpenSpec and staged native test-authored planning passed. The
+acceptance identifies codex:/root as implementation agent and is not a human
+Trusted Requirements Authority grant. Ruff formatting/checks and explicit-project
+BasedPyright passed with zero errors and 1,526 existing warnings. Scoped YAML
+lint passes; the full wrapper reports unrelated archived-YAML failures despite
+its zero exit code. No authored contract changed; contract detection returned its
+unchanged result. Hosted RED, candidate execution and current final CI remain pending.
+
+The first local review returned zero errors, one baseline naming warning and
+three AST suggestions. The new probe's static install flags were factored into
+a descriptive immutable tuple to reduce its function length without relaxing
+hash/index/no-dependency controls. The baseline warning and two baseline AST
+suggestions at test_release_promotion_security_gates.py:506/243 are byte-equivalent
+to dev and were already explicitly dispositioned in #756 above; preserve those
+assertions and source identities rather than altering unrelated historical proof.
+
+Exact wheel/gem hashes match registry metadata. Package source comparisons match
+upstream tags, with GitPython's sole generated __version__ substitution reconciled
+against its release metadata. All five selected packages have MIT/BSD licenses.
+No candidate package has yet executed. Public Socket screening of GitPython 3.1.62
+shows network/shell/filesystem/URL capabilities. Hatchling 1.32.4 reports a medium
+potential-vulnerability alert for its code-version source plugin; that file is
+byte-identical to the installed 1.32.0 source. This repository supplies a static
+project.version, no dynamic version and no code-source configuration. The scoped
+triage finds no new reachable code-version input in this build. This is not a
+universal safety claim, alert dismissal or security-policy exception. Current
+repository Socket checks and an explicit alert disposition remain release gates.
+
+A fresh registry check also found GitPython 3.2.0 and upstream additional security
+fixes. Its global advisory records are currently unavailable. The version decision
+was returned to the owner; 3.2.0 has not been installed or silently substituted.
+
+## Python stack implementation evidence (10 October 2026)
+
+The user approved GitPython 3.2.0 after validation. Its exact wheel SHA-256 is
+`bd70c5ec05cd2b797423e7eb312147d2458d3cca92085888fba2213f85905537`;
+the sdist is `fb92310af6844d96adc95ca066ed2e617c00e1dbd146a326626c81e72e18cc2e`.
+GitHub authenticates the 3.2.0 tag signature and commit
+`6a7180a9dfcb276755a8af99dd78155f775a6b14`. All 37 wheel Python files match
+that tag except the expected generated version substitution. The wheel metadata
+states BSD-3-Clause, Python >=3.8 and gitdb >=4.0.1,<5. Repository consumers use
+GitCmdObjectDB; no explicit GitDB backend was found. The tagged changelog lists
+six additional security fixes; missing global advisory API records do not negate
+those upstream fixes. Source: <https://github.com/gitpython-developers/GitPython/blob/3.2.0/doc/source/changes.rst>.
+
+The final authored containment probe failed on locked 3.1.61 before adoption
+(`gitpython-red-amended.log`, one failure). After the targeted refresh, the
+containment/JWT/delivery/release/versioning suite passed all 42 tests. The only
+package version changes in uv.lock are GitPython, Hatchling and project metadata;
+PyJWT 2.15.1, Semgrep 1.179.0 and virtualenv 21.11.0 remain unchanged.
+
+A real offline source build failed with both the unchanged parent backend 1.32.0
+and reviewed 1.32.4: the sdist omitted the wheel's forced bundle-mapper inclusion.
+The new actual-build regression failed before adding `/modules/bundle-mapper` to
+the sdist include list and passed afterward (one test, 0.81 seconds). The rebuilt
+wheel retains byte-identical module metadata; no signed asset changed. Both
+release artifacts now build using the hash-installed backend without resolution.
+
+One built wheel installs and exercises init/config/commit/branch/checkout/diff and
+ChangeAnalyzer consumers on Python 3.11.15, 3.12.13 and 3.13.14. CLI/package metadata
+is 0.55.5 and GitPython is 3.2.0. Extra `uv pip check` reported existing Z3 5.0.0.0
+wheel-platform metadata incompatibility (`macosx_13_3_arm64`) although imports and
+consumers pass; this advisory result is retained, not claimed green. The repository
+CI wheel protocol does not use that extra check. No Z3 version or policy changed.
+
+Both frozen advisory audits, graph/export parity, uv lock check, dependency trust,
+version sources, strict PyPI-ahead (latest 0.55.4), format, typing, lint, Bandit,
+Semgrep (zero findings) and all four strict module signatures pass locally.
+The initial license scan found test-installed Pylint in the shared validation
+environment; restoring the frozen graph yields zero license violations. The
+initial smart run observed 32 failures and one error after test-environment drift
+and externally injected module roots. Fresh scoped reproduction passes 31 tests;
+the full rerun uses child-install version constraints and the immutable fixture
+without the extra module-roots variable. Its final result is recorded separately.
+Repository-wide YAML emits existing archived/other-change errors; changed YAML
+is independently linted. Changed-test self review now has zero findings; previous
+unchanged #756 findings retain their documented historical disposition.
+
+Socket artifact views for GitPython 3.2.0 wheel and sdist show shell/filesystem/URL
+capabilities. Hatchling 1.32.4 retains a potential-vulnerability alert for its
+configuration-selected code version plugin. The flagged file is byte-identical
+with backend 1.32.0 and this project uses static version metadata, but this source
+triage does not replace the protected Socket verdict or create an exception.
+
+Hosted Requirements run 38085488787 on authored head
+`d3461301618dd76501c30498bf365e0a65d77697` stopped with `acceptance-missing`
+for 15 active sources before execution. It is authenticated diagnostic evidence,
+not native RED proof. Local planned and test-authored gates pass using the pinned
+fixture and actual agent acceptance; no human authority was fabricated. Final
+protected Requirements and Socket eligibility remain necessary before merge.
+
+## Compatible JSON layer evidence (10 October 2026)
+
+PR #727 starts from the signed Python implementation. The authored JSON floor
+check fails on the parent declaration (one real failure in `727-red.log`) and
+passes after declaring `>= 2.21.2`, `< 3` (all 17 documentation-script tests pass).
+Bundler 2.3.5 regenerated the lock conservatively; removing its incidental local
+macOS platform leaves only the JSON dependency bound changed. Locked JSON 2.21.2
+and Jekyll 4.4.1 and all resolved package versions remain unchanged. JSON 3 is
+explicitly deferred because Jekyll 4.4.1 requires JSON 2.x. The documentation
+security and compatibility scenarios are authored before the following Ruby
+behavior probes and implementation.
+
+The completed parent smart rerun reports 3210 passed, 13 skipped and one failed
+marketplace direct-launcher integration test. That test attempts to resolve a
+companion module against latest annotated-doc 0.0.5, conflicting with the frozen
+0.0.4 constraint. No exception or unlocked dependency update is introduced; this
+required gate remains unresolved. Hosted Requirements approval and protected
+Socket eligibility also remain pending; local agent acceptance is not human
+authority.
+
+## Redirect layer evidence (10 October 2026)
+
+The real Jekyll output probe fails on redirect-from 0.16.0 because an unsafe
+JavaScript scheme is rendered (`752-red.log`). The earlier combined fixture
+also exposed a control-character scheme parser crash; that diagnostic is retained
+separately. Only redirect-from 0.17.0 and its declaration change in the generated
+parent-relative delivery lock. The hash-verified reviewed gem is installed from
+a local cache using a disposable platform lock; delivery inputs stay Linux-only.
+The same output probe passes at root and `/preview`, covering JavaScript/data
+scheme rejection, browser-normalized controls, ordinary redirect maps, external
+URLs, HTML attributes and JSON-script targets. The new read-only PR workflow
+installs the frozen docs bundle, runs probes and builds both deployment paths.
+
+The #727 self-review reports zero errors, 20 warnings and one information item.
+Every finding points outside the modified JSON-floor function; those functions
+are byte-identical to dev (dynamic import typing, existing duplicate loaders,
+generic test fixture class name and long navigation fixture). Record a narrow
+unchanged-baseline exception for this dependency-only layer rather than alter
+those unrelated tests or old proof. New JSON assertions have no finding.
+
+## Feed layer evidence (10 October 2026)
+
+With the unchanged parent feed 0.17.0, the language probe fails its attribute
+injection assertion and the independent CDATA probe fails to parse actual output
+(`754-language-red.log`, `754-cdata-red.log`). Only feed 0.18.0 and its declared
+patch floor change in the conservatively regenerated lock. Its reviewed SHA-256
+`8e6829f455b8764a8fa1bbb198d0ebb3525128dacc6ffe9d15f4df7388bc3647`
+is checked before the local frozen installation. Language values round-trip in
+feed, alternate-link and entry attributes without injected attributes. Content
+and summary CDATA preserve the terminator text, and feed URLs honor the base URL.
+All feed and inherited redirect probes pass at root and `/preview`; both full
+Jekyll builds also succeed. Existing Minima/Sass deprecation warnings remain
+baseline output. The PR workflow runs both feed cases with the inherited checks.
+
+Published Python head 6ccc37a2 has successful hosted Tests/Compatibility, all
+Python launcher/wheel matrix jobs, reproducible installed-package/SBOM evidence,
+both advisory audits, dependency trust/licenses, independent analysis, signatures,
+quality and both Socket checks (run 38086498399). Requirements execution/authority
+remain failed (run 38086498423); those failures cannot be replaced by local proof.
+
+## Relative-link layer evidence (10 October 2026)
+
+The same-site rebuild probe fails on locked relative-links 0.8.0 because target
+URLs remain cached (`753-red.log`). The conservatively generated parent-relative
+lock changes only relative-links to 0.9.1 and its declaration. The reviewed gem
+SHA-256 `6d5d70578c669ef9ee4c67f617d91497e0506fe5c1a059e484a900e18efb202e`
+is checked before installation. All inherited security probes and relative-link
+checks pass at root and `/preview`, including included navigation attributes,
+Markdown/nested links, fragments, external URLs and a changed target on rebuild.
+Both full-site builds pass. This compatibility update is recorded under Fixed,
+separately from redirect/feed/JSON/GitPython security changes. Python locks and
+the single 0.55.5 release version stay inherited from #744.
+
+## Final stack verification and publication checkpoint (10 October 2026)
+
+Native stack #757 is registered in the approved five-PR order. Exact action
+commits and selected Ruby artifact hash checks now make the final documentation
+workflow reproducible before candidate installation. See REVIEW_AND_PROMOTION.md
+for dispositions, immutable source identities, release checklist and rollback.
+
+The isolated verifier bug is reproduced by starting pytest with -I -S and the
+explicit trusted site path: sysconfig points to the base interpreter. Resolving
+the actual gitdb/smmap distribution roots repairs this without importing the
+candidate in the parent or changing its hash/no-dependency install controls.
+The same corrected test fails on frozen GitPython 3.1.61 (clone boundary reached)
+and passes on 3.2.0. Native authored run 38087626467 records RED gate pass; final
+run 38087716606 records verified gate pass. Their overall authored failure is
+expected while RED is retained for final reconciliation. Original failed runs
+remain historical evidence.
+
+GitHub initially rejected the commit email against the signing key. Re-signing
+uses its verified <djm81@users.noreply.github.com> identity and changes no tree.
+Native RED run 38088121368 binds the same probe to verified authored e9950388;
+current final 76a42fc8 replays it. Protected authority remains rejected; no human
+role is fabricated. The full local smart run retains 25 failed, 3189 passed, nine
+skipped and one error caused by in-process marketplace beartype replacement.
+Frozen sync restores the environment; audits, parity, trust/licenses, independent
+analysis, strict signatures, version gates and focused security/build/docs probes
+pass. Installing the committed npm runner repairs the initial missing-tool type
+and lint diagnostics (zero errors, 1526 unchanged project type warnings). These
+partial results do not complete the outstanding readiness tasks.
+
+### Ruby CI cache correction
+
+Final hosted Ruby run 38088539828 validates all three candidate artifact hashes
+then fails bundle installation because the partial vendor/cache contains only
+the selected plugins, not the rest of the frozen graph. Move these reviewed gem
+files to Bundler's installation cache under the Ruby 3.2 ABI path; leave the
+project vendor/cache absent so unchanged locked dependencies can be fetched.
+BUNDLE_FROZEN stays true, candidate hashes and version inputs stay unchanged.
+The failed run remains retained; fresh full workflow validation is required.
