@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import tarfile
 from pathlib import Path
@@ -10,6 +11,22 @@ from pathlib import Path
 import pytest
 
 import scripts.runtime_discovery_smoke as smoke
+
+
+@pytest.fixture(autouse=True)
+def isolated_git_fixture_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    for variable in tuple(os.environ):
+        if variable.startswith("GIT_"):
+            monkeypatch.delenv(variable)
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+
+
+def _init_owned_git_fixture(repo: Path) -> None:
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    actual = subprocess.check_output(["git", "-C", str(repo), "rev-parse", "--absolute-git-dir"], text=True).strip()
+    assert Path(actual).resolve() == repo.resolve() / ".git"
 
 
 def test_smoke_seed_excludes_unofficial_node_and_python_type_runner() -> None:
@@ -37,8 +54,7 @@ def test_smoke_fixture_rejects_unreviewed_git_bytes(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, mismatch: str | None
 ) -> None:
     repo = tmp_path / "modules"
-    repo.mkdir()
-    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    _init_owned_git_fixture(repo)
     subprocess.run(
         [
             "git",
@@ -146,8 +162,7 @@ def test_smoke_archive_ignores_uncommitted_ignored_fixture_bytes(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     repo = tmp_path / "modules"
-    repo.mkdir()
-    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    _init_owned_git_fixture(repo)
     (repo / ".gitignore").write_text("ignored.py\n")
     for module_id in smoke.MODULE_IDS:
         name = module_id.split("/", 1)[1]

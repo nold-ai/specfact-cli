@@ -375,3 +375,35 @@ and the same documented nine warning/nine information dispositions; the new
 workflow tests add no findings. No source graph, native mapping, promotion
 condition or required gate is weakened. Fresh signed-head hosted/native
 validation and explicit member authority remain required.
+
+## Owned Git fixture environment (2026-10-11)
+
+Six read-only controls in core and three in policy fail before repair when
+GIT_DIR, GIT_COMMON_DIR or GIT_WORK_TREE selects a foreign temporary repository.
+The reproduction executes no checkout or commit. Fixture commands and child
+probes now clear inherited GIT_* variables and verify their absolute owned .git
+before changing refs. Related smoke-policy Git fixtures use file-local isolation
+and ownership checks. All 21 targeted core controls and all 66 policy controls
+pass, with zero changed typing diagnostics. Running the actual 21 mutation
+controls with all three selectors poisoned passes and leaves the foreign
+repository's complete file hashes unchanged. Primary hooks, signed publication
+and required gates keep their normal environment.
+
+Git environment semantics: <https://git-scm.com/docs/git> (accessed 2026-10-11).
+The review's additional generic CWE-78 note does not identify a request-input
+path: helper arguments are test-owned literals/fixture SHAs, passed as argv,
+without a shell. The valid repository-selection finding is corrected. A rejected
+whole-file restore was replaced by a scoped patch preserving existing edits.
+Fresh complete smart/review and signed-head CI follow this fixture correction;
+7ce75de5 native success is historical for the next head.
+
+Complete fixture-isolation smart gate: **3,288 passed, ten existing skips, two
+warnings**, 184.75 seconds, exit 0, unchanged 64% coverage. Broad 25-file review
+scores 92, zero errors, same documented nine warning/nine information
+dispositions. The new fixture naming/duplicate ownership-check findings are
+repaired with an idiomatic public autouse fixture and one shared owned-init
+helper, preserving every assertion. All 21 affected controls pass again, with
+zero changed typing diagnostics. The protected policy's signed d1ea845c head
+passes all 66 controls in hosted run 38101673411. Original mapped native inputs
+remain byte-identical. Fresh signed-head hosted/native checks and member
+authority remain required; no PR is merged and no capability is posted.

@@ -54,3 +54,8 @@ Producer authentication must precede trusted verifier selection and execution.
 The delivery verifier is archived from the authenticated protected proof base,
 never the immediate unmerged parent. A stacked child's parent verifier bytes
 remain candidate input and cannot supply the trusted implementation.
+
+Git-history fixtures must clear inherited repository-selecting GIT_* settings
+from fixture commands and child probes. Before changing refs they verify the
+absolute Git directory is their owned temporary .git. Primary repository hooks,
+commit signing and required gates retain their normal environment and behavior.
