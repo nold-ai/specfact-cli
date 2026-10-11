@@ -291,3 +291,64 @@ changed Python files now have zero diagnostics. Broad 22-file review passes with
 zero errors and the same documented dispositions. Real direct and console smoke
 exercise pinned archive and bundle-import bytes. The original native cases stay
 byte-identical; final-head hosted/native and member authority remain required.
+
+## Ordinary forks and mocked installer lookup (2026-10-11)
+
+The ordinary fork regression fails before repair: one failed, three passed in
+both core and protected policy copies. A non-stacked fork targeting dev/main
+retains its own proof boundary. Its head repository identity is bound to live
+GitHub data; a native fork, foreign base or stale event identity still fails.
+Native parent and promotion repository checks remain unchanged. All 61 protected
+policy controls and 55 focused core/smoke controls pass after repair.
+
+The fully mocked child-seed control fails when PATH omits uv. Stubbing its
+installer lookup makes that same test pass with PATH=/usr/bin:/bin, without
+executing an installer or changing real runtime behavior.
+
+The downstream-trigger finding does not reproduce: Requirements run
+[38088538194](https://github.com/nold-ai/specfact-cli/actions/runs/38088538194)
+was a pull_request event for #727 head 44d18861, based on #744 branch
+dependabot/pip/development-security-updates-e660df2248 at 76a42fc8. All three
+Requirements jobs executed; they failed at missing retained root RED, which this
+prerequisite repairs. The native stack API reports stack #757 position 2. The
+existing protected-root trigger filter stays unchanged.
+
+At aabcefe3 all ordinary required CI and all three native proof jobs pass; the
+external member authority fails without a grant. Fresh validation is required
+for the subsequent fork/mock correction head.
+
+## Advanced protected root (2026-10-11)
+
+Two real Git-history controls (ordinary root and native child) fail before repair
+in both copies: the declared protected tip differs from the branches' common
+ancestor. The CLI now computes a unique merge base from the exact authenticated
+root head/base Git objects before writing proof context. Missing, unrelated or
+ambiguous objects fail closed. The protected authority continues to import only
+the data resolver and never executes Git or PR content. Original native mapped
+selectors/support remain byte-identical. All 63 policy and 57 focused core/smoke
+controls pass; forced contract validation reports zero violations.
+
+The claimed missing stack response does not reproduce. A fresh authenticated
+GET /repos/nold-ai/specfact-cli/pulls/727 includes the native stack object
+(id 1987468, number 757, position 2, size 5, protected root dev/553b46f0).
+No additional synthetic membership or weaker ancestry path is added.
+
+The preceding full fork/mock gate passed 3,278 tests in 184.75 seconds, ten
+skipped, two warnings, 64% coverage. The additional skip is the existing
+clean-index version-source test because changes were staged; the actual
+version-source script passes independently. Fresh complete validation follows
+the merge-base correction.
+
+Final merge-base full smart gate: **3,280 passed, ten skipped, two warnings**,
+183.53 seconds, exit 0, unchanged 64% coverage threshold. The additional
+staged-index version test skip is covered by the actual passing version-source
+script; strict network PyPI gate confirms 0.55.5 > 0.55.4. All four newly changed
+Python files have zero diagnostics; full repository typing has zero errors and
+1,522 existing advisory warnings. Forced contracts report zero violations.
+Semgrep has zero current/new findings, and Bandit has zero medium/high findings.
+Broad 24-file SpecFact review scores 92 with zero errors and the same documented
+nine warning/nine information dispositions. Its newly reported fork-test CC13
+warning is fixed by separating fixture arrangement from assertions; all four
+core fork cases and all 63 policy controls pass after that simplification.
+Original native mapped files remain byte-identical. Final-head hosted checks,
+member capabilities and normal prerequisite integration remain required.

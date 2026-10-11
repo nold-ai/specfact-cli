@@ -41,3 +41,11 @@ The normal pip-tools marketplace resolver also receives a child-owned wheelhouse
 Ref compatibility follows Git branch naming rules in the standard-library-only adapter, while retaining traversal, reserved-sequence and option-boundary rejection. Smoke archives stage bytes from the authenticated pinned Git object instead of copying untracked or ignored checkout files. Original mapped native selectors stay frozen.
 
 Child bundle bootstrap also points only to the owned staging tree. Raw checkout metadata remains a separate authenticated seed input; inherited bundle-root overrides are removed. This closes ignored-file imports in addition to archive contents.
+
+Ordinary fork PRs with no native stack retain the protected-base single-PR proof path and bind the live/event head repository identity. Native membership and parent traversal continue to require this repository; same-named forks cannot enter promotion reuse, whose existing identity guards remain unchanged.
+
+The data-only resolver authenticates the declared live protected root. The CLI
+uses those exact SHA-addressed Git objects to derive the root merge base before
+writing proof context. Ordinary and native root branches may be behind an
+advanced protected tip; their original proof baseline remains an ancestor. The
+protected authority imports only the data resolver and executes no Git/PR bytes.

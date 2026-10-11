@@ -87,6 +87,7 @@ def test_child_seed_installs_the_entire_hash_locked_graph(monkeypatch: pytest.Mo
     commands: list[list[str]] = []
     environments: list[dict[str, str]] = []
     cache = tmp_path / "reviewed-artifact-cache"
+    monkeypatch.setattr(smoke.shutil, "which", lambda command: "/reviewed/uv" if command == "uv" else None)
     monkeypatch.setattr(smoke.subprocess, "check_output", lambda *_args, **_kwargs: str(cache))
 
     def capture(

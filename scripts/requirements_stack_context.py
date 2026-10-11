@@ -25,13 +25,14 @@ ApiReader = Callable[[str], object]
 
 
 class PullBoundary(NamedTuple):
-    """Exact repository-local branch identities for one live pull request."""
+    """Exact branch and repository identities for one live pull request."""
 
     number: int
     head_ref: str
     head_sha: str
     base_ref: str
     base_sha: str
+    head_repository: tuple[int, str]
 
 
 class NativeStack(NamedTuple):
@@ -89,19 +90,31 @@ def _repository(value: object) -> None:
         _reject()
 
 
+def _head_repository(value: object) -> tuple[int, str]:
+    repository = _object(value)
+    name = repository.get("full_name")
+    if not isinstance(name, str) or not name:
+        _reject()
+    return _positive_integer(repository.get("id")), name
+
+
 def _pull(value: object) -> PullBoundary:
     pull = _object(value)
     head, base = _object(pull.get("head")), _object(pull.get("base"))
-    _repository(head.get("repo"))
+    head_repository = _head_repository(head.get("repo"))
     _repository(base.get("repo"))
+    base_ref = _ref(base.get("ref"))
+    if pull.get("stack") is not None or base_ref not in PROTECTED_BASES:
+        _repository(head.get("repo"))
     if pull.get("state") != "open":
         _reject()
     return PullBoundary(
         _positive_integer(pull.get("number")),
         _ref(head.get("ref")),
         _sha(head.get("sha")),
-        _ref(base.get("ref")),
+        base_ref,
         _sha(base.get("sha")),
+        head_repository,
     )
 
 
@@ -216,6 +229,17 @@ def _github_json(path: str) -> object:
     return cast(object, json.loads(result.stdout))
 
 
+def _proof_merge_base(base: str, head: str) -> str:
+    result = subprocess.run(
+        ["git", "merge-base", "--all", _sha(base), _sha(head)],
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=20,
+    )
+    return _sha(result.stdout.strip())
+
+
 def main(argv: list[str] | None = None) -> int:
     """Write a deterministic context without executing any pull-request bytes."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -227,6 +251,9 @@ def main(argv: list[str] | None = None) -> int:
             _reject()
         event = _object(json.loads(args.event.read_text()))
         context = resolve_stack_context(event, _github_json)
+        context["proof_base_commit"] = _proof_merge_base(
+            _sha(context["proof_base_commit"]), _sha(context["proof_head_commit"])
+        )
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(context, indent=2, sort_keys=True) + "\n")
     except (OSError, ValueError, subprocess.SubprocessError):
