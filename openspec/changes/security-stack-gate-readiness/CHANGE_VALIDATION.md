@@ -13,6 +13,11 @@ after native API verification; it preserves all existing grant checks.
 
 `openspec validate security-stack-gate-readiness --strict` passes. Two meaningful
 regressions fail before production edits; their frozen parent assertions use
-bounded child processes. No breaking public interface is identified. Final
-compatibility, native evidence, full local smart testing and hosted checks are
-still pending. Confidence: Medium until executable results exist.
+bounded child processes. No breaking public interface is identified. The published portable-fixture head aae60949 passes ordinary hosted checks and
+all three native evidence stages against the retained original RED. Its full local
+smart run passes 3,238 tests with unchanged coverage. These are historical for
+the subsequent import-isolation repair: the repaired source now passes 3,242 full smart tests, zero-diagnostic changed-file
+typing, contracts, frozen parity, three audits, trust, licenses, signatures, version
+and static security gates. Fresh exact-head native and hosted checks are required. Exact-head member authority and normal gated prerequisite integration
+remain pending; neither is replaced by implementation-agent evidence.
+Confidence: Medium until the final heads and complete restacked chain pass.

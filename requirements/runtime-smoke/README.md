@@ -1,8 +1,9 @@
 # Frozen runtime smoke seed
 
 This auxiliary lock supplies **Lz4 4.4.5** to workspace-owned direct and console
-smoke interpreters. Shared packages remain constrained to
-`requirements/ci/locked.txt`; marketplace pip has no index and its normal
+smoke interpreters. The complete frozen `uv.lock` graph, matching the CI export, is installed
+offline from the reviewed cache into each child first; parent site-packages and inherited Python
+paths are excluded. Marketplace pip has no index and its normal
 manifest/dependency validation remains exercised.
 
 Runtime smoke uses the separately pinned portable module snapshot in
@@ -37,7 +38,11 @@ uv pip compile requirements/runtime-smoke/requirements.in --no-deps \
 Copy the generated body with one `# input-sha256:` digest of `requirements.in`.
 Frozen delivery recompiles it under committed constraints. The separate audit,
 license and Socket checks remain required; pip installs only hash-pinned wheels.
-Missing shared/transitive dependencies fail normal marketplace resolution.
+The child wheelhouse contains only the authenticated manifests' transitive closure,
+selected from exact committed hashes and downloaded with `--require-hashes`.
+Normal marketplace pip-tools resolution uses that directory with no index. Its
+project configuration emits pins without repeating transport options already in
+the environment. Missing shared/transitive dependencies or frozen hashes fail.
 
 Artifact review on **2026-10-11 Europe/Berlin**: inspected Lz4 wheel metadata and
 BSD license; macOS arm64 and Linux x86_64 hashes match the exact

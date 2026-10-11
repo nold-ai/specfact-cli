@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import importlib.metadata
 import json
 import logging
 import os
@@ -15,6 +14,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import tomllib
 import venv
 from pathlib import Path
 from typing import Any, cast
@@ -22,6 +22,8 @@ from typing import Any, cast
 import yaml
 from beartype import beartype
 from icontract import ensure
+from packaging.requirements import Requirement
+from packaging.utils import canonicalize_name
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -326,20 +328,24 @@ def _frozen_runtime_env(env: dict[str, str], constraints: Path) -> dict[str, str
     if not pins:
         raise RuntimeError("Frozen smoke requirements are empty")
     _write(constraints, "\n".join(pins) + "\n")
-    runtime_site = str(importlib.metadata.distribution("beartype").locate_file(""))
-    env["PYTHONPATH"] = os.pathsep.join(filter(None, [str(SRC_ROOT), env.get("PYTHONPATH", ""), runtime_site]))
+    env["PYTHONPATH"] = str(SRC_ROOT)
     env["SPECFACT_CHILD_PYTHONPATH"] = env["PYTHONPATH"]
     env["PIP_CONSTRAINT"] = str(constraints)
     env["PIP_NO_INDEX"] = "1"
+    env.pop("VIRTUAL_ENV", None)
+    env.pop("PYTHONHOME", None)
     return env
 
 
-def _create_isolated_runtime_launcher(name: str, workspace: Path) -> list[str]:
+def _create_isolated_runtime_launcher(name: str, workspace: Path, modules_repo: Path | None = None) -> list[str]:
     venv_dir = workspace / "runtime-venv"
     python = _create_runtime_venv(venv_dir)
     if name == "direct":
         return [str(python), "-m", "specfact_cli.cli"]
     env = _frozen_runtime_env(os.environ.copy(), workspace / "frozen-runtime-constraints.txt")
+    if modules_repo is not None:
+        env["SPECFACT_MODULES_REPO"] = str(modules_repo)
+    _seed_frozen_module_dependencies(workspace, env)
     _run(
         [str(python), "-m", "pip", "install", "--no-deps", "--no-build-isolation", "-e", str(REPO_ROOT)],
         cwd=REPO_ROOT,
@@ -349,9 +355,9 @@ def _create_isolated_runtime_launcher(name: str, workspace: Path) -> list[str]:
     return [str(venv_dir / ("Scripts/specfact.exe" if os.name == "nt" else "bin/specfact"))]
 
 
-def _launcher_command(name: str, workspace: Path) -> list[str]:
+def _launcher_command(name: str, workspace: Path, modules_repo: Path | None = None) -> list[str]:
     if name in {"direct", "console"}:
-        return _create_isolated_runtime_launcher(name, workspace)
+        return _create_isolated_runtime_launcher(name, workspace, modules_repo)
     if name == "hatch-source":
         hatch_launcher = _hatch_launcher_python_and_site()
         if hatch_launcher is not None:
@@ -431,6 +437,7 @@ def _build_launcher_env(name: str, home: Path, index_path: Path, modules_repo: P
             if part and not Path(part).resolve().is_relative_to(parent_prefix)
         ]
         env["PATH"] = os.pathsep.join([str(child_bin), *system_paths])
+        env["PIP_FIND_LINKS"] = str(child_bin.parent.parent / "frozen-wheels")
         env.pop("VIRTUAL_ENV", None)
         env.pop("PYTHONHOME", None)
     hatch_launcher = _hatch_launcher_python_and_site()
@@ -486,20 +493,73 @@ def _assert_project_help(cli: list[str], demo: Path, env: dict[str, str]) -> Non
         raise AssertionError("`specfact sync bridge --help` still resolves as a root command")
 
 
+@beartype
+@ensure(lambda result: len(result) > 0, "frozen marketplace requirements must not be empty")
+def _frozen_marketplace_requirements(modules_repo: Path) -> str:
+    """Select exact exported hashes for the authenticated manifests' dependency closure."""
+    pending: set[str] = set()
+    for module_id in _module_dependency_closure(modules_repo):
+        manifest_path = modules_repo / "packages" / module_id.split("/", 1)[1] / "module-package.yaml"
+        manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+        pending.update(canonicalize_name(Requirement(dep).name) for dep in manifest.get("pip_dependencies", []))
+        pending.update(canonicalize_name(dep["name"]) for dep in manifest.get("pip_dependencies_versioned", []))
+    selected = _frozen_dependency_closure(pending)
+    contents = "\n".join(
+        (REPO_ROOT / path).read_text(encoding="utf-8")
+        for path in ("requirements/ci/locked.txt", "requirements/runtime-smoke/locked.txt")
+    )
+    blocks: dict[str, str] = {
+        canonicalize_name(match[1]): match[0] + "\n"
+        for match in re.finditer(
+            r"(?m)^([A-Za-z0-9][A-Za-z0-9._-]*)==[^\n]*(?:\n[ \t]+--hash=sha256:[0-9a-f]{64}[^\n]*)*",
+            contents,
+        )
+    }
+    if any(name not in blocks or "--hash=sha256:" not in blocks[name] for name in selected):
+        raise RuntimeError("Marketplace closure is missing frozen hashes")
+    return "".join(blocks[name] for name in sorted(selected))
+
+
+@beartype
+@ensure(lambda result: len(result) > 0, "frozen dependency closure must not be empty")
+def _frozen_dependency_closure(roots: set[str]) -> set[str]:
+    """Traverse only package identities present in the committed frozen graph."""
+    pending = roots.copy()
+    packages = {package["name"]: package for package in tomllib.loads((REPO_ROOT / "uv.lock").read_text())["package"]}
+    selected: set[str] = set()
+    while pending:
+        name = pending.pop()
+        if name in selected:
+            continue
+        selected.add(name)
+        if name == "lz4":
+            continue  # Sole reviewed auxiliary wheel; not part of the core project graph.
+        if name not in packages:
+            raise RuntimeError(f"Missing frozen hash graph entry for {name}")
+        pending.update(dependency["name"] for dependency in packages[name].get("dependencies", []))
+    return selected
+
+
 def _seed_frozen_module_dependencies(workspace: Path, env: dict[str, str]) -> None:
-    """Install only reviewed hash-pinned wheels into the workspace-owned child."""
+    """Materialize the reviewed frozen graph inside the workspace-owned child."""
     python = workspace / "runtime-venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
     seed_env = env.copy()
     seed_env.pop("PIP_NO_INDEX", None)
+    uv = shutil.which("uv")
+    if uv is None:
+        raise RuntimeError("uv is required to materialize the frozen smoke graph")
+    _sync_frozen_child(uv, workspace, python, seed_env)
     _run(
         [
-            str(python),
-            "-m",
+            uv,
             "pip",
             "install",
+            "--python",
+            str(python),
             "--require-hashes",
             "--no-deps",
-            "--only-binary=:all:",
+            "--only-binary",
+            ":all:",
             "--index-url",
             "https://pypi.org/simple",
             "-r",
@@ -510,14 +570,83 @@ def _seed_frozen_module_dependencies(workspace: Path, env: dict[str, str]) -> No
         timeout=180,
     )
 
+    _download_frozen_marketplace_wheels(workspace, python, seed_env)
+
+
+@beartype
+@ensure(lambda result: result is None, "frozen child synchronization must return None")
+def _sync_frozen_child(uv: str, workspace: Path, python: Path, seed_env: dict[str, str]) -> None:
+    """Copy the complete frozen graph from artifact data into the owned child."""
+    cache = subprocess.check_output(
+        [uv, "cache", "dir"], cwd=REPO_ROOT, env=os.environ.copy(), text=True, timeout=30
+    ).strip()
+    if not cache or not Path(cache).is_absolute():
+        raise RuntimeError("uv must report an absolute reviewed artifact cache path")
+    seed_env["UV_CACHE_DIR"] = cache
+    seed_env["UV_PROJECT_ENVIRONMENT"] = str((workspace / "runtime-venv").resolve())
+    _run(
+        [
+            uv,
+            "sync",
+            "--frozen",
+            "--all-extras",
+            "--no-install-project",
+            "--offline",
+            "--link-mode",
+            "copy",
+            "--python",
+            str(python),
+        ],
+        cwd=REPO_ROOT,
+        env=seed_env,
+        timeout=180,
+    )
+
+
+@beartype
+@ensure(lambda result: result is None, "wheel download must return None")
+def _download_frozen_marketplace_wheels(workspace: Path, python: Path, seed_env: dict[str, str]) -> None:
+    """Authenticate manifests and download only their exported, hash-verified wheels."""
+    modules_repo = _resolve_modules_repo(seed_env.get("SPECFACT_MODULES_REPO"))
+    _verify_smoke_fixture(modules_repo)
+    requirements = workspace / "frozen-marketplace-requirements.txt"
+    _write(requirements, _frozen_marketplace_requirements(modules_repo))
+    wheels = workspace / "frozen-wheels"
+    wheels.mkdir()
+    seed_env["PIP_CACHE_DIR"] = str(workspace.parents[1] / "frozen-pip-cache")
+    seed_env["PIP_DEFAULT_TIMEOUT"] = "60"
+    _run(
+        [
+            str(python),
+            "-m",
+            "pip",
+            "download",
+            "--require-hashes",
+            "--no-deps",
+            "--only-binary",
+            ":all:",
+            "--index-url",
+            "https://pypi.org/simple",
+            "--dest",
+            str(wheels),
+            "-r",
+            str(requirements),
+        ],
+        cwd=REPO_ROOT,
+        env=seed_env,
+        timeout=180,
+    )
+
 
 def _smoke_launcher(name: str, workspace: Path, demo: Path, index_path: Path, modules_repo: Path) -> None:
     home = workspace / f"home-{name}"
     home.mkdir(parents=True)
-    cli = _launcher_command(name, workspace / f"launcher-{name}")
+    cli = _launcher_command(name, workspace / f"launcher-{name}", modules_repo)
     env = _build_launcher_env(name, home, index_path, modules_repo)
 
     if name in {"direct", "console"}:
+        _write(demo / ".pip-tools.toml", "[tool.pip-tools]\nemit-options = false\n")
+    if name == "direct":
         _seed_frozen_module_dependencies(workspace / f"launcher-{name}", env)
     _install_marketplace_modules(cli, demo, env)
     _assert_module_list_contains(_run([*cli, "module", "list"], cwd=demo, env=env))

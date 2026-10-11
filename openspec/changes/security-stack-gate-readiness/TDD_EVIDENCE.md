@@ -172,3 +172,75 @@ Final interface verification: **3,238 passed, nine skipped**, exit 0,
 validation passes with zero violations. Final SpecFact self-review scores 94,
 zero errors and no new clean-code regression; all remaining raw advisories have
 the explicit stdlib-boundary or unchanged-selector dispositions above.
+
+## Complete child import isolation
+
+A second external review correctly identified that read-only parent site-packages
+and inherited PYTHONPATH can mask missing or incompatible child dependencies.
+Two new controls fail before implementation: the import path includes parent/
+inherited directories, and the seed omits the complete frozen CI graph. The
+repair installs the full hash-protected CI graph plus the Lz4 seed into each
+owned child, uses only the explicit CLI source PYTHONPATH, and builds the console
+entry point with its child-installed frozen backend. Normal marketplace
+resolution remains enabled with no index. The direct native prefix probe and
+all original mapped test/fixture bytes remain unchanged. Earlier local/hosted
+passes remain historical; fresh complete validation is required on this repair.
+
+The initial pip-only installation exposes the existing source-only CommentJSON/
+Lark packages: applying wheel-only installation to the whole CI graph correctly
+fails. Preserve that diagnostic. Materialize the exact full graph with the same
+frozen uv protocol as CI, offline into the owned child; unavailable cached source/
+build artifacts fail, with no resolver/network fallback. Then install the reviewed
+Lz4 wheel through its exact hashes. This reuses frozen artifact data rather than
+parent import directories and preserves all normal marketplace dependency checks.
+
+The child cache path assertion also fails before repair (KeyError: UV_CACHE_DIR).
+The implementation queries uv's original artifact-cache path before changing HOME;
+offline frozen sync copies packages into the child and never adds cache/parent
+directories to PYTHONPATH. See the official uv cache-directory precedence
+<https://docs.astral.sh/uv/concepts/cache/> (accessed 2026-10-11).
+
+Normal marketplace resolution needs candidate artifacts even when packages are
+already installed. Two additional controls fail before wheelhouse implementation:
+the frozen transitive hash selector is absent and PIP_FIND_LINKS is missing. The
+repair selects only the authenticated module closure from uv.lock and exact
+committed hash exports, downloads wheels with require-hashes/no-deps, and supplies
+that owned directory with no index to normal pip-tools resolution. Missing graph
+entries or hashes fail. The smoke project's ordinary pip-tools configuration emits
+pins without duplicating transport options already supplied by its environment;
+this leaves dependency validation and installation active. No force or skip-deps
+flag is used. Ten positive/negative controls pass. Real direct and console smoke
+both pass after full child installation and marketplace resolution. Earlier pip
+network, source-only wheel, cache-miss and option-emission failures are retained as
+diagnostics rather than passing evidence.
+
+Final owned-child smart gate: **3,242 passed, nine skipped, two warnings**,
+171.93 seconds, exit 0; coverage remains 64% and its existing threshold is
+unchanged. Absolute-path contract validation passes with zero violations. Both
+changed Python files have zero typing diagnostics. Frozen lock/export parity,
+three advisory audits, dependency trust, normal license scans, signatures,
+0.55.5 > PyPI 0.55.4 and zero-new-findings Semgrep gates pass. Negative-test
+log messages from smart-test regression fixtures are expected captured output,
+not failures of this complete run. Original native mapped selector/support bytes
+remain unchanged from 0dbcc8e3. Protected exact-head authority and prerequisite
+integration remain pending; these executable passes cannot replace member approval.
+
+The final broad self-review covers all **20** prerequisite Python files (including
+existing workflow regression fixtures), scores **92, PASS_WITH_ADVISORY**, zero
+errors. The new CC16 selector error and new seed-length information item are
+resolved with separate manifest selection, frozen graph traversal and sync helpers.
+The remaining nine warnings are the five stdlib/pre-dependency contract boundaries
+and four unchanged naming false positives already disposed above. The nine
+information items concern the unchanged invalid-version branch and explicit
+security/workflow fixture setup. Collapsing those setup assertions would reduce
+reviewability of independently tested attack boundaries; no rule is disabled,
+no finding is hidden, and no new clean-code regression is accepted.
+An initial focused invocation without the portable fixture skipped its real smoke;
+that invocation is not used as real-smoke evidence. Full smart and the separately
+executed explicit-fixture console probe exercise the real authenticated fixture.
+
+Post-review complete rerun: **3,242 passed, nine skipped, two warnings**,
+168.26 seconds, exit 0, coverage 64%. Final changed-file typing has zero
+diagnostics and the reviewed helper contracts pass with zero violations. The
+explicit-fixture console smoke passes independently. The protected/core native
+adapter remains byte-identical (SHA-256 6cc6c72de461980aba67c3c144364d7ac4f8f53fb351e77b31bfc8fcdc450d89).

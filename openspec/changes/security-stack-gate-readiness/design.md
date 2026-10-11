@@ -13,14 +13,15 @@ normal prerequisite integration. Mappings, executable selectors and acceptance
 must stay unchanged across the five layers. A different mapping or plan remains a
 hard reconciliation failure; no scoped digest relaxation is introduced.
 
-Direct/console smoke runs receive workspace-owned virtual environments and an
-explicit path to the already reviewed parent runtime. Runtime smoke independently
+Direct/console smoke runs receive workspace-owned virtual environments with the
+complete frozen CI graph installed offline into each child. Inherited Python paths
+and parent site-packages are excluded; only the explicit CLI source path is exposed. Runtime smoke independently
 authenticates the reviewed portable 046d366c module snapshot; native Requirements
 keeps its 69f0758 provider and original proof unchanged. Only reviewed Lz4 is
 seeded from an exact hash-protected wheel lock. BasedPyright keeps the approved
 npm runner; unofficial Node wheels are prohibited in every frozen graph.
-Marketplace pip sees the reviewed parent runtime and child packages with union
-version constraints and no index. This
+Marketplace pip sees only child-installed packages with union version
+constraints and no index. This
 prevents upgrades in the running pytest environment and fails on missing pins. Other launcher modes retain their existing delivery
 checks. Existing isolated virtualenv fallback cache controls remain intact.
 
@@ -34,3 +35,5 @@ Risks: parent pushes invalidate context; missing frozen module dependencies fail
 closed; rebases invalidate head-bound grants and proof. Mitigate with final-head
 validation, reviewed frozen inputs and new grants. Rollback uses captured heads,
 explicit leases and normal revert of prerequisites; never disable required gates.
+
+The normal pip-tools marketplace resolver also receives a child-owned wheelhouse. Its inputs are the transitive closure of authenticated, unmodified module manifests, selected from the committed frozen graph and exact hash-protected exports. Downloads require the committed hashes and wheels; resolution keeps its existing constraints and no-index policy. Missing or unreviewed graph entries fail closed. No resolver or install validation is skipped.
