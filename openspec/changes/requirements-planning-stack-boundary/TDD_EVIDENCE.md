@@ -121,3 +121,7 @@ Review identifies that root.base.sha can advance beyond the root branch's common
 Historical pre-correction full suite: 3301 passed, 10 disclosed skips, 2 dependency warnings in 188.89 seconds; timeout/failure log lines are deliberately injected by passing negative runner tests, not failed delivery execution. Final corrected head still requires fresh execution.
 
 The corrected helper records the current live protected base before deriving the proof merge base. Root workflow and local-action object comparison uses that current protected commit; OpenSpec source closure and full-proof fallback keep the original proof merge base. Both security regressions and the independent unchanged-control positive case pass in the isolated prototype; the normal three-stage context digest includes the preserved protected identity.
+
+## Both proof-producing workflow controls: failing before code
+
+Final review checks the authority producer as well as the Requirements producer. The existing unchanged-proof contract applies to both. New current-protected-authority drift and root-authored-authority cases genuinely fail on signed 0c682d4d: both receive planning reuse despite changed authority objects. The other three existing protected-control cases pass; there are no collection errors or skips. The correction must include both named proof-producing workflow paths while preserving local-action rejection, current protected identity, complete-proof fallback and every exact signature/run binding. Approved mapping 61488846 and immutable mapped test bytes stay unchanged.

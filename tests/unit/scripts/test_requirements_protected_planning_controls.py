@@ -18,6 +18,7 @@ from tests.unit.scripts.test_requirements_planning_stack_context import (
     "control_path",
     (
         ".github/workflows/requirements-evidence.yml",
+        ".github/workflows/trusted-requirements-authority.yml",
         ".github/actions/setup-frozen-python/action.yml",
     ),
 )
@@ -49,3 +50,20 @@ def test_unrelated_protected_update_preserves_authenticated_planning(
     assert result == 0
     assert context["proof_base_commit"] == planning_case.baseline
     assert context.get("planning_base_commit") == planning_case.root
+
+
+def test_root_modified_authority_workflow_keeps_full_proof(
+    planning_case: StackCase,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A successful root-authored authority workflow cannot authorize inherited proof."""
+    _git(planning_case.repo, "checkout", "--detach", planning_case.root)
+    root = _commit(
+        planning_case.repo, ".github/workflows/trusted-requirements-authority.yml", "candidate authority success\n"
+    )
+    child = _commit(planning_case.repo, "openspec/changes/deferred-feature/proposal.md", "deferred proposal\n")
+    changed = _case(planning_case.repo, planning_case.baseline, root, child)
+    result, context = _resolve(changed, monkeypatch)
+    assert result == 0
+    assert "planning_base_commit" not in context
+    assert "inherited_proof" not in context
