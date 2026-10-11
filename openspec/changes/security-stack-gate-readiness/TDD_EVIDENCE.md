@@ -244,3 +244,50 @@ Post-review complete rerun: **3,242 passed, nine skipped, two warnings**,
 diagnostics and the reviewed helper contracts pass with zero violations. The
 explicit-fixture console smoke passes independently. The protected/core native
 adapter remains byte-identical (SHA-256 6cc6c72de461980aba67c3c144364d7ac4f8f53fb351e77b31bfc8fcdc450d89).
+
+## Git refs and pinned source staging review corrections
+
+Fresh review identifies two valid issues. The stdlib branch allowlist rejects
+valid plus/at-sign/Unicode characters and accepts hidden or lock-suffix path
+components. Thirty-one literal branch cases compare with Git: eleven fail before
+repair. The ignored-file archive control also fails before repair: an ignored
+Python file enters a module archive despite a clean porcelain status.
+Git ref rules: <https://git-scm.com/docs/git-check-ref-format> and ignored status
+behavior: <https://git-scm.com/docs/git-status> (accessed 2026-10-11).
+
+Ref validation now follows literal Git branch rules while rejecting option-leading
+names, reserved/control characters, traversal, reflog expressions and invalid
+components. Both stdlib adapters remain byte-identical: SHA-256
+86ab97f88c1857eb881a5c36ff848763aa8afa339ae76cd50f88c1bd24b7e314.
+The protected policy retains all original 26 controls and passes all 57 after
+the eleven additional genuine RED failures.
+
+Archive staging reads immutable object bytes from the authenticated pinned commit
+and extracts with the standard data filter. It excludes ignored/untracked files
+and avoids checkout races. A further real bootstrap control fails before the
+import-path repair: the child reads an ignored raw-checkout source. Child bundle
+bootstrap now points exclusively to the owned staged Git tree, with inherited
+bundle roots removed and raw metadata retained solely as the authenticated seed
+input. The 61 focused controls pass, including real direct marketplace smoke.
+Existing semantic-version unit fixtures model the staging seam; the separate
+real Git archive/ignored-file control and actual runtime smoke exercise it.
+The interrupted intermediate full run is incomplete, not passing evidence.
+Fresh complete smart/native/hosted validation is required on the final head.
+
+The broad 21-file self-review remains PASS_WITH_ADVISORY, zero errors, with the
+same nine warning and nine information dispositions above. Five changed files
+have zero typing diagnostics. The original mapped native selectors and support
+bytes are unchanged. No required policy, dependency check or signature gate is
+relaxed.
+
+Final staged-source full gate: **3,275 passed, nine skipped, two warnings**,
+170.57 seconds, exit 0; coverage remains 64% with the existing threshold. The
+first staged-source full run caught the new bootstrap control in the wrong
+migration surface (one failure, 3,274 passed). Relocating the same assertion to
+the existing retained bootstrap test file passes all four migration controls;
+the migration rule and allowlist are unchanged. Its existing fixture annotation
+is corrected to pytest.MonkeyPatch for mandatory changed-file typing. All six
+changed Python files now have zero diagnostics. Broad 22-file review passes with
+zero errors and the same documented dispositions. Real direct and console smoke
+exercise pinned archive and bundle-import bytes. The original native cases stay
+byte-identical; final-head hosted/native and member authority remain required.

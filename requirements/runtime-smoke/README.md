@@ -52,3 +52,8 @@ BSD license; macOS arm64 and Linux x86_64 hashes match the exact
 | --- | --- |
 | `lz4-4.4.5-cp312-cp312-macosx_11_0_arm64.whl` | `6d0bf51e7745484d2092b3a51ae6eb58c3bd3ce0300cf2b2c14f76c536d5697a` |
 | `lz4-4.4.5-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl` | `24092635f47538b392c4eaeff14c7270d2c8e806bf4be2a6446a378591c5e69e` |
+
+Module archives and child bundle imports use only the owned staging tree read
+from the authenticated Git commit. Ignored checkout files and inherited module
+root overrides cannot enter that source tree. Raw checkout metadata is a separate
+verified seed input. Normal marketplace dependency checks remain active.

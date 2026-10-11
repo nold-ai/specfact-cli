@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import tarfile
 from pathlib import Path
 
 import pytest
@@ -138,3 +139,44 @@ def test_marketplace_resolver_only_uses_child_wheelhouse(tmp_path: Path) -> None
     env = smoke._build_launcher_env("direct", home, tmp_path / "index.json", tmp_path / "modules")
     assert env["PIP_FIND_LINKS"] == str(tmp_path / "launcher-direct" / "frozen-wheels")
     assert env["PIP_NO_INDEX"] == "1"
+
+
+def test_smoke_archive_ignores_uncommitted_ignored_fixture_bytes(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    repo = tmp_path / "modules"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    (repo / ".gitignore").write_text("ignored.py\n")
+    for module_id in smoke.MODULE_IDS:
+        name = module_id.split("/", 1)[1]
+        manifest = repo / "packages" / name / "module-package.yaml"
+        manifest.parent.mkdir(parents=True)
+        manifest.write_text(f"name: {name}\nversion: 0.1.0\ncommands: []\n")
+    subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repo),
+            "-c",
+            "user.name=Fixture",
+            "-c",
+            "user.email=fixture@example.test",
+            "commit",
+            "-q",
+            "-m",
+            "fixture",
+        ],
+        check=True,
+    )
+    commit = subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip()
+    (tmp_path / "ci").mkdir()
+    (tmp_path / "ci/runtime-smoke-fixture.lock.json").write_text(json.dumps({"commit": commit}))
+    monkeypatch.setattr(smoke, "REPO_ROOT", tmp_path)
+    (repo / "packages/specfact-project/ignored.py").write_text("raise RuntimeError('unreviewed')\n")
+    assert subprocess.check_output(["git", "-C", str(repo), "status", "--porcelain"], text=True) == ""
+    index = smoke._build_local_registry(tmp_path / "workspace", repo)
+    for archive_path in (index.parent / "modules").glob("*.tar.gz"):
+        with tarfile.open(archive_path) as archive:
+            assert not any(member.name.endswith("ignored.py") for member in archive.getmembers())

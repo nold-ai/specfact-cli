@@ -17,7 +17,8 @@ REPOSITORY = "nold-ai/specfact-cli"
 REPOSITORY_ID = 1085706003
 PROTECTED_BASES = frozenset({"dev", "main"})
 SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
-REF_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]*$")
+REF_PATTERN = re.compile(r"^[^\x00-\x20\x7f~^:?*\[\\]+$")
+INVALID_REF_COMPONENT_PATTERN = re.compile(r"(?:^|/)(?:\.|[^/]*\.lock(?:/|$))")
 MAX_STACK_SIZE = 50
 MAX_INPUT_BYTES = 5_000_000
 ApiReader = Callable[[str], object]
@@ -70,9 +71,13 @@ def _ref(value: object) -> str:
     if (
         not isinstance(value, str)
         or REF_PATTERN.fullmatch(value) is None
+        or value == "HEAD"
+        or value.startswith(("-", "/"))
         or ".." in value
         or "//" in value
-        or value.endswith(("/", ".", ".lock"))
+        or "@{" in value
+        or value.endswith(("/", "."))
+        or INVALID_REF_COMPONENT_PATTERN.search(value) is not None
     ):
         _reject()
     return value

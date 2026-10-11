@@ -37,3 +37,7 @@ validation, reviewed frozen inputs and new grants. Rollback uses captured heads,
 explicit leases and normal revert of prerequisites; never disable required gates.
 
 The normal pip-tools marketplace resolver also receives a child-owned wheelhouse. Its inputs are the transitive closure of authenticated, unmodified module manifests, selected from the committed frozen graph and exact hash-protected exports. Downloads require the committed hashes and wheels; resolution keeps its existing constraints and no-index policy. Missing or unreviewed graph entries fail closed. No resolver or install validation is skipped.
+
+Ref compatibility follows Git branch naming rules in the standard-library-only adapter, while retaining traversal, reserved-sequence and option-boundary rejection. Smoke archives stage bytes from the authenticated pinned Git object instead of copying untracked or ignored checkout files. Original mapped native selectors stay frozen.
+
+Child bundle bootstrap also points only to the owned staging tree. Raw checkout metadata remains a separate authenticated seed input; inherited bundle-root overrides are removed. This closes ignored-file imports in addition to archive contents.

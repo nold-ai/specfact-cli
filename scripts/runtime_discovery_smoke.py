@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import io
 import json
 import logging
 import os
@@ -229,10 +230,24 @@ def _module_dependency_closure(modules_repo: Path) -> tuple[str, ...]:
     return tuple(module_ids)
 
 
+@beartype
+@ensure(lambda result: result is None, "tracked module staging must return None")
+def _stage_tracked_module(modules_repo: Path, relative: Path, staged_dir: Path) -> None:
+    """Read archive bytes from the authenticated Git object, excluding ignored files."""
+    identity = json.loads((REPO_ROOT / "ci/runtime-smoke-fixture.lock.json").read_text(encoding="utf-8"))
+    archive_bytes = subprocess.check_output(
+        ["git", "-C", str(modules_repo), "archive", "--format=tar", f"{identity['commit']}:{relative.as_posix()}"],
+        timeout=30,
+    )
+    staged_dir.mkdir()
+    with tarfile.open(fileobj=io.BytesIO(archive_bytes), mode="r:") as archive:
+        archive.extractall(staged_dir, filter="data")
+
+
 def _build_local_registry(workspace: Path, modules_repo: Path) -> Path:
     registry = workspace / "local-registry"
     modules_dir = registry / "modules"
-    staging_dir = registry / "staging"
+    staging_dir = registry / "staging" / "packages"
     modules_dir.mkdir(parents=True)
     staging_dir.mkdir(parents=True)
     entries: list[dict[str, Any]] = []
@@ -241,7 +256,7 @@ def _build_local_registry(workspace: Path, modules_repo: Path) -> Path:
         bundle_name = module_id.split("/", 1)[1]
         source_dir = modules_repo / "packages" / bundle_name
         staged_dir = staging_dir / bundle_name
-        shutil.copytree(source_dir, staged_dir)
+        _stage_tracked_module(modules_repo, source_dir.relative_to(modules_repo), staged_dir)
 
         manifest_path = staged_dir / "module-package.yaml"
         manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
@@ -334,6 +349,8 @@ def _frozen_runtime_env(env: dict[str, str], constraints: Path) -> dict[str, str
     env["PIP_NO_INDEX"] = "1"
     env.pop("VIRTUAL_ENV", None)
     env.pop("PYTHONHOME", None)
+    env.pop("SPECFACT_MODULES_ROOTS", None)
+    env.pop("SPECFACT_CLI_MODULES_REPO", None)
     return env
 
 
@@ -344,7 +361,7 @@ def _create_isolated_runtime_launcher(name: str, workspace: Path, modules_repo: 
         return [str(python), "-m", "specfact_cli.cli"]
     env = _frozen_runtime_env(os.environ.copy(), workspace / "frozen-runtime-constraints.txt")
     if modules_repo is not None:
-        env["SPECFACT_MODULES_REPO"] = str(modules_repo)
+        env["SPECFACT_SMOKE_MODULES_REPO"] = str(modules_repo)
     _seed_frozen_module_dependencies(workspace, env)
     _run(
         [str(python), "-m", "pip", "install", "--no-deps", "--no-build-isolation", "-e", str(REPO_ROOT)],
@@ -438,6 +455,9 @@ def _build_launcher_env(name: str, home: Path, index_path: Path, modules_repo: P
         ]
         env["PATH"] = os.pathsep.join([str(child_bin), *system_paths])
         env["PIP_FIND_LINKS"] = str(child_bin.parent.parent / "frozen-wheels")
+        env["SPECFACT_SMOKE_MODULES_REPO"] = str(modules_repo)
+        env["SPECFACT_MODULES_REPO"] = str(index_path.parent / "staging")
+        env["SPECFACT_CLI_MODULES_REPO"] = env["SPECFACT_MODULES_REPO"]
         env.pop("VIRTUAL_ENV", None)
         env.pop("PYTHONHOME", None)
     hatch_launcher = _hatch_launcher_python_and_site()
@@ -607,7 +627,9 @@ def _sync_frozen_child(uv: str, workspace: Path, python: Path, seed_env: dict[st
 @ensure(lambda result: result is None, "wheel download must return None")
 def _download_frozen_marketplace_wheels(workspace: Path, python: Path, seed_env: dict[str, str]) -> None:
     """Authenticate manifests and download only their exported, hash-verified wheels."""
-    modules_repo = _resolve_modules_repo(seed_env.get("SPECFACT_MODULES_REPO"))
+    modules_repo = _resolve_modules_repo(
+        seed_env.get("SPECFACT_SMOKE_MODULES_REPO") or seed_env.get("SPECFACT_MODULES_REPO")
+    )
     _verify_smoke_fixture(modules_repo)
     requirements = workspace / "frozen-marketplace-requirements.txt"
     _write(requirements, _frozen_marketplace_requirements(modules_repo))
