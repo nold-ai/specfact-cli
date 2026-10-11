@@ -81,6 +81,46 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Authenticate live native stack proof boundary
+        id: stack-context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_CONTEXT_DIGEST: ""
+        shell: bash
+        run: |
+          set -euo pipefail
+          policy_root="${RUNNER_TEMP}/trusted-stack-context"
+          mkdir -p "$policy_root"
+          context="${policy_root}/context.json"
+          policy_ref="origin/dev"
+          if git cat-file -e "${policy_ref}:scripts/requirements_stack_context.py" 2>/dev/null; then
+            git archive "$policy_ref" -- scripts/requirements_stack_context.py | tar -x -C "$policy_root"
+            python3 -I -S "$policy_root/scripts/requirements_stack_context.py" \
+              --event "$GITHUB_EVENT_PATH" --output "$context"
+          else
+            # Bootstrap supports protected-base PRs only; candidate helper bytes never authorize a stack.
+            case "$GITHUB_BASE_REF" in dev|main) ;; *) exit 1 ;; esac
+            base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" HEAD)"
+            jq -S --arg base_commit "$base_commit" \
+              '{proof_base_ref: .pull_request.base.ref, proof_base_commit: $base_commit,
+                proof_head_branch: .pull_request.head.ref, proof_head_commit: .pull_request.head.sha,
+                proof_pull_request: .pull_request.number}' "$GITHUB_EVENT_PATH" > "$context"
+          fi
+          proof_base="$(jq -er '.proof_base_commit | select(test("^[0-9a-f]{40}$"))' "$context")"
+          proof_head="$(jq -er '.proof_head_commit | select(test("^[0-9a-f]{40}$"))' "$context")"
+          git merge-base --is-ancestor "$proof_base" "$proof_head"
+          git merge-base --is-ancestor "$proof_head" HEAD
+          digest="$(sha256sum < "$context" | cut -d ' ' -f 1)"
+          if [[ -n "$EXPECTED_CONTEXT_DIGEST" ]]; then
+            test "$digest" = "$EXPECTED_CONTEXT_DIGEST"
+          fi
+          printf 'digest=%s\n' "$digest" >> "$GITHUB_OUTPUT"
+          {
+            printf 'PROOF_BASE_COMMIT=%s\n' "$proof_base"
+            printf 'PROOF_HEAD_BRANCH=%s\n' "$(jq -er '.proof_head_branch' "$context")"
+            printf 'PROOF_PULL_REQUEST=%s\n' "$(jq -er '.proof_pull_request' "$context")"
+          } >> "$GITHUB_ENV"
+
       - name: Checkout trusted Requirements authority policy
         if: github.event_name == 'pull_request' && github.event.pull_request.number == 717 && github.head_ref == 'bugfix/692-promotion-final-context' && hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') != ''
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -162,7 +202,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" HEAD)"
+          base_commit="$PROOF_BASE_COMMIT"
           [[ "$base_commit" =~ ^[0-9a-f]{40}$ ]]
           trusted_root="${RUNNER_TEMP}/trusted-requirements"
           mkdir -p "$trusted_root"
@@ -361,46 +401,6 @@ jobs:
           {
             printf 'LATE_RED_PROVENANCE=%s\n' "$trusted_provenance"
             printf 'LATE_RED_PROVENANCE_DIGEST=%s\n' "$(sha256sum < "$trusted_provenance" | cut -d ' ' -f 1)"
-          } >> "$GITHUB_ENV"
-
-      - name: Authenticate live native stack proof boundary
-        id: stack-context
-        env:
-          GH_TOKEN: ${{ github.token }}
-          EXPECTED_CONTEXT_DIGEST: ""
-        shell: bash
-        run: |
-          set -euo pipefail
-          policy_root="${RUNNER_TEMP}/trusted-stack-context"
-          mkdir -p "$policy_root"
-          context="${policy_root}/context.json"
-          policy_ref="origin/dev"
-          if git cat-file -e "${policy_ref}:scripts/requirements_stack_context.py" 2>/dev/null; then
-            git archive "$policy_ref" -- scripts/requirements_stack_context.py | tar -x -C "$policy_root"
-            python3 -I -S "$policy_root/scripts/requirements_stack_context.py" \
-              --event "$GITHUB_EVENT_PATH" --output "$context"
-          else
-            # Bootstrap supports protected-base PRs only; candidate helper bytes never authorize a stack.
-            case "$GITHUB_BASE_REF" in dev|main) ;; *) exit 1 ;; esac
-            base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" HEAD)"
-            jq -S --arg base_commit "$base_commit" \
-              '{proof_base_ref: .pull_request.base.ref, proof_base_commit: $base_commit,
-                proof_head_branch: .pull_request.head.ref, proof_head_commit: .pull_request.head.sha,
-                proof_pull_request: .pull_request.number}' "$GITHUB_EVENT_PATH" > "$context"
-          fi
-          proof_base="$(jq -er '.proof_base_commit | select(test("^[0-9a-f]{40}$"))' "$context")"
-          proof_head="$(jq -er '.proof_head_commit | select(test("^[0-9a-f]{40}$"))' "$context")"
-          git merge-base --is-ancestor "$proof_base" "$proof_head"
-          git merge-base --is-ancestor "$proof_head" HEAD
-          digest="$(sha256sum < "$context" | cut -d ' ' -f 1)"
-          if [[ -n "$EXPECTED_CONTEXT_DIGEST" ]]; then
-            test "$digest" = "$EXPECTED_CONTEXT_DIGEST"
-          fi
-          printf 'digest=%s\n' "$digest" >> "$GITHUB_OUTPUT"
-          {
-            printf 'PROOF_BASE_COMMIT=%s\n' "$proof_base"
-            printf 'PROOF_HEAD_BRANCH=%s\n' "$(jq -er '.proof_head_branch' "$context")"
-            printf 'PROOF_PULL_REQUEST=%s\n' "$(jq -er '.proof_pull_request' "$context")"
           } >> "$GITHUB_ENV"
 
       - name: Locate retained red proof run

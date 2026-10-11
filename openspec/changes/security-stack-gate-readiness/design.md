@@ -49,3 +49,8 @@ uses those exact SHA-addressed Git objects to derive the root merge base before
 writing proof context. Ordinary and native root branches may be behind an
 advanced protected tip; their original proof baseline remains an ancestor. The
 protected authority imports only the data resolver and executes no Git/PR bytes.
+
+Producer authentication must precede trusted verifier selection and execution.
+The delivery verifier is archived from the authenticated protected proof base,
+never the immediate unmerged parent. A stacked child's parent verifier bytes
+remain candidate input and cannot supply the trusted implementation.

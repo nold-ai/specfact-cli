@@ -352,3 +352,26 @@ warning is fixed by separating fixture arrangement from assertions; all four
 core fork cases and all 63 policy controls pass after that simplification.
 Original native mapped files remain byte-identical. Final-head hosted checks,
 member capabilities and normal prerequisite integration remain required.
+
+## Producer verifier boundary ordering (2026-10-11)
+
+Final review finds a valid trust-order defect for stacked children: delivery
+verification selected a merge base against the immediate unmerged parent before
+resolving the protected proof root. Two controls fail before repair: step
+ordering and real Git archive-byte provenance. The byte control archives
+marker data only and executes no verifier. The producer now authenticates
+context before frozen dependency setup and selects its verifier from
+PROOF_BASE_COMMIT. All 52 targeted delivery/promotion/security controls pass,
+retaining promotion identities and all three independent proof consumers.
+Original native mapped files remain byte-identical. Final full smart, workflow
+lint and exact-head hosted validation follow this additional correction;
+e29b1a2e's successful native run is historical for the subsequent head.
+
+Final producer-boundary local validation: **3,282 passed, ten existing skips,
+two warnings**, 170.03 seconds, exit 0, unchanged 64% coverage. Plain Actionlint
+and changed-workflow Yamllint pass; changed-file typing has zero diagnostics.
+Strict OpenSpec passes. Broad 25-file SpecFact review scores 92 with zero errors
+and the same documented nine warning/nine information dispositions; the new
+workflow tests add no findings. No source graph, native mapping, promotion
+condition or required gate is weakened. Fresh signed-head hosted/native
+validation and explicit member authority remain required.
