@@ -107,3 +107,9 @@ metadata, inherited source protection, signature or root check identities. Eleve
 passed on the previous candidate; the two strengthened controls pass in 1.29 seconds.
 The approved exact mapping 61488846 and genuine owner acceptance remain unchanged. New authored native
 RED must precede restoration and publication of the implementation with these exact test bytes.
+
+## Final strengthened native authored proof
+
+Signed authored head 684b8f92fca1c514183d7b809415d8ce32eb8df4 (tree bc5d142191aaa42ab08b3c8c7016f3cb11210691) has native run 38182359051, artifact 11717743992. The exact approved mapping reconciles at RED with no findings: five genuine failures, zero passes, errors or skips. Exact-head authority succeeds. Test file SHA-256 is 476a54c9170618d0f491babd5bf628f80957a76bea3afa583a0ad10ba337fa6a.
+
+The implementation from reviewed historical candidate 46e475df is restored only after this proof; strengthened test bytes, accepted mapping and owner record remain unchanged. Final native execution, required CI and review remain pending on the newly signed implementation head.

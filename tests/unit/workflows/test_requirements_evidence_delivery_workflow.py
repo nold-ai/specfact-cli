@@ -31,7 +31,7 @@ PROMOTION_CONDITION = (
 EVIDENCE_COMMAND_FRAGMENTS = (
     '"${isolated_specfact[@]}" requirements evidence',
     '--base-ref "$evidence_base_commit"',
-    'evidence_base_commit="${PROOF_BASE_COMMIT:-}"',
+    'evidence_base_commit="${PLANNING_BASE_COMMIT:-${PROOF_BASE_COMMIT:-}}"',
     "required_maturity=planned",
     "required_maturity=test-authored",
     "requirements/*|pyproject.toml|setup.py|uv.lock",
@@ -682,7 +682,7 @@ def _assert_reconciliation_fragments(reconcile: str) -> None:
         '"${isolated_python[@]}"',
         "del sys.argv[1:3]",
         'source_ref="$(git rev-parse HEAD)"',
-        'evidence_base_commit="$PROOF_BASE_COMMIT"',
+        'evidence_base_commit="${PLANNING_BASE_COMMIT:-$PROOF_BASE_COMMIT}"',
         '"${isolated_specfact[@]}" requirements evidence',
         '"${isolated_specfact[@]}" requirements reconcile',
         "requirements-evidence-consumer.json",
@@ -1461,13 +1461,14 @@ def _assert_promotion_stage_outputs(workflow: dict[str, object]) -> None:
 
 def _assert_promotion_scope(workflow: dict[str, object], commands: tuple[str, str, str]) -> None:
     producer_command, consumer_command, final_command = commands
-    producer_base = 'evidence_base_commit="${PROOF_BASE_COMMIT:-}"'
-    consumer_base = 'evidence_base_commit="$PROOF_BASE_COMMIT"'
+    producer_base = 'evidence_base_commit="${PLANNING_BASE_COMMIT:-${PROOF_BASE_COMMIT:-}}"'
+    consumer_base = 'evidence_base_commit="${PLANNING_BASE_COMMIT:-$PROOF_BASE_COMMIT}"'
     assert producer_command.count(producer_base) == 1
     assert consumer_command.count(consumer_base) == 1
     assert producer_command.count('--base-ref "$evidence_base_commit"') == 1
     assert consumer_command.count('--base-ref "$evidence_base_commit"') == 1
-    assert final_command.count('--base-ref "$FINAL_BASE_COMMIT"') == 1
+    assert final_command.count('--base-ref "$evidence_base_commit"') == 1
+    assert 'evidence_base_commit="${PLANNING_BASE_COMMIT:-$FINAL_BASE_COMMIT}"' in final_command
     assert "evidence_scope_commit=" not in producer_command + consumer_command
     assert "final_scope_commit=" not in final_command
     final_core = cast(str, _step_by_name(workflow, "Materialize trusted final Requirements core")["run"])

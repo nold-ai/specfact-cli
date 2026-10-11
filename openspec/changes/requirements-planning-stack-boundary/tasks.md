@@ -10,7 +10,7 @@
 - [x] 2.1 Add tests for authenticated planning selection and all rejection/fallback boundaries.
 - [x] 2.2 Capture real failing-before evidence without implementation edits.
 - [x] 2.3 Review mapping 61488846 and obtain owner djm81 acceptance before authored native proof.
-- [ ] 2.4 Publish signed authored tests with genuine native RED and exact-head authority.
+- [x] 2.4 Publish signed authored tests with genuine native RED and exact-head authority.
 
 ## 3. Implementation and validation
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import re
 import subprocess
@@ -240,6 +241,19 @@ def _proof_merge_base(base: str, head: str) -> str:
     return _sha(result.stdout.strip())
 
 
+def _planning_context(context: dict[str, object], get_json: ApiReader) -> dict[str, object]:
+    """Load only the adjacent protected helper; isolated Python excludes local imports."""
+    helper_path = Path(__file__).with_name("requirements_planning_context.py")
+    spec = importlib.util.spec_from_file_location("trusted_requirements_planning_context", helper_path)
+    if spec is None or spec.loader is None:
+        _reject()
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    resolver = cast(Callable[[dict[str, object], ApiReader], dict[str, object]], module.PLANNING_RESOLVER)
+    return resolver(context, get_json)
+
+
 def main(argv: list[str] | None = None) -> int:
     """Write a deterministic context without executing any pull-request bytes."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -254,6 +268,7 @@ def main(argv: list[str] | None = None) -> int:
         context["proof_base_commit"] = _proof_merge_base(
             _sha(context["proof_base_commit"]), _sha(context["proof_head_commit"])
         )
+        context = _planning_context(context, _github_json)
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(context, indent=2, sort_keys=True) + "\n")
     except (OSError, ValueError, subprocess.SubprocessError):

@@ -94,7 +94,11 @@ jobs:
           context="${policy_root}/context.json"
           policy_ref="origin/dev"
           if git cat-file -e "${policy_ref}:scripts/requirements_stack_context.py" 2>/dev/null; then
-            git archive "$policy_ref" -- scripts/requirements_stack_context.py | tar -x -C "$policy_root"
+            if git cat-file -e "${policy_ref}:scripts/requirements_planning_context.py" 2>/dev/null; then
+              git archive "$policy_ref" -- scripts/requirements_stack_context.py scripts/requirements_planning_context.py | tar -x -C "$policy_root"
+            else
+              git archive "$policy_ref" -- scripts/requirements_stack_context.py | tar -x -C "$policy_root"
+            fi
             python3 -I -S "$policy_root/scripts/requirements_stack_context.py" \
               --event "$GITHUB_EVENT_PATH" --output "$context"
           else
@@ -117,6 +121,12 @@ jobs:
           printf 'digest=%s\n' "$digest" >> "$GITHUB_OUTPUT"
           {
             printf 'PROOF_BASE_COMMIT=%s\n' "$proof_base"
+            planning_base="$(jq -r '.planning_base_commit // empty' "$context")"
+            if [[ -n "$planning_base" ]]; then
+              [[ "$planning_base" =~ ^[0-9a-f]{40}$ ]]
+              test "$planning_base" = "$proof_head"
+              printf 'PLANNING_BASE_COMMIT=%s\n' "$planning_base"
+            fi
             printf 'PROOF_HEAD_BRANCH=%s\n' "$(jq -er '.proof_head_branch' "$context")"
             printf 'PROOF_PULL_REQUEST=%s\n' "$(jq -er '.proof_pull_request' "$context")"
           } >> "$GITHUB_ENV"
@@ -533,7 +543,7 @@ jobs:
             printf 'Invalid evidence base branch: %s\n' "$EVIDENCE_BASE_BRANCH" >&2
             exit 1
           fi
-          evidence_base_commit="${PROOF_BASE_COMMIT:-}"
+          evidence_base_commit="${PLANNING_BASE_COMMIT:-${PROOF_BASE_COMMIT:-}}"
           if [[ ! "$evidence_base_commit" =~ ^[0-9a-f]{40}$ ]]; then
             write_failure_reports "Unable to resolve immutable evidence base for $EVIDENCE_BASE_BRANCH"
             exit 1
@@ -1064,7 +1074,11 @@ jobs:
           context="${policy_root}/context.json"
           policy_ref="origin/dev"
           if git cat-file -e "${policy_ref}:scripts/requirements_stack_context.py" 2>/dev/null; then
-            git archive "$policy_ref" -- scripts/requirements_stack_context.py | tar -x -C "$policy_root"
+            if git cat-file -e "${policy_ref}:scripts/requirements_planning_context.py" 2>/dev/null; then
+              git archive "$policy_ref" -- scripts/requirements_stack_context.py scripts/requirements_planning_context.py | tar -x -C "$policy_root"
+            else
+              git archive "$policy_ref" -- scripts/requirements_stack_context.py | tar -x -C "$policy_root"
+            fi
             python3 -I -S "$policy_root/scripts/requirements_stack_context.py" \
               --event "$GITHUB_EVENT_PATH" --output "$context"
           else
@@ -1087,6 +1101,12 @@ jobs:
           printf 'digest=%s\n' "$digest" >> "$GITHUB_OUTPUT"
           {
             printf 'PROOF_BASE_COMMIT=%s\n' "$proof_base"
+            planning_base="$(jq -r '.planning_base_commit // empty' "$context")"
+            if [[ -n "$planning_base" ]]; then
+              [[ "$planning_base" =~ ^[0-9a-f]{40}$ ]]
+              test "$planning_base" = "$proof_head"
+              printf 'PLANNING_BASE_COMMIT=%s\n' "$planning_base"
+            fi
             printf 'PROOF_HEAD_BRANCH=%s\n' "$(jq -er '.proof_head_branch' "$context")"
             printf 'PROOF_PULL_REQUEST=%s\n' "$(jq -er '.proof_pull_request' "$context")"
           } >> "$GITHUB_ENV"
@@ -1580,7 +1600,7 @@ jobs:
         run: |
           set -euo pipefail
           source_ref="$(git rev-parse HEAD)"
-          evidence_base_commit="$PROOF_BASE_COMMIT"
+          evidence_base_commit="${PLANNING_BASE_COMMIT:-$PROOF_BASE_COMMIT}"
           review_base_commit="$(git merge-base "origin/${REVIEW_BASE_BRANCH}" HEAD)"
           [[ "$source_ref" =~ ^[0-9a-f]{40}$ ]]
           [[ "$evidence_base_commit" =~ ^[0-9a-f]{40}$ ]]
@@ -2062,7 +2082,11 @@ jobs:
           context="${policy_root}/context.json"
           policy_ref="origin/dev"
           if git cat-file -e "${policy_ref}:scripts/requirements_stack_context.py" 2>/dev/null; then
-            git archive "$policy_ref" -- scripts/requirements_stack_context.py | tar -x -C "$policy_root"
+            if git cat-file -e "${policy_ref}:scripts/requirements_planning_context.py" 2>/dev/null; then
+              git archive "$policy_ref" -- scripts/requirements_stack_context.py scripts/requirements_planning_context.py | tar -x -C "$policy_root"
+            else
+              git archive "$policy_ref" -- scripts/requirements_stack_context.py | tar -x -C "$policy_root"
+            fi
             python3 -I -S "$policy_root/scripts/requirements_stack_context.py" \
               --event "$GITHUB_EVENT_PATH" --output "$context"
           else
@@ -2085,6 +2109,12 @@ jobs:
           printf 'digest=%s\n' "$digest" >> "$GITHUB_OUTPUT"
           {
             printf 'PROOF_BASE_COMMIT=%s\n' "$proof_base"
+            planning_base="$(jq -r '.planning_base_commit // empty' "$context")"
+            if [[ -n "$planning_base" ]]; then
+              [[ "$planning_base" =~ ^[0-9a-f]{40}$ ]]
+              test "$planning_base" = "$proof_head"
+              printf 'PLANNING_BASE_COMMIT=%s\n' "$planning_base"
+            fi
             printf 'PROOF_HEAD_BRANCH=%s\n' "$(jq -er '.proof_head_branch' "$context")"
             printf 'PROOF_PULL_REQUEST=%s\n' "$(jq -er '.proof_pull_request' "$context")"
           } >> "$GITHUB_ENV"
@@ -2523,6 +2553,8 @@ jobs:
           source_ref="$(git rev-parse HEAD)"
           [[ "$source_ref" =~ ^[0-9a-f]{40}$ ]]
           [[ "$FINAL_BASE_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          evidence_base_commit="${PLANNING_BASE_COMMIT:-$FINAL_BASE_COMMIT}"
+          [[ "$evidence_base_commit" =~ ^[0-9a-f]{40}$ ]]
           validator_site="${FINAL_VERIFIER_ROOT}/lib/python3.12/site-packages"
           isolated_python=("${FINAL_VERIFIER_ROOT}/bin/python" -I -S -c 'import runpy, sys; sys.path.append(sys.argv.pop(1)); script = sys.argv.pop(1); runpy.run_path(script, run_name="__main__")' "$validator_site")
           isolated_specfact=("${FINAL_VERIFIER_ROOT}/bin/python" -I -S -c 'import sys; site_packages, trusted_core = sys.argv[1:3]; del sys.argv[1:3]; sys.path.append(site_packages); sys.path.insert(0, trusted_core); from specfact_cli.cli import cli_main; cli_main()' "$validator_site" "$FINAL_TRUSTED_CORE")
@@ -2533,7 +2565,7 @@ jobs:
 
           required_maturity=planned
           final_status_file="${RUNNER_TEMP}/final-requirements-status.z"
-          git diff --name-status -z --find-renames=100% "$FINAL_BASE_COMMIT..$source_ref" > "$final_status_file"
+          git diff --name-status -z --find-renames=100% "$evidence_base_commit..$source_ref" > "$final_status_file"
           classify_path() {
             case "$1" in
               .github/*|ci/*|scripts/*|src/*|tools/*|requirements/*|pyproject.toml|setup.py|uv.lock|resources/templates/*|resources/schemas/*|resources/mappings/*|resources/keys/*|modules/bundle-mapper/*)
@@ -2570,7 +2602,7 @@ jobs:
           fi
 
           final_change_paths_file="${RUNNER_TEMP}/final-change-paths.z"
-          git diff --name-only -z --diff-filter=ACMRD "$FINAL_BASE_COMMIT..$source_ref" -- openspec/changes/ \
+          git diff --name-only -z --diff-filter=ACMRD "$evidence_base_commit..$source_ref" -- openspec/changes/ \
             > "$final_change_paths_file"
           declare -A final_changed_change_ids=()
           while IFS= read -r -d '' changed_path; do
@@ -2625,7 +2657,7 @@ jobs:
           evidence_arguments=(
             "${isolated_specfact[@]}" requirements evidence
             --repo-root "$GITHUB_WORKSPACE"
-            --base-ref "$FINAL_BASE_COMMIT"
+            --base-ref "$evidence_base_commit"
             --required-maturity "$planning_maturity"
             --plan-output "$final_plan"
             --output "$final_planning_report"
@@ -2690,7 +2722,7 @@ jobs:
             "${isolated_python[@]}" "$FINAL_TRUSTED_PROVENANCE" \
               --prior-red-proof "$prior_red_proof" \
               --repo-root "$GITHUB_WORKSPACE" \
-              --base-ref "${FINAL_BASE_COMMIT}" \
+              --base-ref "${evidence_base_commit}" \
               --final-ref "$source_ref"
             reconciliation_arguments+=(--prior-red-proof "$prior_red_proof")
           elif [[ -s "$legacy_tdd_evidence" && -s "$legacy_tdd_ledger" ]]; then
