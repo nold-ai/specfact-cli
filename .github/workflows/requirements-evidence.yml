@@ -21,6 +21,7 @@ jobs:
     outputs:
       artifact-id: ${{ steps.upload-requirements-evidence.outputs.artifact-id }}
       prior-red-run-id: ${{ steps.prior-red-run.outputs.run-id }}
+      stack-context-digest: ${{ steps.stack-context.outputs.digest }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -79,6 +80,46 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.12"
+
+      - name: Authenticate live native stack proof boundary
+        id: stack-context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_CONTEXT_DIGEST: ""
+        shell: bash
+        run: |
+          set -euo pipefail
+          policy_root="${RUNNER_TEMP}/trusted-stack-context"
+          mkdir -p "$policy_root"
+          context="${policy_root}/context.json"
+          policy_ref="origin/dev"
+          if git cat-file -e "${policy_ref}:scripts/requirements_stack_context.py" 2>/dev/null; then
+            git archive "$policy_ref" -- scripts/requirements_stack_context.py | tar -x -C "$policy_root"
+            python3 -I -S "$policy_root/scripts/requirements_stack_context.py" \
+              --event "$GITHUB_EVENT_PATH" --output "$context"
+          else
+            # Bootstrap supports protected-base PRs only; candidate helper bytes never authorize a stack.
+            case "$GITHUB_BASE_REF" in dev|main) ;; *) exit 1 ;; esac
+            base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" HEAD)"
+            jq -S --arg base_commit "$base_commit" \
+              '{proof_base_ref: .pull_request.base.ref, proof_base_commit: $base_commit,
+                proof_head_branch: .pull_request.head.ref, proof_head_commit: .pull_request.head.sha,
+                proof_pull_request: .pull_request.number}' "$GITHUB_EVENT_PATH" > "$context"
+          fi
+          proof_base="$(jq -er '.proof_base_commit | select(test("^[0-9a-f]{40}$"))' "$context")"
+          proof_head="$(jq -er '.proof_head_commit | select(test("^[0-9a-f]{40}$"))' "$context")"
+          git merge-base --is-ancestor "$proof_base" "$proof_head"
+          git merge-base --is-ancestor "$proof_head" HEAD
+          digest="$(sha256sum < "$context" | cut -d ' ' -f 1)"
+          if [[ -n "$EXPECTED_CONTEXT_DIGEST" ]]; then
+            test "$digest" = "$EXPECTED_CONTEXT_DIGEST"
+          fi
+          printf 'digest=%s\n' "$digest" >> "$GITHUB_OUTPUT"
+          {
+            printf 'PROOF_BASE_COMMIT=%s\n' "$proof_base"
+            printf 'PROOF_HEAD_BRANCH=%s\n' "$(jq -er '.proof_head_branch' "$context")"
+            printf 'PROOF_PULL_REQUEST=%s\n' "$(jq -er '.proof_pull_request' "$context")"
+          } >> "$GITHUB_ENV"
 
       - name: Checkout trusted Requirements authority policy
         if: github.event_name == 'pull_request' && github.event.pull_request.number == 717 && github.head_ref == 'bugfix/692-promotion-final-context' && hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') != ''
@@ -161,7 +202,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" HEAD)"
+          base_commit="$PROOF_BASE_COMMIT"
           [[ "$base_commit" =~ ^[0-9a-f]{40}$ ]]
           trusted_root="${RUNNER_TEMP}/trusted-requirements"
           mkdir -p "$trusted_root"
@@ -377,7 +418,7 @@ jobs:
             [[ -n "$run_id" && -n "$head_sha" ]] || continue
             [[ "$conclusion" == "failure" ]] || continue
             [[ "$head_sha" != "$current_head" ]] || continue
-            git merge-base --is-ancestor "origin/${GITHUB_BASE_REF}" "$head_sha" || continue
+            git merge-base --is-ancestor "$PROOF_BASE_COMMIT" "$head_sha" || continue
             git merge-base --is-ancestor "$head_sha" "$current_head" || continue
             candidate_dir="${RUNNER_TEMP}/prior-red-candidate"
             rm -rf "$candidate_dir"
@@ -389,7 +430,7 @@ jobs:
               || ! "${isolated_python[@]}" scripts/requirements_proof_provenance.py \
                 --prior-red-proof "$candidate_dir/red.json" \
                 --repo-root . \
-                --base-ref "origin/${GITHUB_BASE_REF}" \
+                --base-ref "$PROOF_BASE_COMMIT" \
                 --final-ref "$current_head"; then
               continue
             fi
@@ -398,7 +439,7 @@ jobs:
           done < <(
             gh api --method GET --paginate \
               "repos/${GITHUB_REPOSITORY}/actions/workflows/requirements-evidence.yml/runs" \
-              -f branch="$GITHUB_HEAD_REF" \
+              -f branch="$PROOF_HEAD_BRANCH" \
               -f event=pull_request \
               -f status=completed \
               -f per_page=100 \
@@ -492,8 +533,8 @@ jobs:
             printf 'Invalid evidence base branch: %s\n' "$EVIDENCE_BASE_BRANCH" >&2
             exit 1
           fi
-          if ! evidence_base_commit="$(git merge-base "origin/${EVIDENCE_BASE_BRANCH}" HEAD)" \
-            || [[ ! "$evidence_base_commit" =~ ^[0-9a-f]{40}$ ]]; then
+          evidence_base_commit="${PROOF_BASE_COMMIT:-}"
+          if [[ ! "$evidence_base_commit" =~ ^[0-9a-f]{40}$ ]]; then
             write_failure_reports "Unable to resolve immutable evidence base for $EVIDENCE_BASE_BRANCH"
             exit 1
           fi
@@ -668,7 +709,7 @@ jobs:
           )
           prior_red_proof=""
           prior_red_junit=""
-          prior_red_base_ref="$evidence_base_commit"
+          prior_red_base_ref="$PROOF_BASE_COMMIT"
           prior_red_provenance="scripts/requirements_proof_provenance.py"
           prior_red_report_digest=""
           prior_red_junit_digest=""
@@ -939,6 +980,7 @@ jobs:
       artifact-digest: ${{ steps.upload-fresh-requirements-evidence.outputs.artifact-digest }}
       prior-red-run-id: ${{ needs.requirements-evidence-producer.outputs.prior-red-run-id }}
       producer-artifact-id: ${{ needs.requirements-evidence-producer.outputs.artifact-id }}
+      stack-context-digest: ${{ needs.requirements-evidence-producer.outputs.stack-context-digest }}
     runs-on: ubuntu-latest
     steps:
       - name: Enforce Requirements evidence producer success
@@ -1009,11 +1051,51 @@ jobs:
         with:
           enable-cache: false
 
+      - name: Authenticate live native stack proof boundary
+        id: stack-context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_CONTEXT_DIGEST: ${{ needs.requirements-evidence-producer.outputs.stack-context-digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          policy_root="${RUNNER_TEMP}/trusted-stack-context"
+          mkdir -p "$policy_root"
+          context="${policy_root}/context.json"
+          policy_ref="origin/dev"
+          if git cat-file -e "${policy_ref}:scripts/requirements_stack_context.py" 2>/dev/null; then
+            git archive "$policy_ref" -- scripts/requirements_stack_context.py | tar -x -C "$policy_root"
+            python3 -I -S "$policy_root/scripts/requirements_stack_context.py" \
+              --event "$GITHUB_EVENT_PATH" --output "$context"
+          else
+            # Bootstrap supports protected-base PRs only; candidate helper bytes never authorize a stack.
+            case "$GITHUB_BASE_REF" in dev|main) ;; *) exit 1 ;; esac
+            base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" HEAD)"
+            jq -S --arg base_commit "$base_commit" \
+              '{proof_base_ref: .pull_request.base.ref, proof_base_commit: $base_commit,
+                proof_head_branch: .pull_request.head.ref, proof_head_commit: .pull_request.head.sha,
+                proof_pull_request: .pull_request.number}' "$GITHUB_EVENT_PATH" > "$context"
+          fi
+          proof_base="$(jq -er '.proof_base_commit | select(test("^[0-9a-f]{40}$"))' "$context")"
+          proof_head="$(jq -er '.proof_head_commit | select(test("^[0-9a-f]{40}$"))' "$context")"
+          git merge-base --is-ancestor "$proof_base" "$proof_head"
+          git merge-base --is-ancestor "$proof_head" HEAD
+          digest="$(sha256sum < "$context" | cut -d ' ' -f 1)"
+          if [[ -n "$EXPECTED_CONTEXT_DIGEST" ]]; then
+            test "$digest" = "$EXPECTED_CONTEXT_DIGEST"
+          fi
+          printf 'digest=%s\n' "$digest" >> "$GITHUB_OUTPUT"
+          {
+            printf 'PROOF_BASE_COMMIT=%s\n' "$proof_base"
+            printf 'PROOF_HEAD_BRANCH=%s\n' "$(jq -er '.proof_head_branch' "$context")"
+            printf 'PROOF_PULL_REQUEST=%s\n' "$(jq -er '.proof_pull_request' "$context")"
+          } >> "$GITHUB_ENV"
+
       - name: Materialize trusted Requirements core
         shell: bash
         run: |
           set -euo pipefail
-          base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" HEAD)"
+          base_commit="$PROOF_BASE_COMMIT"
           [[ "$base_commit" =~ ^[0-9a-f]{40}$ ]]
           review_source="$base_commit"
           review_input_present=false
@@ -1073,6 +1155,9 @@ jobs:
             requirements/code-review/requirements.in \
             requirements/code-review/locked.txt \
             | tar -x -C "$trusted_core_root"
+          if git cat-file -e "${base_commit}:requirements/runtime-smoke/locked.txt" 2>/dev/null; then
+            git archive "$base_commit" -- requirements/runtime-smoke | tar -x -C "$trusted_core_root"
+          fi
           test -f "$trusted_core_root/src/specfact_cli/cli.py"
           test -f "$trusted_core_root/scripts/check_reproducible_delivery.py"
           test -f "$trusted_core_root/scripts/requirements_proof_executor.py"
@@ -1434,7 +1519,8 @@ jobs:
           jq -e \
             --argjson run_id "$PRIOR_RED_RUN_ID" \
             --arg repository "$GITHUB_REPOSITORY" \
-            --arg head_branch "$GITHUB_HEAD_REF" \
+            --arg head_branch "$PROOF_HEAD_BRANCH" \
+            --argjson proof_pull_request "$PROOF_PULL_REQUEST" \
             '.id == $run_id and
              .repository.full_name == $repository and
              .name == "Requirements Evidence" and
@@ -1443,10 +1529,11 @@ jobs:
              .status == "completed" and
              .conclusion == "failure" and
              .head_branch == $head_branch and
-             (.head_sha | test("^[0-9a-f]{40}$"))' \
+             (.head_sha | test("^[0-9a-f]{40}$")) and
+             ([.pull_requests[].number] | index($proof_pull_request) != null)' \
             "$metadata_root/run.json" > /dev/null
           red_head_sha="$(jq -er '.head_sha' "$metadata_root/run.json")"
-          git merge-base --is-ancestor "origin/${GITHUB_BASE_REF}" "$red_head_sha"
+          git merge-base --is-ancestor "$PROOF_BASE_COMMIT" "$red_head_sha"
           git merge-base --is-ancestor "$red_head_sha" HEAD
           gh api --method GET \
             "repos/${GITHUB_REPOSITORY}/actions/runs/${PRIOR_RED_RUN_ID}/artifacts" \
@@ -1493,11 +1580,11 @@ jobs:
         run: |
           set -euo pipefail
           source_ref="$(git rev-parse HEAD)"
-          evidence_base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" "$source_ref")"
+          evidence_base_commit="$PROOF_BASE_COMMIT"
           review_base_commit="$(git merge-base "origin/${REVIEW_BASE_BRANCH}" HEAD)"
           [[ "$source_ref" =~ ^[0-9a-f]{40}$ ]]
           [[ "$evidence_base_commit" =~ ^[0-9a-f]{40}$ ]]
-          test "$review_base_commit" = "$evidence_base_commit"
+          git merge-base --is-ancestor "$evidence_base_commit" "$review_base_commit"
           validator_site="${REQUIREMENTS_VALIDATOR_ROOT}/lib/python3.12/site-packages"
           isolated_python=("${REQUIREMENTS_VALIDATOR_ROOT}/bin/python" -I -S -c 'import runpy, sys; sys.path.append(sys.argv.pop(1)); script = sys.argv.pop(1); runpy.run_path(script, run_name="__main__")' "$validator_site")
           isolated_specfact=("${REQUIREMENTS_VALIDATOR_ROOT}/bin/python" -I -S -c 'import sys; site_packages, trusted_core = sys.argv[1:3]; del sys.argv[1:3]; sys.path.append(site_packages); sys.path.insert(0, trusted_core); from specfact_cli.cli import cli_main; cli_main()' "$validator_site" "$TRUSTED_REQUIREMENTS_CORE")
@@ -1962,11 +2049,51 @@ jobs:
         with:
           enable-cache: false
 
+      - name: Authenticate live native stack proof boundary
+        id: stack-context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_CONTEXT_DIGEST: ${{ needs.requirements-evidence.outputs.stack-context-digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          policy_root="${RUNNER_TEMP}/trusted-stack-context"
+          mkdir -p "$policy_root"
+          context="${policy_root}/context.json"
+          policy_ref="origin/dev"
+          if git cat-file -e "${policy_ref}:scripts/requirements_stack_context.py" 2>/dev/null; then
+            git archive "$policy_ref" -- scripts/requirements_stack_context.py | tar -x -C "$policy_root"
+            python3 -I -S "$policy_root/scripts/requirements_stack_context.py" \
+              --event "$GITHUB_EVENT_PATH" --output "$context"
+          else
+            # Bootstrap supports protected-base PRs only; candidate helper bytes never authorize a stack.
+            case "$GITHUB_BASE_REF" in dev|main) ;; *) exit 1 ;; esac
+            base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" HEAD)"
+            jq -S --arg base_commit "$base_commit" \
+              '{proof_base_ref: .pull_request.base.ref, proof_base_commit: $base_commit,
+                proof_head_branch: .pull_request.head.ref, proof_head_commit: .pull_request.head.sha,
+                proof_pull_request: .pull_request.number}' "$GITHUB_EVENT_PATH" > "$context"
+          fi
+          proof_base="$(jq -er '.proof_base_commit | select(test("^[0-9a-f]{40}$"))' "$context")"
+          proof_head="$(jq -er '.proof_head_commit | select(test("^[0-9a-f]{40}$"))' "$context")"
+          git merge-base --is-ancestor "$proof_base" "$proof_head"
+          git merge-base --is-ancestor "$proof_head" HEAD
+          digest="$(sha256sum < "$context" | cut -d ' ' -f 1)"
+          if [[ -n "$EXPECTED_CONTEXT_DIGEST" ]]; then
+            test "$digest" = "$EXPECTED_CONTEXT_DIGEST"
+          fi
+          printf 'digest=%s\n' "$digest" >> "$GITHUB_OUTPUT"
+          {
+            printf 'PROOF_BASE_COMMIT=%s\n' "$proof_base"
+            printf 'PROOF_HEAD_BRANCH=%s\n' "$(jq -er '.proof_head_branch' "$context")"
+            printf 'PROOF_PULL_REQUEST=%s\n' "$(jq -er '.proof_pull_request' "$context")"
+          } >> "$GITHUB_ENV"
+
       - name: Materialize trusted final Requirements core
         shell: bash
         run: |
           set -euo pipefail
-          base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" HEAD)"
+          base_commit="$PROOF_BASE_COMMIT"
           [[ "$base_commit" =~ ^[0-9a-f]{40}$ ]]
           review_source="$base_commit"
           review_input_present=false
@@ -2020,6 +2147,9 @@ jobs:
             requirements/code-review/requirements.in \
             requirements/code-review/locked.txt \
             | tar -x -C "$trusted_root"
+          if git cat-file -e "${base_commit}:requirements/runtime-smoke/locked.txt" 2>/dev/null; then
+            git archive "$base_commit" -- requirements/runtime-smoke | tar -x -C "$trusted_root"
+          fi
           test -f "$trusted_root/src/specfact_cli/cli.py"
           test -f "$trusted_root/ci/module-fixture.lock.json"
           test -f "$trusted_root/scripts/check_reproducible_delivery.py"
@@ -2336,7 +2466,8 @@ jobs:
           jq -e \
             --argjson run_id "$PRIOR_RED_RUN_ID" \
             --arg repository "$GITHUB_REPOSITORY" \
-            --arg head_branch "$GITHUB_HEAD_REF" \
+            --arg head_branch "$PROOF_HEAD_BRANCH" \
+            --argjson proof_pull_request "$PROOF_PULL_REQUEST" \
             '.id == $run_id and
              .repository.full_name == $repository and
              .name == "Requirements Evidence" and
@@ -2345,7 +2476,8 @@ jobs:
              .status == "completed" and
              .conclusion == "failure" and
              .head_branch == $head_branch and
-             (.head_sha | test("^[0-9a-f]{40}$"))' \
+             (.head_sha | test("^[0-9a-f]{40}$")) and
+             ([.pull_requests[].number] | index($proof_pull_request) != null)' \
             "$metadata_root/run.json" > /dev/null
           red_head_sha="$(jq -er '.head_sha' "$metadata_root/run.json")"
           git merge-base --is-ancestor "$FINAL_BASE_COMMIT" "$red_head_sha"

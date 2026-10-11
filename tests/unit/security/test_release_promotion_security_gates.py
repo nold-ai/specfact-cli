@@ -358,7 +358,7 @@ def test_requirements_archive_uses_one_immutable_merge_base() -> None:
     workflow = _workflow(".github/workflows/requirements-evidence.yml")
     job = cast(dict[str, Any], cast(dict[str, Any], workflow["jobs"])["requirements-evidence-producer"])
     command = str(_named_step(job, "Run Requirements evidence gate").get("run", ""))
-    assert 'evidence_base_commit="$(git merge-base "origin/${EVIDENCE_BASE_BRANCH}" HEAD)"' in command
+    assert 'evidence_base_commit="${PROOF_BASE_COMMIT:-}"' in command
     assert '"${evidence_base_commit}..HEAD"' in command
     assert 'git ls-tree -r -z --name-only "$evidence_base_commit"' in command
     assert 'git ls-tree "$evidence_base_commit"' in command
@@ -564,7 +564,7 @@ def test_doc_owner_rg_terminates_options(monkeypatch: Any, tmp_path: Path) -> No
 
 def test_patch_release_uses_next_version_in_all_sources() -> None:
     """The security baseline consumes only the next semver patch."""
-    expected = "0.55.4"
+    expected = "0.55.5"
     project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     assert project["project"]["version"] == expected
     for path in ("setup.py", "src/__init__.py", "src/specfact_cli/__init__.py"):

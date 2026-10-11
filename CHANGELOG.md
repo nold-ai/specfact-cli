@@ -10,6 +10,17 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.55.5] - 2026-10-11
+
+### Fixed
+
+- Authenticate native GitHub stack ancestry in Requirements proof reuse while
+  preserving complete plan equality and original failing-first evidence.
+- Isolate direct and console marketplace smoke installations from the running
+  pytest environment and use reviewed, hash-pinned module dependencies.
+
+---
+
 ## [0.55.4] - 2026-09-02
 
 ### Security

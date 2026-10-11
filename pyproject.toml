@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.55.4"
+version = "0.55.5"
 description = "AI-bloat defense CLI for Python teams. Run deterministic code review, cleanup forecasts, and spec/contract evidence for AI-assisted and brownfield delivery."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -230,7 +230,7 @@ validate-prompts = "python tools/validate_prompts.py"
 bandit-scan = "bandit -r src/ -ll"
 license-check = "python scripts/check_license_compliance.py"
 # Wrap pip-audit so JSON parsing and CVSS threshold checks fail closed.
-security-audit = "python scripts/security_audit_gate.py && python scripts/security_audit_gate.py --requirement requirements/code-review/locked.txt"
+security-audit = "python scripts/security_audit_gate.py && python scripts/security_audit_gate.py --requirement requirements/code-review/locked.txt && python scripts/security_audit_gate.py --requirement requirements/runtime-smoke/locked.txt"
 refresh-frozen-delivery = "python scripts/refresh_reproducible_delivery.py"
 # Development scripts
 test = "pytest {args}"

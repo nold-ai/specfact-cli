@@ -93,6 +93,7 @@ def test_producer_keeps_implementation_approval_out_of_planning(tmp_path: Path) 
                 "planning_maturity": maturity,
                 "RUNNER_TEMP": str(tmp_path),
                 "evidence_base_commit": "0" * 40,
+                "PROOF_BASE_COMMIT": "0" * 40,
                 "LATE_RED_ACTIVE": "false",
             },
             check=False,

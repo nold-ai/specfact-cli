@@ -321,3 +321,17 @@ def test_locked_sbom_renderer_uses_pip_inspect_without_generator_dependency(tmp_
             "referenceType": "purl",
         }
     ]
+
+
+def test_smoke_lock_rejects_unreviewed_input_change(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """A changed smoke seed cannot reuse the old reviewed lock binding."""
+    checker = REPO_ROOT / "scripts/check_reproducible_delivery.py"
+    spec = importlib.util.spec_from_file_location("check_reproducible_delivery", checker)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    altered = tmp_path / "requirements.in"
+    altered.write_text("lz4==0.0.0\n")
+    monkeypatch.setattr(module, "RUNTIME_SMOKE_REQUIREMENTS_INPUT", altered, raising=False)
+    with pytest.raises(ValueError, match="input SHA-256 binding does not match"):
+        module.verify_runtime_smoke_lock()
