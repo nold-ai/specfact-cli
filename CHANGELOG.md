@@ -10,10 +10,23 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [0.55.5] - 2026-10-11
+## [0.55.6] - 2026-10-11
+
+### Security
+
+- Update jekyll-feed to 0.18.0 to preserve XML language and CDATA escaping fixes.
+- Update jekyll-redirect-from to 0.17.0 and retain its unsafe-target security fix.
+- Require JSON >=2.21.2,<3 for documentation while retaining JSON 2.21.2 and
+  Jekyll 4.4.1; defer the incompatible JSON 3 migration.
+- Raise the runtime GitPython floor and frozen graph to 3.2.0, including its
+  additional submodule containment security fixes.
 
 ### Fixed
 
+- Update jekyll-relative-links to 0.9.1 so rebuilt links, included navigation
+  and configured base URLs use current targets.
+- Update the frozen Hatchling backend to 1.32.4 and include the bundled module
+  manifest in source distributions so offline wheel rebuilding remains complete.
 - Authenticate native GitHub stack ancestry in Requirements proof reuse while
   preserving complete plan equality and original failing-first evidence.
 - Isolate direct and console marketplace smoke installations from the running

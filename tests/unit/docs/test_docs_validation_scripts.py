@@ -16,10 +16,11 @@ def test_docs_json_gem_uses_the_patched_security_floor() -> None:
     gemfile = (REPO_ROOT / "docs" / "Gemfile").read_text(encoding="utf-8")
     lockfile = (REPO_ROOT / "docs" / "Gemfile.lock").read_text(encoding="utf-8")
 
-    assert 'gem "json", ">= 2.19.9"' in gemfile
+    assert 'gem "json", ">= 2.21.2", "< 3"' in gemfile
     match = re.search(r"^    json \(([^)]+)\)$", lockfile, re.MULTILINE)
     assert match is not None
-    assert tuple(int(part) for part in match.group(1).split(".")) >= (2, 19, 9)
+    assert (2, 21, 2) <= tuple(int(part) for part in match.group(1).split(".")) < (3,)
+    assert "    jekyll (4.4.1)" in lockfile
 
 
 def _load_check_docs_commands() -> object:
