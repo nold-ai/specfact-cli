@@ -597,3 +597,10 @@ is rechecked before execution. Bundler conservative regeneration changes only
 the selected plugin; Linux delivery platforms remain unchanged. CI actions are
 pinned and the selected gem is hash-checked before installation in this layer,
 without waiting for the top layer. Workflow/YAML and Ruby syntax checks pass.
+
+Fresh PR #754 replay: the parent feed 0.17.0 genuinely fails separate language
+attribute and CDATA/XML controls. Feed 0.18.0 passes both controls and retained
+redirect probes at root and /preview; both production documentation builds
+pass. The immutable gem hash is rechecked before execution and CI adds the
+same pre-install hash check. Conservative lock regeneration changes only
+jekyll-feed. Workflow/YAML and Ruby syntax checks pass.

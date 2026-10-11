@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
 
 ### Security
 
+- Update jekyll-feed to 0.18.0 to preserve XML language and CDATA escaping fixes.
 - Update jekyll-redirect-from to 0.17.0 and retain its unsafe-target security fix.
 - Require JSON >=2.21.2,<3 for documentation while retaining JSON 2.21.2 and
   Jekyll 4.4.1; defer the incompatible JSON 3 migration.
