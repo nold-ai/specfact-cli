@@ -533,3 +533,16 @@ files to Bundler's installation cache under the Ruby 3.2 ABI path; leave the
 project vendor/cache absent so unchanged locked dependencies can be fetched.
 BUNDLE_FROZEN stays true, candidate hashes and version inputs stay unchanged.
 The failed run remains retained; fresh full workflow validation is required.
+
+## Fresh protected foundation (2026-10-11 Europe/Berlin)
+
+Organization policy #3 merged at 0787cc7e45a12e4651e22d9447d21a29e31e98b4.
+Prerequisite #758 merged through required checks at protected dev
+30f98cc14e074802a9f21c6b84e69e743eee6442; its final 809cd3db head has
+all ordinary/native checks and exact-head member authority. This supersedes
+the local isolation failures recorded above, which remain historical evidence.
+The complete five-layer plan is authored before replay on this new baseline.
+The GitPython containment, sdist rebuild and backend expectation tests genuinely
+fail (3 failures, 1.09 seconds) before dependency or packaging edits.
+Local log: approved-744-local-red.log. A new hosted native RED is required before
+implementation; prior RED and earlier implementation runs remain historical.

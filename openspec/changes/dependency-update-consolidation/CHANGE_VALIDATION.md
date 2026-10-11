@@ -25,3 +25,9 @@ Rollback refs are retained under refs/codex-security-backup/20261010/pr-N.
 Explicit leases prevent concurrent branch overwrites. Shared lock conflicts,
 JSON incompatibility and rebased proof are mitigated by sequential regeneration,
 the compatible JSON contract and fresh final-head verification.
+
+Revalidated 2026-10-11 Europe/Berlin after #3/#758 normal protected merges.
+New root baseline: 30f98cc14e074802a9f21c6b84e69e743eee6442.
+The complete mapping is unchanged and its test-authored provider passes with
+no findings; fresh local RED is retained before candidate replay. Native
+RED and final-head validation remain required. No broader scope is added.
