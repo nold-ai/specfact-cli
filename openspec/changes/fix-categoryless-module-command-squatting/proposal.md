@@ -47,10 +47,18 @@ module is identified.
 - **Last Synced Status**: Open; parent relationship to #352 and required labels are set, project assignment is verified
 as SpecFact CLI/Todo and native dependency lists are empty.
 
-## Integrated protected validation prerequisite
+## Prior protected validation cycle after #761
 
 Prerequisite #760 shipped through #761 into protected dev at c4ee5be8457f69848bf9bc2150ebc3df56b52d4f.
 The protected helper authenticates unchanged inherited runtime proof while preserving #743/#751 as planning.
-This root is re-authored against that exact baseline with owner-accepted mapping e550f23e and fresh native RED
+The prior candidate f6481418 was re-authored against that baseline with accepted mapping e550f23e and native RED
 before implementation. No earlier-head proof, candidate helper or stale acceptance substitutes for the new cycle.
-Prepare coherent 0.55.8 bugfix artifacts after RED; leave #719/#743/#751 unmerged for owner review.
+That cycle prepared coherent 0.55.8 artifacts after RED and left all three targets unmerged for owner review.
+
+## Protected consumer integration after #767 (2026-10-12)
+
+Merged #767 is protected dev c6af68a0fdf2ea798dd22c6750f077e217c938f5, version 0.55.8.
+The earlier security candidate f6481418 passed all current-head gates and review on its original base.
+Re-author specification and unchanged accepted controls against this new base before restoring production.
+Owner acceptance e550f23e remains exact and genuine; new signed-head grants and native proof are required.
+Current security bugfix release is the next available patch, 0.55.9. Leave #719/#743/#751 unmerged.

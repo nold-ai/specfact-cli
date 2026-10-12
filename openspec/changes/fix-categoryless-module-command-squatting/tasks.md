@@ -75,3 +75,11 @@ effects.
 - [ ] 7.4 Restore the approved security correction, synchronize 0.55.8 artifacts, and verify final exact-head gates.
 - [ ] 7.5 Restack both planning children, issue authorized signed-head grants and validate scoped-token proof reuse.
 - [ ] 7.6 Resolve only validated findings and leave the final three PRs unmerged.
+
+## 8. Protected-base cycle after #767
+
+- [x] 8.1 Verify protected merge c6af68a0 and retain previously green heads as historical evidence.
+- [ ] 8.2 Publish signed specification and unchanged accepted tests; retain genuine current-base native RED.
+- [ ] 8.3 Restore the accepted guard, synchronize 0.55.9 and validate all current-head required gates.
+- [ ] 8.4 Restack both planning children and verify independent protected-context proof reuse.
+- [ ] 8.5 Close only verified findings and leave all three target PRs unmerged.

@@ -1,11 +1,11 @@
-# Current phase: specification before authored RED
+# Current phase: specification before new protected-base tests
 
-This head intentionally contains specification only and remains Draft. Production and newly authored tests
-are absent until the normal TDD sequence adds them. All earlier passing-after claims below describe the
-historical candidate a63156e1 or its explicitly identified local corrections, not this specification head.
-Protected baseline is c4ee5be8457f69848bf9bc2150ebc3df56b52d4f after #761; fresh native proof is mandatory.
-Owner djm81 already accepted mapping e550f23e with 20 exact selectors and authorized exact signed-head grants.
-The mapping and genuine acceptance bytes are preserved; no repeated approval or stale proof is assumed.
+Protected dev is c6af68a0fdf2ea798dd22c6750f077e217c938f5 after owner-authorized merged #767.
+This new cycle contains specification only; production/tests remain at the protected baseline. All earlier
+RED/GREEN claims below are historical and are not forwarded as fresh current-base proof. The earlier signed
+security head f6481418 had complete green CI/native authority and completed review before this integration.
+Exact e550f23e owner acceptance is preserved; current authored native proof and 0.55.9 implementation follow
+in that order. Required gates remain enforced, and all three target PRs stay unmerged.
 
 ## Historical TDD evidence: workspace registration isolation
 
@@ -168,3 +168,10 @@ builder-table reduction and is historical; only the frozen final run validates t
 Protective prerequisite is concrete PR #761 (issue #760), with verified signed authored head 436bd0a3
 and genuine native RED retained by run 38180902947. It must pass required checks/review and receive
 owner merge authorization before this stack consumes protected helper bytes. No stack member merges.
+
+## Protected-base cycle after #767
+
+Existing guards, twenty exact selectors and genuine accepted mapping are unchanged in scope. The preceding
+base c4ee5be8 and authored 61a78348/native run 38292251267 are retained as historical proof only. Current
+source authority is protected c6af68a0; specification precedes new authored controls and actual native RED.
+No current implementation or passing claim is made in this specification phase.

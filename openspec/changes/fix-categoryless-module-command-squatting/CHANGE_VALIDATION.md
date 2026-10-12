@@ -1,4 +1,10 @@
-# Current protected-base readiness
+# Current phase: refreshed specification after #767
+
+Protected base is c6af68a0fdf2ea798dd22c6750f077e217c938f5, version 0.55.8. Prior passing claims below
+are historical; exact current-base authored and final proof remain required. New implementation targets
+0.55.9 only after native RED. Scope and genuine e550f23e owner acceptance are unchanged.
+
+## Current protected-base readiness
 
 Protected dev is c4ee5be8457f69848bf9bc2150ebc3df56b52d4f, version 0.55.7. Prerequisite #761 is merged.
 The approved security scope and exact source mapping e550f23e remain unchanged. Historical validation below
