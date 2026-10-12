@@ -83,8 +83,8 @@ this workflow validation document; the newer proposal, design, scenarios, planne
 tasks on dev are preserved.
 
 The owner conditioned core implementation on paired module work already underway. Current readback retains modules
-`#483` Todo; runtime adoption remains deferred. Ongoing modules #481 belongs to existing core #740 delivery work,
-whose files are absent from this PR delta. No implementation task is completed or future signed-release
+`#483` Todo; runtime adoption remains deferred. Ongoing modules #481 owns its signed Requirements contract. Core #740 separately owns the R09 policy
+cutover already present on the protected parent; its files are absent from this PR delta. No implementation task is completed or future signed-release
 compatibility asserted.
 
 Applicable normal signed hooks, strict selected OpenSpec, native local planned-maturity selection and documentation
@@ -101,7 +101,8 @@ Requirements run 38303309228 and exact-head authority pass. The earlier consumer
 is retained as historical evidence and is not reported as a passing run.
 
 The complete own delta remains two Markdown planning documents. Deferred module workflow `#483` remains
-Todo; ongoing `#481` belongs to core `#740` already on the protected parent and outside this delta.
+Todo. Ongoing modules `#481` owns the signed Requirements contract; core `#740` separately owns the
+R09 policy cutover already on the protected parent and outside this delta.
 Local planned Requirements, strict selected OpenSpec, documentation and normal signed hooks must pass.
 Current-head hosted producer, independent execution, final verdict, authority and completed review remain
 required before readiness. No runtime task, future release compatibility or inherited execution is fabricated.
