@@ -1,7 +1,7 @@
-# Current phase: specification before new protected-base tests
+# Current phase: authored tests before restored implementation
 
 Protected dev is c6af68a0fdf2ea798dd22c6750f077e217c938f5 after owner-authorized merged #767.
-This new cycle contains specification only; production/tests remain at the protected baseline. All earlier
+Production remains at protected c6af68a0; unchanged accepted controls are now authored and genuinely failing. All earlier
 RED/GREEN claims below are historical and are not forwarded as fresh current-base proof. The earlier signed
 security head f6481418 had complete green CI/native authority and completed review before this integration.
 Exact e550f23e owner acceptance is preserved; current authored native proof and 0.55.9 implementation follow
@@ -175,3 +175,8 @@ Existing guards, twenty exact selectors and genuine accepted mapping are unchang
 base c4ee5be8 and authored 61a78348/native run 38292251267 are retained as historical proof only. Current
 source authority is protected c6af68a0; specification precedes new authored controls and actual native RED.
 No current implementation or passing claim is made in this specification phase.
+
+Signed current specification ff914942 precedes authored tests. All twenty exact accepted selectors genuinely
+fail against protected c6af68a0, with zero passes/errors/skips. No production, workflow or version input
+changes from that protected baseline precede the new native authored proof. Test bytes match 61a78348;
+the earlier native proof is historical and is not forwarded into the current cycle.

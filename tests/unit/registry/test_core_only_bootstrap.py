@@ -54,25 +54,17 @@ def _clear_registry():
 
 
 def test_register_builtin_commands_registers_only_three_core_when_discovery_returns_three(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """After bootstrap with only 3 core modules discovered, list_commands has exactly init, module, upgrade."""
-    from specfact_cli.registry.module_discovery import DiscoveredModule
-
-    def _discover(*, builtin_root=None, user_root=None, **kwargs):
-        root = builtin_root or tmp_path
-        return [
-            DiscoveredModule(root / "init", _make_core_metadata("init"), "builtin"),
-            DiscoveredModule(root / "module_registry", _make_core_metadata("module_registry", ["module"]), "builtin"),
-            DiscoveredModule(root / "upgrade", _make_core_metadata("upgrade"), "builtin"),
-        ]
+    from specfact_cli.registry.module_packages import BUILTIN_MODULES_ROOT
 
     monkeypatch.setattr(
         "specfact_cli.registry.module_packages.discover_all_package_metadata",
         lambda: [
-            (tmp_path / "init", _make_core_metadata("init")),
-            (tmp_path / "module_registry", _make_core_metadata("module_registry", ["module"])),
-            (tmp_path / "upgrade", _make_core_metadata("upgrade")),
+            (BUILTIN_MODULES_ROOT / "init", _make_core_metadata("init")),
+            (BUILTIN_MODULES_ROOT / "module_registry", _make_core_metadata("module_registry", ["module"])),
+            (BUILTIN_MODULES_ROOT / "upgrade", _make_core_metadata("upgrade")),
         ],
     )
     monkeypatch.setattr(
