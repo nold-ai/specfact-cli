@@ -1,4 +1,4 @@
-# Current phase: refreshed specification after #767
+# Current phase: restored implementation after #767 native RED
 
 Protected base is c6af68a0fdf2ea798dd22c6750f077e217c938f5, version 0.55.8. Prior passing claims below
 are historical; exact current-base authored and final proof remain required. New implementation targets
@@ -69,3 +69,12 @@ claims. All twenty fail genuinely against protected baseline 4e7c38c and all nin
 pass in the current implementation. Source a9ba0dfd and its published native proof are historical.
 Exact owner acceptance is recorded. Protected prerequisite #761/#760 integration, a later coherent patch version,
 regenerated native authored/final proof and final-head hosted review remain outstanding.
+
+## Current restored candidate
+
+Fresh signed ff914942 specification and 5ebcfd53 authored/native RED precede unchanged accepted runtime
+guards. Twenty mapped controls, 86 focused tests and the full suite pass on protected c6af68a0. Current
+0.55.9 delivery and all local quality/security/review/signature gates pass with documented unchanged
+baseline diagnostics. `_registration_packages` filters before side effects; `_package_registration_allowed`
+validates effective built-in containment and static category roots. Exact-head hosted gates and planning
+child validation remain pending; no historical proof is forwarded.

@@ -43,6 +43,7 @@ from specfact_cli.registry.bridge_registry import BridgeRegistry, SchemaConverte
 from specfact_cli.registry.extension_registry import get_extension_registry
 from specfact_cli.registry.metadata import CommandMetadata
 from specfact_cli.registry.module_grouping import (
+    CATEGORY_TO_GROUP_COMMAND,
     ModuleManifestError,
     normalize_legacy_bundle_group_command,
     validate_module_category_manifest,
@@ -356,7 +357,7 @@ def _apply_category_manifest_postprocess(meta: ModulePackageMetadata) -> ModuleP
             return meta
         logger = get_bridge_logger(__name__)
         logger.warning(
-            "Module '%s' has no category field; mounting as flat top-level command.",
+            "Module '%s' has no category field; registration follows source and grouping policy.",
             meta.name,
         )
         return meta
@@ -1232,9 +1233,8 @@ def _build_bundle_to_group() -> dict[str, tuple[str, str, Any]]:
     from specfact_cli.groups.project_group import build_app as build_project_app
     from specfact_cli.groups.spec_group import build_app as build_spec_app
 
-    return {
-        "specfact-backlog": (
-            "backlog",
+    builders = {
+        "backlog": (
             "Backlog and policy commands.",
             lambda: build_member_group(
                 name="backlog",
@@ -1244,16 +1244,11 @@ def _build_bundle_to_group() -> dict[str, tuple[str, str, Any]]:
                 install_hint_module="nold-ai/specfact-backlog",
             ),
         ),
-        "specfact-codebase": (
-            "code",
-            "Codebase quality commands: analyze, drift, validate, repro.",
-            build_codebase_app,
-        ),
-        "specfact-project": ("project", "Project lifecycle commands.", build_project_app),
-        "specfact-spec": ("spec", "Spec and contract commands: contract, api, sdd, generate.", build_spec_app),
-        "specfact-govern": ("govern", "Governance and quality gates: enforce, patch.", build_govern_app),
-        "specfact-requirements": (
-            "requirements",
+        "codebase": ("Codebase quality commands: analyze, drift, validate, repro.", build_codebase_app),
+        "project": ("Project lifecycle commands.", build_project_app),
+        "spec": ("Spec and contract commands: contract, api, sdd, generate.", build_spec_app),
+        "govern": ("Governance and quality gates: enforce, patch.", build_govern_app),
+        "requirements": (
             "Requirements evidence commands.",
             lambda: build_member_group(
                 name="requirements",
@@ -1263,6 +1258,11 @@ def _build_bundle_to_group() -> dict[str, tuple[str, str, Any]]:
                 install_hint_module="nold-ai/specfact-requirements",
             ),
         ),
+    }
+
+    return {
+        f"specfact-{category}": (CATEGORY_TO_GROUP_COMMAND[category], help_str, build_app)
+        for category, (help_str, build_app) in builders.items()
     }
 
 
@@ -1511,14 +1511,33 @@ def _register_command_flat_path(package_dir: Path, meta: Any, cmd_name: str, log
     CommandRegistry.register(cmd_name, loader, cmd_meta)
 
 
+def _package_registration_allowed(package_dir: Path, meta: Any, category_grouping_enabled: bool, logger: Any) -> bool:
+    """Reject root claims before package registration or lazy import side effects."""
+    if any(command in CORE_NAMES for command in meta.commands) and not _is_under_directory(
+        package_dir, get_modules_root()
+    ):
+        logger.warning("Module '%s' cannot supply permanent core commands.", meta.name)
+        return False
+    if meta.source != "project":
+        return True
+    if any(command in CATEGORY_TO_GROUP_COMMAND.values() for command in meta.commands):
+        logger.warning("Workspace module '%s' cannot supply official category roots.", meta.name)
+        return False
+    if category_grouping_enabled and meta.category is None:
+        logger.warning("Skipping category-less workspace module '%s' in grouped mode.", meta.name)
+        return False
+    return True
+
+
 def _register_commands_for_package(
     package_dir: Path,
     meta: Any,
     category_grouping_enabled: bool,
     logger: Any,
 ) -> None:
-    """Register package commands. Categorized marketplace modules never use flat root registration."""
-    _ = category_grouping_enabled  # retained for API compatibility; grouping no longer selects flat vs category
+    """Register authorized package commands without restoring removed bundle shims."""
+    if not _package_registration_allowed(package_dir, meta, category_grouping_enabled, logger):
+        return
     for cmd_name in meta.commands:
         if meta.category is not None:
             _register_command_category_path(package_dir, meta, cmd_name, logger)
@@ -1596,6 +1615,17 @@ def _log_skipped_modules_debug(logger: Any, skipped: list[tuple[str, str]]) -> N
         logger.debug("Skipped module '%s': %s", module_id, reason)
 
 
+def _registration_packages(
+    packages: list[tuple[Path, ModulePackageMetadata]], category_grouping_enabled: bool, logger: Any
+) -> list[tuple[Path, ModulePackageMetadata]]:
+    """Exclude rejected packages before any registration or import side effect."""
+    return [
+        (package_dir, meta)
+        for package_dir, meta in packages
+        if _package_registration_allowed(package_dir, meta, category_grouping_enabled, logger)
+    ]
+
+
 @beartype
 @require(
     lambda enable_ids, disable_ids: not (set(enable_ids or []) & set(disable_ids or [])),
@@ -1612,8 +1642,10 @@ def register_module_package_commands(
 
     Call after register_builtin_commands(). enable_ids/disable_ids from CLI (--enable-module/--disable-module).
     allow_unsigned: If True, allow modules without integrity metadata. Default from SPECFACT_ALLOW_UNSIGNED env.
-    category_grouping_enabled: Ignored for registration (retained for API compatibility). Category groups are
-    always mounted for installed bundles; categorized modules never register flat root aliases.
+    category_grouping_enabled: Default True rejects category-less project commands; False retains their
+    legacy flat registration. Categorized modules always retain category routing. External package paths
+    cannot register or extend permanent core commands in either mode. Project packages cannot supply official
+    category roots, and rejected packages cannot contribute registration or active-import side effects.
     """
     enable_ids = enable_ids or []
     disable_ids = disable_ids or []
@@ -1624,13 +1656,14 @@ def register_module_package_commands(
     is_test_mode = os.environ.get("TEST_MODE") == "true" or os.environ.get("PYTEST_CURRENT_TEST") is not None
     packages = discover_all_package_metadata()
     packages = sorted(packages, key=_package_sort_key)
+    logger = get_bridge_logger(__name__)
+    packages = _registration_packages(packages, category_grouping_enabled, logger)
     if not packages:
         return
     discovered_list: list[tuple[str, str]] = [(meta.name, meta.version) for _dir, meta in packages]
     module_versions = {meta.name: meta.version for _dir, meta in packages}
     state = read_modules_state()
     enabled_map = merge_module_state(discovered_list, state, enable_ids, disable_ids)
-    logger = get_bridge_logger(__name__)
     skipped: list[tuple[str, str]] = []
     counters = _ProtocolComplianceCounters(
         protocol_full=[0],

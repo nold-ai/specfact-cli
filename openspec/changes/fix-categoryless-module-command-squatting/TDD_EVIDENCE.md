@@ -1,7 +1,7 @@
-# Current phase: authored tests before restored implementation
+# Current phase: implementation after current-base native RED
 
 Protected dev is c6af68a0fdf2ea798dd22c6750f077e217c938f5 after owner-authorized merged #767.
-Production remains at protected c6af68a0; unchanged accepted controls are now authored and genuinely failing. All earlier
+Production restoration follows genuine native RED on protected c6af68a0; authored test bytes remain unchanged. All earlier
 RED/GREEN claims below are historical and are not forwarded as fresh current-base proof. The earlier signed
 security head f6481418 had complete green CI/native authority and completed review before this integration.
 Exact e550f23e owner acceptance is preserved; current authored native proof and 0.55.9 implementation follow
@@ -180,3 +180,41 @@ Signed current specification ff914942 precedes authored tests. All twenty exact 
 fail against protected c6af68a0, with zero passes/errors/skips. No production, workflow or version input
 changes from that protected baseline precede the new native authored proof. Test bytes match 61a78348;
 the earlier native proof is historical and is not forwarded into the current cycle.
+
+## Native RED on protected c6af68a0 before restoration
+
+Signed authored 5ebcfd53cfbff70b7e6f54b7a475699ccdbe6a58, following specification ff914942, has actual native
+run 38301391702/artifact 11771425189: gate pass, red maturity, twenty real failures, zero errors/skips and
+no findings. The approved guard and supported routing are restored only after retaining that proof.
+Current coherent security version is 0.55.9. No earlier native source/tree is forwarded. All required
+current-head local/hosted gates and sequential planning reuse validation remain pending.
+
+## Current local GREEN after protected #767
+
+The twenty mapped controls pass in 1.32 seconds; 86 focused registry/category/built-in controls pass in 2.86
+seconds. The full smart suite passes 3331 tests, with 10 disclosed skips and two existing dependency warnings, in
+191.06 seconds. Raw JUnit independently has zero failures/errors. All 761 tracked
+source/test/script/tool/workflow/delivery inputs match before and after. Embedded timeout/coverage/nonzero
+diagnostics belong to passing negative harness tests, not failed suite cases; no report or threshold is rewritten.
+
+The dedicated CPython 3.13.14 frozen worktree uses reviewed module/documentation fixtures; full execution has no
+module-root override. Format, canonical zero-error typing, lint, repository YAML command, contracts, documentation,
+strict selected OpenSpec, frozen delivery, lock/export parity, version sources and strict PyPI-ahead pass. The
+canonical type artifact retains 1,522 existing warnings, and the repository YAML command emits byte-preserved
+accepted-mapping/archive formatting diagnostics. Those diagnostics are disclosed; no rule is disabled or proof-bound
+YAML reformatted.
+
+Three frozen Python audits, dependency trust, licenses, strict four-manifest signatures, independent Semgrep and
+blocking Bandit pass. No module payload/manifest changes. Root project version, all four declarations and promotion
+fixture are coherent at 0.55.9; locked export payload is identical to protected c6af68a0.
+
+Owner-approved local SpecFact review covers the entire touched Python surface. Its 13
+severity/tool/rule/file/message advisories equal independent analysis of protected c6af68a0 file bytes, normalized
+only for line movement: zero new findings. Explicit unchanged-baseline exceptions retain existing discovery/parser
+shapes, exception/None handling, promotion-fixture structure and category command type warnings; no analyzer or
+threshold is suppressed. New security controls have no findings.
+
+Fresh native RED is 38301391702/artifact 11771425189 on 5ebcfd53 after signed specification ff914942. Approved
+mapping E550, genuine acceptance and selected test bytes are unchanged. Earlier base evidence remains historical.
+Final signed-SHA provenance and hosted CI/native authority/review, followed by sequential child restacking, remain
+mandatory. All current artifacts are retained under /private/tmp/specfact-docs-stack-20261012.

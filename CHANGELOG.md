@@ -10,6 +10,22 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.55.9] - 2026-10-12
+
+### Security
+
+- Reject workspace claims to permanent core and official category roots in grouped and explicit legacy modes.
+  Validate resolved built-in authority before registry, schema, bridge, protocol or import activation; reject forged
+  provenance, escaping symlinks and import shadowing. Use the canonical static category map during admission so
+  rejected packages cannot trigger builder imports.
+
+### Fixed
+
+- Preserve legitimate built-in discovery from configured repositories, unreserved legacy commands and installed
+  `spec api` routing. Keep removed flat bundle shims absent when grouping is explicitly disabled.
+- Synchronize the 0.55.9 bugfix declarations, frozen lock and generated promotion metadata after the protected
+  planning-proof prerequisite.
+
 ## [0.55.8] - 2026-10-12
 
 ### Security

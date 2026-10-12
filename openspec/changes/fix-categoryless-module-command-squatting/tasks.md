@@ -24,26 +24,26 @@ internal wiki graph when the sibling checkout is available.
 
 ## 3. Implementation
 
-- [ ] 3.1 Skip category-less project package registration in grouped mode; reserve permanent core commands for resolved
+- [x] 3.1 Skip category-less project package registration in grouped mode; reserve permanent core commands for resolved
 built-in paths in both modes.
-- [ ] 3.2 Preserve categorized routing, non-project legacy sources and explicit unreserved flat registration.
+- [x] 3.2 Preserve categorized routing, non-project legacy sources and explicit unreserved flat registration.
 
 ## 4. Verification and documentation review
 
-- [ ] 4.1 Run focused registry and category-routing tests and record passing evidence.
-- [ ] 4.2 Run formatting, type, lint, YAML, contract, smart-test, Semgrep, and Bandit gates required for the touched
+- [x] 4.1 Run focused registry and category-routing tests and record passing evidence.
+- [x] 4.2 Run formatting, type, lint, YAML, contract, smart-test, Semgrep, and Bandit gates required for the touched
 scope.
-- [ ] 4.3 Refresh `.specfact/code-review.json`, resolve all findings, and record the result.
-- [ ] 4.4 Review `README.md`, `docs/`, `docs/index.md`, and sidebar navigation for impact; update only if documented
+- [x] 4.3 Refresh `.specfact/code-review.json`, resolve all findings, and record the result.
+- [x] 4.4 Review `README.md`, `docs/`, `docs/index.md`, and sidebar navigation for impact; update only if documented
 behavior changes.
-- [ ] 4.5 Confirm no signed module assets or manifests changed; otherwise bump and re-sign affected modules and run
+- [x] 4.5 Confirm no signed module assets or manifests changed; otherwise bump and re-sign affected modules and run
 signature verification.
-- [ ] 4.6 Validate the OpenSpec change strictly after implementation.
+- [x] 4.6 Validate the OpenSpec change strictly after implementation.
 
 ## 5. Release and pull request
 
-- [ ] 5.1 Apply the required patch version bump across canonical version files and add a Security changelog entry.
-- [ ] 5.2 Commit with a Conventional Commit message and push the branch.
+- [x] 5.1 Apply the required patch version bump across canonical version files and add a Security changelog entry.
+- [x] 5.2 Commit with a Conventional Commit message and push the branch.
 - [x] 5.3 Create a pull request to `dev` using the repository template and link the OpenSpec change and GitHub issue.
 
 ## Post-merge cleanup
@@ -57,14 +57,14 @@ signature verification.
 - [x] 6.2 Capture actual failing tests against facb690 before implementation.
 - [x] 6.3 Record human acceptance of mapping a9ba0dfd and corrected native authored RED (run 38176059675); final
 e550f23e acceptance/proof remains tracked by 6.7.
-- [ ] 6.4 Reject packages before all registration side effects and preserve effective built-in discovery.
+- [x] 6.4 Reject packages before all registration side effects and preserve effective built-in discovery.
 - [ ] 6.5 Run focused/full/quality gates, restack, and verify final current-head review and Requirements.
 
 - [x] 6.6 Add executable reserved-flat-name controls and reconcile the ended spec shim requirement.
 - [ ] 6.7 Obtain exact final mapping acceptance, regenerate authored/final proof after prerequisite #760, and validate
 the final stack.
 
-- [ ] 6.8 Reproduce category-builder imports during eligibility and use the existing static category map before side
+- [x] 6.8 Reproduce category-builder imports during eligibility and use the existing static category map before side
 effects.
 
 ## 7. Protected-base validation cycle after #761
@@ -79,7 +79,7 @@ effects.
 ## 8. Protected-base cycle after #767
 
 - [x] 8.1 Verify protected merge c6af68a0 and retain previously green heads as historical evidence.
-- [ ] 8.2 Publish signed specification and unchanged accepted tests; retain genuine current-base native RED.
+- [x] 8.2 Publish signed specification and unchanged accepted tests; retain genuine current-base native RED.
 - [ ] 8.3 Restore the accepted guard, synchronize 0.55.9 and validate all current-head required gates.
 - [ ] 8.4 Restack both planning children and verify independent protected-context proof reuse.
 - [ ] 8.5 Close only verified findings and leave all three target PRs unmerged.
