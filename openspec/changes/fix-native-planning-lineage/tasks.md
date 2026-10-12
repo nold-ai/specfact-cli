@@ -8,12 +8,12 @@
 
 - [x] 2.1 Add real shell/Git controls and reproduce both exact selectors failing before changes.
 - [x] 2.2 Obtain exact owner mapping acceptance and prerequisite signed-head grant authorization.
-- [ ] 2.3 Publish genuine native authored RED with unchanged test bytes.
+- [x] 2.3 Publish genuine native authored RED with unchanged test bytes.
 
 ## 3. Implementation and validation
 
-- [ ] 3.1 Correct independent lineage validation and synchronize available patch metadata.
-- [ ] 3.2 Run focused/full, frozen-delivery, security, quality, review and signature gates.
+- [x] 3.1 Correct independent lineage validation and synchronize available patch metadata.
+- [x] 3.2 Run focused/full, frozen-delivery, security, quality, review and signature gates.
 - [ ] 3.3 Publish signed final head; validate actual native proof, authority and completed review.
 - [ ] 3.4 Obtain owner protected integration authorization after required checks pass.
 

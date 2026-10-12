@@ -10,6 +10,20 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.55.8] - 2026-10-12
+
+### Security
+
+- Independently validate protected-proof and immutable review-base identities before Requirements execution.
+  Reject unrelated trust, unrelated planning ancestry and evidence newer than the candidate without changing
+  root authentication, source authority, signatures, plan equality or required gates.
+
+### Fixed
+
+- Validate native-stack planning parents against candidate ancestry while retaining protected dev/main as
+  review and verifier trust. Planning parents newer than dev can reach independent evidence reconciliation.
+- Synchronize bugfix declarations, frozen project metadata and the generated promotion fixture.
+
 ## [0.55.7] - 2026-10-12
 
 ### Security
