@@ -1,0 +1,9 @@
+{
+  "schema_version": "1",
+  "decision": "accepted",
+  "reviewer_id": "djm81",
+  "reviewer_role": "repository-owner",
+  "recorded_at": "2026-10-11T22:30:56.430424+00:00",
+  "reference": "https://github.com/nold-ai/specfact-cli/pull/719",
+  "mapping_digest": "sha256:e550f23e9423463f15e629e32071ec664655bc307a165af3a3961225e2f7276f"
+}

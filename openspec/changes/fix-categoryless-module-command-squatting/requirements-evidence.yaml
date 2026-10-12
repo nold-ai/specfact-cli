@@ -1,0 +1,207 @@
+schema_version: '2'
+requirements:
+  openspec:fix-categoryless-module-command-squatting:module-grouping:registry-groups-modules-by-category-when-loading:
+    rationale: Project modules cannot claim arbitrary root commands in default grouped mode.
+    stakeholder_refs:
+    - nold-ai/specfact-cli#718
+    touchpoints:
+    - id: registration-policy
+      kind: code_symbol
+      locator: src/specfact_cli/registry/module_packages.py::_register_commands_for_package
+    verification_cases:
+    - case_id: SQUAT-001
+      scenario_id: registry-groups-modules-by-category-when-loading
+      method: test
+      intent: Register a real category-less project manifest and check root registry and execution marker.
+      observable: The removed validate command is absent and its package has not executed.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_module_command_squatting.py::test_workspace_missing_category_cannot_squat_root
+    - case_id: SQUAT-COMPAT
+      scenario_id: registry-groups-modules-by-category-when-loading
+      method: test
+      intent: Execute explicit legacy workspace registration.
+      observable: An unreserved legacy command remains loadable only when grouping is explicitly disabled.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_module_command_squatting.py::test_explicit_legacy_workspace_registration_remains_available
+    - case_id: SQUAT-SOURCES
+      scenario_id: registry-groups-modules-by-category-when-loading
+      method: test
+      intent: Execute all non-project legacy source controls.
+      observable: User, marketplace and custom unreserved legacy commands remain available.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_module_command_squatting.py::test_non_workspace_legacy_registration_remains_available
+    - case_id: SQUAT-SHADOW
+      scenario_id: registry-groups-modules-by-category-when-loading
+      method: test
+      intent: Load an eligible package with a dependency also offered by a rejected workspace package.
+      observable: Only the approved dependency is imported; the rejected source is never activated.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_module_command_squatting.py::test_rejected_workspace_cannot_shadow_eligible_package_imports
+  ? openspec:fix-categoryless-module-command-squatting:command-package-runtime-validation:permanent-core-commands-cannot-be-extended-by-external-packages
+  : rationale: Declaring core metadata cannot grant authority to extend permanent root commands.
+    stakeholder_refs:
+    - nold-ai/specfact-cli#718
+    touchpoints:
+    - id: core-authority
+      kind: code_symbol
+      locator: src/specfact_cli/registry/module_packages.py::_register_commands_for_package
+    verification_cases:
+    - case_id: SQUAT-002
+      scenario_id: permanent-core-commands-cannot-be-extended-by-external-packages
+      method: test
+      intent: Attempt to extend every permanent root with an external core-category manifest.
+      observable: Existing root loaders remain unchanged and no external module entry or execution appears.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_module_command_squatting.py::test_workspace_core_category_cannot_extend_permanent_roots
+    - case_id: SQUAT-PATH
+      scenario_id: permanent-core-commands-cannot-be-extended-by-external-packages
+      method: test
+      intent: Execute forged provenance and escaping symlink controls in both modes.
+      observable: Both registries reject an external resolved path despite a forged builtin label.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_module_command_squatting.py::test_external_core_claim_rejected_even_with_forged_source_and_builtin_symlink
+    - case_id: SQUAT-BUILTIN
+      scenario_id: permanent-core-commands-cannot-be-extended-by-external-packages
+      method: test
+      intent: Load a real signed built-in init package.
+      observable: The actual built-in command remains loadable.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_module_command_squatting.py::test_real_builtin_core_registration_remains_available
+    - case_id: SQUAT-REPO
+      scenario_id: permanent-core-commands-cannot-be-extended-by-external-packages
+      method: test
+      intent: Use operator-configured discovery from a different checkout.
+      observable: Its contained built-in package retains authority without trusting a manifest source claim.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_module_command_squatting.py::test_explicit_repository_root_preserves_builtin_authority
+    - case_id: SQUAT-FLAT-INIT
+      scenario_id: permanent-core-commands-cannot-be-extended-by-external-packages
+      method: test
+      intent: Independently exercise the category-less init claim with grouping explicitly disabled.
+      observable: No root command, module entry, active import source or hostile execution is admitted.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_module_command_squatting.py::test_reserved_flat_claim_is_denied[init]
+    - case_id: SQUAT-FLAT-MODULE
+      scenario_id: permanent-core-commands-cannot-be-extended-by-external-packages
+      method: test
+      intent: Independently exercise the category-less module claim with grouping explicitly disabled.
+      observable: No root command, module entry, active import source or hostile execution is admitted.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_module_command_squatting.py::test_reserved_flat_claim_is_denied[module]
+    - case_id: SQUAT-FLAT-UPGRADE
+      scenario_id: permanent-core-commands-cannot-be-extended-by-external-packages
+      method: test
+      intent: Independently exercise the category-less upgrade claim with grouping explicitly disabled.
+      observable: No root command, module entry, active import source or hostile execution is admitted.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_module_command_squatting.py::test_reserved_flat_claim_is_denied[upgrade]
+  ? openspec:fix-categoryless-module-command-squatting:command-package-runtime-validation:workspace-packages-cannot-supply-official-category-roots
+  : rationale: Workspace manifests cannot supply the root command app for official installed categories.
+    stakeholder_refs:
+    - nold-ai/specfact-cli#718
+    touchpoints:
+    - id: registration-policy
+      kind: code_symbol
+      locator: src/specfact_cli/registry/module_packages.py::_register_one_package_if_eligible
+    verification_cases:
+    - case_id: SQUAT-CATEGORY
+      scenario_id: workspace-packages-cannot-supply-official-category-roots
+      method: test
+      intent: Attempt all six official category roots in both grouping modes.
+      observable: The entire project package is excluded from registries, active imports and category mounts.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_module_command_squatting.py::test_workspace_cannot_supply_official_category_roots
+    - case_id: SQUAT-FLAT-PROJECT
+      scenario_id: workspace-packages-cannot-supply-official-category-roots
+      method: test
+      intent: Independently exercise the category-less project claim with grouping explicitly disabled.
+      observable: No root command, module entry, active import source or hostile execution is admitted.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_module_command_squatting.py::test_reserved_flat_claim_is_denied[project]
+    - case_id: SQUAT-FLAT-BACKLOG
+      scenario_id: workspace-packages-cannot-supply-official-category-roots
+      method: test
+      intent: Independently exercise the category-less backlog claim with grouping explicitly disabled.
+      observable: No root command, module entry, active import source or hostile execution is admitted.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_module_command_squatting.py::test_reserved_flat_claim_is_denied[backlog]
+    - case_id: SQUAT-FLAT-CODE
+      scenario_id: workspace-packages-cannot-supply-official-category-roots
+      method: test
+      intent: Independently exercise the category-less code claim with grouping explicitly disabled.
+      observable: No root command, module entry, active import source or hostile execution is admitted.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_module_command_squatting.py::test_reserved_flat_claim_is_denied[code]
+    - case_id: SQUAT-FLAT-SPEC
+      scenario_id: workspace-packages-cannot-supply-official-category-roots
+      method: test
+      intent: Independently exercise the category-less spec claim with grouping explicitly disabled.
+      observable: No root command, module entry, active import source or hostile execution is admitted.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_module_command_squatting.py::test_reserved_flat_claim_is_denied[spec]
+    - case_id: SQUAT-FLAT-GOVERN
+      scenario_id: workspace-packages-cannot-supply-official-category-roots
+      method: test
+      intent: Independently exercise the category-less govern claim with grouping explicitly disabled.
+      observable: No root command, module entry, active import source or hostile execution is admitted.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_module_command_squatting.py::test_reserved_flat_claim_is_denied[govern]
+    - case_id: SQUAT-FLAT-REQUIREMENTS
+      scenario_id: workspace-packages-cannot-supply-official-category-roots
+      method: test
+      intent: Independently exercise the category-less requirements claim with grouping explicitly disabled.
+      observable: No root command, module entry, active import source or hostile execution is admitted.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_module_command_squatting.py::test_reserved_flat_claim_is_denied[requirements]
+  ? openspec:fix-categoryless-module-command-squatting:category-command-groups:category-grouping-enabled-config-flag-controls-grouping-behaviour
+  : rationale: Reconcile the existing shipped category routing contract without restoring removed flat shims.
+    stakeholder_refs:
+    - nold-ai/specfact-cli#718
+    touchpoints:
+    - id: category-policy
+      kind: code_symbol
+      locator: src/specfact_cli/registry/module_packages.py::register_module_package_commands
+    verification_cases:
+    - case_id: SQUAT-FLAG
+      scenario_id: category-grouping-enabled-config-flag-controls-grouping-behaviour
+      method: test
+      intent: Check categorized routing with grouping explicitly disabled.
+      observable: Removed bundle shims remain absent.
+      selector:
+        runner: pytest
+        node_id: tests/unit/registry/test_category_groups.py::test_bootstrap_with_category_grouping_disabled_still_has_no_flat_shims
+  ? openspec:fix-categoryless-module-command-squatting:category-command-groups:spec-module-sub-command-avoids-collision-with-group-command-name
+  : rationale: Reconcile the completed flat-shim migration while reserving the workspace spec root.
+    stakeholder_refs:
+    - nold-ai/specfact-cli#718
+    touchpoints:
+    - id: spec-category-routing
+      kind: code_symbol
+      locator: src/specfact_cli/registry/module_packages.py::register_module_package_commands
+    verification_cases:
+    - case_id: SQUAT-SPEC-API
+      scenario_id: spec-module-sub-command-avoids-collision-with-group-command-name
+      method: test
+      intent: Reject a category-less workspace spec root in legacy mode and execute an eligible api route.
+      observable: The workspace loader stays inactive and the eligible spec api validate command succeeds.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_module_command_squatting.py::test_spec_api_routing_preserves_reserved_workspace_root
