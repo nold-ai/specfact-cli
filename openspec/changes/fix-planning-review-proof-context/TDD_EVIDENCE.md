@@ -36,7 +36,8 @@ claimed as zero formatting diagnostics. Newly authored mapping validates at plan
 
 ## Pending required publication
 
-Owner acceptance/grants and genuine native RED are retained; unchanged-test signed implementation, exact-head provenance/final execution, required CI and completed
+Owner acceptance/grants and genuine native RED are retained; unchanged-test signed implementation, exact-head
+provenance/final execution, required CI and completed
 review remain required. Local results do not substitute for those gates. Separate owner merge authorization
 is still required after final hosted validation. Target #719/#743/#751 remain unmerged. After protected
 integration, reprove root on the new base and validate both planning consumers before final readiness.
@@ -61,7 +62,8 @@ zero findings; canonical types still have zero errors and the same 1522 existing
 
 The full suite was repeated after this behavior correction: 3313 passed, ten skips, two existing warnings,
 198.52 seconds. Raw JUnit has zero failures/errors; all 787 inputs are unchanged. Earlier local test SHA256
-ee736256f43eaf546bb93c763bdd8f5d4540e20a1bcb1cb75b3fe44d8dd2109c (historical launcher). Final native proof and protected integration remain pending.
+ee736256f43eaf546bb93c763bdd8f5d4540e20a1bcb1cb75b3fe44d8dd2109c (historical launcher). Final native proof and
+protected integration remain pending.
 
 ## Corrected genuine native authored RED
 
