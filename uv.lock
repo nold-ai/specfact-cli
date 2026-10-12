@@ -2770,7 +2770,7 @@ wheels = [
 
 [[package]]
 name = "specfact-cli"
-version = "0.55.8"
+version = "0.55.9"
 source = { editable = "." }
 dependencies = [
     { name = "azure-identity" },
