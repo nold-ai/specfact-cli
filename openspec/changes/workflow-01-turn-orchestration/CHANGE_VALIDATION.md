@@ -96,8 +96,8 @@ A new owner-authorized exact-head grant follows actual GitHub signature verifica
 
 Protected prerequisite #767 merged as c6af68a0fdf2ea798dd22c6750f077e217c938f5. Its independently tested
 correction preserves protected review trust and checks planning-parent ancestry against the candidate.
-This layer now follows signed security root ee8d81f5db9569c42a903c4a0b0322af6f523470, whose fresh native
-Requirements run 38303309228 and exact-head authority pass. The earlier consumer failure on 98a932c3
+This layer now follows signed security root 57f51829a0899afc3bc413c3ed21099d261b8ab8, whose fresh native
+Requirements run 38306990823 and exact-head authority pass. The earlier consumer failure on 98a932c3
 is retained as historical evidence and is not reported as a passing run.
 
 The complete own delta remains two Markdown planning documents. Deferred module workflow `#483` remains
@@ -106,3 +106,10 @@ R09 policy cutover already on the protected parent and outside this delta.
 Local planned Requirements, strict selected OpenSpec, documentation and normal signed hooks must pass.
 Current-head hosted producer, independent execution, final verdict, authority and completed review remain
 required before readiness. No runtime task, future release compatibility or inherited execution is fabricated.
+
+Independent execution on 2ee53305/run 38303860784 passed planned reconciliation, then the immutable
+Code Review provider correctly rejected the child planning receipt as non-final execution proof.
+Protective `fix-planning-review-proof-context` preserves full protected-dev review and authentic root
+final proof separately; exact mapping acceptance, native proof and protected integration are pending.
+This branch aligns to the current signed root and fixes ownership wording; hosted consumer readiness
+remains blocked until that protection is integrated and validated. No review gate is skipped.
