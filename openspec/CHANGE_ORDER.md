@@ -407,3 +407,10 @@ Existing issue #760 / `fix-native-planning-lineage` corrects the independent exe
 after merged #761. Preserve protected-base-to-review and planning-parent-to-candidate ancestry separately.
 Reviewed protected integration precedes stack #759 restacking. No required proof, authority, review or
 signature gate changes meaning. Leave #719/#743/#751 unmerged.
+
+### Protected planning review context follow-up
+
+Issue #760 / `fix-planning-review-proof-context` follows merged #767. Real #743 run 38303860784
+rejects planning receipts at the immutable finalized Code Review boundary. Preserve full protected-dev
+review scope and supply independently authenticated genuine root final proof. Protected integration,
+fresh root RED/GREEN and sequential planning-child validation remain prerequisites; no gate is weakened.
