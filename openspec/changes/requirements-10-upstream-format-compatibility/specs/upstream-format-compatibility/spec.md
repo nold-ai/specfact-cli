@@ -29,5 +29,5 @@ A supported SpecFact extension that only adds invocation hooks SHALL NOT by its 
 #### Scenario: Failed import preserves state
 
 - **GIVEN** previously persisted requirements and a mixed valid/invalid new input
-- **WHEN** profile or readiness validation fails
+- **WHEN** profile, parse or readiness validation fails
 - **THEN** no partial replacement or new persisted artifact is produced and the original bytes remain unchanged.

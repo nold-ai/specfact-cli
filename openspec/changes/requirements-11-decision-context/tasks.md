@@ -18,7 +18,7 @@ All tasks are future implementation. This planning PR completes no runtime task 
 ## 3. Bounded implementation
 
 - [ ] 3.1 Implement the smallest contract slice with beartype/icontract on public parsing/validation APIs; preserve existing adapters and original artifacts.
-- [ ] 3.2 Integrate only released supported producer interfaces; keep external side effects opt-in and share #483 budgets instead of adding a repair controller.
+- [ ] 3.2 Integrate only released supported producer interfaces; keep external side effects opt-in and implement only the standalone context contract. Shared #483 budgets belong to optional downstream assurance integration; this task adds no repair controller or workflow prerequisite.
 - [ ] 3.3 Run scenario and compatibility regressions; record passing evidence, limitations and exact identities.
 
 ## 4. Documentation and review

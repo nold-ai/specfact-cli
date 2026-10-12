@@ -53,3 +53,20 @@ was published 2026-10-02; its [extension documentation](https://github.github.io
 separates invocation hooks from artifact templates. The [SCAI v0.3 contract](https://github.com/in-toto/attestation/blob/6e9183a21848f27a43c22c87459189024b1e569f/spec/predicates/scai.md)
 is pinned here for research. These sources verify the proposed interface boundaries, not executable compatibility
 or security of an unimplemented exporter. Runtime adoption must validate exact signed released pairs later.
+
+## Review boundary corrections — 2026-10-12 (Europe/Berlin)
+
+Clarified R10: shared #648 supplies atomic readiness results and upstream-source preservation; caller
+persistence commits only after profile, parse and readiness succeed. The planned failure scenario explicitly
+covers parse errors. R11 standalone context work has no #483 repair-budget prerequisite; shared budgets
+remain in optional downstream assurance integration. Active-tree snapshot matches 47 direct folders on
+this exact current branch; refresh again after protected prerequisites/restacking. These changes preserve
+unchecked runtime tasks and require native planned proof, current-head review and inherited security gates.
+
+## Current signed-parent alignment — 2026-10-12 (Europe/Berlin)
+
+This planning branch now follows signed parent 4d1e7429 and signed root 57f51829, both on protected c6af68a0.
+The inherited bugfix delivery inputs remain coherent at 0.55.9. Its own runtime implementation tasks stay
+unchecked; direct planned Requirements covers eight sources. Full hosted consumers must also validate
+workflow planning cumulatively and authenticate root proof, authority and finalized review context.
+The immutable review rejection remains enforced pending protective integration; no passing outcome is inferred.

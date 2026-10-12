@@ -18,7 +18,7 @@ A supported SpecFact extension that only adds invocation hooks SHALL NOT by its 
 
 ## Dependencies and rollout
 
-Extend the shared readiness/import contracts owned by `requirements-04-upstream-source-readiness` (#648), using the same importer and atomic persistence boundary. The effective-profile contract supplies additional profile recognition; it does not create a second readiness engine. Revalidate the prerequisite capability before implementation/archive. No new runtime prerequisite on #740. Modules counterpart consumes the released shared profile contract; retain legacy native import. Follow up on closed core #350/modules #168 rather than reopen them.
+Extend the shared readiness/import contracts owned by `requirements-04-upstream-source-readiness` (#648), using the same importer. #648 provides atomic readiness results and upstream-source preservation; this change defines the caller persistence boundary that commits only after profile, parse and readiness succeed. The effective-profile contract supplies additional profile recognition; it does not create a second readiness engine. Revalidate the prerequisite capability before implementation/archive. No new runtime prerequisite on #740. Modules counterpart consumes the released shared profile contract; retain legacy native import. Follow up on closed core #350/modules #168 rather than reopen them.
 
 Start additive behavior in shadow/advisory mode where appropriate. Preserve independent required checks. Review exact core/module version and signed payload identities before adoption. Roll back by disabling optional context/hooks/projection or restoring the prior compatible signed pair; retain reports with their original schema, statuses and limitations.
 
