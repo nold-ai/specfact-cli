@@ -400,3 +400,10 @@ workflow/local action bytes and independent exact-head member authority. Runtime
 inherited source changes retain the full existing proof path. Owner mapping/grant/integration approval is
 required for this separate prerequisite; stack membership does not infer it. The three stack PRs remain
 unmerged, and future module-side work remains deferred under verified #481/#483 readiness.
+
+## Native planning consumer lineage correction (2026-10-12)
+
+Existing issue #760 / `fix-native-planning-lineage` corrects the independent execution preflight discovered
+after merged #761. Preserve protected-base-to-review and planning-parent-to-candidate ancestry separately.
+Reviewed protected integration precedes stack #759 restacking. No required proof, authority, review or
+signature gate changes meaning. Leave #719/#743/#751 unmerged.
