@@ -2,12 +2,12 @@
 
 - [x] 1.1 Verify native failure, issue metadata, protected baseline and dedicated worktree.
 - [x] 1.2 Specify separate review-trust and candidate-planning ancestry; mirror private dependencies.
-- [ ] 1.3 Validate strictly and commit signed specification before tests.
+- [x] 1.3 Validate strictly and commit signed specification before tests.
 
 ## 2. Authored proof
 
-- [ ] 2.1 Add real shell/Git controls and reproduce both exact selectors failing before changes.
-- [ ] 2.2 Obtain exact owner mapping acceptance and prerequisite signed-head grant authorization.
+- [x] 2.1 Add real shell/Git controls and reproduce both exact selectors failing before changes.
+- [x] 2.2 Obtain exact owner mapping acceptance and prerequisite signed-head grant authorization.
 - [ ] 2.3 Publish genuine native authored RED with unchanged test bytes.
 
 ## 3. Implementation and validation
