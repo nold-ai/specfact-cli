@@ -7,7 +7,7 @@
 ## 2. Proof
 
 - [ ] 2.1 Execute actual workflow/provider controls and retain genuine failing-before evidence.
-- [ ] 2.2 Obtain exact mapping acceptance and signed-head grant authorization.
+- [x] 2.2 Obtain exact mapping acceptance and signed-head grant authorization.
 - [ ] 2.3 Publish authored controls and retain genuine native RED.
 
 ## 3. Delivery
