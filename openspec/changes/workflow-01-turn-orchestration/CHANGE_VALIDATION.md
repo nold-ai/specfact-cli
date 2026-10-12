@@ -73,3 +73,21 @@ Validate the actual planning layer with strict OpenSpec, staged planned Requirem
 hooks; validate inherited #719 execution and protected exact-head authority independently through stack CI.
 The historical local planning-only exception above applies only to its dated original creation and is not used
 for this publication. Required gates, source/index preservation, producer verdicts and signatures remain enforced.
+
+## Protected stack revalidation — 2026-10-12 (Europe/Berlin)
+
+Merged prerequisite #761 is protected dev c4ee5be8457f69848bf9bc2150ebc3df56b52d4f. This existing planning layer is
+restacked onto signed security parent f6481418597d772d144203e530f932d145537236 after its native Requirements
+producer, execution, final verdict and trusted authority pass. Its complete delta remains only INTEGRATION.md and
+this workflow validation document; the newer proposal, design, scenarios, planned mapping and unchecked runtime
+tasks on dev are preserved.
+
+The owner conditioned core implementation on paired module work already underway. Current readback retains modules
+`#483` Todo; runtime adoption remains deferred. Ongoing modules #481 belongs to existing core #740 delivery work,
+whose files are absent from this PR delta. No implementation task is completed or future signed-release
+compatibility asserted.
+
+Applicable normal signed hooks, strict selected OpenSpec, native local planned-maturity selection and documentation
+checks are required. Hosted producer/execution/final verdict must independently authenticate current root proof and
+scope using the merged protected helper and scoped tokens; a local planning pass cannot substitute for those checks.
+A new owner-authorized exact-head grant follows actual GitHub signature verification. Leave #719/#743/#751 unmerged.
