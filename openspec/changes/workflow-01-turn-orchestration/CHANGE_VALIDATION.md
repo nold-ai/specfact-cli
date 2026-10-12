@@ -91,3 +91,17 @@ Applicable normal signed hooks, strict selected OpenSpec, native local planned-m
 checks are required. Hosted producer/execution/final verdict must independently authenticate current root proof and
 scope using the merged protected helper and scoped tokens; a local planning pass cannot substitute for those checks.
 A new owner-authorized exact-head grant follows actual GitHub signature verification. Leave #719/#743/#751 unmerged.
+
+## Corrected native lineage validation — 2026-10-12 (Europe/Berlin)
+
+Protected prerequisite #767 merged as c6af68a0fdf2ea798dd22c6750f077e217c938f5. Its independently tested
+correction preserves protected review trust and checks planning-parent ancestry against the candidate.
+This layer now follows signed security root ee8d81f5db9569c42a903c4a0b0322af6f523470, whose fresh native
+Requirements run 38303309228 and exact-head authority pass. The earlier consumer failure on 98a932c3
+is retained as historical evidence and is not reported as a passing run.
+
+The complete own delta remains two Markdown planning documents. Deferred module workflow `#483` remains
+Todo; ongoing `#481` belongs to core `#740` already on the protected parent and outside this delta.
+Local planned Requirements, strict selected OpenSpec, documentation and normal signed hooks must pass.
+Current-head hosted producer, independent execution, final verdict, authority and completed review remain
+required before readiness. No runtime task, future release compatibility or inherited execution is fabricated.
