@@ -7,12 +7,12 @@ Use the resulting Requirements run id to select one non-expired requirements-evi
 Validate its workflow repository ids, root head/branch/run identity and service digest. Read only one
 bounded regular requirements-evidence.json member without extracting archive files. Reject malformed,
 ambiguous, foreign, expired or corrupted archives. The report must identify the exact root and retain
-schema 2, final stage, verified maturity, passing-after-red proof, complete plans/selectors and no findings;
+schema 2, final stage, verified maturity, the existing provider-supported RED or approved legacy TDD basis, complete plans/selectors and no findings;
 the immutable provider still performs its full finalized-proof validation before Code Review.
 
 Both independent and final consumers use that unchanged root report only for inherited Python review.
 They retain their own independently computed planned receipt/plan and protected-dev review diff.
-Ordinary consumers keep their existing final report. No synthetic JUnit, stamped final stage, reduced
+Ordinary consumers keep their existing final report. The immutable provider retains its existing approved legacy-ledger support; the transport helper must not add a RED-only field restriction. No synthetic JUnit, stamped final stage, reduced
 review scope, weakened enforcement or candidate-owned helper is permitted. The helper is materialized
 only from protected origin/dev beside the protected native context readers.
 

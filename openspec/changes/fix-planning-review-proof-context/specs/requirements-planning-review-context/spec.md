@@ -5,7 +5,8 @@
 Independent and final Code Review consumers SHALL retain protected-dev Python review scope and full
 enforcement. For authenticated planning children they SHALL use unchanged finalized execution proof
 from the exact verified root Requirements run. Child planned evidence SHALL remain separate and SHALL
-NOT be relabeled as execution. Ordinary final proof review SHALL remain available.
+NOT be relabeled as execution. Ordinary final proof review SHALL remain available. Existing provider-supported RED and approved legacy
+TDD proof bases SHALL retain the same complete-proof validation and authority gates.
 
 #### Scenario: Native planning reviews inherited runtime changes
 
