@@ -390,3 +390,13 @@ The owner resumed #747 to resolve stack #757 gates without bypasses.
 Implement `security-stack-gate-readiness` as a reviewed prerequisite before
 rebasing the approved five-layer `dependency-update-consolidation` slice.
 Keep broader dependency work deferred and #747 open.
+
+## Planning stack proof boundary (2026-10-11, Europe/Berlin)
+
+Issue #760 / `requirements-planning-stack-boundary` is a protective prerequisite for stack #759.
+Implement and review it on protected dev before restacking #719/#743/#751 and regenerating native proof.
+Keep implemented root evidence and deferred planning maturity separate, with unchanged protected proof
+workflow/local action bytes and independent exact-head member authority. Runtime, tests, delivery and
+inherited source changes retain the full existing proof path. Owner mapping/grant/integration approval is
+required for this separate prerequisite; stack membership does not infer it. The three stack PRs remain
+unmerged, and future module-side work remains deferred under verified #481/#483 readiness.

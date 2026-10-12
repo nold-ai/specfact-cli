@@ -10,6 +10,23 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.55.7] - 2026-10-12
+
+### Security
+
+- Authenticate signed native-stack roots and exact successful Requirements and member-authority checks before
+  separating deferred planning evidence. Protected validator sources, full implementation proof, child authority
+  and independent review remain mandatory; executable, symlink, runtime and inherited-source changes cannot
+  receive a planning exemption.
+- Require inherited root proof workflow and local CI action bytes to match protected-base objects. Authenticate
+  complete check listings and immutable workflow repository, issuer, event, branch, SHA and run attempts.
+
+### Fixed
+
+- Validate planning-only native stack members at planned maturity without applying one implementation mapping
+  acceptance to unrelated proposals. All three consumers compare the same authenticated context and planning
+  plan while continuing to materialize validators from protected dev/main.
+
 ## [0.55.6] - 2026-10-11
 
 ### Security
