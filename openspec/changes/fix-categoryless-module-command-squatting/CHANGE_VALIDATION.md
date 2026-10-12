@@ -4,9 +4,10 @@ Protected base is c6af68a0fdf2ea798dd22c6750f077e217c938f5, version 0.55.8. Prio
 are historical; exact current-base authored and final proof remain required. New implementation targets
 0.55.9 only after native RED. Scope and genuine e550f23e owner acceptance are unchanged.
 
-## Current protected-base readiness
+## Historical protected-base readiness after #761
 
-Protected dev is c4ee5be8457f69848bf9bc2150ebc3df56b52d4f, version 0.55.7. Prerequisite #761 is merged.
+At that historical phase, protected dev was c4ee5be8457f69848bf9bc2150ebc3df56b52d4f, version 0.55.7.
+Prerequisite #761 had merged.
 The approved security scope and exact source mapping e550f23e remain unchanged. Historical validation below
 is retained as provenance; implementation, fresh native RED/final execution and all final-head gates must
 be regenerated in this cycle. #743/#751 stay at planned maturity because paired modules #483 remains Todo
