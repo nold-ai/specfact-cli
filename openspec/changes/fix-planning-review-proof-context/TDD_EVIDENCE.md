@@ -95,3 +95,24 @@ audits, dependency trust, licenses and Bandit pass. Canonical typing has zero er
 three unrelated promotion-fixture advisories match the protected baseline. Actual current root57f
 final artifact11773232592 is accepted byte-for-byte with its genuine service digest by a separate local
 compatibility probe; this does not replace required native final execution or separate merge approval.
+
+## Review warning correction (2026-10-13)
+
+CodeRabbit completed review of signed head364dd781 with no new actionable comments or unresolved threads.
+Its pre-merge docstring check still reported55.56%, below the unchanged80% requirement. The ten undocumented
+new helper functions now describe their validation boundaries; all13 helper functions have docstrings.
+Executable AST excluding docstrings is unchanged. Canonical mapping A0EC and authored control SHA256
+0af9e8a14160498124e115e79ff0426291d32ee8eb5e54311b2101dea88318fd remain unchanged.
+
+The complete suite passes again:3314 passed, nine skips, zero failures/errors in197.05s.
+The version-matches-HEAD control previously skipped during the version bump now executes and passes.
+All787 tracked inputs match the validated candidate snapshot. Format/lint/YAML/contracts and frozen
+local helper/test review pass with zero new findings. Canonical typing has zero errors and the same1522
+protected-baseline warnings. Current-head native execution, authority, required CI and completed review
+must pass again after signed publication; separate merge authorization remains required.
+
+Actual root artifact11773232592 from run38306990823 verifies its genuine service archive digest and passes
+both the transport and immutable provider final-context reader, preserving source57f51829 and report bytes.
+This local compatibility probe does not substitute for authenticated native child execution. Fixed argv
+with a literal executable/hostname and internal repository/numeric routes refutes the automated shell
+injection warning; no shell command is constructed and independent security gates remain required.

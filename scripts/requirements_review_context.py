@@ -25,12 +25,14 @@ ArchiveReader = Callable[[str], bytes]
 
 
 def _object(value: object) -> dict[str, object]:
+    """Require a dictionary with string keys before reading proof fields."""
     if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         raise ValueError("review-context-invalid")
     return cast(dict[str, object], value)
 
 
 def _integer(value: object) -> int:
+    """Accept positive integers while rejecting booleans and malformed identifiers."""
     if type(value) is not int or cast(int, value) <= 0:
         raise ValueError("review-context-invalid")
     return cast(int, value)
@@ -59,6 +61,7 @@ def _reauthenticate(context: dict[str, object], event: dict[str, object], get_js
 
 
 def _root_run(context: dict[str, object]) -> int:
+    """Select the single inherited Requirements run bound to the authenticated root."""
     proof = _object(context.get("inherited_proof"))
     records = proof.get("checks")
     if not isinstance(records, list) or proof.get("head_commit") != context.get("proof_head_commit"):
@@ -70,6 +73,7 @@ def _root_run(context: dict[str, object]) -> int:
 
 
 def _artifact_page(payload: object) -> tuple[int, list[dict[str, object]]]:
+    """Validate one nonempty page and its declared artifact inventory size."""
     record = _object(payload)
     total = _integer(record.get("total_count"))
     entries = record.get("artifacts")
@@ -79,6 +83,7 @@ def _artifact_page(payload: object) -> tuple[int, list[dict[str, object]]]:
 
 
 def _unique_artifact(records: list[dict[str, object]], total: int) -> dict[str, object]:
+    """Reject incomplete or duplicate inventories and select the sole proof artifact."""
     identifiers = {_integer(record.get("id")) for record in records}
     matching = [record for record in records if record.get("name") == "requirements-evidence"]
     if len(identifiers) != total or len(records) != total or len(matching) != 1:
@@ -104,6 +109,7 @@ def _artifact(run_id: int, get_json: ApiReader) -> dict[str, object]:
 
 
 def _verify_archive(artifact: dict[str, object], context: dict[str, object], run_id: int, archive: bytes) -> None:
+    """Bind archive bytes to the exact service run, repository, head, size and digest."""
     expected = {
         "id": run_id,
         "repository_id": REPOSITORY_ID,
@@ -121,6 +127,7 @@ def _verify_archive(artifact: dict[str, object], context: dict[str, object], run
 
 
 def _json_member(archive: bytes) -> bytes:
+    """Read the sole bounded regular proof report without extracting archive paths."""
     with ZipFile(io.BytesIO(archive)) as zipped:
         entries = zipped.infolist()
         reports = [entry for entry in entries if entry.filename == "requirements-evidence.json"]
@@ -156,6 +163,7 @@ def _report(artifact: dict[str, object], context: dict[str, object], run_id: int
 
 
 def _api(path: str) -> object:
+    """Read JSON through the fixed GitHub API executable and hostname with a timeout."""
     result = subprocess.run(
         ["gh", "api", "--hostname", "github.com", path], capture_output=True, check=True, timeout=30
     )
@@ -163,6 +171,7 @@ def _api(path: str) -> object:
 
 
 def _archive(path: str) -> bytes:
+    """Retrieve artifact bytes through the fixed API command and reject oversized output."""
     result = subprocess.run(
         ["gh", "api", "--hostname", "github.com", path], capture_output=True, check=True, timeout=30
     )
@@ -172,6 +181,7 @@ def _archive(path: str) -> bytes:
 
 
 def _main() -> None:
+    """Authenticate live planning context and write the verified root report unchanged."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--context", type=Path, required=True)
     parser.add_argument("--event", type=Path, required=True)
