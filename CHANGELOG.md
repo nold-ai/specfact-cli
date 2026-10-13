@@ -10,6 +10,19 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.55.9] - 2026-10-13
+
+### Security
+
+- Authenticate unchanged finalized root Requirements proof for inherited Code Review on closed native
+  planning children. Verify live root/context, artifact provenance, digest and bounded report identity.
+  Preserve full review against protected dev and reject forged, non-final or stale context.
+
+### Fixed
+
+- Keep child planning receipts separate from execution proof so independently validated planning layers
+  retain the immutable Code Review provider's finalized-proof requirement.
+
 ## [0.55.8] - 2026-10-12
 
 ### Security

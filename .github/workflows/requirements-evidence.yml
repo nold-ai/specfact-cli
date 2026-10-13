@@ -96,7 +96,11 @@ jobs:
           policy_ref="origin/dev"
           if git cat-file -e "${policy_ref}:scripts/requirements_stack_context.py" 2>/dev/null; then
             if git cat-file -e "${policy_ref}:scripts/requirements_planning_context.py" 2>/dev/null; then
-              git archive "$policy_ref" -- scripts/requirements_stack_context.py scripts/requirements_planning_context.py | tar -x -C "$policy_root"
+              if git cat-file -e "${policy_ref}:scripts/requirements_review_context.py" 2>/dev/null; then
+                git archive "$policy_ref" -- scripts/requirements_stack_context.py scripts/requirements_planning_context.py scripts/requirements_review_context.py | tar -x -C "$policy_root"
+              else
+                git archive "$policy_ref" -- scripts/requirements_stack_context.py scripts/requirements_planning_context.py | tar -x -C "$policy_root"
+              fi
             else
               git archive "$policy_ref" -- scripts/requirements_stack_context.py | tar -x -C "$policy_root"
             fi
@@ -1077,7 +1081,11 @@ jobs:
           policy_ref="origin/dev"
           if git cat-file -e "${policy_ref}:scripts/requirements_stack_context.py" 2>/dev/null; then
             if git cat-file -e "${policy_ref}:scripts/requirements_planning_context.py" 2>/dev/null; then
-              git archive "$policy_ref" -- scripts/requirements_stack_context.py scripts/requirements_planning_context.py | tar -x -C "$policy_root"
+              if git cat-file -e "${policy_ref}:scripts/requirements_review_context.py" 2>/dev/null; then
+                git archive "$policy_ref" -- scripts/requirements_stack_context.py scripts/requirements_planning_context.py scripts/requirements_review_context.py | tar -x -C "$policy_root"
+              else
+                git archive "$policy_ref" -- scripts/requirements_stack_context.py scripts/requirements_planning_context.py | tar -x -C "$policy_root"
+              fi
             else
               git archive "$policy_ref" -- scripts/requirements_stack_context.py | tar -x -C "$policy_root"
             fi
@@ -1964,6 +1972,7 @@ jobs:
         id: run-code-review
         continue-on-error: true
         env:
+          GH_TOKEN: ${{ github.token }}
           REVIEW_BASE_BRANCH: ${{ github.base_ref }}
         run: |
           set -euo pipefail
@@ -1971,6 +1980,12 @@ jobs:
           isolated_specfact=("${REQUIREMENTS_VALIDATOR_ROOT}/bin/python" -I -S -c 'import sys; site_packages, trusted_core = sys.argv[1:3]; del sys.argv[1:3]; sys.path.append(site_packages); sys.path.insert(0, trusted_core); from specfact_cli.cli import cli_main; cli_main()' "$validator_site" "$TRUSTED_REQUIREMENTS_CORE")
           requirements_context="artifacts/requirements-evidence/requirements-evidence-consumer.json"
           [[ -s "$requirements_context" ]]
+          if [[ -n "${PLANNING_BASE_COMMIT:-}" ]]; then
+            requirements_context="${RUNNER_TEMP}/authenticated-root-review-proof.json"
+            python3 -I -S "${RUNNER_TEMP}/trusted-stack-context/scripts/requirements_review_context.py" \
+              --context "${RUNNER_TEMP}/trusted-stack-context/context.json" \
+              --event "$GITHUB_EVENT_PATH" --output "$requirements_context"
+          fi
           if [[ ! "$REVIEW_BASE_BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]]; then
             printf 'Invalid Code Review base branch: %s\n' "$REVIEW_BASE_BRANCH" >&2
             exit 1
@@ -2089,7 +2104,11 @@ jobs:
           policy_ref="origin/dev"
           if git cat-file -e "${policy_ref}:scripts/requirements_stack_context.py" 2>/dev/null; then
             if git cat-file -e "${policy_ref}:scripts/requirements_planning_context.py" 2>/dev/null; then
-              git archive "$policy_ref" -- scripts/requirements_stack_context.py scripts/requirements_planning_context.py | tar -x -C "$policy_root"
+              if git cat-file -e "${policy_ref}:scripts/requirements_review_context.py" 2>/dev/null; then
+                git archive "$policy_ref" -- scripts/requirements_stack_context.py scripts/requirements_planning_context.py scripts/requirements_review_context.py | tar -x -C "$policy_root"
+              else
+                git archive "$policy_ref" -- scripts/requirements_stack_context.py scripts/requirements_planning_context.py | tar -x -C "$policy_root"
+              fi
             else
               git archive "$policy_ref" -- scripts/requirements_stack_context.py | tar -x -C "$policy_root"
             fi
@@ -2824,11 +2843,19 @@ jobs:
         id: run-final-code-review
         continue-on-error: true
         env:
+          GH_TOKEN: ${{ github.token }}
           REVIEW_BASE_BRANCH: ${{ github.base_ref }}
         shell: bash
         run: |
           set -euo pipefail
           printf 'review-required=false\n' >> "$GITHUB_OUTPUT"
+          requirements_context="${RUNNER_TEMP}/final-requirements.json"
+          if [[ -n "${PLANNING_BASE_COMMIT:-}" ]]; then
+            requirements_context="${RUNNER_TEMP}/authenticated-root-final-review-proof.json"
+            python3 -I -S "${RUNNER_TEMP}/trusted-stack-context/scripts/requirements_review_context.py" \
+              --context "${RUNNER_TEMP}/trusted-stack-context/context.json" \
+              --event "$GITHUB_EVENT_PATH" --output "$requirements_context"
+          fi
           [[ "$REVIEW_BASE_BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]]
           review_base_commit="$(git merge-base "origin/${REVIEW_BASE_BRANCH}" HEAD)"
           [[ "$review_base_commit" =~ ^[0-9a-f]{40}$ ]]
@@ -2853,7 +2880,7 @@ jobs:
               --enforcement full \
               --json \
               --out "${RUNNER_TEMP}/final-code-review.json" \
-              --requirements-evidence "${RUNNER_TEMP}/final-requirements.json"
+              --requirements-evidence "$requirements_context"
 
       - name: Upload final Code Review evidence artifact
         if: always() && steps.run-final-code-review.outputs.review-required == 'true'
