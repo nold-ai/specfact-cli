@@ -39,10 +39,12 @@ from specfact_cli.models.module_package import (
     VersionedModuleDependency,
     VersionedPipDependency,
 )
+from specfact_cli.registry import module_installer
 from specfact_cli.registry.bridge_registry import BridgeRegistry, SchemaConverter
 from specfact_cli.registry.extension_registry import get_extension_registry
 from specfact_cli.registry.metadata import CommandMetadata
 from specfact_cli.registry.module_grouping import (
+    CATEGORY_TO_GROUP_COMMAND,
     ModuleManifestError,
     normalize_legacy_bundle_group_command,
     validate_module_category_manifest,
@@ -80,6 +82,15 @@ class _ModuleIntegrityContext:
     is_test_mode: bool
     logger: Any
     skipped: list[tuple[str, str]]
+
+
+@dataclass(frozen=True)
+class _RegistrationSelection:
+    """Keep admitted packages, dependency availability and actual versions in one selection."""
+
+    packages: list[tuple[Path, ModulePackageMetadata]]
+    enabled_map: dict[str, bool]
+    module_versions: dict[str, str]
 
 
 @dataclass
@@ -248,11 +259,20 @@ def get_workspace_modules_root(base_path: Path | None = None) -> Path | None:
 
 @beartype
 @ensure(lambda result: isinstance(result, list), "Must return a list of (Path, metadata) tuples")
-def discover_all_package_metadata(base_path: Path | None = None) -> list[tuple[Path, ModulePackageMetadata]]:
-    """Discover module package metadata across built-in/marketplace/custom roots."""
-    from specfact_cli.registry.module_discovery import discover_all_modules, discover_all_modules_for_project
+def discover_all_package_metadata(
+    base_path: Path | None = None, *, include_shadowed_duplicates: bool = False
+) -> list[tuple[Path, ModulePackageMetadata]]:
+    """Discover metadata winners by default, or ordered candidates for authority-aware registration."""
+    from specfact_cli.registry.module_discovery import (
+        discover_all_modules,
+        discover_all_modules_for_project,
+        discover_all_modules_for_project_with_shadowed,
+    )
 
-    discovered = discover_all_modules() if base_path is None else discover_all_modules_for_project(base_path)
+    if include_shadowed_duplicates:
+        discovered = discover_all_modules_for_project_with_shadowed(base_path)
+    else:
+        discovered = discover_all_modules() if base_path is None else discover_all_modules_for_project(base_path)
     return [(entry.package_dir, entry.metadata) for entry in discovered]
 
 
@@ -356,7 +376,7 @@ def _apply_category_manifest_postprocess(meta: ModulePackageMetadata) -> ModuleP
             return meta
         logger = get_bridge_logger(__name__)
         logger.warning(
-            "Module '%s' has no category field; mounting as flat top-level command.",
+            "Module '%s' has no category field; registration follows source and grouping policy.",
             meta.name,
         )
         return meta
@@ -392,7 +412,11 @@ def _raw_schema_version_str(raw: dict[str, Any]) -> str | None:
     return str(raw["schema_version"])
 
 
-def _module_package_metadata_from_raw_dict(raw: dict[str, Any], source: str) -> ModulePackageMetadata:
+@beartype
+@require(lambda raw: "name" in raw and "commands" in raw, "Manifest must declare name and commands")
+@ensure(lambda result: isinstance(result, ModulePackageMetadata), "Normalized manifest must produce module metadata")
+def normalize_module_manifest(raw: dict[str, Any], source: str) -> ModulePackageMetadata:
+    """Normalize manifest registration fields and injected discovery provenance with canonical policy."""
     raw_help = raw.get("command_help")
     command_help = {str(k): str(v) for k, v in raw_help.items()} if isinstance(raw_help, dict) else None
     meta = ModulePackageMetadata(
@@ -436,10 +460,10 @@ def _try_discover_one_package(child: Path, source: str, yaml_mod: Any) -> tuple[
     if not isinstance(raw, dict) or "name" not in raw or "commands" not in raw:
         return None
     try:
-        meta = _module_package_metadata_from_raw_dict(raw, source)
-    except ModuleManifestError:
-        raise
-    except Exception:
+        meta = normalize_module_manifest(raw, source)
+    except Exception as error:
+        if isinstance(error, ModuleManifestError):
+            raise
         return None
     return (child, meta)
 
@@ -1195,6 +1219,18 @@ def merge_module_state(
     return merged
 
 
+def _resolved_bundle_name(meta: Any) -> str | None:
+    """Resolve explicit bundle precedence and namespaced aliases for both mounts and authority checks."""
+    bundle_name = getattr(meta, "bundle", None)
+    if isinstance(bundle_name, str) and bundle_name:
+        return bundle_name
+    module_name = getattr(meta, "name", None)
+    if not isinstance(module_name, str) or "/" not in module_name:
+        return None
+    tail = module_name.split("/", 1)[1]
+    return tail if tail.startswith("specfact-") else None
+
+
 @beartype
 @require(lambda packages: isinstance(packages, list), "packages must be a list")
 @ensure(lambda result: isinstance(result, list), "Must return a sorted list of bundle name strings")
@@ -1204,22 +1240,12 @@ def get_installed_bundles(
 ) -> list[str]:
     """Return sorted list of bundle names from discovered packages that are enabled and have a bundle set."""
 
-    def _resolved_bundle(meta: Any) -> str | None:
-        bundle_name = getattr(meta, "bundle", None)
-        if isinstance(bundle_name, str) and bundle_name:
-            return bundle_name
-        module_name = getattr(meta, "name", None)
-        if not isinstance(module_name, str) or "/" not in module_name:
-            return None
-        tail = module_name.split("/", 1)[1]
-        return tail if tail.startswith("specfact-") else None
-
     return sorted(
         {
             resolved
             for _dir, meta in packages
             if enabled_map.get(str(getattr(meta, "name", "")), True)
-            and (resolved := _resolved_bundle(meta)) is not None
+            and (resolved := _resolved_bundle_name(meta)) is not None
         }
     )
 
@@ -1232,9 +1258,8 @@ def _build_bundle_to_group() -> dict[str, tuple[str, str, Any]]:
     from specfact_cli.groups.project_group import build_app as build_project_app
     from specfact_cli.groups.spec_group import build_app as build_spec_app
 
-    return {
-        "specfact-backlog": (
-            "backlog",
+    builders = {
+        "backlog": (
             "Backlog and policy commands.",
             lambda: build_member_group(
                 name="backlog",
@@ -1244,16 +1269,11 @@ def _build_bundle_to_group() -> dict[str, tuple[str, str, Any]]:
                 install_hint_module="nold-ai/specfact-backlog",
             ),
         ),
-        "specfact-codebase": (
-            "code",
-            "Codebase quality commands: analyze, drift, validate, repro.",
-            build_codebase_app,
-        ),
-        "specfact-project": ("project", "Project lifecycle commands.", build_project_app),
-        "specfact-spec": ("spec", "Spec and contract commands: contract, api, sdd, generate.", build_spec_app),
-        "specfact-govern": ("govern", "Governance and quality gates: enforce, patch.", build_govern_app),
-        "specfact-requirements": (
-            "requirements",
+        "codebase": ("Codebase quality commands: analyze, drift, validate, repro.", build_codebase_app),
+        "project": ("Project lifecycle commands.", build_project_app),
+        "spec": ("Spec and contract commands: contract, api, sdd, generate.", build_spec_app),
+        "govern": ("Governance and quality gates: enforce, patch.", build_govern_app),
+        "requirements": (
             "Requirements evidence commands.",
             lambda: build_member_group(
                 name="requirements",
@@ -1263,6 +1283,11 @@ def _build_bundle_to_group() -> dict[str, tuple[str, str, Any]]:
                 install_hint_module="nold-ai/specfact-requirements",
             ),
         ),
+    }
+
+    return {
+        f"specfact-{category}": (CATEGORY_TO_GROUP_COMMAND[category], help_str, build_app)
+        for category, (help_str, build_app) in builders.items()
     }
 
 
@@ -1511,14 +1536,73 @@ def _register_command_flat_path(package_dir: Path, meta: Any, cmd_name: str, log
     CommandRegistry.register(cmd_name, loader, cmd_meta)
 
 
+def _workspace_module_path_is_unlinked(package_dir: Path) -> bool:
+    store = package_dir.parent
+    return (
+        store.name == "modules"
+        and store.parent.name == ".specfact"
+        and not store.is_symlink()
+        and not store.parent.is_symlink()
+    )
+
+
+def _verified_project_bundle_root(package_dir: Path, meta: Any) -> bool:
+    """Authenticate canonical project-scoped official roots independently of unsigned flags and workspace keys."""
+    command = CATEGORY_TO_GROUP_COMMAND.get(meta.category)
+    publisher = getattr(getattr(meta, "publisher", None), "name", None)
+    if (
+        command is None
+        or not _workspace_module_path_is_unlinked(package_dir)
+        or not meta.name.startswith("nold-ai/specfact-")
+        or publisher != "nold-ai"
+        or meta.tier != "official"
+        or meta.bundle_group_command != command
+        or set(meta.commands).intersection(CATEGORY_TO_GROUP_COMMAND.values()) != {command}
+    ):
+        return False
+    try:
+        public_key = module_installer._bundled_public_key_path().read_text(encoding="utf-8").strip()
+        return (
+            bool(public_key)
+            and module_installer.verify_module_artifact_from_filesystem(package_dir, meta, public_key)
+            and _workspace_module_path_is_unlinked(package_dir)
+        )
+    except (OSError, ValueError):
+        return False
+
+
+def _package_registration_allowed(package_dir: Path, meta: Any, category_grouping_enabled: bool, logger: Any) -> bool:
+    """Reject root claims before package registration or lazy import side effects."""
+    if any(command in CORE_NAMES for command in meta.commands) and not _is_under_directory(
+        package_dir, get_modules_root()
+    ):
+        logger.warning("Module '%s' cannot supply permanent core commands.", meta.name)
+        return False
+    if meta.source != "project":
+        return True
+    category_capability = (
+        meta.category is not None
+        or _resolved_bundle_name(meta) in {f"specfact-{category}" for category in CATEGORY_TO_GROUP_COMMAND}
+        or any(command in CATEGORY_TO_GROUP_COMMAND.values() for command in meta.commands)
+    )
+    if category_capability:
+        if _verified_project_bundle_root(package_dir, meta):
+            return True
+        logger.warning("Workspace module '%s' lacks verified official category-root authority.", meta.name)
+        return False
+    if category_grouping_enabled:
+        logger.warning("Skipping category-less workspace module '%s' in grouped mode.", meta.name)
+        return False
+    return True
+
+
 def _register_commands_for_package(
     package_dir: Path,
     meta: Any,
     category_grouping_enabled: bool,
     logger: Any,
 ) -> None:
-    """Register package commands. Categorized marketplace modules never use flat root registration."""
-    _ = category_grouping_enabled  # retained for API compatibility; grouping no longer selects flat vs category
+    """Register authorized package commands without restoring removed bundle shims."""
     for cmd_name in meta.commands:
         if meta.category is not None:
             _register_command_category_path(package_dir, meta, cmd_name, logger)
@@ -1526,44 +1610,28 @@ def _register_commands_for_package(
             _register_command_flat_path(package_dir, meta, cmd_name, logger)
 
 
-def _register_one_package_if_eligible(package_dir: Path, meta: Any, reg: _PackageRegistrationContext) -> None:
-    if not reg.enabled_map.get(meta.name, True):
-        return
-    compatible = _check_core_compatibility(meta, cli_version)
-    if not compatible:
-        reg.skipped.append((meta.name, f"requires {meta.core_compatibility}, cli is {cli_version}"))
-        return
-    deps_ok, missing = _validate_module_dependencies(meta, reg.enabled_map, reg.module_versions)
-    if not deps_ok:
-        reg.skipped.append((meta.name, f"missing dependencies: {', '.join(missing)}"))
-        return
-    integrity_ctx = _ModuleIntegrityContext(
-        allow_unsigned=reg.allow_unsigned,
-        is_test_mode=reg.is_test_mode,
-        logger=reg.logger,
-        skipped=reg.skipped,
-    )
-    if not _module_integrity_allows_load(package_dir, meta, integrity_ctx):
-        return
+def _package_local_registration_eligible(
+    package_dir: Path,
+    meta: ModulePackageMetadata,
+    category_grouping_enabled: bool,
+    integrity_ctx: _ModuleIntegrityContext,
+) -> bool:
+    """Apply independent admission gates without schema, import or command registration effects."""
+    if not _check_core_compatibility(meta, cli_version):
+        integrity_ctx.skipped.append((meta.name, f"requires {meta.core_compatibility}, cli is {cli_version}"))
+        return False
     if not _check_schema_compatibility(meta.schema_version, CURRENT_PROJECT_SCHEMA_VERSION):
-        reg.skipped.append(
-            (
-                meta.name,
-                f"schema version {meta.schema_version} required, current is {CURRENT_PROJECT_SCHEMA_VERSION}",
-            )
+        integrity_ctx.skipped.append(
+            (meta.name, f"schema version {meta.schema_version} required, current is {CURRENT_PROJECT_SCHEMA_VERSION}")
         )
-        reg.logger.debug(
-            "Module %s: Schema version %s required, but current is %s (skipped)",
-            meta.name,
-            meta.schema_version,
-            CURRENT_PROJECT_SCHEMA_VERSION,
-        )
-        return
-    if meta.schema_version is None:
-        reg.logger.debug("Module %s: No schema version declared (assuming current)", meta.name)
-    else:
-        reg.logger.debug("Module %s: Schema version %s (compatible)", meta.name, meta.schema_version)
+        return False
+    if not _package_registration_allowed(package_dir, meta, category_grouping_enabled, integrity_ctx.logger):
+        return False
+    return _module_integrity_allows_load(package_dir, meta, integrity_ctx)
 
+
+def _register_selected_package(package_dir: Path, meta: Any, reg: _PackageRegistrationContext) -> None:
+    """Apply effects only after the entire selected set passes the final admission barrier."""
     _register_schema_extensions_safe(meta, reg.logger)
     _register_service_bridges_safe(meta, reg.bridge_owner_map, reg.logger)
     _record_protocol_compliance_result(package_dir, meta, reg.logger, reg.counters)
@@ -1596,6 +1664,105 @@ def _log_skipped_modules_debug(logger: Any, skipped: list[tuple[str, str]]) -> N
         logger.debug("Skipped module '%s': %s", module_id, reason)
 
 
+def _selection_from_packages(
+    packages: list[tuple[Path, ModulePackageMetadata]], enabled_map: dict[str, bool]
+) -> _RegistrationSelection:
+    """Derive dependency presence and versions from exactly the selected copies."""
+    names = {meta.name for _path, meta in packages}
+    return _RegistrationSelection(
+        packages=packages,
+        enabled_map={name: enabled for name, enabled in enabled_map.items() if not enabled or name in names},
+        module_versions={meta.name: meta.version for _path, meta in packages},
+    )
+
+
+def _dependency_candidate_indices(
+    groups: dict[str, list[tuple[Path, ModulePackageMetadata]]], selection: _RegistrationSelection
+) -> tuple[int | None, ...]:
+    """Choose each first dependency-eligible copy against one coherent snapshot."""
+    return tuple(
+        next(
+            (
+                index
+                for index, (_path, meta) in enumerate(candidates)
+                if _validate_module_dependencies(
+                    meta,
+                    selection.enabled_map | {meta.name: True},
+                    selection.module_versions | {meta.name: meta.version},
+                )[0]
+            ),
+            None,
+        )
+        for candidates in groups.values()
+    )
+
+
+def _selection_at_indices(
+    groups: dict[str, list[tuple[Path, ModulePackageMetadata]]],
+    indices: tuple[int | None, ...],
+    enabled_map: dict[str, bool],
+) -> _RegistrationSelection:
+    """Build a selection without allowing absent copies to satisfy dependencies."""
+    return _selection_from_packages(
+        [candidates[index] for candidates, index in zip(groups.values(), indices, strict=True) if index is not None],
+        enabled_map,
+    )
+
+
+def _dependency_registration_selection(
+    packages: list[tuple[Path, ModulePackageMetadata]], enabled_map: dict[str, bool], ctx: _ModuleIntegrityContext
+) -> _RegistrationSelection:
+    """Reconsider priority copies, refusing only names that oscillate before any effects."""
+    groups: dict[str, list[tuple[Path, ModulePackageMetadata]]] = {}
+    for path, meta in packages:
+        groups.setdefault(meta.name, []).append((path, meta))
+    while groups:
+        current: tuple[int | None, ...] = tuple(0 for _ in groups)
+        history: list[tuple[int | None, ...]] = []
+        seen: dict[tuple[int | None, ...], int] = {}
+        while current not in seen:
+            seen[current] = len(history)
+            history.append(current)
+            selection = _selection_at_indices(groups, current, enabled_map)
+            following = _dependency_candidate_indices(groups, selection)
+            if following == current:
+                return selection
+            current = following
+        cycle = history[seen[current] :]
+        unstable = [name for index, name in enumerate(groups) if len({state[index] for state in cycle}) > 1]
+        for name in unstable:
+            del groups[name]
+            ctx.skipped.append((name, "conflicting module dependency selection"))
+        ctx.logger.warning("Refusing conflicting module dependency selection: %s", ", ".join(unstable))
+    return _selection_from_packages([], enabled_map)
+
+
+def _registration_packages(
+    packages: list[tuple[Path, ModulePackageMetadata]],
+    enabled_map: dict[str, bool],
+    category_grouping_enabled: bool,
+    integrity_ctx: _ModuleIntegrityContext,
+) -> _RegistrationSelection:
+    """Select fully eligible copies and revalidate all selected artifacts before any effects."""
+    candidates = [
+        (path, meta)
+        for path, meta in packages
+        if enabled_map.get(meta.name, True)
+        and _package_local_registration_eligible(path, meta, category_grouping_enabled, integrity_ctx)
+    ]
+    while candidates:
+        selection = _dependency_registration_selection(candidates, enabled_map, integrity_ctx)
+        rejected = {
+            path
+            for path, meta in selection.packages
+            if not _package_local_registration_eligible(path, meta, category_grouping_enabled, integrity_ctx)
+        }
+        if not rejected:
+            return selection
+        candidates = [(path, meta) for path, meta in candidates if path not in rejected]
+    return _selection_from_packages([], enabled_map)
+
+
 @beartype
 @require(
     lambda enable_ids, disable_ids: not (set(enable_ids or []) & set(disable_ids or [])),
@@ -1612,8 +1779,11 @@ def register_module_package_commands(
 
     Call after register_builtin_commands(). enable_ids/disable_ids from CLI (--enable-module/--disable-module).
     allow_unsigned: If True, allow modules without integrity metadata. Default from SPECFACT_ALLOW_UNSIGNED env.
-    category_grouping_enabled: Ignored for registration (retained for API compatibility). Category groups are
-    always mounted for installed bundles; categorized modules never register flat root aliases.
+    category_grouping_enabled: Default True rejects category-less project commands; False retains their
+    legacy flat registration. Categorized modules always retain category routing. External package paths
+    cannot register or extend permanent core commands in either mode. Project category roots require complete
+    official artifact verification against the core-bundled key; unsigned/test flags or workspace keys cannot
+    grant this authority. Rejected packages contribute no registration or active-import side effects.
     """
     enable_ids = enable_ids or []
     disable_ids = disable_ids or []
@@ -1622,16 +1792,22 @@ def register_module_package_commands(
     _clear_active_module_src_dirs()
     _MODULE_LOAD_FAILURES.clear()
     is_test_mode = os.environ.get("TEST_MODE") == "true" or os.environ.get("PYTEST_CURRENT_TEST") is not None
-    packages = discover_all_package_metadata()
-    packages = sorted(packages, key=_package_sort_key)
-    if not packages:
-        return
+    packages = discover_all_package_metadata(include_shadowed_duplicates=True)
+    logger = get_bridge_logger(__name__)
     discovered_list: list[tuple[str, str]] = [(meta.name, meta.version) for _dir, meta in packages]
-    module_versions = {meta.name: meta.version for _dir, meta in packages}
     state = read_modules_state()
     enabled_map = merge_module_state(discovered_list, state, enable_ids, disable_ids)
-    logger = get_bridge_logger(__name__)
     skipped: list[tuple[str, str]] = []
+    integrity_ctx = _ModuleIntegrityContext(
+        allow_unsigned=allow_unsigned, is_test_mode=is_test_mode, logger=logger, skipped=skipped
+    )
+    selection = _registration_packages(packages, enabled_map, category_grouping_enabled, integrity_ctx)
+    if not selection.packages:
+        _log_skipped_modules_debug(logger, skipped)
+        return
+    packages = sorted(selection.packages, key=_package_sort_key)
+    enabled_map = selection.enabled_map
+    module_versions = selection.module_versions
     counters = _ProtocolComplianceCounters(
         protocol_full=[0],
         protocol_partial=[0],
@@ -1654,7 +1830,7 @@ def register_module_package_commands(
         counters=counters,
     )
     for package_dir, meta in packages:
-        _register_one_package_if_eligible(package_dir, meta, reg_ctx)
+        _register_selected_package(package_dir, meta, reg_ctx)
     _mount_installed_category_groups(packages, enabled_map)
     _log_protocol_compatibility_footer(logger, counters)
     _log_skipped_modules_debug(logger, skipped)

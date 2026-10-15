@@ -1,4 +1,16 @@
-## Current accepted path100 signed authoring, 15 October 2026 (Europe/Berlin)
+## Current signed path100 native RED verified, 15 October 2026 (Europe/Berlin)
+
+Signed specification1c399e2d4ab24cbfe10859d87da00e107cafffcf precedes signed authored tests35c6f1339096cd35d53987d02658eb02f7215363 on protected production/version0.55.9.
+Actual native run38687272103, artifact11950602909, serviceZIP SHA256a883f2b809c0438be27ff29918a6916779f88c0b8284cb079d9f3db0c09fd622 verifies100 genuine AssertionErrors,
+zero errors/skips and exact source/tree/base/100selectors/nine test hashes. RED gate PASS with zero proof findings.
+JUnit digestsha256:c36d4df8a40cdab552871e1fe77eb203daefc65997cd3d0c5bba62a8fbad37f7. All18 encoding, six owned-path link and five legacy suffix observations match
+retained protected replay and precede aggregate assertions. Extra temporal/alias full-suite tests are not separately
+claimed mapped native selectors. Reviewed production/version0.55.10 restores only AFTER real service bindings verify.
+Local3430/FULL72 proof remains scoped to its exact runtime/test inputs. Final native producer/independent execution,
+FULL review, all required checks and completed current-head review remain required. Observation does not seal later
+filesystem state. Companion remains held. No target or companion merge is authorized.
+
+## Historical accepted path100 signed authoring, 15 October 2026 (Europe/Berlin)
 
 The human accepted exact canonical PER-SOURCE100 sha256:03651caa143d7cbde41a9f33db9cc91182e9e05201173bf4a3bc5273c021dbdc
 and authorized recording acceptance as djm81. The 36-file accepted candidate preserves the reviewed runtime,
