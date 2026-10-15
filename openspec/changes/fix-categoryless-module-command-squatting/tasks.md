@@ -24,26 +24,31 @@ internal wiki graph when the sibling checkout is available.
 
 ## 3. Implementation
 
-- [ ] 3.1 Skip unverified category-less workspace package registration in grouped mode, preserving the authenticated official-bundle exception (including specfact-project); reserve permanent core commands for resolved
-built-in paths in both modes.
-- [ ] 3.2 Preserve categorized routing, non-project legacy sources and explicit unreserved flat registration.
+- [x] 3.1 Skip unverified category-less workspace registration in grouped mode, preserving the authenticated
+  official-bundle exception (including specfact-project); reserve permanent core commands for resolved built-in paths
+  in both modes.
+- [x] 3.2 Preserve categorized routing, non-project legacy sources and explicit unreserved flat registration.
 
 ## 4. Verification and documentation review
 
-- [ ] 4.1 Run focused registry and category-routing tests and record passing evidence.
-- [ ] 4.2 Run formatting, type, lint, YAML, contract, smart-test, Semgrep, and Bandit gates required for the touched
-scope.
-- [ ] 4.3 Refresh `.specfact/code-review.json`, resolve all findings, and record the result.
-- [ ] 4.4 Review `README.md`, `docs/`, `docs/index.md`, and sidebar navigation for impact; update only if documented
-behavior changes.
-- [ ] 4.5 Confirm no signed module assets or manifests changed; otherwise bump and re-sign affected modules and run
-signature verification.
-- [ ] 4.6 Validate the OpenSpec change strictly after implementation.
+- [x] 4.1 Run focused registry and category-routing tests and record passing evidence. The reviewed runtime has
+  3,430 local passes and native100 GREEN38687870204 at signed e4db7795; later documentation-head gates remain separate.
+- [x] 4.2 Run formatting, type, lint, YAML, contract, smart-test, Semgrep, and Bandit gates required for the touched
+  scope. Final runtime evidence and unchanged-input contract reuse are recorded in TDD_EVIDENCE.md; new exact-head
+  hosted checks remain required. The 17 unchanged protected YAML diagnostics and launcher limitation remain disclosed.
+- [ ] 4.3 Refresh `.specfact/code-review.json`, resolve all findings, and record the result. Runtime FULL72 has
+  30 exact existing nonblocking findings and zero additions. This documentation correction needs its own exact-head
+  checks and completed review; the unresolved companion release-symlink annotation also prevents closure.
+- [x] 4.4 Review `README.md`, `docs/`, `docs/index.md`, and sidebar navigation for impact; update only if documented
+  behavior changes. The runtime commit updates the affected module category/security references.
+- [x] 4.5 Confirm no signed module assets or manifests changed; otherwise bump and re-sign affected modules and run
+  signature verification. The core artifact admission code changes no signed bundle assets or cryptographic format.
+- [x] 4.6 Validate the OpenSpec change strictly after implementation; repeat after this documentation reconciliation.
 
 ## 5. Release and pull request
 
-- [ ] 5.1 Apply the required patch version bump across canonical version files and add a Security changelog entry.
-- [ ] 5.2 Commit with a Conventional Commit message and push the branch.
+- [x] 5.1 Apply the required patch version bump across canonical version files and add a Security changelog entry.
+- [x] 5.2 Commit with a Conventional Commit message and push the branch. Signed implementation e4db7795 is published.
 - [x] 5.3 Create a pull request to `dev` using the repository template and link the OpenSpec change and GitHub issue.
 
 ## Post-merge cleanup
@@ -201,12 +206,13 @@ No production behavior, pin, threshold, timeout, signature format or global depe
 - [x] Capture genuine public failing controls for root and store links in both modes.
 - [x] Correct the existing strict/project boundaries and preserve canonical workspace aliases.
 - [x] Add explicit legacy coverage for all five omitted native suffixes.
-- [ ] Complete full gates and independent verification before a new exact canonical mapping review.
-- [ ] Obtain resulting mapping acceptance and authentic signed native RED/GREEN before publication readiness.
+- [x] Complete full gates and independent verification before a new exact canonical mapping review.
+- [x] Obtain exact036 mapping acceptance and authentic signed native RED38687272103/GREEN38687870204.
+- [ ] Complete the final documentation head checks/review and companion511 before merge readiness.
 
 - [x] Specify final path reobservation after authentication and inventory before adding its regressions.
 - [x] Reproduce links introduced inside verification, then verify final root/store reobservation and fallback.
 
 - [x] Complete final3430 full tests, FULL72/30 with zero new findings, types, SAST, Bandit and exact-source installed-wheel matrix.
 - [x] Complete standalone readonly verification before three diverse reviewers on final root/store reobservation.
-- [ ] Obtain exact new path100 mapping acceptance before signed/native publication.
+- [x] Obtain exact036 path100 mapping acceptance before signed/native publication; actual djm81 record is retained.

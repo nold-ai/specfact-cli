@@ -1,4 +1,35 @@
-## Current signed path100 native RED verified, 15 October 2026 (Europe/Berlin)
+## Current accepted path100 runtime GREEN and remaining gates, 15 October 2026 (Europe/Berlin)
+
+The human accepted PER-SOURCE100 sha256:03651caa143d7cbde41a9f33db9cc91182e9e05201173bf4a3bc5273c021dbdc.
+Signed specification1c399e2d4ab24cbfe10859d87da00e107cafffcf precedes authored35c6f1339096cd35d53987d02658eb02f7215363.
+Actual native RED38687272103/artifact11950602909/serviceZIP a883f2b809c0438be27ff29918a6916779f88c0b8284cb079d9f3db0c09fd622
+has100 genuine AssertionErrors, zero errors/skips, and verified source/tree/base/nine hashes/selectors/JUnit.
+Only after that proof is verified does signed implementation e4db7795139a562a0a56572bf696e0164f90f71b restore the
+accepted runtime/version0.55.10. Normal hooks, all three signatures and actual literal full-SHA provenance pass.
+
+Actual native GREEN38687870204 on e4db7795139a562a0a56572bf696e0164f90f71b completes producer, independent execution
+and final reconciliation. Both JUnit artifacts contain100 passes, zero failures/errors/skips and matching selectors.
+All18 encoding, six owned-path and five legacy suffix outcomes verify, along with allfour real service ZIP digests.
+FULL review is72 with the same30 accepted nonblocking findings and zero additions; identities and multiplicities
+match after only three exact unchanged BasedPyright file-root normalizations. The producer digest binds its own
+JUnit; the independent execution has a separate verified JUnit. Compact final receipts omit base/tree/testhashes.
+Those bind through retained authored RED, current nine Git test blobs, producer plan and actual full-SHA provenance,
+not invented receipt fields. The local runtime suite has3,430 passes/nine configured skips/64% against50%, normal
+30-second timeout; its exact-source quality, independent reviews and installed-wheel evidence remain scoped as below.
+
+CodeRabbit reviewed e4db7795 in review5528734224 at2026-10-15T05:49:27Z with explicit current-head coverage and
+80.92% docstring coverage against80%. Its new task-ledger finding and historical headings are corrected here.
+The review reports zero included reviews remaining and an allowance of one per hour. No paid review, billing,
+configuration change or repeated unchanged request is authorized or used. Python3.12 full CI was still running
+at this evidence cutoff; twelve other effective exact-app integrations passed. No all-CI or merge-ready claim.
+
+This documentation reconciliation preserves runtime, tests, mapping, plan selectors and dependency inputs. Its
+new exact head still requires native/check/review confirmation. The companion511 release-symlink fix remains
+unpublished without admitted native FULL, with Linux guest access/resource constraints recorded separately.
+Concurrent local modification after the final admission observation remains outside the documented guarantee.
+No target or companion merges are authorized; human719 precedes743, then human743 precedes751.
+
+## Historical path100 native RED before runtime GREEN, 15 October 2026 (Europe/Berlin)
 
 Signed specification1c399e2d4ab24cbfe10859d87da00e107cafffcf precedes signed authored tests35c6f1339096cd35d53987d02658eb02f7215363 on protected production/version0.55.9.
 Actual native run38687272103, artifact11950602909, serviceZIP SHA256a883f2b809c0438be27ff29918a6916779f88c0b8284cb079d9f3db0c09fd622 verifies100 genuine AssertionErrors,
@@ -48,7 +79,7 @@ The unchanged100-selector bound is preserved by keeping all93 earlier selectors,
 
 Initial full3422 passed with nine configured skips and unchanged795 sampled inputs/installed graph. A later cleanup removes three narrative test docstrings and adds two final-revalidation controls; that initial full and protected replay are intermediate evidence. Final planned digest, protected RED, full gates and independent verification are being refreshed for the exact final bytes. No hosted proof for this amended mapping or new acceptance is claimed.
 
-## Signed native100 RED verified — 15 October 2026 (Europe/Berlin)
+## Historical native100 RED for the preceding4c mapping — 15 October 2026 (Europe/Berlin)
 
 Signed specification6c63d63323e94a7c633c69ea964c85c3d1c9c71c precedes signed authored testsd20d6a56e9781a740a1c82907158c671ad3d4b7f on unchanged protected production/version.
 Actual native run38647654283, artifact11932289125, service ZIP SHA2568429e0ff751d0fcd044cda08b1d4225ca2ea494b94b5330c90bbf24c384151bc, has100 genuine AssertionErrors,
