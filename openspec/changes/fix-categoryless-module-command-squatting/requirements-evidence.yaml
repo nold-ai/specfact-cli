@@ -1,0 +1,1019 @@
+schema_version: '2'
+requirements:
+  openspec:fix-categoryless-module-command-squatting:module-grouping:registry-groups-modules-by-category-when-loading:
+    rationale: Project modules cannot claim arbitrary root commands in default grouped mode.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#718
+    touchpoints:
+      - id: registration-policy
+        kind: code_symbol
+        locator: src/specfact_cli/registry/module_packages.py::_register_commands_for_package
+    verification_cases:
+      - case_id: SQUAT-001
+        scenario_id: registry-groups-modules-by-category-when-loading
+        method: test
+        intent: Register a real category-less project manifest and check root registry and execution marker.
+        observable: The removed validate command is absent and its package has not executed.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_module_command_squatting.py::test_workspace_missing_category_cannot_squat_root
+      - case_id: SQUAT-COMPAT
+        scenario_id: registry-groups-modules-by-category-when-loading
+        method: test
+        intent: Execute explicit legacy workspace registration.
+        observable: An unreserved legacy command remains loadable only when grouping is explicitly disabled.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_module_command_squatting.py::test_explicit_legacy_workspace_registration_remains_available
+      - case_id: SQUAT-SOURCES
+        scenario_id: registry-groups-modules-by-category-when-loading
+        method: test
+        intent: Execute all non-project legacy source controls.
+        observable: User, marketplace and custom unreserved legacy commands remain available.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_module_command_squatting.py::test_non_workspace_legacy_registration_remains_available
+      - case_id: SQUAT-SHADOW
+        scenario_id: registry-groups-modules-by-category-when-loading
+        method: test
+        intent: Load an eligible package alongside a hostile project package with valid schema and bridge declarations.
+        observable: The schema and bridge registries remain unchanged; only the approved dependency is imported and
+          the rejected source is never activated or executed.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_module_command_squatting.py::test_rejected_workspace_cannot_shadow_eligible_package_imports
+  ? "openspec:fix-categoryless-module-command-squatting:command-package-runtime-validation:\
+    permanent-core-commands-cannot-be-extended-by-external-packages"
+  : rationale: Declaring core metadata cannot grant authority to extend permanent root commands.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#718
+    touchpoints:
+      - id: core-authority
+        kind: code_symbol
+        locator: src/specfact_cli/registry/module_packages.py::_register_commands_for_package
+    verification_cases:
+      - case_id: SQUAT-002
+        scenario_id: permanent-core-commands-cannot-be-extended-by-external-packages
+        method: test
+        intent: Attempt to extend every permanent root with an external core-category manifest.
+        observable: Existing root loaders remain unchanged and no external module entry or execution appears.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_module_command_squatting.py::test_workspace_core_category_cannot_extend_permanent_roots
+      - case_id: SQUAT-PATH
+        scenario_id: permanent-core-commands-cannot-be-extended-by-external-packages
+        method: test
+        intent: Execute forged provenance and escaping symlink controls in both modes.
+        observable: Both registries reject an external resolved path despite a forged builtin label.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_module_command_squatting.py::test_external_core_claim_rejected_even_with_forged_source_and_builtin_symlink
+      - case_id: SQUAT-BUILTIN
+        scenario_id: permanent-core-commands-cannot-be-extended-by-external-packages
+        method: test
+        intent: Load a real signed built-in init package.
+        observable: The actual built-in command remains loadable.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_module_command_squatting.py::test_real_builtin_core_registration_remains_available
+      - case_id: SQUAT-REPO
+        scenario_id: permanent-core-commands-cannot-be-extended-by-external-packages
+        method: test
+        intent: Use operator-configured discovery from a different checkout.
+        observable: Its contained built-in package retains authority without trusting a manifest source claim.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_module_command_squatting.py::test_explicit_repository_root_preserves_builtin_authority
+      - case_id: SQUAT-FLAT-INIT
+        scenario_id: permanent-core-commands-cannot-be-extended-by-external-packages
+        method: test
+        intent: Independently exercise the category-less init claim with grouping explicitly disabled.
+        observable: No root command, module entry, active import source or hostile execution is admitted.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_module_command_squatting.py::test_reserved_flat_claim_is_denied[init]
+      - case_id: SQUAT-FLAT-MODULE
+        scenario_id: permanent-core-commands-cannot-be-extended-by-external-packages
+        method: test
+        intent: Independently exercise the category-less module claim with grouping explicitly disabled.
+        observable: No root command, module entry, active import source or hostile execution is admitted.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_module_command_squatting.py::test_reserved_flat_claim_is_denied[module]
+      - case_id: SQUAT-FLAT-UPGRADE
+        scenario_id: permanent-core-commands-cannot-be-extended-by-external-packages
+        method: test
+        intent: Independently exercise the category-less upgrade claim with grouping explicitly disabled.
+        observable: No root command, module entry, active import source or hostile execution is admitted.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_module_command_squatting.py::test_reserved_flat_claim_is_denied[upgrade]
+  ? "openspec:fix-categoryless-module-command-squatting:command-package-runtime-validation:\
+    workspace-packages-cannot-supply-official-category-roots"
+  : rationale: Unauthenticated project category capabilities cannot create or extend official roots, including
+      indirect bundle mounts and member loaders.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#718
+    touchpoints:
+      - id: registration-policy
+        kind: code_symbol
+        locator: src/specfact_cli/registry/module_packages.py::_package_local_registration_eligible
+    verification_cases:
+      - case_id: SQUAT-CATEGORY
+        scenario_id: workspace-packages-cannot-supply-official-category-roots
+        method: test
+        intent: Attempt unsigned claims to all six official category roots with existing root/module sentinel loaders
+          and then empty registries in both grouping modes.
+        observable: Original loader and metadata identities and Typer apps remain unchanged; the unverified project
+          package cannot create or extend roots, activate imports or create category mounts.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_module_command_squatting.py::test_workspace_cannot_supply_official_category_roots
+      - case_id: SQUAT-IMPORT-FREE
+        scenario_id: workspace-packages-cannot-supply-official-category-roots
+        method: test
+        intent: Invoke public grouped registration for a category-less project root claim while observing imports.
+        observable: Admission imports no category builder or initializes an app; root/module registries, active imports
+          and the hostile execution marker remain empty.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_module_command_squatting.py::test_workspace_eligibility_does_not_import_category_builders
+      - case_id: SQUAT-FLAT-PROJECT
+        scenario_id: workspace-packages-cannot-supply-official-category-roots
+        method: test
+        intent: Independently exercise the category-less project claim with grouping explicitly disabled.
+        observable: No root command, module entry, active import source or hostile execution is admitted.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_module_command_squatting.py::test_reserved_flat_claim_is_denied[project]
+      - case_id: SQUAT-FLAT-BACKLOG
+        scenario_id: workspace-packages-cannot-supply-official-category-roots
+        method: test
+        intent: Independently exercise the category-less backlog claim with grouping explicitly disabled.
+        observable: No root command, module entry, active import source or hostile execution is admitted.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_module_command_squatting.py::test_reserved_flat_claim_is_denied[backlog]
+      - case_id: SQUAT-FLAT-CODE
+        scenario_id: workspace-packages-cannot-supply-official-category-roots
+        method: test
+        intent: Independently exercise the category-less code claim with grouping explicitly disabled.
+        observable: No root command, module entry, active import source or hostile execution is admitted.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_module_command_squatting.py::test_reserved_flat_claim_is_denied[code]
+      - case_id: SQUAT-FLAT-SPEC
+        scenario_id: workspace-packages-cannot-supply-official-category-roots
+        method: test
+        intent: Independently exercise the category-less spec claim with grouping explicitly disabled.
+        observable: No root command, module entry, active import source or hostile execution is admitted.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_module_command_squatting.py::test_reserved_flat_claim_is_denied[spec]
+      - case_id: SQUAT-FLAT-GOVERN
+        scenario_id: workspace-packages-cannot-supply-official-category-roots
+        method: test
+        intent: Independently exercise the category-less govern claim with grouping explicitly disabled.
+        observable: No root command, module entry, active import source or hostile execution is admitted.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_module_command_squatting.py::test_reserved_flat_claim_is_denied[govern]
+      - case_id: SQUAT-FLAT-REQUIREMENTS
+        scenario_id: workspace-packages-cannot-supply-official-category-roots
+        method: test
+        intent: Independently exercise the category-less requirements claim with grouping explicitly disabled.
+        observable: No root command, module entry, active import source or hostile execution is admitted.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_module_command_squatting.py::test_reserved_flat_claim_is_denied[requirements]
+      - case_id: SQUAT-INDIRECT-FALSE-TRUE
+        scenario_id: workspace-packages-cannot-supply-official-category-roots
+        method: test
+        intent: Attempt actual project/plan bundle-driven mounting with existing root False and grouping True.
+        observable: No unsigned member executes; no module entry/import root is activated, and existing root identity
+          is retained.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_module_command_squatting.py::test_workspace_bundle_member_cannot_induce_category_mount[False-True]
+      - case_id: SQUAT-INDIRECT-FALSE-FALSE
+        scenario_id: workspace-packages-cannot-supply-official-category-roots
+        method: test
+        intent: Attempt actual project/plan bundle-driven mounting with existing root False and grouping False.
+        observable: No unsigned member executes; no module entry/import root is activated, and existing root identity
+          is retained.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_module_command_squatting.py::test_workspace_bundle_member_cannot_induce_category_mount[False-False]
+      - case_id: SQUAT-INDIRECT-TRUE-TRUE
+        scenario_id: workspace-packages-cannot-supply-official-category-roots
+        method: test
+        intent: Attempt actual project/plan bundle-driven mounting with existing root True and grouping True.
+        observable: No unsigned member executes; no module entry/import root is activated, and existing root identity
+          is retained.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_module_command_squatting.py::test_workspace_bundle_member_cannot_induce_category_mount[True-True]
+      - case_id: SQUAT-INDIRECT-TRUE-FALSE
+        scenario_id: workspace-packages-cannot-supply-official-category-roots
+        method: test
+        intent: Attempt actual project/plan bundle-driven mounting with existing root True and grouping False.
+        observable: No unsigned member executes; no module entry/import root is activated, and existing root identity
+          is retained.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_module_command_squatting.py::test_workspace_bundle_member_cannot_induce_category_mount[True-False]
+      - case_id: SQUAT-CORE-MEMBER-TRUE
+        scenario_id: workspace-packages-cannot-supply-official-category-roots
+        method: test
+        intent: Attempt a core-category project plan member extension through a real existing project builder,
+          grouping True.
+        observable: The unsigned member never executes; the original member app identity and rejected source exclusion
+          remain intact.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_module_command_squatting.py::test_workspace_core_member_cannot_extend_existing_category[True]
+      - case_id: SQUAT-CORE-MEMBER-FALSE
+        scenario_id: workspace-packages-cannot-supply-official-category-roots
+        method: test
+        intent: Attempt a core-category project plan member extension through a real existing project builder,
+          grouping False.
+        observable: The unsigned member never executes; the original member app identity and rejected source exclusion
+          remain intact.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_module_command_squatting.py::test_workspace_core_member_cannot_extend_existing_category[False]
+      - case_id: SQUAT-LEGACY-ALIAS-BUNDLE
+        scenario_id: workspace-packages-cannot-supply-official-category-roots
+        method: test
+        intent: Attempt an official category mount through legacy bundle alias metadata with grouping disabled.
+        observable: No reserved project root or active source is admitted despite the unreserved literal command.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_module_command_squatting.py::test_workspace_legacy_alias_cannot_mount_category[bundle]
+      - case_id: SQUAT-LEGACY-ALIAS-NAME
+        scenario_id: workspace-packages-cannot-supply-official-category-roots
+        method: test
+        intent: Attempt an official category mount through legacy name alias metadata with grouping disabled.
+        observable: No reserved project root or active source is admitted despite the unreserved literal command.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_module_command_squatting.py::test_workspace_legacy_alias_cannot_mount_category[name]
+  ? "openspec:fix-categoryless-module-command-squatting:category-command-groups:\
+    category-grouping-enabled-config-flag-controls-grouping-behaviour"
+  : rationale: Reconcile the existing shipped category routing contract without restoring removed flat shims.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#718
+    touchpoints:
+      - id: category-policy
+        kind: code_symbol
+        locator: src/specfact_cli/registry/module_packages.py::register_module_package_commands
+    verification_cases:
+      - case_id: SQUAT-FLAG
+        scenario_id: category-grouping-enabled-config-flag-controls-grouping-behaviour
+        method: test
+        intent: Check categorized routing with grouping explicitly disabled.
+        observable: Removed bundle shims remain absent.
+        selector:
+          runner: pytest
+          node_id: tests/unit/registry/test_category_groups.py::test_bootstrap_with_category_grouping_disabled_still_has_no_flat_shims
+  ? "openspec:fix-categoryless-module-command-squatting:category-command-groups:\
+    spec-module-sub-command-avoids-collision-with-group-command-name"
+  : rationale: Reconcile the completed flat-shim migration while reserving the workspace spec root.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#718
+    touchpoints:
+      - id: spec-category-routing
+        kind: code_symbol
+        locator: src/specfact_cli/registry/module_packages.py::register_module_package_commands
+    verification_cases:
+      - case_id: SQUAT-SPEC-API
+        scenario_id: spec-module-sub-command-avoids-collision-with-group-command-name
+        method: test
+        intent: Reject a category-less workspace spec root in legacy mode and execute an eligible api route.
+        observable: The workspace loader stays inactive and the eligible spec api validate command succeeds.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_module_command_squatting.py::test_spec_api_routing_preserves_reserved_workspace_root
+  ? "openspec:fix-categoryless-module-command-squatting:command-package-runtime-validation:\
+    authenticated-project-bundles-retain-official-category-roots"
+  : rationale: Preserve supported official project installation without giving unsigned flags, metadata claims,
+      receipts or workspace keys category-root authority.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#718
+    touchpoints:
+      - id: verified-project-root
+        kind: code_symbol
+        locator: src/specfact_cli/registry/module_packages.py::_verified_project_bundle_root
+      - id: complete-artifact-verifier
+        kind: code_symbol
+        locator: src/specfact_cli/registry/module_installer.py::verify_module_artifact_from_filesystem
+      - id: candidate-discovery
+        kind: code_symbol
+        locator: src/specfact_cli/registry/module_packages.py::discover_all_package_metadata
+      - id: enabled-authority-selection
+        kind: code_symbol
+        locator: src/specfact_cli/registry/module_packages.py::_registration_packages
+      - id: canonical-metadata-normalization
+        kind: code_symbol
+        locator: src/specfact_cli/registry/module_packages.py::normalize_module_manifest
+      - id: authenticated-manifest-binding
+        kind: code_symbol
+        locator: src/specfact_cli/registry/module_installer.py::_metadata_matches_authenticated_manifest
+    verification_cases:
+      - case_id: SQUAT-VERIFIED-PROJECT-GROUPED
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Register the real signed official project project artifact in grouped mode, then exercise unverified
+          replacements and verifier failures.
+        observable: The authentic package retains its root, activated source and loadable Typer app; unsigned, tampered,
+          forged-publisher/signature, receipt, workspace-key, untracked Git source, escaping-directory-symlink,
+          loadable unsigned cached/standalone bytecode and excluded executable source copies plus missing/empty/malformed
+          keys and unavailable verification cause no root or active-import effects. Authentic current-interpreter
+          caches compiled from covered signed source retain verified repeated registration and loading.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_project_bundle_authority.py::test_verified_project_bundle_preserves_root_and_rejects_forgery[project-grouped]
+      - case_id: SQUAT-VERIFIED-PROJECT-LEGACY
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Register the real signed official project project artifact in legacy mode, then exercise unverified
+          replacements and verifier failures.
+        observable: The authentic package retains its root, activated source and loadable Typer app; unsigned, tampered,
+          forged-publisher/signature, receipt, workspace-key, untracked Git source, escaping-directory-symlink,
+          loadable unsigned cached/standalone bytecode and excluded executable source copies plus missing/empty/malformed
+          keys and unavailable verification cause no root or active-import effects. Authentic current-interpreter
+          caches compiled from covered signed source retain verified repeated registration and loading.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_project_bundle_authority.py::test_verified_project_bundle_preserves_root_and_rejects_forgery[project-legacy]
+      - case_id: SQUAT-VERIFIED-BACKLOG-GROUPED
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Register the real signed official backlog project artifact in grouped mode, then exercise unverified
+          replacements and verifier failures.
+        observable: The authentic package retains its root, activated source and loadable Typer app; unsigned, tampered,
+          forged-publisher/signature, receipt, workspace-key, untracked Git source, escaping-directory-symlink,
+          loadable unsigned cached/standalone bytecode and excluded executable source copies plus missing/empty/malformed
+          keys and unavailable verification cause no root or active-import effects. Authentic current-interpreter
+          caches compiled from covered signed source retain verified repeated registration and loading.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_project_bundle_authority.py::test_verified_project_bundle_preserves_root_and_rejects_forgery[backlog-grouped]
+      - case_id: SQUAT-VERIFIED-BACKLOG-LEGACY
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Register the real signed official backlog project artifact in legacy mode, then exercise unverified
+          replacements and verifier failures.
+        observable: The authentic package retains its root, activated source and loadable Typer app; unsigned, tampered,
+          forged-publisher/signature, receipt, workspace-key, untracked Git source, escaping-directory-symlink,
+          loadable unsigned cached/standalone bytecode and excluded executable source copies plus missing/empty/malformed
+          keys and unavailable verification cause no root or active-import effects. Authentic current-interpreter
+          caches compiled from covered signed source retain verified repeated registration and loading.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_project_bundle_authority.py::test_verified_project_bundle_preserves_root_and_rejects_forgery[backlog-legacy]
+      - case_id: SQUAT-VERIFIED-CODEBASE-GROUPED
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Register the real signed official codebase project artifact in grouped mode, then exercise unverified
+          replacements and verifier failures.
+        observable: The authentic package retains its root, activated source and loadable Typer app; unsigned, tampered,
+          forged-publisher/signature, receipt, workspace-key, untracked Git source, escaping-directory-symlink,
+          loadable unsigned cached/standalone bytecode and excluded executable source copies plus missing/empty/malformed
+          keys and unavailable verification cause no root or active-import effects. Authentic current-interpreter
+          caches compiled from covered signed source retain verified repeated registration and loading.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_project_bundle_authority.py::test_verified_project_bundle_preserves_root_and_rejects_forgery[codebase-grouped]
+      - case_id: SQUAT-VERIFIED-CODEBASE-LEGACY
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Register the real signed official codebase project artifact in legacy mode, then exercise unverified
+          replacements and verifier failures.
+        observable: The authentic package retains its root, activated source and loadable Typer app; unsigned, tampered,
+          forged-publisher/signature, receipt, workspace-key, untracked Git source, escaping-directory-symlink,
+          loadable unsigned cached/standalone bytecode and excluded executable source copies plus missing/empty/malformed
+          keys and unavailable verification cause no root or active-import effects. Authentic current-interpreter
+          caches compiled from covered signed source retain verified repeated registration and loading.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_project_bundle_authority.py::test_verified_project_bundle_preserves_root_and_rejects_forgery[codebase-legacy]
+      - case_id: SQUAT-VERIFIED-CODE-REVIEW-GROUPED
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Register the real signed official code-review project artifact in grouped mode, then exercise unverified
+          replacements and verifier failures.
+        observable: The authentic package retains its root, activated source and loadable Typer app; unsigned, tampered,
+          forged-publisher/signature, receipt, workspace-key, untracked Git source, escaping-directory-symlink,
+          loadable unsigned cached/standalone bytecode and excluded executable source copies plus missing/empty/malformed
+          keys and unavailable verification cause no root or active-import effects. Authentic current-interpreter
+          caches compiled from covered signed source retain verified repeated registration and loading.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_project_bundle_authority.py::test_verified_project_bundle_preserves_root_and_rejects_forgery[code-review-grouped]
+      - case_id: SQUAT-VERIFIED-CODE-REVIEW-LEGACY
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Register the real signed official code-review project artifact in legacy mode, then exercise unverified
+          replacements and verifier failures.
+        observable: The authentic package retains its root, activated source and loadable Typer app; unsigned, tampered,
+          forged-publisher/signature, receipt, workspace-key, untracked Git source, escaping-directory-symlink,
+          loadable unsigned cached/standalone bytecode and excluded executable source copies plus missing/empty/malformed
+          keys and unavailable verification cause no root or active-import effects. Authentic current-interpreter
+          caches compiled from covered signed source retain verified repeated registration and loading.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_project_bundle_authority.py::test_verified_project_bundle_preserves_root_and_rejects_forgery[code-review-legacy]
+      - case_id: SQUAT-VERIFIED-SPEC-GROUPED
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Register the real signed official spec project artifact in grouped mode, then exercise unverified
+          replacements and verifier failures.
+        observable: The authentic package retains its root, activated source and loadable Typer app; unsigned, tampered,
+          forged-publisher/signature, receipt, workspace-key, untracked Git source, escaping-directory-symlink,
+          loadable unsigned cached/standalone bytecode and excluded executable source copies plus missing/empty/malformed
+          keys and unavailable verification cause no root or active-import effects. Authentic current-interpreter
+          caches compiled from covered signed source retain verified repeated registration and loading.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_project_bundle_authority.py::test_verified_project_bundle_preserves_root_and_rejects_forgery[spec-grouped]
+      - case_id: SQUAT-VERIFIED-SPEC-LEGACY
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Register the real signed official spec project artifact in legacy mode, then exercise unverified
+          replacements and verifier failures.
+        observable: The authentic package retains its root, activated source and loadable Typer app; unsigned, tampered,
+          forged-publisher/signature, receipt, workspace-key, untracked Git source, escaping-directory-symlink,
+          loadable unsigned cached/standalone bytecode and excluded executable source copies plus missing/empty/malformed
+          keys and unavailable verification cause no root or active-import effects. Authentic current-interpreter
+          caches compiled from covered signed source retain verified repeated registration and loading.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_project_bundle_authority.py::test_verified_project_bundle_preserves_root_and_rejects_forgery[spec-legacy]
+      - case_id: SQUAT-VERIFIED-GOVERN-GROUPED
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Register the real signed official govern project artifact in grouped mode, then exercise unverified
+          replacements and verifier failures.
+        observable: The authentic package retains its root, activated source and loadable Typer app; unsigned, tampered,
+          forged-publisher/signature, receipt, workspace-key, untracked Git source, escaping-directory-symlink,
+          loadable unsigned cached/standalone bytecode and excluded executable source copies plus missing/empty/malformed
+          keys and unavailable verification cause no root or active-import effects. Authentic current-interpreter
+          caches compiled from covered signed source retain verified repeated registration and loading.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_project_bundle_authority.py::test_verified_project_bundle_preserves_root_and_rejects_forgery[govern-grouped]
+      - case_id: SQUAT-VERIFIED-GOVERN-LEGACY
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Register the real signed official govern project artifact in legacy mode, then exercise unverified
+          replacements and verifier failures.
+        observable: The authentic package retains its root, activated source and loadable Typer app; unsigned, tampered,
+          forged-publisher/signature, receipt, workspace-key, untracked Git source, escaping-directory-symlink,
+          loadable unsigned cached/standalone bytecode and excluded executable source copies plus missing/empty/malformed
+          keys and unavailable verification cause no root or active-import effects. Authentic current-interpreter
+          caches compiled from covered signed source retain verified repeated registration and loading.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_project_bundle_authority.py::test_verified_project_bundle_preserves_root_and_rejects_forgery[govern-legacy]
+      - case_id: SQUAT-VERIFIED-REQUIREMENTS-GROUPED
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Register the real signed official requirements project artifact in grouped mode, then exercise unverified
+          replacements and verifier failures.
+        observable: The authentic package retains its root, activated source and loadable Typer app; unsigned, tampered,
+          forged-publisher/signature, receipt, workspace-key, untracked Git source, escaping-directory-symlink,
+          loadable unsigned cached/standalone bytecode and excluded executable source copies plus missing/empty/malformed
+          keys and unavailable verification cause no root or active-import effects. Authentic current-interpreter
+          caches compiled from covered signed source retain verified repeated registration and loading.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_project_bundle_authority.py::test_verified_project_bundle_preserves_root_and_rejects_forgery[requirements-grouped]
+      - case_id: SQUAT-VERIFIED-REQUIREMENTS-LEGACY
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Register the real signed official requirements project artifact in legacy mode, then exercise unverified
+          replacements and verifier failures.
+        observable: The authentic package retains its root, activated source and loadable Typer app; unsigned, tampered,
+          forged-publisher/signature, receipt, workspace-key, untracked Git source, escaping-directory-symlink,
+          loadable unsigned cached/standalone bytecode and excluded executable source copies plus missing/empty/malformed
+          keys and unavailable verification cause no root or active-import effects. Authentic current-interpreter
+          caches compiled from covered signed source retain verified repeated registration and loading.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_project_bundle_authority.py::test_verified_project_bundle_preserves_root_and_rejects_forgery[requirements-legacy]
+      - case_id: SQUAT-SOURCE-SNAPSHOT
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Pair real official codebase loading with a valid-app cache and source replacement between reads.
+        observable: The altered source snapshot is rejected before compiler work or active imports; a public lazy
+          retry with restored signed source still rejects the forged cache and registers no category root.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_project_bundle_authority.py::test_signed_source_snapshot_cannot_be_replaced
+      - case_id: SQUAT-EXCLUDED-NATIVE-DLL
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Pair real official codebase loading with a harmless unsigned dll artifact under excluded logs.
+        observable: The unchanged signed bundle remains loadable before mutation; adding the omitted native artifact
+          denies category-root registration and active imports without executing native code.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_project_bundle_authority.py::test_project_root_rejects_excluded_native_artifacts[dll]
+      - case_id: SQUAT-EXCLUDED-NATIVE-DYLIB
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Pair real official codebase loading with a harmless unsigned dylib artifact under excluded logs.
+        observable: The unchanged signed bundle remains loadable before mutation; adding the omitted native artifact
+          denies category-root registration and active imports without executing native code.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_project_bundle_authority.py::test_project_root_rejects_excluded_native_artifacts[dylib]
+      - case_id: SQUAT-EXCLUDED-NATIVE-BUNDLE
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Pair real official codebase loading with a harmless unsigned bundle artifact under excluded logs.
+        observable: The unchanged signed bundle remains loadable before mutation; adding the omitted native artifact
+          denies category-root registration and active imports without executing native code.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_project_bundle_authority.py::test_project_root_rejects_excluded_native_artifacts[bundle]
+      - case_id: SQUAT-INSTALLED-FALLBACK-GROUPED
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Exercise real same-name project/user discovery and public registration in grouped mode.
+        observable: A rejected unsigned project claim cannot suppress the authentic installed codebase root or its
+          review add-on; a verified project copy retains normal priority and default discovery stays deduplicated.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_project_bundle_authority.py::test_rejected_project_preserves_same_name_installed_bundle[grouped]
+      - case_id: SQUAT-INSTALLED-FALLBACK-LEGACY
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Exercise real same-name project/user discovery and public registration in legacy mode.
+        observable: A rejected unsigned project claim cannot suppress the authentic installed codebase root or its
+          review add-on; a verified project copy retains normal priority and default discovery stays deduplicated.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_project_bundle_authority.py::test_rejected_project_preserves_same_name_installed_bundle[legacy]
+      - case_id: SQUAT-DISABLED-PAYLOAD-STATE
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Observe actual source payload reads with a project root disabled by state, then explicitly re-enable it.
+        observable: Disabled source is neither read nor activated; explicit re-enablement preserves authentic loading
+          while enabling an unsigned replacement never grants category-root authority.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_project_bundle_authority.py::test_disabled_project_roots_skip_payload_verification[state]
+      - case_id: SQUAT-DISABLED-PAYLOAD-DISABLE-OVERRIDE
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Observe actual source payload reads with a project root disabled by disable-override, then explicitly re-enable it.
+        observable: Disabled source is neither read nor activated; explicit re-enablement preserves authentic loading
+          while enabling an unsigned replacement never grants category-root authority.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_project_bundle_authority.py::test_disabled_project_roots_skip_payload_verification[disable-override]
+      - case_id: SQUAT-MANIFEST-BINDING-SCHEMA
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Let real discovery read altered schema metadata with original integrity, then restore the signed manifest.
+        observable: The restored artifact genuinely verifies, but unsigned discovery metadata causes no schema, bridge,
+          constructor, command or active-source effects; fresh discovery of authentic metadata restores normal loading.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_project_bundle_authority.py::test_discovery_fields_match_signed_manifest[schema]
+      - case_id: SQUAT-MANIFEST-BINDING-BRIDGE
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Let real discovery read altered bridge metadata with original integrity, then restore the signed manifest.
+        observable: The restored artifact genuinely verifies, but unsigned discovery metadata causes no schema, bridge,
+          constructor, command or active-source effects; fresh discovery of authentic metadata restores normal loading.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_project_bundle_authority.py::test_discovery_fields_match_signed_manifest[bridge]
+      - case_id: SQUAT-MANIFEST-BINDING-COMMANDS
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Let real discovery read altered commands metadata with original integrity, then restore the signed manifest.
+        observable: The restored artifact genuinely verifies, but unsigned discovery metadata causes no schema, bridge,
+          constructor, command or active-source effects; fresh discovery of authentic metadata restores normal loading.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_project_bundle_authority.py::test_discovery_fields_match_signed_manifest[commands]
+      - case_id: SQUAT-MANIFEST-BINDING-VERSION
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Let real discovery read altered version metadata with original integrity, then restore the signed manifest.
+        observable: The restored artifact genuinely verifies, but unsigned discovery metadata causes no schema, bridge,
+          constructor, command or active-source effects; fresh discovery of authentic metadata restores normal loading.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_project_bundle_authority.py::test_discovery_fields_match_signed_manifest[version]
+      - case_id: SQUAT-LIVE-INVENTORY-ADDED-SOURCE
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Mutate added-source immediately after real signature verification of the captured artifact.
+        observable: No unauthenticated live executable may activate its package even transiently; restoring the authentic
+          inventory preserves public registration and command loading.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_project_bundle_authority.py::test_live_executable_inventory_matches_verified_snapshot[added-source]
+      - case_id: SQUAT-LIVE-INVENTORY-CHANGED-SOURCE
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Mutate changed-source immediately after real signature verification of the captured artifact.
+        observable: No unauthenticated live executable may activate its package even transiently; restoring the authentic
+          inventory preserves public registration and command loading.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_project_bundle_authority.py::test_live_executable_inventory_matches_verified_snapshot[changed-source]
+      - case_id: SQUAT-CACHE-PHASE-ADDED-BYTECODE
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Deny equivalent static added-bytecode forgery, then mutate during real standard cache compilation.
+        observable: Static and compiler-interleaved forgeries cause no transient source activation or command registration;
+          a fresh compiler-free final inventory denies mutation while restoring the authentic artifact preserves public loading.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_project_bundle_authority.py::test_cache_compilation_finishes_before_admission_inventory[added-bytecode]
+      - case_id: SQUAT-CACHE-PHASE-CHANGED-SOURCE
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Deny equivalent static changed-source forgery, then mutate during real standard cache compilation.
+        observable: Static and compiler-interleaved forgeries cause no transient source activation or command registration;
+          a fresh compiler-free final inventory denies mutation while restoring the authentic artifact preserves public loading.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_project_bundle_authority.py::test_cache_compilation_finishes_before_admission_inventory[changed-source]
+      - case_id: SQUAT-EXCLUDED-NATIVE-SO
+        intent: Deny unsigned omitted so executable artifacts while separately verifying authentic project compatibility.
+        method: test
+        observable: The unchanged signed bundle remains loadable before mutation; adding the omitted native artifact
+          denies category-root registration and active imports without executing native code.
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        selector:
+          node_id: tests/unit/security/test_project_bundle_authority.py::test_project_root_rejects_excluded_native_artifacts[so]
+          runner: pytest
+      - case_id: SQUAT-EXCLUDED-NATIVE-PYD
+        intent: Deny unsigned omitted pyd executable artifacts while separately verifying authentic project compatibility.
+        method: test
+        observable: The unchanged signed bundle remains loadable before mutation; adding the omitted native artifact
+          denies category-root registration and active imports without executing native code.
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        selector:
+          node_id: tests/unit/security/test_project_bundle_authority.py::test_project_root_rejects_excluded_native_artifacts[pyd]
+          runner: pytest
+      - case_id: SQUAT-MALFORMED-ALTERNATE-TRUE
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Register a real official-looking project copy with malformed alternate metadata YAML while preserving
+          authentic compatibility, grouping True.
+        observable: No YAML parser exception escapes public registration; no rejected category/import effects occur,
+          while the authentic counterpart remains loadable.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_malformed_module_manifests.py::test_malformed_alternate_manifest_is_denied_without_startup_failure[True]
+      - case_id: SQUAT-MALFORMED-ALTERNATE-FALSE
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Register a real official-looking project copy with malformed alternate metadata YAML while preserving
+          authentic compatibility, grouping False.
+        observable: No YAML parser exception escapes public registration; no rejected category/import effects occur,
+          while the authentic counterpart remains loadable.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_malformed_module_manifests.py::test_malformed_alternate_manifest_is_denied_without_startup_failure[False]
+      - case_id: SQUAT-SELECTION-01
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Exercise test_conflicting_dependency_cycle_refuses_only_unstable_component through actual configured-root
+          discovery and public registration with genuine test-key signatures.
+        observable: Priority selection terminates, none of the four contradictory candidates activates or mounts
+          a category, and the unrelated signed module activates normally.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_package_candidate_eligibility.py::test_conflicting_dependency_cycle_refuses_only_unstable_component
+      - case_id: SQUAT-SELECTION-02
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Exercise test_dependency_selection_reconsiders_higher_priority_consumer through actual configured-root
+          discovery and public registration with genuine test-key signatures.
+        observable: The higher-priority consumer and fallback version2 provider activate; neither the unnecessary
+          consumer fallback nor missing-dependency provider activates.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_package_candidate_eligibility.py::test_dependency_selection_reconsiders_higher_priority_consumer
+      - case_id: SQUAT-SELECTION-03
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Exercise test_final_revalidation_rejects_payload_changed_after_initial_check through actual configured-root
+          discovery and public registration with genuine test-key signatures.
+        observable: After the actual verifier first accepts a copy, a faithful observer changes its payload; the
+          changed copy never activates and the still-signed fallback does.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_package_candidate_eligibility.py::test_final_revalidation_rejects_payload_changed_after_initial_check
+      - case_id: SQUAT-SELECTION-04
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Exercise test_integrity_rejected_user_copy_keeps_signed_fallback through actual configured-root discovery
+          and public registration with genuine test-key signatures.
+        observable: The genuinely signed installed fallback activates while the checksum-invalid copy contributes
+          no active source.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_package_candidate_eligibility.py::test_integrity_rejected_user_copy_keeps_signed_fallback
+      - case_id: SQUAT-SELECTION-05
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Exercise test_rejected_provider_cannot_satisfy_consumer_dependencies through actual configured-root
+          discovery and public registration with genuine test-key signatures.
+        observable: Neither rejected provider nor dependent consumer activates; no category root is mounted for the
+          rejected provider.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_package_candidate_eligibility.py::test_rejected_provider_cannot_satisfy_consumer_dependencies
+      - case_id: SQUAT-SELECTION-06
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Exercise test_signed_ineligible_project_preserves_eligible_installed_copy[core-grouped] through actual
+          configured-root discovery and public registration with genuine test-key signatures.
+        observable: The first fully eligible signed installation activates its exact source and exposes its probe
+          command; the rejected higher-priority copy does not activate.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_package_candidate_eligibility.py::test_signed_ineligible_project_preserves_eligible_installed_copy[core-grouped]
+      - case_id: SQUAT-SELECTION-07
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Exercise test_signed_ineligible_project_preserves_eligible_installed_copy[core-legacy] through actual
+          configured-root discovery and public registration with genuine test-key signatures.
+        observable: The first fully eligible signed installation activates its exact source and exposes its probe
+          command; the rejected higher-priority copy does not activate.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_package_candidate_eligibility.py::test_signed_ineligible_project_preserves_eligible_installed_copy[core-legacy]
+      - case_id: SQUAT-SELECTION-08
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Exercise test_signed_ineligible_project_preserves_eligible_installed_copy[dependency-grouped] through
+          actual configured-root discovery and public registration with genuine test-key signatures.
+        observable: The first fully eligible signed installation activates its exact source and exposes its probe
+          command; the rejected higher-priority copy does not activate.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_package_candidate_eligibility.py::test_signed_ineligible_project_preserves_eligible_installed_copy[dependency-grouped]
+      - case_id: SQUAT-SELECTION-09
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Exercise test_signed_ineligible_project_preserves_eligible_installed_copy[dependency-legacy] through
+          actual configured-root discovery and public registration with genuine test-key signatures.
+        observable: The first fully eligible signed installation activates its exact source and exposes its probe
+          command; the rejected higher-priority copy does not activate.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_package_candidate_eligibility.py::test_signed_ineligible_project_preserves_eligible_installed_copy[dependency-legacy]
+      - case_id: SQUAT-SELECTION-10
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Exercise test_signed_ineligible_project_preserves_eligible_installed_copy[schema-grouped] through
+          actual configured-root discovery and public registration with genuine test-key signatures.
+        observable: The first fully eligible signed installation activates its exact source and exposes its probe
+          command; the rejected higher-priority copy does not activate.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_package_candidate_eligibility.py::test_signed_ineligible_project_preserves_eligible_installed_copy[schema-grouped]
+      - case_id: SQUAT-SELECTION-11
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Exercise test_signed_ineligible_project_preserves_eligible_installed_copy[schema-legacy] through
+          actual configured-root discovery and public registration with genuine test-key signatures.
+        observable: The first fully eligible signed installation activates its exact source and exposes its probe
+          command; the rejected higher-priority copy does not activate.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_package_candidate_eligibility.py::test_signed_ineligible_project_preserves_eligible_installed_copy[schema-legacy]
+      - case_id: SQUAT-SELECTION-12
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Exercise a declared versioned self-dependency through actual configured-root discovery and public
+          registration using genuine signed versions1 and2.
+        observable: The version2 fallback activates and version1 does not; each candidate is evaluated with its own
+          enabled identity and version without changing another provider priority.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_package_candidate_eligibility.py::test_versioned_self_dependency_selects_eligible_fallback
+      - case_id: SQUAT-REVIEW-01
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Authenticate canonical and noncanonical project publishers under the same real test anchor in grouped mode.
+        observable: Canonical authority retains its root; valid crypto for a noncanonical publisher grants no root or import source.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_registration_review_oracles.py::test_validly_signed_noncanonical_publisher_is_denied[True]
+      - case_id: SQUAT-REVIEW-02
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Authenticate canonical and noncanonical project publishers under the same real test anchor in legacy mode.
+        observable: Canonical authority retains its root; valid crypto for a noncanonical publisher grants no root or import source.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_registration_review_oracles.py::test_validly_signed_noncanonical_publisher_is_denied[False]
+      - case_id: SQUAT-REVIEW-03
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Register a healthy signed cyclic pair alone, then behind an ineligible same-name priority copy.
+        observable: Both consistent cycle commands remain registered and activated; the incompatible priority copy remains inactive.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_registration_review_oracles.py::test_consistent_cycle_survives_ineligible_priority_copy
+      - case_id: SQUAT-REVIEW-04
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Register the real contradictory version cycle and observe its actual warning through a standard logger.
+        observable: The conflicting modules remain inactive, the unrelated package survives, and the explicit refusal names both
+          module identities.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_registration_review_oracles.py::test_conflict_refusal_has_explicit_registration_diagnostic
+      - case_id: SQUAT-INVENTORY-01
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Authenticate canonical compatibility and an ordinary excluded diagnostic before inspecting
+          unsigned executable bytes or mode.
+        observable: Unsigned executable grants no category root or active source; no candidate artifact is executed.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_executable_identity_oracles.py::test_excluded_extensionless_executable_is_denied[mode-grouped]
+      - case_id: SQUAT-INVENTORY-02
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Authenticate canonical compatibility and an ordinary excluded diagnostic before inspecting
+          unsigned executable bytes or mode.
+        observable: Unsigned executable grants no category root or active source; no candidate artifact is executed.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_executable_identity_oracles.py::test_excluded_extensionless_executable_is_denied[mode-legacy]
+      - case_id: SQUAT-INVENTORY-03
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Authenticate canonical compatibility and an ordinary excluded diagnostic before inspecting
+          unsigned executable bytes or mode.
+        observable: Unsigned executable grants no category root or active source; no candidate artifact is executed.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_executable_identity_oracles.py::test_excluded_extensionless_executable_is_denied[shebang-grouped]
+      - case_id: SQUAT-INVENTORY-04
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Authenticate canonical compatibility and an ordinary excluded diagnostic before inspecting
+          unsigned executable bytes or mode.
+        observable: Unsigned executable grants no category root or active source; no candidate artifact is executed.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_executable_identity_oracles.py::test_excluded_extensionless_executable_is_denied[shebang-legacy]
+      - case_id: SQUAT-INVENTORY-05
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Authenticate canonical compatibility and an ordinary excluded diagnostic before inspecting
+          unsigned executable bytes or mode.
+        observable: Unsigned executable grants no category root or active source; no candidate artifact is executed.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_executable_identity_oracles.py::test_excluded_extensionless_executable_is_denied[elf-grouped]
+      - case_id: SQUAT-INVENTORY-06
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Authenticate canonical compatibility and an ordinary excluded diagnostic before inspecting
+          unsigned executable bytes or mode.
+        observable: Unsigned executable grants no category root or active source; no candidate artifact is executed.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_executable_identity_oracles.py::test_excluded_extensionless_executable_is_denied[elf-legacy]
+      - case_id: SQUAT-INVENTORY-07
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Authenticate canonical compatibility and an ordinary excluded diagnostic before inspecting
+          unsigned executable bytes or mode.
+        observable: Unsigned executable grants no category root or active source; no candidate artifact is executed.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_executable_identity_oracles.py::test_excluded_extensionless_executable_is_denied[pe-grouped]
+      - case_id: SQUAT-INVENTORY-08
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Authenticate canonical compatibility and an ordinary excluded diagnostic before inspecting
+          unsigned executable bytes or mode.
+        observable: Unsigned executable grants no category root or active source; no candidate artifact is executed.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_executable_identity_oracles.py::test_excluded_extensionless_executable_is_denied[pe-legacy]
+      - case_id: SQUAT-INVENTORY-09
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Authenticate canonical compatibility and an ordinary excluded diagnostic before inspecting
+          unsigned executable bytes or mode.
+        observable: Unsigned executable grants no category root or active source; no candidate artifact is executed.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_executable_identity_oracles.py::test_excluded_extensionless_executable_is_denied[mach-o-grouped]
+      - case_id: SQUAT-INVENTORY-10
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Authenticate canonical compatibility and an ordinary excluded diagnostic before inspecting
+          unsigned executable bytes or mode.
+        observable: Unsigned executable grants no category root or active source; no candidate artifact is executed.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_executable_identity_oracles.py::test_excluded_extensionless_executable_is_denied[mach-o-legacy]
+      - case_id: SQUAT-INVENTORY-11
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Authenticate canonical compatibility and an ordinary excluded diagnostic before inspecting
+          unsigned executable bytes or mode.
+        observable: Unsigned executable grants no category root or active source; no candidate artifact is executed.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_executable_identity_oracles.py::test_excluded_extensionless_executable_is_denied[fat-mach-o-grouped]
+      - case_id: SQUAT-INVENTORY-12
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Authenticate canonical compatibility and an ordinary excluded diagnostic before inspecting
+          unsigned executable bytes or mode.
+        observable: Unsigned executable grants no category root or active source; no candidate artifact is executed.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_executable_identity_oracles.py::test_excluded_extensionless_executable_is_denied[fat-mach-o-legacy]
+      - case_id: SQUAT-INVENTORY-13
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Verify genuine signatures and existing category/group refusal before the canonical tier regression.
+        observable: All three changed identity fields retain denial and canonical compatibility, with state reset between checks.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_executable_identity_oracles.py::test_all_signed_identity_fields_retain_canonical_authority[grouped]
+      - case_id: SQUAT-INVENTORY-14
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Verify genuine signatures and existing category/group refusal before the canonical tier regression.
+        observable: All three changed identity fields retain denial and canonical compatibility, with state reset between checks.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_executable_identity_oracles.py::test_all_signed_identity_fields_retain_canonical_authority[legacy]
+      - case_id: SQUAT-BOUNDED-ENCODING-01
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Observe every named encoding in both registration modes after canonical compatibility and genuine crypto.
+        observable: All18 root/source observations are recorded in four nodes before aggregate denial without probe execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_executable_encoding_matrix.py::test_each_executable_encoding_is_denied[execute-bits]
+      - case_id: SQUAT-BOUNDED-ENCODING-02
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Observe every named encoding in both registration modes after canonical compatibility and genuine crypto.
+        observable: All18 root/source observations are recorded in four nodes before aggregate denial without probe execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_executable_encoding_matrix.py::test_each_executable_encoding_is_denied[thin-32]
+      - case_id: SQUAT-BOUNDED-ENCODING-03
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Observe every named encoding in both registration modes after canonical compatibility and genuine crypto.
+        observable: All18 root/source observations are recorded in four nodes before aggregate denial without probe execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_executable_encoding_matrix.py::test_each_executable_encoding_is_denied[big-64]
+      - case_id: SQUAT-BOUNDED-ENCODING-04
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Observe every named encoding in both registration modes after canonical compatibility and genuine crypto.
+        observable: All18 root/source observations are recorded in four nodes before aggregate denial without probe execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_executable_encoding_matrix.py::test_each_executable_encoding_is_denied[fat-little]
+      - case_id: SQUAT-PROJECT-PATH-LINK-GROUPED
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Discover genuine signed copies through package, modules and specfact links with real installed fallback.
+        observable: All three owned path links gain no command or source authority and the eligible installed copy remains active.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_package_path_link_authority.py::test_project_path_links_have_no_authority[grouped]
+      - case_id: SQUAT-PROJECT-PATH-LINK-LEGACY
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Discover genuine signed copies through package, modules and specfact links with real installed fallback.
+        observable: All three owned path links gain no command or source authority and the eligible installed copy remains active.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_package_path_link_authority.py::test_project_path_links_have_no_authority[legacy]
+      - case_id: SQUAT-NATIVE-LEGACY-ALL
+        scenario_id: authenticated-project-bundles-retain-official-category-roots
+        method: test
+        intent: Observe all five omitted native suffixes in legacy routing after genuine signed compatibility.
+        observable: Every suffix loses root and source authority, with all observations recorded before aggregate denial.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_package_path_link_authority.py::test_legacy_native_suffixes_have_no_authority

@@ -5,7 +5,7 @@ nav_order: 35
 permalink: /reference/module-categories/
 doc_owner: specfact-cli
 tracks: [src/specfact_cli/registry/**, ../specfact-cli-modules/packages/**]
-last_reviewed: 2026-07-10
+last_reviewed: 2026-10-11
 exempt: false
 exempt_reason: ""
 ---
@@ -91,6 +91,15 @@ Namespace mapping:
 Compatibility note:
 
 - Flat top-level command shims were removed. Use category groups (`project`, `backlog`, `code`, `spec`, `govern`, `requirements`).
+- Category-less workspace modules are skipped in default grouped mode. Add category/bundle metadata to
+  use the supported grouped surface. Explicitly disabling grouping preserves unreserved legacy workspace
+  commands; category-less user, marketplace and custom sources retain their compatibility path.
+- Permanent core commands (`init`, `module`, `upgrade`) are reserved for resolved built-in package paths.
+  Operator-selected built-in discovery remains supported. External packages cannot extend these roots
+  by declaring a core category, name or source label. Workspace packages also cannot supply official
+  category root command apps in either mode. Rejected packages contribute no active import roots,
+  schema extensions, service bridges or category mounts. Eligible categorized execution remains
+  intentional extension behavior; this guard is not a sandbox.
 - `specfact backlog auth ...` is provided by the backlog bundle, not by the permanent core command surface.
 - Prerelease `specfact-requirements` manifests that still declare category
   `project` with `bundle_group_command: requirements` are normalized to the

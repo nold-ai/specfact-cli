@@ -10,6 +10,35 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.55.10] - 2026-10-13
+
+### Security
+
+- Reject malformed alternate project manifests during authenticated admission without aborting CLI startup.
+
+- Require authenticated project authority for indirect category mounts and shared member loaders, including bundle aliases and cross-category claims.
+
+- Bind privileged project registration metadata and executable inventory to authenticated artifact bytes; reproduce source caches before the final file check and recheck authority before registration effects.
+
+- Reject category-less grouped workspace root commands, external claims to permanent core commands and
+  unauthenticated workspace claims to official category roots before registry, bridge or import-source activation.
+- Preserve resolved built-in authority, reject forged source labels and escaping symlinks, and prevent
+  rejected workspace sources from shadowing eligible package dependencies.
+- Reject unsigned executable caches and omitted Python/native artifacts; authenticate captured signed source
+  bytes before reproducing compatible interpreter caches without executing candidate code.
+
+### Fixed
+
+- Select the first fully eligible copy of each module, reconsider dependency fallbacks against selected versions
+  and each candidate's own version, and refuse contradictory priority cycles before registration effects.
+- Preserve categorized routing and supported unreserved legacy registration, including operator-configured
+  built-in discovery, while retaining the completed removal of flat bundle shims.
+- Preserve all six official project-scoped bundle roots only after full artifact checksum and signature
+  verification against the core-bundled key; reject unsigned, tampered and workspace-key replacements.
+- Preserve genuine installed bundles when a rejected project copy claims the same name, retain authenticated
+  project priority, and skip artifact payload verification for disabled module names.
+- Synchronize bugfix version declarations, frozen project metadata and the promotion fixture.
+
 ## [0.55.9] - 2026-10-13
 
 ### Security
