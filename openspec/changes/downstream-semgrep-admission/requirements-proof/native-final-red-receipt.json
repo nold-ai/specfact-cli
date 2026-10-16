@@ -1,0 +1,24 @@
+{
+  "status": "verified_actual_RED",
+  "run_id": 38971008984,
+  "artifact_id": 12077261179,
+  "zip_sha256": "9ffd890802b45019109b97ae00ab2bad4df981d7bd5fe1c7725f5ca3b032a24f",
+  "source_commit": "33a1d4876a9efeadc994fea244b9c37f5b30d7e6",
+  "source_tree": "288a66baca5d34e813d2b522d5587be881d03db4",
+  "base_commit": "729a53bd4bcbba94886cff5c73d7092bef6ceb94",
+  "tests": 40,
+  "assertion_failures": 40,
+  "errors": 0,
+  "skips": 0,
+  "test_file_digests": {
+    "tests/unit/scripts/test_downstream_semgrep.py": "sha256:d021d87eebbb4834746fc0a71e24cadfc0586d8c5e44a3fa795fee871824e38e"
+  },
+  "selector_count": 40,
+  "property_counts": [
+    4
+  ],
+  "production_implementation_present": false,
+  "service_run_url": "https://github.com/nold-ai/specfact-cli/actions/runs/38971008984",
+  "service_artifact_url": "https://github.com/nold-ai/specfact-cli/actions/runs/38971008984/artifacts/12077261179",
+  "limitation": "Initial missing-API assertions. Supersedes ce6a1eaa for the final authored bytes. Does not authorize production admission."
+}

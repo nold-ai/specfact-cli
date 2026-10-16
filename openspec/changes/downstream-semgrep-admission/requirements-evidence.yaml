@@ -1,0 +1,404 @@
+schema_version: '2'
+requirements:
+  openspec:downstream-semgrep-admission:downstream-semgrep-admission:deterministic-metadata-only-downstream-build:
+    rationale: Deterministic metadata only downstream build
+    stakeholder_refs:
+      - nold-ai/specfact-cli#772
+    touchpoints:
+      - id: deterministic-metadata-only-downstream-build
+        kind: code_symbol
+        locator: scripts/downstream_semgrep.py
+    verification_cases:
+      - case_id: deterministic-metadata-only-downstream-build-01
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: Build is reproducible and preserves complete runtime.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_build_is_reproducible_and_preserves_complete_runtime
+      - case_id: deterministic-metadata-only-downstream-build-02
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: Wrong upstream hash cannot write candidate.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_wrong_upstream_hash_cannot_write_candidate
+      - case_id: deterministic-metadata-only-downstream-build-03
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: Unsafe upstream archive rejects even with reviewed hash.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_unsafe_upstream_archive_rejects_even_with_reviewed_hash[duplicate]
+      - case_id: deterministic-metadata-only-downstream-build-04
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: Unsafe upstream archive rejects even with reviewed hash.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_unsafe_upstream_archive_rejects_even_with_reviewed_hash[traversal]
+      - case_id: deterministic-metadata-only-downstream-build-05
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: Unsafe upstream archive rejects even with reviewed hash.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_unsafe_upstream_archive_rejects_even_with_reviewed_hash[symlink]
+      - case_id: deterministic-metadata-only-downstream-build-06
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: Unsafe upstream archive rejects even with reviewed hash.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_unsafe_upstream_archive_rejects_even_with_reviewed_hash[signature]
+      - case_id: deterministic-metadata-only-downstream-build-07
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: Unsafe upstream archive rejects even with reviewed hash.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_unsafe_upstream_archive_rejects_even_with_reviewed_hash[bad-record]
+      - case_id: deterministic-metadata-only-downstream-build-08
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: Unsafe upstream archive rejects even with reviewed hash.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_unsafe_upstream_archive_rejects_even_with_reviewed_hash[duplicate-mcp]
+      - case_id: deterministic-metadata-only-downstream-build-09
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: Candidate rejects unauthorized change with valid record.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_candidate_rejects_unauthorized_change_with_valid_record[runtime]
+      - case_id: deterministic-metadata-only-downstream-build-10
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: Candidate rejects unauthorized change with valid record.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_candidate_rejects_unauthorized_change_with_valid_record[mode]
+      - case_id: deterministic-metadata-only-downstream-build-11
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: Candidate rejects unauthorized change with valid record.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_candidate_rejects_unauthorized_change_with_valid_record[entrypoint]
+      - case_id: deterministic-metadata-only-downstream-build-12
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: Candidate rejects unauthorized change with valid record.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_candidate_rejects_unauthorized_change_with_valid_record[other-metadata]
+      - case_id: deterministic-metadata-only-downstream-build-13
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: Unreviewed downstream identity rejects.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_unreviewed_downstream_identity_rejects[unknown-local]
+      - case_id: deterministic-metadata-only-downstream-build-14
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: Unreviewed downstream identity rejects.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_unreviewed_downstream_identity_rejects[masquerade]
+      - case_id: deterministic-metadata-only-downstream-build-15
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: Unreviewed downstream identity rejects.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_unreviewed_downstream_identity_rejects[below-floor]
+  openspec:downstream-semgrep-admission:downstream-semgrep-admission:exact-protected-admission:
+    rationale: Exact protected admission
+    stakeholder_refs:
+      - nold-ai/specfact-cli#772
+    touchpoints:
+      - id: exact-protected-admission
+        kind: code_symbol
+        locator: scripts/downstream_semgrep.py
+    verification_cases:
+      - case_id: exact-protected-admission-01
+        scenario_id: exact-protected-admission
+        method: test
+        intent: Exact protected boundary admits only the verified wheel.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_exact_protected_boundary_admits_only_the_verified_wheel
+      - case_id: exact-protected-admission-02
+        scenario_id: exact-protected-admission
+        method: test
+        intent: Unapproved artifact rejects before verifier.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_unapproved_artifact_rejects_before_verifier[empty-policy]
+      - case_id: exact-protected-admission-03
+        scenario_id: exact-protected-admission
+        method: test
+        intent: Unapproved artifact rejects before verifier.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_unapproved_artifact_rejects_before_verifier[expired]
+      - case_id: exact-protected-admission-04
+        scenario_id: exact-protected-admission
+        method: test
+        intent: Unapproved artifact rejects before verifier.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_unapproved_artifact_rejects_before_verifier[wrong-hash]
+      - case_id: exact-protected-admission-05
+        scenario_id: exact-protected-admission
+        method: test
+        intent: Unapproved artifact rejects before verifier.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_unapproved_artifact_rejects_before_verifier[wrong-matrix]
+      - case_id: exact-protected-admission-06
+        scenario_id: exact-protected-admission
+        method: test
+        intent: Verifier failure cannot turn claims into admission.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_verifier_failure_cannot_turn_claims_into_admission[pr-origin]
+      - case_id: exact-protected-admission-07
+        scenario_id: exact-protected-admission
+        method: test
+        intent: Verifier failure cannot turn claims into admission.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_verifier_failure_cannot_turn_claims_into_admission[missing-verifier]
+      - case_id: exact-protected-admission-08
+        scenario_id: exact-protected-admission
+        method: test
+        intent: Verifier failure cannot turn claims into admission.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_verifier_failure_cannot_turn_claims_into_admission[timeout]
+  openspec:downstream-semgrep-admission:downstream-semgrep-admission:complete-vulnerability-identity-coverage:
+    rationale: Complete vulnerability identity coverage
+    stakeholder_refs:
+      - nold-ai/specfact-cli#772
+    touchpoints:
+      - id: complete-vulnerability-identity-coverage
+        kind: code_symbol
+        locator: scripts/downstream_semgrep.py
+    verification_cases:
+      - case_id: complete-vulnerability-identity-coverage-01
+        scenario_id: complete-vulnerability-identity-coverage
+        method: test
+        intent: Bound audit preserves real graph and reports local identity.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_bound_audit_preserves_real_graph_and_reports_local_identity
+      - case_id: complete-vulnerability-identity-coverage-02
+        scenario_id: complete-vulnerability-identity-coverage
+        method: test
+        intent: Bound audit rejects incomplete or unsafe responses.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_bound_audit_rejects_incomplete_or_unsafe_responses[empty-skip]
+      - case_id: complete-vulnerability-identity-coverage-03
+        scenario_id: complete-vulnerability-identity-coverage
+        method: test
+        intent: Bound audit rejects incomplete or unsafe responses.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_bound_audit_rejects_incomplete_or_unsafe_responses[missing]
+      - case_id: complete-vulnerability-identity-coverage-04
+        scenario_id: complete-vulnerability-identity-coverage
+        method: test
+        intent: Bound audit rejects incomplete or unsafe responses.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_bound_audit_rejects_incomplete_or_unsafe_responses[duplicate]
+      - case_id: complete-vulnerability-identity-coverage-05
+        scenario_id: complete-vulnerability-identity-coverage
+        method: test
+        intent: Bound audit rejects incomplete or unsafe responses.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_bound_audit_rejects_incomplete_or_unsafe_responses[wrong-version]
+      - case_id: complete-vulnerability-identity-coverage-06
+        scenario_id: complete-vulnerability-identity-coverage
+        method: test
+        intent: Bound audit rejects incomplete or unsafe responses.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_bound_audit_rejects_incomplete_or_unsafe_responses[malformed-vuln]
+      - case_id: complete-vulnerability-identity-coverage-07
+        scenario_id: complete-vulnerability-identity-coverage
+        method: test
+        intent: Bound audit rejects incomplete or unsafe responses.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_bound_audit_rejects_incomplete_or_unsafe_responses[advisory-and-error]
+      - case_id: complete-vulnerability-identity-coverage-08
+        scenario_id: complete-vulnerability-identity-coverage
+        method: test
+        intent: Bound audit rejects unbound inventory before writing view.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_bound_audit_rejects_unbound_inventory_before_writing_view[vulnerable-mcp]
+      - case_id: complete-vulnerability-identity-coverage-09
+        scenario_id: complete-vulnerability-identity-coverage
+        method: test
+        intent: Bound audit rejects unbound inventory before writing view.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_bound_audit_rejects_unbound_inventory_before_writing_view[wrong-local-hash]
+      - case_id: complete-vulnerability-identity-coverage-10
+        scenario_id: complete-vulnerability-identity-coverage
+        method: test
+        intent: Bound audit rejects unbound inventory before writing view.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_bound_audit_rejects_unbound_inventory_before_writing_view[marker]
+  openspec:downstream-semgrep-admission:downstream-semgrep-admission:complete-platform-and-mcp-behavioral-proof:
+    rationale: Complete platform and mcp behavioral proof
+    stakeholder_refs:
+      - nold-ai/specfact-cli#772
+    touchpoints:
+      - id: complete-platform-and-mcp-behavioral-proof
+        kind: code_symbol
+        locator: scripts/downstream_semgrep.py
+    verification_cases:
+      - case_id: complete-platform-and-mcp-behavioral-proof-01
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: Matrix requires all seven platforms and three interpreters.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_matrix_requires_all_seven_platforms_and_three_interpreters
+      - case_id: complete-platform-and-mcp-behavioral-proof-02
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: Matrix rejects incomplete or non native evidence.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_matrix_rejects_incomplete_or_non_native_evidence[missing]
+      - case_id: complete-platform-and-mcp-behavioral-proof-03
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: Matrix rejects incomplete or non native evidence.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_matrix_rejects_incomplete_or_non_native_evidence[duplicate]
+      - case_id: complete-platform-and-mcp-behavioral-proof-04
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: Matrix rejects incomplete or non native evidence.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_matrix_rejects_incomplete_or_non_native_evidence[failed]
+      - case_id: complete-platform-and-mcp-behavioral-proof-05
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: Matrix rejects incomplete or non native evidence.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_matrix_rejects_incomplete_or_non_native_evidence[emulated]
+      - case_id: complete-platform-and-mcp-behavioral-proof-06
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: Matrix rejects incomplete or non native evidence.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_matrix_rejects_incomplete_or_non_native_evidence[skipped-check]
+      - case_id: complete-platform-and-mcp-behavioral-proof-07
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: Complete candidate matrix does not grant production admission.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_complete_candidate_matrix_does_not_grant_production_admission
+      - case_id: native-platform-lifecycle-pending
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: inspection
+        intent: Require separate real-package native matrix and MCP lifecycle evidence before adoption.
+        observable: All 21 native cells must prove ordinary hashed installation, SAST controls and real idle/capacity/DELETE/refused-opening
+          behavior. Synthetic unit reports do not supply this proof. Missing native evidence blocks adoption.

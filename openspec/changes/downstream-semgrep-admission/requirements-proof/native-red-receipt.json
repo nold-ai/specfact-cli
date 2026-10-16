@@ -1,0 +1,24 @@
+{
+  "status": "verified_actual_RED",
+  "run_id": 38970409005,
+  "artifact_id": 12076357770,
+  "zip_sha256": "129701e12ab28ca49c4ade11b990b90c044f8ab6bdac4c174037d316180c6878",
+  "source_commit": "ce6a1eaaa5d1ab2b19c13c59aab114cec0a6f814",
+  "source_tree": "ed4b85c17b601de6fdbb632a508e1199e68b5b0f",
+  "base_commit": "729a53bd4bcbba94886cff5c73d7092bef6ceb94",
+  "tests": 40,
+  "assertion_failures": 40,
+  "errors": 0,
+  "skips": 0,
+  "test_file_digests": {
+    "tests/unit/scripts/test_downstream_semgrep.py": "sha256:7847ec3a66ae416475e8b49e98ad4f3f58d6f4c60fbb814ab1f63ead0a3e80cd"
+  },
+  "selector_count": 40,
+  "property_counts": [
+    4
+  ],
+  "production_implementation_present": false,
+  "service_run_url": "https://github.com/nold-ai/specfact-cli/actions/runs/38970409005",
+  "service_artifact_url": "https://github.com/nold-ai/specfact-cli/actions/runs/38970409005/artifacts/12076357770",
+  "limitation": "Initial missing-API assertions; not a claim of forty independently exploited vulnerabilities. Prior implementation attempt773 is retained separately. This branch received implementation only after actual hosted RED."
+}

@@ -4,6 +4,15 @@ This document is the **single source of truth for active work** in this
 repository. It lists what is in flight, what is paused, and the order in which
 active changes should be implemented.
 
+## Downstream Semgrep admission (#772, 2026-10-16)
+
+The owner authorized `downstream-semgrep-admission` as a separate implementation
+PR under #747. Build metadata-only downstream wheels with fixed MCP, execute the
+seven-platform / three-Python matrix, and require exact protected provenance
+before production adoption. Candidate tests do not authorize their own artifacts
+or replace the currently blocked frozen audit. Preserve every existing gate,
+provider pin and signature boundary. No merge or main promotion is authorized.
+
 ## Authorized #747 dependency stack (2026-10-10)
 
 The owner approved `dev <- #744 <- #727 <- #752 <- #754 <- #753`, retaining
@@ -73,7 +82,7 @@ Recovered from uncommitted proposal-only feature worktrees into local `dev`; rem
 
 | Bucket | Count | Location |
 |---|---:|---|
-| **Active-tree entries** | 41 | [`openspec/changes/`](changes/) |
+| **Active-tree entries** | 47 | [`openspec/changes/`](changes/) |
 | **Parking-lot entries** | 21 | [`openspec/parking-lot/`](parking-lot/) |
 | **Archived** | 120 | [`openspec/changes/archive/`](changes/archive/) |
 
