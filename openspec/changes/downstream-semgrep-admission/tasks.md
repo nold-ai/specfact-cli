@@ -1,16 +1,16 @@
 ## 1. Contracts and failing evidence
 
-- [ ] 1.1 Validate focused issue metadata, OpenSpec and architecture.
-- [ ] 1.2 Commit the specification with normal signed hooks.
-- [ ] 1.3 Author mapped behavioral tests and record exact owner acceptance.
-- [ ] 1.4 Capture actual failing-before evidence before implementation.
+- [x] 1.1 Validate focused issue metadata, OpenSpec and architecture.
+- [x] 1.2 Commit the specification with normal signed hooks.
+- [x] 1.3 Author mapped behavioral tests and record exact owner acceptance.
+- [x] 1.4 Capture actual failing-before evidence before implementation.
 
 ## 2. Implementation
 
-- [ ] 2.1 Implement deterministic metadata-only wheel build and archive verification.
-- [ ] 2.2 Implement exact fail-closed protected admission and complete audit binding.
+- [x] 2.1 Implement deterministic metadata-only wheel build and archive verification.
+- [x] 2.2 Implement exact fail-closed protected admission and complete audit binding.
 - [ ] 2.3 Implement one platform inventory, candidate matrix and protected producer workflow.
-- [ ] 2.4 Implement real MCP lifecycle and SAST positive/negative compatibility probes.
+- [x] 2.4 Implement real MCP lifecycle and SAST positive/negative compatibility probes.
 
 ## 3. Verification and publication
 
