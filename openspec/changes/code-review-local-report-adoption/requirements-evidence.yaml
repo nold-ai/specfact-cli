@@ -38,6 +38,14 @@ requirements:
           C15 nor changes its acceptance.'
         observable: The planned spec retains separate C15 dispatch and ownership; no runtime or test maturity is
           claimed.
+      - case_id: LOCAL-REJECT-UNSUPPORTED-SAME-MAJOR-SCHEMAS
+        scenario_id: explicit-report-schema-dispatch
+        method: inspection
+        intent: 'Inspect planned scenario: Reject unsupported same-major schemas. An ordinary consumer without C15
+          governance rejects schema 1.7 or any unrecognized 1.x/2.x version rather than falling back to historical
+          or local semantics.'
+        observable: The planned spec admits only explicitly supported contracts and versions; no runtime or test
+          maturity is claimed.
   openspec:code-review-local-report-adoption:local-review-consumer:preserve-authoritative-local-truth:
     rationale: Plan ordinary trusted-local report adoption without claiming implementation.
     stakeholder_refs:

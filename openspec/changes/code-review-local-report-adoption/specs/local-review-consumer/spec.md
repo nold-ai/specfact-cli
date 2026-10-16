@@ -2,7 +2,7 @@
 
 ### Requirement: Explicit report schema dispatch
 
-Core SHALL dispatch explicitly by report schema, support historical 1.6 only where supported, and reject unsupported majors. A numeric >=1.6 branch SHALL NOT classify schema 2.0 as 1.6. Consumers governed by the separate C15 contract SHALL retain explicit schema 1.7 dispatch and C15 enforcement until its owner authorizes a separate retirement cutover. This change SHALL NOT enable C15 or alter its acceptance.
+Core SHALL dispatch only through explicitly supported report contracts and versions, support historical 1.6 only where supported, and reject any unrecognized version, including an unsupported minor version within a known major. A numeric >=1.6 branch SHALL NOT classify schema 2.0 as 1.6. Consumers governed by the separate C15 contract SHALL retain explicit schema 1.7 dispatch and C15 enforcement until its owner authorizes a separate retirement cutover. This change SHALL NOT enable C15 or alter its acceptance.
 
 #### Scenario: Select the schema 2.0 consumer
 
@@ -22,6 +22,12 @@ Core SHALL dispatch explicitly by report schema, support historical 1.6 only whe
 - **WHEN** ordinary schema 2.0 adoption is evaluated before a separately authorized C15 retirement
 - **THEN** the consumer retains schema 1.7 dispatch and C15 enforcement without treating the report as schema 1.6 or schema 2.0 evidence
 - **AND** this local adoption does not enable C15 or change its owners, prerequisites, status or acceptance
+
+#### Scenario: Reject unsupported same-major schemas
+
+- **GIVEN** an ordinary consumer supports only the released local 2.0 and bounded historical 1.6 contracts, and is not governed by C15
+- **WHEN** it receives schema 1.7, an unknown 1.x version or an unrecognized 2.x version
+- **THEN** it rejects that version without routing it through 1.6 or 2.0 semantics or claiming successful assurance
 
 #### Scenario: Reject unsupported evidence
 
