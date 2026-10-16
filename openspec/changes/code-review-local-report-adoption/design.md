@@ -10,7 +10,7 @@ Reuse ordinary invocation and existing module verification first. Adapt their na
 
 Use a small validated, version-discriminated report input at existing consumers. Schema 2.0 dispatch selects the modules #515 contract. Historical 1.6 dispatch is restricted to consumers with supported 1.6 semantics. Consumers governed by C15 retain explicit schema 1.7 dispatch and its enforcement until a separately authorized C15 retirement. This adoption neither enables C15 nor changes its owners, prerequisites or acceptance. Reject unrecognized versions, including unsupported same-major schemas, and malformed required fields before summarizing success. Any current or future helper using a numeric `>=1.6` test must not classify 2.0 as 1.6.
 
-Read the producer's authoritative assurance status and completeness, preserving failure and uncertainty in the summary and machine output. Score, fixability, and missing findings cannot replace assurance. Shadow mode changes blocking policy only. It retains adverse evidence and does not print a successful assurance claim for an incomplete report. Reconcile process exit and report according to the released producer contract; contradictory evidence cannot become success.
+Read the producer's authoritative assurance status and completeness, preserving failure and uncertainty in the summary and machine output. Score, fixability, and missing findings cannot replace assurance. Shadow mode changes blocking policy only. It retains adverse evidence and does not print a successful assurance claim for an incomplete report. Reconcile process exit and report according to the exact reviewed producer contract; contradictory evidence cannot become success.
 
 No consumer promotes local evidence to protected `pr_range` or capsule attestation. The protected #680 contract remains separate. Preserve C15 #679 and modules #417 ownership and acceptance rather than folding those contracts into local schema 2.0.
 
@@ -23,6 +23,8 @@ After provisioning, exercise ordinary local review with networking disabled and 
 `--project-runtime` denotes a descriptor contract. Do not reinterpret it as an interpreter path. Modules resolve project execution using their descriptor and project discovery contracts. Core forwards only supported declared inputs. Ordinary invocation must execute the project-aware local runner with capsule acquisition/runtime, sandbox brokers and the legacy host orchestrator absent; protected/C15 contracts remain separate.
 
 ## Rollout and risks
+
+Consume the exact immutable signed modules #515 candidate and its compatibility fixtures without requiring stable canonical publication first. Core supplies its own reviewed candidate for paired preflight. Modules #516 owns the coordinated stable publication after this compatibility handoff and installed release acceptance, keeping the implementation dependency graph acyclic.
 
 First prove one real installed local review workflow. Then collect core consumer-compatibility preflight evidence for pipx, uv tool, and uvx with exact signed module/core identities and project interpreters. Modules #516 owns release-level installed acceptance and its full manager/platform matrix; core supplies the compatibility handoff rather than duplicating that release authority. Apply schema dispatch before replacing ordinary invocation. Retain security and signature gates, including independent modules #511 and core #719/#718 work.
 
