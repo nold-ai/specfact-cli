@@ -4,6 +4,22 @@ This document is the **single source of truth for active work** in this
 repository. It lists what is in flight, what is paused, and the order in which
 active changes should be implemented.
 
+## High-priority trusted local Code Review reset (2026-10-16)
+
+Planned only. The approved ordinary local sequence is
+[modules #513](https://github.com/nold-ai/specfact-cli-modules/issues/513) (`code-review-17-project-runtime-bootstrap`)
+-> [modules #514](https://github.com/nold-ai/specfact-cli-modules/issues/514) (`code-review-18-project-standards-and-checks`)
+-> [modules #515](https://github.com/nold-ai/specfact-cli-modules/issues/515) (`code-review-19-local-report-and-cutover`)
+-> [core #769](https://github.com/nold-ai/specfact-cli/issues/769) ([`code-review-local-report-adoption`](changes/code-review-local-report-adoption/proposal.md))
+-> [modules #516](https://github.com/nold-ai/specfact-cli-modules/issues/516) (`code-review-20-external-installation-acceptance`).
+Core #769 has only modules #515 as its direct blocker and blocks only modules #516.
+
+This reset removes capsule infrastructure from ordinary trusted-local scope and plans report schema 2.0.
+It makes no shipped-support claim. Older capsule/runtime references below remain historical or separate protected work, not current local reset acceptance.
+Core protected #680 remains separate and cannot be satisfied by local schema 2.0. C15 core #679 and modules #417 retain owners, status, and acceptance.
+Optional preflight, architecture, and Requirements addons may consume later without blanket blocker edges.
+Independent security modules #511 and core #719/#718 and existing signing gates remain independent.
+
 ## Authorized #747 dependency stack (2026-10-10)
 
 The owner approved `dev <- #744 <- #727 <- #752 <- #754 <- #753`, retaining
@@ -73,7 +89,7 @@ Recovered from uncommitted proposal-only feature worktrees into local `dev`; rem
 
 | Bucket | Count | Location |
 |---|---:|---|
-| **Active-tree entries** | 41 | [`openspec/changes/`](changes/) |
+| **Active-tree entries** | 47 | [`openspec/changes/`](changes/) |
 | **Parking-lot entries** | 21 | [`openspec/parking-lot/`](parking-lot/) |
 | **Archived** | 120 | [`openspec/changes/archive/`](changes/archive/) |
 

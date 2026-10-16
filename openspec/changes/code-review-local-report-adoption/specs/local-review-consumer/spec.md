@@ -1,0 +1,77 @@
+## ADDED Requirements
+
+### Requirement: Explicit report schema dispatch
+
+Core SHALL dispatch explicitly by report schema, support historical 1.6 only where supported, and reject unsupported majors. A numeric >=1.6 branch SHALL NOT classify schema 2.0 as 1.6.
+
+#### Scenario: Select the schema 2.0 consumer
+
+- **GIVEN** a valid local schema 2.0 report
+- **WHEN** an ordinary core consumer reads the report
+- **THEN** it selects the schema 2.0 contract and does not apply historical 1.6 semantics
+
+#### Scenario: Bound historical support
+
+- **GIVEN** a historical 1.6 report at a consumer that supports it
+- **WHEN** the consumer dispatches by version
+- **THEN** it uses only supported historical semantics
+
+#### Scenario: Reject unsupported evidence
+
+- **GIVEN** an unsupported major version or malformed required report data
+- **WHEN** the consumer parses the report
+- **THEN** it rejects the input without claiming successful assurance
+
+### Requirement: Preserve authoritative local truth
+
+Core SHALL consume producer assurance and completeness independently of score and fixability. Shadow mode SHALL preserve adverse truth and SHALL NOT claim protected PR authority.
+
+#### Scenario: Preserve incomplete shadow results
+
+- **GIVEN** producer failure, uncertainty, or incomplete evidence in shadow mode
+- **WHEN** core renders the local result
+- **THEN** the summary and machine evidence retain the adverse truth even when enforcement is non-blocking
+
+#### Scenario: Reject score based success
+
+- **GIVEN** a favorable score or fixability alongside adverse assurance or contradictory process evidence
+- **WHEN** core decides the local result
+- **THEN** it does not replace producer assurance and completeness with success
+
+### Requirement: Separate installed CLI and project runtime
+
+Core SHALL preserve externally installed CLI and project Python separation, supported installation tooling, signed compatibility, and project-runtime descriptor semantics.
+
+#### Scenario: Run an externally installed CLI
+
+- **GIVEN** a supported signed core/module pair installed by pipx, uv tool, or uvx and a different project Python
+- **WHEN** ordinary local review runs
+- **THEN** core loads the compatible module while modules resolve the trusted project runtime without injecting dependencies into the project environment
+
+#### Scenario: Handle uvx without pip
+
+- **GIVEN** a uvx tool environment without pip
+- **WHEN** installation compatibility provisions required tool dependencies
+- **THEN** it uses supported external tooling or declarations rather than unmanaged mutation
+
+#### Scenario: Preserve the runtime descriptor
+
+- **GIVEN** a supported --project-runtime descriptor
+- **WHEN** core invokes the module
+- **THEN** it forwards descriptor semantics without treating the value as an interpreter path
+
+### Requirement: Keep protected contracts and independent gates separate
+
+Core SHALL retain protected #680 and C15 #679/modules #417 contracts and independent security/signature gates. Local adoption SHALL NOT introduce blanket optional-addon blockers.
+
+#### Scenario: Retain separate protected acceptance
+
+- **GIVEN** a local schema 2.0 report
+- **WHEN** a protected #680 or C15 #679 consumer is considered
+- **THEN** local evidence does not satisfy the protected capsule contract or change C15 owners, status, or acceptance
+
+#### Scenario: Retain independent security and signatures
+
+- **GIVEN** ordinary local adoption and optional downstream consumers
+- **WHEN** implementation readiness is evaluated
+- **THEN** signing and independent security gates remain while optional preflight, architecture, and Requirements addons create no blanket blockers

@@ -1,0 +1,110 @@
+schema_version: '2'
+x-maturity: planned
+requirements:
+  openspec:code-review-local-report-adoption:local-review-consumer:explicit-report-schema-dispatch:
+    rationale: Plan ordinary trusted-local report adoption without claiming implementation.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#769
+    touchpoints:
+      - id: planned-spec
+        kind: config_file
+        locator: openspec/changes/code-review-local-report-adoption/specs/local-review-consumer/spec.md
+    verification_cases:
+      - case_id: LOCAL-SELECT-THE-SCHEMA-2.0-CONSUMER
+        scenario_id: explicit-report-schema-dispatch
+        method: inspection
+        intent: 'Inspect planned scenario: Select the schema 2.0 consumer. Given a valid local schema 2.0 report;
+          when an ordinary core consumer reads the report; then it selects the schema 2.0 contract and does not
+          apply historical 1.6 semantics.'
+        observable: The planned spec retains this scenario; no runtime or test maturity is claimed.
+      - case_id: LOCAL-BOUND-HISTORICAL-SUPPORT
+        scenario_id: explicit-report-schema-dispatch
+        method: inspection
+        intent: 'Inspect planned scenario: Bound historical support. Given a historical 1.6 report at a consumer
+          that supports it; when the consumer dispatches by version; then it uses only supported historical semantics.'
+        observable: The planned spec retains this scenario; no runtime or test maturity is claimed.
+      - case_id: LOCAL-REJECT-UNSUPPORTED-EVIDENCE
+        scenario_id: explicit-report-schema-dispatch
+        method: inspection
+        intent: 'Inspect planned scenario: Reject unsupported evidence. Given an unsupported major version or malformed
+          required report data; when the consumer parses the report; then it rejects the input without claiming
+          successful assurance.'
+        observable: The planned spec retains this scenario; no runtime or test maturity is claimed.
+  openspec:code-review-local-report-adoption:local-review-consumer:preserve-authoritative-local-truth:
+    rationale: Plan ordinary trusted-local report adoption without claiming implementation.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#769
+    touchpoints:
+      - id: planned-spec
+        kind: config_file
+        locator: openspec/changes/code-review-local-report-adoption/specs/local-review-consumer/spec.md
+    verification_cases:
+      - case_id: LOCAL-PRESERVE-INCOMPLETE-SHADOW-RESULTS
+        scenario_id: preserve-authoritative-local-truth
+        method: inspection
+        intent: 'Inspect planned scenario: Preserve incomplete shadow results. Given producer failure, uncertainty,
+          or incomplete evidence in shadow mode; when core renders the local result; then the summary and machine
+          evidence retain the adverse truth even when enforcement is non-blocking.'
+        observable: The planned spec retains this scenario; no runtime or test maturity is claimed.
+      - case_id: LOCAL-REJECT-SCORE-BASED-SUCCESS
+        scenario_id: preserve-authoritative-local-truth
+        method: inspection
+        intent: 'Inspect planned scenario: Reject score based success. Given a favorable score or fixability alongside
+          adverse assurance or contradictory process evidence; when core decides the local result; then it does
+          not replace producer assurance and completeness with success.'
+        observable: The planned spec retains this scenario; no runtime or test maturity is claimed.
+  openspec:code-review-local-report-adoption:local-review-consumer:separate-installed-cli-and-project-runtime:
+    rationale: Plan ordinary trusted-local report adoption without claiming implementation.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#769
+    touchpoints:
+      - id: planned-spec
+        kind: config_file
+        locator: openspec/changes/code-review-local-report-adoption/specs/local-review-consumer/spec.md
+    verification_cases:
+      - case_id: LOCAL-RUN-AN-EXTERNALLY-INSTALLED-CLI
+        scenario_id: separate-installed-cli-and-project-runtime
+        method: inspection
+        intent: 'Inspect planned scenario: Run an externally installed CLI. Given a supported signed core/module
+          pair installed by pipx, uv tool, or uvx and a different project Python; when ordinary local review runs;
+          then core loads the compatible module while modules resolve the trusted project runtime without injecting
+          dependencies into the project environment.'
+        observable: The planned spec retains this scenario; no runtime or test maturity is claimed.
+      - case_id: LOCAL-HANDLE-UVX-WITHOUT-PIP
+        scenario_id: separate-installed-cli-and-project-runtime
+        method: inspection
+        intent: 'Inspect planned scenario: Handle uvx without pip. Given a uvx tool environment without pip; when
+          installation compatibility provisions required tool dependencies; then it uses supported external tooling
+          or declarations rather than unmanaged mutation.'
+        observable: The planned spec retains this scenario; no runtime or test maturity is claimed.
+      - case_id: LOCAL-PRESERVE-THE-RUNTIME-DESCRIPTOR
+        scenario_id: separate-installed-cli-and-project-runtime
+        method: inspection
+        intent: 'Inspect planned scenario: Preserve the runtime descriptor. Given a supported --project-runtime
+          descriptor; when core invokes the module; then it forwards descriptor semantics without treating the value
+          as an interpreter path.'
+        observable: The planned spec retains this scenario; no runtime or test maturity is claimed.
+  openspec:code-review-local-report-adoption:local-review-consumer:keep-protected-contracts-and-independent-gates-separate:
+    rationale: Plan ordinary trusted-local report adoption without claiming implementation.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#769
+    touchpoints:
+      - id: planned-spec
+        kind: config_file
+        locator: openspec/changes/code-review-local-report-adoption/specs/local-review-consumer/spec.md
+    verification_cases:
+      - case_id: LOCAL-RETAIN-SEPARATE-PROTECTED-ACCEPTANCE
+        scenario_id: keep-protected-contracts-and-independent-gates-separate
+        method: inspection
+        intent: 'Inspect planned scenario: Retain separate protected acceptance. Given a local schema 2.0 report;
+          when a protected #680 or C15 #679 consumer is considered; then local evidence does not satisfy the protected
+          capsule contract or change C15 owners, status, or acceptance.'
+        observable: The planned spec retains this scenario; no runtime or test maturity is claimed.
+      - case_id: LOCAL-RETAIN-INDEPENDENT-SECURITY-AND-SIGNATURES
+        scenario_id: keep-protected-contracts-and-independent-gates-separate
+        method: inspection
+        intent: 'Inspect planned scenario: Retain independent security and signatures. Given ordinary local adoption
+          and optional downstream consumers; when implementation readiness is evaluated; then signing and independent
+          security gates remain while optional preflight, architecture, and Requirements addons create no blanket
+          blockers.'
+        observable: The planned spec retains this scenario; no runtime or test maturity is claimed.
