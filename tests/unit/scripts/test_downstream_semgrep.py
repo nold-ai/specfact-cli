@@ -268,6 +268,11 @@ def test_build_is_reproducible_and_preserves_complete_runtime(wheel_recipe: Whee
     _assert_runtime_preserved(upstream, one.path)
     verified = module.verify_candidate(recipe_path, upstream, one.path)
     assert (verified.path, verified.sha256, verified.platform) == (one.path, one.sha256, one.platform)
+    _assert_crlf_build(module, wheel_recipe, tmp_path)
+
+
+def _assert_crlf_build(module: DownstreamModule, wheel_recipe: WheelRecipe, tmp_path: Path) -> None:
+    recipe_path, _recipe, upstream = wheel_recipe
     members = [
         (name, content.replace(b"\n", b"\r\n") if name.endswith("/METADATA") else content, mode)
         for name, content, mode in _members()
