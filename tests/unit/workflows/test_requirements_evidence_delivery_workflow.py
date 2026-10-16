@@ -31,7 +31,7 @@ PROMOTION_CONDITION = (
 EVIDENCE_COMMAND_FRAGMENTS = (
     '"${isolated_specfact[@]}" requirements evidence',
     '--base-ref "$evidence_base_commit"',
-    'evidence_base_commit="$(git merge-base "origin/${EVIDENCE_BASE_BRANCH}" HEAD)"',
+    'evidence_base_commit="${PLANNING_BASE_COMMIT:-${PROOF_BASE_COMMIT:-}}"',
     "required_maturity=planned",
     "required_maturity=test-authored",
     "requirements/*|pyproject.toml|setup.py|uv.lock",
@@ -496,13 +496,13 @@ def _assert_prior_red_run_selection(locate: dict[str, object]) -> None:
         "--jq '.workflow_runs[] | [.id, .head_sha, .conclusion] | @tsv'",
         'current_head="$(git rev-parse HEAD)"',
         '[[ "$head_sha" != "$current_head" ]]',
-        'git merge-base --is-ancestor "origin/${GITHUB_BASE_REF}" "$head_sha"',
+        'git merge-base --is-ancestor "$PROOF_BASE_COMMIT" "$head_sha"',
         'git merge-base --is-ancestor "$head_sha" "$current_head"',
         'mv "$candidate_dir/requirements-evidence.json" "$candidate_dir/red.json"',
         'mv "$candidate_dir/requirements-proof.xml" "$candidate_dir/red.xml"',
         '"${isolated_python[@]}" scripts/requirements_proof_provenance.py',
         '--prior-red-proof "$candidate_dir/red.json"',
-        '--base-ref "origin/${GITHUB_BASE_REF}"',
+        '--base-ref "$PROOF_BASE_COMMIT"',
         '--final-ref "$current_head"',
         "continue",
     )
@@ -662,7 +662,7 @@ def _assert_fresh_consumer_order(
     workflow: dict[str, object], outputs: dict[str, str], permissions: dict[str, str]
 ) -> None:
     assert outputs["prior-red-run-id"] == "${{ steps.prior-red-run.outputs.run-id }}"
-    assert permissions == {"actions": "read", "contents": "read", "issues": "read"}
+    assert permissions == {"actions": "read", "contents": "read", "issues": "read", "checks": "read"}
     _assert_step_order(
         workflow, "Restore Requirements evidence for Code Review", "Download retained red proof for validation"
     )
@@ -682,7 +682,7 @@ def _assert_reconciliation_fragments(reconcile: str) -> None:
         '"${isolated_python[@]}"',
         "del sys.argv[1:3]",
         'source_ref="$(git rev-parse HEAD)"',
-        'evidence_base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" "$source_ref")"',
+        'evidence_base_commit="${PLANNING_BASE_COMMIT:-$PROOF_BASE_COMMIT}"',
         '"${isolated_specfact[@]}" requirements evidence',
         '"${isolated_specfact[@]}" requirements reconcile',
         "requirements-evidence-consumer.json",
@@ -1004,7 +1004,7 @@ def test_fresh_consumer_authenticates_retained_red_run_and_artifact() -> None:
 
 def _assert_trusted_core_materialization(materialize: str) -> None:
     materialize_fragments = (
-        'base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" HEAD)"',
+        'base_commit="$PROOF_BASE_COMMIT"',
         'git archive "$base_commit" --',
         ".pylintrc",
         "src/specfact_cli",
@@ -1249,6 +1249,7 @@ def _assert_review_job_boundary(parsed: dict[str, object], review: dict[str, obj
     assert producer["outputs"] == {
         "artifact-id": "${{ steps.upload-requirements-evidence.outputs.artifact-id }}",
         "prior-red-run-id": "${{ steps.prior-red-run.outputs.run-id }}",
+        "stack-context-digest": "${{ steps.stack-context.outputs.digest }}",
     }
 
 
@@ -1460,17 +1461,18 @@ def _assert_promotion_stage_outputs(workflow: dict[str, object]) -> None:
 
 def _assert_promotion_scope(workflow: dict[str, object], commands: tuple[str, str, str]) -> None:
     producer_command, consumer_command, final_command = commands
-    producer_base = 'evidence_base_commit="$(git merge-base "origin/${EVIDENCE_BASE_BRANCH}" HEAD)"'
-    consumer_base = 'evidence_base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" "$source_ref")"'
+    producer_base = 'evidence_base_commit="${PLANNING_BASE_COMMIT:-${PROOF_BASE_COMMIT:-}}"'
+    consumer_base = 'evidence_base_commit="${PLANNING_BASE_COMMIT:-$PROOF_BASE_COMMIT}"'
     assert producer_command.count(producer_base) == 1
     assert consumer_command.count(consumer_base) == 1
     assert producer_command.count('--base-ref "$evidence_base_commit"') == 1
     assert consumer_command.count('--base-ref "$evidence_base_commit"') == 1
-    assert final_command.count('--base-ref "$FINAL_BASE_COMMIT"') == 1
+    assert final_command.count('--base-ref "$evidence_base_commit"') == 1
+    assert 'evidence_base_commit="${PLANNING_BASE_COMMIT:-$FINAL_BASE_COMMIT}"' in final_command
     assert "evidence_scope_commit=" not in producer_command + consumer_command
     assert "final_scope_commit=" not in final_command
     final_core = cast(str, _step_by_name(workflow, "Materialize trusted final Requirements core")["run"])
-    assert 'base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" HEAD)"' in final_core
+    assert 'base_commit="$PROOF_BASE_COMMIT"' in final_core
     assert "printf 'FINAL_BASE_COMMIT=%s\\n' \"$base_commit\"" in final_core
 
 
@@ -1633,3 +1635,23 @@ def test_requirements_evidence_workflow_blocks_each_final_verdict(verdict: str) 
         assert review["continue-on-error"] == "true"
         assert review_enforce["if"] == "steps.run-code-review.outcome == 'failure'"
         assert review_enforce["run"] == "exit 1"
+
+
+def test_all_proof_consumers_independently_authenticate_live_stack_context() -> None:
+    """A parent push cannot let a consumer silently reuse a different proof boundary."""
+    workflow = yaml.load(
+        (REPO_ROOT / ".github/workflows/requirements-evidence.yml").read_text(), Loader=yaml.BaseLoader
+    )
+    jobs = workflow["jobs"]
+    for job_name in ("requirements-evidence-producer", "requirements-evidence", "requirements-evidence-final"):
+        steps = jobs[job_name]["steps"]
+        context = next(step for step in steps if step.get("id") == "stack-context")
+        run = context["run"]
+        assert 'git archive "$policy_ref" -- scripts/requirements_stack_context.py' in run
+        assert 'python3 -I -S "$policy_root/scripts/requirements_stack_context.py"' in run
+        assert 'case "$GITHUB_BASE_REF" in dev|main) ;; *) exit 1 ;; esac' in run
+        assert 'git merge-base --is-ancestor "$proof_base" "$proof_head"' in run
+        assert 'git merge-base --is-ancestor "$proof_head" HEAD' in run
+        assert 'test "$digest" = "$EXPECTED_CONTEXT_DIGEST"' in run
+        if job_name != "requirements-evidence-producer":
+            assert "stack-context-digest" in context["env"]["EXPECTED_CONTEXT_DIGEST"]

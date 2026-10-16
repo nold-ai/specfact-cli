@@ -1,5 +1,11 @@
 # Change: Generated AGENTS, OpenSpec, Spec Kit, and Harness Instructions
 
+## Scope rescope — 2026-09-20
+
+Generate lean validation references by default from the installed inventory. Emit approved-seal, preflight, checkpoint, or stop-on-stale instructions only for an explicitly selected assurance policy and installed optional capability. Do not inject those gates into every AGENTS/OpenSpec/Spec Kit workflow. Keep #251 as the prerequisite.
+
+This owner-requested scope amendment takes precedence over conflicting default-workflow or dependency wording below. It changes planning only; runtime policy is unchanged. [Replacement policy](../requirements-09-minimal-evidence/proposal.md).
+
 ## Why
 
 Once module-owned skills can be installed canonically, repositories still need small, deterministic instruction references that tell agents when the workflow is mandatory and how to invoke it in the active harness. Those references must preserve upstream OpenSpec/Spec Kit ownership and avoid copying the preflight loop or validator rules into every instruction file.
@@ -7,10 +13,10 @@ Once module-owned skills can be installed canonically, repositories still need s
 ## What Changes
 
 - **NEW**: Generate bounded, idempotent managed sections for root AGENTS.md and supported harness instruction files.
-- **NEW**: Generate OpenSpec-aware instructions that place preflight after proposal artifacts are ready and before any apply/implementation command.
-- **NEW**: Generate Spec Kit-aware instructions that place preflight after clarification/plan/tasks/analyze quality work and before implementation, while respecting Spec Kit's opt-in agent-context ownership.
+- **NEW**: Generate OpenSpec-aware change selection and validation references; include preflight before apply only when explicitly selected policy requires the installed optional workflow.
+- **NEW**: Generate Spec Kit-aware planning/validation references, respecting opt-in agent-context ownership. Place preflight before implementation only under an explicitly selected assurance policy.
 - **NEW**: Resolve the installed canonical skill and emit the harness-native invocation reference plus stop conditions.
-- **CLARIFY**: Instructions state the gate only: run preflight, require a current approved seal, stop on blocked/unknown/stale results, and obtain user approval for material refinement.
+- **CLARIFY**: Ordinary instructions select/validate the change and reference current tests. Only explicitly selected assurance policy adds preflight, approved-seal, stale/unknown stop and refinement approval requirements; missing selected capabilities produce setup diagnostics.
 - **EXCLUDE**: Validation logic, canonical workflow content, skill installation, and Codex/ECC/hatch3r adapter packaging remain separately owned.
 
 ## Capabilities

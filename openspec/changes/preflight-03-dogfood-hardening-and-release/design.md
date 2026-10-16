@@ -1,5 +1,11 @@
 ## Context
 
+## Scope rescope — 2026-09-20
+
+Seal, checkpoint, frozen mapping, successor approval, and historical RED/GREEN requirements in this issue apply only when an explicitly selected assurance policy requests them. They are not prerequisites for ordinary implementation, Code Review, release promotion, skill installation, or generated instructions. Keep the internal optional-feature dependency chain and source/signature integrity. Missing optional chronology is not a failed current-execution claim. No runtime policy changes in this planning update. The dogfood exercise requires both core C14 #680 and modules runtime #431; record both native prerequisites now that C14 no longer depends on #431.
+
+This owner-requested scope amendment takes precedence over conflicting default-workflow or dependency wording below. It changes planning only; runtime policy is unchanged. [Replacement policy](../requirements-09-minimal-evidence/proposal.md).
+
 Core C14 adoption is a useful first dogfood subject because it is cross-repository, evidence-sensitive, and explicitly bounded by signed module handoff and native dependency metadata. The dogfood protocol tests whether the preflight loop detects planning drift before implementation without silently becoming a second source of truth.
 
 ## Goals / Non-Goals
@@ -21,7 +27,7 @@ Core C14 adoption is a useful first dogfood subject because it is cross-reposito
 
 ### 1. C14 is the first mandatory target
 
-The protocol runs against the current accepted core C14 change and linked issue #680 using immutable repository and GitHub identities. It records the starting artifacts before any authorized refinement. Existing C14/C15 worktrees remain untouched by this planning setup; future dogfood occurs only in the C14 owner session or a read-only snapshot.
+The protocol replays an immutable C14 planning snapshot after independent C14 delivery, using recorded repository and issue #680 identities. It records starting artifacts before authorized fixture refinements. Shipped C14 history and existing C14/C15 worktrees remain untouched; a real product defect requires a separately scoped owner-authorized follow-up, never retroactive preflight gating.
 
 ### 2. Evidence separates four defect owners
 
@@ -36,7 +42,7 @@ Ambiguous classification is recorded as unknown and cannot authorize hardening s
 
 ### 3. Before/after evidence is identity-bound
 
-Each run records source revisions, contract/result digests, validator identities, findings, user decisions, approved artifact edits, rerun identities, and seal verification. A narrative summary may explain results but cannot replace the machine-readable identities.
+Each run binds both independently delivered C14 #680 and the selected #431 runtime commit/tree, workflow and validator digests; #431 may still be the unpublished dogfood candidate. Missing or mismatched identity yields UNKNOWN/no-go. Each run records source revisions, contract/result digests, validator identities, findings, user decisions, approved artifact edits, rerun identities, and seal verification. A narrative summary may explain results but cannot replace the machine-readable identities.
 
 ### 4. Readiness requires observed usefulness and safety
 

@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import logging
 import os
+import py_compile
 import re
 import shutil
 import subprocess
@@ -362,7 +364,10 @@ def get_bundled_module_metadata() -> dict[str, ModulePackageMetadata]:
 @beartype
 def _canonical_manifest_payload(manifest_path: Path) -> bytes:
     """Build deterministic manifest payload for checksum/signature verification."""
-    parsed = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    try:
+        parsed = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as error:
+        raise ValueError("Invalid module manifest YAML") from error
     if not isinstance(parsed, dict):
         raise ValueError("Invalid module manifest format")
     cast(dict[str, Any], parsed).pop("integrity", None)
@@ -804,6 +809,179 @@ def verify_module_artifact(
     return _verify_signature_if_present(
         meta, verification_payload, public_key_pem, allow_unsigned, require_signature, logger
     )
+
+
+@dataclass(frozen=True, slots=True)
+class _FilesystemPayloadSnapshot:
+    """Retain the exact authenticated payload inputs for code and metadata binding."""
+
+    payload: bytes
+    sources: dict[Path, bytes]
+    canonical_manifests: dict[str, bytes]
+    file_digests: dict[Path, str]
+
+
+def _filesystem_payload_snapshot(package_dir: Path, module_dir_resolved: Path) -> _FilesystemPayloadSnapshot:
+    """Capture code and manifest bytes in the same canonical payload later authenticated by the core key."""
+    entries: list[str] = []
+    sources: dict[Path, bytes] = {}
+    manifests: dict[str, bytes] = {}
+    file_digests: dict[Path, str] = {}
+    for path in _rglob_signed_module_files(package_dir, module_dir_resolved):
+        relative = path.resolve().relative_to(module_dir_resolved).as_posix()
+        if relative in {"module-package.yaml", "metadata.yaml"}:
+            data = _canonical_manifest_payload(path)
+            manifests[relative] = data
+        else:
+            data = path.read_bytes()
+        digest = hashlib.sha256(data).hexdigest()
+        entries.append(f"{relative}:{digest}")
+        file_digests[path.resolve()] = digest
+        if path.suffix.lower() in {".py", ".pyw"}:
+            sources[path.resolve()] = data
+    return _FilesystemPayloadSnapshot("\n".join(entries).encode("utf-8"), sources, manifests, file_digests)
+
+
+def _metadata_matches_authenticated_manifest(meta: ModulePackageMetadata, manifests: dict[str, bytes]) -> bool:
+    """Bind every registration field to the same manifest bytes authenticated by the payload signature."""
+    from specfact_cli.registry.module_grouping import ModuleManifestError
+    from specfact_cli.registry.module_packages import normalize_module_manifest
+
+    canonical = manifests.get("module-package.yaml")
+    if canonical is None:
+        canonical = manifests.get("metadata.yaml")
+    if canonical is None:
+        return False
+    try:
+        raw = yaml.safe_load(canonical)
+        if not isinstance(raw, dict) or "name" not in raw or "commands" not in raw:
+            return False
+        expected = normalize_module_manifest(cast(dict[str, Any], raw), meta.source)
+        excluded = {"integrity", "source", "protocol_operations"}
+        return expected.model_dump(exclude=excluded) == meta.model_dump(exclude=excluded)
+    except (yaml.YAMLError, ModuleManifestError, KeyError, TypeError, ValueError):
+        return False
+
+
+def _compiled_authenticated_source_body(source: Path, data: bytes) -> bytes:
+    """Derive a standard cache from captured authenticated bytes without executing module code."""
+    with tempfile.TemporaryDirectory(prefix="specfact-source-cache-") as temporary:
+        input_file = Path(temporary) / "source.py"
+        output_file = Path(temporary) / "cache.pyc"
+        input_file.write_bytes(data)
+        py_compile.compile(
+            str(input_file), cfile=str(output_file), dfile=str(source), doraise=True, optimize=sys.flags.optimize
+        )
+        return output_file.read_bytes()[16:]
+
+
+def _authenticated_source_cache_body(path: Path, authenticated_sources: dict[Path, bytes]) -> bytes | None:
+    """Reproduce one canonical cache from authenticated bytes before the final inventory traversal."""
+    try:
+        source = Path(importlib.util.source_from_cache(str(path))).resolve()
+    except ValueError:
+        return None
+    return (
+        _compiled_authenticated_source_body(source, authenticated_sources[source])
+        if source in authenticated_sources
+        and Path(importlib.util.cache_from_source(str(source))).resolve() == path.resolve()
+        else None
+    )
+
+
+def _authenticated_source_cache_bodies(package_dir: Path, snapshot: _FilesystemPayloadSnapshot) -> dict[Path, bytes]:
+    """Finish all standard compiler work before making a final live-file authority decision."""
+    bodies: dict[Path, bytes] = {}
+    for path in package_dir.rglob("*"):
+        if path.is_file() and path.suffix.lower() == ".pyc":
+            body = _authenticated_source_cache_body(path, snapshot.sources)
+            if body is not None:
+                bodies[path.resolve()] = body
+    return bodies
+
+
+def _source_cache_matches_authenticated_body(path: Path, bodies: dict[Path, bytes]) -> bool:
+    """Compare live candidate bytes without compilation, execution or deserialization."""
+    expected = bodies.get(path.resolve())
+    if expected is None:
+        return False
+    data = path.read_bytes()
+    return (
+        len(data) >= 16
+        and data[:4] == importlib.util.MAGIC_NUMBER
+        and int.from_bytes(data[4:8], "little") in (0, 1, 3)
+        and data[16:] == expected
+    )
+
+
+def _filesystem_file_is_executable(path: Path) -> bool:
+    """Recognize code suffixes, executable modes and standard headers without running artifacts."""
+    suffixes = {".py", ".pyw", ".pyc", ".pyo", ".so", ".pyd", ".dll", ".dylib", ".bundle"}
+    if path.suffix.lower() in suffixes or path.stat().st_mode & 0o111:
+        return True
+    with path.open("rb") as stream:
+        header = stream.read(4)
+    return header.startswith((b"#!", b"MZ")) or header in {
+        b"\x7fELF",
+        b"\xfe\xed\xfa\xce",
+        b"\xce\xfa\xed\xfe",
+        b"\xfe\xed\xfa\xcf",
+        b"\xcf\xfa\xed\xfe",
+        b"\xca\xfe\xba\xbe",
+        b"\xbe\xba\xfe\xca",
+        b"\xca\xfe\xba\xbf",
+        b"\xbf\xba\xfe\xca",
+        importlib.util.MAGIC_NUMBER,
+    }
+
+
+def _filesystem_executable_payload_is_covered(
+    package_dir: Path, module_dir_resolved: Path, snapshot: _FilesystemPayloadSnapshot
+) -> bool:
+    """Check authenticated membership/content and unsigned executables after cache reproduction."""
+    cache_bodies = _authenticated_source_cache_bodies(package_dir, snapshot)
+    covered: set[Path] = set()
+    for path in package_dir.rglob("*"):
+        if path.is_symlink():
+            return False
+        if not path.is_file():
+            continue
+        if _signed_payload_is_hashable(path, module_dir_resolved):
+            relative = path.resolve().relative_to(module_dir_resolved).as_posix()
+            data = _canonical_manifest_payload(path) if relative in snapshot.canonical_manifests else path.read_bytes()
+            if snapshot.file_digests.get(path.resolve()) != hashlib.sha256(data).hexdigest():
+                return False
+            covered.add(path.resolve())
+            continue
+        if _filesystem_file_is_executable(path) and (
+            path.suffix.lower() != ".pyc" or not _source_cache_matches_authenticated_body(path, cache_bodies)
+        ):
+            return False
+    return covered == set(snapshot.file_digests)
+
+
+@beartype
+@require(lambda package_dir: isinstance(package_dir, Path), "package_dir must be a Path")
+@require(lambda meta: isinstance(meta, ModulePackageMetadata), "meta must be a ModulePackageMetadata instance")
+@ensure(lambda result: isinstance(result, bool), "Must return a bool")
+def verify_module_artifact_from_filesystem(package_dir: Path, meta: ModulePackageMetadata, public_key_pem: str) -> bool:
+    """Verify every filesystem payload file with no unsigned, key-override or receipt fallback."""
+    if meta.integrity is None or not meta.integrity.signature or not public_key_pem.strip():
+        return False
+    try:
+        if package_dir.is_symlink() or any(path.is_symlink() for path in package_dir.rglob("*")):
+            return False
+        resolved = package_dir.resolve()
+        snapshot = _filesystem_payload_snapshot(package_dir, resolved)
+        verify_checksum(snapshot.payload, meta.integrity.checksum)
+        verify_signature(snapshot.payload, meta.integrity.signature, public_key_pem)
+        if not _metadata_matches_authenticated_manifest(meta, snapshot.canonical_manifests):
+            return False
+        return (
+            _filesystem_executable_payload_is_covered(package_dir, resolved, snapshot) and not package_dir.is_symlink()
+        )
+    except (OSError, ValueError, EOFError, TypeError, SyntaxError, py_compile.PyCompileError):
+        return False
 
 
 def _clear_reinstall_download_cache(module_id: str, logger: Any) -> None:

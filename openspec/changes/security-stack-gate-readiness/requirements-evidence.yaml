@@ -1,0 +1,55 @@
+schema_version: '2'
+requirements:
+  openspec:security-stack-gate-readiness:requirements-stack-evidence:authenticate-native-stack-proof-ancestry:
+    rationale: Preserve exact native proof while authenticating parent relationships.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#747
+    touchpoints:
+      - id: stack-validator
+        kind: code_symbol
+        locator: scripts/requirements_stack_context.py::resolve_stack_context
+    verification_cases:
+      - case_id: STACK-PROOF-001
+        scenario_id: authenticate-native-stack-proof-ancestry
+        method: test
+        intent: Retain the actual root proof branch and base after checking native ancestry.
+        observable: The child resolves the original root without changing artifact identities.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_stack_context.py::test_native_stack_uses_original_root_proof_boundary
+  openspec:security-stack-gate-readiness:requirements-stack-evidence:preserve-independent-member-authority:
+    rationale: Stack membership cannot substitute for a valid member grant.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#747
+    touchpoints:
+      - id: organization-policy
+        kind: config_file
+        locator: .github/workflows/requirements-evidence.yml
+    verification_cases:
+      - case_id: STACK-AUTH-001
+        scenario_id: preserve-independent-member-authority
+        method: inspection
+        intent: Run independent organization policy tests for valid and absent grants.
+        observable: Exact head/tree, expiry, edit state and current permission remain mandatory.
+  openspec:security-stack-gate-readiness:runtime-smoke-isolation:isolate-marketplace-smoke-installations:
+    rationale: Marketplace installation must preserve the active test interpreter.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#747
+    touchpoints:
+      - id: direct-launcher
+        kind: code_symbol
+        locator: scripts/runtime_discovery_smoke.py::_launcher_command
+    verification_cases:
+      - case_id: STACK-SMOKE-001
+        scenario_id: isolate-marketplace-smoke-installations
+        method: test
+        intent: Query the real child interpreter prefix without modifying shared files.
+        observable: The installation prefix is workspace-owned and differs from pytest's prefix.
+        selector:
+          runner: pytest
+          node_id: tests/integration/scripts/test_runtime_smoke_isolation.py::test_direct_smoke_uses_workspace_owned_interpreter
+      - case_id: STACK-SMOKE-002
+        scenario_id: isolate-marketplace-smoke-installations
+        method: inspection
+        intent: Run direct/console marketplace smoke and full smart testing from frozen inputs.
+        observable: Parent package files and frozen versions are unchanged and all tests pass.

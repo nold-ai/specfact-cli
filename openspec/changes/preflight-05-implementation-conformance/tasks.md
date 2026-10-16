@@ -1,5 +1,13 @@
 # Tasks: preflight-05-implementation-conformance (core contracts)
 
+## Scope rescope — 2026-09-20
+
+Seal, checkpoint, frozen mapping, successor approval, and historical RED/GREEN requirements in this issue apply only when an explicitly selected assurance policy requests them. They are not prerequisites for ordinary implementation, Code Review, release promotion, skill installation, or generated instructions. Keep the internal optional-feature dependency chain and source/signature integrity. Missing optional chronology is not a failed current-execution claim. No runtime policy changes in this planning update. This contract and modules #434 no longer block generic skill installation #251/#253 or native review support.
+
+This owner-requested scope amendment takes precedence over conflicting default-workflow or dependency wording below. It changes planning only; runtime policy is unchanged. [Replacement policy](../requirements-09-minimal-evidence/proposal.md).
+
+Implementation discipline: use focused regression/reproduction and current-run results. Any task requiring immutable hosted RED, frozen test authoring or approval receipts merely to implement this feature is superseded; tests of an explicitly selected optional seal feature remain in scope.
+
 All tasks below are future implementation work. This planning change completes none of them and creates no `TDD_EVIDENCE.md`.
 
 ## 1. Dedicated session, worktree, and readiness
@@ -21,7 +29,7 @@ All tasks below are future implementation work. This planning change completes n
   path; checkpoint-subset and exhaustive final-obligation closure; protected-CI producer authorization and exact-range
   provenance; finding-class/precedence, including the reconciled semantic `violated` scenario; stale-seal; evidence; and
   assurance-limit scenarios.
-- [ ] 2.3 Run targeted tests before production edits and record failing-first results in a newly created `TDD_EVIDENCE.md`.
+- [ ] 2.3 Run relevant regression tests before production edits, summarize meaningful failures briefly, and reference ordinary CI artifacts where available; no authored TDD ledger is required.
 
 ## 3. Minimal core implementation
 
@@ -39,6 +47,6 @@ All tasks below are future implementation work. This planning change completes n
 
 ## 5. Delivery and post-merge cleanup
 
-- [ ] 5.1 Hand the exact released core implementation-assurance interface identity to paired modules #434 before #251/#253/#433 begin.
-- [ ] 5.2 Open the implementation PR to `dev` as the final pre-merge task, linking the paired modules issue and evidence.
+- [ ] 5.1 Prepare the candidate core implementation-assurance interface handoff for paired modules #434; the released identity is supplied only after 5.2. Optional adapters #433 require both its signed release and core #253; generic #251/#253 do not wait for this handoff.
+- [ ] 5.2 Open and integrate the reviewed implementation PR to `dev`, then promote through protected `main` and publish the core interface through the existing release workflow after required checks.
 - [ ] 5.3 Before archive, verify the released core identity was handed to modules #434 and that modules-owned signing/stable publication remains assigned there; then, from the repository root after merge, run `openspec archive preflight-05-implementation-conformance`, update ordering/source mirrors, and remove the dedicated worktree and merged branch.

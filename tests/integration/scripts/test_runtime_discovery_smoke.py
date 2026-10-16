@@ -31,7 +31,9 @@ def _write_module_manifest(modules_repo: Path, bundle_name: str, dependencies: l
 
 
 def _resolve_modules_repo() -> Path | None:
-    configured = os.environ.get("SPECFACT_MODULES_REPO", "").strip()
+    configured = (
+        os.environ.get("SPECFACT_SMOKE_MODULES_REPO", "").strip() or os.environ.get("SPECFACT_MODULES_REPO", "").strip()
+    )
     candidates: list[Path] = []
     if configured:
         candidates.append(Path(configured).expanduser())
@@ -50,6 +52,16 @@ def _resolve_modules_repo() -> Path | None:
         if all((packages / module / "module-package.yaml").exists() for module in required):
             return candidate.resolve()
     return None
+
+
+@pytest.fixture
+def tracked_staging_seam(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Version/registry unit fixtures model staging; real Git bytes have their own controls."""
+    import scripts.runtime_discovery_smoke as smoke
+
+    monkeypatch.setattr(
+        smoke, "_stage_tracked_module", lambda repo, relative, staged: shutil.copytree(repo / relative, staged)
+    )
 
 
 @pytest.mark.integration
@@ -80,7 +92,9 @@ def test_runtime_discovery_smoke_direct_launcher() -> None:
     assert "runtime-discovery smoke passed for launcher=direct" in result.stdout
 
 
-def test_local_runtime_registry_includes_transitive_bundle_dependencies(tmp_path: Path) -> None:
+def test_local_runtime_registry_includes_transitive_bundle_dependencies(
+    tmp_path: Path, tracked_staging_seam: None
+) -> None:
     import scripts.runtime_discovery_smoke as smoke
 
     modules_repo = tmp_path / "modules"
@@ -102,7 +116,9 @@ def test_local_runtime_registry_includes_transitive_bundle_dependencies(tmp_path
     assert all(entry["download_url"].startswith("modules/") for entry in registry["modules"])
 
 
-def test_local_runtime_registry_rejects_traversal_in_manifest_version(tmp_path: Path) -> None:
+def test_local_runtime_registry_rejects_traversal_in_manifest_version(
+    tmp_path: Path, tracked_staging_seam: None
+) -> None:
     import scripts.runtime_discovery_smoke as smoke
 
     modules_repo = tmp_path / "modules"
@@ -117,7 +133,9 @@ def test_local_runtime_registry_rejects_traversal_in_manifest_version(tmp_path: 
         smoke._build_local_registry(tmp_path / "workspace", modules_repo)
 
 
-def test_semver_prerelease_and_suffix_are_valid_for_runtime_registry(tmp_path: Path) -> None:
+def test_semver_prerelease_and_suffix_are_valid_for_runtime_registry(
+    tmp_path: Path, tracked_staging_seam: None
+) -> None:
     import scripts.runtime_discovery_smoke as smoke
 
     modules_repo = tmp_path / "modules"
@@ -133,7 +151,9 @@ def test_semver_prerelease_and_suffix_are_valid_for_runtime_registry(tmp_path: P
 
 
 @pytest.mark.parametrize("version", ["01.2.3", "1.2.3-01", "1.2.3-alpha..1"])
-def test_local_runtime_registry_rejects_malformed_semver(tmp_path: Path, version: str) -> None:
+def test_local_runtime_registry_rejects_malformed_semver(
+    tmp_path: Path, version: str, tracked_staging_seam: None
+) -> None:
     import scripts.runtime_discovery_smoke as smoke
 
     modules_repo = tmp_path / "modules"
@@ -164,6 +184,7 @@ def test_runtime_discovery_smoke_keep_workspace_preserves_directory(
         captured["workspace"] = workspace
 
     monkeypatch.setattr(smoke, "_resolve_modules_repo", lambda _configured: tmp_path)
+    monkeypatch.setattr(smoke, "_verify_smoke_fixture", lambda _modules_repo: None)
     monkeypatch.setattr(smoke, "_create_rootless_monorepo_demo", create_demo)
     monkeypatch.setattr(smoke, "_build_local_registry", lambda workspace, _modules_repo: workspace / "index.json")
     monkeypatch.setattr(smoke, "_smoke_launcher", smoke_launcher)
@@ -194,6 +215,7 @@ def test_runtime_discovery_smoke_uses_fresh_demo_per_launcher(tmp_path: Path, mo
         return workspace / "index.json"
 
     monkeypatch.setattr(smoke, "_resolve_modules_repo", lambda _configured: tmp_path)
+    monkeypatch.setattr(smoke, "_verify_smoke_fixture", lambda _modules_repo: None)
     monkeypatch.setattr(smoke, "_create_rootless_monorepo_demo", create_demo)
     monkeypatch.setattr(smoke, "_build_local_registry", build_registry)
     monkeypatch.setattr(smoke, "_smoke_launcher", lambda _name, _workspace, _demo, _index_path, _modules_repo: None)

@@ -1,0 +1,108 @@
+{
+  "event": {
+    "repository": {
+      "id": 1085706003,
+      "full_name": "nold-ai/specfact-cli"
+    },
+    "pull_request": {
+      "number": 727,
+      "state": "open",
+      "head": {
+        "ref": "dependency-child",
+        "sha": "cccccccccccccccccccccccccccccccccccccccc",
+        "repo": {
+          "id": 1085706003,
+          "full_name": "nold-ai/specfact-cli"
+        }
+      },
+      "base": {
+        "ref": "dependency-root",
+        "sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "repo": {
+          "id": 1085706003,
+          "full_name": "nold-ai/specfact-cli"
+        }
+      },
+      "stack": {
+        "id": 1987468,
+        "number": 757,
+        "size": 2,
+        "base": {
+          "ref": "dev",
+          "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "position": 2
+      }
+    }
+  },
+  "routes": {
+    "/repos/nold-ai/specfact-cli/pulls/727": {
+      "number": 727,
+      "state": "open",
+      "head": {
+        "ref": "dependency-child",
+        "sha": "cccccccccccccccccccccccccccccccccccccccc",
+        "repo": {
+          "id": 1085706003,
+          "full_name": "nold-ai/specfact-cli"
+        }
+      },
+      "base": {
+        "ref": "dependency-root",
+        "sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "repo": {
+          "id": 1085706003,
+          "full_name": "nold-ai/specfact-cli"
+        }
+      },
+      "stack": {
+        "id": 1987468,
+        "number": 757,
+        "size": 2,
+        "base": {
+          "ref": "dev",
+          "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "position": 2
+      }
+    },
+    "/repos/nold-ai/specfact-cli/pulls?state=open&head=nold-ai%3Adependency-root&per_page=100": [
+      {
+        "number": 744,
+        "state": "open",
+        "head": {
+          "ref": "dependency-root",
+          "sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "repo": {
+            "id": 1085706003,
+            "full_name": "nold-ai/specfact-cli"
+          }
+        },
+        "base": {
+          "ref": "dev",
+          "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "repo": {
+            "id": 1085706003,
+            "full_name": "nold-ai/specfact-cli"
+          }
+        },
+        "stack": {
+          "id": 1987468,
+          "number": 757,
+          "size": 2,
+          "base": {
+            "ref": "dev",
+            "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "position": 1
+        }
+      }
+    ],
+    "/repos/nold-ai/specfact-cli/compare/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb...cccccccccccccccccccccccccccccccccccccccc": {
+      "status": "ahead",
+      "merge_base_commit": {
+        "sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    }
+  }
+}

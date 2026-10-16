@@ -22,6 +22,8 @@ DEFAULT_UV_LOCK = REPO_ROOT / "uv.lock"
 DEFAULT_SECURITY_TOOL_FLOORS = REPO_ROOT / "ci" / "security-tool-minimum-versions.json"
 DEFAULT_CODE_REVIEW_INPUT = REPO_ROOT / "requirements" / "code-review" / "requirements.in"
 DEFAULT_CODE_REVIEW_LOCK = REPO_ROOT / "requirements" / "code-review" / "locked.txt"
+DEFAULT_RUNTIME_SMOKE_INPUT = REPO_ROOT / "requirements" / "runtime-smoke" / "requirements.in"
+DEFAULT_RUNTIME_SMOKE_LOCK = REPO_ROOT / "requirements" / "runtime-smoke" / "locked.txt"
 CODE_REVIEW_INPUT_BINDING_PREFIX = "# input-sha256:"
 REQUIRED_FIELDS = frozenset(
     {
@@ -424,7 +426,7 @@ def validate_frozen_dependency_policy(
     code_review_input_path: Path = DEFAULT_CODE_REVIEW_INPUT,
     code_review_lock_path: Path = DEFAULT_CODE_REVIEW_LOCK,
 ) -> list[str]:
-    """Reject blocked releases and reviews that do not bind to either frozen graph."""
+    """Reject blocked releases and reviews across all three frozen dependency graphs."""
     errors = validate_exception_register(register_path, today=today)
     locked_packages, lock_errors = _read_locked_packages(lock_path)
     errors.extend(lock_errors)
@@ -441,6 +443,11 @@ def validate_frozen_dependency_policy(
     )
     errors.extend(code_review_errors)
     errors.extend(_validate_locked_version_policy(code_review_packages, tool_floors))
+    smoke_packages, smoke_errors = _read_code_review_locked_packages(
+        DEFAULT_RUNTIME_SMOKE_INPUT, DEFAULT_RUNTIME_SMOKE_LOCK
+    )
+    errors.extend("Runtime smoke graph: " + error for error in smoke_errors)
+    errors.extend(_validate_locked_version_policy(smoke_packages, tool_floors))
     return errors
 
 
