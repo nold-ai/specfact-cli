@@ -51,3 +51,14 @@ not seven-platform proof or protected producer admission.
 
 No production pin, existing audit/floor or trusted provider has been changed. The
 existing frozen MCP audit remains a release blocker. No merge is authorized.
+
+## Native proof branch
+
+The first implementation PR #773 correctly failed the unchanged hosted
+Requirements gate with `prior-red-proof-missing`. The earlier local signed test
+snapshot is real failing evidence, but cannot substitute for the hosted receipt.
+This branch retains the original specification and authored-test ancestors and
+freezes the final forty-selector test file before implementation. It contains no
+implementation changes. The first hosted run must produce actual RED evidence.
+The old PR, commits and failed artifacts remain preserved. No history is rewritten
+and no existing gate or provider is changed.

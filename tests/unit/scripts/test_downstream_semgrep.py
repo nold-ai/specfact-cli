@@ -1,5 +1,3 @@
-"""Observable downstream wheel, admission and audit contracts with synthetic wheels."""
-
 from __future__ import annotations
 
 import base64
@@ -16,9 +14,101 @@ import warnings
 import zipfile
 from datetime import date, timedelta
 from pathlib import Path
+from types import ModuleType
+from typing import TYPE_CHECKING, NotRequired, Protocol, TypedDict, cast
 from unittest.mock import patch
 
 import pytest
+
+
+if TYPE_CHECKING:
+    from scripts.downstream_semgrep import AdmittedWheel, BoundAuditInput, CandidateWheel
+
+
+class WheelEntry(TypedDict):
+    filename: str
+    platform_tag: str
+    upstream_sha256: str
+    upstream_url: str
+
+
+class Recipe(TypedDict):
+    schema_version: int
+    package: str
+    upstream_version: str
+    downstream_version: str
+    mcp_from: str
+    mcp_to: str
+    python_versions: list[str]
+    build_runtime_digest: str
+    wheels: list[WheelEntry]
+
+
+class MatrixReport(TypedDict):
+    source_commit: str
+    source_dirty: bool
+    platform: str
+    python_version: str
+    candidate_sha256: str
+    upstream_sha256: str
+    recipe_sha256: str
+    status: str
+    native: bool
+    candidate_audit_passed: bool
+    control_expected_cve_confirmed: bool
+    control_expected_regression_confirmed: bool
+    checks: dict[str, bool]
+
+
+class Artifact(TypedDict):
+    filename: str
+    candidate_sha256: str
+    upstream_sha256: str
+    platform_tag: str
+
+
+class Approval(TypedDict):
+    recipe_sha256: str
+    matrix_sha256: str
+    source_commit: str
+    signer_commit: str
+    reviewed_on: str
+    expires_on: str
+    artifacts: list[Artifact]
+
+
+class Policy(TypedDict):
+    schema_version: int
+    admissions: list[Approval]
+
+
+class AuditDependency(TypedDict):
+    name: str
+    version: str
+    vulns: list[object]
+    skip_reason: NotRequired[str]
+
+
+class AuditResult(TypedDict):
+    dependencies: list[AuditDependency]
+
+
+class DownstreamModule(Protocol):
+    subprocess: ModuleType
+
+    def build_candidate(self, recipe_path: Path, upstream_wheel: Path, output_directory: Path) -> CandidateWheel: ...
+
+    def verify_candidate(self, recipe_path: Path, upstream_wheel: Path, candidate_wheel: Path) -> CandidateWheel: ...
+
+    def required_matrix(self, recipe_path: Path) -> list[dict[str, str]]: ...
+
+    def aggregate_candidate_reports(self, recipe_path: Path, reports: list[MatrixReport]) -> dict[str, object]: ...
+
+    def admit_artifact(self, wheel: Path, evidence_bundle: Path) -> AdmittedWheel: ...
+
+
+WheelRecipe = tuple[Path, Recipe, Path]
+WheelMember = tuple[str, bytes, int]
 
 
 PLATFORMS = (
@@ -35,7 +125,7 @@ DOWNSTREAM = "1.179.0+specfact.1"
 TAGS = "cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none"
 
 
-def _module():
+def _module() -> DownstreamModule:
     root = Path(__file__).resolve().parents[3]
     path = root / "scripts/downstream_semgrep.py"
     assert path.is_file(), f"Downstream admission boundary is absent: {path}"
@@ -44,7 +134,7 @@ def _module():
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
-    return module
+    return cast(DownstreamModule, module)
 
 
 def _sha(data: bytes) -> str:
@@ -81,7 +171,7 @@ def _members(version: str = UPSTREAM) -> list[tuple[str, bytes, int]]:
 
 def _write_wheel(path: Path, members: list[tuple[str, bytes, int]], version: str = UPSTREAM) -> None:
     record_path = f"semgrep-{version}.dist-info/RECORD"
-    rows = []
+    rows: list[tuple[str, str, str]] = []
     for name, content, _mode in members:
         digest = base64.urlsafe_b64encode(hashlib.sha256(content).digest()).decode().rstrip("=")
         rows.append((name, "sha256=" + digest, str(len(content))))
@@ -100,10 +190,10 @@ def _write_wheel(path: Path, members: list[tuple[str, bytes, int]], version: str
 
 
 @pytest.fixture
-def wheel_recipe(tmp_path):
+def wheel_recipe(tmp_path: Path) -> WheelRecipe:
     upstream = tmp_path / f"semgrep-{UPSTREAM}-{TAGS}-{PLATFORMS[0]}.whl"
     _write_wheel(upstream, _members())
-    recipe = {
+    recipe: Recipe = {
         "schema_version": 1,
         "package": "semgrep",
         "upstream_version": UPSTREAM,
@@ -142,16 +232,17 @@ def _assert_record(archive: zipfile.ZipFile) -> None:
             assert size == str(len(content))
 
 
-def test_build_is_reproducible_and_preserves_complete_runtime(wheel_recipe, tmp_path):
-    module = _module()
-    recipe_path, _recipe, upstream = wheel_recipe
-    one = module.build_candidate(recipe_path, upstream, tmp_path / "one")
-    two = module.build_candidate(recipe_path, upstream, tmp_path / "two")
-    assert one.path.read_bytes() == two.path.read_bytes()
-    assert one.sha256 == _sha(one.path.read_bytes())
-    assert one.recipe_sha256 == _sha(recipe_path.read_bytes())
-    assert one.platform == PLATFORMS[0]
-    with zipfile.ZipFile(upstream) as original, zipfile.ZipFile(one.path) as built:
+def _assert_metadata_transform(original: zipfile.ZipFile, built: zipfile.ZipFile) -> None:
+    expected = (
+        original.read(f"semgrep-{UPSTREAM}.dist-info/METADATA")
+        .replace(b"Version: 1.179.0\n", b"Version: 1.179.0+specfact.1\n")
+        .replace(b"Requires-Dist: mcp==1.29.0\n", b"Requires-Dist: mcp==1.30.0\n")
+    )
+    assert built.read(f"semgrep-{DOWNSTREAM}.dist-info/METADATA") == expected
+
+
+def _assert_runtime_preserved(upstream: Path, candidate: Path) -> None:
+    with zipfile.ZipFile(upstream) as original, zipfile.ZipFile(candidate) as built:
         _assert_record(built)
         expected_names = {
             name.replace(f"semgrep-{UPSTREAM}.", f"semgrep-{DOWNSTREAM}.", 1) for name in original.namelist()
@@ -162,17 +253,42 @@ def test_build_is_reproducible_and_preserves_complete_runtime(wheel_recipe, tmp_
             assert built.getinfo(renamed).external_attr == original.getinfo(name).external_attr
             if not name.endswith(("/METADATA", "/RECORD")):
                 assert built.read(renamed) == original.read(name)
-        expected = (
-            original.read(f"semgrep-{UPSTREAM}.dist-info/METADATA")
-            .replace(b"Version: 1.179.0\n", b"Version: 1.179.0+specfact.1\n")
-            .replace(b"Requires-Dist: mcp==1.29.0\n", b"Requires-Dist: mcp==1.30.0\n")
-        )
-        assert built.read(f"semgrep-{DOWNSTREAM}.dist-info/METADATA") == expected
+        _assert_metadata_transform(original, built)
+
+
+def test_build_is_reproducible_and_preserves_complete_runtime(wheel_recipe: WheelRecipe, tmp_path: Path) -> None:
+    module = _module()
+    recipe_path, _recipe, upstream = wheel_recipe
+    one = module.build_candidate(recipe_path, upstream, tmp_path / "one")
+    two = module.build_candidate(recipe_path, upstream, tmp_path / "two")
+    assert one.path.read_bytes() == two.path.read_bytes()
+    assert one.sha256 == _sha(one.path.read_bytes())
+    assert one.recipe_sha256 == _sha(recipe_path.read_bytes())
+    assert one.platform == PLATFORMS[0]
+    _assert_runtime_preserved(upstream, one.path)
     verified = module.verify_candidate(recipe_path, upstream, one.path)
     assert (verified.path, verified.sha256, verified.platform) == (one.path, one.sha256, one.platform)
+    members = [
+        (name, content.replace(b"\n", b"\r\n") if name.endswith("/METADATA") else content, mode)
+        for name, content, mode in _members()
+    ]
+    _write_wheel(upstream, members)
+    recipe = _recipe
+    recipe["wheels"][0]["upstream_sha256"] = _sha(upstream.read_bytes())
+    _write_json(recipe_path, recipe)
+    windows_one = module.build_candidate(recipe_path, upstream, tmp_path / "crlf-one")
+    windows_two = module.build_candidate(recipe_path, upstream, tmp_path / "crlf-two")
+    assert windows_one.path.read_bytes() == windows_two.path.read_bytes()
+    with zipfile.ZipFile(windows_one.path) as built:
+        observed = built.read(f"semgrep-{DOWNSTREAM}.dist-info/METADATA")
+    expected = next(content for name, content, _ in members if name.endswith("/METADATA"))
+    expected = expected.replace(b"Version: 1.179.0\r\n", b"Version: 1.179.0+specfact.1\r\n")
+    expected = expected.replace(b"Requires-Dist: mcp==1.29.0\r\n", b"Requires-Dist: mcp==1.30.0\r\n")
+    assert observed == expected
+    assert module.verify_candidate(recipe_path, upstream, windows_one.path).sha256 == windows_one.sha256
 
 
-def test_wrong_upstream_hash_cannot_write_candidate(wheel_recipe, tmp_path):
+def test_wrong_upstream_hash_cannot_write_candidate(wheel_recipe: WheelRecipe, tmp_path: Path) -> None:
     module = _module()
     recipe_path, _recipe, upstream = wheel_recipe
     upstream.write_bytes(upstream.read_bytes() + b"tamper")
@@ -182,31 +298,41 @@ def test_wrong_upstream_hash_cannot_write_candidate(wheel_recipe, tmp_path):
     assert not list(output.glob("*.whl"))
 
 
-@pytest.mark.parametrize(
-    "damage", ["duplicate", "traversal", "symlink", "signature", "bad-record", "duplicate-mcp"], ids=str
-)
-def test_unsafe_upstream_archive_rejects_even_with_reviewed_hash(wheel_recipe, tmp_path, damage):
-    module = _module()
-    recipe_path, recipe, upstream = wheel_recipe
+def _corrupt_record(upstream: Path) -> None:
+    with zipfile.ZipFile(upstream) as archive:
+        entries = [(item, archive.read(item)) for item in archive.infolist()]
+    with zipfile.ZipFile(upstream, "w") as archive:
+        for item, content in entries:
+            archive.writestr(item, b"wrong,sha256=bad,1\n" if item.filename.endswith("/RECORD") else content)
+
+
+def _damage_upstream(upstream: Path, damage: str) -> None:
     members = _members()
     if damage == "duplicate":
         members.append(members[-1])
-    elif damage == "traversal":
+    if damage == "traversal":
         members.append(("../escape", b"outside", 0o100644))
-    elif damage == "symlink":
+    if damage == "symlink":
         members.append(("semgrep-link", b"/tmp/outside", stat.S_IFLNK | 0o777))
-    elif damage == "signature":
+    if damage == "signature":
         members.append((f"semgrep-{UPSTREAM}.dist-info/RECORD.jws", b"stale-signature", 0o100644))
-    elif damage == "duplicate-mcp":
+    if damage == "duplicate-mcp":
         name, content, mode = members[0]
         members[0] = (name, content.replace(b"Requires-Dist: mcp==1.29.0\n", b"Requires-Dist: mcp==1.29.0\n" * 2), mode)
     _write_wheel(upstream, members)
     if damage == "bad-record":
-        with zipfile.ZipFile(upstream) as archive:
-            entries = [(item, archive.read(item)) for item in archive.infolist()]
-        with zipfile.ZipFile(upstream, "w") as archive:
-            for item, content in entries:
-                archive.writestr(item, b"wrong,sha256=bad,1\n" if item.filename.endswith("/RECORD") else content)
+        _corrupt_record(upstream)
+
+
+@pytest.mark.parametrize(
+    "damage", ["duplicate", "traversal", "symlink", "signature", "bad-record", "duplicate-mcp"], ids=str
+)
+def test_unsafe_upstream_archive_rejects_even_with_reviewed_hash(
+    wheel_recipe: WheelRecipe, tmp_path: Path, damage: str
+) -> None:
+    module = _module()
+    recipe_path, recipe, upstream = wheel_recipe
+    _damage_upstream(upstream, damage)
     recipe["wheels"][0]["upstream_sha256"] = _sha(upstream.read_bytes())
     _write_json(recipe_path, recipe)
     output = tmp_path / "rejected"
@@ -216,27 +342,44 @@ def test_unsafe_upstream_archive_rejects_even_with_reviewed_hash(wheel_recipe, t
     assert not (tmp_path / "escape").exists()
 
 
-@pytest.mark.parametrize("damage", ["runtime", "mode", "entrypoint", "other-metadata"], ids=str)
-def test_candidate_rejects_unauthorized_change_with_valid_record(wheel_recipe, tmp_path, damage):
-    module = _module()
-    recipe_path, _recipe, upstream = wheel_recipe
-    candidate = module.build_candidate(recipe_path, upstream, tmp_path / "candidate")
-    with zipfile.ZipFile(candidate.path) as archive:
+def _changed_member(member: WheelMember, damage: str) -> WheelMember:
+    name, content, mode = member
+    if damage == "runtime":
+        return name, b"raise RuntimeError('changed')\n", mode
+    if damage == "mode":
+        return name, content, 0o100644
+    if damage == "entrypoint":
+        return name, b"[console_scripts]\nsemgrep = evil:main\n", mode
+    return name, content.replace(b"click>=8", b"click>=1"), mode
+
+
+def _damage_candidate(candidate: Path, damage: str) -> None:
+    with zipfile.ZipFile(candidate) as archive:
         members = [
             (item.filename, archive.read(item), item.external_attr >> 16)
             for item in archive.infolist()
             if not item.filename.endswith("/RECORD")
         ]
-    for index, (name, content, mode) in enumerate(members):
-        if damage == "runtime" and name.endswith("main.py"):
-            members[index] = (name, b"raise RuntimeError('changed')\n", mode)
-        elif damage == "mode" and name.endswith("semgrep-core"):
-            members[index] = (name, content, 0o100644)
-        elif damage == "entrypoint" and name.endswith("entry_points.txt"):
-            members[index] = (name, b"[console_scripts]\nsemgrep = evil:main\n", mode)
-        elif damage == "other-metadata" and name.endswith("/METADATA"):
-            members[index] = (name, content.replace(b"click>=8", b"click>=1"), mode)
-    _write_wheel(candidate.path, members, DOWNSTREAM)
+    target = {
+        "runtime": "main.py",
+        "mode": "semgrep-core",
+        "entrypoint": "entry_points.txt",
+        "other-metadata": "/METADATA",
+    }[damage]
+    for index, member in enumerate(members):
+        if member[0].endswith(target):
+            members[index] = _changed_member(member, damage)
+    _write_wheel(candidate, members, DOWNSTREAM)
+
+
+@pytest.mark.parametrize("damage", ["runtime", "mode", "entrypoint", "other-metadata"], ids=str)
+def test_candidate_rejects_unauthorized_change_with_valid_record(
+    wheel_recipe: WheelRecipe, tmp_path: Path, damage: str
+) -> None:
+    module = _module()
+    recipe_path, _recipe, upstream = wheel_recipe
+    candidate = module.build_candidate(recipe_path, upstream, tmp_path / "candidate")
+    _damage_candidate(candidate.path, damage)
     with pytest.raises(ValueError):
         module.verify_candidate(recipe_path, upstream, candidate.path)
 
@@ -246,7 +389,7 @@ def test_candidate_rejects_unauthorized_change_with_valid_record(wheel_recipe, t
     ["1.179.0+attacker.1", "1.179.0", "1.174.0+specfact.1"],
     ids=["unknown-local", "masquerade", "below-floor"],
 )
-def test_unreviewed_downstream_identity_rejects(wheel_recipe, tmp_path, version):
+def test_unreviewed_downstream_identity_rejects(wheel_recipe: WheelRecipe, tmp_path: Path, version: str) -> None:
     module = _module()
     recipe_path, recipe, upstream = wheel_recipe
     recipe["downstream_version"] = version
@@ -255,7 +398,7 @@ def test_unreviewed_downstream_identity_rejects(wheel_recipe, tmp_path, version)
         module.build_candidate(recipe_path, upstream, tmp_path / "output")
 
 
-def test_matrix_requires_all_seven_platforms_and_three_interpreters(wheel_recipe):
+def test_matrix_requires_all_seven_platforms_and_three_interpreters(wheel_recipe: WheelRecipe) -> None:
     module = _module()
     recipe_path, _recipe, _upstream = wheel_recipe
     matrix = module.required_matrix(recipe_path)
@@ -265,7 +408,7 @@ def test_matrix_requires_all_seven_platforms_and_three_interpreters(wheel_recipe
     }
 
 
-def _reports(recipe_path, recipe):
+def _reports(recipe_path: Path, recipe: Recipe) -> list[MatrixReport]:
     return [
         {
             "platform": wheel["platform_tag"],
@@ -275,6 +418,11 @@ def _reports(recipe_path, recipe):
             "recipe_sha256": _sha(recipe_path.read_bytes()),
             "status": "passed",
             "native": True,
+            "source_commit": "d" * 40,
+            "source_dirty": False,
+            "candidate_audit_passed": True,
+            "control_expected_cve_confirmed": True,
+            "control_expected_regression_confirmed": True,
             "checks": dict.fromkeys(
                 ("install", "pip_check", "sast", "positive_control", "negative_control", "mcp_stdio", "mcp_lifecycle"),
                 True,
@@ -285,34 +433,62 @@ def _reports(recipe_path, recipe):
     ]
 
 
+def _damage_matrix(reports: list[MatrixReport], damage: str) -> None:
+    if damage == "missing":
+        reports.pop()
+        return
+    if damage == "duplicate":
+        reports[-1] = copy.deepcopy(reports[0])
+        return
+    if damage == "failed":
+        reports[-1]["status"] = "failed"
+        return
+    if damage == "emulated":
+        reports[-1]["native"] = False
+        return
+    reports[-1]["checks"]["mcp_lifecycle"] = False
+
+
 @pytest.mark.parametrize("damage", ["missing", "duplicate", "failed", "emulated", "skipped-check"], ids=str)
-def test_matrix_rejects_incomplete_or_non_native_evidence(wheel_recipe, damage):
+def test_matrix_rejects_incomplete_or_non_native_evidence(wheel_recipe: WheelRecipe, damage: str) -> None:
     module = _module()
     recipe_path, recipe, _upstream = wheel_recipe
     reports = _reports(recipe_path, recipe)
-    if damage == "missing":
-        reports.pop()
-    elif damage == "duplicate":
-        reports[-1] = copy.deepcopy(reports[0])
-    elif damage == "failed":
-        reports[-1]["status"] = "failed"
-    elif damage == "emulated":
-        reports[-1]["native"] = False
-    else:
-        reports[-1]["checks"]["mcp_lifecycle"] = False
+    _damage_matrix(reports, damage)
     with pytest.raises(ValueError):
         module.aggregate_candidate_reports(recipe_path, reports)
 
 
-def test_complete_candidate_matrix_does_not_grant_production_admission(wheel_recipe):
+def test_complete_candidate_matrix_does_not_grant_production_admission(wheel_recipe: WheelRecipe) -> None:
     module = _module()
     recipe_path, recipe, _upstream = wheel_recipe
     report = module.aggregate_candidate_reports(recipe_path, _reports(recipe_path, recipe))
     assert report["production_admission"] == "not_requested"
     assert report["status"] == "passed"
+    for evidence in (
+        "candidate_audit_passed",
+        "control_expected_cve_confirmed",
+        "control_expected_regression_confirmed",
+    ):
+        incomplete: dict[str, object] = dict(_reports(recipe_path, recipe)[0])
+        incomplete[evidence] = False
+        damaged = _reports(recipe_path, recipe)
+        damaged[0] = cast(MatrixReport, incomplete)
+        with pytest.raises(ValueError):
+            module.aggregate_candidate_reports(recipe_path, damaged)
+    reports = _reports(recipe_path, recipe)
+    reports[0]["source_dirty"] = True
+    with pytest.raises(ValueError):
+        module.aggregate_candidate_reports(recipe_path, reports)
+    reports[0]["source_dirty"] = False
+    reports[0]["source_commit"] = "e" * 40
+    with pytest.raises(ValueError):
+        module.aggregate_candidate_reports(recipe_path, reports)
 
 
-def _protected_fixture(module, wheel_recipe, tmp_path):
+def _protected_fixture(
+    module: DownstreamModule, wheel_recipe: WheelRecipe, tmp_path: Path
+) -> tuple[CandidateWheel, Path, Policy]:
     recipe_path, recipe, upstream = wheel_recipe
     candidate = module.build_candidate(recipe_path, upstream, tmp_path / "candidate")
     bundle = tmp_path / "evidence"
@@ -325,7 +501,7 @@ def _protected_fixture(module, wheel_recipe, tmp_path):
         if report["platform"] == PLATFORMS[0]:
             report["candidate_sha256"] = candidate.sha256
     matrix = _write_json(bundle / "matrix.json", reports)
-    policy = {
+    policy: Policy = {
         "schema_version": 1,
         "admissions": [
             {
@@ -350,7 +526,7 @@ def _protected_fixture(module, wheel_recipe, tmp_path):
     return candidate, bundle, policy
 
 
-def test_exact_protected_boundary_admits_only_the_verified_wheel(wheel_recipe, tmp_path):
+def test_exact_protected_boundary_admits_only_the_verified_wheel(wheel_recipe: WheelRecipe, tmp_path: Path) -> None:
     module = _module()
     candidate, bundle, policy = _protected_fixture(module, wheel_recipe, tmp_path)
     with (
@@ -360,10 +536,17 @@ def test_exact_protected_boundary_admits_only_the_verified_wheel(wheel_recipe, t
         admitted = module.admit_artifact(candidate.path, bundle)
     assert admitted.wheel == candidate.path
     verifier.assert_called_once_with(candidate.path, bundle / "provenance.jsonl", "d" * 40, "e" * 40)
+    policy["admissions"][0]["source_commit"] = "f" * 40
+    with (
+        patch.object(module, "_fetch_protected_policy", return_value=policy),
+        patch.object(module, "_verify_provenance", side_effect=AssertionError("Wrong source reached verifier")),
+        pytest.raises(ValueError, match="Approved source differs"),
+    ):
+        module.admit_artifact(candidate.path, bundle)
 
 
 @pytest.mark.parametrize("damage", ["empty-policy", "expired", "wrong-hash", "wrong-matrix"], ids=str)
-def test_unapproved_artifact_rejects_before_verifier(wheel_recipe, tmp_path, damage):
+def test_unapproved_artifact_rejects_before_verifier(wheel_recipe: WheelRecipe, tmp_path: Path, damage: str) -> None:
     module = _module()
     candidate, bundle, policy = _protected_fixture(module, wheel_recipe, tmp_path)
     if damage == "empty-policy":
@@ -385,7 +568,9 @@ def test_unapproved_artifact_rejects_before_verifier(wheel_recipe, tmp_path, dam
 
 
 @pytest.mark.parametrize("failure", ["pr-origin", "missing-verifier", "timeout"], ids=str)
-def test_verifier_failure_cannot_turn_claims_into_admission(wheel_recipe, tmp_path, failure):
+def test_verifier_failure_cannot_turn_claims_into_admission(
+    wheel_recipe: WheelRecipe, tmp_path: Path, failure: str
+) -> None:
     module = _module()
     candidate, bundle, policy = _protected_fixture(module, wheel_recipe, tmp_path)
     _write_json(
@@ -412,7 +597,9 @@ def test_verifier_failure_cannot_turn_claims_into_admission(wheel_recipe, tmp_pa
         assert "--deny-self-hosted-runners" in argv
 
 
-def _bound_audit(module, wheel_recipe, tmp_path):
+def _bound_audit(
+    module: DownstreamModule, wheel_recipe: WheelRecipe, tmp_path: Path
+) -> tuple[AdmittedWheel, Path, CandidateWheel]:
     candidate, bundle, policy = _protected_fixture(module, wheel_recipe, tmp_path)
     actual = tmp_path / "actual.txt"
     actual.write_text(
@@ -429,7 +616,7 @@ def _bound_audit(module, wheel_recipe, tmp_path):
     return admitted, actual, candidate
 
 
-def _audit_result():
+def _audit_result() -> AuditResult:
     return {
         "dependencies": [
             {"name": "semgrep", "version": UPSTREAM, "vulns": []},
@@ -439,21 +626,39 @@ def _audit_result():
     }
 
 
-def test_bound_audit_preserves_real_graph_and_reports_local_identity(wheel_recipe, tmp_path):
+def _assert_audit_view(
+    actual: Path, output: Path, original: bytes, candidate_sha256: str, upstream_sha256: str
+) -> None:
+    rendered = output.read_text()
+    assert actual.read_bytes() == original
+    assert f"semgrep=={UPSTREAM}" in rendered
+    assert DOWNSTREAM not in rendered
+    assert candidate_sha256 not in rendered
+    assert upstream_sha256 in rendered
+    for line in actual.read_text().splitlines()[1:]:
+        assert line in rendered
+
+
+def _assert_audit_status_output(bound: BoundAuditInput, production_admission: str) -> None:
+    report = bound.assert_complete_result(
+        subprocess.CompletedProcess(["pip-audit"], 0, json.dumps(_audit_result()), "No known vulnerabilities found\n")
+    )
+    assert report["actual_inventory"] == bound.actual_inventory
+    assert report["production_admission"] == production_admission
+    with pytest.raises(ValueError):
+        bound.assert_complete_result(
+            subprocess.CompletedProcess(["pip-audit"], 0, json.dumps(_audit_result()), "HTTP503 advisory backend\n")
+        )
+
+
+def test_bound_audit_preserves_real_graph_and_reports_local_identity(wheel_recipe: WheelRecipe, tmp_path: Path) -> None:
     module = _module()
     admitted, actual, candidate = _bound_audit(module, wheel_recipe, tmp_path)
     output = tmp_path / "audit.txt"
     original = actual.read_bytes()
     bound = admitted.audit_input(actual, output)
-    rendered = output.read_text()
     assert bound.requirements == output
-    assert actual.read_bytes() == original
-    assert f"semgrep=={UPSTREAM}" in rendered
-    assert DOWNSTREAM not in rendered
-    assert candidate.sha256 not in rendered
-    assert wheel_recipe[1]["wheels"][0]["upstream_sha256"] in rendered
-    for line in actual.read_text().splitlines()[1:]:
-        assert line in rendered
+    _assert_audit_view(actual, output, original, candidate.sha256, wheel_recipe[1]["wheels"][0]["upstream_sha256"])
     assert bound.actual_inventory == {"semgrep": DOWNSTREAM, "mcp": "1.30.0", "click": "8.3.0"}
     report = bound.assert_complete_result(
         subprocess.CompletedProcess(["pip-audit"], 0, json.dumps(_audit_result()), "")
@@ -468,37 +673,54 @@ def test_bound_audit_preserves_real_graph_and_reports_local_identity(wheel_recip
     )
     assert candidate_report["actual_inventory"] == bound.actual_inventory
     assert candidate_report["production_admission"] == "not_requested"
+    _assert_audit_status_output(bound, "admitted")
+    _assert_audit_status_output(candidate_bound, "not_requested")
 
 
-@pytest.mark.parametrize(
-    "damage", ["empty-skip", "missing", "duplicate", "wrong-version", "malformed-vuln", "advisory-and-error"], ids=str
-)
-def test_bound_audit_rejects_incomplete_or_unsafe_responses(wheel_recipe, tmp_path, damage):
-    module = _module()
-    admitted, actual, _candidate = _bound_audit(module, wheel_recipe, tmp_path)
-    bound = admitted.audit_input(actual, tmp_path / "audit.txt")
+def _damaged_audit_response(damage: str) -> tuple[AuditResult, int, str]:
     result = _audit_result()
     deps = result["dependencies"]
     returncode, stderr = 0, ""
     if damage == "empty-skip":
         deps[-1]["skip_reason"] = ""
-    elif damage == "missing":
+    if damage == "missing":
         deps.pop()
-    elif damage == "duplicate":
+    if damage == "duplicate":
         deps.append(copy.deepcopy(deps[0]))
-    elif damage == "wrong-version":
+    if damage == "wrong-version":
         deps[1]["version"] = "1.29.0"
-    elif damage == "malformed-vuln":
+    if damage == "malformed-vuln":
         deps[0]["vulns"] = [None]
-    else:
+    if damage == "advisory-and-error":
         deps[1]["vulns"] = [{"id": "CVE-2026-59951"}]
         returncode, stderr = 2, "HTTP 503 fetching another dependency"
+    return result, returncode, stderr
+
+
+@pytest.mark.parametrize(
+    "damage", ["empty-skip", "missing", "duplicate", "wrong-version", "malformed-vuln", "advisory-and-error"], ids=str
+)
+def test_bound_audit_rejects_incomplete_or_unsafe_responses(
+    wheel_recipe: WheelRecipe, tmp_path: Path, damage: str
+) -> None:
+    module = _module()
+    admitted, actual, _candidate = _bound_audit(module, wheel_recipe, tmp_path)
+    bound = admitted.audit_input(actual, tmp_path / "audit.txt")
+    result, returncode, stderr = _damaged_audit_response(damage)
     with pytest.raises(ValueError):
         bound.assert_complete_result(subprocess.CompletedProcess(["pip-audit"], returncode, json.dumps(result), stderr))
 
+    if damage == "malformed-vuln":
+        for constant in ("NaN", "Infinity", "-Infinity"):
+            invalid_json = json.dumps(_audit_result())[:-1] + ', "unknown":' + constant + "}"
+            with pytest.raises(ValueError):
+                bound.assert_complete_result(subprocess.CompletedProcess(["pip-audit"], 0, invalid_json, ""))
+
 
 @pytest.mark.parametrize("damage", ["vulnerable-mcp", "wrong-local-hash", "marker"], ids=str)
-def test_bound_audit_rejects_unbound_inventory_before_writing_view(wheel_recipe, tmp_path, damage):
+def test_bound_audit_rejects_unbound_inventory_before_writing_view(
+    wheel_recipe: WheelRecipe, tmp_path: Path, damage: str
+) -> None:
     module = _module()
     admitted, actual, candidate = _bound_audit(module, wheel_recipe, tmp_path)
     contents = actual.read_text()
