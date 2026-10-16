@@ -53,13 +53,20 @@ Core SHALL consume producer assurance and completeness independently of score an
 
 ### Requirement: Separate installed CLI and project runtime
 
-Core SHALL preserve externally installed CLI and project Python separation, supported installation tooling, signed compatibility, and project-runtime descriptor semantics.
+Core SHALL preserve externally installed CLI and project Python separation, supported installation tooling, signed compatibility, and project-runtime descriptor semantics. Once required signed artifacts and execution prerequisites are provisioned and locally verified, ordinary local review SHALL run without requiring network access.
 
 #### Scenario: Run an externally installed CLI
 
 - **GIVEN** a supported signed core/module pair installed by pipx, uv tool, or uvx and a different project Python
 - **WHEN** ordinary local review runs
 - **THEN** core loads the compatible module while modules resolve the trusted project runtime without injecting dependencies into the project environment
+
+#### Scenario: Run from verified local artifacts offline
+
+- **GIVEN** an externally installed compatible CLI/module pair, valid locally verified signed modules, a prepared project environment and all selected check tools are available locally
+- **WHEN** networking is disabled and ordinary local review runs
+- **THEN** loading and invocation use those artifacts without requiring a registry or package-index lookup and the selected checks execute
+- **AND** missing local prerequisites remain actionable preparation failures rather than claimed offline bootstrap support
 
 #### Scenario: Handle uvx without pip
 

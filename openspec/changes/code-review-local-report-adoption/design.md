@@ -18,6 +18,8 @@ No consumer promotes local evidence to protected `pr_range` or capsule attestati
 
 The customer CLI may run in pipx, uv tool, or uvx while project Python differs. Preserve this separation. Do not inject analyzer or module dependencies into the customer project environment. A uvx tool environment may have no pip. Use supported external tooling or declared tool dependencies for the installed CLI environment instead of unmanaged mutation or an assumption that `python -m pip` exists. Verify the actual installer path against each supported installation before claiming compatibility.
 
+After provisioning, exercise ordinary local review with networking disabled and valid locally verified signed modules, the selected project environment and all selected check tools available. Loading must not require fresh registry or package-index access. Missing or invalid local prerequisites retain their normal nonaccepting diagnostics; this does not promise cold offline installation or dependency bootstrap. Modules #516 owns release-level offline acceptance as part of the installed workflow.
+
 `--project-runtime` denotes a descriptor contract. Do not reinterpret it as an interpreter path. Modules resolve project execution using their descriptor and project discovery contracts. Core forwards only supported declared inputs.
 
 ## Rollout and risks
@@ -30,4 +32,4 @@ Rollback pins the previous immutable compatible released CLI/module pair and ret
 
 ## Planning and later implementation
 
-All acceptance remains planned. Follow spec, tests, observed failing evidence, production code, then passing evidence during implementation. The internal wiki source and C14/C15 compatibility notes were aligned through the owning checkout on 2026-10-16, and the native graph was rebuilt. Its strict health check reports 59 pre-existing errors, down from 62, with no new errors. Unrelated source pages were preserved. This records planning alignment only; all implementation tasks remain unchecked.
+All acceptance remains planned. Follow spec, tests, observed failing evidence, production code, then passing evidence during implementation. Before RED, bind scenario-derived tests into requirements-evidence.yaml with executable selectors and stable requirement/case identities. Before GREEN, run the Requirements evidence gate against actual test results at implementation maturity; planning inspection alone cannot establish implementation evidence. The internal wiki source and C14/C15 compatibility notes were aligned through the owning checkout on 2026-10-16, and the native graph was rebuilt. Its strict health check reports 59 pre-existing errors, down from 62, with no new errors. Unrelated source pages were preserved. This records planning alignment only; all implementation tasks remain unchecked.

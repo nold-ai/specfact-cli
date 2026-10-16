@@ -86,6 +86,13 @@ requirements:
           then core loads the compatible module while modules resolve the trusted project runtime without injecting
           dependencies into the project environment.'
         observable: The planned spec retains this scenario; no runtime or test maturity is claimed.
+      - case_id: LOCAL-ARTIFACTS-OFFLINE
+        scenario_id: separate-installed-cli-and-project-runtime
+        method: inspection
+        intent: 'Inspect planned scenario: Run from verified local artifacts offline. With valid verified signed
+          modules, a prepared project environment and selected tools present locally, disabled networking does
+          not prevent loading or local review; missing prerequisites remain honest preparation failures.'
+        observable: The planned spec retains provisioned offline execution; no runtime or test maturity is claimed.
       - case_id: LOCAL-HANDLE-UVX-WITHOUT-PIP
         scenario_id: separate-installed-cli-and-project-runtime
         method: inspection
