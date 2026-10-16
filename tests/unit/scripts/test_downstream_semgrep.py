@@ -1,0 +1,515 @@
+"""Observable downstream wheel, admission and audit contracts with synthetic wheels."""
+
+from __future__ import annotations
+
+import base64
+import copy
+import csv
+import hashlib
+import importlib.util
+import io
+import json
+import stat
+import subprocess
+import sys
+import warnings
+import zipfile
+from datetime import date, timedelta
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+
+
+PLATFORMS = (
+    "macosx_10_14_x86_64",
+    "macosx_11_0_arm64",
+    "manylinux_2_34_x86_64",
+    "manylinux_2_34_aarch64",
+    "musllinux_1_2_x86_64",
+    "musllinux_1_2_aarch64",
+    "win_amd64",
+)
+UPSTREAM = "1.179.0"
+DOWNSTREAM = "1.179.0+specfact.1"
+TAGS = "cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none"
+
+
+def _module():
+    root = Path(__file__).resolve().parents[3]
+    path = root / "scripts/downstream_semgrep.py"
+    assert path.is_file(), f"Downstream admission boundary is absent: {path}"
+    spec = importlib.util.spec_from_file_location("_downstream_semgrep_contract", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _sha(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def _write_json(path: Path, value: object) -> Path:
+    path.write_text(json.dumps(value, sort_keys=True) + "\n", encoding="utf-8")
+    return path
+
+
+def _members(version: str = UPSTREAM) -> list[tuple[str, bytes, int]]:
+    prefix = f"semgrep-{version}.dist-info/"
+    return [
+        (
+            prefix + "METADATA",
+            f"Metadata-Version: 2.1\nName: semgrep\nVersion: {version}\nRequires-Dist: mcp==1.29.0\nRequires-Dist: click>=8\nLicense: LGPL-2.1\n\nSynthetic fixture\n".encode(),
+            0o100644,
+        ),
+        (
+            prefix + "WHEEL",
+            (
+                "Wheel-Version: 1.0\nGenerator: test\nRoot-Is-Purelib: false\n"
+                + "".join(f"Tag: {tag}-none-{PLATFORMS[0]}\n" for tag in TAGS.removesuffix("-none").split("."))
+            ).encode(),
+            0o100644,
+        ),
+        (prefix + "entry_points.txt", b"[console_scripts]\nsemgrep = semgrep.main:main\n", 0o100644),
+        (prefix + "licenses/LICENSE", b"Synthetic license fixture\n", 0o100644),
+        (f"semgrep-{version}.data/purelib/semgrep/main.py", b"def main():\n    return 7\n", 0o100644),
+        (f"semgrep-{version}.data/purelib/semgrep/bin/semgrep-core", b"synthetic-native-payload\x00", 0o100755),
+    ]
+
+
+def _write_wheel(path: Path, members: list[tuple[str, bytes, int]], version: str = UPSTREAM) -> None:
+    record_path = f"semgrep-{version}.dist-info/RECORD"
+    rows = []
+    for name, content, _mode in members:
+        digest = base64.urlsafe_b64encode(hashlib.sha256(content).digest()).decode().rstrip("=")
+        rows.append((name, "sha256=" + digest, str(len(content))))
+    rows.append((record_path, "", ""))
+    record = io.StringIO(newline="")
+    csv.writer(record, lineterminator="\n").writerows(rows)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        with zipfile.ZipFile(path, "w") as archive:
+            for name, content, mode in [*members, (record_path, record.getvalue().encode(), 0o100644)]:
+                info = zipfile.ZipInfo(name, date_time=(2026, 1, 1, 0, 0, 0))
+                info.create_system = 3
+                info.external_attr = mode << 16
+                info.compress_type = zipfile.ZIP_DEFLATED
+                archive.writestr(info, content)
+
+
+@pytest.fixture
+def wheel_recipe(tmp_path):
+    upstream = tmp_path / f"semgrep-{UPSTREAM}-{TAGS}-{PLATFORMS[0]}.whl"
+    _write_wheel(upstream, _members())
+    recipe = {
+        "schema_version": 1,
+        "package": "semgrep",
+        "upstream_version": UPSTREAM,
+        "downstream_version": DOWNSTREAM,
+        "mcp_from": "1.29.0",
+        "mcp_to": "1.30.0",
+        "python_versions": ["3.11", "3.12", "3.13"],
+        "build_runtime_digest": "a" * 64,
+        "wheels": [
+            {
+                "filename": f"semgrep-{UPSTREAM}-{TAGS}-{platform}.whl",
+                "platform_tag": platform,
+                "upstream_sha256": _sha(upstream.read_bytes()) if platform == PLATFORMS[0] else "b" * 64,
+                "upstream_url": f"https://files.pythonhosted.org/packages/test/semgrep-{UPSTREAM}-{TAGS}-{platform}.whl",
+            }
+            for platform in PLATFORMS
+        ],
+    }
+    recipe_path = _write_json(tmp_path / "recipe.json", recipe)
+    return recipe_path, recipe, upstream
+
+
+def _assert_record(archive: zipfile.ZipFile) -> None:
+    names = archive.namelist()
+    assert len(names) == len(set(names))
+    record_name = f"semgrep-{DOWNSTREAM}.dist-info/RECORD"
+    rows = list(csv.reader(io.StringIO(archive.read(record_name).decode())))
+    assert len(rows) == len(names)
+    assert {row[0] for row in rows} == set(names)
+    for name, digest, size in rows:
+        if name == record_name:
+            assert (digest, size) == ("", "")
+        else:
+            content = archive.read(name)
+            assert digest == "sha256=" + base64.urlsafe_b64encode(hashlib.sha256(content).digest()).decode().rstrip("=")
+            assert size == str(len(content))
+
+
+def test_build_is_reproducible_and_preserves_complete_runtime(wheel_recipe, tmp_path):
+    module = _module()
+    recipe_path, _recipe, upstream = wheel_recipe
+    one = module.build_candidate(recipe_path, upstream, tmp_path / "one")
+    two = module.build_candidate(recipe_path, upstream, tmp_path / "two")
+    assert one.path.read_bytes() == two.path.read_bytes()
+    assert one.sha256 == _sha(one.path.read_bytes())
+    assert one.recipe_sha256 == _sha(recipe_path.read_bytes())
+    assert one.platform == PLATFORMS[0]
+    with zipfile.ZipFile(upstream) as original, zipfile.ZipFile(one.path) as built:
+        _assert_record(built)
+        expected_names = {
+            name.replace(f"semgrep-{UPSTREAM}.", f"semgrep-{DOWNSTREAM}.", 1) for name in original.namelist()
+        }
+        assert set(built.namelist()) == expected_names
+        for name in original.namelist():
+            renamed = name.replace(f"semgrep-{UPSTREAM}.", f"semgrep-{DOWNSTREAM}.", 1)
+            assert built.getinfo(renamed).external_attr == original.getinfo(name).external_attr
+            if not name.endswith(("/METADATA", "/RECORD")):
+                assert built.read(renamed) == original.read(name)
+        expected = (
+            original.read(f"semgrep-{UPSTREAM}.dist-info/METADATA")
+            .replace(b"Version: 1.179.0\n", b"Version: 1.179.0+specfact.1\n")
+            .replace(b"Requires-Dist: mcp==1.29.0\n", b"Requires-Dist: mcp==1.30.0\n")
+        )
+        assert built.read(f"semgrep-{DOWNSTREAM}.dist-info/METADATA") == expected
+    verified = module.verify_candidate(recipe_path, upstream, one.path)
+    assert (verified.path, verified.sha256, verified.platform) == (one.path, one.sha256, one.platform)
+
+
+def test_wrong_upstream_hash_cannot_write_candidate(wheel_recipe, tmp_path):
+    module = _module()
+    recipe_path, _recipe, upstream = wheel_recipe
+    upstream.write_bytes(upstream.read_bytes() + b"tamper")
+    output = tmp_path / "output"
+    with pytest.raises(ValueError):
+        module.build_candidate(recipe_path, upstream, output)
+    assert not list(output.glob("*.whl"))
+
+
+@pytest.mark.parametrize(
+    "damage", ["duplicate", "traversal", "symlink", "signature", "bad-record", "duplicate-mcp"], ids=str
+)
+def test_unsafe_upstream_archive_rejects_even_with_reviewed_hash(wheel_recipe, tmp_path, damage):
+    module = _module()
+    recipe_path, recipe, upstream = wheel_recipe
+    members = _members()
+    if damage == "duplicate":
+        members.append(members[-1])
+    elif damage == "traversal":
+        members.append(("../escape", b"outside", 0o100644))
+    elif damage == "symlink":
+        members.append(("semgrep-link", b"/tmp/outside", stat.S_IFLNK | 0o777))
+    elif damage == "signature":
+        members.append((f"semgrep-{UPSTREAM}.dist-info/RECORD.jws", b"stale-signature", 0o100644))
+    elif damage == "duplicate-mcp":
+        name, content, mode = members[0]
+        members[0] = (name, content.replace(b"Requires-Dist: mcp==1.29.0\n", b"Requires-Dist: mcp==1.29.0\n" * 2), mode)
+    _write_wheel(upstream, members)
+    if damage == "bad-record":
+        with zipfile.ZipFile(upstream) as archive:
+            entries = [(item, archive.read(item)) for item in archive.infolist()]
+        with zipfile.ZipFile(upstream, "w") as archive:
+            for item, content in entries:
+                archive.writestr(item, b"wrong,sha256=bad,1\n" if item.filename.endswith("/RECORD") else content)
+    recipe["wheels"][0]["upstream_sha256"] = _sha(upstream.read_bytes())
+    _write_json(recipe_path, recipe)
+    output = tmp_path / "rejected"
+    with pytest.raises(ValueError):
+        module.build_candidate(recipe_path, upstream, output)
+    assert not list(output.glob("*.whl"))
+    assert not (tmp_path / "escape").exists()
+
+
+@pytest.mark.parametrize("damage", ["runtime", "mode", "entrypoint", "other-metadata"], ids=str)
+def test_candidate_rejects_unauthorized_change_with_valid_record(wheel_recipe, tmp_path, damage):
+    module = _module()
+    recipe_path, _recipe, upstream = wheel_recipe
+    candidate = module.build_candidate(recipe_path, upstream, tmp_path / "candidate")
+    with zipfile.ZipFile(candidate.path) as archive:
+        members = [
+            (item.filename, archive.read(item), item.external_attr >> 16)
+            for item in archive.infolist()
+            if not item.filename.endswith("/RECORD")
+        ]
+    for index, (name, content, mode) in enumerate(members):
+        if damage == "runtime" and name.endswith("main.py"):
+            members[index] = (name, b"raise RuntimeError('changed')\n", mode)
+        elif damage == "mode" and name.endswith("semgrep-core"):
+            members[index] = (name, content, 0o100644)
+        elif damage == "entrypoint" and name.endswith("entry_points.txt"):
+            members[index] = (name, b"[console_scripts]\nsemgrep = evil:main\n", mode)
+        elif damage == "other-metadata" and name.endswith("/METADATA"):
+            members[index] = (name, content.replace(b"click>=8", b"click>=1"), mode)
+    _write_wheel(candidate.path, members, DOWNSTREAM)
+    with pytest.raises(ValueError):
+        module.verify_candidate(recipe_path, upstream, candidate.path)
+
+
+@pytest.mark.parametrize(
+    "version",
+    ["1.179.0+attacker.1", "1.179.0", "1.174.0+specfact.1"],
+    ids=["unknown-local", "masquerade", "below-floor"],
+)
+def test_unreviewed_downstream_identity_rejects(wheel_recipe, tmp_path, version):
+    module = _module()
+    recipe_path, recipe, upstream = wheel_recipe
+    recipe["downstream_version"] = version
+    _write_json(recipe_path, recipe)
+    with pytest.raises(ValueError):
+        module.build_candidate(recipe_path, upstream, tmp_path / "output")
+
+
+def test_matrix_requires_all_seven_platforms_and_three_interpreters(wheel_recipe):
+    module = _module()
+    recipe_path, _recipe, _upstream = wheel_recipe
+    matrix = module.required_matrix(recipe_path)
+    assert len(matrix) == 21
+    assert {(cell["platform"], cell["python_version"]) for cell in matrix} == {
+        (platform, python) for platform in PLATFORMS for python in ("3.11", "3.12", "3.13")
+    }
+
+
+def _reports(recipe_path, recipe):
+    return [
+        {
+            "platform": wheel["platform_tag"],
+            "python_version": python,
+            "candidate_sha256": "c" * 64,
+            "upstream_sha256": wheel["upstream_sha256"],
+            "recipe_sha256": _sha(recipe_path.read_bytes()),
+            "status": "passed",
+            "native": True,
+            "checks": dict.fromkeys(
+                ("install", "pip_check", "sast", "positive_control", "negative_control", "mcp_stdio", "mcp_lifecycle"),
+                True,
+            ),
+        }
+        for wheel in recipe["wheels"]
+        for python in recipe["python_versions"]
+    ]
+
+
+@pytest.mark.parametrize("damage", ["missing", "duplicate", "failed", "emulated", "skipped-check"], ids=str)
+def test_matrix_rejects_incomplete_or_non_native_evidence(wheel_recipe, damage):
+    module = _module()
+    recipe_path, recipe, _upstream = wheel_recipe
+    reports = _reports(recipe_path, recipe)
+    if damage == "missing":
+        reports.pop()
+    elif damage == "duplicate":
+        reports[-1] = copy.deepcopy(reports[0])
+    elif damage == "failed":
+        reports[-1]["status"] = "failed"
+    elif damage == "emulated":
+        reports[-1]["native"] = False
+    else:
+        reports[-1]["checks"]["mcp_lifecycle"] = False
+    with pytest.raises(ValueError):
+        module.aggregate_candidate_reports(recipe_path, reports)
+
+
+def test_complete_candidate_matrix_does_not_grant_production_admission(wheel_recipe):
+    module = _module()
+    recipe_path, recipe, _upstream = wheel_recipe
+    report = module.aggregate_candidate_reports(recipe_path, _reports(recipe_path, recipe))
+    assert report["production_admission"] == "not_requested"
+    assert report["status"] == "passed"
+
+
+def _protected_fixture(module, wheel_recipe, tmp_path):
+    recipe_path, recipe, upstream = wheel_recipe
+    candidate = module.build_candidate(recipe_path, upstream, tmp_path / "candidate")
+    bundle = tmp_path / "evidence"
+    (bundle / "upstream").mkdir(parents=True)
+    (bundle / "recipe.json").write_bytes(recipe_path.read_bytes())
+    (bundle / "upstream" / upstream.name).write_bytes(upstream.read_bytes())
+    (bundle / "provenance.jsonl").write_text('{"synthetic": "not cryptographically verified"}\n')
+    reports = _reports(recipe_path, recipe)
+    for report in reports:
+        if report["platform"] == PLATFORMS[0]:
+            report["candidate_sha256"] = candidate.sha256
+    matrix = _write_json(bundle / "matrix.json", reports)
+    policy = {
+        "schema_version": 1,
+        "admissions": [
+            {
+                "recipe_sha256": _sha(recipe_path.read_bytes()),
+                "matrix_sha256": _sha(matrix.read_bytes()),
+                "source_commit": "d" * 40,
+                "signer_commit": "e" * 40,
+                "reviewed_on": (date.today() - timedelta(days=1)).isoformat(),
+                "expires_on": (date.today() + timedelta(days=7)).isoformat(),
+                "artifacts": [
+                    {
+                        "filename": item["filename"].replace(f"semgrep-{UPSTREAM}-", f"semgrep-{DOWNSTREAM}-", 1),
+                        "candidate_sha256": candidate.sha256 if item["platform_tag"] == PLATFORMS[0] else "c" * 64,
+                        "upstream_sha256": item["upstream_sha256"],
+                        "platform_tag": item["platform_tag"],
+                    }
+                    for item in recipe["wheels"]
+                ],
+            }
+        ],
+    }
+    return candidate, bundle, policy
+
+
+def test_exact_protected_boundary_admits_only_the_verified_wheel(wheel_recipe, tmp_path):
+    module = _module()
+    candidate, bundle, policy = _protected_fixture(module, wheel_recipe, tmp_path)
+    with (
+        patch.object(module, "_fetch_protected_policy", return_value=policy),
+        patch.object(module, "_verify_provenance", return_value=None) as verifier,
+    ):
+        admitted = module.admit_artifact(candidate.path, bundle)
+    assert admitted.wheel == candidate.path
+    verifier.assert_called_once_with(candidate.path, bundle / "provenance.jsonl", "d" * 40, "e" * 40)
+
+
+@pytest.mark.parametrize("damage", ["empty-policy", "expired", "wrong-hash", "wrong-matrix"], ids=str)
+def test_unapproved_artifact_rejects_before_verifier(wheel_recipe, tmp_path, damage):
+    module = _module()
+    candidate, bundle, policy = _protected_fixture(module, wheel_recipe, tmp_path)
+    if damage == "empty-policy":
+        policy["admissions"] = []
+    elif damage == "expired":
+        policy["admissions"][0]["expires_on"] = (date.today() - timedelta(days=1)).isoformat()
+    elif damage == "wrong-hash":
+        policy["admissions"][0]["artifacts"][0]["candidate_sha256"] = "f" * 64
+    else:
+        policy["admissions"][0]["matrix_sha256"] = "f" * 64
+    with (
+        patch.object(module, "_fetch_protected_policy", return_value=policy),
+        patch.object(
+            module, "_verify_provenance", side_effect=AssertionError("Unapproved artifacts must not reach verifier")
+        ),
+        pytest.raises(ValueError),
+    ):
+        module.admit_artifact(candidate.path, bundle)
+
+
+@pytest.mark.parametrize("failure", ["pr-origin", "missing-verifier", "timeout"], ids=str)
+def test_verifier_failure_cannot_turn_claims_into_admission(wheel_recipe, tmp_path, failure):
+    module = _module()
+    candidate, bundle, policy = _protected_fixture(module, wheel_recipe, tmp_path)
+    _write_json(
+        bundle / "provenance.jsonl", {"event_name": "pull_request", "ref": "refs/pull/772/merge", "verified": True}
+    )
+    result = subprocess.CompletedProcess(["gh"], 1, '{"verified":true}', "source ref is not protected dev")
+    error = {
+        "pr-origin": None,
+        "missing-verifier": FileNotFoundError("gh"),
+        "timeout": subprocess.TimeoutExpired("gh", 30),
+    }[failure]
+    with (
+        patch.object(module, "_fetch_protected_policy", return_value=policy),
+        patch.object(module.subprocess, "run", return_value=result, side_effect=error) as run,
+        pytest.raises(ValueError),
+    ):
+        module.admit_artifact(candidate.path, bundle)
+    assert run.call_args_list
+    for call in run.call_args_list:
+        argv = call.args[0]
+        assert "attestation" in argv and "verify" in argv
+        assert "refs/heads/dev" in argv
+        assert "d" * 40 in argv and "e" * 40 in argv
+        assert "--deny-self-hosted-runners" in argv
+
+
+def _bound_audit(module, wheel_recipe, tmp_path):
+    candidate, bundle, policy = _protected_fixture(module, wheel_recipe, tmp_path)
+    actual = tmp_path / "actual.txt"
+    actual.write_text(
+        f"semgrep=={DOWNSTREAM} --hash=sha256:{candidate.sha256}\n"
+        f"mcp==1.30.0 --hash=sha256:{'1' * 64}\n"
+        f"click==8.3.0 --hash=sha256:{'2' * 64}\n",
+        encoding="utf-8",
+    )
+    with (
+        patch.object(module, "_fetch_protected_policy", return_value=policy),
+        patch.object(module, "_verify_provenance", return_value=None),
+    ):
+        admitted = module.admit_artifact(candidate.path, bundle)
+    return admitted, actual, candidate
+
+
+def _audit_result():
+    return {
+        "dependencies": [
+            {"name": "semgrep", "version": UPSTREAM, "vulns": []},
+            {"name": "mcp", "version": "1.30.0", "vulns": []},
+            {"name": "click", "version": "8.3.0", "vulns": []},
+        ]
+    }
+
+
+def test_bound_audit_preserves_real_graph_and_reports_local_identity(wheel_recipe, tmp_path):
+    module = _module()
+    admitted, actual, candidate = _bound_audit(module, wheel_recipe, tmp_path)
+    output = tmp_path / "audit.txt"
+    original = actual.read_bytes()
+    bound = admitted.audit_input(actual, output)
+    rendered = output.read_text()
+    assert bound.requirements == output
+    assert actual.read_bytes() == original
+    assert f"semgrep=={UPSTREAM}" in rendered
+    assert DOWNSTREAM not in rendered
+    assert candidate.sha256 not in rendered
+    assert wheel_recipe[1]["wheels"][0]["upstream_sha256"] in rendered
+    for line in actual.read_text().splitlines()[1:]:
+        assert line in rendered
+    assert bound.actual_inventory == {"semgrep": DOWNSTREAM, "mcp": "1.30.0", "click": "8.3.0"}
+    report = bound.assert_complete_result(
+        subprocess.CompletedProcess(["pip-audit"], 0, json.dumps(_audit_result()), "")
+    )
+    assert report["actual_inventory"] == bound.actual_inventory
+
+    candidate_identity = module.verify_candidate(wheel_recipe[0], wheel_recipe[2], candidate.path)
+    assert callable(getattr(candidate_identity, "candidate_audit_input", None)), "Candidate audit proof is absent"
+    candidate_bound = candidate_identity.candidate_audit_input(actual, tmp_path / "candidate-audit.txt")
+    candidate_report = candidate_bound.assert_complete_result(
+        subprocess.CompletedProcess(["pip-audit"], 0, json.dumps(_audit_result()), "")
+    )
+    assert candidate_report["actual_inventory"] == bound.actual_inventory
+    assert candidate_report["production_admission"] == "not_requested"
+
+
+@pytest.mark.parametrize(
+    "damage", ["empty-skip", "missing", "duplicate", "wrong-version", "malformed-vuln", "advisory-and-error"], ids=str
+)
+def test_bound_audit_rejects_incomplete_or_unsafe_responses(wheel_recipe, tmp_path, damage):
+    module = _module()
+    admitted, actual, _candidate = _bound_audit(module, wheel_recipe, tmp_path)
+    bound = admitted.audit_input(actual, tmp_path / "audit.txt")
+    result = _audit_result()
+    deps = result["dependencies"]
+    returncode, stderr = 0, ""
+    if damage == "empty-skip":
+        deps[-1]["skip_reason"] = ""
+    elif damage == "missing":
+        deps.pop()
+    elif damage == "duplicate":
+        deps.append(copy.deepcopy(deps[0]))
+    elif damage == "wrong-version":
+        deps[1]["version"] = "1.29.0"
+    elif damage == "malformed-vuln":
+        deps[0]["vulns"] = [None]
+    else:
+        deps[1]["vulns"] = [{"id": "CVE-2026-59951"}]
+        returncode, stderr = 2, "HTTP 503 fetching another dependency"
+    with pytest.raises(ValueError):
+        bound.assert_complete_result(subprocess.CompletedProcess(["pip-audit"], returncode, json.dumps(result), stderr))
+
+
+@pytest.mark.parametrize("damage", ["vulnerable-mcp", "wrong-local-hash", "marker"], ids=str)
+def test_bound_audit_rejects_unbound_inventory_before_writing_view(wheel_recipe, tmp_path, damage):
+    module = _module()
+    admitted, actual, candidate = _bound_audit(module, wheel_recipe, tmp_path)
+    contents = actual.read_text()
+    if damage == "vulnerable-mcp":
+        contents = contents.replace("mcp==1.30.0", "mcp==1.29.0")
+    elif damage == "wrong-local-hash":
+        contents = contents.replace(candidate.sha256, "f" * 64)
+    else:
+        contents = contents.replace("click==8.3.0", 'click==8.3.0 ; python_version < "3.12"')
+    actual.write_text(contents)
+    output = tmp_path / "rejected-audit.txt"
+    with pytest.raises(ValueError):
+        admitted.audit_input(actual, output)
+    assert not output.exists()

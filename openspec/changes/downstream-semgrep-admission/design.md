@@ -62,6 +62,7 @@ class PlatformWheel:
     upstream_sha256: str
     upstream_url: str
 
+
 @dataclass(frozen=True)
 class Recipe:
     upstream_version: str
@@ -72,43 +73,53 @@ class Recipe:
     python_versions: tuple[str, ...]
     build_runtime_digest: str
 
+
 class CandidateWheel:
     # Private validated constructor; path, digest, recipe digest, platform.
     ...
+
 
 class CandidateReport:
     functional_checks_passed: bool
     production_admission: Literal["not_requested"]
     ...
 
+
 class TrustedPolicy:
     # Obtained from the protected verifier's immutable configuration only.
     ...
 
+
 class AdmittedWheel:
     # Private constructor; exact digest + provenance + policy binding.
     wheel: Path
+
     def audit_input(self, actual_requirements: Path, output: Path) -> BoundAuditInput:
         raise NotImplementedError
 
+
 class BoundAuditInput:
     requirements: Path
+
     def assert_complete_result(self, result: AuditResult) -> None:
         raise NotImplementedError
 
-def build_candidate(recipe_path: Path, upstream_wheel: Path,
-                    output_directory: Path) -> CandidateWheel:
+
+def build_candidate(recipe_path: Path, upstream_wheel: Path, output_directory: Path) -> CandidateWheel:
     raise NotImplementedError
 
-def verify_candidate(recipe_path: Path, upstream_wheel: Path,
-                     candidate_wheel: Path) -> CandidateWheel:
+
+def verify_candidate(recipe_path: Path, upstream_wheel: Path, candidate_wheel: Path) -> CandidateWheel:
     raise NotImplementedError
+
 
 def required_matrix(recipe_path: Path) -> list[dict[str, str]]:
     raise NotImplementedError
 
+
 def aggregate_candidate_reports(recipe_path: Path, reports: list[dict]) -> dict:
     raise NotImplementedError
+
 
 def admit_artifact(wheel: Path, evidence_bundle: Path) -> AdmittedWheel:
     raise NotImplementedError
