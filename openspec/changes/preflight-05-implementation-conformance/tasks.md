@@ -50,3 +50,9 @@ All tasks below are future implementation work. This planning change completes n
 - [ ] 5.1 Prepare the candidate core implementation-assurance interface handoff for paired modules #434; the released identity is supplied only after 5.2. Optional adapters #433 require both its signed release and core #253; generic #251/#253 do not wait for this handoff.
 - [ ] 5.2 Open and integrate the reviewed implementation PR to `dev`, then promote through protected `main` and publish the core interface through the existing release workflow after required checks.
 - [ ] 5.3 Before archive, verify the released core identity was handed to modules #434 and that modules-owned signing/stable publication remains assigned there; then, from the repository root after merge, run `openspec archive preflight-05-implementation-conformance`, update ordering/source mirrors, and remove the dedicated worktree and merged branch.
+
+## Agentic SDLC follow-up acceptance
+
+- [ ] Verify the 2026-10-04 approved scope against live issue/release readiness before implementation.
+- [ ] Derive negative tests from the amendment scenarios before behavior edits; implement conformance additions only through the owning released contracts.
+- [ ] Preserve independent producer status, optional context/assurance and existing lean release dependencies; document exact versions and rollback.

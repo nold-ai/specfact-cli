@@ -1,0 +1,36 @@
+schema_version: '2'
+requirements:
+  openspec:architecture-01-solution-layer:solution-architecture:solution-architecture:
+    rationale: Make the approved planning requirement reviewable without claiming runtime
+      evidence.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#240
+    touchpoints:
+      - id: solution-architecture-spec
+        kind: config_file
+        locator: openspec/changes/architecture-01-solution-layer/specs/solution-architecture/spec.md
+    verification_cases:
+      - case_id: solution-architecture-inspection
+        scenario_id: solution-architecture
+        method: inspection
+        intent: Inspect Solution Architecture and all its acceptance scenarios.
+        observable: Strict OpenSpec validation retains the requirement and scenarios. Planning
+          inspection only; tests, implementation and signed producer acceptance remain
+          pending.
+  openspec:architecture-01-solution-layer:data-models:optional-architecture-boundary-namespace:
+    rationale: Make the approved planning requirement reviewable without claiming runtime
+      evidence.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#240
+    touchpoints:
+      - id: data-models-spec
+        kind: config_file
+        locator: openspec/changes/architecture-01-solution-layer/specs/data-models/spec.md
+    verification_cases:
+      - case_id: optional-architecture-boundary-namespace-inspection
+        scenario_id: optional-architecture-boundary-namespace
+        method: inspection
+        intent: Inspect Data Models and all its acceptance scenarios.
+        observable: Strict OpenSpec validation retains the requirement and scenarios. Planning
+          inspection only; tests, implementation and signed producer acceptance remain
+          pending.

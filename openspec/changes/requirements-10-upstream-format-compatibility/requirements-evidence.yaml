@@ -1,0 +1,37 @@
+schema_version: '2'
+requirements:
+  openspec:requirements-10-upstream-format-compatibility:upstream-format-compatibility:pinned-upstream-artifact-profiles:
+    rationale: Make the approved planning requirement reviewable without claiming runtime
+      evidence.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#749
+    touchpoints:
+      - id: upstream-format-compatibility-spec
+        kind: config_file
+        locator: openspec/changes/requirements-10-upstream-format-compatibility/specs/upstream-format-compatibility/spec.md
+    verification_cases:
+      - case_id: pinned-upstream-artifact-profiles-inspection
+        scenario_id: pinned-upstream-artifact-profiles
+        method: inspection
+        intent: Inspect Pinned upstream artifact profiles and all its acceptance scenarios.
+        observable: Strict OpenSpec validation retains the requirement and scenarios. Planning
+          inspection only; tests, implementation and signed producer acceptance remain
+          pending.
+  ? openspec:requirements-10-upstream-format-compatibility:upstream-format-compatibility:extension-coexistence-and-atomic-import
+  : rationale: Make the approved planning requirement reviewable without claiming runtime
+      evidence.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#749
+    touchpoints:
+      - id: upstream-format-compatibility-spec
+        kind: config_file
+        locator: openspec/changes/requirements-10-upstream-format-compatibility/specs/upstream-format-compatibility/spec.md
+    verification_cases:
+      - case_id: extension-coexistence-and-atomic-import-inspection
+        scenario_id: extension-coexistence-and-atomic-import
+        method: inspection
+        intent: Inspect Extension coexistence and atomic import and all its acceptance
+          scenarios.
+        observable: Strict OpenSpec validation retains the requirement and scenarios. Planning
+          inspection only; tests, implementation and signed producer acceptance remain
+          pending.

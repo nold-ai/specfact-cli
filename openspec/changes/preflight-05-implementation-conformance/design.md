@@ -1,3 +1,9 @@
+## Owner-approved agentic SDLC amendment — 2026-10-04
+
+When selected assurance binds decision context, include its digest/source identity in cache and affected-obligation selection. Reuse existing finding categories with reason codes: decision_context_changed is stale/UNKNOWN until refreshed; required_resolution_unavailable is unverifiable/UNKNOWN; reconciled_decision_contradiction is violated/FAIL. Ordinary touched unresolved assumptions stay advisory outside assurance. No missing trace link proves missing behavior. Share #483 presentation and a single repair budget, preserving independent test/review/security outcomes; no nested loop multiplies attempts. Context contracts are prerequisites only for selected context-bound assurance, not the existing context-free optional chain or lean delivery.
+
+This planning amendment supersedes conflicting scope and prerequisite wording below. It changes no runtime behavior and completes no implementation task. See [roadmap](../../AGENTIC_SDLC_ROADMAP.md).
+
 ## Context
 
 ## Scope rescope — 2026-09-20

@@ -84,3 +84,19 @@ Policy evaluation outputs SHALL be serializable into governance evidence records
 - **THEN** each rule result includes rule ID, severity, mode, outcome and producer reference
 - **AND** serialization preserves an independent failure even when current tests pass
 - **AND** serialization alone does not authenticate a local result as protected CI evidence.
+
+### Requirement: Optional digest-bound standard attestation export
+
+The exporter SHALL optionally emit in-toto Statement v1 with SCAI v0.3 binding a digest-addressed evidence bundle and original reports. Native reports SHALL retain every original status, limitation, verification basis and authority. Existing CI signing and authorized subject/signer verification SHALL be reused. Export SHALL NOT require new signing infrastructure, predicate-standardization work, a graph/index or sealed history for ordinary current results. Authenticity SHALL NOT be claimed as behavioral correctness.
+
+#### Scenario: Native uncertainty survives export
+
+- **GIVEN** a native report with unavailable coverage and a failed required producer
+- **WHEN** it is exported
+- **THEN** the bundle retains those original statuses and the signed envelope does not claim successful verification.
+
+#### Scenario: Tampered or unauthorized bundle
+
+- **GIVEN** a changed bundle, wrong subject identity or unauthorized signer
+- **WHEN** the consumer verifies export
+- **THEN** verification rejects it before accepting any authenticated evidence claim.
