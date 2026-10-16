@@ -185,3 +185,7 @@ impact and a linked follow-up; there is no blanket deferral.
 None for scope. Branch-protection selection of the final emitted check remains
 an operational promotion step after warning evidence is accepted; it does not
 change this software contract.
+
+## Local reset coordination (2026-10-16)
+
+Planned ordinary local adoption is tracked separately by [core #769](https://github.com/nold-ai/specfact-cli/issues/769), after modules #515 and before modules #516. Its schema 2.0 trusted-local evidence cannot satisfy protected core #680 capsule acceptance. This additive note does not change this change's owners, status, tasks, or acceptance. C15 core #679 and modules #417 retain their own contracts. Older capsule references remain relevant to their separate protected contract, not ordinary local reset scope.

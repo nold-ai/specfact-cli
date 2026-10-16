@@ -85,3 +85,7 @@ parked Copilot test-generation change.
 - **Last Synced Status**: GitHub metadata verified; blocked on signed prerequisite releases
 - **Parent Feature**: [#375](https://github.com/nold-ai/specfact-cli/issues/375)
 - **Paired Modules Change**: [nold-ai/specfact-cli-modules#417](https://github.com/nold-ai/specfact-cli-modules/issues/417) / `code-review-15-signal-calibrated-blocking-gate`
+
+## Local reset coordination (2026-10-16)
+
+Planned ordinary local adoption is tracked separately by [core #769](https://github.com/nold-ai/specfact-cli/issues/769), after modules #515 and before modules #516. Its schema 2.0 trusted-local evidence cannot satisfy protected core #680 capsule acceptance. This additive note does not change this change's owners, status, tasks, or acceptance. C15 core #679 and modules #417 retain their own contracts. Older capsule references remain relevant to their separate protected contract, not ordinary local reset scope.

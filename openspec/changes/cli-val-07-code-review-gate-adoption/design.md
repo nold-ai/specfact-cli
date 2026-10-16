@@ -41,3 +41,7 @@ active governance exception for the same canonical rule/path/symbol.
 3. Run trusted-source shadow dogfood against that authenticated verifier. Candidate tests do not supply protected authority.
 4. Activate changed local and protected range/full enforcement only after the modules measurement gate and trusted consumer evidence pass.
 5. Roll back by returning to shadow; preserve the validated consumer and report.
+
+## Local reset coordination (2026-10-16)
+
+Planned ordinary local adoption is tracked separately by [core #769](https://github.com/nold-ai/specfact-cli/issues/769), after modules #515 and before modules #516. Its schema 2.0 trusted-local evidence cannot satisfy protected core #680 capsule acceptance. This additive note does not change this change's owners, status, tasks, or acceptance. C15 core #679 and modules #417 retain their own contracts. Older capsule references remain relevant to their separate protected contract, not ordinary local reset scope.
