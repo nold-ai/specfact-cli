@@ -1,0 +1,78 @@
+schema_version: '2'
+requirements:
+  openspec:downstream-semgrep-admission:downstream-semgrep-admission:deterministic-metadata-only-downstream-build:
+    rationale: Deterministic Metadata Only Downstream Build
+    stakeholder_refs:
+    - nold-ai/specfact-cli#772
+    touchpoints:
+    - id: deterministic-metadata-only-downstream-build
+      kind: code_symbol
+      locator: scripts/downstream_semgrep.py
+    verification_cases:
+    - case_id: deterministic-metadata-only-downstream-build-1
+      scenario_id: deterministic-metadata-only-downstream-build
+      method: test
+      intent: Reproducible legitimate downstream wheel
+      observable: All SHALL outcomes in this scenario hold; missing or contradictory proof rejects.
+    - case_id: deterministic-metadata-only-downstream-build-2
+      scenario_id: deterministic-metadata-only-downstream-build
+      method: test
+      intent: Changed upstream or unexpected payload rejects
+      observable: All SHALL outcomes in this scenario hold; missing or contradictory proof rejects.
+  openspec:downstream-semgrep-admission:downstream-semgrep-admission:exact-protected-admission:
+    rationale: Exact Protected Admission
+    stakeholder_refs:
+    - nold-ai/specfact-cli#772
+    touchpoints:
+    - id: exact-protected-admission
+      kind: code_symbol
+      locator: scripts/downstream_semgrep.py
+    verification_cases:
+    - case_id: exact-protected-admission-1
+      scenario_id: exact-protected-admission
+      method: test
+      intent: Untrusted candidate cannot authorize itself
+      observable: All SHALL outcomes in this scenario hold; missing or contradictory proof rejects.
+    - case_id: exact-protected-admission-2
+      scenario_id: exact-protected-admission
+      method: test
+      intent: Exact complete protected candidate is admitted
+      observable: All SHALL outcomes in this scenario hold; missing or contradictory proof rejects.
+  openspec:downstream-semgrep-admission:downstream-semgrep-admission:complete-vulnerability-identity-coverage:
+    rationale: Complete Vulnerability Identity Coverage
+    stakeholder_refs:
+    - nold-ai/specfact-cli#772
+    touchpoints:
+    - id: complete-vulnerability-identity-coverage
+      kind: code_symbol
+      locator: scripts/downstream_semgrep.py
+    verification_cases:
+    - case_id: complete-vulnerability-identity-coverage-1
+      scenario_id: complete-vulnerability-identity-coverage
+      method: test
+      intent: Complete fixed graph retains downstream inventory identity
+      observable: All SHALL outcomes in this scenario hold; missing or contradictory proof rejects.
+    - case_id: complete-vulnerability-identity-coverage-2
+      scenario_id: complete-vulnerability-identity-coverage
+      method: test
+      intent: Incomplete or vulnerable graph fails closed
+      observable: All SHALL outcomes in this scenario hold; missing or contradictory proof rejects.
+  openspec:downstream-semgrep-admission:downstream-semgrep-admission:complete-platform-and-mcp-behavioral-proof:
+    rationale: Complete Platform And MCP Behavioral Proof
+    stakeholder_refs:
+    - nold-ai/specfact-cli#772
+    touchpoints:
+    - id: complete-platform-and-mcp-behavioral-proof
+      kind: code_symbol
+      locator: scripts/downstream_semgrep.py
+    verification_cases:
+    - case_id: complete-platform-and-mcp-behavioral-proof-1
+      scenario_id: complete-platform-and-mcp-behavioral-proof
+      method: test
+      intent: Matrix aggregate rejects missing or conflicting cells
+      observable: All SHALL outcomes in this scenario hold; missing or contradictory proof rejects.
+    - case_id: complete-platform-and-mcp-behavioral-proof-2
+      scenario_id: complete-platform-and-mcp-behavioral-proof
+      method: test
+      intent: Fixed MCP reclaims sessions and limits capacity
+      observable: All SHALL outcomes in this scenario hold; missing or contradictory proof rejects.
