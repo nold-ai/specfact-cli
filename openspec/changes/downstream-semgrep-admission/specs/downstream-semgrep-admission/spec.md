@@ -80,7 +80,13 @@ SAST findings and errors, positive/negative detection controls, MCP command star
 and actual stateful session behavior. Tests SHALL exercise idle expiry, capacity,
 DELETE cleanup and refused-opening cleanup with bounded test settings, and confirm
 the fixed production defaults. Candidate evidence SHALL remain distinct from
-protected producer admission.
+protected producer admission. The recipe SHALL contain a runtime-policy object
+bound to its declared SHA-256 using UTF-8 JSON with sorted keys and compact
+separators. Missing or malformed policies and digest mismatches SHALL reject
+before a matrix is returned. Command evidence SHALL decode stdout and stderr as
+strict UTF-8 independently of the host locale, including Windows, and preserve
+the decoded text as UTF-8. Invalid UTF-8 SHALL fail closed rather than produce
+replacement characters or corrupted proof.
 
 #### Scenario: Matrix aggregate rejects missing or conflicting cells
 

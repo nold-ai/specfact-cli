@@ -12,17 +12,47 @@ import subprocess
 import sys
 import warnings
 import zipfile
+from collections.abc import Mapping
 from datetime import date, timedelta
 from pathlib import Path
 from types import ModuleType
-from typing import TYPE_CHECKING, NotRequired, Protocol, TypedDict, cast
+from typing import NotRequired, Protocol, TypedDict, cast
 from unittest.mock import patch
 
 import pytest
 
 
-if TYPE_CHECKING:
-    from scripts.downstream_semgrep import AdmittedWheel, BoundAuditInput, CandidateWheel
+class BoundAuditInput(Protocol):
+    @property
+    def requirements(self) -> Path: ...
+
+    @property
+    def actual_inventory(self) -> Mapping[str, str]: ...
+
+    def assert_complete_result(self, proc: subprocess.CompletedProcess[str]) -> dict[str, object]: ...
+
+
+class CandidateWheel(Protocol):
+    @property
+    def path(self) -> Path: ...
+
+    @property
+    def sha256(self) -> str: ...
+
+    @property
+    def platform(self) -> str: ...
+
+    @property
+    def recipe_sha256(self) -> str: ...
+
+    def candidate_audit_input(self, actual_requirements: Path, output: Path) -> BoundAuditInput: ...
+
+
+class AdmittedWheel(Protocol):
+    @property
+    def wheel(self) -> Path: ...
+
+    def audit_input(self, actual_requirements: Path, output: Path) -> BoundAuditInput: ...
 
 
 class WheelEntry(TypedDict):
@@ -40,6 +70,7 @@ class Recipe(TypedDict):
     mcp_from: str
     mcp_to: str
     python_versions: list[str]
+    build_runtime_policy: dict[str, object]
     build_runtime_digest: str
     wheels: list[WheelEntry]
 
@@ -193,6 +224,11 @@ def _write_wheel(path: Path, members: list[tuple[str, bytes, int]], version: str
 def wheel_recipe(tmp_path: Path) -> WheelRecipe:
     upstream = tmp_path / f"semgrep-{UPSTREAM}-{TAGS}-{PLATFORMS[0]}.whl"
     _write_wheel(upstream, _members())
+    runtime_policy: dict[str, object] = {
+        "implementation": "CPython",
+        "python_versions": ["3.11", "3.12", "3.13"],
+        "wheel_compression": "ZIP_STORED",
+    }
     recipe: Recipe = {
         "schema_version": 1,
         "package": "semgrep",
@@ -201,7 +237,8 @@ def wheel_recipe(tmp_path: Path) -> WheelRecipe:
         "mcp_from": "1.29.0",
         "mcp_to": "1.30.0",
         "python_versions": ["3.11", "3.12", "3.13"],
-        "build_runtime_digest": "a" * 64,
+        "build_runtime_policy": runtime_policy,
+        "build_runtime_digest": _sha(json.dumps(runtime_policy, sort_keys=True, separators=(",", ":")).encode("utf-8")),
         "wheels": [
             {
                 "filename": f"semgrep-{UPSTREAM}-{TAGS}-{platform}.whl",

@@ -19,6 +19,10 @@
 - [ ] 3.3 Run normal quality, native/FULL, signature and dependency trust gates.
 - [ ] 3.4 Publish a separate signed PR with exact status and proof limitations.
 - [ ] 3.5 Retain production adoption as blocked until authenticated protected evidence exists.
+- [ ] 3.6 Synchronize `wiki/sources/downstream-semgrep-admission.md` summary, status,
+  depends-on, blocks and external-deps, then run `python3 scripts/wiki_rebuild_graph.py`
+  from the `specfact-cli-internal` repository root. This follow-up remains
+  unchecked. Track the Codex review thread at <https://github.com/nold-ai/specfact-cli/pull/774#discussion_r4299598187>.
 
 No merge, release publication or main promotion is included. Do not archive an
 unmerged or incomplete change.

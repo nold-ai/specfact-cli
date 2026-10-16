@@ -62,3 +62,87 @@ freezes the final forty-selector test file before implementation. It contains no
 implementation changes. The first hosted run must produce actual RED evidence.
 The old PR, commits and failed artifacts remain preserved. No history is rewritten
 and no existing gate or provider is changed.
+
+## Corrected test-only local RED addendum, 2026-10-17 Europe/Berlin
+
+This addendum supersedes the earlier claim that the forty-selector test file was
+final. Historical commits and evidence above remain preserved. Test-local
+Protocols replace the static type-only production import so future implementation
+bytes are not imported into the authored test dependency surface. The synthetic
+recipe now contains a runtime-policy object and its canonical SHA-256. All 40
+original selectors and their 48 assertion nodes are unchanged. The accepted
+requirements mapping file is byte-for-byte unchanged; no new requirement,
+scenario, mapping case or acceptance record was added.
+
+Ten supplemental review cases cover protected attestation identity, rejection of
+an approved but invalid matrix, and preserved ZIP member attributes. Eight further
+supplemental cases cover five runtime-policy rejection inputs and three real
+subprocess encoding checks. The encoding checks simulate the Windows cp1252 text
+default, assert UTF-8 stdout/stderr text and retained evidence, and require invalid
+UTF-8 on either stream to fail closed. They do not replace native Windows proof.
+
+Before production code exists in this worktree, the final local run was:
+
+```text
+hatch run python -m pytest tests/unit/scripts/test_downstream_semgrep.py tests/unit/scripts/test_downstream_semgrep_review_guards.py tests/unit/scripts/test_downstream_semgrep_runtime_evidence.py -q --tb=short --junitxml=/private/tmp/core774-root-causes/corrected-tests-red.xml
+58 failed
+JUnit: 58 tests, 58 AssertionError failures, 0 errors, 0 skips
+```
+
+Failures explicitly report `Downstream admission boundary is absent` or
+`Downstream matrix runner is absent`. This proves missing behavior in the
+test-only ancestor, not separate exposed defects in an existing implementation.
+The log and JUnit artifact are retained in `/private/tmp/core774-root-causes/` as
+`corrected-tests-red.log` and `corrected-tests-red.xml`.
+
+Scoped `hatch run ruff check`, `hatch run ruff format --check`, and
+`hatch run type-check` on those three test files pass. BasedPyright reports
+`0 errors, 0 warnings, 0 notes` using the canonical project configuration and the
+locked checker installed by `npm ci --ignore-scripts --prefix tools/basedpyright`.
+`openspec validate downstream-semgrep-admission --strict` passes.
+
+No corrected hosted RED receipt, implementation GREEN, native matrix completion,
+commit or publication is claimed here. Those gates and the unchecked internal
+wiki synchronization task remain pending.
+
+## Additional review corrections, 2026-10-17
+
+Independent review exposed lossy timeout decoding. Supplemental timeout cases now
+check legitimate UTF-8 and reject invalid bytes on either stream. CRLF and CR
+cases preserve the existing universal-newline text behavior across completed and
+timed-out commands. Two archive cases also reproduce unauthorized compression
+and creator-version changes that the published verifier accepted with valid
+RECORD contents. The comparison uses the reviewed ZIP_STORED transformation, not
+the original compressed representation. Broader ZIP flag and volume semantics
+remain unresolved because CPython rewrites those headers during serialization.
+
+The final corrected test-only snapshot supersedes the 58-case snapshot above.
+Its local JUnit records 67 tests, 67 AssertionError failures, zero errors and zero
+skips because both production boundaries are absent. The original forty selectors
+and forty-eight assertion AST nodes remain unchanged, as does the accepted mapping.
+No new owner acceptance is asserted.
+
+A disposable copy of published implementation `7a1abb75` first reproduces eight
+failing cases for two causes and then two additional archive failures. The
+minimal encoding, policy-binding and archive comparison patch passes all 67
+corrected tests locally. This is prospective patch evidence in a disposable copy,
+not implementation restoration to the test-only branch or hosted Requirements
+GREEN. No protected artifact, native Windows result or complete new matrix is
+claimed. The old published native matrix ended with 18 successful cells and three
+Windows failures; its aggregate correctly fails.
+
+Local artifacts are retained under `/private/tmp/core774-root-causes/`:
+`test-only-67-red.xml`, `old-implementation-red.xml`, `zip-metadata-red.xml`,
+`newline-red.xml`, and `candidate-final-green.xml`, with their matching logs.
+Publication awaits a decision on a fresh test-first successor PR. The existing
+Requirements workflow searches only the same head branch, and production already
+occurs in #774 history. No history rewrite, merge, retarget, policy exclusion or
+reuse of a stale hosted receipt is authorized.
+
+The final normal unmodified pre-commit run passes. SpecFact reports `PASS` with
+zero findings at all severities. Two supplemental test names were made specific.
+The analyzer's initial missing pytest types were resolved by preparing `.venv`
+from exact `requirements/ci/locked.txt`, without changing dependency inputs. The
+released Requirements validator passes at `test-authored` maturity. Contract
+execution was skipped by the native hook because its input status was unchanged;
+no new contract execution is claimed. Scoped type checks and strict OpenSpec pass.
