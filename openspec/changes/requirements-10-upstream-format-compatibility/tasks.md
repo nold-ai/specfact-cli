@@ -6,7 +6,7 @@ All tasks are future implementation. This planning PR completes no runtime task 
 
 - [ ] 1.1 Create a dedicated issue-linked worktree from current origin/dev; refresh cache and verify parent, labels, assignee, project, blockers and no concurrent In Progress owner.
 - [ ] 1.2 Verify exact released prerequisites and compatibility; refine only owner-authorized deltas against current code and paired public proposal.
-- [ ] 1.3 Verify the `requirements-04-upstream-source-readiness` (#648) shared importer/readiness prerequisite and extend that existing capability without duplicating its persistence boundary. Finalize optional versioned contracts, source identities, offline behavior and unsupported-input diagnostics in the specs.
+- [ ] 1.3 Verify the `requirements-04-upstream-source-readiness` (#648) shared importer/readiness prerequisite. Keep `upstream-format-compatibility` separate and consume the base capability's atomic readiness results, structured diagnostics and source preservation without redefining them. Finalize optional versioned contracts, source identities, offline behavior and unsupported-input diagnostics in the specs.
 
 ## 2. Tests before implementation
 
@@ -30,4 +30,4 @@ All tasks are future implementation. This planning PR completes no runtime task 
 
 - [ ] 5.1 For runtime changes, bump the owning release per semver, update compatibility/changelog and verify signatures and payload identities; this planning-only change bumps nothing.
 - [ ] 5.2 Publish through the canonical reviewed signed release path, exercise the exact installed compatible pair and document rollback before downstream adoption.
-- [ ] 5.3 Submit the implementation PR to dev, reconcile issue/project state and paired source tracking, and archive the completed change with openspec archive only after actual delivery.
+- [ ] 5.3 Submit the implementation PR to dev, reconcile issue/project state and paired source tracking, and archive the completed change with openspec archive only after actual delivery and after `requirements-04-upstream-source-readiness` has been archived into the canonical `openspec-speckit-evidence-adapter` spec.

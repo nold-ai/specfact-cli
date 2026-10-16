@@ -2,6 +2,8 @@
 
 ### Requirement: Pinned upstream artifact profiles
 
+The `upstream-format-compatibility` capability SHALL consume the existing `openspec-speckit-evidence-adapter` [native source readiness requirement](../../../requirements-04-upstream-source-readiness/specs/openspec-speckit-evidence-adapter/spec.md) from `requirements-04-upstream-source-readiness` (#648). That prerequisite SHALL be integrated before implementation and archived into the canonical base capability before this separate capability is archived. Effective-profile recognition SHALL preserve the base contract's zero-record error results, structured diagnostics and byte-for-byte source preservation.
+
 The adapter SHALL test pinned Spec Kit v1.1.0 fixtures alongside retained v0.12.18 and supported OpenSpec fixtures. Fixture metadata SHALL identify upstream tag/commit, artifact paths and content digests. Support SHALL be evaluated from the effective artifact profile, including enabled known extensions and template resolution, rather than inferred from Markdown or a claimed CLI version. The supported profile allowlist SHALL be explicit and versioned; unknown or unsupported custom profiles SHALL be rejected with an actionable diagnostic.
 
 #### Scenario: Legacy input remains supported
@@ -18,7 +20,7 @@ The adapter SHALL test pinned Spec Kit v1.1.0 fixtures alongside retained v0.12.
 
 ### Requirement: Extension coexistence and atomic import
 
-A supported SpecFact extension that only adds invocation hooks SHALL NOT by its presence invalidate a supported native artifact profile. An extension that alters artifact templates SHALL require a tested effective profile. Import and readiness validation SHALL complete before persistence; any profile, parse or readiness failure SHALL leave existing imported state unchanged. Import SHALL remain offline and SHALL NOT execute upstream scripts, fetch templates or rewrite upstream inputs.
+A supported SpecFact extension that only adds invocation hooks SHALL NOT by its presence invalidate a supported native artifact profile. An extension that alters artifact templates SHALL require a tested effective profile. The caller SHALL consume the base capability's readiness result and complete profile and parse validation before persistence; any profile, parse or readiness failure SHALL leave existing imported state unchanged. Import SHALL remain offline and SHALL NOT execute upstream scripts, fetch templates or rewrite upstream inputs.
 
 #### Scenario: SpecFact invocation extension coexists
 
@@ -30,4 +32,5 @@ A supported SpecFact extension that only adds invocation hooks SHALL NOT by its 
 
 - **GIVEN** previously persisted requirements and a mixed valid/invalid new input
 - **WHEN** profile, parse or readiness validation fails
-- **THEN** no partial replacement or new persisted artifact is produced and the original bytes remain unchanged.
+- **THEN** the base readiness contract still returns zero records on any readiness error with its structured diagnostic
+- **AND** no partial replacement or new persisted artifact is produced and the original bytes remain unchanged.
