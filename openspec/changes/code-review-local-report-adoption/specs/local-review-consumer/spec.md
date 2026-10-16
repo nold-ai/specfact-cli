@@ -53,13 +53,20 @@ Core SHALL consume producer assurance and completeness independently of score an
 
 ### Requirement: Separate installed CLI and project runtime
 
-Core SHALL preserve externally installed CLI and project Python separation, supported installation tooling, signed compatibility, and project-runtime descriptor semantics. Once required signed artifacts and execution prerequisites are provisioned and locally verified, ordinary local review SHALL run without requiring network access.
+Core SHALL preserve externally installed CLI and project Python separation, supported installation tooling, signed compatibility, and project-runtime descriptor semantics. Ordinary local invocation SHALL use the project-aware local runner without capsule acquisition or execution. Once required signed artifacts and execution prerequisites are provisioned and locally verified, ordinary local review SHALL run without requiring network access.
 
 #### Scenario: Run an externally installed CLI
 
 - **GIVEN** a supported signed core/module pair installed by pipx, uv tool, or uvx and a different project Python
 - **WHEN** ordinary local review runs
 - **THEN** core loads the compatible module while modules resolve the trusted project runtime without injecting dependencies into the project environment
+
+#### Scenario: Run ordinary local review without capsules
+
+- **GIVEN** a supported externally installed signed CLI/module pair, a selected project environment and no capsule runtime, catalog or acquisition service
+- **WHEN** the customer invokes ordinary trusted local review
+- **THEN** core invokes the project-aware local runner and selected checks execute without capsule provisioning, a sandbox broker or a legacy host orchestrator
+- **AND** protected and C15 consumers retain their separately governed contracts
 
 #### Scenario: Run from verified local artifacts offline
 

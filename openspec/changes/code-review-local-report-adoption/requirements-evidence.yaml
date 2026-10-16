@@ -86,6 +86,13 @@ requirements:
           then core loads the compatible module while modules resolve the trusted project runtime without injecting
           dependencies into the project environment.'
         observable: The planned spec retains this scenario; no runtime or test maturity is claimed.
+      - case_id: LOCAL-RUN-WITHOUT-CAPSULES
+        scenario_id: separate-installed-cli-and-project-runtime
+        method: inspection
+        intent: 'Inspect planned scenario: Run ordinary local review without capsules. The installed local workflow
+          executes selected checks without capsule provisioning, a sandbox broker or the legacy host orchestrator;
+          protected and C15 contracts remain separate.'
+        observable: The planned spec requires the ordinary local runner; no runtime or test maturity is claimed.
       - case_id: LOCAL-ARTIFACTS-OFFLINE
         scenario_id: separate-installed-cli-and-project-runtime
         method: inspection

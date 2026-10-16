@@ -20,7 +20,7 @@ The customer CLI may run in pipx, uv tool, or uvx while project Python differs. 
 
 After provisioning, exercise ordinary local review with networking disabled and valid locally verified signed modules, the selected project environment and all selected check tools available. Loading must not require fresh registry or package-index access. Missing or invalid local prerequisites retain their normal nonaccepting diagnostics; this does not promise cold offline installation or dependency bootstrap. Modules #516 owns release-level offline acceptance as part of the installed workflow.
 
-`--project-runtime` denotes a descriptor contract. Do not reinterpret it as an interpreter path. Modules resolve project execution using their descriptor and project discovery contracts. Core forwards only supported declared inputs.
+`--project-runtime` denotes a descriptor contract. Do not reinterpret it as an interpreter path. Modules resolve project execution using their descriptor and project discovery contracts. Core forwards only supported declared inputs. Ordinary invocation must execute the project-aware local runner with capsule acquisition/runtime, sandbox brokers and the legacy host orchestrator absent; protected/C15 contracts remain separate.
 
 ## Rollout and risks
 
