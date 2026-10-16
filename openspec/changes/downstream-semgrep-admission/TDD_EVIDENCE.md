@@ -43,11 +43,42 @@ not seven-platform proof or protected producer admission.
 
 ## Pending
 
-- Signed authored-test commit and exact commit-bound RED retention.
-- Final build/admission GREEN and independent review.
+- All 21 native platform/Python cells are still pending; no matrix acceptance is claimed.
+- Final independent review and signed implementation remain pending.
 - All 21 real platform/Python cells, including full SAST and MCP evidence.
 - Normal native/FULL, quality, dependency/provider trust and signature gates.
 - Protected producer bootstrap and separately reviewed production adoption.
 
 No production pin, existing audit/floor or trusted provider has been changed. The
 existing frozen MCP audit remains a release blocker. No merge is authorized.
+
+## Signed test snapshot and local GREEN
+
+Signed authored-test commit `4a1afa902a5dc62990e60cde00a4b45b4e78abea`
+was exported into a separate snapshot before the implementation commit. Its real
+JUnit run records 40 AssertionError failures, zero errors and zero skips.
+The corresponding current implementation run records 40 passes.
+
+Independent security review reproduced two defects in the first implementation.
+The audit parser rejected pip-audit's exact clean diagnostic, and Python JSON
+accepted nonstandard numeric constants. Regression assertions failed before each
+fix. The corrected boundary permits only the exact clean diagnostic and rejects
+NaN and both infinities. A later actual failing assertion showed that dirty or
+mixed-source matrix reports were accepted. Those reports now fail; production
+admission also binds the matrix source commit to the protected approval.
+
+The unchanged FULL review on 2026-10-16 at 23:21 Europe/Berlin passed with score
+95, zero errors, ten documented warnings and one retained readability advisory.
+Canonical BasedPyright analyzed 704 files with zero errors and 1456 existing
+warnings. None of its diagnostics concern this change. Strict selected OpenSpec,
+Ruff and `uv lock --check` pass. Normal implementation hooks remain pending.
+`REVIEW_EXCEPTIONS.md` identifies the narrow preinstallation and external-signature
+exceptions. It does not alter the review scorer or any trust gate.
+
+The real macOS arm64 Python 3.13 candidate environment passes all eleven MCP
+regressions after fixture extraction. The vulnerable MCP 1.29.0 control fails
+eight lifecycle/default assertions with zero errors. Actual default SAST runs
+scan 306 files with identical candidate/control findings, errors and path sets.
+Both unchanged baseline gates pass; positive and negative controls exit one and
+zero respectively. These are dirty-source local experiments, not eligible
+committed matrix evidence. All raw failed attempts remain retained locally.

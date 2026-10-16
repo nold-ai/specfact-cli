@@ -197,3 +197,18 @@ inventory; unsupported markers/options reject rather than being guessed. Bound
 result reconciliation rejects every unknown, skipped, missing, duplicate,
 malformed, vulnerable or nonzero result. This operation is not wired into normal
 frozen delivery until independently protected artifact adoption is available.
+
+## Candidate audit verification interface
+
+The root architect accepted a candidate-only audit method after the real native
+harness showed it needed shared exact graph reconciliation without fabricating an
+admitted object. `CandidateWheel.candidate_audit_input` uses the same private
+binding renderer and returns an audit report labeled
+`production_admission: not_requested`. It cannot construct an admitted artifact.
+A failing assertion in the existing mapped complete-audit case preceded this
+extension; the exact owner-accepted mapping remains unchanged.
+
+`build_runtime_digest` binds the explicit runtime-policy JSON in the production
+recipe. It does not claim to identify 21 different interpreter executables.
+Each cell separately records its actual executable, tool hash and runtime details;
+the complete matrix and recipe hashes are bound by protected approval.

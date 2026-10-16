@@ -1,0 +1,8 @@
+utc	phase	decision	why	evidence	result
+2026-10-16	acceptance	Record exact human mapping83f12bcec0ff756681c2cc1188c431fce1327e6d3371fae6bc4df4bf1ddd8425	Distinct owner approval received	owner-acceptance.json	Accepted mapping;21nativecells pending
+2026-10-16	TDD	Retain signed test snapshot4a1afa90 RED	Bind failing evidence to actual signed authored commit	signed-authored-red.xml	40AssertionErrors0errors0skips
+2026-10-16	review	Fix audit diagnostic and nonstandard JSON parsing	Independently reproduced failures	core-security-review.md;strict-json-red.log	40mappedcasesPASS
+2026-10-16	matrix	Reject dirty/mixed source reports and bind approved source	Prevent stale source evidence admission	matrix-source-binding-red.log;source-binding-green.log	40mappedcasesPASS
+2026-10-16	SAST	Use unchanged default repository scan and baselinegate	Initial src-only probe insufficient	full-default-sast-proof-2/result.json	306scanned exactcandidate/controlparity;bothbaselinePASS
+2026-10-16	bootstrap	Use official hash-pinned PyPI uv wheels in musl	OCI attestation verification failed; no unverifiable image execution	uv-image-attestation.log;uv-musl-wheels.json	Originalfailure retained;2officialhashes recipepinned
+2026-10-16	review	Document narrow stdlib preinstall/externalprotocol exceptions	No thirdparty before trust/no fake decorators	REVIEW_EXCEPTIONS.md	Scorer/checkers unchanged
