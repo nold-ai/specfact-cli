@@ -30,6 +30,14 @@ requirements:
           required report data; when the consumer parses the report; then it rejects the input without claiming
           successful assurance.'
         observable: The planned spec retains this scenario; no runtime or test maturity is claimed.
+      - case_id: LOCAL-PRESERVE-SEPARATE-C15-DISPATCH
+        scenario_id: explicit-report-schema-dispatch
+        method: inspection
+        intent: 'Inspect planned scenario: Preserve separate C15 dispatch. A consumer governed by C15 retains schema
+          1.7 dispatch and enforcement until a separately authorized retirement; local adoption neither enables
+          C15 nor changes its acceptance.'
+        observable: The planned spec retains separate C15 dispatch and ownership; no runtime or test maturity is
+          claimed.
   openspec:code-review-local-report-adoption:local-review-consumer:preserve-authoritative-local-truth:
     rationale: Plan ordinary trusted-local report adoption without claiming implementation.
     stakeholder_refs:

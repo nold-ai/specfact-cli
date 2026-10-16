@@ -8,7 +8,7 @@ Reuse ordinary invocation and existing module verification first. Adapt their na
 
 ## Report boundary
 
-Use a small validated, version-discriminated report input at existing consumers. Schema 2.0 dispatch selects the modules #515 contract. Historical 1.6 dispatch is restricted to consumers with supported 1.6 semantics. Reject unknown major versions and malformed required fields before summarizing success. Any current or future helper using a numeric `>=1.6` test must not classify 2.0 as 1.6.
+Use a small validated, version-discriminated report input at existing consumers. Schema 2.0 dispatch selects the modules #515 contract. Historical 1.6 dispatch is restricted to consumers with supported 1.6 semantics. Consumers governed by C15 retain explicit schema 1.7 dispatch and its enforcement until a separately authorized C15 retirement. This adoption neither enables C15 nor changes its owners, prerequisites or acceptance. Reject unknown major versions and malformed required fields before summarizing success. Any current or future helper using a numeric `>=1.6` test must not classify 2.0 as 1.6.
 
 Read the producer's authoritative assurance status and completeness, preserving failure and uncertainty in the summary and machine output. Score, fixability, and missing findings cannot replace assurance. Shadow mode changes blocking policy only. It retains adverse evidence and does not print a successful assurance claim for an incomplete report. Reconcile process exit and report according to the released producer contract; contradictory evidence cannot become success.
 
@@ -22,7 +22,7 @@ The customer CLI may run in pipx, uv tool, or uvx while project Python differs. 
 
 ## Rollout and risks
 
-First prove one real installed local review workflow. Then cover pipx, uv tool, and uvx with exact signed module/core identities and project interpreters recorded in acceptance evidence. Apply schema dispatch before replacing ordinary invocation. Retain security and signature gates, including independent modules #511 and core #719/#718 work.
+First prove one real installed local review workflow. Then collect core consumer-compatibility preflight evidence for pipx, uv tool, and uvx with exact signed module/core identities and project interpreters. Modules #516 owns release-level installed acceptance and its full manager/platform matrix; core supplies the compatibility handoff rather than duplicating that release authority. Apply schema dispatch before replacing ordinary invocation. Retain security and signature gates, including independent modules #511 and core #719/#718 work.
 
 Schema confusion can falsely report success. Mitigate with unsupported-major and contradictory-report cases. Installation drift can hide dependency mistakes. Mitigate with clean external environments, including uvx without pip. Trusted project tools can execute repository code. Document that trust boundary and keep protected credentials and attestation claims outside this workflow.
 
