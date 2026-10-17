@@ -143,6 +143,39 @@ def test_explicit_module_roots_take_priority_over_user_installs(
     assert sources["code-review"] == "custom"
 
 
+def test_exclusive_module_roots_reject_project_and_user_shadowing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Trusted fixture discovery must ignore every non-bundled implicit root."""
+    repo_root = tmp_path / "repo"
+    project_root = repo_root / ".specfact" / "modules"
+    builtin_root = tmp_path / "builtin"
+    explicit_root = tmp_path / "verified-fixture" / "packages"
+    user_root = tmp_path / "user-modules"
+    marketplace_root = tmp_path / "marketplace-modules"
+    custom_root = tmp_path / "custom-modules"
+    _write_manifest(builtin_root, "init")
+    for untrusted_root in (project_root, user_root, marketplace_root, custom_root):
+        _write_manifest(untrusted_root, "nold-ai-specfact-requirements")
+    _write_manifest(explicit_root, "nold-ai-specfact-requirements")
+    monkeypatch.chdir(repo_root)
+    monkeypatch.setenv("SPECFACT_MODULES_ROOTS", str(explicit_root))
+    monkeypatch.setenv("SPECFACT_MODULES_EXCLUSIVE", "1")
+
+    discovered = discover_all_modules(
+        builtin_root=builtin_root,
+        user_root=user_root,
+        marketplace_root=marketplace_root,
+        custom_root=custom_root,
+        include_legacy_roots=True,
+    )
+
+    assert [(entry.metadata.name, entry.source) for entry in discovered] == [
+        ("init", "builtin"),
+        ("nold-ai-specfact-requirements", "custom"),
+    ]
+
+
 def test_project_shadow_warning_is_actionable_and_emitted_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Project-over-user shadow guidance should be user-facing but deduplicated per process."""
     repo_root = tmp_path / "repo"
