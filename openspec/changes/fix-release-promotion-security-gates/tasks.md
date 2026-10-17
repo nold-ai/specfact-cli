@@ -15,6 +15,7 @@
 - [x] 2.5 Add one mapped review-amendment cycle for the remaining P1/P2 findings and retain its exact RED artifact.
 - [x] 2.6 Add a mapped namespace-scope regression for the final release-PR provenance finding and record its failing-before result before implementation.
 - [x] 2.7 Add mapped malformed-license-scope and module-release-publication regressions and record their failing-before results.
+- [x] 2.8 Add a fresh-verifier module-discovery confinement scenario and workflow regression before changing the launchers.
 
 ## 3. Minimal implementation
 
@@ -33,6 +34,7 @@
 - [x] 3.13 Restrict literal `pytest_plugins` discovery to module bindings while retaining explicit-global assignments.
 - [x] 3.14 Reject non-string license scopes through the stable diagnostic path.
 - [x] 3.15 Publish and checksum-verify tag-qualified bundled module release assets before updating snapshot metadata.
+- [x] 3.16 Confine fresh Requirements and Code Review CLI launchers to verifier-owned implicit module roots.
 
 ## 4. Passing evidence and review
 
@@ -49,6 +51,7 @@
 - [x] 4.11 Normalize parameterized Requirements selectors, recover the final definition-time plugin RED proof, and restore the PR #704 late-RED path.
 - [x] 4.12 Bind parameter values to stable exact selectors, recover their immutable RED proof, and preserve independent per-case reconciliation.
 - [x] 4.13 Authenticate bundled-module publication inputs before execution, recover the mapped immutable RED proof, and close the final release-workflow review finding.
+- [x] 4.14 Re-run focused workflow contracts and applicable delivery gates after module-discovery confinement.
 
 ## 5. Release and delivery
 
@@ -56,3 +59,4 @@
 - [ ] 5.2 Push the signed linear commits, create the issue-linked PR to `dev`, and verify the trusted workflow fails without and passes only with the exact authority comment.
 - [ ] 5.3 Merge only under repository policy, then promote and verify the `v0.55.4` GitHub/PyPI release.
 - [ ] 5.4 Refresh PR #685 security status, close superseded PR #698 with evidence, close completed issues, and report the exact C14 baseline commit/tag.
+- [ ] 5.5 Follow up in the internal checkout by updating `wiki/sources/fix-release-promotion-security-gates.md` and running `python3 scripts/wiki_rebuild_graph.py` (checkout unavailable in this worktree).
