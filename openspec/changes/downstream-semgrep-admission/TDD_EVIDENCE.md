@@ -232,3 +232,18 @@ The native hook skipped contract execution because its input-status check
 reported no changes. No new contract execution is claimed. Native matrix,
 independent hosted checks, protected producer bootstrap and production adoption
 remain incomplete. Local passing gates do not make this PR merge-ready.
+
+## Isolated review regressions on 2026-10-18
+
+A new supplemental test file isolates clean JSON with a nonzero audit exit for
+both candidate and admitted bindings. Four archive mutations preserve unrelated
+ZipInfo fields and contents, regenerate valid RECORD entries and assert the
+intended payload or mode change. A byte-identical no-op rewrite remains valid.
+
+All seven cases pass against published implementation `14b97265`. Disposable
+source mutants that ignore the audit exit or permit each targeted archive mutation
+are rejected by their corresponding cases. The original mapped tests, mapping,
+acceptance record, production files and imported test support remain unchanged.
+This supplemental coverage does not resolve the separate Requirements mapping
+gap for runtime-policy binding and UTF-8 evidence. No new hosted RED or native
+platform acceptance is claimed for these seven cases.
