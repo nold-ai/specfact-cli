@@ -248,3 +248,81 @@ new RED source freeze. The retained workflow still yields two assertion failures
 the disposable prospective patch yields two passes. Mapped 85-case local RED and
 accepted/test-authored validation were refreshed after these edits. Full normal
 hooks and final independent review remain publication gates.
+
+## Authenticated expanded hosted RED before implementation, 2026-10-18
+
+Active successor PR #776 published signed test-only commit
+`6e05f92a05b051cddf311ff6a07dcdfa00d9eba6`, tree
+`1747c90d18590106faecdd70ad4d4635ba46cc16`. Full normal and signed commit hooks
+passed. Actual SpecFact review reported PASS with zero findings. A fresh independent
+review approved the exact staged bytes. Native contract execution was skipped for
+unchanged inputs; no new contract execution is claimed.
+
+[Requirements run 39168987596](https://github.com/nold-ai/specfact-cli/actions/runs/39168987596)
+produced artifact `12151776758` on this same head branch. The GitHub service ZIP
+SHA-256 is `69c5fcbcd14c1a6b7bc24d908bb4e6d2399e237325df6205b5733045addaeee5`.
+All 85 accepted selectors produced AssertionError failures with zero errors and
+zero skips. Native reconciliation reports `gate_decision=pass` and
+`observed_maturity=red`, with aggregate mapping
+`sha256:5ca313a14b492010da58bfa39e3b6ac59ebacd9ca8713a69a3d6ea273c212380`
+and plan `sha256:76e1abbf563d0b1a9ddf528e5d36ca0a4990036e906a1660e528bdd45c8826ee`.
+The source mapping remains the exact owner-accepted 85-case mapping above.
+
+The archive digest, API run/head identity, JUnit digest and selector set, committed
+test blob digests, source tree and merge base were checked directly. The unchanged
+native producer binding verifier returned zero on a disposable copy and reproduced
+the original bound JSON exactly. Production implementation was still absent at
+this verification. Raw archive, API metadata, XML, JSON and local binding results
+are retained in the durable `hosted-red-39168987596` artifact directory. The public
+receipt is `requirements-proof/hosted-red-85-receipt.json`.
+
+Only after those checks, PR #775 closed unmerged as superseded. Its historical
+40-case proof and review history remain attached to that PR. The retained
+implementation was then restored, followed by the reviewed Windows checkout and
+bound-input trigger corrections. Runtime-report boundary implementation follows
+this new hosted RED. The frozen selected tests, imported fixture bytes, mapping
+and owner acceptance are preserved. Native matrix acceptance, protected producer
+bootstrap, production adoption, current-head review and final authority remain
+separate unfinished obligations. A red workflow alone never supplies them.
+
+## Post-RED local implementation checks
+
+All 85 mapped cases and the separate 28 native-schema regressions pass locally,
+113 total, after implementation. Canonical scoped type checking reports zero
+errors, warnings and notes; Ruff lint and formatting pass. Actual pinned-fixture
+SpecFact review of the two boundary scripts reports PASS_WITH_ADVISORY with the
+nine retained preinstallation MISSING_ICONTRACT warnings and no new findings.
+The published predecessor dispositions remain limited to their original scope.
+No rule, threshold or scorer was changed.
+
+The shared validator also accepts the shapes of all 21 unchanged actual retained
+native reports from run `39164616971`. Their aggregate still rejects the historical
+Windows recipe-byte mismatch with `Cell input binding differs`. This replay is
+schema compatibility evidence only. It neither reruns native cells nor supplies
+a passing matrix for the new source. Raw reports were not edited.
+
+The Windows-only pre-checkout Git setting and PR input paths now satisfy the two
+frozen workflow regressions. The driver and aggregate use the same private pure
+runtime and command validators. Expected nonzero control exits and valid producer
+formats remain accepted. Full staged hooks, independent review, current-head
+hosted native evidence and final authority remain separate publication gates.
+
+## Supplemental binding coverage from current review
+
+Current-head review identified untested paths in the protected-policy loader and
+matrix hash bindings. Direct source inspection confirmed those guards already
+exist. The new `test_downstream_semgrep_binding_guards.py` exercises them without
+changing production code, the selected 85 tests, imported fixtures, mapping or
+owner acceptance. Its 18 supplemental cases pass on the existing implementation;
+the combined focused selection passes 131 cases.
+
+Nine disposable guard-removal mutations cause the expected rejection tests to
+fail with `DID NOT RAISE ValueError`. This establishes regression sensitivity.
+It is not a claim that these new tests preceded the retained implementation or
+that another hosted RED occurred. Tests mock only external API process responses
+when exercising the real protected-policy loader. Local and mutable policy
+substitutions, recipe/upstream/candidate hash damage, and disagreement between
+Python cells are covered. Ruff, canonical types and actual SpecFact review of
+this test file pass with zero findings. Commands, source integrity and mutation
+patches/results are retained under `expanded-proof/binding-review-regressions`.
+These supplemental cases do not expand or replace the authoritative 85-case plan.

@@ -19,10 +19,10 @@
 - [ ] 3.3 Run normal quality, native/FULL, signature and dependency trust gates.
 - [ ] 3.4 Publish a separate signed PR with exact status and proof limitations.
 - [ ] 3.5 Retain production adoption as blocked until authenticated protected evidence exists.
-- [ ] 3.6 Synchronize `wiki/sources/downstream-semgrep-admission.md` summary, status,
+- [x] 3.6 Synchronize `wiki/sources/downstream-semgrep-admission.md` summary, status,
   depends-on, blocks and external-deps, then run `python3 scripts/wiki_rebuild_graph.py`
-  from the `specfact-cli-internal` repository root. This follow-up remains
-  unchecked. Track the Codex review thread at <https://github.com/nold-ai/specfact-cli/pull/774#discussion_r4299598187>.
+  from the `specfact-cli-internal` repository root. The scoped mirror and graph
+  are aligned; health remains 62 errors before and after. Historical review thread at <https://github.com/nold-ai/specfact-cli/pull/774#discussion_r4299598187>.
 
 No merge, release publication or main promotion is included. Do not archive an
 unmerged or incomplete change.
@@ -31,8 +31,8 @@ unmerged or incomplete change.
 
 - [x] 4.1 Record exact owner acceptance of the 85-case mapping and successor sequence.
 - [x] 4.2 Author faithful native fixtures and supplementary schema regressions before RED.
-- [ ] 4.3 Publish the signed test-only successor and authenticate its same-branch 85-case hosted RED.
-- [ ] 4.4 Only after 4.3, restore implementation and complete checkout, trigger and report-schema corrections.
+- [x] 4.3 Publish the signed test-only successor and authenticate its same-branch 85-case hosted RED.
+- [x] 4.4 Only after 4.3, restore implementation and complete checkout, trigger and report-schema corrections.
 - [ ] 4.5 Complete current-head review, native matrix, security, signing and authority gates before merge readiness.
 
 Historical 40-case RED remains attached to its original source and plan. It does
