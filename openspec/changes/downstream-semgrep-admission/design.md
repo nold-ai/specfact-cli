@@ -22,12 +22,11 @@ artifacts may be retained by CI but are never protected producer evidence.
 PR validation caller (unprivileged, disposable environment):
 
 ```python
-from downstream_semgrep import build_candidate, validate_candidate
+from downstream_semgrep import build_candidate, verify_candidate
 
 candidate = build_candidate(recipe_path, upstream_wheel, output_directory)
-report = verify_candidate(recipe_path, upstream_wheel, candidate.path)
-assert report.functional_checks_passed
-# report.production_admission is always "not_requested"; not an admission token.
+verified = verify_candidate(recipe_path, upstream_wheel, candidate.path)
+assert verified.sha256 == candidate.sha256
 ```
 
 Production setup caller, before any project dependency installation:
@@ -197,3 +196,32 @@ inventory; unsupported markers/options reject rather than being guessed. Bound
 result reconciliation rejects every unknown, skipped, missing, duplicate,
 malformed, vulnerable or nonzero result. This operation is not wired into normal
 frozen delivery until independently protected artifact adoption is available.
+
+## Candidate audit verification interface
+
+`CandidateWheel.candidate_audit_input` uses the existing exact graph binding
+renderer and labels its report `production_admission: not_requested`. The native
+candidate harness can therefore validate its actual installed graph without
+constructing a production-admitted object. Production admissions remain empty.
+
+`build_runtime_digest` binds canonical sorted compact JSON for the actual
+`build_runtime_policy` object. It does not identify 21 interpreter executables.
+Each cell separately records actual executable, tool hashes and runtime details.
+
+## Complete canonical archive boundary, 2026-10-18
+
+The builder and verifier share one private canonical ZIP writer. Verification
+retains member-set, payload and RECORD diagnostics, then requires the complete
+serialized candidate to match the writer's expected representation. The writer
+uses the existing sorted members, ZIP_STORED policy and empty archive comment.
+It copies each ZipInfo before serialization because CPython mutates those values.
+The verifier derives normalized flags and volume from actual writer output,
+rather than comparing them with raw upstream fields. Unauthorized local headers,
+ordering, comments, gaps or trailing bytes cannot escape a metadata allowlist.
+
+The expected output uses a seekable temporary file instead of another whole
+archive in memory. Independent serialized mutations cover omitted header fields
+and archive-level changes. A valid upstream normalization case guards legitimate
+writer behavior. Native cross-runtime and platform acceptance remains required;
+sharing the writer does not claim that the full matrix has passed. No recipe,
+public API, dependency or trusted gate changes are part of this correction.

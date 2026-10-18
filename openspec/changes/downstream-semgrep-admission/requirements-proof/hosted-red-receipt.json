@@ -1,0 +1,21 @@
+{
+  "schema_version": "1",
+  "purpose": "Read-only receipt of authenticated hosted failing-first evidence; not production admission",
+  "pull_request": "https://github.com/nold-ai/specfact-cli/pull/775",
+  "run_url": "https://github.com/nold-ai/specfact-cli/actions/runs/39162475090",
+  "pr": 775,
+  "run_id": 39162475090,
+  "artifact_id": 12148859551,
+  "service_zip_digest": "sha256:c67d2a8e0736279967474f7ee5de5f4c0f298183c7dfd0061ab5e06a327594e9",
+  "source_commit": "398235137d1a3c2634991cc77feb237eebd86a9d",
+  "source_tree": "ca5315fb1c3180bd26c4f14dea8178fbdb44742b",
+  "base_commit": "729a53bd4bcbba94886cff5c73d7092bef6ceb94",
+  "selector_count": 40,
+  "assertion_failures": 40,
+  "errors": 0,
+  "skips": 0,
+  "native_red_verdict": "pass",
+  "native_binding_revalidation_exit": 0,
+  "existing_bindings_unchanged": true,
+  "implementation_still_absent": true
+}
