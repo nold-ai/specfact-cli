@@ -75,7 +75,26 @@ class Recipe(TypedDict):
     wheels: list[WheelEntry]
 
 
+class NativeRuntime(TypedDict):
+    system: str
+    machine: str
+    python_version: str
+    python_executable: str
+    sysconfig_platform: str
+    python_executable_sha256: str
+    libc: list[str]
+
+
+class CommandEvidence(TypedDict):
+    argv: list[str]
+    returncode: int
+    stdout_sha256: str
+    stderr_sha256: str
+
+
 class MatrixReport(TypedDict):
+    runtime: NativeRuntime
+    commands: list[CommandEvidence]
     source_commit: str
     source_dirty: bool
     platform: str
@@ -450,11 +469,48 @@ def test_matrix_requires_all_seven_platforms_and_three_interpreters(wheel_recipe
     }
 
 
+def _synthetic_runtime(platform: str, python: str) -> NativeRuntime:
+    system, machine, sysconfig_platform, libc = {
+        "macosx_10_14_x86_64": ("Darwin", "x86_64", "macosx-10.9-universal2", ["", ""]),
+        "macosx_11_0_arm64": ("Darwin", "arm64", "macosx-10.9-universal2", ["", ""]),
+        "manylinux_2_34_x86_64": ("Linux", "x86_64", "linux-x86_64", ["glibc", "2.39"]),
+        "manylinux_2_34_aarch64": ("Linux", "aarch64", "linux-aarch64", ["glibc", "2.39"]),
+        "musllinux_1_2_x86_64": ("Linux", "x86_64", "linux-x86_64", ["musl", "Version 1.2"]),
+        "musllinux_1_2_aarch64": ("Linux", "aarch64", "linux-aarch64", ["musl", "Version 1.2"]),
+        "win_amd64": ("Windows", "AMD64", "win-amd64", ["", ""]),
+    }[platform]
+    return {
+        "system": system,
+        "machine": machine,
+        "python_version": f"{python}.9",
+        "python_executable": "C:/synthetic/python.exe" if system == "Windows" else "/synthetic/bin/python",
+        "sysconfig_platform": sysconfig_platform,
+        "python_executable_sha256": _sha(f"synthetic interpreter {platform} {python}".encode()),
+        "libc": libc,
+    }
+
+
 def _reports(recipe_path: Path, recipe: Recipe) -> list[MatrixReport]:
+    """Build deterministic synthetic evidence, never native execution or provenance."""
     return [
         {
             "platform": wheel["platform_tag"],
             "python_version": python,
+            "runtime": _synthetic_runtime(wheel["platform_tag"], python),
+            "commands": [
+                {
+                    "argv": ["synthetic-python", "-m", "pip", "check"],
+                    "returncode": 0,
+                    "stdout_sha256": _sha(b"synthetic pip check output"),
+                    "stderr_sha256": _sha(b""),
+                },
+                {
+                    "argv": ["synthetic-python", "-m", "pip_audit"],
+                    "returncode": 1,
+                    "stdout_sha256": _sha(b"synthetic expected control vulnerability"),
+                    "stderr_sha256": _sha(b""),
+                },
+            ],
             "candidate_sha256": "c" * 64,
             "upstream_sha256": wheel["upstream_sha256"],
             "recipe_sha256": _sha(recipe_path.read_bytes()),

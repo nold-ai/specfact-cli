@@ -144,6 +144,196 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_downstream_semgrep.py::test_unreviewed_downstream_identity_rejects[below-floor]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-16
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_serialized_archive_changes[utf8-flag]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_archive_boundaries.py::test_candidate_rejects_serialized_archive_changes[utf8-flag]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-17
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_serialized_archive_changes[volume]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_archive_boundaries.py::test_candidate_rejects_serialized_archive_changes[volume]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-18
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_serialized_archive_changes[extract-version]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_archive_boundaries.py::test_candidate_rejects_serialized_archive_changes[extract-version]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-19
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_serialized_archive_changes[archive-comment]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_archive_boundaries.py::test_candidate_rejects_serialized_archive_changes[archive-comment]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-20
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_serialized_archive_changes[local-header-only]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_archive_boundaries.py::test_candidate_rejects_serialized_archive_changes[local-header-only]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-21
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_serialized_archive_changes[trailing-bytes]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_archive_boundaries.py::test_candidate_rejects_serialized_archive_changes[trailing-bytes]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-22
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_serialized_archive_changes[prefix]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_archive_boundaries.py::test_candidate_rejects_serialized_archive_changes[prefix]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-23
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_serialized_archive_changes[central-order]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_archive_boundaries.py::test_candidate_rejects_serialized_archive_changes[central-order]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-24
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_upstream_utf8_flag_is_normalized_by_candidate_writer
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_archive_boundaries.py::test_upstream_utf8_flag_is_normalized_by_candidate_writer
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-25
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_one_isolated_mutation[runtime]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_isolated_feedback.py::test_candidate_rejects_one_isolated_mutation[runtime]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-26
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_one_isolated_mutation[mode]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_isolated_feedback.py::test_candidate_rejects_one_isolated_mutation[mode]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-27
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_one_isolated_mutation[entrypoint]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_isolated_feedback.py::test_candidate_rejects_one_isolated_mutation[entrypoint]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-28
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_one_isolated_mutation[metadata]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_isolated_feedback.py::test_candidate_rejects_one_isolated_mutation[metadata]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-29
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_accepts_noop_zip_rewrite
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_isolated_feedback.py::test_candidate_accepts_noop_zip_rewrite
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-30
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_preserved_member_header_changes[date-time]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_review_guards.py::test_candidate_rejects_preserved_member_header_changes[date-time]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-31
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_preserved_member_header_changes[internal-attr]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_review_guards.py::test_candidate_rejects_preserved_member_header_changes[internal-attr]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-32
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_preserved_member_header_changes[create-system]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_review_guards.py::test_candidate_rejects_preserved_member_header_changes[create-system]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-33
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_preserved_member_header_changes[extra]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_review_guards.py::test_candidate_rejects_preserved_member_header_changes[extra]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-34
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_preserved_member_header_changes[comment]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_review_guards.py::test_candidate_rejects_preserved_member_header_changes[comment]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-35
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_preserved_member_header_changes[compression]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_review_guards.py::test_candidate_rejects_preserved_member_header_changes[compression]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-36
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_preserved_member_header_changes[create-version]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_review_guards.py::test_candidate_rejects_preserved_member_header_changes[create-version]
+
   openspec:downstream-semgrep-admission:downstream-semgrep-admission:exact-protected-admission:
     rationale: Exact protected admission
     stakeholder_refs:
@@ -225,6 +415,52 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_downstream_semgrep.py::test_verifier_failure_cannot_turn_claims_into_admission[timeout]
+      - case_id: exact-protected-admission-supplemental-09
+        scenario_id: exact-protected-admission
+        method: test
+        intent: test_admission_pins_exact_attestation_identity
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_review_guards.py::test_admission_pins_exact_attestation_identity
+      - case_id: exact-protected-admission-supplemental-10
+        scenario_id: exact-protected-admission
+        method: test
+        intent: test_admission_rejects_approved_but_invalid_matrix[missing]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_review_guards.py::test_admission_rejects_approved_but_invalid_matrix[missing]
+      - case_id: exact-protected-admission-supplemental-11
+        scenario_id: exact-protected-admission
+        method: test
+        intent: test_admission_rejects_approved_but_invalid_matrix[duplicate]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_review_guards.py::test_admission_rejects_approved_but_invalid_matrix[duplicate]
+      - case_id: exact-protected-admission-supplemental-12
+        scenario_id: exact-protected-admission
+        method: test
+        intent: test_admission_rejects_approved_but_invalid_matrix[emulated]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_review_guards.py::test_admission_rejects_approved_but_invalid_matrix[emulated]
+      - case_id: exact-protected-admission-supplemental-13
+        scenario_id: exact-protected-admission
+        method: test
+        intent: test_admission_rejects_approved_but_invalid_matrix[failed-audit]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_review_guards.py::test_admission_rejects_approved_but_invalid_matrix[failed-audit]
+
   openspec:downstream-semgrep-admission:downstream-semgrep-admission:complete-vulnerability-identity-coverage:
     rationale: Complete vulnerability identity coverage
     stakeholder_refs:
@@ -324,6 +560,25 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_downstream_semgrep.py::test_bound_audit_rejects_unbound_inventory_before_writing_view[marker]
+      - case_id: complete-vulnerability-identity-coverage-supplemental-11
+        scenario_id: complete-vulnerability-identity-coverage
+        method: test
+        intent: test_clean_audit_json_with_nonzero_exit_rejects[candidate]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_isolated_feedback.py::test_clean_audit_json_with_nonzero_exit_rejects[candidate]
+      - case_id: complete-vulnerability-identity-coverage-supplemental-12
+        scenario_id: complete-vulnerability-identity-coverage
+        method: test
+        intent: test_clean_audit_json_with_nonzero_exit_rejects[admitted]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_isolated_feedback.py::test_clean_audit_json_with_nonzero_exit_rejects[admitted]
+
   openspec:downstream-semgrep-admission:downstream-semgrep-admission:complete-platform-and-mcp-behavioral-proof:
     rationale: Complete platform and mcp behavioral proof
     stakeholder_refs:
@@ -402,3 +657,156 @@ requirements:
         intent: Require separate real-package native matrix and MCP lifecycle evidence before adoption.
         observable: All 21 native cells must prove ordinary hashed installation, SAST controls and real idle/capacity/DELETE/refused-opening
           behavior. Synthetic unit reports do not supply this proof. Missing native evidence blocks adoption.
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-09
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: test_required_matrix_rejects_unbound_runtime_policy[mismatch]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_runtime_evidence.py::test_required_matrix_rejects_unbound_runtime_policy[mismatch]
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-10
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: test_required_matrix_rejects_unbound_runtime_policy[missing]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_runtime_evidence.py::test_required_matrix_rejects_unbound_runtime_policy[missing]
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-11
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: test_required_matrix_rejects_unbound_runtime_policy[null]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_runtime_evidence.py::test_required_matrix_rejects_unbound_runtime_policy[null]
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-12
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: test_required_matrix_rejects_unbound_runtime_policy[list]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_runtime_evidence.py::test_required_matrix_rejects_unbound_runtime_policy[list]
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-13
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: test_required_matrix_rejects_unbound_runtime_policy[string]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_runtime_evidence.py::test_required_matrix_rejects_unbound_runtime_policy[string]
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-14
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: test_cell_preserves_utf8_command_evidence_under_windows_locale[lf]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_runtime_evidence.py::test_cell_preserves_utf8_command_evidence_under_windows_locale[lf]
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-15
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: test_cell_preserves_utf8_command_evidence_under_windows_locale[crlf]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_runtime_evidence.py::test_cell_preserves_utf8_command_evidence_under_windows_locale[crlf]
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-16
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: test_cell_preserves_utf8_command_evidence_under_windows_locale[cr]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_runtime_evidence.py::test_cell_preserves_utf8_command_evidence_under_windows_locale[cr]
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-17
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: test_cell_rejects_invalid_utf8_command_evidence[stdout]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_runtime_evidence.py::test_cell_rejects_invalid_utf8_command_evidence[stdout]
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-18
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: test_cell_rejects_invalid_utf8_command_evidence[stderr]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_runtime_evidence.py::test_cell_rejects_invalid_utf8_command_evidence[stderr]
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-19
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: test_cell_preserves_utf8_timeout_evidence[lf]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_runtime_evidence.py::test_cell_preserves_utf8_timeout_evidence[lf]
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-20
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: test_cell_preserves_utf8_timeout_evidence[crlf]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_runtime_evidence.py::test_cell_preserves_utf8_timeout_evidence[crlf]
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-21
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: test_cell_preserves_utf8_timeout_evidence[cr]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_runtime_evidence.py::test_cell_preserves_utf8_timeout_evidence[cr]
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-22
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: test_cell_rejects_invalid_utf8_timeout_evidence[stdout]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_runtime_evidence.py::test_cell_rejects_invalid_utf8_timeout_evidence[stdout]
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-23
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: test_cell_rejects_invalid_utf8_timeout_evidence[stderr]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_runtime_evidence.py::test_cell_rejects_invalid_utf8_timeout_evidence[stderr]
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-24
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: Windows checkout preserves committed recipe bytes despite inherited CRLF conversion.
+        observable: A real isolated Git repository reproduces clean-diff CRLF conversion. The single Windows pre-checkout workflow
+          command restores LF bytes and SHA-256 equality with the committed blob. Native hosted execution remains separately required.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_workflow.py::test_windows_checkout_preserves_committed_recipe_bytes
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-25
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: Candidate pull-request paths rerun evidence for all bound inputs and downstream regression tests.
+        observable: Workflow path filters cover an independent declared inventory of consumed or bound sources, all authored downstream
+          regression files and their future wildcard, without importing production modules.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_workflow.py::test_candidate_pr_trigger_covers_bound_inputs_and_regression_tests

@@ -3,7 +3,7 @@
   "decision": "accepted",
   "reviewer_id": "djm81",
   "reviewer_role": "owner",
-  "recorded_at": "2026-10-16T21:04:10Z",
-  "reference": "codex-user-reply:call_a8966dad83764b70933191fc9b9a75f6:Accept this exact mapping",
-  "mapping_digest": "sha256:83f12bcec0ff756681c2cc1188c431fce1327e6d3371fae6bc4df4bf1ddd8425"
+  "recorded_at": "2026-10-18T21:26:30Z",
+  "reference": "codex-user-reply:call_8cebb5492619468eac567e62f2aa4fac:Approve exact mapping and successor sequence",
+  "mapping_digest": "sha256:8fad85983d493870a3cefcc08511966fb9eb7cf821a34f3dc8c9d97b14944d11"
 }

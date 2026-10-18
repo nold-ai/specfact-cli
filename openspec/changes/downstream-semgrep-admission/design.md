@@ -197,3 +197,35 @@ inventory; unsupported markers/options reject rather than being guessed. Bound
 result reconciliation rejects every unknown, skipped, missing, duplicate,
 malformed, vulnerable or nonzero result. This operation is not wired into normal
 frozen delivery until independently protected artifact adoption is available.
+
+## Native report boundary
+
+The shared standard-library boundary owns private pure validation of runtime
+identity and command-record shapes. The candidate driver collects these values;
+aggregation independently validates them before producing a passing summary.
+Protected admission reuses the same aggregate boundary.
+
+The runtime claim contains system, machine, full Python version, executable path
+and SHA-256, sysconfig platform and a two-string libc record. OS, architecture
+aliases, Python minor and Linux libc compatibility are checked against the cell.
+macOS and Windows empty libc strings, musl `Version 1.2`, and macOS universal2
+sysconfig values remain legitimate producer formats. The aggregate does not
+inspect its own host executable or require exact sysconfig/wheel-tag equality.
+
+Command records require argv, an integer return code excluding booleans, and
+stdout/stderr SHA-256 values. The executable argument is nonempty; later arguments
+may be empty. Nonzero detection-control exits remain valid evidence data. The
+driver retains responsibility for checking each invocation's expected outcome.
+No new command-label policy or interpreter-version pin is introduced.
+
+The existing dictionary boundary needs validation rather than a second parsed
+report model. One private validator in `scripts/downstream_semgrep.py` is reused
+by the driver and consumer. A separate schema module or dataclass conversion layer
+adds no current consumer. This is the synthesis of the three architecture reviews.
+
+These checks establish completeness and consistency. They do not authenticate
+a producer, prove command execution or verify unavailable log bytes. Exact source,
+recipe, artifact, protected-policy and provenance controls remain required.
+Faithful synthetic positive fixtures are authored before the new hosted RED source
+is frozen. Additional schema regressions remain separate from the accepted
+85-case execution plan.

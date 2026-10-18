@@ -60,7 +60,7 @@ def test_required_matrix_rejects_unbound_runtime_policy(wheel_recipe: contract.W
         module.required_matrix(recipe_path)
 
 
-@pytest.mark.parametrize("line_ending", ["\n", "\r\n", "\r"])
+@pytest.mark.parametrize("line_ending", ["\n", "\r\n", "\r"], ids=["lf", "crlf", "cr"])
 def test_cell_preserves_utf8_command_evidence_under_windows_locale(tmp_path: Path, line_ending: str) -> None:
     runner = _runner()
     cell = runner._Cell(tmp_path, {})
@@ -90,7 +90,7 @@ def test_cell_rejects_invalid_utf8_command_evidence(tmp_path: Path, stream: str)
     assert not (tmp_path / "01-invalid.stderr").exists()
 
 
-@pytest.mark.parametrize("line_ending", ["\n", "\r\n", "\r"])
+@pytest.mark.parametrize("line_ending", ["\n", "\r\n", "\r"], ids=["lf", "crlf", "cr"])
 def test_cell_preserves_utf8_timeout_evidence(tmp_path: Path, line_ending: str) -> None:
     cell = _runner()._Cell(tmp_path, {})
     command = [sys.executable, "-c", "pass"]

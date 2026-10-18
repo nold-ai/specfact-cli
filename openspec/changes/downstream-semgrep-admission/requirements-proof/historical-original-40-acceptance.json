@@ -1,0 +1,9 @@
+{
+  "schema_version": "1",
+  "decision": "accepted",
+  "reviewer_id": "djm81",
+  "reviewer_role": "owner",
+  "recorded_at": "2026-10-16T21:04:10Z",
+  "reference": "codex-user-reply:call_a8966dad83764b70933191fc9b9a75f6:Accept this exact mapping",
+  "mapping_digest": "sha256:83f12bcec0ff756681c2cc1188c431fce1327e6d3371fae6bc4df4bf1ddd8425"
+}

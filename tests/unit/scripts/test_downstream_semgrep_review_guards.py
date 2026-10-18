@@ -81,6 +81,7 @@ def test_admission_rejects_approved_but_invalid_matrix(
         ("compress_type", zipfile.ZIP_DEFLATED),
         ("create_version", 21),
     ],
+    ids=["date-time", "internal-attr", "create-system", "extra", "comment", "compression", "create-version"],
 )
 def test_candidate_rejects_preserved_member_header_changes(
     wheel_recipe: contract.WheelRecipe, tmp_path: Path, attribute: str, value: object

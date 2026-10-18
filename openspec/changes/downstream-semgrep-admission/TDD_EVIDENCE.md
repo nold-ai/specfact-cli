@@ -1,5 +1,9 @@
 # Downstream Semgrep evidence
 
+Current status is recorded in the final accepted test-authoring section. Earlier
+preparation sections are historical snapshots; their pending-acceptance and
+unchanged-test-bytes statements do not describe the current source.
+
 ## Specification and authored RED
 
 Signed specification commit: `40dc5c93d2a25284550247ce04147ae4e8509df6`.
@@ -146,3 +150,101 @@ from exact `requirements/ci/locked.txt`, without changing dependency inputs. The
 released Requirements validator passes at `test-authored` maturity. Contract
 execution was skipped by the native hook because its input status was unchanged;
 no new contract execution is claimed. Scoped type checks and strict OpenSpec pass.
+
+## Expanded proof preparation on 2026-10-18
+
+This local test-only successor proposal expands the mapping to 83 pytest cases and retains the separate pending inspection for all 21 native platform cells. It preserves the original 40 case mappings and all 48 original assertion AST nodes. Supplemental parameter ids use explicit native-compatible slugs. Assertions are unchanged.
+
+The exact pinned Requirements module at `69f075819be5e1ceca1446b026b0417f19e584ca` accepts this mapping at planned maturity. Its source mapping digest is `sha256:68bc4e87f756f1643cce76ed62fb354b8fcdeec6a279d966bb20282e50dcffc8`. The normalized aggregate mapping digest is `sha256:000b21187a9553bc2d2ec80cb03d7ed55bf1d8e27e28faeb2951bb07f25c6806` and plan digest is `sha256:07e1c2ec58614f0a314c5f959017e58302e278cb4408cbeb9db5e50d7d4f720b`.
+
+Local execution against this worktree with no downstream implementation produces 83 AssertionErrors, zero errors and zero skips. The historical 83-case collection, command, JUnit and SHA-256 records are retained in `/Users/dom/git/nold-ai/specfact-cli-worktrees/codex/pr774-root-causes-artifacts/expanded-proof/history-83/`. This local run does not provide hosted RED provenance.
+
+The existing review-evidence.json remains immutable historical acceptance for the original mapping. The native accepted-maturity gate rejects it with `acceptance-stale` for this revised mapping. Existing retained RED and hosted receipts apply only to their original accepted mapping and plan. They cannot authorize the expanded mapping. New owner acceptance, the successor topology decision and fresh hosted RED are pending. No implementation restoration, commit or publication is authorized by this preparation.
+
+## Revised 85-case proof preparation on 2026-10-18
+
+This local test-only successor proposal expands the mapping to 85 pytest cases and retains the separate pending inspection for all 21 native platform cells. It preserves the original 40 case mappings and all 48 original assertion AST nodes. The two new workflow regressions cover committed recipe byte preservation with inherited Git CRLF conversion and pull-request triggers for every bound source input. Existing assertions are unchanged.
+
+The exact pinned Requirements module at `69f075819be5e1ceca1446b026b0417f19e584ca` accepts this mapping at planned maturity. Its source mapping digest is `sha256:8fad85983d493870a3cefcc08511966fb9eb7cf821a34f3dc8c9d97b14944d11`. The normalized aggregate mapping digest is `sha256:5ca313a14b492010da58bfa39e3b6ac59ebacd9ca8713a69a3d6ea273c212380` and plan digest is `sha256:76e1abbf563d0b1a9ddf528e5d36ca0a4990036e906a1660e528bdd45c8826ee`.
+
+Local execution against this worktree with no downstream implementation produces 85 AssertionErrors, zero errors and zero skips. Raw collection, command, JUnit and SHA-256 records live in `/Users/dom/git/nold-ai/specfact-cli-worktrees/codex/pr774-root-causes-artifacts/expanded-proof/`. This local run does not provide hosted RED provenance. Scoped Ruff lint and format, canonical BasedPyright (0 errors, 0 warnings, 0 notes), and strict OpenSpec validation pass; exact commands and outputs are retained in quality-commands.json and quality-*.log.
+
+The existing review-evidence.json remains immutable historical acceptance for the original mapping. The native accepted-maturity gate rejects it with `acceptance-stale` for this revised mapping. Existing retained RED and hosted receipts apply only to their original accepted mapping and plan. They cannot authorize the expanded mapping. New owner acceptance, the successor topology decision and fresh hosted RED are pending. The two workflow tests separately fail against retained workflow 14b9726564473118e7c9480d8757bb45cfe498f7 and pass against a disposable prospective patch. Logs, JUnit and patch are retained as workflow-14b-red, workflow-prospective-green and prospective-workflow.patch. This is local prospective evidence only. No implementation restoration, commit or publication is authorized by this preparation.
+
+## Accepted 85-case test authoring before hosted RED, 2026-10-18 Europe/Berlin
+
+The owner accepted the exact source mapping digest
+`sha256:8fad85983d493870a3cefcc08511966fb9eb7cf821a34f3dc8c9d97b14944d11`
+and the signed test-only successor sequence on 2026-10-18 at 23:26:30
+Europe/Berlin (21:26:30 UTC). The current `requirements-proof/review-evidence.json`
+records that actual owner reply. The original forty-case acceptance remains in
+`requirements-proof/historical-original-40-acceptance.json`. This supersedes the
+pending-acceptance statements in the historical preparation sections above.
+
+Before the signed test-only commit and new hosted RED, the original contract's
+synthetic report factory was authored to include typed runtime and command
+records. Its shapes follow the inspected native reports, including macOS
+universal2, empty macOS/Windows libc identities, and musl `Version 1.2`. Interpreter
+and output digests are deterministic synthetic values. These fixtures establish
+schema expectations; they do not establish native execution or authenticity.
+This fulfills the already accepted actual-native obligation without adding a
+requirement, selector, mapping case, or acceptance claim.
+
+The current original contract file SHA-256 is
+`f28afd00d4ac915216cdc130eb87a826b51514da94dde0b9fbb6997512daa106`.
+The earlier `0b6f7ab9ac472f415bd8452f2201faa02dff996046b00e9ad695149f5a78a86d`
+is the historical pre-fixture source hash, not the current file hash. All 48
+original assertion AST nodes are unchanged. The original forty mappings and all
+85 selected cases remain unchanged. The Requirements source mapping digest above
+is distinct from the raw mapping file SHA-256
+`5d0321664619ece6ed95d819b6a93e2df3152bfa13f50f8775d97ee16d364096`.
+
+The pinned Requirements module at `69f075819be5e1ceca1446b026b0417f19e584ca`
+passes accepted and test-authored maturity using the real owner record. The
+separate local run of exactly the 85 mapped selectors produces 85 AssertionError
+failures, zero errors and zero skips because production boundaries are absent.
+No production implementation was added to this checkout.
+
+The supplemental `tests/unit/scripts/test_native_report_schema.py` is outside the
+mapped test glob. Against a disposable copy of retained implementation `8aaf9e3f`,
+its 23 malformed or contradictory runtime/command cases fail with `DID NOT RAISE`.
+All five positive controls pass, including architecture aliases, universal2,
+expected return code 1, and an empty non-executable argument. This 28-case local
+regression experiment is separate from the mapped 85-case proof. No prospective
+validator implementation was created for this experiment.
+
+Fresh raw commands, JUnit, native gate reports, source preservation and hashes
+are retained under
+`/Users/dom/git/nold-ai/specfact-cli-worktrees/codex/pr774-root-causes-artifacts/expanded-proof/accepted-test-authoring/`.
+Earlier preparation artifacts remain intact. Hosted authenticated RED, production
+implementation, native inspection completion, independent review, and release
+adoption remain later gates. Local synthetic RED does not satisfy them.
+
+Scoped Ruff lint and formatting, canonical BasedPyright (zero errors, warnings or
+notes), and strict OpenSpec validation pass. Direct local AI-bloat and Radon
+analyzers from the pinned module fixture report no findings. These direct checks
+do not substitute for the full SpecFact review gate. Its wrapper exited zero,
+but its retained JSON correctly reports FAIL/UNKNOWN because every required
+capsule analyzer reports `unsupported_controller_platform`. Full review remains
+unverified on this host and must be completed through the supported environment.
+
+The review was then rerun unchanged with the explicitly designated fixture paths
+`SPECFACT_MODULES_REPO=/Users/dom/.codex/worktrees/core-review-reset-fixture/specfact-cli-modules`
+and `SPECFACT_DOCS_MODULES_REPO=/Users/dom/.codex/worktrees/core-docs-module-fixture/specfact-cli-modules`.
+The correct pinned module selection produces actual SpecFact PASS with zero
+errors, warnings, or advisory findings. The earlier unsupported-controller result
+came from the default module selection and is preserved separately, not relabeled
+as passing. Exact fixture commits/trees and command are retained in
+`pinned-review-command.json`; `specfact-code-review-pinned.json` retains the passing
+report. Full normal hooks and independent review remain root finalization steps.
+
+The complete staged normal review then caught `CC17` in the workflow checkout
+regression, outside the earlier three-file authoring review. Extracting the
+checkout-control selection preserves the accepted selector and assertion behavior;
+all three workflow helpers now have Radon complexity 9 or lower. Independent
+review also required the prospective trigger and its regression to include
+`test_native_report_schema.py` explicitly. That correction was made before the
+new RED source freeze. The retained workflow still yields two assertion failures;
+the disposable prospective patch yields two passes. Mapped 85-case local RED and
+accepted/test-authored validation were refreshed after these edits. Full normal
+hooks and final independent review remain publication gates.

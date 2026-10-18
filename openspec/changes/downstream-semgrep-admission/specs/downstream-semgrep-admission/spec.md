@@ -23,6 +23,13 @@ traversing, linked, signed or unexpected archive entries SHALL reject before out
 - **WHEN** a build or archive comparison is requested
 - **THEN** it SHALL reject without installing or publishing an artifact
 
+#### Scenario: Serialized ZIP changes reject without masking payload checks
+
+- **GIVEN** a candidate with authenticated payload bytes and RECORD
+- **WHEN** serialized headers, archive framing or ordering change independently
+- **THEN** verification SHALL reject unauthorized archive changes
+- **AND** isolated runtime, mode, entrypoint and metadata changes SHALL reject while an unchanged archive passes
+
 ### Requirement: Exact Protected Admission
 
 Production admission SHALL require an exact reviewed local version, candidate and
@@ -70,6 +77,12 @@ line covered by the recipe.
 - **WHEN** audit evidence is reconciled against the complete actual inventory
 - **THEN** the audit SHALL fail without a skip, exception or resolver fallback
 
+#### Scenario: Nonzero audit process rejects clean-looking output
+
+- **GIVEN** an exact admitted graph and an audit process returning nonzero
+- **WHEN** the process also emits a valid clean-looking advisory report
+- **THEN** audit reconciliation SHALL reject the process failure
+
 ### Requirement: Complete Platform And MCP Behavioral Proof
 
 One reviewed platform inventory SHALL define seven wheel targets and Python 3.11,
@@ -100,3 +113,29 @@ replacement characters or corrupted proof.
 - **WHEN** real local transport requests create, expire, delete or refuse sessions
 - **THEN** lifecycle regressions SHALL observe reclamation and bounded capacity
 - **AND** legitimate scanning and ordinary MCP requests SHALL remain functional
+
+#### Scenario: Canonical runtime policy is bound before matrix enumeration
+
+- **GIVEN** a recipe declaring a runtime-policy object and its SHA-256
+- **WHEN** the policy is missing, malformed or differs from sorted compact UTF-8 JSON digest
+- **THEN** matrix enumeration SHALL reject before returning any cell
+
+#### Scenario: Command and timeout proof uses strict UTF-8
+
+- **GIVEN** stdout and stderr command or timeout evidence under any host locale
+- **WHEN** the runner records that evidence
+- **THEN** valid UTF-8 SHALL retain its decoded text in UTF-8 proof files
+- **AND** invalid UTF-8 in either stream SHALL reject without replacement text or partial proof files
+
+#### Scenario: Native checkout preserves bound recipe bytes
+
+- **GIVEN** a committed LF recipe and a Windows runner inheriting Git CRLF conversion
+- **WHEN** the candidate workflow checks out its bound inputs
+- **THEN** the checked-out recipe bytes SHALL match the committed blob before evidence hashes are recorded
+
+#### Scenario: Bound input changes rerun candidate evidence
+
+- **GIVEN** a pull request changing a source input consumed or bound by the candidate workflow
+- **WHEN** workflow path filters select candidate validation
+- **THEN** the changed input SHALL trigger fresh candidate evidence
+- **AND** downstream regression test changes SHALL also trigger candidate validation

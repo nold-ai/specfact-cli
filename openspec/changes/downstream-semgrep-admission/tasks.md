@@ -26,3 +26,14 @@
 
 No merge, release publication or main promotion is included. Do not archive an
 unmerged or incomplete change.
+
+## 4. Accepted expanded proof sequence
+
+- [x] 4.1 Record exact owner acceptance of the 85-case mapping and successor sequence.
+- [x] 4.2 Author faithful native fixtures and supplementary schema regressions before RED.
+- [ ] 4.3 Publish the signed test-only successor and authenticate its same-branch 85-case hosted RED.
+- [ ] 4.4 Only after 4.3, restore implementation and complete checkout, trigger and report-schema corrections.
+- [ ] 4.5 Complete current-head review, native matrix, security, signing and authority gates before merge readiness.
+
+Historical 40-case RED remains attached to its original source and plan. It does
+not satisfy task 4.3. No merge or protected producer authority is granted here.
