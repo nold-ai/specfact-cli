@@ -52,8 +52,9 @@ def _assert_attestation_options(argv: list[str], bundle: Path) -> None:
     assert dict(zip(options[::2], options[1::2], strict=True)) == {
         "--hostname": "github.com",
         "--repo": "nold-ai/specfact-cli",
-        "--signer-repo": "nold-ai/specfact-cli",
-        "--signer-workflow": "nold-ai/specfact-cli/.github/workflows/downstream-semgrep.yml",
+        "--cert-identity": (
+            "https://github.com/nold-ai/specfact-cli/.github/workflows/downstream-semgrep.yml@refs/heads/dev"
+        ),
         "--source-ref": "refs/heads/dev",
         "--source-digest": "d" * 40,
         "--signer-digest": "e" * 40,
