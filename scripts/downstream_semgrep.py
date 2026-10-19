@@ -201,14 +201,6 @@ def _recipe(path: Path) -> _Recipe:
     return _Recipe(_sha(raw), tuple(wheels), versions)
 
 
-def _wheel(recipe: _Recipe, upstream: Path) -> _Wheel:
-    matches = [wheel for wheel in recipe.wheels if wheel.filename == upstream.name]
-    _require(len(matches) == 1, "Wheel is absent from recipe")
-    wheel = matches[0]
-    _require(_sha(_read(upstream)) == wheel.upstream_sha256, "Upstream wheel digest differs")
-    return wheel
-
-
 def _record(entries: dict[str, tuple[zipfile.ZipInfo, bytes]], record_name: str) -> bytes:
     buffer = io.StringIO(newline="")
     writer = csv.writer(buffer, lineterminator="\n")
@@ -280,8 +272,14 @@ def _archive(path: Path, version: str, *, raw: bytes | None = None) -> dict[str,
     return entries
 
 
-def _transformed(upstream: Path) -> dict[str, tuple[zipfile.ZipInfo, bytes]]:
-    entries = _archive(upstream, UPSTREAM_VERSION)
+def _transformed(recipe: _Recipe, upstream: Path) -> tuple[_Wheel, dict[str, tuple[zipfile.ZipInfo, bytes]]]:
+    matches = [wheel for wheel in recipe.wheels if wheel.filename == upstream.name]
+    _require(len(matches) == 1, "Wheel is absent from recipe")
+    wheel = matches[0]
+    raw = _read(upstream)
+    _require(_sha(raw) == wheel.upstream_sha256, "Upstream wheel digest differs")
+    entries = _archive(upstream, UPSTREAM_VERSION, raw=raw)
+    del raw
     metadata_name = f"semgrep-{UPSTREAM_VERSION}.dist-info/METADATA"
     _require(metadata_name in entries, "Missing wheel metadata")
     sections = re.split(rb"(\r?\n\r?\n)", entries[metadata_name][1], maxsplit=1)
@@ -309,7 +307,7 @@ def _transformed(upstream: Path) -> dict[str, tuple[zipfile.ZipInfo, bytes]]:
         result[renamed] = (info, metadata if name == metadata_name else content)
     record_name = f"semgrep-{DOWNSTREAM_VERSION}.dist-info/RECORD"
     result[record_name] = (result[record_name][0], _record(result, record_name))
-    return result
+    return wheel, result
 
 
 def _write_candidate_archive(destination: BinaryIO, entries: Mapping[str, tuple[zipfile.ZipInfo, bytes]]) -> None:
@@ -322,8 +320,7 @@ def _write_candidate_archive(destination: BinaryIO, entries: Mapping[str, tuple[
 def build_candidate(recipe_path: Path, upstream_wheel: Path, output_directory: Path) -> CandidateWheel:
     """Build a reproducible metadata-only wheel without production admission."""
     recipe = _recipe(recipe_path)
-    wheel = _wheel(recipe, upstream_wheel)
-    entries = _transformed(upstream_wheel)
+    wheel, entries = _transformed(recipe, upstream_wheel)
     filename = wheel.filename.replace(f"semgrep-{UPSTREAM_VERSION}-", f"semgrep-{DOWNSTREAM_VERSION}-", 1)
     output_directory.mkdir(parents=True, exist_ok=True)
     target = output_directory / filename
@@ -341,10 +338,9 @@ def build_candidate(recipe_path: Path, upstream_wheel: Path, output_directory: P
 def verify_candidate(recipe_path: Path, upstream_wheel: Path, candidate_wheel: Path) -> CandidateWheel:
     """Reject every archive change outside the exact reviewed metadata repair."""
     recipe = _recipe(recipe_path)
-    wheel = _wheel(recipe, upstream_wheel)
+    wheel, expected = _transformed(recipe, upstream_wheel)
     expected_name = wheel.filename.replace(f"semgrep-{UPSTREAM_VERSION}-", f"semgrep-{DOWNSTREAM_VERSION}-", 1)
     _require(candidate_wheel.name == expected_name, "Unexpected candidate filename")
-    expected = _transformed(upstream_wheel)
     candidate_bytes = _read(candidate_wheel)
     candidate_digest = _sha(candidate_bytes)
     actual = _archive(candidate_wheel, DOWNSTREAM_VERSION, raw=candidate_bytes)

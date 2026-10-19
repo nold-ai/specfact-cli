@@ -413,3 +413,53 @@ hosted checks, independent review, normal signing hooks, security and authority
 gates remain required for the new source. Protected producer bootstrap and
 production adoption remain blocked. No commit, push, merge or protected action is
 claimed by this local correction record.
+
+## Upstream snapshot correction, 2026-10-19
+
+The existing Exact Protected Admission identity requirement covers this
+correction. At unchanged source commit `503784865fb0acf83c3a423a44ed7f42534f8011`,
+six new supplemental cases produced **3 failed, 3 passed** before production edits.
+The replacement hook calls the real `Path.read_bytes`, replaces the actual file
+with a second valid wheel, and returns the original bytes. Both wheels have
+consistent RECORD entries; B changes the runtime payload. Build incorrectly
+produced canonical B instead of A. Verification incorrectly rejected canonical A
+and accepted canonical B. Initially unapproved B already rejected in both public
+operations. The new file is
+`tests/unit/scripts/test_downstream_semgrep_upstream_snapshot.py`.
+
+The existing transformation now owns recipe filename selection, one upstream
+read, digest validation and parsing that same immutable byte value. Both public
+callers use the returned wheel and entries. The separate digest helper is deleted;
+public signatures and candidate snapshot handling are preserved.
+
+All six supplemental cases now pass. The unchanged focused 138 cases plus these
+six pass as **144 passed**. Ruff check/format and canonical project types pass with
+zero type errors, warnings or notes. Strict OpenSpec validation passes. Actual
+SpecFact review reports PASS_WITH_ADVISORY, zero errors and eight existing
+MISSING_ICONTRACT warnings covered by unchanged REVIEW_EXCEPTIONS.md. Requirements
+planning reports gate_decision=pass, observed_maturity=test-authored and
+implementation_evidence=tests-not-executed. The separate JUnit demonstrates local
+execution; planning is not a hosted verified verdict.
+
+The same-pattern admission experiment replaces the candidate after its protected
+hash read, with genuine canonical verification enabled. Protected policy is
+supplied at `_fetch_protected_policy`; provenance is mocked at `_verify_provenance`
+and asserted not called. The changed candidate rejects at payload comparison
+before provenance, both before and after this fix. This is a negative result for
+that concrete replacement sequence, not a proof of provenance-file atomicity or
+all possible IO interleavings. No speculative approval guard was added.
+
+Durable evidence is in `pr774-root-causes-artifacts/current-review-503/` beside the
+worktree: supplemental-red.log/xml, supplemental-red-test.py, its source/test
+identity record, supplemental-green.log/xml, focused144.log/xml, commands.json,
+SpecFact and Requirements reports, and integrity.json. The exact test bytes used
+for RED remain unchanged. Frozen specification, mapping, owner acceptance and all
+424 original test files are byte-identical. Production pins, uv.lock, protected
+empty admissions, audit gates and prior review exceptions remain unchanged.
+
+Requirements run `39217653768` and native run `39217653582` belong to 503, before
+this source correction. New independent review, normal hooks/signing/publication
+and hosted checks remain required. This is a local checkpoint, not merge-ready or
+protected admission authority. The sibling internal wiki is absent at the expected
+worktree layout; follow up its snapshot implementation summary and graph from that
+repository if required, without claiming that mirror was updated here.

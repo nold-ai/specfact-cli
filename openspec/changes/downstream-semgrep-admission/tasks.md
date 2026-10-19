@@ -46,3 +46,12 @@ unmerged or incomplete change.
 
 Historical 40-case RED remains attached to its original source and plan. It does
 not satisfy task 4.3. No merge or protected producer authority is granted here.
+
+## 5. Upstream snapshot local checkpoint
+
+- [x] 5.1 Preserve actual local failing-before evidence for upstream path replacement at 503.
+- [x] 5.2 Bind upstream authentication and parsing to one snapshot in the shared transformation.
+- [x] 5.3 Pass 144 focused cases, canonical types, Ruff, OpenSpec and Requirements planning.
+- [x] 5.4 Record the negative candidate replacement experiment and its trust limitations.
+- [ ] 5.5 Obtain fresh independent review, normal hooks/signing and hosted checks for the corrected source.
+- [ ] 5.6 Follow up the internal wiki implementation summary and graph if required; no sibling mirror is available in this worktree layout.

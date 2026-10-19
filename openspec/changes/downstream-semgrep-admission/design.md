@@ -114,6 +114,14 @@ hashes are independently reviewed facts; production admission never generates it
 own expected hash. Archive equivalence includes complete RECORD verification,
 permissions, executable payload, entry points and unchanged license notices.
 
+Build and verification share `_transformed(recipe, upstream)`, returning the
+matched `_Wheel` and transformed archive entries. This boundary reads upstream
+bytes once, verifies their recipe digest, and passes the same bytes to the
+existing `_archive(raw=...)` parser. Both public callers unpack that result; the
+separate `_wheel` read path is removed. Candidate digest and archive checks retain
+their existing single snapshot. If both inputs are invalid, upstream archive
+validation can now precede candidate filename rejection; both inputs still reject.
+
 Production uses an independent protected policy source, never a caller-selected
 PR policy. It binds exact repository, protected source commit, signer workflow,
 recipe, output hashes, complete matrix proof and expiry. Verify provenance before
