@@ -84,7 +84,10 @@ class TestMcpLifecycle(unittest.IsolatedAsyncioTestCase):
 
     @ensure(lambda result: result is None)
     async def test_fixed_defaults(self) -> None:
-        manager = self._manager()
+        parameters = inspect.signature(StreamableHTTPSessionManager).parameters
+        self.assertIn("session_idle_timeout", parameters)
+        self.assertIn("max_sessions", parameters)
+        manager = StreamableHTTPSessionManager(Server("default-control"), json_response=True)
         self.assertEqual(manager.session_idle_timeout, 1800)
         self.assertEqual(cast(_FixedManagerDefaults, manager).max_sessions, 10000)
 

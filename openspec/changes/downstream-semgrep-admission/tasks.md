@@ -1,14 +1,20 @@
 ## 1. Contracts and failing evidence
 
-- [ ] 1.1 Validate focused issue metadata, OpenSpec and architecture.
-- [ ] 1.2 Commit the specification with normal signed hooks.
-- [ ] 1.3 Author mapped behavioral tests and record exact owner acceptance.
-- [ ] 1.4 Capture actual failing-before evidence before implementation.
+- [x] 1.1 Validate focused issue metadata, OpenSpec and architecture.
+- [x] 1.2 Commit the specification with normal signed hooks.
+- [x] 1.3 Author mapped behavioral tests and record exact owner acceptance.
+- [x] 1.4 Capture actual failing-before evidence before implementation.
+
+Tasks 1.1–1.4 are supported by the signed specification, exact accepted 85-case
+plan and authenticated hosted RED at `6e05f92a05b051cddf311ff6a07dcdfa00d9eba6`
+(run `39168987596`), recorded in `TDD_EVIDENCE.md`. Task 2.2 covers implementation
+and local rejection evidence; it does not authorize protected producer bootstrap
+or production adoption.
 
 ## 2. Implementation
 
-- [ ] 2.1 Implement deterministic metadata-only wheel build and archive verification.
-- [ ] 2.2 Implement exact fail-closed protected admission and complete audit binding.
+- [x] 2.1 Implement deterministic metadata-only wheel build and archive verification.
+- [x] 2.2 Implement exact fail-closed protected admission and complete audit binding.
 - [ ] 2.3 Implement one platform inventory, candidate matrix and protected producer workflow.
 - [ ] 2.4 Implement real MCP lifecycle and SAST positive/negative compatibility probes.
 
@@ -16,6 +22,9 @@
 
 - [ ] 3.1 Record passing local regression evidence and complete independent review.
 - [ ] 3.2 Execute all 21 actual platform/Python cells; reject missing or failed cells.
+  Run `39170536405` passed all 21 actual cells and aggregate at
+  `19c2856b4ecd5255cc64d918671d2cd5a1ed961a`. The current review fixes change bound
+  source inputs and require a fresh normal hosted matrix before this task closes.
 - [ ] 3.3 Run normal quality, native/FULL, signature and dependency trust gates.
 - [ ] 3.4 Publish a separate signed PR with exact status and proof limitations.
 - [ ] 3.5 Retain production adoption as blocked until authenticated protected evidence exists.

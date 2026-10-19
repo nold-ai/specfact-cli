@@ -110,9 +110,9 @@ def _read(path: Path) -> bytes:
         raise AdmissionError(f"Cannot read input: {path}") from exc
 
 
-def _read_json(path: Path) -> object:
+def _json_bytes(raw: bytes) -> object:
     try:
-        return _json(_read(path).decode("utf-8"))
+        return _json(raw.decode("utf-8"))
     except UnicodeError as exc:
         raise AdmissionError("Evidence must be UTF-8") from exc
 
@@ -592,9 +592,11 @@ def admit_artifact(wheel: Path, evidence_bundle: Path) -> AdmittedWheel:
     """Authenticate artifact identity without waiving any existing trust or delivery gate."""
     recipe_path, matrix_path = evidence_bundle / "recipe.json", evidence_bundle / "matrix.json"
     recipe = _recipe(recipe_path)
-    approval = _approval(_fetch_protected_policy(), recipe, _sha(_read(matrix_path)))
-    reports = [_object(value) for value in _list(_read_json(matrix_path))]
+    matrix_bytes = _read(matrix_path)
+    approval = _approval(_fetch_protected_policy(), recipe, _sha(matrix_bytes))
+    reports = [_object(value) for value in _list(_json_bytes(matrix_bytes))]
     matrix = aggregate_candidate_reports(recipe_path, reports)
+    _require(matrix["recipe_sha256"] == recipe.sha256, "Approved recipe differs from matrix recipe")
     _require(matrix["source_commit"] == approval["source_commit"], "Approved source differs from matrix source")
     artifacts = _approved_artifacts(approval, recipe, matrix)
     matches = [item for item in artifacts.values() if item["filename"] == wheel.name]
@@ -605,6 +607,7 @@ def admit_artifact(wheel: Path, evidence_bundle: Path) -> AdmittedWheel:
     artifact = matches[0]
     upstream_name = wheel.name.replace(f"semgrep-{DOWNSTREAM_VERSION}-", f"semgrep-{UPSTREAM_VERSION}-", 1)
     verified = verify_candidate(recipe_path, evidence_bundle / "upstream" / upstream_name, wheel)
+    _require(verified.recipe_sha256 == recipe.sha256, "Approved recipe differs from verified recipe")
     _verify_provenance(
         wheel, evidence_bundle / "provenance.jsonl", _text(approval["source_commit"]), _text(approval["signer_commit"])
     )

@@ -22,12 +22,14 @@ artifacts may be retained by CI but are never protected producer evidence.
 PR validation caller (unprivileged, disposable environment):
 
 ```python
-from downstream_semgrep import build_candidate, validate_candidate
+from downstream_semgrep import aggregate_candidate_reports, build_candidate, verify_candidate
 
 candidate = build_candidate(recipe_path, upstream_wheel, output_directory)
-report = verify_candidate(recipe_path, upstream_wheel, candidate.path)
-assert report.functional_checks_passed
-# report.production_admission is always "not_requested"; not an admission token.
+verified = verify_candidate(recipe_path, upstream_wheel, candidate.path)
+assert verified.sha256 == candidate.sha256
+matrix = aggregate_candidate_reports(recipe_path, native_reports)
+assert matrix["status"] == "passed"
+assert matrix["production_admission"] == "not_requested"
 ```
 
 Production setup caller, before any project dependency installation:
@@ -48,81 +50,58 @@ audit_input.assert_complete_result(result)
 # Report original Semgrep local identity + mapped upstream + actual MCP identity.
 ```
 
+Archive verification returns `CandidateWheel`. The native driver separately
+executes functional checks and collects `native_reports`; aggregation validates
+their complete matrix and returns a dictionary. Neither result grants production
+authority.
+
 The production CLI has no `--allow-untrusted`, `--skip-provenance`, candidate flag, or caller-selected trust root. Candidate validation is a separate entry point and result type. Its passing result cannot be supplied to production admission.
 
 ## Types and signatures
 
-Sketch only; bodies raise `NotImplementedError`. Serialized dictionaries and attestation transport objects are parsed inside the core. Opaque production objects are created only by boundary functions; private constructors prevent accidental use, not a security sandbox against hostile Python.
+The following public signatures match `scripts/downstream_semgrep.py`. Bodies and
+private authority fields are omitted. `_Recipe` and `_Wheel` are private parsed
+values; policy and native reports are validated dictionaries. There is no public
+recipe, policy or functional-report class. Boundary functions construct the
+frozen candidate, admission and audit objects. Their private authority fields
+prevent accidental use, not hostile Python code execution.
 
 ```python
-@dataclass(frozen=True)
-class PlatformWheel:
-    filename: str
-    platform_tag: str
-    upstream_sha256: str
-    upstream_url: str
-
-
-@dataclass(frozen=True)
-class Recipe:
-    upstream_version: str
-    downstream_version: str
-    mcp_from: str
-    mcp_to: str
-    wheels: tuple[PlatformWheel, ...]
-    python_versions: tuple[str, ...]
-    build_runtime_digest: str
-
-
 class CandidateWheel:
-    # Private validated constructor; path, digest, recipe digest, platform.
-    ...
+    path: Path
+    sha256: str
+    platform: str
+    recipe_sha256: str
 
-
-class CandidateReport:
-    functional_checks_passed: bool
-    production_admission: Literal["not_requested"]
-    ...
-
-
-class TrustedPolicy:
-    # Obtained from the protected verifier's immutable configuration only.
-    ...
+    def candidate_audit_input(self, actual_requirements: Path, output: Path) -> BoundAuditInput: ...
 
 
 class AdmittedWheel:
-    # Private constructor; exact digest + provenance + policy binding.
     wheel: Path
 
-    def audit_input(self, actual_requirements: Path, output: Path) -> BoundAuditInput:
-        raise NotImplementedError
+    def audit_input(self, actual_requirements: Path, output: Path) -> BoundAuditInput: ...
 
 
 class BoundAuditInput:
     requirements: Path
+    actual_inventory: Mapping[str, str]
 
-    def assert_complete_result(self, result: AuditResult) -> None:
-        raise NotImplementedError
-
-
-def build_candidate(recipe_path: Path, upstream_wheel: Path, output_directory: Path) -> CandidateWheel:
-    raise NotImplementedError
+    def assert_complete_result(self, proc: subprocess.CompletedProcess[str]) -> dict[str, object]: ...
 
 
-def verify_candidate(recipe_path: Path, upstream_wheel: Path, candidate_wheel: Path) -> CandidateWheel:
-    raise NotImplementedError
+def build_candidate(recipe_path: Path, upstream_wheel: Path, output_directory: Path) -> CandidateWheel: ...
 
 
-def required_matrix(recipe_path: Path) -> list[dict[str, str]]:
-    raise NotImplementedError
+def verify_candidate(recipe_path: Path, upstream_wheel: Path, candidate_wheel: Path) -> CandidateWheel: ...
 
 
-def aggregate_candidate_reports(recipe_path: Path, reports: list[dict]) -> dict:
-    raise NotImplementedError
+def required_matrix(recipe_path: Path) -> list[dict[str, str]]: ...
 
 
-def admit_artifact(wheel: Path, evidence_bundle: Path) -> AdmittedWheel:
-    raise NotImplementedError
+def aggregate_candidate_reports(recipe_path: Path, reports: list[dict[str, object]]) -> dict[str, object]: ...
+
+
+def admit_artifact(wheel: Path, evidence_bundle: Path) -> AdmittedWheel: ...
 ```
 
 The core validates version grammar, exact identities, unique platforms, complete matrix, hashes, metadata cardinality, record format and provenance at entry. Validated values then flow without repeated caller checks. Public surface hides ZIP and evidence schemas, audit transformation and policy evaluation. Existing gate scripts retain their current entry points.
@@ -143,6 +122,22 @@ unknown identities reject. There is no allow-untrusted or skip-provenance switch
 The initial production admission register is empty. Existing provider/capsule
 catalogs and signature keys are not modified or reused for downstream identity.
 
+The private policy loader reads canonical protected dev policy at an immutable,
+freshly resolved source commit. Evidence is a directory containing `recipe.json`,
+`matrix.json`, `provenance.jsonl` and the exact original wheel under `upstream/`.
+Protected approval binds recipe and matrix SHA-256, source and signer commits,
+dates and exact wheel identities. The trusted attestation verifier enforces the
+repository, signer workflow/digest, protected source ref/digest, OIDC issuer and
+hosted runner identity. Plain predicate claims do not establish these facts.
+
+Admission hashes and parses the same matrix byte snapshot. Both the aggregate
+result and candidate verification must retain the initially approved recipe
+SHA-256. Reopening a path cannot substitute different approved inputs. The
+existing immutable `_Recipe` and validated report dictionaries suffice; a bytes
+JSON parser retains the former file reader’s strict UTF-8 and duplicate-key
+handling. A new
+snapshot framework or public configuration option is unnecessary.
+
 All active actual package identities remain visible. Only an admitted exact
 Semgrep artifact may query its authenticated upstream code identity. Every other
 actual dependency, including fixed MCP, is audited without upstream re-resolution.
@@ -151,6 +146,9 @@ skip records, missing/extra/duplicate packages, changed versions, service failur
 and advisories fail. No vulnerability exception is added. Production adoption,
 floor/lock refresh and frozen setup changes remain blocked until protected
 artifacts exist; isolated candidate audits are labeled candidate evidence.
+The audit input accepts a complete active per-cell flat hashed inventory;
+unsupported markers/options reject. Bound result reconciliation rejects unknown,
+skipped, missing, duplicate, malformed, vulnerable or nonzero results.
 
 ## Platform and MCP verification
 
@@ -165,7 +163,8 @@ Use clean hashed installs with normal resolution and pip check. Preserve the
 existing SAST rules, findings/error behavior and positive/negative controls.
 Drive actual SDK ASGI lifespan and HTTP initialization, tool requests, DELETE,
 short configured idle expiry, small capacity, refused openings and shutdown.
-Check production defaults independently. Semgrep CLI/stdio integration must
+Check production defaults independently by constructing the actual SDK manager
+without lifecycle keyword overrides, while retaining signature checks. Semgrep CLI/stdio integration must
 remain functional. Deterministic OAuth discovery in a bounded protocol test may
 not disable credential validation or substitute for an actual integration run.
 
@@ -178,25 +177,6 @@ the vulnerable original pins is not a release-ready rollback. Matrix runtime and
 CI cost are unmeasured; all 21 cells and ordinary quality/native/FULL proof remain
 required. Artifact transport/frozen materialization is not considered proven until
 actual cross-platform experiments pass.
-
-## Implementation contract reconciliation (2026-10-16)
-
-The root architect selected explicit candidate verification and matrix operations
-instead of the earlier generic validation sketch. Production admission takes no
-caller-selected policy: its private loader reads the canonical protected dev
-policy at an immutable freshly resolved source commit. The initial register is
-empty. Evidence is a directory containing recipe.json, matrix.json,
-provenance.jsonl and the exact original wheel under upstream/. Protected approval
-binds recipe/matrix SHA-256, source/signer commit, dates and exact wheel identities.
-The trusted attestation verifier enforces repository, signer workflow/digest,
-protected source ref/digest, OIDC issuer and hosted runner identity. Plain claims
-inside the predicate do not establish these facts.
-
-The first audit input contract accepts a complete active per-cell flat hashed
-inventory; unsupported markers/options reject rather than being guessed. Bound
-result reconciliation rejects every unknown, skipped, missing, duplicate,
-malformed, vulnerable or nonzero result. This operation is not wired into normal
-frozen delivery until independently protected artifact adoption is available.
 
 ## Native report boundary
 

@@ -326,3 +326,90 @@ Python cells are covered. Ruff, canonical types and actual SpecFact review of
 this test file pass with zero findings. Commands, source integrity and mutation
 patches/results are retained under `expanded-proof/binding-review-regressions`.
 These supplemental cases do not expand or replace the authoritative 85-case plan.
+
+## Current review integrity corrections, 2026-10-19
+
+The existing Exact Protected Admission contract requires matching recipe,
+artifact and platform evidence. The Complete Platform And MCP Behavioral Proof
+contract separately requires confirmation of production defaults. These existing
+requirements cover the review fixes; the accepted specification, mapping, owner
+acceptance and imported frozen tests are unchanged.
+
+Before production edits, seven new cases were authored in
+`tests/unit/scripts/test_downstream_semgrep_review_integrity.py`. The first local
+run produced **5 failed, 2 passed**, with zero collection errors or skips:
+
+- Approved matrix A contained a failed lifecycle check; a subsequent read supplied
+  unapproved passing matrix B. Admission returned instead of rejecting A, producing
+  `DID NOT RAISE ValueError`.
+- Replacing the recipe bytes during aggregation or final candidate verification
+  also returned an admitted object, each producing `DID NOT RAISE ValueError`.
+- Two SDK fakes had insecure constructor defaults while accepting explicit safe
+  arguments. The old default probe passed both, producing
+  `DID NOT RAISE AssertionError` in the new regression tests.
+- Allowed-root traversal and symlink members already rejected at the intended
+  guards through public `build_candidate`, after authenticating the fixture hash
+  and RECORD. These two passing cases improve guard coverage; they do not establish
+  a newly exposed archive vulnerability.
+
+Admission now reads the matrix once and hashes/parses that same byte snapshot.
+The existing strict UTF-8 JSON decoder is retained as a byte parser, including
+its duplicate-key and invalid-number rejection. Aggregate and verified candidate
+recipe digests must equal the initially approved recipe digest. The SDK default
+probe preserves signature checks and constructs the actual manager without
+lifecycle keyword overrides. The design's caller and type section now match the
+implemented API; the obsolete parallel reconciliation sketch was folded into the
+canonical sections.
+
+The initial post-fix run passed all seven cases. SpecFact subsequently identified
+an unnecessary sixth parameter in the fake constructor. The fixture now accepts
+unused SDK options through keyword arguments while preserving explicit lifecycle
+parameters and the same assertions. Its final bytes were rerun against a disposable
+copy of original source `19c2856b4ecd5255cc64d918671d2cd5a1ed961a`, reproducing the
+same five `DID NOT RAISE` failures and two existing guard passes. This replay is
+sensitivity evidence after fixture cleanup. The initial RED preceded production
+edits. Neither local run is represented as a new hosted RED or an expanded mapping.
+
+Final verification passed **138 tests**: the original focused 131 plus these seven
+supplemental cases. Ruff check/format, canonical project BasedPyright (zero errors,
+warnings and notes), strict OpenSpec validation, and the released pinned-fixture
+Requirements `test-authored` planning gate passed. The Requirements result is
+`gate_decision=pass`, `observed_maturity=test-authored`, and
+`implementation_evidence=tests-not-executed`; test execution is evidenced by the
+separate 138-case JUnit, not relabeled as a hosted Requirements verdict.
+
+Actual SpecFact review of the three Python files reports PASS_WITH_ADVISORY with
+zero errors, nine warnings and one informational finding. These are the existing
+eight preinstallation entry-point contract warnings, the retained external SDK
+protocol parameter warning and the retained credential-fixture readability item.
+The unchanged verification driver contains the ninth preinstallation entry point
+and is outside this scoped review. No new exception, scorer or threshold was added.
+Both designated fixture environment variables were set for the quality gates.
+
+The public cached MCP **1.30.0** artifact was loaded through an external
+`PYTHONPATH`, with the frozen project dependency inventory unchanged. Its METADATA
+and session-manager source hashes match its RECORD. Nine actual SDK lifecycle and
+authenticated-session tests passed on this local macOS host, including constructor
+defaults of **1800 seconds** idle timeout and **10000 sessions** capacity. This uses
+the cached SDK plus the existing environment's dependencies; it is not a fresh
+21-cell installation matrix or a full downstream Semgrep integration run.
+
+Durable evidence is retained under
+`pr774-root-causes-artifacts/current-review-19c/` beside the worktree:
+`supplemental-red.log/xml`, `final-tests-original-source-red.log/xml`,
+`final-tests-original-source-red-command.json`, `focused138.log/xml`,
+`commands.json`, `specfact-code-review.json`, `requirements-evidence.json`,
+`cached-sdk-130.log`, `cached-sdk-130-provenance.json`, and `integrity.json`.
+The frozen comparison covers all 424 original test files plus the specification,
+mapping and acceptance record from `6e05f92a`, all byte-identical. The original
+contract test remains SHA-256
+`f28afd00d4ac915216cdc130eb87a826b51514da94dde0b9fbb6997512daa106`.
+
+[Requirements run 39170536359](https://github.com/nold-ai/specfact-cli/actions/runs/39170536359)
+and [native matrix run 39170536405](https://github.com/nold-ai/specfact-cli/actions/runs/39170536405)
+succeeded at `19c2856b4ecd5255cc64d918671d2cd5a1ed961a`; the latter includes 21
+actual cells and aggregate success. They precede these review fixes. Fresh normal
+hosted checks, independent review, normal signing hooks, security and authority
+gates remain required for the new source. Protected producer bootstrap and
+production adoption remain blocked. No commit, push, merge or protected action is
+claimed by this local correction record.
