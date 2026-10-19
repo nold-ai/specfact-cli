@@ -248,3 +248,97 @@ new RED source freeze. The retained workflow still yields two assertion failures
 the disposable prospective patch yields two passes. Mapped 85-case local RED and
 accepted/test-authored validation were refreshed after these edits. Full normal
 hooks and final independent review remain publication gates.
+
+## Accepted installation identity successor (2026-10-19)
+
+The owner explicitly approved the reviewed installation-identity contract, exact
+89-test source mapping `sha256:488ec1a749b4fd4da337cc75ee942f67122e29c0c76054e81aa7a1ae61873b42`, trusted installer, process,
+account and private-storage boundary, and signed test-only successor sequence.
+The authentic reply is `call_0ed72e91880c4eb2a23022fa9ce383d6`, answered
+"Approve this exact contract, mapping and sequence". The native acceptance record
+was recorded at `2026-10-19T11:10:23Z`. This is new exact mapping acceptance, not reuse of
+old 85-case approval, protected authority or merge permission.
+
+Before recording acceptance, root verified every frozen proposal input, all
+55 artifact hashes, manifest
+`sha256:fbf0bdfbd61c8415e6c8c575fb5832af8d570cde560a72a4eeda7ca32e0217e9`
+and staged patch
+`sha256:0b8c58dc53916df3552235d644f7832976bafba7fe66d7db2e95fff33d25c6d7` against the independently reviewed packet. All six
+contract, mapping and test paths remain byte-identical to that packet. The
+proposal's retained local run has 89 AssertionErrors, zero errors and skips;
+its independent review verified the raw JUnit and preserved selectors. This is
+local evidence only. The old 85-case hosted RED and GREEN remain historical and
+cannot establish the new hosted proof.
+
+The successor starts from test-only `6e05f92a05b051cddf311ff6a07dcdfa00d9eba6`. Production
+implementation remains absent. Authentic same-branch hosted 89-case RED, with
+service artifact, JUnit, source, tree, mapping, plan and baseline bindings, is
+required before restoring production or closing PR776. Stop if the hosted
+baseline contains the implementation. No workflow, policy, dependency, frozen
+security audit or pin changes are included to obtain RED. Materialization
+native lifecycle and protected adoption remain unchecked.
+
+### Pre-RED test shape correction (2026-10-19)
+
+The first full normal-hook review found actual Radon CC16 in the new transport
+mutation test and CC13 in the attestation test, plus two length recommendations.
+The failed report is retained; it was not bypassed or relabeled. Before any new
+hosted RED, four small private test helpers separate mutation, normal
+materialization, failed-installer cleanup and attestation options. This local
+fixture correction leaves the approved public contract and canonical source
+mapping unchanged. It is not a change to the installation API or acceptance
+expectations. All 27 assertion ASTs in the two files, test signatures, decorators,
+parameter identities and all 89 selected cases are preserved. All other frozen
+contract, design, mapping and test files remain byte-identical. The original
+reviewed packet and all 55 artifact hashes remain unchanged historical evidence.
+
+The two corrected test SHA-256 values are
+`3b0ffd9364311536ef25d0eee2ffcd9a6a4c6cf0845fcdc97f6d90e8b1bbbd7c`
+and `ad1d667168e82aa3475f2df1b35e3f6cf02d894c7e27dde801e0207d72246ab7`.
+These are new test bytes and must be used for the new hosted source freeze.
+Actual native Radon, Pylint, AST clean-code and AI-bloat adapters now report no
+findings. Ruff format/lint and canonical BasedPyright pass. Refreshed local RED
+remains exactly 89 AssertionErrors, zero errors and skips. The external snapshot
+oracle passes all four mutations; shared-inode retention still fails the new
+in-place approved-byte assertion while passing its three older controls.
+Wrong-byte, original-path and leaked-cleanup controls retain their expected
+assertion failures. These are test discrimination controls, not production GREEN
+or native lifecycle acceptance. Root independently checked the assertion ASTs
+and raw JUnit. Updated native acceptance, full normal hooks, fresh review and
+hosted proof remain separate gates.
+
+Independent final review caught four new line-length errors in the YAML mapping
+despite the existing repository wrapper reporting success. Wrapping only those
+four observable strings preserves the parsed mapping object exactly. Direct
+strict yamllint on the changed mapping now exits zero. This is formatting before
+the new hosted source freeze, not a contract or canonical mapping change. The
+historical reviewed YAML byte hash is retained with the initial packet; the
+new byte hash is recorded in the local semantic-preservation receipt. Other
+repository YAML errors printed by the wrapper are pre-existing and outside this
+change. Its error-propagation bug is not repaired or weakened here.
+
+### Final signed test-only publication gate (2026-10-19)
+
+After the pre-RED fixture cleanup and semantic-only YAML wrapping, the pinned
+native gate again passes accepted and test-authored maturity for the exact
+owner-approved mapping `sha256:488ec1a749b4fd4da337cc75ee942f67122e29c0c76054e81aa7a1ae61873b42`.
+Strict OpenSpec and all normal hooks pass. The actual SpecFact review is PASS
+with zero findings. Contract execution is skipped by the unchanged native
+contract-test-status decision, so no new contract run is claimed. Direct strict
+yamllint on the changed mapping exits zero. The remaining 18 global YAML
+diagnostics belong to four files byte-identical to the test-only baseline; the
+existing wrapper error-propagation defect remains disclosed and unchanged.
+
+Fresh independent final review approved the exact nine-file test-only snapshot.
+It independently expands the four private helpers and recovers both entire
+approved test module ASTs, preserving statement order. It also reverses exactly
+four YAML line wraps to the historical reviewed bytes and verifies parsed-value
+equality. The final comment audit reports no new findings or suppressions. All
+writers and reviewers were explicitly stopped before signing. No production
+source, workflow, dependency, policy, authority or protected producer state was
+changed. The new hosted source must bind the corrected test bytes above.
+
+Authentic same-branch hosted 89-case RED remains required before implementation
+or PR776 closure. Native materialization lifecycle and protected adoption remain
+unproved and unchecked. This publication supplies neither merge permission nor
+protected Requirements authority.

@@ -13,6 +13,7 @@ import sys
 import warnings
 import zipfile
 from collections.abc import Mapping
+from contextlib import AbstractContextManager
 from datetime import date, timedelta
 from pathlib import Path
 from types import ModuleType
@@ -49,8 +50,7 @@ class CandidateWheel(Protocol):
 
 
 class AdmittedWheel(Protocol):
-    @property
-    def wheel(self) -> Path: ...
+    def materialize(self) -> AbstractContextManager[Path]: ...
 
     def audit_input(self, actual_requirements: Path, output: Path) -> BoundAuditInput: ...
 
@@ -627,13 +627,28 @@ def _protected_fixture(
 def test_exact_protected_boundary_admits_only_the_verified_wheel(wheel_recipe: WheelRecipe, tmp_path: Path) -> None:
     module = _module()
     candidate, bundle, policy = _protected_fixture(module, wheel_recipe, tmp_path)
+    authenticated: list[bytes] = []
+
+    def verify_snapshot(wheel: Path, *_args: object) -> None:
+        authenticated.append(wheel.read_bytes())
+
     with (
         patch.object(module, "_fetch_protected_policy", return_value=policy),
-        patch.object(module, "_verify_provenance", return_value=None) as verifier,
+        patch.object(module, "_verify_provenance", side_effect=verify_snapshot) as verifier,
     ):
         admitted = module.admit_artifact(candidate.path, bundle)
-    assert admitted.wheel == candidate.path
-    verifier.assert_called_once_with(candidate.path, bundle / "provenance.jsonl", "d" * 40, "e" * 40)
+    assert authenticated == [candidate.path.read_bytes()]
+    with admitted.materialize() as wheel:
+        assert type(wheel) is type(candidate.path)
+        assert wheel != candidate.path
+        assert wheel.name == candidate.path.name
+        assert _sha(wheel.read_bytes()) == candidate.sha256
+    assert not wheel.exists()
+    verifier.assert_called_once()
+    verified_path, provenance, source, signer = verifier.call_args.args
+    assert verified_path != candidate.path
+    assert verified_path.name == candidate.path.name
+    assert (provenance, source, signer) == (bundle / "provenance.jsonl", "d" * 40, "e" * 40)
     policy["admissions"][0]["source_commit"] = "f" * 40
     with (
         patch.object(module, "_fetch_protected_policy", return_value=policy),

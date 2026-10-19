@@ -36,7 +36,8 @@ Production setup caller, before any project dependency installation:
 from downstream_semgrep import admit_artifact
 
 admitted = admit_artifact(wheel, evidence_bundle)
-install_frozen_environment(admitted.wheel, locked_requirements)
+with admitted.materialize() as verified_wheel:
+    install_frozen_environment(verified_wheel, locked_requirements)
 ```
 
 Existing audit caller, after admission verification and before accepting findings:
@@ -55,6 +56,12 @@ The production CLI has no `--allow-untrusted`, `--skip-provenance`, candidate fl
 Sketch only; bodies raise `NotImplementedError`. Serialized dictionaries and attestation transport objects are parsed inside the core. Opaque production objects are created only by boundary functions; private constructors prevent accidental use, not a security sandbox against hostile Python.
 
 ```python
+from contextlib import AbstractContextManager
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Literal
+
+
 @dataclass(frozen=True)
 class PlatformWheel:
     filename: str
@@ -92,7 +99,8 @@ class TrustedPolicy:
 
 class AdmittedWheel:
     # Private constructor; exact digest + provenance + policy binding.
-    wheel: Path
+    def materialize(self) -> AbstractContextManager[Path]:
+        raise NotImplementedError
 
     def audit_input(self, actual_requirements: Path, output: Path) -> BoundAuditInput:
         raise NotImplementedError
@@ -126,6 +134,36 @@ def admit_artifact(wheel: Path, evidence_bundle: Path) -> AdmittedWheel:
 ```
 
 The core validates version grammar, exact identities, unique platforms, complete matrix, hashes, metadata cardinality, record format and provenance at entry. Validated values then flow without repeated caller checks. Public surface hides ZIP and evidence schemas, audit transformation and policy evaluation. Existing gate scripts retain their current entry points.
+
+## Installation identity lifetime
+
+Admission owns an immutable byte snapshot. Approval, archive verification and
+provenance verification must authenticate that same snapshot, materialized under
+the original wheel basename in a private directory owned by the trusted process.
+The original caller path is transport input only and is never returned as install
+authority. No production install API is introduced by this change.
+
+`materialize()` writes the retained bytes into a fresh private directory, yields
+its real Path for the full synchronous install, and removes it on normal or
+exceptional exit. In-place source overwrite without unlinking, source replacement,
+deletion or symlink substitution after admission cannot change these bytes.
+A retained hard link alone is insufficient because an in-place write can preserve
+the source inode while changing its bytes. The overwrite regression asserts that
+the device and inode remain unchanged and both later materializations retain the
+approved bytes, including normal and exceptional cleanup. Admission must preserve the existing during-admission replacement rejection,
+including its current error message. The unchanged
+`test_admission_rejects_candidate_replacement_after_protected_digest` regression
+from the implementation source must be restored with implementation. Audit
+binding uses the retained approved digest, never rereads the original transport path. A caller must finish all wheel
+reads before leaving the context. Child processes must be joined inside it.
+
+The trust assumption is that the installer, Python process, its account, and its
+private temporary storage are trusted. This is not isolation from a hostile
+same-account process, privileged attacker, compromised installer or mutable
+mount under their control. Unix permission bits alone do not prove Windows ACL
+isolation; platform tests must establish private storage behavior or fail closed.
+Hash rechecks and pip hash flags are not an atomic path-to-install guarantee.
+No claim is made that an arbitrary third-party installer opens a path atomically.
 
 ## Trust and scope
 

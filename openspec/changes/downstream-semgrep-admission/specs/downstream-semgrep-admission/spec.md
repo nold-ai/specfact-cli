@@ -52,6 +52,16 @@ Admission SHALL precede production installation or audit identity substitution.
 - **WHEN** all recipe, artifact, platform and validity bindings match
 - **THEN** admission SHALL return only that exact verified artifact identity
 
+#### Scenario: Installation retains the admitted artifact after transport mutation
+
+- **GIVEN** an admitted artifact whose exact byte snapshot passed approval, archive and provenance verification
+- **WHEN** the original transport file is overwritten in place without unlinking, replaced, deleted or redirected after admission
+- **THEN** admission-owned materialization SHALL yield the same authenticated bytes under the original wheel basename
+- **AND** the yielded path SHALL be separate from the caller transport path and scoped to a context that covers every installer read
+- **AND** the private materialization SHALL be cleaned on success or failure
+- **AND** the installer process, account and private storage SHALL be trusted; hostile same-account or privileged filesystem mutation is outside this boundary
+- **AND** no production adoption or installer orchestration authority is granted
+
 ### Requirement: Complete Vulnerability Identity Coverage
 
 The audit SHALL retain actual installed distribution identities and SHALL query

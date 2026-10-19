@@ -20,15 +20,31 @@ def test_admission_pins_exact_attestation_identity(wheel_recipe: contract.WheelR
     module = contract._module()
     candidate, bundle, policy = contract._protected_fixture(module, wheel_recipe, tmp_path)
     result = subprocess.CompletedProcess(["gh"], 0, '[{"verified":true}]', "")
+    approved = candidate.path.read_bytes()
+    authenticated: list[bytes] = []
+
+    def attest(argv: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        authenticated.append(Path(argv[3]).read_bytes())
+        return result
+
     with (
         patch.object(module, "_fetch_protected_policy", return_value=policy),
-        patch.object(module.subprocess, "run", return_value=result) as run,
+        patch.object(module.subprocess, "run", side_effect=attest) as run,
     ):
         admitted = module.admit_artifact(candidate.path, bundle)
-    assert admitted.wheel == candidate.path
+    with admitted.materialize() as wheel:
+        assert wheel != candidate.path
+        assert contract._sha(wheel.read_bytes()) == candidate.sha256
+    assert authenticated == [approved]
     run.assert_called_once()
     argv = run.call_args.args[0]
-    assert argv[:4] == ["gh", "attestation", "verify", str(candidate.path.resolve())]
+    assert argv[:3] == ["gh", "attestation", "verify"]
+    assert Path(argv[3]) != candidate.path.resolve()
+    assert Path(argv[3]).name == candidate.path.name
+    _assert_attestation_options(argv, bundle)
+
+
+def _assert_attestation_options(argv: list[str], bundle: Path) -> None:
     assert argv.count("--deny-self-hosted-runners") == 1
     options = [item for item in argv[4:] if item != "--deny-self-hosted-runners"]
     assert len(options) % 2 == 0

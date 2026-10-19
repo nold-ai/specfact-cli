@@ -461,6 +461,42 @@ requirements:
           runner: pytest
           node_id: tests/unit/scripts/test_downstream_semgrep_review_guards.py::test_admission_rejects_approved_but_invalid_matrix[failed-audit]
 
+      - case_id: protected-install-identity-01
+        scenario_id: exact-protected-admission
+        method: test
+        intent: Materialize approved bytes after transport replace and clean storage on success and error.
+        observable: The real attestation command authenticates the same approved snapshot bytes through a private path. Both
+          materialization contexts yield those bytes and remove their directories. The external attestation process alone is mocked.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_install_identity.py::test_admission_materializes_verified_bytes_after_transport_mutation[replace]
+      - case_id: protected-install-identity-02
+        scenario_id: exact-protected-admission
+        method: test
+        intent: Materialize approved bytes after transport delete and clean storage on success and error.
+        observable: The real attestation command authenticates the same approved snapshot bytes through a private path. Both
+          materialization contexts yield those bytes and remove their directories. The external attestation process alone is mocked.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_install_identity.py::test_admission_materializes_verified_bytes_after_transport_mutation[delete]
+      - case_id: protected-install-identity-03
+        scenario_id: exact-protected-admission
+        method: test
+        intent: Materialize approved bytes after transport symlink and clean storage on success and error.
+        observable: The real attestation command authenticates the same approved snapshot bytes through a private path. Both
+          materialization contexts yield those bytes and remove their directories. The external attestation process alone is mocked.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_install_identity.py::test_admission_materializes_verified_bytes_after_transport_mutation[symlink]
+      - case_id: protected-install-identity-04
+        scenario_id: exact-protected-admission
+        method: test
+        intent: Materialize approved bytes after an in-place transport overwrite without unlinking and clean storage on success and error.
+        observable: The overwrite preserves the transport device and inode. Both later materializations retain the authenticated bytes
+          and remove their directories. A retained hard link that shares mutable transport bytes fails this case.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_install_identity.py::test_admission_materializes_verified_bytes_after_transport_mutation[in-place]
   openspec:downstream-semgrep-admission:downstream-semgrep-admission:complete-vulnerability-identity-coverage:
     rationale: Complete vulnerability identity coverage
     stakeholder_refs:
