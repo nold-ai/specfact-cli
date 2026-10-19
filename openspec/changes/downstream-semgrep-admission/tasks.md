@@ -3,12 +3,12 @@
 - [ ] 1.1 Validate focused issue metadata, OpenSpec and architecture.
 - [ ] 1.2 Commit the specification with normal signed hooks.
 - [ ] 1.3 Author mapped behavioral tests and record exact owner acceptance.
-- [ ] 1.4 Capture actual failing-before evidence before implementation.
+- [x] 1.4 Capture actual failing-before evidence before implementation.
 
 ## 2. Implementation
 
-- [ ] 2.1 Implement deterministic metadata-only wheel build and archive verification.
-- [ ] 2.2 Implement exact fail-closed protected admission and complete audit binding.
+- [x] 2.1 Implement deterministic metadata-only wheel build and archive verification.
+- [x] 2.2 Implement exact fail-closed protected admission and complete audit binding.
 - [ ] 2.3 Implement one platform inventory, candidate matrix and protected producer workflow.
 - [ ] 2.4 Implement real MCP lifecycle and SAST positive/negative compatibility probes.
 
@@ -57,7 +57,7 @@ grants neither protected authority nor merge permission.
 - [x] 6.1 Record explicit owner acceptance and preserve the original frozen proof history.
 - [x] 6.2 Publish signed test-only #779 and independently authenticate all 89 intended hosted RED cases before restoration.
 - [x] 6.3 Close #778 unmerged, selectively restore its reviewed implementation and apply only the approved source correction.
-- [ ] 6.4 Verify fresh local GREEN, normal quality hooks and independent source review.
+- [x] 6.4 Verify fresh local GREEN, normal quality hooks and independent source review.
 - [ ] 6.5 Publish normally signed implementation and authenticate current-head hosted GREEN, native cells and actual reviews.
 
 Predecessor candidate results do not grant current-tree authority or protected adoption. No merge is authorized.
