@@ -1,0 +1,848 @@
+schema_version: '2'
+requirements:
+  openspec:downstream-semgrep-admission:downstream-semgrep-admission:deterministic-metadata-only-downstream-build:
+    rationale: Deterministic metadata only downstream build
+    stakeholder_refs:
+      - nold-ai/specfact-cli#772
+    touchpoints:
+      - id: deterministic-metadata-only-downstream-build
+        kind: code_symbol
+        locator: scripts/downstream_semgrep.py
+    verification_cases:
+      - case_id: deterministic-metadata-only-downstream-build-01
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: Build is reproducible and preserves complete runtime.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_build_is_reproducible_and_preserves_complete_runtime
+      - case_id: deterministic-metadata-only-downstream-build-02
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: Wrong upstream hash cannot write candidate.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_wrong_upstream_hash_cannot_write_candidate
+      - case_id: deterministic-metadata-only-downstream-build-03
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: Unsafe upstream archive rejects even with reviewed hash.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_unsafe_upstream_archive_rejects_even_with_reviewed_hash[duplicate]
+      - case_id: deterministic-metadata-only-downstream-build-04
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: Unsafe upstream archive rejects even with reviewed hash.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_unsafe_upstream_archive_rejects_even_with_reviewed_hash[traversal]
+      - case_id: deterministic-metadata-only-downstream-build-05
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: Unsafe upstream archive rejects even with reviewed hash.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_unsafe_upstream_archive_rejects_even_with_reviewed_hash[symlink]
+      - case_id: deterministic-metadata-only-downstream-build-06
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: Unsafe upstream archive rejects even with reviewed hash.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_unsafe_upstream_archive_rejects_even_with_reviewed_hash[signature]
+      - case_id: deterministic-metadata-only-downstream-build-07
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: Unsafe upstream archive rejects even with reviewed hash.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_unsafe_upstream_archive_rejects_even_with_reviewed_hash[bad-record]
+      - case_id: deterministic-metadata-only-downstream-build-08
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: Unsafe upstream archive rejects even with reviewed hash.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_unsafe_upstream_archive_rejects_even_with_reviewed_hash[duplicate-mcp]
+      - case_id: deterministic-metadata-only-downstream-build-09
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: Candidate rejects unauthorized change with valid record.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_candidate_rejects_unauthorized_change_with_valid_record[runtime]
+      - case_id: deterministic-metadata-only-downstream-build-10
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: Candidate rejects unauthorized change with valid record.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_candidate_rejects_unauthorized_change_with_valid_record[mode]
+      - case_id: deterministic-metadata-only-downstream-build-11
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: Candidate rejects unauthorized change with valid record.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_candidate_rejects_unauthorized_change_with_valid_record[entrypoint]
+      - case_id: deterministic-metadata-only-downstream-build-12
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: Candidate rejects unauthorized change with valid record.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_candidate_rejects_unauthorized_change_with_valid_record[other-metadata]
+      - case_id: deterministic-metadata-only-downstream-build-13
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: Unreviewed downstream identity rejects.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_unreviewed_downstream_identity_rejects[unknown-local]
+      - case_id: deterministic-metadata-only-downstream-build-14
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: Unreviewed downstream identity rejects.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_unreviewed_downstream_identity_rejects[masquerade]
+      - case_id: deterministic-metadata-only-downstream-build-15
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: Unreviewed downstream identity rejects.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_unreviewed_downstream_identity_rejects[below-floor]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-16
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_serialized_archive_changes[utf8-flag]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_archive_boundaries.py::test_candidate_rejects_serialized_archive_changes[utf8-flag]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-17
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_serialized_archive_changes[volume]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_archive_boundaries.py::test_candidate_rejects_serialized_archive_changes[volume]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-18
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_serialized_archive_changes[extract-version]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_archive_boundaries.py::test_candidate_rejects_serialized_archive_changes[extract-version]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-19
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_serialized_archive_changes[archive-comment]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_archive_boundaries.py::test_candidate_rejects_serialized_archive_changes[archive-comment]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-20
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_serialized_archive_changes[local-header-only]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_archive_boundaries.py::test_candidate_rejects_serialized_archive_changes[local-header-only]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-21
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_serialized_archive_changes[trailing-bytes]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_archive_boundaries.py::test_candidate_rejects_serialized_archive_changes[trailing-bytes]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-22
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_serialized_archive_changes[prefix]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_archive_boundaries.py::test_candidate_rejects_serialized_archive_changes[prefix]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-23
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_serialized_archive_changes[central-order]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_archive_boundaries.py::test_candidate_rejects_serialized_archive_changes[central-order]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-24
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_upstream_utf8_flag_is_normalized_by_candidate_writer
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_archive_boundaries.py::test_upstream_utf8_flag_is_normalized_by_candidate_writer
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-25
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_one_isolated_mutation[runtime]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_isolated_feedback.py::test_candidate_rejects_one_isolated_mutation[runtime]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-26
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_one_isolated_mutation[mode]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_isolated_feedback.py::test_candidate_rejects_one_isolated_mutation[mode]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-27
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_one_isolated_mutation[entrypoint]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_isolated_feedback.py::test_candidate_rejects_one_isolated_mutation[entrypoint]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-28
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_one_isolated_mutation[metadata]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_isolated_feedback.py::test_candidate_rejects_one_isolated_mutation[metadata]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-29
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_accepts_noop_zip_rewrite
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_isolated_feedback.py::test_candidate_accepts_noop_zip_rewrite
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-30
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_preserved_member_header_changes[date-time]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_review_guards.py::test_candidate_rejects_preserved_member_header_changes[date-time]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-31
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_preserved_member_header_changes[internal-attr]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_review_guards.py::test_candidate_rejects_preserved_member_header_changes[internal-attr]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-32
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_preserved_member_header_changes[create-system]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_review_guards.py::test_candidate_rejects_preserved_member_header_changes[create-system]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-33
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_preserved_member_header_changes[extra]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_review_guards.py::test_candidate_rejects_preserved_member_header_changes[extra]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-34
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_preserved_member_header_changes[comment]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_review_guards.py::test_candidate_rejects_preserved_member_header_changes[comment]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-35
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_preserved_member_header_changes[compression]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_review_guards.py::test_candidate_rejects_preserved_member_header_changes[compression]
+      - case_id: deterministic-metadata-only-downstream-build-supplemental-36
+        scenario_id: deterministic-metadata-only-downstream-build
+        method: test
+        intent: test_candidate_rejects_preserved_member_header_changes[create-version]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_review_guards.py::test_candidate_rejects_preserved_member_header_changes[create-version]
+
+  openspec:downstream-semgrep-admission:downstream-semgrep-admission:exact-protected-admission:
+    rationale: Exact protected admission
+    stakeholder_refs:
+      - nold-ai/specfact-cli#772
+    touchpoints:
+      - id: exact-protected-admission
+        kind: code_symbol
+        locator: scripts/downstream_semgrep.py
+    verification_cases:
+      - case_id: exact-protected-admission-01
+        scenario_id: exact-protected-admission
+        method: test
+        intent: Exact protected boundary admits only the verified wheel.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_exact_protected_boundary_admits_only_the_verified_wheel
+      - case_id: exact-protected-admission-02
+        scenario_id: exact-protected-admission
+        method: test
+        intent: Unapproved artifact rejects before verifier.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_unapproved_artifact_rejects_before_verifier[empty-policy]
+      - case_id: exact-protected-admission-03
+        scenario_id: exact-protected-admission
+        method: test
+        intent: Unapproved artifact rejects before verifier.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_unapproved_artifact_rejects_before_verifier[expired]
+      - case_id: exact-protected-admission-04
+        scenario_id: exact-protected-admission
+        method: test
+        intent: Unapproved artifact rejects before verifier.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_unapproved_artifact_rejects_before_verifier[wrong-hash]
+      - case_id: exact-protected-admission-05
+        scenario_id: exact-protected-admission
+        method: test
+        intent: Unapproved artifact rejects before verifier.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_unapproved_artifact_rejects_before_verifier[wrong-matrix]
+      - case_id: exact-protected-admission-06
+        scenario_id: exact-protected-admission
+        method: test
+        intent: Verifier failure cannot turn claims into admission.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_verifier_failure_cannot_turn_claims_into_admission[pr-origin]
+      - case_id: exact-protected-admission-07
+        scenario_id: exact-protected-admission
+        method: test
+        intent: Verifier failure cannot turn claims into admission.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_verifier_failure_cannot_turn_claims_into_admission[missing-verifier]
+      - case_id: exact-protected-admission-08
+        scenario_id: exact-protected-admission
+        method: test
+        intent: Verifier failure cannot turn claims into admission.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_verifier_failure_cannot_turn_claims_into_admission[timeout]
+      - case_id: exact-protected-admission-supplemental-09
+        scenario_id: exact-protected-admission
+        method: test
+        intent: test_admission_pins_exact_attestation_identity
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_review_guards.py::test_admission_pins_exact_attestation_identity
+      - case_id: exact-protected-admission-supplemental-10
+        scenario_id: exact-protected-admission
+        method: test
+        intent: test_admission_rejects_approved_but_invalid_matrix[missing]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_review_guards.py::test_admission_rejects_approved_but_invalid_matrix[missing]
+      - case_id: exact-protected-admission-supplemental-11
+        scenario_id: exact-protected-admission
+        method: test
+        intent: test_admission_rejects_approved_but_invalid_matrix[duplicate]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_review_guards.py::test_admission_rejects_approved_but_invalid_matrix[duplicate]
+      - case_id: exact-protected-admission-supplemental-12
+        scenario_id: exact-protected-admission
+        method: test
+        intent: test_admission_rejects_approved_but_invalid_matrix[emulated]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_review_guards.py::test_admission_rejects_approved_but_invalid_matrix[emulated]
+      - case_id: exact-protected-admission-supplemental-13
+        scenario_id: exact-protected-admission
+        method: test
+        intent: test_admission_rejects_approved_but_invalid_matrix[failed-audit]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_review_guards.py::test_admission_rejects_approved_but_invalid_matrix[failed-audit]
+
+      - case_id: protected-install-identity-01
+        scenario_id: exact-protected-admission
+        method: test
+        intent: Materialize approved bytes after transport replace and clean storage on success and error.
+        observable: The real attestation command authenticates the same approved snapshot bytes through a private path. Both
+          materialization contexts yield those bytes and remove their directories. The external attestation process alone is mocked.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_install_identity.py::test_admission_materializes_verified_bytes_after_transport_mutation[replace]
+      - case_id: protected-install-identity-02
+        scenario_id: exact-protected-admission
+        method: test
+        intent: Materialize approved bytes after transport delete and clean storage on success and error.
+        observable: The real attestation command authenticates the same approved snapshot bytes through a private path. Both
+          materialization contexts yield those bytes and remove their directories. The external attestation process alone is mocked.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_install_identity.py::test_admission_materializes_verified_bytes_after_transport_mutation[delete]
+      - case_id: protected-install-identity-03
+        scenario_id: exact-protected-admission
+        method: test
+        intent: Materialize approved bytes after transport symlink and clean storage on success and error.
+        observable: The real attestation command authenticates the same approved snapshot bytes through a private path. Both
+          materialization contexts yield those bytes and remove their directories. The external attestation process alone is mocked.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_install_identity.py::test_admission_materializes_verified_bytes_after_transport_mutation[symlink]
+      - case_id: protected-install-identity-04
+        scenario_id: exact-protected-admission
+        method: test
+        intent: Materialize approved bytes after an in-place transport overwrite without unlinking and clean storage on success and error.
+        observable: The overwrite preserves the transport device and inode. Both later materializations retain the authenticated bytes
+          and remove their directories. A retained hard link that shares mutable transport bytes fails this case.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_install_identity.py::test_admission_materializes_verified_bytes_after_transport_mutation[in-place]
+  openspec:downstream-semgrep-admission:downstream-semgrep-admission:complete-vulnerability-identity-coverage:
+    rationale: Complete vulnerability identity coverage
+    stakeholder_refs:
+      - nold-ai/specfact-cli#772
+    touchpoints:
+      - id: complete-vulnerability-identity-coverage
+        kind: code_symbol
+        locator: scripts/downstream_semgrep.py
+    verification_cases:
+      - case_id: complete-vulnerability-identity-coverage-01
+        scenario_id: complete-vulnerability-identity-coverage
+        method: test
+        intent: Bound audit preserves real graph and reports local identity.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_bound_audit_preserves_real_graph_and_reports_local_identity
+      - case_id: complete-vulnerability-identity-coverage-02
+        scenario_id: complete-vulnerability-identity-coverage
+        method: test
+        intent: Bound audit rejects incomplete or unsafe responses.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_bound_audit_rejects_incomplete_or_unsafe_responses[empty-skip]
+      - case_id: complete-vulnerability-identity-coverage-03
+        scenario_id: complete-vulnerability-identity-coverage
+        method: test
+        intent: Bound audit rejects incomplete or unsafe responses.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_bound_audit_rejects_incomplete_or_unsafe_responses[missing]
+      - case_id: complete-vulnerability-identity-coverage-04
+        scenario_id: complete-vulnerability-identity-coverage
+        method: test
+        intent: Bound audit rejects incomplete or unsafe responses.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_bound_audit_rejects_incomplete_or_unsafe_responses[duplicate]
+      - case_id: complete-vulnerability-identity-coverage-05
+        scenario_id: complete-vulnerability-identity-coverage
+        method: test
+        intent: Bound audit rejects incomplete or unsafe responses.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_bound_audit_rejects_incomplete_or_unsafe_responses[wrong-version]
+      - case_id: complete-vulnerability-identity-coverage-06
+        scenario_id: complete-vulnerability-identity-coverage
+        method: test
+        intent: Bound audit rejects incomplete or unsafe responses.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_bound_audit_rejects_incomplete_or_unsafe_responses[malformed-vuln]
+      - case_id: complete-vulnerability-identity-coverage-07
+        scenario_id: complete-vulnerability-identity-coverage
+        method: test
+        intent: Bound audit rejects incomplete or unsafe responses.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_bound_audit_rejects_incomplete_or_unsafe_responses[advisory-and-error]
+      - case_id: complete-vulnerability-identity-coverage-08
+        scenario_id: complete-vulnerability-identity-coverage
+        method: test
+        intent: Bound audit rejects unbound inventory before writing view.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_bound_audit_rejects_unbound_inventory_before_writing_view[vulnerable-mcp]
+      - case_id: complete-vulnerability-identity-coverage-09
+        scenario_id: complete-vulnerability-identity-coverage
+        method: test
+        intent: Bound audit rejects unbound inventory before writing view.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_bound_audit_rejects_unbound_inventory_before_writing_view[wrong-local-hash]
+      - case_id: complete-vulnerability-identity-coverage-10
+        scenario_id: complete-vulnerability-identity-coverage
+        method: test
+        intent: Bound audit rejects unbound inventory before writing view.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_bound_audit_rejects_unbound_inventory_before_writing_view[marker]
+      - case_id: complete-vulnerability-identity-coverage-supplemental-11
+        scenario_id: complete-vulnerability-identity-coverage
+        method: test
+        intent: test_clean_audit_json_with_nonzero_exit_rejects[candidate]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_isolated_feedback.py::test_clean_audit_json_with_nonzero_exit_rejects[candidate]
+      - case_id: complete-vulnerability-identity-coverage-supplemental-12
+        scenario_id: complete-vulnerability-identity-coverage
+        method: test
+        intent: test_clean_audit_json_with_nonzero_exit_rejects[admitted]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_isolated_feedback.py::test_clean_audit_json_with_nonzero_exit_rejects[admitted]
+
+  openspec:downstream-semgrep-admission:downstream-semgrep-admission:complete-platform-and-mcp-behavioral-proof:
+    rationale: Complete platform and mcp behavioral proof
+    stakeholder_refs:
+      - nold-ai/specfact-cli#772
+    touchpoints:
+      - id: complete-platform-and-mcp-behavioral-proof
+        kind: code_symbol
+        locator: scripts/downstream_semgrep.py
+    verification_cases:
+      - case_id: complete-platform-and-mcp-behavioral-proof-01
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: Matrix requires all seven platforms and three interpreters.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_matrix_requires_all_seven_platforms_and_three_interpreters
+      - case_id: complete-platform-and-mcp-behavioral-proof-02
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: Matrix rejects incomplete or non native evidence.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_matrix_rejects_incomplete_or_non_native_evidence[missing]
+      - case_id: complete-platform-and-mcp-behavioral-proof-03
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: Matrix rejects incomplete or non native evidence.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_matrix_rejects_incomplete_or_non_native_evidence[duplicate]
+      - case_id: complete-platform-and-mcp-behavioral-proof-04
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: Matrix rejects incomplete or non native evidence.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_matrix_rejects_incomplete_or_non_native_evidence[failed]
+      - case_id: complete-platform-and-mcp-behavioral-proof-05
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: Matrix rejects incomplete or non native evidence.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_matrix_rejects_incomplete_or_non_native_evidence[emulated]
+      - case_id: complete-platform-and-mcp-behavioral-proof-06
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: Matrix rejects incomplete or non native evidence.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_matrix_rejects_incomplete_or_non_native_evidence[skipped-check]
+      - case_id: complete-platform-and-mcp-behavioral-proof-07
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: Complete candidate matrix does not grant production admission.
+        observable: The exact public API outcome is asserted against a synthetic wheel or bounded external-service fixture.
+          This unit proof does not grant production provenance or replace native matrix execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep.py::test_complete_candidate_matrix_does_not_grant_production_admission
+      - case_id: native-platform-lifecycle-pending
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: inspection
+        intent: Require separate real-package native matrix and MCP lifecycle evidence before adoption.
+        observable: All 21 native cells must prove ordinary hashed installation, SAST controls and real idle/capacity/DELETE/refused-opening
+          behavior. Synthetic unit reports do not supply this proof. Missing native evidence blocks adoption.
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-09
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: test_required_matrix_rejects_unbound_runtime_policy[mismatch]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_runtime_evidence.py::test_required_matrix_rejects_unbound_runtime_policy[mismatch]
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-10
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: test_required_matrix_rejects_unbound_runtime_policy[missing]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_runtime_evidence.py::test_required_matrix_rejects_unbound_runtime_policy[missing]
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-11
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: test_required_matrix_rejects_unbound_runtime_policy[null]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_runtime_evidence.py::test_required_matrix_rejects_unbound_runtime_policy[null]
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-12
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: test_required_matrix_rejects_unbound_runtime_policy[list]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_runtime_evidence.py::test_required_matrix_rejects_unbound_runtime_policy[list]
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-13
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: test_required_matrix_rejects_unbound_runtime_policy[string]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_runtime_evidence.py::test_required_matrix_rejects_unbound_runtime_policy[string]
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-14
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: test_cell_preserves_utf8_command_evidence_under_windows_locale[lf]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_runtime_evidence.py::test_cell_preserves_utf8_command_evidence_under_windows_locale[lf]
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-15
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: test_cell_preserves_utf8_command_evidence_under_windows_locale[crlf]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_runtime_evidence.py::test_cell_preserves_utf8_command_evidence_under_windows_locale[crlf]
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-16
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: test_cell_preserves_utf8_command_evidence_under_windows_locale[cr]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_runtime_evidence.py::test_cell_preserves_utf8_command_evidence_under_windows_locale[cr]
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-17
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: test_cell_rejects_invalid_utf8_command_evidence[stdout]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_runtime_evidence.py::test_cell_rejects_invalid_utf8_command_evidence[stdout]
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-18
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: test_cell_rejects_invalid_utf8_command_evidence[stderr]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_runtime_evidence.py::test_cell_rejects_invalid_utf8_command_evidence[stderr]
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-19
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: test_cell_preserves_utf8_timeout_evidence[lf]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_runtime_evidence.py::test_cell_preserves_utf8_timeout_evidence[lf]
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-20
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: test_cell_preserves_utf8_timeout_evidence[crlf]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_runtime_evidence.py::test_cell_preserves_utf8_timeout_evidence[crlf]
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-21
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: test_cell_preserves_utf8_timeout_evidence[cr]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_runtime_evidence.py::test_cell_preserves_utf8_timeout_evidence[cr]
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-22
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: test_cell_rejects_invalid_utf8_timeout_evidence[stdout]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_runtime_evidence.py::test_cell_rejects_invalid_utf8_timeout_evidence[stdout]
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-23
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: test_cell_rejects_invalid_utf8_timeout_evidence[stderr]
+        observable: The isolated synthetic contract asserts the boundary outcome. It does not grant protected provenance or native
+          platform adoption.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_runtime_evidence.py::test_cell_rejects_invalid_utf8_timeout_evidence[stderr]
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-24
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: Windows checkout preserves committed recipe bytes despite inherited CRLF conversion.
+        observable: A real isolated Git repository reproduces clean-diff CRLF conversion. The single Windows pre-checkout workflow
+          command restores LF bytes and SHA-256 equality with the committed blob. Native hosted execution remains separately required.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_workflow.py::test_windows_checkout_preserves_committed_recipe_bytes
+      - case_id: complete-platform-and-mcp-behavioral-proof-supplemental-25
+        scenario_id: complete-platform-and-mcp-behavioral-proof
+        method: test
+        intent: Candidate pull-request paths rerun evidence for all bound inputs and downstream regression tests.
+        observable: Workflow path filters cover an independent declared inventory of consumed or bound sources, all authored downstream
+          regression files and their future wildcard, without importing production modules.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_downstream_semgrep_workflow.py::test_candidate_pr_trigger_covers_bound_inputs_and_regression_tests

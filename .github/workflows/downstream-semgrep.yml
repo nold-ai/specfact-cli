@@ -1,0 +1,150 @@
+name: Downstream Semgrep candidate
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/downstream_semgrep.py'
+      - 'scripts/verify_downstream_semgrep.py'
+      - 'ci/downstream*'
+      - 'tools/downstream_semgrep/**'
+      - '.github/workflows/downstream-semgrep.yml'
+      - 'tests/unit/scripts/test_downstream_semgrep*.py'
+      - 'uv.lock'
+      - 'tools/semgrep/sast.yml'
+      - 'tools/semgrep/sast-baseline.json'
+      - 'scripts/semgrep_sast_gate.py'
+      - 'tests/unit/scripts/test_native_report_schema.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  matrix:
+    runs-on: ubuntu-24.04
+    outputs:
+      cells: ${{ steps.matrix.outputs.cells }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.13'
+      - id: matrix
+        shell: bash
+        run: |
+          cells="$(python scripts/verify_downstream_semgrep.py matrix)"
+          echo "cells=$cells" >> "$GITHUB_OUTPUT"
+
+  candidate:
+    needs: matrix
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.matrix.outputs.cells) }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - name: Preserve committed input bytes on Windows
+        if: runner.os == 'Windows'
+        shell: bash
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: ${{ matrix.python_version }}
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
+        with:
+          enable-cache: false
+          version: '0.12.19'
+      - name: Execute native candidate cell
+        if: matrix.container_image == ''
+        shell: bash
+        env:
+          CELL_PLATFORM: ${{ matrix.platform }}
+          CELL_PYTHON: ${{ matrix.python_version }}
+        run: |
+          python scripts/verify_downstream_semgrep.py cell --platform "$CELL_PLATFORM" --python-version "$CELL_PYTHON" --output "$RUNNER_TEMP/downstream-cell"
+      - name: Execute native musl candidate cell
+        if: matrix.container_image != ''
+        shell: bash
+        env:
+          CELL_PLATFORM: ${{ matrix.platform }}
+          CELL_PYTHON: ${{ matrix.python_version }}
+          CELL_IMAGE: ${{ matrix.container_image }}
+        run: |
+          case "$CELL_IMAGE" in python:*@sha256:*) ;; *) echo 'Unpinned musl image' >&2; exit 1 ;; esac
+          mkdir -p "$RUNNER_TEMP/downstream-musl"
+          status=0
+          docker run --rm \
+            --mount "type=bind,src=$GITHUB_WORKSPACE,dst=/workspace,readonly" \
+            --mount "type=bind,src=$RUNNER_TEMP/downstream-musl,dst=/evidence" \
+            -e CELL_PLATFORM -e CELL_PYTHON \
+            -w /workspace "$CELL_IMAGE" sh -euc '
+              apk add --no-cache git build-base libffi-dev openssl-dev cargo
+              git config --global --add safe.directory /workspace
+              python scripts/verify_downstream_semgrep.py uv-requirements > /evidence/uv-bootstrap.txt
+              python -m pip install --require-hashes --only-binary=:all: --index-url https://pypi.org/simple -r /evidence/uv-bootstrap.txt
+              python scripts/verify_downstream_semgrep.py cell --platform "$CELL_PLATFORM" --python-version "$CELL_PYTHON" --output /evidence/downstream-cell
+            ' || status=$?
+          exit "$status"
+      - name: Retain candidate evidence on success or failure
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: downstream-${{ matrix.platform }}-${{ matrix.python_version }}
+          path: |
+            ${{ runner.temp }}/downstream-cell
+            ${{ runner.temp }}/downstream-musl/downstream-cell
+            !${{ runner.temp }}/**/*-env/**
+            !${{ runner.temp }}/**/build-two/**
+            !${{ runner.temp }}/**/semgrep-settings.yml
+          if-no-files-found: error
+          retention-days: 14
+
+  aggregate:
+    permissions:
+      contents: read
+      actions: read
+    if: always()
+    needs: [matrix, candidate]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.13'
+      - name: Download immutable job artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        shell: bash
+        run: |
+          gh run download "$RUN_ID" --pattern 'downstream-*' --dir "$RUNNER_TEMP/downstream-reports"
+      - name: Require complete successful candidate matrix
+        env:
+          MATRIX_RESULT: ${{ needs.matrix.result }}
+          CANDIDATE_RESULT: ${{ needs.candidate.result }}
+        shell: bash
+        run: |
+          test "$MATRIX_RESULT" = success
+          test "$CANDIDATE_RESULT" = success
+          python scripts/verify_downstream_semgrep.py aggregate --reports "$RUNNER_TEMP/downstream-reports"
+
+  protected-producer:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/dev'
+    needs: aggregate
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Refuse production bootstrap until separately approved roots exist
+        shell: bash
+        run: |
+          echo 'Candidate evidence only. Production producer bootstrap is unconfigured; no signing, attestation or publication is permitted.' >&2
+          exit 1
