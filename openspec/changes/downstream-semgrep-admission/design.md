@@ -22,18 +22,20 @@ artifacts may be retained by CI but are never protected producer evidence.
 PR validation caller (unprivileged, disposable environment):
 
 ```python
-from downstream_semgrep import build_candidate, validate_candidate
+from scripts.downstream_semgrep import aggregate_candidate_reports, build_candidate, verify_candidate
 
 candidate = build_candidate(recipe_path, upstream_wheel, output_directory)
-report = verify_candidate(recipe_path, upstream_wheel, candidate.path)
-assert report.functional_checks_passed
-# report.production_admission is always "not_requested"; not an admission token.
+verified = verify_candidate(recipe_path, upstream_wheel, candidate.path)
+assert verified.sha256 == candidate.sha256
+summary = aggregate_candidate_reports(recipe_path, cell_reports)
+assert summary["status"] == "passed"
+assert summary["production_admission"] == "not_requested"
 ```
 
 Production setup caller, before any project dependency installation:
 
 ```python
-from downstream_semgrep import admit_artifact
+from scripts.downstream_semgrep import admit_artifact
 
 admitted = admit_artifact(wheel, evidence_bundle)
 with admitted.materialize() as verified_wheel:
@@ -59,7 +61,6 @@ Sketch only; bodies raise `NotImplementedError`. Serialized dictionaries and att
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
 
 
 @dataclass(frozen=True)
@@ -83,12 +84,6 @@ class Recipe:
 
 class CandidateWheel:
     # Private validated constructor; path, digest, recipe digest, platform.
-    ...
-
-
-class CandidateReport:
-    functional_checks_passed: bool
-    production_admission: Literal["not_requested"]
     ...
 
 
@@ -164,6 +159,16 @@ mount under their control. Unix permission bits alone do not prove Windows ACL
 isolation; platform tests must establish private storage behavior or fail closed.
 Hash rechecks and pip hash flags are not an atomic path-to-install guarantee.
 No claim is made that an arbitrary third-party installer opens a path atomically.
+
+Windows privacy inspection validates each descriptor's owner against the current
+user, SYSTEM, and Administrators before checking its allow entries. OWNER RIGHTS
+(`S-1-3-4`) refers to that object's current owner, so the probe resolves this SID
+to the same descriptor's validated owner. Other allow SIDs must identify one of
+those trusted principals directly. Descriptor paths, readable SDDL, present
+nonnull DACLs, rule types, and child readability remain required. This follows
+Microsoft's [OWNER RIGHTS definition](https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/manage/understand-special-identities-groups#owner-rights),
+accessed 2026-10-19 Europe/Berlin. A local replay of collected ACL responses tests
+the observation parser; only native Windows execution establishes storage privacy.
 
 ## Trust and scope
 
@@ -267,3 +272,45 @@ recipe, artifact, protected-policy and provenance controls remain required.
 Faithful synthetic positive fixtures are authored before the new hosted RED source
 is frozen. Additional schema regressions remain separate from the accepted
 85-case execution plan.
+
+## uv configuration isolation (2026-10-19)
+
+The native candidate evidence driver must apply its reviewed constraints and
+explicit interpreter independently of inherited uv configuration. `_Cell` retains
+its `dict[str, str]` environment snapshot and removes every inherited key whose
+uppercase form starts with `UV_`. It then installs `UV_NO_CONFIG=1` and the existing
+Semgrep defaults without changing the parent environment. Non-UV settings,
+including PATH, proxy and certificate configuration, remain available.
+
+This single constructor policy covers every existing child invocation without
+changing `_run`, uv argv, report fields, versions, constraints or hash checks.
+Adding `--no-config` at five call sites would duplicate discovery policy and make
+future omission possible. A wrapper or environment-policy object adds no needed
+consumer. An empty environment would change unrelated host behavior.
+
+Both operations are required. With uv 0.12.19, `--no-config` suppresses discovered
+project, user and system files but leaves inherited `UV_OVERRIDE` and explicit
+`UV_CONFIG_FILE` active. The latter still selects its file when `--no-config` is
+present. `uv --version` does not parse the tested configuration inputs, so that
+query alone cannot prove isolation. See the official [configuration reference](https://docs.astral.sh/uv/concepts/configuration-files/)
+and [UV_NO_CONFIG reference](https://docs.astral.sh/uv/reference/environment/#uv_no_config),
+accessed 2026-10-19 Europe/Berlin; exact behavior is checked against native uv
+0.12.19 using offline dependency-free wheel fixtures.
+
+The regression boundary is a real child process, including mixed-case uv keys,
+a non-UV sentinel and unchanged parent state. Six real uv compile cases cover
+ambient overrides, an explicit configuration file, project uv.toml, project
+pyproject.toml, user configuration and redirectable system configuration. Each
+must first demonstrate a clean pinned-and-constrained package with its SHA-256
+and an effective unisolated poison control, then preserve that identity and hash
+through `_Cell._run`. Valid no-emit-package configuration tests changed output;
+malformed TOML and subprocess argument mocks are not substitutes.
+
+This is scoped uv configuration isolation. PATH still selects the executable,
+and non-UV environment settings may affect children. Local host proof does not
+replace the seven-platform Python 3.11–3.13 matrix or the existing acceptance,
+security and frozen-input gates. No gate or protected input is relaxed.
+
+## Exact producer certificate identity (2026-10-20)
+
+Admission uses GitHub CLI's exact certificate identity selector for `https://github.com/nold-ai/specfact-cli/.github/workflows/downstream-semgrep.yml@refs/heads/dev`. The signer-repository and signer-workflow selectors cannot be combined in GitHub CLI 2.101.0. The latter is a prefix regular expression; exact certificate identity binds both the protected workflow path and dev signer ref. Repository identity, protected source ref and digest, signer digest, OIDC issuer, hosted-runner requirement, bundle and nonempty verified result remain enforced. The owner approved the exact two-file correction and fresh failing-first proof. Existing installation trust assumptions and protected producer ownership remain unchanged.

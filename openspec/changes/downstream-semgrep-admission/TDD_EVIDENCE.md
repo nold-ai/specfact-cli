@@ -352,3 +352,113 @@ On unchanged published implementation 3217e261, the revised assertion produces o
 The native gate rejects changed proof inputs after the earlier RED source and production before a replacement RED checkpoint. Independent review confirmed that it also requires every mapped RED selector to fail exactly once. The established successor protocol therefore starts from signed test-only bf37e9c5f288b47a9f01275ff494fe2afa15663b, preserving the protected base, existing 89-selector mapping and six other frozen proof inputs. Only the approved assertion is revised. Original proofs and receipts remain immutable history. New local and hosted test-only RED must be authenticated before any implementation is restored. The existing PR remains open until the replacement hosted RED is independently verified.
 
 Actual successor local execution now produces all 89 intended AssertionErrors, with zero errors or skips: 77 absent admission-boundary checks, ten absent native-runner checks and two absent workflow checks. The revised exact assertion is included. Tests run through the external prepared proposal-source Python 3.12 interpreter, with collection verifying every selected test module comes from this successor worktree. This is not Hatch execution or hosted proof. Raw JUnit omits optional failure type attributes; classification uses its actual AssertionError message and failure body. A post-run verifier initially expected the optional attribute and was corrected without rerunning tests. Hosted RED and all implementation restoration remain pending.
+
+## Retained predecessor implementation history
+
+The following checkpoint sections are retained verbatim from closed, unmerged PR #778 at signed head 3217e261. They describe their original sources and environments. They do not establish current #779 acceptance.
+
+## Authenticated hosted 89-case RED before implementation, 2026-10-19
+
+Signed test-only PR #778 source `bf37e9c5f288b47a9f01275ff494fe2afa15663b`, tree `7b7010aee05e273e3b1fbb3c1a3e429c3ce346ae`, produced genuine same-branch hosted RED in run `39245425557`, artifact `12183746628`. The service ZIP hashes to `sha256:68925d11c1e04f858c53c37290eeb0a6415173b3ca1ebedf868751158c38f308`. The exact source, base, mapping, plan, selected test hashes and JUnit digest authenticate. Actual JUnit contains 89 predicted missing-boundary AssertionErrors, zero errors and zero skips. Native report verdict and gate pass at red maturity with failing-first-proven evidence. The workflow itself remains failed with its expected final-reconciliation-required result. No workflow GREEN is claimed.
+
+The unchanged native provenance binder exits zero and preserves the original JSON bytes. Fresh independent review downloaded the service artifact separately, reproduced canonical digest domains, verified all bindings and the absent implementation, and approved only this RED checkpoint. The explicit owner-approved successor sequence then closed #776 unmerged as superseded, with the proof posted on both PRs. Only after that verification and closure were eleven exact retained implementation, regression and historical-evidence files restored from `e37204f8`. All seven selected test-file digests remain unchanged. Existing during-admission substitution rejection source is byte-identical.
+
+Before writing the new implementation, the restored source produced six intended installation-identity failures and 83 passing cases. The four transport-mutation cases reject provenance on the original caller Path, and the two revised original contract assertions find no scoped materialization API. These are direct observations against the retained implementation, not new hosted GREEN or protected producer evidence. Native private-storage and lifecycle proof remains required.
+
+## Immutable installation implementation checkpoint, 2026-10-19 Europe/Berlin
+
+After the authenticated 89-case hosted RED above, admission retains the verified
+immutable candidate bytes and verifies provenance against a private materialized
+snapshot. The public scoped context yields a fresh ordinary Path with the
+original basename. Audit binding uses the retained digest. The unchanged
+during-admission substitution rejection remains before provenance. Four actual
+transport mutations, nested lifetimes, joined child reads and exceptional cleanup
+were independently replayed. The 182-case focused suite passes.
+
+The complete current local suite passes with 3,611 tests, 10 skips and 64.38%
+coverage against the unchanged 50% floor. The unchanged smart-test manager runs
+its full direct backend in the prepared Python 3.12.13 environment. Its backend
+selection is local to the manager; child tests retain their normal environment.
+Earlier Hatch wrappers selected interpreter paths with spaces; generated mock
+launchers then failed. The recovered venv also lacked standard python3 aliases.
+Standard uv preserve-existing scaffolding restores those aliases without changing
+any of its 178 installed distribution identities. All 22 affected cases pass
+when rechecked. The smoke fixture is selected independently at the committed
+046d366c190af7a188d6f48953a96edb65e766db identity. No test, dependency declaration,
+lock, workflow policy or coverage threshold was changed for these corrections.
+
+The native MCP defaults oracle now has one shared callable used by the native
+SDK test and ordinary unit controls. The latter no longer imports the full SDK
+during collection. Its real icontract postcondition and supported expected
+AssertionError declaration preserve rejection behavior. Both installed CrossHair
+versions accept that contract and detect a deliberate incorrect return value.
+The actual aggregate review has no helper finding. Two supplemental review
+matrices add 16 passing identity and audit rejection cases without editing any
+of the seven frozen test inputs. The corrected caller example executes against
+the real candidate and matrix APIs. The expiry case passes in four time zones;
+both fixture and implementation use local date.today, so no UTC-clock change or
+frozen-test edit is applied.
+
+Strict OpenSpec, the actual released pinned Requirements gate, canonical types,
+Ruff, independent SAST and normal hooks pass. The normal hook's contract stage
+retains its unchanged cached-input skip; no new contract-suite execution is
+claimed. Independent code reviews and the scoped comment audit found no additional
+implementation defect. The actual SpecFact report remains PASS_WITH_ADVISORY
+with 12 findings. Eleven are within retained predecessor dispositions. The new
+MISSING_ICONTRACT warning on AdmittedWheel.materialize was undisposed at this
+local checkpoint. The subsequent owner decision below covers only that method.
+No fake decorator or scanner adjustment is used.
+
+The mandatory candidate-only materialization probe is scheduled in every native
+cell. Local Darwin execution used a synthetic wheel fixture. Current-source
+21-cell execution, Windows storage privacy, protected producer admission and
+production adoption remain unproved. No implementation commit, current-source
+hosted GREEN, protected authority or merge permission is claimed here. The
+original frozen Security Audit remains unchanged.
+
+## Owner-approved materialize disposition, 2026-10-19 Europe/Berlin
+
+The owner explicitly approved the reviewed one-method exception and normal signed
+publication of PR #778 in reply `call_df2292b6a0a346938ca634fb86578878`. The exact
+approved patch has SHA-256
+`875aacf0d4e37d8a695c3e009b9c244374d5d5000f5088fc1573d4e6cec2d7e6`. It adds
+only `AdmittedWheel.materialize` to the documented standard-library preinstallation
+disposition and labels the retained nine-warning predecessor record. The raw
+warning remains in the review report. No scanner rule, severity, dependency,
+coverage threshold, signing, provenance or native acceptance gate changes.
+
+The owner approval grants neither protected authority nor merge permission.
+Current-source hosted GREEN, all native platform cells and protected producer
+adoption remain required. The seven frozen proof inputs remain unchanged.
+
+### Windows OWNER RIGHTS observation correction (2026-10-19 Europe/Berlin)
+
+Hosted native run `39322889120` at published implementation head `1571be0e7dc713937c875f83e7c630bd1c39e6c6` failed the materialization observation in Windows Python 3.12 and 3.13. Authenticated artifacts `12220263647` and `12221091209` contain the same `Windows ACL grants access to an untrusted SID` assertion. Their descriptors already identify trusted owners and protected, nonnull DACLs. The rejected SID is the Windows OWNER RIGHTS identity `S-1-3-4`, which denotes the current object's owner. Microsoft documents this identity in [Special identity groups](https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/manage/understand-special-identities-groups#owner-rights), accessed 2026-10-19.
+
+The supplemental observation-parser matrix ran before the correction and produced six intended SID-rejection failures and 16 passing rejection controls. After resolving only this exact alias to the same descriptor's already validated owner, the focused suite passed all 39 cases. The independent reviewer reproduced both results, rejected 47 additional malformed or untrusted observations, and replayed both archive-matched native responses against the old and corrected parsers. The replay changes only local fixture path values. It establishes parser behavior, not native Windows GREEN.
+
+All original probe tests and the seven frozen 89-case proof inputs remain unchanged. No ACL, materialization behavior, trusted-principal set, workflow gate, production admission, dependency, or protected authority changes. Ruff, canonical BasedPyright, and the comment audit passed for the three-file repair. Fresh independent review approved the exact source hashes without findings and was explicitly stopped. Normal publication gates and the updated native matrix remain separate evidence.
+
+### UV configuration isolation (2026-10-19 Europe/Berlin)
+
+Review finding `4318813721` is reproduced through the real `_Cell` process boundary. The inherited `UV_OVERRIDE` changes a constrained compile into an unsatisfiable resolution. Valid explicit, project, user and redirectable system configurations can remove the constrained fixture from resolver output. `--no-config` alone still accepts an inherited `UV_CONFIG_FILE`. The selected constructor policy removes inherited UV keys using a case-insensitive prefix check and then inserts the driver-owned `UV_NO_CONFIG=1`. Existing non-UV settings, argv, constraints, hashes, versions and source/report identity binding remain unchanged.
+
+The design was recorded before seven supplemental real-process regressions ran RED against unchanged source. Every failure was the intended environment or constrained-identity boundary. After the two-line constructor correction, the same seven cases passed. Six real uv compile cases require an effective unisolated poison control, then the original constrained identity and wheel digest through the isolated runner. The child-environment case also proves mixed-case keys are excluded, a non-UV sentinel survives, and parent state is unchanged. The tests skip only if a real uv binary is unavailable; all seven executed without skips on the verified host.
+
+Actual implementation proof used uv 0.12.19 (SHA-256 `7522b8347a9d65188592b04ffacaf97d57b6623e795d82b8162e66331f0d5bff`) and prepared Python 3.12.13 on macOS arm64. Independent earlier grounding used host Python 3.14.7 and is recorded separately. The combined focused selection passed 61 tests, comprising 39 materialization, seven uv and 15 runtime cases. Ruff, canonical BasedPyright and scoped Bandit medium/high checks passed. This is local host proof. Updated native Windows, Linux and the full Python 3.11 through 3.13 matrix remain required after publication. Frozen tests, dependency inputs, admission authority and every existing gate remain unchanged.
+
+The project review's new test complexity warning was resolved by separating the override-resolution failure from the five persistent-configuration cases and sharing their real pinned baseline fixture. Replaying the unchanged original constructor with the final test shape produced the same seven intended failures and no setup errors or skips. The final combined regression selection passed 211 tests. The driver's unchanged main function still has the separately documented predecessor contract exception in REVIEW_EXCEPTIONS.md; this correction adds no warning waiver.
+
+## Authenticated revised hosted RED before restoration (2026-10-20 Europe/Berlin)
+
+Signed test-only PR #779 head `17e8f32c0f4393d0d8cae88c27ef7178b8fd0f2c`, tree `784939d674f953259f07334862d33fbef2f263e3`, produced genuine same-branch hosted RED in run `39332823706`, service artifact `12224992743`. The service ZIP SHA-256 is `090c524b651f449ac0fb47cabdf89bbb02e8bc41a79315283ea50fc4a294a13e`. All 89 selected cases failed exactly once with the predicted missing-boundary AssertionErrors, zero errors and zero skips. The exact approved certificate assertion is included. The source, protected base, mapping, plan, seven test-file digests and JUnit digest were authenticated. The native gate passes at red maturity with failing-first-proven evidence; the overall workflow intentionally fails its final reconciliation. This is not workflow GREEN. The unchanged native provenance binder exits zero without modifying the original JSON bytes. A fresh independent reviewer separately authenticated the service artifact and replayed the binder.
+
+Only after that independent verification was #778 closed unmerged as superseded. Twenty implementation and historical-evidence paths were selectively restored from signed 3217e261, without overwriting the new test checkpoint, revised owner record or any of its seven frozen inputs. Only the approved source hunk of patch `211fd11c2daecb8bfe4555a8661afa121e78f302338285ba092f780a00d860e0` was then applied. The resulting admission source SHA-256 is `66f76d81424dec7a17d96f63db472b4a4c54857aee51bb3162179d66697698f4`. It requires the exact producer certificate identity on dev. Other provenance checks remain intact. Fresh local passing evidence, normal hooks, current-head hosted 89-case GREEN, all 21 native cells, actual reviews, security and protected authority remain separate gates. Original test inputs and receipts remain immutable history.
+
+Predecessor 3217 hosted evidence is retained separately. Its original 89-case Requirements gate and all 21 candidate native cells passed. Its full hosted suite passed 3,640 tests with ten skips and two warnings in 568.23 seconds. Those results bind 3217 and its original proof inputs, not this successor. Protected producer admission was not requested and remains unconfigured; frozen MCP security audit and exact-tree authority remained failing. No production pin, lock, admission record, scanner baseline, coverage floor, security exception or authority grant is changed here.
+
+### Revised implementation local verification
+
+The restored successor passes all 183 relevant downstream Semgrep script regressions through its prepared Python 3.12.13 environment, with zero failures, errors or skips. Normal `hatch run pre-commit run` and strict OpenSpec pass. The released Requirements validator passes the appropriate authored-test maturity. The contract hook reports unchanged-input SKIP, not a new contract execution. Semgrep JSON SAST and its unchanged baseline gate pass. An initial SAST command omitted JSON output mode; the baseline validator rejected that human-readable output. Both raw calls are retained, and the corrected JSON command supplies the passing artifact without source or policy changes.
+
+The actual current SpecFact report is PASS_WITH_ADVISORY with 12 findings, exactly matching the retained final implementation report by file, rule, message and severity. All twelve have existing explicit dispositions, including the owner-approved one-method materialize exception. No new exception is introduced. No unrelated local full-suite run is repeated. Current-head hosted GREEN, all native cells, actual bot review, frozen security audit and protected authority remain required.
