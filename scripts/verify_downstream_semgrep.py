@@ -71,7 +71,8 @@ class _Cell:
         self.checks: dict[str, bool] = dict.fromkeys(CHECKS, False)
         self.report["checks"] = self.checks
         self.sequence = 0
-        self.environment = dict(os.environ, SEMGREP_SEND_METRICS="off", SEMGREP_ENABLE_VERSION_CHECK="0")
+        self.environment = {key: value for key, value in os.environ.items() if not key.upper().startswith("UV_")}
+        self.environment.update(UV_NO_CONFIG="1", SEMGREP_SEND_METRICS="off", SEMGREP_ENABLE_VERSION_CHECK="0")
         self.environment["SEMGREP_SETTINGS_FILE"] = str(output / "semgrep-settings.yml")
 
     def _run(

@@ -160,6 +160,16 @@ isolation; platform tests must establish private storage behavior or fail closed
 Hash rechecks and pip hash flags are not an atomic path-to-install guarantee.
 No claim is made that an arbitrary third-party installer opens a path atomically.
 
+Windows privacy inspection validates each descriptor's owner against the current
+user, SYSTEM, and Administrators before checking its allow entries. OWNER RIGHTS
+(`S-1-3-4`) refers to that object's current owner, so the probe resolves this SID
+to the same descriptor's validated owner. Other allow SIDs must identify one of
+those trusted principals directly. Descriptor paths, readable SDDL, present
+nonnull DACLs, rule types, and child readability remain required. This follows
+Microsoft's [OWNER RIGHTS definition](https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/manage/understand-special-identities-groups#owner-rights),
+accessed 2026-10-19 Europe/Berlin. A local replay of collected ACL responses tests
+the observation parser; only native Windows execution establishes storage privacy.
+
 ## Trust and scope
 
 The recipe is the sole source of wheel/platform and Python matrix inputs. It binds
@@ -262,3 +272,41 @@ recipe, artifact, protected-policy and provenance controls remain required.
 Faithful synthetic positive fixtures are authored before the new hosted RED source
 is frozen. Additional schema regressions remain separate from the accepted
 85-case execution plan.
+
+## uv configuration isolation (2026-10-19)
+
+The native candidate evidence driver must apply its reviewed constraints and
+explicit interpreter independently of inherited uv configuration. `_Cell` retains
+its `dict[str, str]` environment snapshot and removes every inherited key whose
+uppercase form starts with `UV_`. It then installs `UV_NO_CONFIG=1` and the existing
+Semgrep defaults without changing the parent environment. Non-UV settings,
+including PATH, proxy and certificate configuration, remain available.
+
+This single constructor policy covers every existing child invocation without
+changing `_run`, uv argv, report fields, versions, constraints or hash checks.
+Adding `--no-config` at five call sites would duplicate discovery policy and make
+future omission possible. A wrapper or environment-policy object adds no needed
+consumer. An empty environment would change unrelated host behavior.
+
+Both operations are required. With uv 0.12.19, `--no-config` suppresses discovered
+project, user and system files but leaves inherited `UV_OVERRIDE` and explicit
+`UV_CONFIG_FILE` active. The latter still selects its file when `--no-config` is
+present. `uv --version` does not parse the tested configuration inputs, so that
+query alone cannot prove isolation. See the official [configuration reference](https://docs.astral.sh/uv/concepts/configuration-files/)
+and [UV_NO_CONFIG reference](https://docs.astral.sh/uv/reference/environment/#uv_no_config),
+accessed 2026-10-19 Europe/Berlin; exact behavior is checked against native uv
+0.12.19 using offline dependency-free wheel fixtures.
+
+The regression boundary is a real child process, including mixed-case uv keys,
+a non-UV sentinel and unchanged parent state. Six real uv compile cases cover
+ambient overrides, an explicit configuration file, project uv.toml, project
+pyproject.toml, user configuration and redirectable system configuration. Each
+must first demonstrate a clean pinned-and-constrained package with its SHA-256
+and an effective unisolated poison control, then preserve that identity and hash
+through `_Cell._run`. Valid no-emit-package configuration tests changed output;
+malformed TOML and subprocess argument mocks are not substitutes.
+
+This is scoped uv configuration isolation. PATH still selects the executable,
+and non-UV environment settings may affect children. Local host proof does not
+replace the seven-platform Python 3.11–3.13 matrix or the existing acceptance,
+security and frozen-input gates. No gate or protected input is relaxed.

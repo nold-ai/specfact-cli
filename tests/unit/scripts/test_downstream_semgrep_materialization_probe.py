@@ -158,3 +158,72 @@ def test_cleanup_error_fails_executable(
     result = json.loads(capsys.readouterr().out)
     assert result["status"] == "failed"
     assert result["error_type"] == "OSError"
+
+
+@pytest.fixture
+def windows_acl(candidate: Path) -> tuple[str, list[dict[str, object]]]:
+    current = "S-1-5-21-100-200-300-1001"
+    descriptors: list[dict[str, object]] = [
+        {
+            "path": str(path),
+            "owner": current,
+            "sddl": f"O:{current}G:SYD:(A;;FA;;;{current})(A;;FA;;;SY)(A;;FA;;;BA)",
+            "dacl_present": True,
+            "null_dacl": False,
+            "rules": [
+                {"type": "Allow", "sid": sid, "rights": 2032127} for sid in (current, "S-1-5-18", "S-1-5-32-544")
+            ],
+        }
+        for path in (candidate.parent, candidate)
+    ]
+    return current, descriptors
+
+
+@pytest.mark.parametrize("descriptor_index", [0, 1], ids=["directory", "file"])
+@pytest.mark.parametrize(
+    "acl_case",
+    [
+        pytest.param((None, None, None), id="current-user-owner"),
+        pytest.param(("S-1-5-18", None, None), id="system-owner"),
+        pytest.param(("S-1-5-32-544", None, None), id="administrators-owner"),
+        pytest.param(("S-1-5-21-100-200-300-1002", None, "owner is untrusted"), id="untrusted-owner"),
+        pytest.param(("S-1-3-4", None, "owner is untrusted"), id="owner-rights-is-not-an-owner"),
+        pytest.param((None, "S-1-1-0", "grants access to an untrusted SID"), id="everyone-allow"),
+        pytest.param((None, "S-1-5-32-545", "grants access to an untrusted SID"), id="users-allow"),
+        pytest.param((None, "S-1-5-11", "grants access to an untrusted SID"), id="authenticated-users-allow"),
+        pytest.param((None, "S-1-3-0", "grants access to an untrusted SID"), id="creator-owner-allow"),
+        pytest.param((None, "S-1-3-1", "grants access to an untrusted SID"), id="creator-group-allow"),
+        pytest.param((None, "S-1-3-99", "grants access to an untrusted SID"), id="unknown-special-sid-allow"),
+    ],
+)
+def test_windows_owner_rights_resolves_only_to_trusted_descriptor_owner(
+    candidate: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    descriptor_index: int,
+    acl_case: tuple[str | None, str | None, str | None],
+    windows_acl: tuple[str, list[dict[str, object]]],
+) -> None:
+    owner, extra_sid, expected_error = acl_case
+    current, descriptors = windows_acl
+    owner = current if owner is None else owner
+    allowed = ["S-1-3-4", "S-1-5-18", "S-1-5-32-544"]
+    if extra_sid is not None:
+        allowed.append(extra_sid)
+    descriptors[descriptor_index].update(
+        owner=owner,
+        sddl=f"O:{owner}G:SYD:" + "".join(f"(A;;FA;;;{sid})" for sid in allowed),
+        rules=[{"type": "Allow", "sid": sid, "rights": 2032127} for sid in allowed],
+    )
+    response = {"current_user": current, "descriptors": descriptors}
+    completed = subprocess.CompletedProcess(
+        args=["synthetic Get-Acl response"], returncode=0, stdout=json.dumps(response), stderr=""
+    )
+    monkeypatch.setattr(probe.subprocess, "run", lambda *args, **kwargs: completed)
+    observation: dict[str, object] = {}
+    if expected_error is not None:
+        with pytest.raises(AssertionError, match=expected_error):
+            probe._windows_privacy(candidate, observation)
+        return
+    probe._windows_privacy(candidate, observation)
+    assert observation["native_acl"] == response
+    assert observation["stdout"] == completed.stdout

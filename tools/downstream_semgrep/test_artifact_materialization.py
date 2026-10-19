@@ -90,7 +90,8 @@ def _windows_privacy(path: Path, observation: dict[str, object]) -> None:
             rule = cast(dict[str, object], value)
             _require(rule.get("type") in {"Allow", "Deny"}, "Windows ACL rule unreadable")
             if rule["type"] == "Allow":
-                _require(rule.get("sid") in trusted, "Windows ACL grants access to an untrusted SID")
+                sid = descriptor["owner"] if rule.get("sid") == "S-1-3-4" else rule.get("sid")
+                _require(sid in trusted, "Windows ACL grants access to an untrusted SID")
     observation["native_acl"] = decoded
 
 
