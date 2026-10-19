@@ -342,3 +342,77 @@ Authentic same-branch hosted 89-case RED remains required before implementation
 or PR776 closure. Native materialization lifecycle and protected adoption remain
 unproved and unchecked. This publication supplies neither merge permission nor
 protected Requirements authority.
+
+## Authenticated hosted 89-case RED before implementation, 2026-10-19
+
+Signed test-only PR #778 source `bf37e9c5f288b47a9f01275ff494fe2afa15663b`, tree `7b7010aee05e273e3b1fbb3c1a3e429c3ce346ae`, produced genuine same-branch hosted RED in run `39245425557`, artifact `12183746628`. The service ZIP hashes to `sha256:68925d11c1e04f858c53c37290eeb0a6415173b3ca1ebedf868751158c38f308`. The exact source, base, mapping, plan, selected test hashes and JUnit digest authenticate. Actual JUnit contains 89 predicted missing-boundary AssertionErrors, zero errors and zero skips. Native report verdict and gate pass at red maturity with failing-first-proven evidence. The workflow itself remains failed with its expected final-reconciliation-required result. No workflow GREEN is claimed.
+
+The unchanged native provenance binder exits zero and preserves the original JSON bytes. Fresh independent review downloaded the service artifact separately, reproduced canonical digest domains, verified all bindings and the absent implementation, and approved only this RED checkpoint. The explicit owner-approved successor sequence then closed #776 unmerged as superseded, with the proof posted on both PRs. Only after that verification and closure were eleven exact retained implementation, regression and historical-evidence files restored from `e37204f8`. All seven selected test-file digests remain unchanged. Existing during-admission substitution rejection source is byte-identical.
+
+Before writing the new implementation, the restored source produced six intended installation-identity failures and 83 passing cases. The four transport-mutation cases reject provenance on the original caller Path, and the two revised original contract assertions find no scoped materialization API. These are direct observations against the retained implementation, not new hosted GREEN or protected producer evidence. Native private-storage and lifecycle proof remains required.
+
+## Immutable installation implementation checkpoint, 2026-10-19 Europe/Berlin
+
+After the authenticated 89-case hosted RED above, admission retains the verified
+immutable candidate bytes and verifies provenance against a private materialized
+snapshot. The public scoped context yields a fresh ordinary Path with the
+original basename. Audit binding uses the retained digest. The unchanged
+during-admission substitution rejection remains before provenance. Four actual
+transport mutations, nested lifetimes, joined child reads and exceptional cleanup
+were independently replayed. The 182-case focused suite passes.
+
+The complete current local suite passes with 3,611 tests, 10 skips and 64.38%
+coverage against the unchanged 50% floor. The unchanged smart-test manager runs
+its full direct backend in the prepared Python 3.12.13 environment. Its backend
+selection is local to the manager; child tests retain their normal environment.
+Earlier Hatch wrappers selected interpreter paths with spaces; generated mock
+launchers then failed. The recovered venv also lacked standard python3 aliases.
+Standard uv preserve-existing scaffolding restores those aliases without changing
+any of its 178 installed distribution identities. All 22 affected cases pass
+when rechecked. The smoke fixture is selected independently at the committed
+046d366c190af7a188d6f48953a96edb65e766db identity. No test, dependency declaration,
+lock, workflow policy or coverage threshold was changed for these corrections.
+
+The native MCP defaults oracle now has one shared callable used by the native
+SDK test and ordinary unit controls. The latter no longer imports the full SDK
+during collection. Its real icontract postcondition and supported expected
+AssertionError declaration preserve rejection behavior. Both installed CrossHair
+versions accept that contract and detect a deliberate incorrect return value.
+The actual aggregate review has no helper finding. Two supplemental review
+matrices add 16 passing identity and audit rejection cases without editing any
+of the seven frozen test inputs. The corrected caller example executes against
+the real candidate and matrix APIs. The expiry case passes in four time zones;
+both fixture and implementation use local date.today, so no UTC-clock change or
+frozen-test edit is applied.
+
+Strict OpenSpec, the actual released pinned Requirements gate, canonical types,
+Ruff, independent SAST and normal hooks pass. The normal hook's contract stage
+retains its unchanged cached-input skip; no new contract-suite execution is
+claimed. Independent code reviews and the scoped comment audit found no additional
+implementation defect. The actual SpecFact report remains PASS_WITH_ADVISORY
+with 12 findings. Eleven are within retained predecessor dispositions. The new
+MISSING_ICONTRACT warning on AdmittedWheel.materialize was undisposed at this
+local checkpoint. The subsequent owner decision below covers only that method.
+No fake decorator or scanner adjustment is used.
+
+The mandatory candidate-only materialization probe is scheduled in every native
+cell. Local Darwin execution used a synthetic wheel fixture. Current-source
+21-cell execution, Windows storage privacy, protected producer admission and
+production adoption remain unproved. No implementation commit, current-source
+hosted GREEN, protected authority or merge permission is claimed here. The
+original frozen Security Audit remains unchanged.
+
+## Owner-approved materialize disposition, 2026-10-19 Europe/Berlin
+
+The owner explicitly approved the reviewed one-method exception and normal signed
+publication of PR #778 in reply `call_df2292b6a0a346938ca634fb86578878`. The exact
+approved patch has SHA-256
+`875aacf0d4e37d8a695c3e009b9c244374d5d5000f5088fc1573d4e6cec2d7e6`. It adds
+only `AdmittedWheel.materialize` to the documented standard-library preinstallation
+disposition and labels the retained nine-warning predecessor record. The raw
+warning remains in the review report. No scanner rule, severity, dependency,
+coverage threshold, signing, provenance or native acceptance gate changes.
+
+The owner approval grants neither protected authority nor merge permission.
+Current-source hosted GREEN, all native platform cells and protected producer
+adoption remain required. The seven frozen proof inputs remain unchanged.

@@ -41,8 +41,8 @@ not satisfy task 4.3. No merge or protected producer authority is granted here.
 ## 5. Accepted installation identity proof sequence
 
 - [x] 5.1 Record the owner's exact revised contract, 89-test mapping and successor acceptance.
-- [ ] 5.2 Publish the signed test-only successor and authenticate same-branch 89-case hosted RED before implementation.
-- [ ] 5.3 Only after 5.2, restore retained implementation and unchanged during-admission substitution rejection; implement immutable bytes and scoped materialization.
+- [x] 5.2 Publish the signed test-only successor and authenticate same-branch 89-case hosted RED before implementation.
+- [x] 5.3 Only after 5.2, restore retained implementation and unchanged during-admission substitution rejection; implement immutable bytes and scoped materialization.
 - [ ] 5.4 Prove native private storage, reads and joined child processes inside the context, normal/error cleanup, and all existing quality and provenance gates.
 - [ ] 5.5 Complete current-head review and remaining protected adoption decisions before merge readiness.
 

@@ -1,0 +1,30 @@
+{
+  "pr": 778,
+  "run": 39245425557,
+  "artifact": 12183746628,
+  "service_archive_digest": "sha256:68925d11c1e04f858c53c37290eeb0a6415173b3ca1ebedf868751158c38f308",
+  "source_ref": "bf37e9c5f288b47a9f01275ff494fe2afa15663b",
+  "source_tree": "7b7010aee05e273e3b1fbb3c1a3e429c3ce346ae",
+  "source_mapping": "sha256:488ec1a749b4fd4da337cc75ee942f67122e29c0c76054e81aa7a1ae61873b42",
+  "aggregate_mapping": "sha256:60a573002428b9a0808ba2113cc2016364e3511cae2f7d3235b5c80179990665",
+  "plan_identity_digest": "sha256:6afbfe2d7eeb86cc46e29c5adfc37097e0d16f1f4ee3053f43d63fc6abe2129b",
+  "execution_plan_digest": "sha256:63b23fcca33fc7233f88fcb50b2c8e9184e155ef9f88b26cbd14c32c59bfbb70",
+  "junit_digest": "sha256:c89cc178dbce2df794cc267da0758250e91e4f9635ea917b117d924ebf1cfda6",
+  "base_ref": "729a53bd4bcbba94886cff5c73d7092bef6ceb94",
+  "branch": "codex/semgrep-install-identity",
+  "assertion_failures": 89,
+  "errors": 0,
+  "skips": 0,
+  "native_gate": "pass",
+  "native_provenance_exit": 0,
+  "native_binding_unchanged": true,
+  "implementation_absent_at_verification": true,
+  "workflow_conclusion": "failure",
+  "workflow_conclusion_is_not_green": true,
+  "independent_verdict": "APPROVE",
+  "independent_verifier": "hosted-red-39245425557/independent-review/check_hosted_red.py",
+  "handoff_comments": {
+    "778": "https://github.com/nold-ai/specfact-cli/pull/778#issuecomment-6266391323",
+    "776": "https://github.com/nold-ai/specfact-cli/pull/776#issuecomment-6266391701"
+  }
+}

@@ -22,18 +22,20 @@ artifacts may be retained by CI but are never protected producer evidence.
 PR validation caller (unprivileged, disposable environment):
 
 ```python
-from downstream_semgrep import build_candidate, validate_candidate
+from scripts.downstream_semgrep import aggregate_candidate_reports, build_candidate, verify_candidate
 
 candidate = build_candidate(recipe_path, upstream_wheel, output_directory)
-report = verify_candidate(recipe_path, upstream_wheel, candidate.path)
-assert report.functional_checks_passed
-# report.production_admission is always "not_requested"; not an admission token.
+verified = verify_candidate(recipe_path, upstream_wheel, candidate.path)
+assert verified.sha256 == candidate.sha256
+summary = aggregate_candidate_reports(recipe_path, cell_reports)
+assert summary["status"] == "passed"
+assert summary["production_admission"] == "not_requested"
 ```
 
 Production setup caller, before any project dependency installation:
 
 ```python
-from downstream_semgrep import admit_artifact
+from scripts.downstream_semgrep import admit_artifact
 
 admitted = admit_artifact(wheel, evidence_bundle)
 with admitted.materialize() as verified_wheel:
@@ -59,7 +61,6 @@ Sketch only; bodies raise `NotImplementedError`. Serialized dictionaries and att
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
 
 
 @dataclass(frozen=True)
@@ -83,12 +84,6 @@ class Recipe:
 
 class CandidateWheel:
     # Private validated constructor; path, digest, recipe digest, platform.
-    ...
-
-
-class CandidateReport:
-    functional_checks_passed: bool
-    production_admission: Literal["not_requested"]
     ...
 
 

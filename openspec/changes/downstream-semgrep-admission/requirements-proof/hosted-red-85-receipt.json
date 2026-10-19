@@ -1,0 +1,22 @@
+{
+  "pr": 776,
+  "run_id": 39168987596,
+  "artifact_id": 12151776758,
+  "service_zip_digest": "sha256:69c5fcbcd14c1a6b7bc24d908bb4e6d2399e237325df6205b5733045addaeee5",
+  "source_commit": "6e05f92a05b051cddf311ff6a07dcdfa00d9eba6",
+  "source_tree": "1747c90d18590106faecdd70ad4d4635ba46cc16",
+  "base_commit": "729a53bd4bcbba94886cff5c73d7092bef6ceb94",
+  "accepted_source_mapping": "sha256:8fad85983d493870a3cefcc08511966fb9eb7cf821a34f3dc8c9d97b14944d11",
+  "aggregate_mapping": "sha256:5ca313a14b492010da58bfa39e3b6ac59ebacd9ca8713a69a3d6ea273c212380",
+  "plan_digest": "sha256:76e1abbf563d0b1a9ddf528e5d36ca0a4990036e906a1660e528bdd45c8826ee",
+  "selector_count": 85,
+  "assertion_failures": 85,
+  "errors": 0,
+  "skips": 0,
+  "native_red_verdict": "pass",
+  "native_binding_revalidation_exit": 0,
+  "existing_bindings_unchanged": true,
+  "implementation_still_absent": true,
+  "run_url": "https://github.com/nold-ai/specfact-cli/actions/runs/39168987596",
+  "scope": "Authenticated 85-case RED only; no protected producer authority, native matrix completion or production adoption."
+}
