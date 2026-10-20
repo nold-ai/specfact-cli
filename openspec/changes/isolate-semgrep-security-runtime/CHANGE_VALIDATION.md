@@ -99,3 +99,17 @@ complete redistribution compliance. Full source/license/component closure remain
 a publication prerequisite. All seven source/output byte comparisons, 21 real
 native cells, module and migration proof, complete audits, CI-only attestation,
 operator publication, consumer adoption and final human authority remain open.
+
+## Native cycle classification correction
+
+Run 39507988136 retains the real certificate PASS and intended MCP metadata FAIL
+at b61774e3, but native reconciliation rejects the revised cycle as incomplete
+FINAL. The historical certifi RED does not match the new mapping. See the exact
+run and artifact identities in `TDD_EVIDENCE.md`; no accepted new RED is claimed.
+
+The fresh test/spec-only descendant adds a wrong-SHA256 download control while
+preserving both mapped cases and the full plan. b61774e3 is the candidate immutable
+cycle base. Any late-cycle admission requires a qualified owner-approved PR #782
+trusted-policy extension and independently verified provenance. Current policy
+remains enforced. Producer preparation does not supply that approval, final
+exact-tree authority, package publication or canonical MCP remediation.

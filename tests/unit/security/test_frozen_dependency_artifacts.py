@@ -149,6 +149,12 @@ def test_frozen_certifi_bundle_excludes_compromised_root(tmp_path: Path, pytestc
     assert _BAD_CA not in fingerprints, "Frozen certifi artifact retains the compromised emSign root"
 
 
+def test_artifact_download_rejects_wrong_sha256(tmp_path: Path, pytestconfig: pytest.Config) -> None:
+    _, url, _ = _certifi_selection(pytestconfig.rootpath)
+    with pytest.raises(AssertionError, match="Downloaded artifact SHA256 differs from its pin"):
+        _download(url, "0" * 64, tmp_path / "wrong-hash.whl")
+
+
 def _normalized_members(wheel: WheelContents) -> dict[str, tuple[bytes, int]]:
     data_root = wheel.dist_info.removesuffix(".dist-info") + ".data"
     normalized = {}

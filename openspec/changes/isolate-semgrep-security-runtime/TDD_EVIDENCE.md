@@ -121,3 +121,38 @@ The independent final run has 13 passes and one intended MCP metadata assertion
 failure under Python 3.12 with old installed certifi. The certificate artifact
 case and all malformed-input/description controls pass. No native record or human
 authority is inferred from this local technical acceptance.
+
+## Retained MCP artifact failure and fresh test cycle
+
+Authenticated [run 39507988136](https://github.com/nold-ai/specfact-cli/actions/runs/39507988136)
+executed commit b61774e395b074a4b5c09fa27ce98d5a99a26e17. Artifact
+12303368797 has digest
+`sha256:860e3036844e6ccf4cd814c8719d6c48460a1267dba774e1b22b2b2828b363ce`.
+Its real JUnit records certificate PASS and the intended MCP 1.29.0 versus 1.30.0
+assertion failure, with no errors or skips. The workflow classifies this run as
+FINAL because the PR already contains implementation. Reconciliation reports
+`observed_maturity: incomplete`, `final-proof-failed-not-passed`, and
+`prior-red-proof-invalid`. This is authentic behavioral failure evidence. It is
+not accepted native RED or final implementation proof.
+
+A fresh test/spec-only descendant uses b61774e3 as its immutable cycle base.
+The additional negative control downloads the selected official certifi wheel
+and requires a deliberately wrong SHA256 pin to fail before artifact parsing.
+This exercises a security boundary that the earlier positive hash test did not
+independently discriminate. The two-case Requirements plan remains unchanged.
+Certificate PASS is retained explicitly; no deliberately failing certificate or
+weakened assertion is substituted to manufacture an all-failing plan.
+
+Existing late-RED validation can represent this failed subset, but its current
+trusted policy does not admit PR #782. A qualified owner must approve the policy
+extension and exact provenance before any late-cycle admission. The fresh native
+run will therefore remain failed FINAL under current policy. Test bytes and
+import fixtures must remain frozen after its recorded failure. No classifier,
+authority, audit, signature or verification policy is changed here.
+
+Fresh independent AI [technical acceptance](https://github.com/nold-ai/specfact-cli/pull/782#issuecomment-6303379802)
+binds test SHA256 d9bd7999112e5a9832f52ba9a03a4fc4d69b0326e191a02b735b6d553143ac34
+and the unchanged standalone mapping/plan. Its full run records 14 passes and one
+intended MCP mismatch; the wrong-hash control also passes separately. This record
+supersedes the earlier test-file identity for the fresh cycle, without claiming
+native admission or human authority. Local SpecFact review reports zero findings.
