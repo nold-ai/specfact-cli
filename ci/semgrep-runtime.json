@@ -1,0 +1,68 @@
+{
+  "python_versions": [
+    "3.11",
+    "3.12",
+    "3.13"
+  ],
+  "wheels": [
+    {
+      "platform_tag": "macosx_10_14_x86_64",
+      "runner": "macos-15-intel",
+      "containers": {}
+    },
+    {
+      "platform_tag": "macosx_11_0_arm64",
+      "runner": "macos-15",
+      "containers": {}
+    },
+    {
+      "platform_tag": "manylinux_2_34_x86_64",
+      "runner": "ubuntu-24.04",
+      "containers": {}
+    },
+    {
+      "platform_tag": "manylinux_2_34_aarch64",
+      "runner": "ubuntu-24.04-arm",
+      "containers": {}
+    },
+    {
+      "platform_tag": "musllinux_1_2_x86_64",
+      "runner": "ubuntu-24.04",
+      "containers": {
+        "3.11": "python:3.11-alpine3.22@sha256:a4fc589b32e824f3f02ed9d7e7be19518aa47e105b80416336af9f202275a489",
+        "3.12": "python:3.12-alpine3.22@sha256:a190708a2dec1bd18b1decb539f8e8f5407abaa9bf39cacda583f7f8c11db322",
+        "3.13": "python:3.13-alpine3.22@sha256:e81548ac35b07a3bd4805f275107592ef458b1e893c0e04d45aedaa19416cca5"
+      }
+    },
+    {
+      "platform_tag": "musllinux_1_2_aarch64",
+      "runner": "ubuntu-24.04-arm",
+      "containers": {
+        "3.11": "python:3.11-alpine3.22@sha256:a4fc589b32e824f3f02ed9d7e7be19518aa47e105b80416336af9f202275a489",
+        "3.12": "python:3.12-alpine3.22@sha256:a190708a2dec1bd18b1decb539f8e8f5407abaa9bf39cacda583f7f8c11db322",
+        "3.13": "python:3.13-alpine3.22@sha256:e81548ac35b07a3bd4805f275107592ef458b1e893c0e04d45aedaa19416cca5"
+      }
+    },
+    {
+      "platform_tag": "win_amd64",
+      "runner": "windows-2022",
+      "containers": {}
+    }
+  ],
+  "uv_bootstrap": {
+    "version": "0.12.19",
+    "wheels": [
+      {
+        "filename": "uv-0.12.19-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.musllinux_1_1_aarch64.whl",
+        "sha256": "b466eb0f74645883df52446d54474905e8515d75fdf0b313bf099dedc3237896",
+        "url": "https://files.pythonhosted.org/packages/49/5c/4690490a19726b44d8fd01cdbdc56061fdebf99bb3e466215f276eefbd5d/uv-0.12.19-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.musllinux_1_1_aarch64.whl"
+      },
+      {
+        "filename": "uv-0.12.19-py3-none-musllinux_1_1_x86_64.whl",
+        "sha256": "a6512549e6bf12013190639bd5d9ef780f197d7adf4770a628c5e681577543d8",
+        "url": "https://files.pythonhosted.org/packages/28/cd/e57952eef1e24d52403a73c25c73d5697791eb72debe4a2facf9006fcba5/uv-0.12.19-py3-none-musllinux_1_1_x86_64.whl"
+      }
+    ]
+  },
+  "producer_recipe": "ci/semgrep-distribution.json"
+}

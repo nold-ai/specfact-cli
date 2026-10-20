@@ -1,0 +1,6 @@
+rules:
+- id: downstream-positive
+  pattern: eval(...)
+  message: candidate positive control
+  severity: ERROR
+  languages: [python]

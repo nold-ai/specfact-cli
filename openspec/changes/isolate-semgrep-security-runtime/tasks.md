@@ -8,7 +8,7 @@
 - [x] Synchronize all core 0.55.11 sources, changelog and release fixture.
 - [x] Publish 66ee3d5 with the owner's exact one-time local hook exception.
 - [x] Reply to and resolve both fixed certificate review threads.
-- [ ] Correct trusted Requirements subject selection using inert exact wheel data.
+- [x] Correct trusted Requirements subject selection using inert exact wheel data.
 
 ## 2. Specify and reproduce the MCP packaging correction
 
@@ -16,11 +16,11 @@
 - [x] Compare whole architecture alternatives and independently judge them.
 - [x] Define exact payload, platform, migration, audit and publication contracts.
 - [x] Author revised artifact cases and obtain independent mapping acceptance.
-- [ ] Retain actual native MCP 1.29.0 metadata RED before producer implementation.
+- [x] Retain actual native MCP mismatch before producer implementation; admission remains pending.
 
 ## 3. Prepare and verify the candidate producer
 
-- [ ] Implement bounded deterministic producer and malformed/tamper controls.
+- [x] Implement bounded deterministic producer and malformed/tamper controls.
 - [ ] Build and compare all seven exact source/output artifact payloads.
 - [ ] Measure upload sizes and reproduce canonical artifact hashes.
 - [ ] Run all 21 native cells against the same built artifacts.

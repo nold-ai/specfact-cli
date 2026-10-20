@@ -1,0 +1,193 @@
+name: Semgrep candidate matrix
+
+on:
+  push:
+    branches: [hotfix/isolate-semgrep-security-runtime]
+    paths:
+      - scripts/semgrep_distribution.py
+      - scripts/candidate_runner.py
+      - ci/semgrep-distribution.json
+      - ci/semgrep-runtime.json
+      - tools/downstream_semgrep/**
+      - .github/workflows/semgrep-candidate.yml
+      - uv.lock
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: semgrep-candidate-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/hotfix/isolate-semgrep-security-runtime'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    outputs:
+      cells: ${{ steps.matrix.outputs.cells }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.13.14'
+      - id: matrix
+        shell: bash
+        run: |
+          cells="$(python scripts/candidate_runner.py matrix)"
+          echo "cells=$cells" >> "$GITHUB_OUTPUT"
+      - name: Build canonical artifacts and prove same-runtime reproducibility
+        shell: bash
+        env:
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: python scripts/candidate_runner.py build --source-commit "$SOURCE_COMMIT" --output "$RUNNER_TEMP/canonical"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: semgrep-canonical
+          path: |
+            ${{ runner.temp }}/canonical/wheels/*.whl
+            ${{ runner.temp }}/canonical/manifest.json
+          if-no-files-found: error
+          retention-days: 14
+
+  native:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.build.outputs.cells) }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - name: Preserve committed bytes on Windows
+        if: runner.os == 'Windows'
+        shell: bash
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: semgrep-canonical
+          path: ${{ runner.temp }}/canonical
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        if: matrix.container_image == ''
+        with:
+          python-version: ${{ matrix.python_version }}
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
+        if: matrix.container_image == ''
+        with:
+          version: '0.12.19'
+          enable-cache: false
+      - name: Execute native cell against canonical bytes
+        if: matrix.container_image == ''
+        shell: bash
+        env:
+          CELL_PLATFORM: ${{ matrix.platform }}
+          CELL_PYTHON: ${{ matrix.python_version }}
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: |
+          python scripts/candidate_runner.py cell --source-commit "$SOURCE_COMMIT" --platform "$CELL_PLATFORM" --python-version "$CELL_PYTHON" --bundle "$RUNNER_TEMP/canonical" --output "$RUNNER_TEMP/native-cell"
+      - name: Execute native musl cell against canonical bytes
+        if: matrix.container_image != ''
+        shell: bash
+        env:
+          CELL_PLATFORM: ${{ matrix.platform }}
+          CELL_PYTHON: ${{ matrix.python_version }}
+          CELL_IMAGE: ${{ matrix.container_image }}
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: |
+          case "$CELL_IMAGE" in python:*@sha256:*) ;; *) exit 1 ;; esac
+          mkdir -p "$RUNNER_TEMP/musl-evidence"
+          docker run --rm \
+            --mount "type=bind,src=$GITHUB_WORKSPACE,dst=/workspace,readonly" \
+            --mount "type=bind,src=$RUNNER_TEMP/canonical,dst=/canonical,readonly" \
+            --mount "type=bind,src=$RUNNER_TEMP/musl-evidence,dst=/evidence" \
+            -e CELL_PLATFORM -e CELL_PYTHON -e SOURCE_COMMIT \
+            -w /workspace "$CELL_IMAGE" sh -euc '
+              apk add --no-cache git build-base libffi-dev openssl-dev cargo
+              git config --global --add safe.directory /workspace
+              python scripts/candidate_runner.py uv-requirements > /evidence/uv-bootstrap.txt
+              python -m pip --isolated install --require-hashes --only-binary=:all: --index-url https://pypi.org/simple -r /evidence/uv-bootstrap.txt
+              python scripts/candidate_runner.py cell --source-commit "$SOURCE_COMMIT" --platform "$CELL_PLATFORM" --python-version "$CELL_PYTHON" --bundle /canonical --output /evidence/native-cell
+            '
+      - name: Retain actual command outputs and inventory
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: semgrep-cell-${{ matrix.platform }}-${{ matrix.python_version }}
+          path: |
+            ${{ runner.temp }}/native-cell/*.json
+            ${{ runner.temp }}/native-cell/*.txt
+            ${{ runner.temp }}/native-cell/*.stdout
+            ${{ runner.temp }}/native-cell/*.stderr
+            ${{ runner.temp }}/musl-evidence/native-cell/*.json
+            ${{ runner.temp }}/musl-evidence/native-cell/*.txt
+            ${{ runner.temp }}/musl-evidence/native-cell/*.stdout
+            ${{ runner.temp }}/musl-evidence/native-cell/*.stderr
+          if-no-files-found: error
+          retention-days: 14
+
+  aggregate:
+    if: always()
+    needs: [build, native]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.13.14'
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: semgrep-canonical
+          path: ${{ runner.temp }}/canonical
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          pattern: semgrep-cell-*
+          path: ${{ runner.temp }}/reports
+      - name: Require all native cells and identical canonical bindings
+        shell: bash
+        env:
+          BUILD_RESULT: ${{ needs.build.result }}
+          NATIVE_RESULT: ${{ needs.native.result }}
+        run: |
+          test "$BUILD_RESULT" = success
+          test "$NATIVE_RESULT" = success
+          python scripts/candidate_runner.py aggregate --bundle "$RUNNER_TEMP/canonical" --reports "$RUNNER_TEMP/reports" --output "$RUNNER_TEMP/candidate-evidence.json"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: semgrep-candidate-evidence
+          path: ${{ runner.temp }}/candidate-evidence.json
+          if-no-files-found: error
+          retention-days: 14
+
+  attest:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/hotfix/isolate-semgrep-security-runtime'
+    needs: [build, native, aggregate]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: semgrep-canonical
+          path: canonical
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: semgrep-candidate-evidence
+          path: evidence
+      - uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a
+        with:
+          subject-path: |
+            canonical/wheels/*.whl
+            canonical/manifest.json
+            evidence/candidate-evidence.json

@@ -113,3 +113,61 @@ cycle base. Any late-cycle admission requires a qualified owner-approved PR #782
 trusted-policy extension and independently verified provenance. Current policy
 remains enforced. Producer preparation does not supply that approval, final
 exact-tree authority, package publication or canonical MCP remediation.
+
+## Candidate producer quality dispositions
+
+The candidate producer and runtime runner are standard-library bootstrap scripts.
+They must run before candidate dependencies exist, and their boundaries explicitly
+validate recipes, hashes, archives, host identity, inventory and evidence. Adding
+external icontract decorators would break that bootstrap contract. Missing
+`@require/@ensure` suggestions for these command implementations are an explicit
+scoped exception, not permission to drop runtime checks or suppress the rule.
+The workflow invokes the runner normally so its checked local producer import
+resolves. Isolated matrix/uv-bootstrap probes do not prove isolated build/cell
+execution. The separate producer CLI and artifact proof run with `-I -S`.
+
+CLI JSON and uv bootstrap requirements intentionally use stdout as their machine
+interface. Print-to-logging suggestions are inapplicable to those transport APIs.
+The producer's metadata function names identify wheel METADATA; the naming rule's
+`data` substring match does not make this domain terminology vague. Preserve those
+names and the exact metadata controls. The MCP callable Protocol mirrors the
+external session-manager constructor; reducing its keyword parameters would
+misrepresent that contract. These exceptions are individually reviewed rather
+than hidden behind lint suppressions.
+
+The unsafe scanner positive control is inert `positive.py.txt` source data. The
+runner copies its exact committed bytes into a cell-local Python target and then
+scans it. It is never imported or executed. Negative data is handled identically.
+The full source manifest binds both inputs, and scanner assertions still require
+the expected rule, filename, line and exit codes. Bootstrap/advisory exceptions
+cannot waive actual findings, missing coverage, canonical MCP remediation or
+publication prerequisites.
+
+The integrated review after corrections reports zero errors and zero type-safety
+findings. Its remaining 46 warnings are 38 bootstrap-contract suggestions, four
+required stdout interfaces, three metadata naming substring matches and the one
+external constructor Protocol parameter count. The scoped exceptions above cover
+each category; there is no new suppression or disabled review rule.
+
+Ten informational length suggestions retain explicit security sequences.
+`canonical_build` records pinned runtime, repeat builds and manifests.
+`_pip_install_graph` performs an independent pip install and inventory comparison.
+`prepare` resolves and installs the complete candidate graph. `_upstream_control`
+proves old MCP behavior before migration. `audits` records exact installed and
+upstream lineage coverage. `_verified_cell_artifacts` binds source, recipe and
+canonical bytes. `execute_cell` sequences real checks and retained failure reports.
+`main` exposes the unchanged command transport. The producer test's `setUp` is an
+explicit inert archive fixture. `_authenticated_fixture` is the actual authenticated
+MCP test server. Replacing these steps with comprehensions would hide distinct
+commands, assertions or lifecycle teardown; retain their explicit sequences.
+
+## Integrated local artifact result
+
+The unchanged mapped artifact test file retains SHA256
+d9bd7999112e5a9832f52ba9a03a4fc4d69b0326e191a02b735b6d553143ac34.
+All 15 cases pass under the untouched older Hatch Python 3.12.13 when the integrated
+producer selects its actual output. Producer and runner boundary tests pass all
+41 cases and 66 subtests. New test-file typing diagnostics are zero. Independent
+CI and producer reviews bind the final source identities before native candidate
+execution. These are local preparation results, not canonical security audit,
+accepted Requirements lifecycle evidence, package publication or native GREEN.

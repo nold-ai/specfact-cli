@@ -156,3 +156,20 @@ and the unchanged standalone mapping/plan. Its full run records 14 passes and on
 intended MCP mismatch; the wrong-hash control also passes separately. This record
 supersedes the earlier test-file identity for the fresh cycle, without claiming
 native admission or human authority. Local SpecFact review reports zero findings.
+
+The fresh descendant is e39d870bde315608239819e784bfebe3cd1a39fc, tree
+d314b836d499ccbf292354df20da9bc6bf19b49e. Its entire interval from b61774e3
+touches only the selected test and selected change's documentation/review record.
+Normal commit hooks passed without a bypass or local signature.
+[Native run 39509885573](https://github.com/nold-ai/specfact-cli/actions/runs/39509885573)
+retains artifact 12304658765 with digest
+`sha256:499751b54b03008877fb00f4b88d611d0321cce6052c431fafeb0482a1187e34`.
+The exact JUnit digest is
+`sha256:9119839af02d33160854ab552a387b45f1278b0320d6f78573d08982baa3bbe3`.
+Certificate PASS and actual MCP 1.29.0 versus 1.30.0 FAIL are preserved, with no
+errors or skips, while the producer is still absent. The report remains
+incomplete FINAL with the same explicit cycle-policy failures. Its aggregate
+mapping/plan are 2c247314e2516e096a92252005b1f80b10e70ef60a50a5d2b0a5a14880c62c3c
+and 15ecd106e7d79cfe454eba078a70e9f1d5cc583b06b3c399426dfb0b2d6ad556.
+Source-context aggregation accounts for the difference from standalone digests.
+This retained authentic pre-producer failure is not relabelled accepted RED.
