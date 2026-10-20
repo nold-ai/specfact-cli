@@ -1,7 +1,7 @@
 schema_version: '2'
 requirements:
   openspec:isolate-semgrep-security-runtime:isolated-scanner-runtime:exclude-compromised-certificate-authorities-from-delivered-trust:
-    rationale: Remove compromised certificate authority trust from the installed frozen Python delivery.
+    rationale: Inspect the exact frozen certificate artifact independently of the trusted verifier's installed dependencies.
     stakeholder_refs:
       - nold-ai/specfact-cli#780
     touchpoints:
@@ -11,15 +11,35 @@ requirements:
       - id: frozen-delivery
         kind: config_file
         locator: requirements/ci/locked.txt
-      - id: installed-trust-test
+      - id: frozen-trust-test
         kind: test
-        locator: tests/unit/security/test_certificate_trust_store.py
+        locator: tests/unit/security/test_frozen_dependency_artifacts.py
     verification_cases:
       - case_id: CERTIFI-COMPROMISED-ROOT-ABSENT
         scenario_id: exclude-compromised-certificate-authorities-from-delivered-trust
         method: test
-        intent: Inspect the installed certifi CA bundle through an SSL context after frozen dependency installation.
+        intent: Verify the candidate lock/export wheel hash and parse its inert CA data with trusted SSL code.
         observable: The trust store is nonempty and excludes the compromised emSign ECC Root CA - G3 DER SHA256.
         selector:
           runner: pytest
-          node_id: tests/unit/security/test_certificate_trust_store.py::test_certifi_bundle_excludes_compromised_emsign_root
+          node_id: tests/unit/security/test_frozen_dependency_artifacts.py::test_frozen_certifi_bundle_excludes_compromised_root
+  openspec:isolate-semgrep-security-runtime:isolated-scanner-runtime:produce-mcp-patched-semgrep-wheels-without-changing-scanner-payloads:
+    rationale: Correct the exact MCP dependency using a bounded packaging transformation while preserving scanner runtime payloads.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#780
+    touchpoints:
+      - id: exact-recipe
+        kind: config_file
+        locator: ci/semgrep-distribution.json
+      - id: artifact-contract
+        kind: test
+        locator: tests/unit/security/test_frozen_dependency_artifacts.py
+    verification_cases:
+      - case_id: SEMGREP-ARTIFACT-PATCHED-MCP
+        scenario_id: produce-mcp-patched-semgrep-wheels-without-changing-scanner-payloads
+        method: test
+        intent: Inspect the exact upstream scanner as the pre-producer baseline and the produced wheel afterward without executing scanner code.
+        observable: The selected wheel requires MCP 1.30.0, has the legal downstream identity, and preserves all other payload bytes, modes, full tags, entrypoints and notices.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_frozen_dependency_artifacts.py::test_selected_scanner_wheel_requires_patched_mcp

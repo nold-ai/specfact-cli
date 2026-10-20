@@ -1,9 +1,9 @@
 {
   "schema_version": "1",
   "decision": "accepted",
-  "reviewer_id": "Codex:/root/certifi_scope_review",
+  "reviewer_id": "Codex:/root/mcp_artifact_final_acceptance",
   "reviewer_role": "independent AI code reviewer",
-  "recorded_at": "2026-10-20T21:07:26.735012Z",
-  "reference": "https://github.com/nold-ai/specfact-cli/pull/782#issuecomment-6301501215",
-  "mapping_digest": "sha256:e589e57c557c19e6000447a2bf68834912fb3b74d773d862598f21480aef4afe"
+  "recorded_at": "2026-10-20T22:23:45.802495Z",
+  "reference": "https://github.com/nold-ai/specfact-cli/pull/782#issuecomment-6303112841",
+  "mapping_digest": "sha256:9260bf98d7d3e53daf5e8ebc039ea4757d638fc78be639e17a3f527ffb3e12b1"
 }

@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "upstream_name": "semgrep",
+  "upstream_version": "1.179.0",
+  "downstream_name": "specfact-semgrep",
+  "downstream_version": "1.179.0.post1",
+  "mcp_from": "1.29.0",
+  "mcp_to": "1.30.0",
+  "compression": {
+    "method": "ZIP_DEFLATED",
+    "level": 9
+  },
+  "metadata_additions": {
+    "description_prefix": "Downstream distribution specfact-semgrep 1.179.0.post1. Based on Semgrep 1.179.0; runtime payloads are unchanged. Packaging changes identify this distribution and require mcp==1.30.0. Upstream project: https://github.com/semgrep/semgrep. Downstream source: https://github.com/nold-ai/specfact-cli.\n\n"
+  },
+  "wheels": [
+    {
+      "filename": "semgrep-1.179.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-macosx_10_14_x86_64.whl",
+      "platform_tag": "macosx_10_14_x86_64",
+      "upstream_sha256": "34b5e801e3f4325c93014124ccfab6da96857f74aae68458d2a07defd4727b0f",
+      "upstream_url": "https://files.pythonhosted.org/packages/85/4b/4cbaa0c3c124ae7d522e688c01f06013038ff59cc818c21dfa44c96380b3/semgrep-1.179.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-macosx_10_14_x86_64.whl"
+    },
+    {
+      "filename": "semgrep-1.179.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-macosx_11_0_arm64.whl",
+      "platform_tag": "macosx_11_0_arm64",
+      "upstream_sha256": "9b57026f587a4bc7833bca2b6e4d6778072a79dcf0b9f2e5e01d3d5df39c7759",
+      "upstream_url": "https://files.pythonhosted.org/packages/bd/77/b573a0faa5a5b0848dc884a0f8595fcb5c550f55fa5f455a233b29a52c0c/semgrep-1.179.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-macosx_11_0_arm64.whl"
+    },
+    {
+      "filename": "semgrep-1.179.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_x86_64.whl",
+      "platform_tag": "manylinux_2_34_x86_64",
+      "upstream_sha256": "b529c4db63f293918989b84ce4640f12f1b1e4680d9e7fcab5f3554f9113dfc5",
+      "upstream_url": "https://files.pythonhosted.org/packages/cc/6c/621944b4843c7484aeaefd5b232d93780bdf95259567c10a9a8129f08dc6/semgrep-1.179.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_x86_64.whl"
+    },
+    {
+      "filename": "semgrep-1.179.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_aarch64.whl",
+      "platform_tag": "manylinux_2_34_aarch64",
+      "upstream_sha256": "c23d79c4839540372acc39b59aad167c1c7f3dc21bacacb27f19aa2edd79d271",
+      "upstream_url": "https://files.pythonhosted.org/packages/e3/ba/b9f1afbed852a21b6f7e72c064343161c5ab249954c46db1796b59314290/semgrep-1.179.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_aarch64.whl"
+    },
+    {
+      "filename": "semgrep-1.179.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-musllinux_1_2_x86_64.whl",
+      "platform_tag": "musllinux_1_2_x86_64",
+      "upstream_sha256": "69bce348296374df6c51e72758801ce06dd18d6dfb307bc73d24b9de53bbe5f1",
+      "upstream_url": "https://files.pythonhosted.org/packages/ee/c1/59096c02408630b79be19c5b97d145786141e254782ab0e62939c1eea52d/semgrep-1.179.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-musllinux_1_2_x86_64.whl"
+    },
+    {
+      "filename": "semgrep-1.179.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-musllinux_1_2_aarch64.whl",
+      "platform_tag": "musllinux_1_2_aarch64",
+      "upstream_sha256": "dc6317fbfad49b1dbe396df7da7d9702cffc5ea9ea62cb3b4b2209824496b425",
+      "upstream_url": "https://files.pythonhosted.org/packages/1d/41/dc51c4e2f2cd730c1512739db792f70f7e9c665f6a0fb40fef62ff4b8eb3/semgrep-1.179.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-musllinux_1_2_aarch64.whl"
+    },
+    {
+      "filename": "semgrep-1.179.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-win_amd64.whl",
+      "platform_tag": "win_amd64",
+      "upstream_sha256": "6c6cf104ad0959c0b11de56d15c5d31f56949c620b4bd130c5d1fb899f2bb5a3",
+      "upstream_url": "https://files.pythonhosted.org/packages/ec/3e/dbf54b028afb807f26dc1e1c94489faac5926a8fa745b41bf505b4c53a7e/semgrep-1.179.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-win_amd64.whl"
+    }
+  ]
+}

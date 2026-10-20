@@ -22,12 +22,12 @@ Independent security modules #511 and core #719/#718 and existing signing gates 
 
 ## Authorized #747 dependency stack (2026-10-10)
 
-### Immediate certificate patch and scanner follow-up (2026-10-20)
+### Certificate patch and scoped MCP producer (2026-10-21)
 
 The owner authorized a scoped isolation or replacement change after reviewing
 current dependency PRs. Its repeated request to fix PR #782 authorizes the immediate
 [certificate trust-store patch #780](changes/isolate-semgrep-security-runtime/proposal.md).
-The active unit requires certifi >=2026.10.19 and actual installed CA regression proof.
+The published certificate unit requires certifi >=2026.10.19 and actual installed CA regression proof. The owner also authorized autonomous MCP remediation. Prepare a separately named public Semgrep distribution with patched MCP and unchanged scanner payloads, exact seven-wheel and 21-cell CI proof, explicit migration, full audits and CI-only signing. Correct trusted certificate proof using exact inert wheel data. Public package publication requires concrete operator activation before canonical consumer adoption. Candidate success is not delivered remediation.
 The native replacement proposal and its fourteen unimplemented cases are preserved
 in [parked scanner work](parking-lot/replace-vulnerable-scanner-runtime/proposal.md).
 No audit input or required gate is removed. MCP still blocks release and promotion.

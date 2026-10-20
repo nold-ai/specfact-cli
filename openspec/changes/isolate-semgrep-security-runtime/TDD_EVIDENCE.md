@@ -90,3 +90,34 @@ The two warnings are dependency deprecations, not failed tests. The earlier fail
 run remains retained. Final local success does not waive MCP, final native CI or
 exact-head human authority. Normal dependency commit remains blocked by the
 unchanged `frozen-cve-audit` failure.
+
+## Published certificate correction and new artifact cycle, 2026-10-21
+
+The owner approved the exact one-time local hook exception after the checkpoint
+above. Commit 66ee3d58959e7798a6a7a5a1ed5c41d1db37fbc0 is pushed. Other hooks and
+CI stayed enforced; the exception is consumed. Actual final package/runtime and
+quality checks pass, while the frozen audit still reports MCP 1.29.0 alone.
+The fresh Requirements consumer exposes the distinct old-verifier-bundle mismatch.
+
+The revised scope retains the installed test and adds inert exact frozen-wheel
+certificate proof plus a packaging-only MCP artifact contract. Its mapping digest
+is sha256:9260bf98d7d3e53daf5e8ebc039ea4757d638fc78be639e17a3f527ffb3e12b1.
+Independent test design review reproduced certificate GREEN and actual upstream
+MCP metadata RED using the untouched older Hatch environment. Before a producer
+exists, selected bytes are the pinned official Semgrep wheel. The intended diff
+is `['mcp==1.29.0'] != ['mcp==1.30.0']`. No new native RED or final GREEN is claimed
+until an authenticated workflow actually produces it for these exact selectors.
+
+Historical certifi RED above remains real evidence of the earlier correction;
+it is not relabelled as proof for the revised map. The new cycle deliberately
+retains already-passing certificate coverage and the new failing scanner artifact
+case. Independent acceptance, exact test digest and native records follow only
+after actual review and execution. Canonical dependency inputs remain unchanged.
+
+Independent AI technical acceptance is recorded at <https://github.com/nold-ai/specfact-cli/pull/782#issuecomment-6303112841>. It binds
+the mapping above, recipe SHA256 bcb7d9ce9cb05fb479069af7c0eaebe816adbea338ceb269642c731de18bcb0c
+and exact test SHA256 f47e9084a040512d872e4dd1db97260776011542a29136087bd2d05ad2bd6dce.
+The independent final run has 13 passes and one intended MCP metadata assertion
+failure under Python 3.12 with old installed certifi. The certificate artifact
+case and all malformed-input/description controls pass. No native record or human
+authority is inferred from this local technical acceptance.
