@@ -55,7 +55,10 @@ delivery and scanner contracts before changing them.
 ## Impact
 
 - Core repository only, with explicit compatibility verification for the external
-  Code Review module's scanner execution. No module implementation is assumed.
+  Code Review module's scanner execution. Module migration is tracked separately
+  by [modules #523](https://github.com/nold-ai/specfact-cli-modules/issues/523),
+  including command paths, packaged rules, bundle integrity and CI/CD signing.
+  No module implementation or end-to-end replacement is claimed by core delivery.
 - Expected implementation paths include `pyproject.toml`, `setup.py`, `uv.lock`,
   frozen requirements, delivery/audit scripts, CI, Hatch, the three installed
   scanner consumers and installation documentation.
@@ -79,6 +82,8 @@ delivery and scanner contracts before changing them.
   semantics, with no PATH fallback or bulk baseline refresh.
 - Source-checkout and installed-wheel consumers execute the same admitted scanner
   and retain their documented output and unavailable-tool behavior.
+- End-to-end replacement is claimed only after the separately tracked Code Review
+  module migration and its installed bundle, resource and integrity checks pass.
 - Authored failing-before tests precede implementation. Fresh passing evidence,
   native compatibility, full review and all required gates precede adoption.
 - Only after a verified implementation PR exists, link every covered duplicate

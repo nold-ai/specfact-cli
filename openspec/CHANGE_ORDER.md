@@ -30,8 +30,11 @@ is planning only and selects independent upstream native replacement investigati
 after review found a downstream adoption cycle. #772/#779 remains a related blocked
 alternative, not a prerequisite. Isolation alone does not fix the MCP advisory.
 Require exact publisher/component evidence and actual parity. Preserve scanner audits,
-SAST coverage and installed-user compatibility; no production adoption, patch bump,
-duplicate closure or promotion is established by this proposal. The historical
+SAST coverage and core installed-user compatibility. Track the external Code Review
+module migration separately in [modules #523](https://github.com/nold-ai/specfact-cli-modules/issues/523),
+including command paths, packaged rule payloads and bundle integrity. End-to-end
+replacement requires that follow-up's verified completion. No production adoption,
+patch bump, duplicate closure or promotion is established by this proposal. The historical
 dependency stack below remains unchanged.
 
 The owner approved `dev <- #744 <- #727 <- #752 <- #754 <- #753`, retaining
@@ -101,7 +104,7 @@ Recovered from uncommitted proposal-only feature worktrees into local `dev`; rem
 
 | Bucket | Count | Location |
 |---|---:|---|
-| **Active-tree entries** | 47 | [`openspec/changes/`](changes/) |
+| **Active-tree entries** | 48 | [`openspec/changes/`](changes/) |
 | **Parking-lot entries** | 21 | [`openspec/parking-lot/`](parking-lot/) |
 | **Archived** | 120 | [`openspec/changes/archive/`](changes/archive/) |
 

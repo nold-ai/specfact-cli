@@ -37,6 +37,10 @@ runtime or release task.
   Resolve external contracts before claiming completion. Obtain complete native
   component/source/license inventory and a reproducible advisory assessment.
   Missing identity, component coverage or publisher proof rejects the candidate.
+- [x] 2.7 Track the external Code Review module migration separately in modules
+  #523, covering command paths, packaged rule payloads, bundle resources, integrity,
+  module version and CI/CD signatures. Its implementation remains pending; do not
+  claim end-to-end replacement before its verified completion.
 
 ## 3. Derive tests and capture genuine RED
 

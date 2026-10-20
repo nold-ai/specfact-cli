@@ -59,7 +59,7 @@ for this independent replacement investigation.
 
 ### Requirement: One scanner execution owner
 
-Repository automation and installed-package consumers SHALL obtain the scanner
+Core repository automation and core installed-package consumers SHALL obtain the scanner
 through one packaged execution owner usable without a source checkout. Selection
 SHALL bind the executable and installed native component inventory to the current admitted
 artifact/component identity. An arbitrary PATH executable or cached version string MUST NOT satisfy
@@ -85,6 +85,15 @@ that selection. Network acquisition SHALL require an explicit preparation step.
 - **WHEN** optional analysis or required SAST requests execution
 - **THEN** optional analysis reports its existing unavailable outcome, required
   SAST fails, and neither initiates a network installation.
+
+#### Scenario: External module migration remains separately tracked
+
+- **GIVEN** core replacement passes its checks while the external Code Review
+  module still invokes Semgrep
+- **WHEN** replacement readiness is reported
+- **THEN** it identifies the separate module migration, command-path, packaged-rule
+  and bundle-integrity acceptance, and makes no end-to-end replacement claim
+  until that follow-up is verified complete.
 
 ### Requirement: Preserve effective static analysis
 

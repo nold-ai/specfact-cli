@@ -55,13 +55,16 @@ selects one executable. It does not expose an arbitrary URL or PATH override.
 ```python
 class ScannerUnavailable(RuntimeError): ...
 
+
 @dataclass(frozen=True)
 class PreparedScanner:
     identity: ScannerIdentity
     executable: Path
 
+
 def prepare_scanner(cache_root: Path) -> PreparedScanner:
     raise NotImplementedError
+
 
 def scanner_command(*, args: tuple[str, ...]) -> tuple[str, ...]:
     raise NotImplementedError
@@ -125,6 +128,11 @@ runtime dependencies, plus installed-wheel consumers on Python 3.11-3.13.
 Published filenames do not establish that matrix. A new engine cannot silently
 reduce platform support. External Code Review compatibility must use its actual
 public contract; this core proposal does not implement or approve module changes.
+Track that migration in modules #523 separately from the existing local cutover.
+Its acceptance covers scanner command paths, clean-code/bug/AI-bloat rule payloads,
+bundle-resource tests, checksums, module version and CI/CD signatures. Core-only
+acceptance does not establish end-to-end replacement while that module remains
+on Semgrep. Preserve the existing reset sequence and owners.
 
 Removing the scanning extra's implicit Python tool installation changes its setup
 contract. Specify explicit native preparation and verify patch compatibility

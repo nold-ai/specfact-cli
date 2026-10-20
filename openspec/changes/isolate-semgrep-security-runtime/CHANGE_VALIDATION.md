@@ -31,6 +31,11 @@ GitPython 3.2.0, PyJWT 2.15.1, urllib3 2.8.0 and virtualenv 21.11.0 exclude the
 other reported ranges. MCP 1.29.0 remains affected by GHSA-84m7-p3x7-pcfv.
 This comparison is not a claim that the full required audit passed.
 
+PR #782's frozen Security Audit subsequently also reported certifi 2026.7.22
+against GHSA-6q48-6c7w-9gw2, published on 2026-10-20. The maintainer identifies
+2026.10.18 as patched. Both certifi and MCP failures come from unchanged frozen
+inputs. Updating certifi alone would leave MCP failing; neither alert is waived.
+
 ## Reproduced blocker
 
 An isolated temporary project used Python 3.12 and these requirements.
@@ -125,13 +130,19 @@ Planning checks completed on 2026-10-20 Europe/Berlin.
 - The unchanged planned Requirements gate passed using the verified clean module
   fixture at locked commit 69f075819be5e1ceca1446b026b0417f19e584ca. Its report
   states proposal-only, planned, implementation evidence not yet available.
-  The map covers all five requirements and twelve scenarios by inspection.
+  The map covers all five requirements and thirteen scenarios by inspection.
 - Direct yamllint passed both new YAML files. The repo-wide wrapper printed
   pre-existing errors but returned 0; that separate false-pass defect is tracked
   in [#781](https://github.com/nold-ai/specfact-cli/issues/781). No global clean
   YAML result is claimed.
 - Native GitHub readback confirms parent #747, project Todo, required labels and
   no blocked-by issues for replacement investigation. #772 is related only.
+- External module migration is tracked in
+  [modules #523](https://github.com/nold-ai/specfact-cli-modules/issues/523),
+  with native parent #163, Project 1 Todo and no blocking edges. It covers command
+  paths, packaged rules, bundle resources, integrity, version and CI/CD signing.
+  Core acceptance cannot establish end-to-end replacement while the module still
+  uses Semgrep. Existing reset sequence and owners remain intact.
 - The matching internal wiki source was aligned and `wiki_rebuild_graph.py` ran
   from the internal repository root, preserving pre-existing dirty source files.
 
@@ -139,17 +150,39 @@ No runtime test suite, frozen-audit pass, native artifact execution, signature
 verification, package release check or implementation review is claimed. Those
 checks remain unchecked implementation tasks, and adoption remains blocked.
 
+## PR review and CI triage
+
+The active-tree count was corrected from 47 to the observed 48 directories,
+excluding `archive`. The module follow-up above addresses the separate migration
+finding and is represented by a new planned scenario and inspection case.
+
+The original CI Linting job failed because Ruff formats Python fenced blocks in
+Markdown. `hatch run ruff format . --check` reproduced that failure in `design.md`.
+Formatting that sketch restored the required blank lines; the full command then
+passed with 1122 files already formatted. No production code changed.
+
+Security Audit remains failed on the two unchanged frozen dependencies above.
+The current dev base is an ancestor of this branch, so neither stale-base drift
+nor a flaky job explains those failures. No retry, exclusion or gate bypass is
+used. Trusted Requirements Authority independently requires a distinct unedited
+maintainer approval bound to the final commit and tree. General PR babysitting
+permission supplies no such approval. Request it only after the review wave is
+published, then rerun the authority workflow for that unchanged head.
+
 ## Sources
 
 Accessed 2026-10-20.
 
 - [MCP maintainer advisory](https://github.com/modelcontextprotocol/python-sdk/security/advisories/GHSA-84m7-p3x7-pcfv).
+- [Certifi maintainer advisory](https://github.com/certifi/python-certifi/security/advisories/GHSA-6q48-6c7w-9gw2).
 - [Semgrep 1.179.0 metadata](https://pypi.org/pypi/semgrep/1.179.0/json).
 - [Semgrep 1.181.0 metadata](https://pypi.org/pypi/semgrep/1.181.0/json).
 - [Current core package metadata](https://pypi.org/pypi/specfact-cli/json).
 - [Downstream owner #772](https://github.com/nold-ai/specfact-cli/issues/772),
   [candidate #779](https://github.com/nold-ai/specfact-cli/pull/779) and
   [promotion #771](https://github.com/nold-ai/specfact-cli/pull/771).
+- [PR #782 CI run](https://github.com/nold-ai/specfact-cli/actions/runs/39487998471).
+- [Pinned authority policy](https://github.com/nold-ai/.github/blob/0787cc7e45a12e4651e22d9447d21a29e31e98b4/docs/trusted-requirements-authority.md).
 
 Confidence is high for observed repository state and reproduced resolver conflict,
 medium for the selected design, and low for production feasibility until the

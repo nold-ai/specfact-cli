@@ -98,6 +98,15 @@ requirements:
           installation.'
         observable: The planned scenario retains this acceptance contract; no runtime, authored-test or remediation
           maturity is claimed.
+      - case_id: SCANNER-EXTERNAL-MODULE-MIGRATION-REMAINS-SEPARATELY-TRACKED
+        scenario_id: one-scanner-execution-owner
+        method: inspection
+        intent: 'Inspect planned scenario: External module migration remains separately tracked. Given core replacement
+          passes while the external Code Review module still invokes Semgrep; when readiness is reported; then it
+          identifies separate module command-path, packaged-rule and bundle-integrity acceptance and makes no end-to-end
+          replacement claim until that follow-up is verified complete.'
+        observable: The planned scenario retains the separate module follow-up and core-only acceptance limit; no
+          module implementation or end-to-end replacement is claimed.
   openspec:isolate-semgrep-security-runtime:isolated-scanner-runtime:preserve-effective-static-analysis:
     rationale: Plan independent scanner replacement without reducing security coverage or claiming implementation.
     stakeholder_refs:
