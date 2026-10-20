@@ -22,22 +22,24 @@ Independent security modules #511 and core #719/#718 and existing signing gates 
 
 ## Authorized #747 dependency stack (2026-10-10)
 
-### Scanner isolation follow-up (2026-10-20)
+### Immediate certificate patch and scanner follow-up (2026-10-20)
 
-The owner authorized a new scoped isolation or replacement change after reviewing
-current dependency PRs. [Scanner isolation #780](changes/isolate-semgrep-security-runtime/proposal.md)
-is planning only and selects independent upstream native replacement investigation
-after review found a downstream adoption cycle. #772/#779 remains a related blocked
-alternative, not a prerequisite. Isolation alone does not fix the MCP advisory.
-Require exact publisher/component evidence and actual parity. Preserve scanner audits,
-SAST coverage and core installed-user compatibility. Track the external Code Review
-module migration separately in [modules #523](https://github.com/nold-ai/specfact-cli-modules/issues/523),
+The owner authorized a scoped isolation or replacement change after reviewing
+current dependency PRs. Its repeated request to fix PR #782 authorizes the immediate
+[certificate trust-store patch #780](changes/isolate-semgrep-security-runtime/proposal.md).
+The active unit requires certifi >=2026.10.19 and actual installed CA regression proof.
+The native replacement proposal and its fourteen unimplemented cases are preserved
+in [parked scanner work](parking-lot/replace-vulnerable-scanner-runtime/proposal.md).
+No audit input or required gate is removed. MCP still blocks release and promotion.
+Related #772/#779 remains a blocked alternative, not a prerequisite for certifi.
+Future scanner replacement requires exact publisher/component evidence and actual
+parity, preserving SAST coverage and core installed-user compatibility. Track its external
+Code Review migration separately in [modules #523](https://github.com/nold-ai/specfact-cli-modules/issues/523),
 including command paths, packaged rule payloads and bundle integrity. End-to-end
 replacement requires that follow-up's verified completion. Shared Semgrep removal
 is blocked until its required review passes work in a fresh post-removal delivery
-environment. No production adoption,
-patch bump, duplicate closure or promotion is established by this proposal. The historical
-dependency stack below remains unchanged.
+environment. No native production adoption, duplicate closure or promotion is
+established by the certificate patch. The historical dependency stack remains unchanged.
 
 The owner approved `dev <- #744 <- #727 <- #752 <- #754 <- #753`, retaining
 all PR numbers and compatible JSON 2.21.2/Jekyll 4.4.1. After #758 reserved
@@ -107,7 +109,7 @@ Recovered from uncommitted proposal-only feature worktrees into local `dev`; rem
 | Bucket | Count | Location |
 |---|---:|---|
 | **Active-tree entries** | 48 | [`openspec/changes/`](changes/) |
-| **Parking-lot entries** | 21 | [`openspec/parking-lot/`](parking-lot/) |
+| **Parking-lot entries** | 22 | [`openspec/parking-lot/`](parking-lot/) |
 | **Archived** | 120 | [`openspec/changes/archive/`](changes/archive/) |
 
 Active-tree entries count direct change folders, excluding `archive/`. They

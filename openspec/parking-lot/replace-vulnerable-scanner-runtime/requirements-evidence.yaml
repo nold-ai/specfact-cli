@@ -1,0 +1,174 @@
+schema_version: '2'
+x-maturity: planned
+requirements:
+  openspec:replace-vulnerable-scanner-runtime:isolated-scanner-runtime:complete-python-and-native-scanner-audit-coverage:
+    rationale: Plan independent scanner replacement without reducing security coverage or claiming implementation.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#780
+    touchpoints:
+      - id: planned-spec
+        kind: config_file
+        locator: openspec/parking-lot/replace-vulnerable-scanner-runtime/specs/isolated-scanner-runtime/spec.md
+    verification_cases:
+      - case_id: SCANNER-CLEAN-CORE-DEPENDENCIES-CANNOT-CONCEAL-A-VULNERABLE-SCANNER
+        scenario_id: complete-python-and-native-scanner-audit-coverage
+        method: inspection
+        intent: 'Inspect planned scenario: Clean core dependencies cannot conceal a vulnerable scanner. GIVEN a
+          clean core export and a native scanner component inventory with an unreviewed advisory WHEN the required
+          aggregate security check runs THEN the check fails and identifies the scanner graph and advisory.'
+        observable: The planned scenario retains this acceptance contract; no runtime, authored-test or remediation
+          maturity is claimed.
+      - case_id: SCANNER-MISSING-INVENTORY-OR-AUDIT-EVIDENCE-BLOCKS-PROMOTION
+        scenario_id: complete-python-and-native-scanner-audit-coverage
+        method: inspection
+        intent: 'Inspect planned scenario: Missing inventory or audit evidence blocks promotion. GIVEN an installed
+          scanner closure omitted from the declared inventory, a missing export, or unavailable advisory data WHEN
+          delivery and security verification run THEN verification fails rather than accepting the remaining clean
+          graphs.'
+        observable: The planned scenario retains this acceptance contract; no runtime, authored-test or remediation
+          maturity is claimed.
+  openspec:replace-vulnerable-scanner-runtime:isolated-scanner-runtime:authenticated-compatible-scanner-preparation:
+    rationale: Plan independent scanner replacement without reducing security coverage or claiming implementation.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#780
+    touchpoints:
+      - id: planned-spec
+        kind: config_file
+        locator: openspec/parking-lot/replace-vulnerable-scanner-runtime/specs/isolated-scanner-runtime/spec.md
+    verification_cases:
+      - case_id: SCANNER-EMPTY-OR-INVALID-ADMISSION-PREVENTS-INSTALLATION-AND-EXECUTION
+        scenario_id: authenticated-compatible-scanner-preparation
+        method: inspection
+        intent: 'Inspect planned scenario: Empty or invalid admission prevents installation and execution. GIVEN
+          absent, forged, expired, incomplete or wrong-platform admission WHEN a consumer prepares or selects the
+          scanner THEN it refuses before installing or executing the candidate bytes.'
+        observable: The planned scenario retains this acceptance contract; no runtime, authored-test or remediation
+          maturity is claimed.
+      - case_id: SCANNER-INDEPENDENTLY-AUTHENTICATED-REPLACEMENT-REMOVES-THE-AFFECTED-LINEAGE
+        scenario_id: authenticated-compatible-scanner-preparation
+        method: inspection
+        intent: 'Inspect planned scenario: Independently authenticated replacement removes the affected lineage.
+          GIVEN exact independently authenticated native artifacts with complete reviewed component, license and
+          advisory evidence WHEN replacement and ordinary Python lock regeneration complete THEN actual supported
+          installations exclude Python Semgrep/MCP, the selected native bytes match their admitted identity, every
+          native component remains assessed, and all existing Python and new scanner checks pass.'
+        observable: The planned scenario retains this acceptance contract; no runtime, authored-test or remediation
+          maturity is claimed.
+      - case_id: SCANNER-REPEATED-OR-INTERRUPTED-PREPARATION-CANNOT-PUBLISH-PARTIAL-STATE
+        scenario_id: authenticated-compatible-scanner-preparation
+        method: inspection
+        intent: 'Inspect planned scenario: Repeated or interrupted preparation cannot publish partial state. GIVEN
+          concurrent preparation or an interrupted earlier attempt WHEN the scanner environment is prepared again
+          THEN consumers observe only a complete verified environment bound to the current platform, artifact/component
+          inventory and admission, or an explicit unavailable result.'
+        observable: The planned scenario retains this acceptance contract; no runtime, authored-test or remediation
+          maturity is claimed.
+  openspec:replace-vulnerable-scanner-runtime:isolated-scanner-runtime:one-scanner-execution-owner:
+    rationale: Plan independent scanner replacement without reducing security coverage or claiming implementation.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#780
+    touchpoints:
+      - id: planned-spec
+        kind: config_file
+        locator: openspec/parking-lot/replace-vulnerable-scanner-runtime/specs/isolated-scanner-runtime/spec.md
+    verification_cases:
+      - case_id: SCANNER-AMBIENT-PATH-AND-STALE-CACHE-CANNOT-SELECT-THE-SCANNER
+        scenario_id: one-scanner-execution-owner
+        method: inspection
+        intent: 'Inspect planned scenario: Ambient PATH and stale cache cannot select the scanner. GIVEN an unverified
+          `semgrep` on PATH or a prepared cache whose identity no longer matches the admitted closure WHEN a consumer
+          requests scanner execution THEN command construction validates current admission and installed components,
+          rejects that executable and does not silently fall back or trust prior preparation.'
+        observable: The planned scenario retains this acceptance contract; no runtime, authored-test or remediation
+          maturity is claimed.
+      - case_id: SCANNER-INSTALLED-DISTRIBUTION-RESOLVES-THE-SAME-SCANNER-AS-THE-CHECKOUT
+        scenario_id: one-scanner-execution-owner
+        method: inspection
+        intent: 'Inspect planned scenario: Installed distribution resolves the same scanner as the checkout. GIVEN
+          a wheel installed in an external project without this repository WHEN its analyzer, test-to-OpenAPI generator
+          or reproducibility checker scans THEN each uses the same admitted execution owner as repository SAST and
+          preserves its documented public result and unavailable-tool behavior.'
+        observable: The planned scenario retains this acceptance contract; no runtime, authored-test or remediation
+          maturity is claimed.
+      - case_id: SCANNER-OFFLINE-INVOCATION-NEVER-INITIATES-ACQUISITION
+        scenario_id: one-scanner-execution-owner
+        method: inspection
+        intent: 'Inspect planned scenario: Offline invocation never initiates acquisition. GIVEN offline invocation
+          with no prepared admitted scanner WHEN optional analysis or required SAST requests execution THEN optional
+          analysis reports its existing unavailable outcome, required SAST fails, and neither initiates a network
+          installation.'
+        observable: The planned scenario retains this acceptance contract; no runtime, authored-test or remediation
+          maturity is claimed.
+      - case_id: SCANNER-EXTERNAL-MODULE-MIGRATION-REMAINS-SEPARATELY-TRACKED
+        scenario_id: one-scanner-execution-owner
+        method: inspection
+        intent: 'Inspect planned scenario: External module migration remains separately tracked. Given core replacement
+          passes while the external Code Review module still invokes Semgrep; when readiness is reported; then it
+          identifies separate module command-path, packaged-rule and bundle-integrity acceptance and makes no end-to-end
+          replacement claim until that follow-up is verified complete; shared Semgrep removal remains blocked
+          until module migration preserves mandatory review coverage.'
+        observable: The planned scenario retains the separate module follow-up and core-only acceptance limit; no
+          module implementation or end-to-end replacement is claimed.
+  openspec:replace-vulnerable-scanner-runtime:isolated-scanner-runtime:preserve-effective-static-analysis:
+    rationale: Plan independent scanner replacement without reducing security coverage or claiming implementation.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#780
+    touchpoints:
+      - id: planned-spec
+        kind: config_file
+        locator: openspec/parking-lot/replace-vulnerable-scanner-runtime/specs/isolated-scanner-runtime/spec.md
+    verification_cases:
+      - case_id: SCANNER-SEMGREP-REMOVAL-WAITS-FOR-REQUIRED-CODE-REVIEW-COVERAGE
+        scenario_id: preserve-effective-static-analysis
+        method: inspection
+        intent: 'Inspect planned scenario: Semgrep removal waits for required Code Review coverage. Given the installed
+          Code Review module still requires semgrep and the separate Code Review lock does not supply it; when shared
+          Semgrep removal is proposed; then removal remains blocked until module migration proves required clean-code,
+          bug and AI-bloat passes with packaged rules and bundle integrity in a fresh post-removal environment.'
+        observable: The planned cutover prerequisite rejects missing or skipped review coverage; no module migration
+          or runtime execution proof is claimed.
+      - case_id: SCANNER-ACTUAL-SCANNER-DETECTS-PLANTED-VIOLATIONS-AND-ACCEPTS-CORRECTIONS
+        scenario_id: preserve-effective-static-analysis
+        method: inspection
+        intent: 'Inspect planned scenario: Actual scanner detects planted violations and accepts corrections. GIVEN
+          representative positive and negative fixtures for each used rule family and the unchanged SAST configuration
+          WHEN the current engine and authenticated replacement run on the same targets THEN normalized findings
+          and gate decisions retain the required coverage, violations fail, corrected fixtures pass, and differences
+          require disposition.'
+        observable: The planned scenario retains this acceptance contract; no runtime, authored-test or remediation
+          maturity is claimed.
+      - case_id: SCANNER-INCOMPLETE-SCANNER-OUTPUT-FAILS-THE-REQUIRED-GATE
+        scenario_id: preserve-effective-static-analysis
+        method: inspection
+        intent: 'Inspect planned scenario: Incomplete scanner output fails the required gate. GIVEN missing output,
+          invalid JSON, scanner errors, timeouts or partial targets WHEN required SAST evaluates the scan THEN it
+          fails rather than treating the result as an empty clean scan.'
+        observable: The planned scenario retains this acceptance contract; no runtime, authored-test or remediation
+          maturity is claimed.
+  openspec:replace-vulnerable-scanner-runtime:isolated-scanner-runtime:coherent-hotfix-delivery-and-duplicate-disposition:
+    rationale: Plan independent scanner replacement without reducing security coverage or claiming implementation.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#780
+    touchpoints:
+      - id: planned-spec
+        kind: config_file
+        locator: openspec/parking-lot/replace-vulnerable-scanner-runtime/specs/isolated-scanner-runtime/spec.md
+    verification_cases:
+      - case_id: SCANNER-FINAL-PACKAGE-VERSION-FOLLOWS-VERIFIED-CORE-STATE
+        scenario_id: coherent-hotfix-delivery-and-duplicate-disposition
+        method: inspection
+        intent: 'Inspect planned scenario: Final package version follows verified core state. GIVEN a compatible
+          verified implementation and the latest dev and PyPI versions WHEN the patch release is prepared THEN all
+          four canonical version sources, generated metadata and changelog agree on a patch version strictly ahead
+          of PyPI, followed by fresh final review.'
+        observable: The planned scenario retains this acceptance contract; no runtime, authored-test or remediation
+          maturity is claimed.
+      - case_id: SCANNER-DUPLICATE-CLOSURE-FOLLOWS-AN-ACTUAL-REPLACEMENT
+        scenario_id: coherent-hotfix-delivery-and-duplicate-disposition
+        method: inspection
+        intent: 'Inspect planned scenario: Duplicate closure follows an actual replacement. GIVEN a verified replacement
+          implementation PR with complete security evidence WHEN a covered older dependency PR is closed THEN a
+          preceding comment links the replacement and explains coverage, while unimplemented JSON migration and
+          unrelated updates retain explicit dispositions.'
+        observable: The planned scenario retains this acceptance contract; no runtime, authored-test or remediation
+          maturity is claimed.
