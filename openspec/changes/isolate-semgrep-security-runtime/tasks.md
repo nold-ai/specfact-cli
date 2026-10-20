@@ -40,7 +40,9 @@ runtime or release task.
 - [x] 2.7 Track the external Code Review module migration separately in modules
   #523, covering command paths, packaged rule payloads, bundle resources, integrity,
   module version and CI/CD signatures. Its implementation remains pending; do not
-  claim end-to-end replacement before its verified completion.
+  claim end-to-end replacement before its verified completion. Task 4.4 is blocked
+  until that migration preserves required Code Review coverage using the admitted
+  replacement; investigation and candidate proof can proceed before the cutover.
 
 ## 3. Derive tests and capture genuine RED
 
@@ -52,6 +54,9 @@ runtime or release task.
   wrong-platform artifacts without granting synthetic fixtures production authority.
 - [ ] 3.3 Derive actual consumer tests for ambient PATH, stale cache, wheel-installed
   external projects and offline unavailable-tool behavior. Preserve public results.
+  Prove Semgrep removal is rejected while the installed Code Review module still
+  requires it; then prove real clean-code, bug and AI-bloat review coverage after
+  module migration with Python Semgrep absent from a fresh delivery environment.
 - [ ] 3.4 Add real scan fixtures for every used rule family, captures, ignores,
   baseline identity, autofix and required error/partial-result behavior. Compare
   current engine and authenticated replacement on identical targets. Execute every
@@ -76,8 +81,12 @@ runtime or release task.
   native scanner inventory. Keep one owner for completeness; avoid a generic registry unless
   a demonstrated existing limitation requires one.
 - [ ] 4.4 Migrate every scanner consumer and CI/Hatch invocation, then remove shared
-  Semgrep dependency declarations in the same verified unit. Regenerate all Python inputs
-  normally and account for every package moved, removed or added.
+  Semgrep dependency declarations in the same verified unit. This removal is blocked
+  on verified modules #523 migration, including installed bundle command paths,
+  packaged rules, integrity and required review coverage with Python Semgrep absent.
+  A tracking issue or withheld end-to-end claim does not satisfy this prerequisite.
+  Regenerate all Python inputs normally and account for every package moved, removed
+  or added; keep removal and its actual fresh-environment proof in one cutover unit.
 - [ ] 4.5 Execute the scenario suite and real scanner comparisons. Record actual
   passing results, refusal behavior, audit evidence and native/platform identities
   in `TDD_EVIDENCE.md`; keep incomplete matrix cells and differences blocking.
@@ -94,7 +103,7 @@ runtime or release task.
   Bandit, independent SAST and unchanged baseline gate. Require every native scanner
   component check and required hosted Socket status as well.
 - [ ] 5.4 Verify strict module signatures. If signed assets change, obtain their
-  required version bump and authorized signatures, then verify again.
+  required version bump and CI/CD signatures, then verify again. Do not sign locally.
 - [ ] 5.5 Research affected README, docs/index.md, installation/scanning guides and
   generated workflow documentation. Document explicit preparation, offline behavior
   and migration; preserve frontmatter and update navigation if pages move.
@@ -111,7 +120,9 @@ runtime or release task.
   frozen parity and affected package installation checks after the version update.
 - [ ] 6.4 Run fresh SpecFact review after final source/config/version changes.
   Resolve all findings, including clean-code warnings; retain independent static
-  analysis, current-head review and required native/authority evidence.
+  analysis, current-head review and required native/authority evidence. Verify the
+  migrated installed module executes all required scanner rule families in that
+  fresh post-removal environment; missing Semgrep cannot become skipped coverage.
 
 ## 7. Publish the implementation PR and disposition older PRs
 

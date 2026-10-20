@@ -93,7 +93,8 @@ that selection. Network acquisition SHALL require an explicit preparation step.
 - **WHEN** replacement readiness is reported
 - **THEN** it identifies the separate module migration, command-path, packaged-rule
   and bundle-integrity acceptance, and makes no end-to-end replacement claim
-  until that follow-up is verified complete.
+  until that follow-up is verified complete. Shared Semgrep dependency removal
+  remains blocked until the module migration preserves mandatory review coverage.
 
 ### Requirement: Preserve effective static analysis
 
@@ -103,6 +104,21 @@ target and installed Python 3.11-3.13 consumer SHALL have actual execution proof
 asset filenames SHALL NOT establish platform support. Missing, failed, malformed
 or incomplete scans SHALL NOT produce successful required SAST. Isolation SHALL
 NOT refresh the baseline or reduce accepted rule or target coverage.
+Shared Python Semgrep dependency removal SHALL wait for verified migration of the
+installed Code Review module to the admitted replacement. Its clean-code, bug and
+AI-bloat passes, packaged rules and bundle integrity SHALL retain actual execution
+proof in a fresh delivery environment with Python Semgrep absent. Separate tracking
+or a withheld end-to-end claim SHALL NOT substitute for this cutover prerequisite.
+
+#### Scenario: Semgrep removal waits for required Code Review coverage
+
+- **GIVEN** the installed Code Review module still requires `semgrep` and the
+  separate Code Review lock does not supply it
+- **WHEN** the shared Python Semgrep dependency is proposed for removal
+- **THEN** removal remains blocked until the separately tracked module migration
+  proves the admitted replacement executes the required clean-code, bug and
+  AI-bloat passes with packaged rules and verified bundle integrity in a fresh
+  post-removal environment; skipped or missing scanner coverage fails readiness.
 
 #### Scenario: Actual scanner detects planted violations and accepts corrections
 

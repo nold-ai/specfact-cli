@@ -104,7 +104,8 @@ requirements:
         intent: 'Inspect planned scenario: External module migration remains separately tracked. Given core replacement
           passes while the external Code Review module still invokes Semgrep; when readiness is reported; then it
           identifies separate module command-path, packaged-rule and bundle-integrity acceptance and makes no end-to-end
-          replacement claim until that follow-up is verified complete.'
+          replacement claim until that follow-up is verified complete; shared Semgrep removal remains blocked
+          until module migration preserves mandatory review coverage.'
         observable: The planned scenario retains the separate module follow-up and core-only acceptance limit; no
           module implementation or end-to-end replacement is claimed.
   openspec:isolate-semgrep-security-runtime:isolated-scanner-runtime:preserve-effective-static-analysis:
@@ -116,6 +117,15 @@ requirements:
         kind: config_file
         locator: openspec/changes/isolate-semgrep-security-runtime/specs/isolated-scanner-runtime/spec.md
     verification_cases:
+      - case_id: SCANNER-SEMGREP-REMOVAL-WAITS-FOR-REQUIRED-CODE-REVIEW-COVERAGE
+        scenario_id: preserve-effective-static-analysis
+        method: inspection
+        intent: 'Inspect planned scenario: Semgrep removal waits for required Code Review coverage. Given the installed
+          Code Review module still requires semgrep and the separate Code Review lock does not supply it; when shared
+          Semgrep removal is proposed; then removal remains blocked until module migration proves required clean-code,
+          bug and AI-bloat passes with packaged rules and bundle integrity in a fresh post-removal environment.'
+        observable: The planned cutover prerequisite rejects missing or skipped review coverage; no module migration
+          or runtime execution proof is claimed.
       - case_id: SCANNER-ACTUAL-SCANNER-DETECTS-PLANTED-VIOLATIONS-AND-ACCEPTS-CORRECTIONS
         scenario_id: preserve-effective-static-analysis
         method: inspection

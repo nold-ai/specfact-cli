@@ -33,7 +33,9 @@ Require exact publisher/component evidence and actual parity. Preserve scanner a
 SAST coverage and core installed-user compatibility. Track the external Code Review
 module migration separately in [modules #523](https://github.com/nold-ai/specfact-cli-modules/issues/523),
 including command paths, packaged rule payloads and bundle integrity. End-to-end
-replacement requires that follow-up's verified completion. No production adoption,
+replacement requires that follow-up's verified completion. Shared Semgrep removal
+is blocked until its required review passes work in a fresh post-removal delivery
+environment. No production adoption,
 patch bump, duplicate closure or promotion is established by this proposal. The historical
 dependency stack below remains unchanged.
 

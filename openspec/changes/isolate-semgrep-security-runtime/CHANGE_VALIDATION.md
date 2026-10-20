@@ -130,19 +130,22 @@ Planning checks completed on 2026-10-20 Europe/Berlin.
 - The unchanged planned Requirements gate passed using the verified clean module
   fixture at locked commit 69f075819be5e1ceca1446b026b0417f19e584ca. Its report
   states proposal-only, planned, implementation evidence not yet available.
-  The map covers all five requirements and thirteen scenarios by inspection.
+  The map covers all five requirements and fourteen scenarios by inspection.
 - Direct yamllint passed both new YAML files. The repo-wide wrapper printed
   pre-existing errors but returned 0; that separate false-pass defect is tracked
   in [#781](https://github.com/nold-ai/specfact-cli/issues/781). No global clean
   YAML result is claimed.
 - Native GitHub readback confirms parent #747, project Todo, required labels and
-  no blocked-by issues for replacement investigation. #772 is related only.
+  blocked-by modules #523 for dependency removal and completed cutover. Candidate
+  investigation can proceed before migration. #772 is related only.
 - External module migration is tracked in
   [modules #523](https://github.com/nold-ai/specfact-cli-modules/issues/523),
-  with native parent #163, Project 1 Todo and no blocking edges. It covers command
+  with native parent #163, Project 1 Todo and a one-way edge blocking core #780.
+  It has no blocked-by issue or reverse dependency. It covers command
   paths, packaged rules, bundle resources, integrity, version and CI/CD signing.
   Core acceptance cannot establish end-to-end replacement while the module still
-  uses Semgrep. Existing reset sequence and owners remain intact.
+  uses Semgrep. Verified module migration also blocks shared dependency removal;
+  tracking alone is insufficient. Existing reset sequence and owners remain intact.
 - The matching internal wiki source was aligned and `wiki_rebuild_graph.py` ran
   from the internal repository root, preserving pre-existing dirty source files.
 
@@ -156,6 +159,16 @@ The active-tree count was corrected from 47 to the observed 48 directories,
 excluding `archive`. The module follow-up above addresses the separate migration
 finding and is represented by a new planned scenario and inspection case.
 
+A subsequent P1 review identified a real sequencing gap. The current external
+module invokes `semgrep`, while `requirements/code-review/locked.txt` does not
+install it. Task 4.4 could therefore remove its executable before mandatory final
+review. The spec, design and task order now block removal until modules #523
+proves the installed module's required clean-code, bug and AI-bloat passes,
+packaged resources and bundle integrity in a fresh delivery environment with
+Python Semgrep absent. A new planned scenario and inspection case retain this
+prerequisite. Investigation can precede the cutover; actual migration remains
+unimplemented and no new runtime proof is claimed.
+
 The original CI Linting job failed because Ruff formats Python fenced blocks in
 Markdown. `hatch run ruff format . --check` reproduced that failure in `design.md`.
 Formatting that sketch restored the required blank lines; the full command then
@@ -168,6 +181,9 @@ used. Trusted Requirements Authority independently requires a distinct unedited
 maintainer approval bound to the final commit and tree. General PR babysitting
 permission supplies no such approval. Request it only after the review wave is
 published, then rerun the authority workflow for that unchanged head.
+The owner approved revision `100fb416` while the subsequent P1 review arrived.
+That approval was not posted because the required correction changes the commit
+and tree. It cannot authorize the revised head.
 
 ## Sources
 

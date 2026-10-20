@@ -59,6 +59,8 @@ delivery and scanner contracts before changing them.
   by [modules #523](https://github.com/nold-ai/specfact-cli-modules/issues/523),
   including command paths, packaged rules, bundle integrity and CI/CD signing.
   No module implementation or end-to-end replacement is claimed by core delivery.
+  Shared Semgrep removal is blocked on that migration's verified required review
+  coverage in a fresh delivery environment with Python Semgrep absent.
 - Expected implementation paths include `pyproject.toml`, `setup.py`, `uv.lock`,
   frozen requirements, delivery/audit scripts, CI, Hatch, the three installed
   scanner consumers and installation documentation.
@@ -84,6 +86,8 @@ delivery and scanner contracts before changing them.
   and retain their documented output and unavailable-tool behavior.
 - End-to-end replacement is claimed only after the separately tracked Code Review
   module migration and its installed bundle, resource and integrity checks pass.
+  That verified migration is also a prerequisite to removing shared Semgrep;
+  tracking alone cannot preserve required review coverage after removal.
 - Authored failing-before tests precede implementation. Fresh passing evidence,
   native compatibility, full review and all required gates precede adoption.
 - Only after a verified implementation PR exists, link every covered duplicate
@@ -99,7 +103,9 @@ delivery and scanner contracts before changing them.
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/780>.
 - **Last Synced Status**: proposed; project Todo.
 - Parent: #747, dependency maintenance, under epic #194.
-- Native issue blockers: none for replacement investigation; #772 is related only.
+- Native issue blocker: modules #523 for shared dependency removal and completed
+  cutover. Candidate investigation can proceed before that migration; #772 is
+  related only. No reverse dependency from modules #523 to this issue is required.
 - Adoption gates: exact upstream publisher identity, complete component/license
   audits, real parity, installed-user compatibility and required protected review.
 - Blocks: dependency remediation and release readiness tracked by #747 and #771;

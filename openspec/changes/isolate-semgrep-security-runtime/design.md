@@ -134,6 +134,16 @@ bundle-resource tests, checksums, module version and CI/CD signatures. Core-only
 acceptance does not establish end-to-end replacement while that module remains
 on Semgrep. Preserve the existing reset sequence and owners.
 
+Shared Semgrep removal is blocked on verified modules #523 migration. The separate
+`requirements/code-review/locked.txt` does not install Semgrep, and the current
+module invokes that executable for clean-code, bug and AI-bloat passes. Merely
+tracking migration cannot keep mandatory review working after dependency removal.
+Before cutover, verify the installed module uses the admitted replacement with
+its packaged rule payloads and bundle integrity intact. Run the required passes
+in a fresh delivery environment with Python Semgrep absent; missing or skipped
+scanner coverage fails readiness. Candidate investigation can proceed before
+this prerequisite, but dependency removal and final review cannot.
+
 Removing the scanning extra's implicit Python tool installation changes its setup
 contract. Specify explicit native preparation and verify patch compatibility
 before migration. If a patch cannot preserve the supported contract, keep the
