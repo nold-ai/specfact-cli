@@ -22,6 +22,18 @@ Independent security modules #511 and core #719/#718 and existing signing gates 
 
 ## Authorized #747 dependency stack (2026-10-10)
 
+### Scanner isolation follow-up (2026-10-20)
+
+The owner authorized a new scoped isolation or replacement change after reviewing
+current dependency PRs. [Scanner isolation #780](changes/isolate-semgrep-security-runtime/proposal.md)
+is planning only and selects independent upstream native replacement investigation
+after review found a downstream adoption cycle. #772/#779 remains a related blocked
+alternative, not a prerequisite. Isolation alone does not fix the MCP advisory.
+Require exact publisher/component evidence and actual parity. Preserve scanner audits,
+SAST coverage and installed-user compatibility; no production adoption, patch bump,
+duplicate closure or promotion is established by this proposal. The historical
+dependency stack below remains unchanged.
+
 The owner approved `dev <- #744 <- #727 <- #752 <- #754 <- #753`, retaining
 all PR numbers and compatible JSON 2.21.2/Jekyll 4.4.1. After #758 reserved
 0.55.5 on protected dev, the required version gate selects one 0.55.6 bugfix release.
