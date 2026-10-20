@@ -245,8 +245,7 @@ def _inventory(cell: _Cell, executable: Path, label: str) -> dict[str, str]:
     return {key: _text(value) for key, value in payload.items()}
 
 
-def _compiled_pins(compiled: Path) -> dict[str, tuple[str, list[str]]]:
-    blocks = re.sub(r"\\\r?\n", " ", compiled.read_text(encoding="utf-8")).splitlines()
+def _compiled_pins(blocks: list[str]) -> dict[str, tuple[str, list[str]]]:
     pinned: dict[str, tuple[str, list[str]]] = {}
     for line in blocks:
         match = re.match(r"^([A-Za-z0-9_.-]+)==([^\s;]+)(.*)$", line)
@@ -421,16 +420,26 @@ def validate_inventory(installed: dict[str, str]) -> None:
     )
 
 
+def _compiled_lines(compiled: Path) -> list[str]:
+    return [
+        line.strip()
+        for line in re.sub(r"\\\r?\n", " ", compiled.read_text(encoding="utf-8")).splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+
+
 def _flat_lock(compiled: Path, installed: dict[str, str], wheel: Path, output: Path) -> None:
-    pins = _compiled_pins(compiled)
-    direct = re.findall(r"^specfact[-_]semgrep\s*@\s*(\S+)", compiled.read_text(), re.MULTILINE)
+    blocks = _compiled_lines(compiled)
+    pins = _compiled_pins(blocks)
+    direct = [line for line in blocks if not re.match(r"^[A-Za-z0-9_.-]+==", line)]
     require(len(direct) == 1, "exactly one candidate direct requirement required")
-    direct_lines = re.sub(r"\\\r?\n", " ", compiled.read_text()).splitlines()
-    candidate_lines = [line for line in direct_lines if re.match(r"^specfact[-_]semgrep\s*@\s*", line)]
+    target, *hashes = re.split(r"\s+--hash=sha256:", direct[0])
+    named = re.fullmatch(r"specfact[-_]semgrep\s*@\s*(\S+)", target)
     require(
-        len(candidate_lines) == 1 and "--hash=sha256:" + _digest(wheel) in candidate_lines[0],
-        "compiled candidate hash differs",
+        target == str(wheel) or (named is not None and named.group(1) == wheel.as_uri()),
+        "compiled candidate path differs",
     )
+    require([value.strip() for value in hashes] == [_digest(wheel)], "compiled candidate hash differs")
     require(installed.get(FORK) == VERSION, "candidate inventory identity differs")
     require(
         set(pins) == set(installed) - {FORK},

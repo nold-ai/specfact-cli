@@ -173,3 +173,36 @@ mapping/plan are 2c247314e2516e096a92252005b1f80b10e70ef60a50a5d2b0a5a14880c62c3
 and 15ecd106e7d79cfe454eba078a70e9f1d5cc583b06b3c399426dfb0b2d6ad556.
 Source-context aggregation accounts for the difference from standalone digests.
 This retained authentic pre-producer failure is not relabelled accepted RED.
+
+## Native compiled-lock adapter correction
+
+Candidate run 39511211957 built and reproducibly rebuilt all seven canonical
+wheels at 5991c245. Native Linux, musl, Windows and macOS cells then passed actual
+uv compilation, hash-protected installation, pip check and installed inventory
+commands. They failed before independent pip installation at the shared adapter:
+`ValueError: exactly one candidate direct requirement required`.
+
+The retained uv 0.12.19 lock exports use bare absolute wheel paths with SHA256
+continuations. `_flat_lock` recognized only a named `specfact-semgrep @ file:...`
+reference, and its synthetic control had not covered actual exporter syntax.
+The required correction accepts the real platform path forms while preserving
+exact canonical subject/hash binding, a single candidate, complete installed
+inventory and hashed transitive coverage. Wrong paths/hashes, duplicate candidate
+entries and unexpected direct inputs must still be rejected. This is the normal
+resolver contract already specified; no package, audit or authority bypass follows.
+The original native failures and full command outputs remain retained separately.
+
+The adapter regressions were executed before the correction and reproduced the
+actual missing-direct-requirement failure. Additional negative controls exposed
+acceptance of an unrelated named target and extra hash/direct inputs. The fix now
+materializes logical lines, accepts only the exact supplied wheel path or named
+canonical file URI, and requires its single exact SHA256. Unknown direct entries,
+duplicates and altered paths/hashes fail closed. Existing full installed/pinned
+version, identity and transitive hash coverage remains enforced.
+
+All 17 focused runner/lock tests and 38 subtests pass. Adapted replays of retained
+Linux, musl, Windows and macOS exports also pass against exact canonical files and
+original installed inventories, changing only their absolute file location for
+local replay. These adapted fixtures are not native execution results. The small
+logical-line extraction resolves the new complexity finding; final scoped review
+has no new genuine finding, with prior bootstrap/stdout dispositions unchanged.
