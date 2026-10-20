@@ -9,15 +9,15 @@
 
 ## 2. Patch the dependency unit
 
-- [ ] Add the reviewed certifi floor and run canonical frozen-input refresh.
-- [ ] Run the same test against the refreshed frozen environment.
-- [ ] Verify complete lock/export parity and trust/license gates.
-- [ ] Record the remaining MCP finding without exceptions or exclusions.
+- [x] Add the reviewed certifi floor and run canonical frozen-input refresh.
+- [x] Run the same test against the refreshed frozen environment.
+- [x] Verify complete lock/export parity and trust/license gates.
+- [x] Record the remaining MCP finding without exceptions or exclusions.
 
 ## 3. Finalize the actual patch
 
-- [ ] Synchronize core patch sources, generated metadata and changelog.
-- [ ] Run required review, contract and affected package checks.
+- [x] Synchronize core patch sources, generated metadata and changelog.
+- [x] Run required review, contract and affected package checks.
 - [ ] Bind native Requirements acceptance and test evidence to this exact mapping.
 - [ ] Publish with normal hooks and CI/CD-only signing.
 - [ ] Resolve fixed review threads and obtain new exact-head authority after final fixes.

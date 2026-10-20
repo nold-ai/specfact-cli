@@ -10,6 +10,15 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.55.11] - 2026-10-20
+
+### Security
+
+- Require certifi >=2026.10.19 and refresh frozen dependencies to remove the compromised
+  emSign ECC Root CA - G3 from the delivered CA trust store (GHSA-6q48-6c7w-9gw2).
+
+---
+
 ## [0.55.10] - 2026-10-13
 
 ### Security
