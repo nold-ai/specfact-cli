@@ -1,3 +1,9 @@
+## Owner-approved agentic SDLC amendment — 2026-10-04
+
+Add a bounded optional export using in-toto Statement v1 and SCAI v0.3 to bind a digest-addressed evidence bundle and the original native reports. Preserve independent statuses, producer authority, uncertainty and limitations in authoritative native JSON; neither SARIF nor an attestation is a replacement report. Signing authenticates origin/integrity, not claim correctness. Reuse existing CI signing/verification infrastructure: no new signer, store or predicate-standardization dependency. Test tampered bundle, mismatched subject/digest and unauthorized signer rejection. Summary/SARIF interoperability may consume native producer reports without requiring the full envelope, #170/#171 graph/index or seals; export does not block #481/#740/#483.
+
+This planning amendment supersedes conflicting scope and prerequisite wording below. It changes no runtime behavior and completes no implementation task. See [roadmap](../../AGENTIC_SDLC_ROADMAP.md).
+
 ## Context
 
 ## Scope rescope — 2026-09-20
@@ -50,3 +56,7 @@ This change implements proposal scope for `governance-01-evidence-output` from t
 ## Current contract and archival boundary — 2026-09-20
 
 The core envelope contract can precede graph producers. Runtime emitters consume that contract; graph consumers may integrate later using the existing envelope. Serialization requirements are additive and do not replace the producer-owned Full Chain Validation or Policy Engine requirements during archival. Full-chain availability is required only for actual full-chain emission, not for delivering the envelope or serializing current-only results. R09 and workflow adoption remain independent of this broader emitter feature. Earlier wording that requires validation-02 before the whole envelope is historical.
+
+## Deferred trace context
+
+The [historical OSCAL trace draft](research/oscal-trace-notes.md) is non-normative research for later graph consumers. It is not a basic export prerequisite.

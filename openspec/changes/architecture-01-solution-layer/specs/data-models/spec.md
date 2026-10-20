@@ -1,6 +1,6 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
-### Requirement: Data Models
+### Requirement: Optional Architecture Boundary Namespace
 
 The system SHALL extend project-level models with an architecture namespace linked to requirements.
 

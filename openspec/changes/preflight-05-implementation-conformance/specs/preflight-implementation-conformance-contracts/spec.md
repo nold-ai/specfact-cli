@@ -196,3 +196,19 @@ The system SHALL describe a successful result as conformance to captured obligat
 - **WHEN** a consumer presents the result
 - **THEN** it identifies the sealed contract, implementation snapshot, extractors, evidence, and policy used
 - **AND** it includes the declared assurance limits and exact local or range authority.
+
+### Requirement: Policy-selected decision context conformance
+
+Selected context-bound assurance SHALL include the decision/source digest in cache and affected-obligation identity. It SHALL reuse existing finding categories with specific reason codes: changed context is stale/UNKNOWN, unavailable required resolution is unverifiable/UNKNOWN and a reconciled behavioral contradiction is violated/FAIL. An unresolved ordinary assumption SHALL remain advisory. Shared workflow presentation and repair budgets SHALL preserve independent producer outcomes. Missing trace association SHALL NOT prove missing behavior.
+
+#### Scenario: Required resolution is unavailable
+
+- **GIVEN** selected policy requires resolution of a touched bound assumption
+- **WHEN** matching evidence is unavailable
+- **THEN** the assurance obligation is unverifiable/UNKNOWN with its source, not a demonstrated contradiction.
+
+#### Scenario: Contradiction has current evidence
+
+- **GIVEN** current correctly bound evidence contradicts a required decision observable
+- **WHEN** conformance is evaluated
+- **THEN** it is violated/FAIL and no advisory verdict can mask it.

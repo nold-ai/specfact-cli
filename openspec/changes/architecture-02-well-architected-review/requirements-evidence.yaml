@@ -1,0 +1,72 @@
+schema_version: '2'
+requirements:
+  openspec:architecture-02-well-architected-review:architecture-review:architecture-review-finding-model:
+    rationale: Make the approved planning requirement reviewable without claiming runtime
+      evidence.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#524
+    touchpoints:
+      - id: architecture-review-spec
+        kind: config_file
+        locator: openspec/changes/architecture-02-well-architected-review/specs/architecture-review/spec.md
+    verification_cases:
+      - case_id: architecture-review-finding-model-inspection
+        scenario_id: architecture-review-finding-model
+        method: inspection
+        intent: Inspect Architecture Review Finding Model and all its acceptance scenarios.
+        observable: Strict OpenSpec validation retains the requirement and scenarios. Planning
+          inspection only; tests, implementation and signed producer acceptance remain
+          pending.
+  openspec:architecture-02-well-architected-review:architecture-review:interface-diff-command:
+    rationale: Make the approved planning requirement reviewable without claiming runtime
+      evidence.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#524
+    touchpoints:
+      - id: architecture-review-spec
+        kind: config_file
+        locator: openspec/changes/architecture-02-well-architected-review/specs/architecture-review/spec.md
+    verification_cases:
+      - case_id: interface-diff-command-inspection
+        scenario_id: interface-diff-command
+        method: inspection
+        intent: Inspect Interface Diff Command and all its acceptance scenarios.
+        observable: Strict OpenSpec validation retains the requirement and scenarios. Planning
+          inspection only; tests, implementation and signed producer acceptance remain
+          pending.
+  openspec:architecture-02-well-architected-review:architecture-review:maintained-python-dependency-evidence:
+    rationale: Make the approved planning requirement reviewable without claiming runtime
+      evidence.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#524
+    touchpoints:
+      - id: architecture-review-spec
+        kind: config_file
+        locator: openspec/changes/architecture-02-well-architected-review/specs/architecture-review/spec.md
+    verification_cases:
+      - case_id: maintained-python-dependency-evidence-inspection
+        scenario_id: maintained-python-dependency-evidence
+        method: inspection
+        intent: Inspect Maintained Python dependency evidence and all its acceptance scenarios.
+        observable: Strict OpenSpec validation retains the requirement and scenarios. Planning
+          inspection only; tests, implementation and signed producer acceptance remain
+          pending.
+  ? "openspec:architecture-02-well-architected-review:solution-architecture:solution-architecture-tracks\
+    -architecture-decisions-and-boundaries"
+  : rationale: Make the approved planning requirement reviewable without claiming runtime
+      evidence.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#524
+    touchpoints:
+      - id: solution-architecture-spec
+        kind: config_file
+        locator: openspec/changes/architecture-02-well-architected-review/specs/solution-architecture/spec.md
+    verification_cases:
+      - case_id: solution-architecture-tracks-architecture-decisions-and-boundaries-inspection
+        scenario_id: solution-architecture-tracks-architecture-decisions-and-boundaries
+        method: inspection
+        intent: Inspect Solution Architecture Tracks Architecture Decisions and Boundaries
+          and all its acceptance scenarios.
+        observable: Strict OpenSpec validation retains the requirement and scenarios. Planning
+          inspection only; tests, implementation and signed producer acceptance remain
+          pending.

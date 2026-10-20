@@ -39,3 +39,9 @@
   (canonical `/opsx:archive` lifecycle: merge deltas into `openspec/specs/`, move change under `openspec/changes/archive/`,
   module signing/cleanup as configured). **Do not** manually `mv` folders into `openspec/changes/archive/`.
 - [ ] 5.5 After archive completes, remove the worktree branch and prune stale worktree state.
+
+## Agentic SDLC follow-up acceptance
+
+- [ ] Verify the 2026-10-04 approved scope against live issue/release readiness before implementation.
+- [ ] Derive negative tests from the amendment scenarios before behavior edits; implement analyzer additions only through the owning released contracts.
+- [ ] Preserve independent producer status, optional context/assurance and existing lean release dependencies; document exact versions and rollback.
