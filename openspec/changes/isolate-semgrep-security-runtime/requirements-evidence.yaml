@@ -77,7 +77,8 @@ requirements:
         method: inspection
         intent: 'Inspect planned scenario: Ambient PATH and stale cache cannot select the scanner. GIVEN an unverified
           `semgrep` on PATH or a prepared cache whose identity no longer matches the admitted closure WHEN a consumer
-          requests scanner execution THEN it rejects that executable and does not silently fall back.'
+          requests scanner execution THEN command construction validates current admission and installed components,
+          rejects that executable and does not silently fall back or trust prior preparation.'
         observable: The planned scenario retains this acceptance contract; no runtime, authored-test or remediation
           maturity is claimed.
       - case_id: SCANNER-INSTALLED-DISTRIBUTION-RESOLVES-THE-SAME-SCANNER-AS-THE-CHECKOUT

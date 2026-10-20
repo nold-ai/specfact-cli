@@ -51,19 +51,15 @@ command = scanner_command(args=("--config", async_rules, "."))
 The domain identity binds engine release, source revision, target, artifact digest,
 exact publisher identity and complete component-inventory digest. Validated identity
 selects one executable. It does not expose an arbitrary URL or PATH override.
+Command construction performs this offline selection and validation on each call
+before returning an absolute executable. Explicit preparation only publishes
+verified cache state; it cannot grant a lasting execution capability. No caller-
+constructed identity, executable path or previously prepared handle can bypass
+current admission and installed-component validation. Refuse stale or revoked
+admission and changed cached bytes before returning a command.
 
 ```python
 class ScannerUnavailable(RuntimeError): ...
-
-
-@dataclass(frozen=True)
-class PreparedScanner:
-    identity: ScannerIdentity
-    executable: Path
-
-
-def prepare_scanner(cache_root: Path) -> PreparedScanner:
-    raise NotImplementedError
 
 
 def scanner_command(*, args: tuple[str, ...]) -> tuple[str, ...]:

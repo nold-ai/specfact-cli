@@ -169,6 +169,15 @@ Python Semgrep absent. A new planned scenario and inspection case retain this
 prerequisite. Investigation can precede the cutover; actual migration remains
 unimplemented and no new runtime proof is claimed.
 
+CodeRabbit also identified an unused, directly constructible prepared-handle
+sketch that did not bind command construction. The design removes that unused
+handle and separate helper rather than adding another caller-facing capability.
+The existing single command owner now explicitly performs offline validation
+against current admission and installed components on each invocation. Prior
+preparation, stale cache or caller-created state cannot bypass those checks.
+The normative requirement and existing stale-cache inspection case retain this
+boundary. No implemented API or runtime verification is claimed.
+
 The original CI Linting job failed because Ruff formats Python fenced blocks in
 Markdown. `hatch run ruff format . --check` reproduced that failure in `design.md`.
 Formatting that sketch restored the required blank lines; the full command then

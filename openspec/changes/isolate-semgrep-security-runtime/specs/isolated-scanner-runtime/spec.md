@@ -64,6 +64,9 @@ through one packaged execution owner usable without a source checkout. Selection
 SHALL bind the executable and installed native component inventory to the current admitted
 artifact/component identity. An arbitrary PATH executable or cached version string MUST NOT satisfy
 that selection. Network acquisition SHALL require an explicit preparation step.
+Command construction SHALL perform that offline validation for each invocation;
+prior preparation or caller-constructed state SHALL NOT bypass current admission
+and installed-component checks.
 
 #### Scenario: Ambient PATH and stale cache cannot select the scanner
 
