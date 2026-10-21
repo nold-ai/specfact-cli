@@ -22,6 +22,18 @@ Independent security modules #511 and core #719/#718 and existing signing gates 
 
 ## Authorized #747 dependency stack (2026-10-10)
 
+### Official dependency hotfix and temporary MCP exception (2026-10-21)
+
+[PR #782 / issue #780](changes/isolate-semgrep-security-runtime/proposal.md) retains
+certifi 2026.10.19 and core 0.55.11. The owner rejected the Semgrep fork and
+requested its removal. Use official packages only. Latest official Semgrep still
+pins MCP 1.29.0; the owner authorized one exact, expiring advisory exception
+through 2026-11-04 while upstream remains blocked. Keep every strict audit and
+required CI check, independent scanner coverage and CI/CD-only signing. Actual
+final authority and verified coverage precede readiness or related-PR closure.
+A later dependency-only hotfix starts from published v0.55.4, not all dev runtime
+commits. No merge, package publication or promotion is authorized here.
+
 The owner approved `dev <- #744 <- #727 <- #752 <- #754 <- #753`, retaining
 all PR numbers and compatible JSON 2.21.2/Jekyll 4.4.1. After #758 reserved
 0.55.5 on protected dev, the required version gate selects one 0.55.6 bugfix release.
@@ -89,7 +101,7 @@ Recovered from uncommitted proposal-only feature worktrees into local `dev`; rem
 
 | Bucket | Count | Location |
 |---|---:|---|
-| **Active-tree entries** | 47 | [`openspec/changes/`](changes/) |
+| **Active-tree entries** | 48 | [`openspec/changes/`](changes/) |
 | **Parking-lot entries** | 21 | [`openspec/parking-lot/`](parking-lot/) |
 | **Archived** | 120 | [`openspec/changes/archive/`](changes/archive/) |
 

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.55.10"
+version = "0.55.11"
 description = "AI-bloat defense CLI for Python teams. Run deterministic code review, cleanup forecasts, and spec/contract evidence for AI-assisted and brownfield delivery."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -62,6 +62,7 @@ dependencies = [
     "typing-extensions>=4.15.0",
     "PyYAML>=6.0.3",
     "requests>=2.32.3",
+    "certifi>=2026.10.19",
     "azure-identity>=1.17.1",
     "cryptography>=50.0.0",
     # Transitive through CFFI. The lock supplies reproducibility; this range
