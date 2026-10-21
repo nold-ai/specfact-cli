@@ -246,6 +246,29 @@ the required write permissions. The exact scoped-job contract first failed
 because its same-repository, pull-request, dev-base and branch guards were absent.
 The job now requires the same exact subject as late-cycle admission. It remains
 always() after producer failure but skips forks and unrelated subjects. No
-permission, CI check or artifact mutation is used to address the finding.
+permission change, separate CI status check or artifact mutation is used to
+address the finding.
 The focused new and existing workflow suite passes all 33 tests after the fix.
 Evidence is retained in origin-scope-red.log and origin-scope-green.log.
+
+### Actual rerun retention check
+
+Review claimed that fixed artifact names conflict across workflow reruns.
+The exact locked artifact client documents reruns as a supported duplicate-name
+case. A controlled retry of Requirements run 39588065523 on 21 October 2026
+confirmed the actual backend behavior. Attempt 2 successfully uploaded the same
+requirements-evidence name as new artifact 12341235127 and the same producer
+audit name as new artifact 12341410036. The original native artifact 12339828168
+and origin artifact 12340872780 remained accessible and unexpired.
+
+After the run advanced to attempt 2, the actual reviewed historical collector
+and official gh verifier again authenticated attempt 1's original signed origin
+and native ZIP. Its bytes, fourteen selectors and sole missing-RED finding were
+unchanged. The existing consumers bind explicit artifact IDs. No overwrite,
+deletion or artifact naming change is required. The retry remains refused for
+the absent distinct human grant. Successful uploads do not admit provenance.
+
+The exact retry job is
+<https://github.com/nold-ai/specfact-cli/actions/runs/39588065523/job/119186574654>.
+Evidence is retained in pr784-after-rerun-artifacts.json,
+pr784-rerun-producer.log and pr784-retained-attempt1-verification.log.
