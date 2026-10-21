@@ -82,3 +82,9 @@ runtime, bypass Code Review, or authorize protected deployment or merge.
 - **GIVEN** authenticated exact-ID metadata and ZIP bytes
 - **WHEN** the shared isolated workflow-owned program restores evidence
 - **THEN** credentialed transport remains on the fixed GitHub API, HTTPS redirects never forward the token, digest verification precedes bounded flat regular-file extraction, all files validate in staging before exclusive publication, and unsafe paths, links, collisions or uncertain inputs fail closed while preserving unrelated context.
+
+#### Scenario: Authenticated equivalent synthetic merge revisions
+
+- **GIVEN** an attested workflow revision and current GitHub PR merge revision have different IDs but the same exact reviewed full tree and ordered two-parent ancestry
+- **WHEN** the scoped policy verifies historical native origin for the unchanged head
+- **THEN** it may accept that equivalent signed merge only after authenticated commit identity, valid signatures, exact head/tree/parents, unchanged workflow bytes and the existing exact source-digest attestation verification pass; mismatched ancestry, content, signatures or source still refuse.

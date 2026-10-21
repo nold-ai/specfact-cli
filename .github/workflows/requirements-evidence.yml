@@ -12,7 +12,7 @@ permissions:
   issues: read
 
 env:
-  LATE_CYCLE_POLICY_REVISION: ea0509fc5261e394cbc8de918b85ea02ac5f4126
+  LATE_CYCLE_POLICY_REVISION: 5cd61c45303bc5da174a39ff79945fafad77ea3b
 
 jobs:
   requirements-evidence-producer:

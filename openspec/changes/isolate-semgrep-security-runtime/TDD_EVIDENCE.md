@@ -388,3 +388,65 @@ were removed. Its only kept comment explains redaction of signed URLs emitted
 by the external urllib exception formatter. No production change followed the
 final live transfer proof or independent security verdict. The core dependency,
 version and signed-module inputs remain unchanged. Signing stays in CI/CD.
+
+### Equivalent signed synthetic merge origin, 2026-10-21 (Europe/Berlin)
+
+Normal-hook commit `4b25241ef5548d29b6ad78be6cd2d26dda6afa77` published the
+reviewed exact-ID transfer. All ordinary CI checks passed at that head. The
+new native artifact `12344301975` and signed origin `12342973880` in run
+`39595683488`, attempt 1, retain fourteen passing cases and the sole missing-RED
+finding. The canonical request operation refused with `origin-source` before
+any new human request was issued.
+
+Authenticated GitHub commit records show actual attested workflow revision
+`21cca82b7d32c567bbea6f496184cbdf633cab13` and current PR merge revision
+`6636108be140545670ab348e503187102dded6e7`. Both have the exact reviewed tree
+`c131fc747fa4cd827a06ffd6a1ec164e146a986c`, the ordered parents
+`3cf72e848a2b5a233d3f599898d6983319d375de` and the current head, and valid
+signatures. Their signed payloads encode author/committer time zones differently.
+The deployed literal source-ID guard rejects this equivalent signed merge.
+No origin or artifact was rewritten to work around that refusal.
+
+The specification preceded the scoped policy regression. The new test
+`test_historical_equivalent_signed_merge_preserves_attested_source` first failed
+with `late_cycle_admission.Refused: origin-source`. Two subsequent ordered-parent
+negative controls first failed with `DID NOT RAISE Refused` before the candidate
+was tightened to a distinct first parent and exact current-head second parent.
+The final policy suite passed 264 tests, independently repeated by
+`Codex:/root/policy_identity_security_review`. Its exact source SHA-256 is
+`bdd671842d0f0c1d252a759a7aa8230b2b94d6d97e44bebc760b9b13e7c967f0`.
+Formatting/lint, comment review and diff checks passed. The independent technical
+verdict permits normal commit/publication, not protected deployment or grants.
+
+The candidate accepts a different signed merge only when both authenticated
+full identities match their requests, both signatures are valid, both trees
+match the exact reviewed head tree, and both ordered two-parent lists agree
+as distinct base/current-head. It retains workflow-byte equality and verifies
+the actual original signer/source digest through official gh. All native,
+selector, immutable-artifact, live subject/permission/expiry and deployment checks
+remain unchanged.
+
+Parent technical verification called the real candidate historical collector
+against the actual API and signed origin, without replacing its official gh
+verifier. It accepted the genuine native ZIP and sole missing-RED finding, while
+retaining the original workflow revision. This was evidence verification only;
+no request, grant or decision was issued. The unchanged `deployed()` restriction
+continues to refuse an unmerged candidate.
+
+The policy correction is proposed as
+<https://github.com/nold-ai/.github/pull/5>, exact commit
+`5cd61c45303bc5da174a39ff79945fafad77ea3b`. Core now pins that immutable revision
+for all three existing evaluator calls. This pin is inactive for admission until
+the owner explicitly approves protected deployment and the revision is reachable
+from policy main. The earlier policy4 deployment approval does not apply to this
+new change. No policy5 deployment, new human grant, core merge or local signing
+has occurred. Fresh core evidence and separate exact owner grants remain required
+following approved deployment. Reverting the pin and policy correction restores
+the prior refusal without altering retained evidence.
+
+Local evidence is under the previously identified implementation directory,
+`policy-identity/`: `actual-deployed-red.log`, `regression-red.log`,
+`ordered-parent-red.log`, `final-tests.log`, `security-review.md`,
+`candidate-live-origin-proof.json` and its producer script in the parent directory.
+The original authenticated synthetic commit responses and origin manifest are
+retained adjacent to those records.

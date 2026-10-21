@@ -129,3 +129,23 @@ Tests execute the resolved YAML body with test-only HTTP doubles. Local RED
 replays the actual pinned filter over authenticated REST records. Final live
 exact-ID verification, independent review, normal hooks and fresh exact-head
 authority remain required before CI acceptance. Parent owns internal wiki sync.
+
+## Attested synthetic merge identity correction (2026-10-21)
+
+At core head `4b25241e`, authenticated native origin records workflow revision
+`21cca82b`, while the live PR merge revision is `6636108b`. Both have the exact
+head, tree and ordered base/head parents, and valid GitHub signatures. Their
+unsigned signed-payload text differs only in the author/committer time-zone
+encoding, producing different commit IDs. The deployed policy rejects this at
+`origin-source`, before a new grant can even be prepared.
+
+Prepare a separately reviewed protected-policy correction. The equivalent-merge
+path must bind both authenticated commit IDs, valid signatures, the exact
+reviewed full tree and ordered two-parent ancestry containing the current head.
+It retains actual attested signer/source digest and unchanged workflow bytes.
+It never rewrites origin metadata, substitutes workflow SHA or weakens the human
+subject binding. Strict negative controls cover wrong parents, tree, head,
+signature, metadata and workflow bytes. Genuine current CI refusal is retained
+before code. A new immutable core policy pin follows review, and owner approval
+is required before protected deployment. The original deployed revision remains
+unchanged until that approval.

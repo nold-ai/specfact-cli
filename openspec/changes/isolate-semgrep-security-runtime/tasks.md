@@ -51,3 +51,12 @@
 - [x] Replace all three current-run transfers without changing names or destinations.
 - [x] Verify genuine producer and retained execution layouts, independent execution digest and live exact-ID transfer; current-head CI remains pending.
 - [ ] Complete independent review, normal hooks, wiki alignment and fresh exact-head grants before CI acceptance.
+
+## 7. Preserve authenticated synthetic merge equivalence
+
+- [x] Retain exact `origin-source` refusal and both authenticated signed commit records.
+- [x] Specify strict equivalent-merge admission with unchanged attestation and human authority.
+- [x] Add meaningful failing-before regression and hostile substitution controls.
+- [x] Implement and independently review the scoped protected-policy correction.
+- [ ] Update the immutable core pin through normal hooks and verify fresh CI.
+- [ ] Request exact owner approval before protected deployment, then prepare fresh head-bound human grants.
