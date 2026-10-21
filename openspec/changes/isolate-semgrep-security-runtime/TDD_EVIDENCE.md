@@ -91,118 +91,35 @@ run remains retained. Final local success does not waive MCP, final native CI or
 exact-head human authority. Normal dependency commit remains blocked by the
 unchanged `frozen-cve-audit` failure.
 
-## Published certificate correction and new artifact cycle, 2026-10-21
+## Official-only correction, 2026-10-21
 
-The owner approved the exact one-time local hook exception after the checkpoint
-above. Commit 66ee3d58959e7798a6a7a5a1ed5c41d1db37fbc0 is pushed. Other hooks and
-CI stayed enforced; the exception is consumed. Actual final package/runtime and
-quality checks pass, while the frozen audit still reports MCP 1.29.0 alone.
-The fresh Requirements consumer exposes the distinct old-verifier-bundle mismatch.
+The owner rejected the producer/fork and authorized an exact temporary MCP
+exception when official Semgrep prevents patched MCP. Superseded producer
+evidence remains in Git at 46970dc1 and the private operator archive. It is not
+current acceptance evidence and supplies no publication or authority approval.
 
-The revised scope retains the installed test and adds inert exact frozen-wheel
-certificate proof plus a packaging-only MCP artifact contract. Its mapping digest
-is sha256:9260bf98d7d3e53daf5e8ebc039ea4757d638fc78be639e17a3f527ffb3e12b1.
-Independent test design review reproduced certificate GREEN and actual upstream
-MCP metadata RED using the untouched older Hatch environment. Before a producer
-exists, selected bytes are the pinned official Semgrep wheel. The intended diff
-is `['mcp==1.29.0'] != ['mcp==1.30.0']`. No new native RED or final GREEN is claimed
-until an authenticated workflow actually produces it for these exact selectors.
+Latest official Semgrep 1.182.0 wheel metadata requires MCP 1.29.0. A fresh
+normal `uv pip compile` with `semgrep==1.182.0` and `mcp>=1.30.0,<2` fails:
 
-Historical certifi RED above remains real evidence of the earlier correction;
-it is not relabelled as proof for the revised map. The new cycle deliberately
-retains already-passing certificate coverage and the new failing scanner artifact
-case. Independent acceptance, exact test digest and native records follow only
-after actual review and execution. Canonical dependency inputs remain unchanged.
+```text
+Because semgrep>=1.182.0 depends on mcp==1.29.0 ...
+your requirements are unsatisfiable.
+```
 
-Independent AI technical acceptance is recorded at <https://github.com/nold-ai/specfact-cli/pull/782#issuecomment-6303112841>. It binds
-the mapping above, recipe SHA256 bcb7d9ce9cb05fb479069af7c0eaebe816adbea338ceb269642c731de18bcb0c
-and exact test SHA256 f47e9084a040512d872e4dd1db97260776011542a29136087bd2d05ad2bd6dce.
-The independent final run has 13 passes and one intended MCP metadata assertion
-failure under Python 3.12 with old installed certifi. The certificate artifact
-case and all malformed-input/description controls pass. No native record or human
-authority is inferred from this local technical acceptance.
+The original strict frozen audit exits 1 for MCP 1.29.0 / CVE-2026-59951.
+Before adding the register entry, the new exact-policy and gate tests record
+6 failed and 4 passed, including the intended empty-register policy mismatch
+and unwaived approved findings. After adding the owner-authorized entry,
+all 41 audit/policy tests pass. Twelve unchanged certificate artifact and
+adversarial-input tests pass using real hash-pinned official wheel downloads.
 
-## Retained MCP artifact failure and fresh test cycle
+All three unchanged strict audit commands then exit 0. The CI graph visibly
+reports `WAIVED: mcp==1.29.0 vuln=CVE-2026-59951`; the other two graphs contain
+no unreviewed findings. This is accepted temporary risk, not remediation.
 
-Authenticated [run 39507988136](https://github.com/nold-ai/specfact-cli/actions/runs/39507988136)
-executed commit b61774e395b074a4b5c09fa27ce98d5a99a26e17. Artifact
-12303368797 has digest
-`sha256:860e3036844e6ccf4cd814c8719d6c48460a1267dba774e1b22b2b2828b363ce`.
-Its real JUnit records certificate PASS and the intended MCP 1.29.0 versus 1.30.0
-assertion failure, with no errors or skips. The workflow classifies this run as
-FINAL because the PR already contains implementation. Reconciliation reports
-`observed_maturity: incomplete`, `final-proof-failed-not-passed`, and
-`prior-red-proof-invalid`. This is authentic behavioral failure evidence. It is
-not accepted native RED or final implementation proof.
-
-A fresh test/spec-only descendant uses b61774e3 as its immutable cycle base.
-The additional negative control downloads the selected official certifi wheel
-and requires a deliberately wrong SHA256 pin to fail before artifact parsing.
-This exercises a security boundary that the earlier positive hash test did not
-independently discriminate. The two-case Requirements plan remains unchanged.
-Certificate PASS is retained explicitly; no deliberately failing certificate or
-weakened assertion is substituted to manufacture an all-failing plan.
-
-Existing late-RED validation can represent this failed subset, but its current
-trusted policy does not admit PR #782. A qualified owner must approve the policy
-extension and exact provenance before any late-cycle admission. The fresh native
-run will therefore remain failed FINAL under current policy. Test bytes and
-import fixtures must remain frozen after its recorded failure. No classifier,
-authority, audit, signature or verification policy is changed here.
-
-Fresh independent AI [technical acceptance](https://github.com/nold-ai/specfact-cli/pull/782#issuecomment-6303379802)
-binds test SHA256 d9bd7999112e5a9832f52ba9a03a4fc4d69b0326e191a02b735b6d553143ac34
-and the unchanged standalone mapping/plan. Its full run records 14 passes and one
-intended MCP mismatch; the wrong-hash control also passes separately. This record
-supersedes the earlier test-file identity for the fresh cycle, without claiming
-native admission or human authority. Local SpecFact review reports zero findings.
-
-The fresh descendant is e39d870bde315608239819e784bfebe3cd1a39fc, tree
-d314b836d499ccbf292354df20da9bc6bf19b49e. Its entire interval from b61774e3
-touches only the selected test and selected change's documentation/review record.
-Normal commit hooks passed without a bypass or local signature.
-[Native run 39509885573](https://github.com/nold-ai/specfact-cli/actions/runs/39509885573)
-retains artifact 12304658765 with digest
-`sha256:499751b54b03008877fb00f4b88d611d0321cce6052c431fafeb0482a1187e34`.
-The exact JUnit digest is
-`sha256:9119839af02d33160854ab552a387b45f1278b0320d6f78573d08982baa3bbe3`.
-Certificate PASS and actual MCP 1.29.0 versus 1.30.0 FAIL are preserved, with no
-errors or skips, while the producer is still absent. The report remains
-incomplete FINAL with the same explicit cycle-policy failures. Its aggregate
-mapping/plan are 2c247314e2516e096a92252005b1f80b10e70ef60a50a5d2b0a5a14880c62c3c
-and 15ecd106e7d79cfe454eba078a70e9f1d5cc583b06b3c399426dfb0b2d6ad556.
-Source-context aggregation accounts for the difference from standalone digests.
-This retained authentic pre-producer failure is not relabelled accepted RED.
-
-## Native compiled-lock adapter correction
-
-Candidate run 39511211957 built and reproducibly rebuilt all seven canonical
-wheels at 5991c245. Native Linux, musl, Windows and macOS cells then passed actual
-uv compilation, hash-protected installation, pip check and installed inventory
-commands. They failed before independent pip installation at the shared adapter:
-`ValueError: exactly one candidate direct requirement required`.
-
-The retained uv 0.12.19 lock exports use bare absolute wheel paths with SHA256
-continuations. `_flat_lock` recognized only a named `specfact-semgrep @ file:...`
-reference, and its synthetic control had not covered actual exporter syntax.
-The required correction accepts the real platform path forms while preserving
-exact canonical subject/hash binding, a single candidate, complete installed
-inventory and hashed transitive coverage. Wrong paths/hashes, duplicate candidate
-entries and unexpected direct inputs must still be rejected. This is the normal
-resolver contract already specified; no package, audit or authority bypass follows.
-The original native failures and full command outputs remain retained separately.
-
-The adapter regressions were executed before the correction and reproduced the
-actual missing-direct-requirement failure. Additional negative controls exposed
-acceptance of an unrelated named target and extra hash/direct inputs. The fix now
-materializes logical lines, accepts only the exact supplied wheel path or named
-canonical file URI, and requires its single exact SHA256. Unknown direct entries,
-duplicates and altered paths/hashes fail closed. Existing full installed/pinned
-version, identity and transitive hash coverage remains enforced.
-
-All 17 focused runner/lock tests and 38 subtests pass. Adapted replays of retained
-Linux, musl, Windows and macOS exports also pass against exact canonical files and
-original installed inventories, changing only their absolute file location for
-local replay. These adapted fixtures are not native execution results. The small
-logical-line extraction resolves the new complexity finding; final scoped review
-has no new genuine finding, with prior bootstrap/stdout dispositions unchanged.
+Local evidence is retained under
+`/private/tmp/specfact-dependency-audit-20261020/official-only/` in
+`latest-compatible.log`, `security-before.log`, `exception-tests-red.log`,
+`exception-tests-green.log`, `certificate-tests.log` and `security-after.log`.
+The gate implementation and all required workflow checks are unchanged.
+Normal commit hooks, final CI and exact-head human authority remain pending.

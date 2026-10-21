@@ -1,45 +1,55 @@
 schema_version: '2'
 requirements:
-  openspec:isolate-semgrep-security-runtime:isolated-scanner-runtime:exclude-compromised-certificate-authorities-from-delivered-trust:
-    rationale: Inspect the exact frozen certificate artifact independently of the trusted verifier's installed dependencies.
+  ? openspec:isolate-semgrep-security-runtime:isolated-scanner-runtime:exclude-compromised-certificate-authorities-from-delivered-trust
+  : rationale: Inspect the exact frozen certificate artifact independently of the trusted verifier's installed dependencies.
     stakeholder_refs:
-      - nold-ai/specfact-cli#780
+    - nold-ai/specfact-cli#780
     touchpoints:
-      - id: runtime-floor
-        kind: config_file
-        locator: pyproject.toml
-      - id: frozen-delivery
-        kind: config_file
-        locator: requirements/ci/locked.txt
-      - id: frozen-trust-test
-        kind: test
-        locator: tests/unit/security/test_frozen_dependency_artifacts.py
+    - id: runtime-floor
+      kind: config_file
+      locator: pyproject.toml
+    - id: frozen-delivery
+      kind: config_file
+      locator: requirements/ci/locked.txt
+    - id: frozen-trust-test
+      kind: test
+      locator: tests/unit/security/test_frozen_dependency_artifacts.py
     verification_cases:
-      - case_id: CERTIFI-COMPROMISED-ROOT-ABSENT
-        scenario_id: exclude-compromised-certificate-authorities-from-delivered-trust
-        method: test
-        intent: Verify the candidate lock/export wheel hash and parse its inert CA data with trusted SSL code.
-        observable: The trust store is nonempty and excludes the compromised emSign ECC Root CA - G3 DER SHA256.
-        selector:
-          runner: pytest
-          node_id: tests/unit/security/test_frozen_dependency_artifacts.py::test_frozen_certifi_bundle_excludes_compromised_root
-  openspec:isolate-semgrep-security-runtime:isolated-scanner-runtime:produce-mcp-patched-semgrep-wheels-without-changing-scanner-payloads:
-    rationale: Correct the exact MCP dependency using a bounded packaging transformation while preserving scanner runtime payloads.
+    - case_id: CERTIFI-COMPROMISED-ROOT-ABSENT
+      scenario_id: exclude-compromised-certificate-authorities-from-delivered-trust
+      method: test
+      intent: Verify the candidate lock/export wheel hash and parse its inert CA data with trusted SSL code.
+      observable: The trust store is nonempty and excludes the compromised emSign ECC Root CA - G3 DER SHA256.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_frozen_dependency_artifacts.py::test_frozen_certifi_bundle_excludes_compromised_root
+  openspec:isolate-semgrep-security-runtime:isolated-scanner-runtime:bound-the-temporary-official-mcp-advisory-exception:
+    rationale: Use the existing strict gate with only the owner-approved exact, expiring MCP advisory exception
+      while official Semgrep pins the affected version.
     stakeholder_refs:
-      - nold-ai/specfact-cli#780
+    - nold-ai/specfact-cli#780
     touchpoints:
-      - id: exact-recipe
-        kind: config_file
-        locator: ci/semgrep-distribution.json
-      - id: artifact-contract
-        kind: test
-        locator: tests/unit/security/test_frozen_dependency_artifacts.py
+    - id: reviewed-exception
+      kind: config_file
+      locator: ci/vulnerability-audit-exceptions.json
+    - id: exception-policy-test
+      kind: test
+      locator: tests/unit/security/test_release_promotion_security_gates.py
     verification_cases:
-      - case_id: SEMGREP-ARTIFACT-PATCHED-MCP
-        scenario_id: produce-mcp-patched-semgrep-wheels-without-changing-scanner-payloads
-        method: test
-        intent: Inspect the exact upstream scanner as the pre-producer baseline and the produced wheel afterward without executing scanner code.
-        observable: The selected wheel requires MCP 1.30.0, has the legal downstream identity, and preserves all other payload bytes, modes, full tags, entrypoints and notices.
-        selector:
-          runner: pytest
-          node_id: tests/unit/security/test_frozen_dependency_artifacts.py::test_selected_scanner_wheel_requires_patched_mcp
+    - case_id: MCP-OFFICIAL-EXCEPTION-EXACT
+      scenario_id: bound-the-temporary-official-mcp-advisory-exception
+      method: test
+      intent: Bind the only exception to the official MCP package/version/advisory and review/expiry dates.
+      observable: The graph remains official and the exception is exact and time bounded.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_release_promotion_security_gates.py::test_frozen_graph_uses_official_semgrep_with_bounded_mcp_exception
+    - case_id: MCP-OTHER-OR-EXPIRED-BLOCKS
+      scenario_id: bound-the-temporary-official-mcp-advisory-exception
+      method: test
+      intent: Run exact and adversarial inputs through the existing audit gate with the committed exception register.
+      observable: Only the approved version/advisory within its approval window succeeds; unrelated/mixed advisories,
+        other versions, skipped subjects and invalid dates fail.
+      selector:
+        runner: pytest
+        node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_mcp_exception_is_exact_and_time_bounded

@@ -22,24 +22,17 @@ Independent security modules #511 and core #719/#718 and existing signing gates 
 
 ## Authorized #747 dependency stack (2026-10-10)
 
-### Certificate patch and scoped MCP producer (2026-10-21)
+### Official dependency hotfix and temporary MCP exception (2026-10-21)
 
-The owner authorized a scoped isolation or replacement change after reviewing
-current dependency PRs. Its repeated request to fix PR #782 authorizes the immediate
-[certificate trust-store patch #780](changes/isolate-semgrep-security-runtime/proposal.md).
-The published certificate unit requires certifi >=2026.10.19 and actual installed CA regression proof. The owner also authorized autonomous MCP remediation. Prepare a separately named public Semgrep distribution with patched MCP and unchanged scanner payloads, exact seven-wheel and 21-cell CI proof, explicit migration, full audits and CI-only signing. Correct trusted certificate proof using exact inert wheel data. Public package publication requires concrete operator activation before canonical consumer adoption. Candidate success is not delivered remediation.
-The native replacement proposal and its fourteen unimplemented cases are preserved
-in [parked scanner work](parking-lot/replace-vulnerable-scanner-runtime/proposal.md).
-No audit input or required gate is removed. MCP still blocks release and promotion.
-Related #772/#779 remains a blocked alternative, not a prerequisite for certifi.
-Future scanner replacement requires exact publisher/component evidence and actual
-parity, preserving SAST coverage and core installed-user compatibility. Track its external
-Code Review migration separately in [modules #523](https://github.com/nold-ai/specfact-cli-modules/issues/523),
-including command paths, packaged rule payloads and bundle integrity. End-to-end
-replacement requires that follow-up's verified completion. Shared Semgrep removal
-is blocked until its required review passes work in a fresh post-removal delivery
-environment. No native production adoption, duplicate closure or promotion is
-established by the certificate patch. The historical dependency stack remains unchanged.
+[PR #782 / issue #780](changes/isolate-semgrep-security-runtime/proposal.md) retains
+certifi 2026.10.19 and core 0.55.11. The owner rejected the Semgrep fork and
+requested its removal. Use official packages only. Latest official Semgrep still
+pins MCP 1.29.0; the owner authorized one exact, expiring advisory exception
+through 2026-11-04 while upstream remains blocked. Keep every strict audit and
+required CI check, independent scanner coverage and CI/CD-only signing. Actual
+final authority and verified coverage precede readiness or related-PR closure.
+A later dependency-only hotfix starts from published v0.55.4, not all dev runtime
+commits. No merge, package publication or promotion is authorized here.
 
 The owner approved `dev <- #744 <- #727 <- #752 <- #754 <- #753`, retaining
 all PR numbers and compatible JSON 2.21.2/Jekyll 4.4.1. After #758 reserved

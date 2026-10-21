@@ -6,6 +6,8 @@ import importlib.util
 import json
 from datetime import date, timedelta
 from pathlib import Path
+from types import ModuleType
+from typing import NamedTuple
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -171,3 +173,75 @@ def test_main_allows_only_a_matching_unexpired_reviewed_exception(gate_mod, tmp_
     with patch.object(gate_mod.subprocess, "run", return_value=proc):
         assert gate_mod.main(["--exceptions", str(exceptions_path)]) == 0
     assert "WAIVED" in capsys.readouterr().out
+
+
+class McpExceptionScenario(NamedTuple):
+    version: str
+    advisory_ids: list[str]
+    skip_reason: str | None
+    today: str
+    expected: int
+    message: str
+
+
+@pytest.mark.parametrize(
+    "scenario",
+    [
+        pytest.param(
+            McpExceptionScenario("1.29.0", ["CVE-2026-59951"], None, "2026-10-21", 0, "WAIVED"), id="exact-cve"
+        ),
+        pytest.param(
+            McpExceptionScenario("1.29.0", ["GHSA-84m7-p3x7-pcfv"], None, "2026-10-21", 0, "WAIVED"), id="exact-ghsa"
+        ),
+        pytest.param(
+            McpExceptionScenario("1.29.0", ["CVE-2026-59951"], None, "2026-11-04", 0, "WAIVED"), id="expiry-day"
+        ),
+        pytest.param(
+            McpExceptionScenario("1.30.0", ["CVE-2026-59951"], None, "2026-10-21", 1, "FAIL:"), id="other-version"
+        ),
+        pytest.param(
+            McpExceptionScenario("1.29.0", ["UNRELATED-1"], None, "2026-10-21", 1, "FAIL:"), id="unrelated-advisory"
+        ),
+        pytest.param(
+            McpExceptionScenario("1.29.0", ["CVE-2026-59951", "UNRELATED-1"], None, "2026-10-21", 1, "FAIL:"),
+            id="mixed-advisories",
+        ),
+        pytest.param(
+            McpExceptionScenario(
+                "1.29.0", ["CVE-2026-59951"], "could not audit", "2026-10-21", 1, "skipped dependency"
+            ),
+            id="skipped",
+        ),
+        pytest.param(
+            McpExceptionScenario("1.29.0", ["CVE-2026-59951"], None, "2026-11-05", 1, "not currently valid"),
+            id="expired",
+        ),
+        pytest.param(
+            McpExceptionScenario("1.29.0", ["CVE-2026-59951"], None, "2026-10-20", 1, "not currently valid"),
+            id="future-review",
+        ),
+    ],
+)
+def test_committed_mcp_exception_is_exact_and_time_bounded(
+    gate_mod: ModuleType,
+    capsys: pytest.CaptureFixture[str],
+    scenario: McpExceptionScenario,
+) -> None:
+    class AuditDate(date):
+        @classmethod
+        def today(cls) -> date:
+            return date.fromisoformat(scenario.today)
+
+    dependency: dict[str, object] = {
+        "name": "mcp",
+        "version": scenario.version,
+        "vulns": [{"id": value} for value in scenario.advisory_ids],
+    }
+    if scenario.skip_reason:
+        dependency["skip_reason"] = scenario.skip_reason
+    proc = MagicMock(stdout=json.dumps({"dependencies": [dependency]}), stderr="", returncode=1)
+    exceptions = Path(__file__).resolve().parents[3] / "ci/vulnerability-audit-exceptions.json"
+    with patch.object(gate_mod, "date", AuditDate), patch.object(gate_mod.subprocess, "run", return_value=proc):
+        assert gate_mod.main(["--exceptions", str(exceptions)]) == scenario.expected
+    captured = capsys.readouterr()
+    assert scenario.message in captured.out + captured.err

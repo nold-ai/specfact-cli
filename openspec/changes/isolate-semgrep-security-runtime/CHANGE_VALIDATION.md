@@ -1,10 +1,12 @@
 # Change validation
 
-The owner requested actual fixes on 2026-10-20 Europe/Berlin and autonomous MCP remediation through green. On 2026-10-21 the active scope also prepares a bounded CI-produced public Semgrep distribution and corrects trusted certificate proof using exact inert wheel data. No producer output has been adopted by canonical dependencies. The certificate correction is published at 66ee3d5; the earlier validation sections below record its original checkpoint. The native scanner proposal
-from commit `1a3af0cde3e3c13bdefc0de1c914d2837469a486` is preserved separately in
-`openspec/parking-lot/replace-vulnerable-scanner-runtime/`, including all fourteen
-unimplemented scenarios, requirements mapping and historical review evidence.
-No native migration, component audit, parity or artifact admission is claimed here.
+The owner explicitly rescoped PR #782 on 2026-10-21 Europe/Berlin to official
+packages only, removal of the rejected fork, and an exact temporary MCP advisory
+exception if the upstream pin prevents a compatible upgrade. The certificate
+correction remains published at 66ee3d5. Earlier sections below retain certificate
+checkpoints and their original limitations. The superseded scanner plans remain
+in Git history rather than in this hotfix. No fork adoption or publication is
+claimed or authorized.
 
 The original frozen audit reports certifi 2026.7.22 / GHSA-6q48-6c7w-9gw2 and
 MCP 1.29.0 / CVE-2026-59951. The reviewed certifi advisory recommends >=2026.10.19.
@@ -69,105 +71,76 @@ PASS verdicts. No accepted new review defect remains; whole-file suggestions hav
 the explicit dispositions above. Final CI and authority still require a published
 fix commit, which the MCP audit currently prevents.
 
-## Artifact proof and MCP producer scope, 2026-10-21
+## Corrected scope and current verification
 
-The trusted fresh Requirements runner uses the base dependency closure, so the
-original installed-bundle test observes its old certifi rather than candidate
-delivery. The new mapped test verifies the candidate tree's exact certifi wheel
-SHA256, metadata and RECORD, then parses only its CA data with trusted SSL.
-The original installed-runtime test remains unchanged. The verifier's dependency
-closure and import roots are not weakened.
+Retain official Semgrep 1.179.0 and MCP 1.29.0. Latest official Semgrep 1.182.0
+still exact-pins the same affected MCP, confirmed in actual artifact metadata
+and a fresh normal resolver failure. The owner-authorized register entry
+selects only MCP 1.29.0 / CVE-2026-59951 and its GHSA alias, with review
+2026-10-21 and inclusive expiry 2026-11-04. Every other advisory and strict
+audit error remains blocking. The scanner still imports affected MCP, so
+reviewed automation avoiding server startup is mitigation rather than proof
+of unreachability. Review weekly and remove the exception upon a verified
+official compatible fix.
 
-A second mapped case inspects the exact current upstream Semgrep wheel before a
-producer exists, then the repository producer output after implementation. The
-actual RED is the dependency mismatch `mcp==1.29.0` versus `mcp==1.30.0`, not a
-missing-module error or synthetic scanner result. Certificate coverage already
-passes in this new cycle. Mapping acceptance and native RED remain pending until
-actually recorded for the revised mapping.
+The rejected workflow, producer, manifests, runtime patches and their tests
+are removed. Certificate artifact verification remains. Requirements mappings
+now cover certificate trust and bounded exception behavior. Prior candidate
+review acceptance is withdrawn and cannot transfer to this map.
 
-Independent review found permissive description matching. The test now requires
-the recipe's exact prefix plus original upstream body, and two negative controls
-reject extra prefix or suffix text. Local SpecFact review found excessive ZIP
-reader complexity and vague names; these are corrected by explicit member and
-RECORD boundaries and domain names. The untouched original CA test digest remains
-3adb0270917811731c4972f9cbc7321f7db1d87af9457334e10a43f829b4e2a2.
+The actual audit fails before the entry and all three strict audits pass after
+it, visibly reporting the exact waived finding. Gate tests additionally prove
+other versions/advisories, mixed findings, skipped subjects and expiry fail.
+See TDD_EVIDENCE.md for exact logs and counts. No audit engine or required CI
+workflow was modified. Signing is CI/CD only.
 
-The official Linux wheels lack embedded license/notice files and License-File
-headers. The artifact contract preserves their exact LGPL-2.1-or-later metadata
-and existing payloads; it does not pretend missing files existed or establish
-complete redistribution compliance. Full source/license/component closure remains
-a publication prerequisite. All seven source/output byte comparisons, 21 real
-native cells, module and migration proof, complete audits, CI-only attestation,
-operator publication, consumer adoption and final human authority remain open.
+A future dependency-only release must start from published v0.55.4 commit
+d579970565530c3fd7b98bad4de90cf874c2a99d. Unreleased dev runtime changes must
+not be promoted as part of that hotfix. The old rejected-fork release fixture
+is not adoption evidence for this scope. No release or merge is performed.
 
-## Native cycle classification correction
+## Current gate and review checkpoint
 
-Run 39507988136 retains the real certificate PASS and intended MCP metadata FAIL
-at b61774e3, but native reconciliation rejects the revised cycle as incomplete
-FINAL. The historical certifi RED does not match the new mapping. See the exact
-run and artifact identities in `TDD_EVIDENCE.md`; no accepted new RED is claimed.
+The pinned Requirements consumer accepts the corrected three-case plan. A fresh
+independent technical reviewer, Codex agent `/root/official_scope_acceptance`,
+accepts mapping digest
+`sha256:9400b195f3c46b54c8fafbd8461de73716aeeb17318f5c39e54863091e3c39f3`.
+This is mapping review, not human authority or final native lifecycle admission.
+The frozen-artifact requirement deliberately tests candidate wheel bytes rather
+than the trusted verifier's installed certifi. The retained installed test runs
+in the candidate environment as supplemental delivery evidence.
 
-The fresh test/spec-only descendant adds a wrong-SHA256 download control while
-preserving both mapped cases and the full plan. b61774e3 is the candidate immutable
-cycle base. Any late-cycle admission requires a qualified owner-approved PR #782
-trusted-policy extension and independently verified provenance. Current policy
-remains enforced. Producer preparation does not supply that approval, final
-exact-tree authority, package publication or canonical MCP remediation.
+Ruff formatting/lint, BasedPyright type/lint, YAML, contract, license and Bandit
+gates exit 0. The scoped smart-test command exits 0 with 53 selected unit tests
+passing. Its raw pytest coverage report is 5 percent and emits a threshold
+message that the scoped wrapper documents as expected. This is not a full-suite
+coverage pass. Required full delivery CI remains enforced.
 
-## Candidate producer quality dispositions
+Normal frozen regeneration changes no dependency selection beyond the existing
+certifi correction. Reproducibility, `uv lock --check` and version-source checks
+pass. Actual official Semgrep SAST reports zero findings against a zero-finding
+baseline. SpecFact review identified test complexity/parameter-count issues,
+which must be fixed before commit. No review error is waived.
 
-The candidate producer and runtime runner are standard-library bootstrap scripts.
-They must run before candidate dependencies exist, and their boundaries explicitly
-validate recipes, hashes, archives, host identity, inventory and evidence. Adding
-external icontract decorators would break that bootstrap contract. Missing
-`@require/@ensure` suggestions for these command implementations are an explicit
-scoped exception, not permission to drop runtime checks or suppress the rule.
-The workflow invokes the runner normally so its checked local producer import
-resolves. Isolated matrix/uv-bootstrap probes do not prove isolated build/cell
-execution. The separate producer CLI and artifact proof run with `-I -S`.
+## Bounded review findings and dispositions
 
-CLI JSON and uv bootstrap requirements intentionally use stdout as their machine
-interface. Print-to-logging suggestions are inapplicable to those transport APIs.
-The producer's metadata function names identify wheel METADATA; the naming rule's
-`data` substring match does not make this domain terminology vague. Preserve those
-names and the exact metadata controls. The MCP callable Protocol mirrors the
-external session-manager constructor; reducing its keyword parameters would
-misrepresent that contract. These exceptions are individually reviewed rather
-than hidden behind lint suppressions.
+The two new test complexity/parameter-count findings require correction rather
+than a waiver. The scenario inputs use a named record, and lock inventory and
+exception fields use exact collection comparisons. All nine adversarial test
+IDs and both mapped selectors remain unchanged.
 
-The unsafe scanner positive control is inert `positive.py.txt` source data. The
-runner copies its exact committed bytes into a cell-local Python target and then
-scans it. It is never imported or executed. Negative data is handled identically.
-The full source manifest binds both inputs, and scanner assertions still require
-the expected rule, filename, line and exit codes. Bootstrap/advisory exceptions
-cannot waive actual findings, missing coverage, canonical MCP remediation or
-publication prerequisites.
+Whole-file review also emits 44 reportUnknownMemberType warnings on the existing
+dynamically loaded audit fixture at unchanged lines before the new scenario
+record. Focused type checking finds no warning in the changed functions. These
+pre-existing fixture warnings are retained as a narrow documented exception to
+whole-file cleanup, because rewriting every existing fixture is unrelated to
+the dependency hotfix. No type rule or severity threshold is suppressed. The
+existing naming false positive and two informational length suggestions retain
+the earlier explicit dispositions above. Required error-level type checking
+and clean-code checks remain enforced.
 
-The integrated review after corrections reports zero errors and zero type-safety
-findings. Its remaining 46 warnings are 38 bootstrap-contract suggestions, four
-required stdout interfaces, three metadata naming substring matches and the one
-external constructor Protocol parameter count. The scoped exceptions above cover
-each category; there is no new suppression or disabled review rule.
-
-Ten informational length suggestions retain explicit security sequences.
-`canonical_build` records pinned runtime, repeat builds and manifests.
-`_pip_install_graph` performs an independent pip install and inventory comparison.
-`prepare` resolves and installs the complete candidate graph. `_upstream_control`
-proves old MCP behavior before migration. `audits` records exact installed and
-upstream lineage coverage. `_verified_cell_artifacts` binds source, recipe and
-canonical bytes. `execute_cell` sequences real checks and retained failure reports.
-`main` exposes the unchanged command transport. The producer test's `setUp` is an
-explicit inert archive fixture. `_authenticated_fixture` is the actual authenticated
-MCP test server. Replacing these steps with comprehensions would hide distinct
-commands, assertions or lifecycle teardown; retain their explicit sequences.
-
-## Integrated local artifact result
-
-The unchanged mapped artifact test file retains SHA256
-d9bd7999112e5a9832f52ba9a03a4fc4d69b0326e191a02b735b6d553143ac34.
-All 15 cases pass under the untouched older Hatch Python 3.12.13 when the integrated
-producer selects its actual output. Producer and runner boundary tests pass all
-41 cases and 66 subtests. New test-file typing diagnostics are zero. Independent
-CI and producer reviews bind the final source identities before native candidate
-execution. These are local preparation results, not canonical security audit,
-accepted Requirements lifecycle evidence, package publication or native GREEN.
+Final bounded review by Codex agent `/root/bounded_policy_final_review` accepts
+the test refinement. The final SpecFact report is PASS_WITH_ADVISORY with zero
+errors and no introduced warning. Its remaining 44 fixture type warnings, one
+existing naming warning and two existing informational findings have the
+bounded dispositions above. No complexity finding remains on changed tests.

@@ -34,7 +34,6 @@ Any proposal here can be returned to `openspec/changes/` by:
 
 | Change | Un-park trigger |
 |---|---|
-| `replace-vulnerable-scanner-runtime` | An authenticated patched scanner artifact or an approved protected producer enables full inventory, audit and parity acceptance |
 | `enterprise-01-policy-resolution-extension` | First paying enterprise customer with central-policy requirements |
 | `enterprise-02-rbac-and-audit-trail` | First paying enterprise customer with audit/RBAC requirements |
 | `enterprise-03-aggregation-and-drift-analytics` | Multiple enterprise teams generating cross-team evidence |

@@ -4,11 +4,8 @@ import base64
 import csv
 import hashlib
 import io
-import json
 import re
 import ssl
-import subprocess
-import sys
 import time
 import tomllib
 import urllib.request
@@ -25,7 +22,6 @@ import pytest
 _MAX_DOWNLOAD = 150 * 1024 * 1024
 _MAX_EXPANDED = 512 * 1024 * 1024
 _BAD_CA = "86a1ecba089c4a8d3bbe2734c612ba341d813e043cf9e8a862cd5c57a36bbe6b"
-_PLATFORM = "manylinux_2_34_x86_64"
 
 
 @dataclass(frozen=True)
@@ -155,119 +151,6 @@ def test_artifact_download_rejects_wrong_sha256(tmp_path: Path, pytestconfig: py
         _download(url, "0" * 64, tmp_path / "wrong-hash.whl")
 
 
-def _normalized_members(wheel: WheelContents) -> dict[str, tuple[bytes, int]]:
-    data_root = wheel.dist_info.removesuffix(".dist-info") + ".data"
-    normalized = {}
-    for name, payload in wheel.members.items():
-        root, separator, suffix = name.partition("/")
-        if root == wheel.dist_info:
-            root = "DIST-INFO"
-        elif root == data_root:
-            root = "DATA"
-        normalized[root + separator + suffix] = (payload, wheel.modes[name])
-    assert len(normalized) == len(wheel.members), "Wheel root normalization collides with another member"
-    return normalized
-
-
-@dataclass(frozen=True)
-class ScannerSource:
-    filename: str
-    url: str
-    digest: str
-    notice: str
-
-
-def _scanner_source(recipe_path: Path) -> ScannerSource:
-    recipe = json.loads(recipe_path.read_text(encoding="utf-8"))
-    _scanner_identity(recipe)
-    rows = [row for row in recipe["wheels"] if row["platform_tag"] == _PLATFORM]
-    assert len(rows) == 1, "Recipe must select exactly one fixed Linux data artifact"
-    source = rows[0]
-    filename, url, digest = source["filename"], source["upstream_url"], source["upstream_sha256"]
-    assert isinstance(filename, str) and isinstance(url, str) and isinstance(digest, str)
-    assert Path(filename).name == filename, "Source filename must be a basename"
-    assert urlsplit(url).path.rsplit("/", 1)[1] == filename
-    notice = recipe["metadata_additions"]["description_prefix"]
-    assert isinstance(notice, str), "Recipe must declare the exact downstream notice"
-    return ScannerSource(filename, url, digest, notice)
-
-
-def _scanner_identity(recipe: dict[str, object]) -> None:
-    assert recipe["downstream_name"] == "specfact-semgrep"
-    assert recipe["downstream_version"] == "1.179.0.post1"
-    assert recipe["upstream_version"] == "1.179.0"
-    assert recipe["mcp_from"] == "1.29.0" and recipe["mcp_to"] == "1.30.0"
-
-
-def _build_scanner_artifact(root: Path, upstream: Path, output: Path) -> Path:
-    command = [sys.executable, "-I", "-S", str(root / "scripts/semgrep_distribution.py"), "build"]
-    command.extend(("--recipe", str(root / "ci/semgrep-distribution.json")))
-    command.extend(("--upstream", str(upstream), "--output", str(output)))
-    result = subprocess.run(command, capture_output=True, text=True, check=False, timeout=120)
-    assert result.returncode == 0, result.stdout + result.stderr
-    filename = "specfact_semgrep-1.179.0.post1-" + upstream.name.split("-", 2)[2]
-    return output / filename
-
-
-def _selected_scanner_artifact(tmp_path: Path, root: Path) -> tuple[WheelContents, WheelContents, str]:
-    source = _scanner_source(root / "ci/semgrep-distribution.json")
-    upstream_path = _download(source.url, source.digest, tmp_path / source.filename)
-    upstream = _wheel(upstream_path, "semgrep", "1.179.0")
-    actual = upstream
-    if (root / "scripts/semgrep_distribution.py").is_file():
-        candidate = _build_scanner_artifact(root, upstream_path, tmp_path / "built")
-        actual = _wheel(candidate, "specfact-semgrep", "1.179.0.post1")
-    return upstream, actual, source.notice
-
-
-def _assert_scanner_dependencies(upstream: WheelContents, actual: WheelContents) -> None:
-    requires = actual.metadata.get_all("Requires-Dist", [])
-    mcp = [requirement for requirement in requires if re.match(r"(?i)^mcp(?:\s|[=<>!~;\[]|$)", requirement)]
-    assert mcp == ["mcp==1.30.0"], "Selected scanner artifact must require the fixed MCP release"
-    old_requires = upstream.metadata.get_all("Requires-Dist", [])
-    assert old_requires.count("mcp==1.29.0") == 1
-    assert requires == ["mcp==1.30.0" if requirement == "mcp==1.29.0" else requirement for requirement in old_requires]
-
-
-def _assert_scanner_description(upstream: WheelContents, actual: WheelContents, notice: str) -> None:
-    description = actual.metadata.get_payload()
-    source_description = upstream.metadata.get_payload()
-    assert isinstance(description, str) and isinstance(source_description, str)
-    newline = "\r\n" if b"\r\n\r\n" in upstream.members[f"{upstream.dist_info}/METADATA"] else "\n"
-    assert description == notice.replace("\n", newline) + source_description, "Unreviewed downstream description change"
-
-
-def _assert_scanner_metadata(upstream: WheelContents, actual: WheelContents, notice: str) -> None:
-    _assert_scanner_dependencies(upstream, actual)
-    assert actual.metadata.get_all("Name") == ["specfact-semgrep"]
-    assert actual.metadata.get_all("Version") == ["1.179.0.post1"]
-    mutable_headers = {"name", "version", "requires-dist"}
-    assert [(key, value) for key, value in actual.metadata.items() if key.lower() not in mutable_headers] == [
-        (key, value) for key, value in upstream.metadata.items() if key.lower() not in mutable_headers
-    ], "Downstream wheel changed unrelated metadata headers"
-    _assert_scanner_description(upstream, actual, notice)
-
-
-def _assert_scanner_payloads(upstream: WheelContents, actual: WheelContents) -> None:
-    expected = _normalized_members(upstream)
-    observed = _normalized_members(actual)
-    assert observed.keys() == expected.keys(), "Downstream wheel changed the installed member inventory"
-    assert "DIST-INFO/entry_points.txt" in expected
-    assert any(name.endswith(".py") for name in expected), "Source wheel has no Python payload"
-    assert any("semgrep-core" in name for name in expected), "Source wheel has no native scanner payload"
-    assert upstream.metadata.get_all("License-Expression") == ["LGPL-2.1-or-later"]
-    for name, (payload, mode) in expected.items():
-        assert observed[name][1] == mode, f"Downstream wheel changed member mode for {name}"
-        if name not in {"DIST-INFO/METADATA", "DIST-INFO/RECORD"}:
-            assert observed[name][0] == payload, f"Downstream wheel changed installed payload for {name}"
-
-
-def test_selected_scanner_wheel_requires_patched_mcp(tmp_path: Path, pytestconfig: pytest.Config) -> None:
-    upstream, actual, notice = _selected_scanner_artifact(tmp_path, pytestconfig.rootpath)
-    _assert_scanner_metadata(upstream, actual, notice)
-    _assert_scanner_payloads(upstream, actual)
-
-
 def _malformed_members(fault: str) -> dict[str, bytes]:
     members = {
         "fixture-1.0.dist-info/METADATA": b"Metadata-Version: 2.1\nName: fixture\nVersion: 1.0\n",
@@ -324,20 +207,6 @@ def test_wheel_reader_rejects_malformed_artifacts(tmp_path: Path, fault: str, me
         _duplicate_fixture_member(path)
     with pytest.raises(AssertionError, match=message):
         _wheel(path, "fixture", "1.0")
-
-
-def _description_wheel(description: str) -> WheelContents:
-    root = "fixture-1.0.dist-info"
-    metadata = b"Name: fixture\nVersion: 1.0\n\n" + description.encode()
-    return WheelContents({f"{root}/METADATA": metadata}, {}, BytesParser().parsebytes(metadata), root)
-
-
-@pytest.mark.parametrize("description", ["extra\napproved\nupstream\n", "approved\nupstream\nextra\n"])
-def test_scanner_description_rejects_unreviewed_text(description: str) -> None:
-    upstream = _description_wheel("upstream\n")
-    actual = _description_wheel(description)
-    with pytest.raises(AssertionError, match="Unreviewed downstream description change"):
-        _assert_scanner_description(upstream, actual, "approved\n")
 
 
 @pytest.mark.parametrize(
