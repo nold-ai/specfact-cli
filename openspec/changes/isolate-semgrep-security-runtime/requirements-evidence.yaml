@@ -44,12 +44,84 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/security/test_release_promotion_security_gates.py::test_frozen_graph_uses_official_semgrep_with_bounded_mcp_exception
-      - case_id: MCP-OTHER-OR-EXPIRED-BLOCKS
+      - case_id: MCP-EXACT-CVE
         scenario_id: bound-the-temporary-official-mcp-advisory-exception
         method: test
-        intent: Run exact and adversarial inputs through the existing audit gate with the committed exception register.
+        intent: Approve only the exact MCP CVE on its review date.
         observable: Only the approved version/advisory within its approval window succeeds; unrelated/mixed advisories,
           other versions, skipped subjects and invalid dates fail.
         selector:
           runner: pytest
-          node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_mcp_exception_is_exact_and_time_bounded
+          node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_mcp_exception_is_exact_and_time_bounded[exact-cve]
+      - case_id: MCP-EXACT-GHSA
+        scenario_id: bound-the-temporary-official-mcp-advisory-exception
+        method: test
+        intent: Approve the same reviewed advisory under its exact GHSA primary ID.
+        observable: Only the approved version/advisory within its approval window succeeds; unrelated/mixed advisories,
+          other versions, skipped subjects and invalid dates fail.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_mcp_exception_is_exact_and_time_bounded[exact-ghsa]
+      - case_id: MCP-EXPIRY-DAY
+        scenario_id: bound-the-temporary-official-mcp-advisory-exception
+        method: test
+        intent: Keep the review valid through its inclusive expiry date.
+        observable: Only the approved version/advisory within its approval window succeeds; unrelated/mixed advisories,
+          other versions, skipped subjects and invalid dates fail.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_mcp_exception_is_exact_and_time_bounded[expiry-day]
+      - case_id: MCP-OTHER-VERSION
+        scenario_id: bound-the-temporary-official-mcp-advisory-exception
+        method: test
+        intent: Reject the same advisory for another package version.
+        observable: Only the approved version/advisory within its approval window succeeds; unrelated/mixed advisories,
+          other versions, skipped subjects and invalid dates fail.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_mcp_exception_is_exact_and_time_bounded[other-version]
+      - case_id: MCP-UNRELATED-ADVISORY
+        scenario_id: bound-the-temporary-official-mcp-advisory-exception
+        method: test
+        intent: Reject an advisory outside the approved IDs.
+        observable: Only the approved version/advisory within its approval window succeeds; unrelated/mixed advisories,
+          other versions, skipped subjects and invalid dates fail.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_mcp_exception_is_exact_and_time_bounded[unrelated-advisory]
+      - case_id: MCP-MIXED-ADVISORIES
+        scenario_id: bound-the-temporary-official-mcp-advisory-exception
+        method: test
+        intent: Reject a graph containing both waived and unreviewed advisories.
+        observable: Only the approved version/advisory within its approval window succeeds; unrelated/mixed advisories,
+          other versions, skipped subjects and invalid dates fail.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_mcp_exception_is_exact_and_time_bounded[mixed-advisories]
+      - case_id: MCP-SKIPPED
+        scenario_id: bound-the-temporary-official-mcp-advisory-exception
+        method: test
+        intent: Reject incomplete strict-audit coverage even with a matching advisory.
+        observable: Only the approved version/advisory within its approval window succeeds; unrelated/mixed advisories,
+          other versions, skipped subjects and invalid dates fail.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_mcp_exception_is_exact_and_time_bounded[skipped]
+      - case_id: MCP-EXPIRED
+        scenario_id: bound-the-temporary-official-mcp-advisory-exception
+        method: test
+        intent: Reject the register after its expiry date.
+        observable: Only the approved version/advisory within its approval window succeeds; unrelated/mixed advisories,
+          other versions, skipped subjects and invalid dates fail.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_mcp_exception_is_exact_and_time_bounded[expired]
+      - case_id: MCP-FUTURE-REVIEW
+        scenario_id: bound-the-temporary-official-mcp-advisory-exception
+        method: test
+        intent: Reject a review date later than the audit date.
+        observable: Only the approved version/advisory within its approval window succeeds; unrelated/mixed advisories,
+          other versions, skipped subjects and invalid dates fail.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_mcp_exception_is_exact_and_time_bounded[future-review]

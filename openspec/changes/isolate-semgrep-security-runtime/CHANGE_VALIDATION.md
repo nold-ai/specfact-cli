@@ -144,3 +144,23 @@ the test refinement. The final SpecFact report is PASS_WITH_ADVISORY with zero
 errors and no introduced warning. Its remaining 44 fixture type warnings, one
 existing naming warning and two existing informational findings have the
 bounded dispositions above. No complexity finding remains on changed tests.
+
+## Native official-only verification and selector correction
+
+At b3bf7cf5, native run 39572650717 passes Security Audit with the exact
+reviewed MCP exception. Native Requirements run 39572650571 records 11 tests
+with zero failures, errors or skips. Its reconciliation rejects both the
+missing prior-RED admission and the unexpanded parametrized selector.
+
+The mapping now names all nine parameter IDs explicitly. Fresh independent
+review by `/root/expanded_selector_map_review` confirms the 11 unique selectors
+match actual native JUnit and accepts mapping digest
+`sha256:9be3a10b220655e55c299b9b3d69c2be0c0b029b1db1c0942abfea1ea6c4f86d`.
+This supersedes the earlier three-case mapping acceptance. The prior native
+report remains immutable evidence of its original failure. Prior-RED admission
+and exact-head human authority are still required. Neither local test evidence
+nor technical mapping acceptance fabricates those protected approvals.
+
+Direct yamllint on the changed mapping passes. The repository-wide wrapper
+prints unrelated baseline errors while returning success, already tracked by
+issue #781. No wrapper behavior is changed in this dependency hotfix.
