@@ -317,6 +317,16 @@ def _origin_binding() -> dict[str, Any]:
     origins = [job for job in jobs if job.get("name") == "Native Requirements Origin"]
     assert len(origins) == 1, "A failed producer must still generate independently authenticated origin metadata"
     origin = origins[0]
+    assert {term.strip() for term in origin["if"].split("&&")} == {
+        "always()",
+        "needs.requirements-evidence-producer.outputs.artifact-id != ''",
+        "github.repository == 'nold-ai/specfact-cli'",
+        "github.event_name == 'pull_request'",
+        "github.event.pull_request.number > 0",
+        "github.event.pull_request.head.repo.full_name == github.repository",
+        "github.base_ref == 'dev'",
+        "github.head_ref == 'codex/dependency-hotfix-admission'",
+    }
     _assert_origin_attestation(origin)
     return next(step for step in origin["steps"] if step.get("name") == "Bind native artifact to executed workflow")
 

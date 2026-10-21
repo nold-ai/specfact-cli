@@ -230,3 +230,22 @@ origin-context-green.log, core-commit-hooks-final.log, followup-smart-final.log,
 existing-workflow-tests-red.log, existing-workflow-tests-green.log and the actual
 baseline/current review JSON files. The final full-suite rerun remains separately
 required; the targeted result does not turn the earlier failed run into a pass.
+
+### Full-suite pass and fork-attester review fix
+
+At core head 89bf62e8, the corrected full smart suite exited zero with 3455
+passed, 9 skipped and 2 dependency-deprecation warnings in 251.58 seconds.
+The final-head native origin job also succeeded. The actual protected-policy
+historical collector and official gh verifier authenticated its origin bundle,
+exact workflow revision, native ZIP and fourteen passing selectors. The only
+native finding is prior-red-proof-missing. This authenticates the observed
+failed report; it does not supply historical RED or a human grant.
+
+PR #784 review identified that the new attester could start on fork PRs without
+the required write permissions. The exact scoped-job contract first failed
+because its same-repository, pull-request, dev-base and branch guards were absent.
+The job now requires the same exact subject as late-cycle admission. It remains
+always() after producer failure but skips forks and unrelated subjects. No
+permission, CI check or artifact mutation is used to address the finding.
+The focused new and existing workflow suite passes all 33 tests after the fix.
+Evidence is retained in origin-scope-red.log and origin-scope-green.log.

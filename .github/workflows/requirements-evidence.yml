@@ -1035,7 +1035,12 @@ jobs:
   requirements-native-origin:
     name: Native Requirements Origin
     needs: [requirements-evidence-producer]
-    if: always() && needs.requirements-evidence-producer.outputs.artifact-id != ''
+    if: >-
+      always() && needs.requirements-evidence-producer.outputs.artifact-id != '' &&
+      github.repository == 'nold-ai/specfact-cli' &&
+      github.event_name == 'pull_request' && github.event.pull_request.number > 0 &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.base_ref == 'dev' && github.head_ref == 'codex/dependency-hotfix-admission'
     runs-on: ubuntu-latest
     permissions:
       actions: read

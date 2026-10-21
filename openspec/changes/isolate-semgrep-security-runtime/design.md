@@ -91,3 +91,8 @@ Its numeric PR identity is an exact canonical grant field. It inherits no old
 head/tree authority. The still-open issue #780 and this active change retain
 scope and tracking. The merged dependency payload remains separate from the
 CI control continuation.
+
+The isolated origin attester is restricted to the same-repository dev follow-up
+on the exact admission branch. Forks and unrelated subjects skip that extra job
+and retain their ordinary native Requirements checks. GitHub does not grant
+fork pull-request jobs the attestation write permissions required by this job.

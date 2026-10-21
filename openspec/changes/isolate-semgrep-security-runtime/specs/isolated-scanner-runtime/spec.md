@@ -64,3 +64,9 @@ runtime, bypass Code Review, or authorize protected deployment or merge.
 - **GIVEN** valid complete native failing-first proof outside the scoped exception
 - **WHEN** Requirements reconciles it
 - **THEN** the existing native success path remains independent of late-cycle approval.
+
+#### Scenario: Unrelated and fork pull requests do not start the attester
+
+- **GIVEN** a fork, another repository, base or branch, or an absent native artifact
+- **WHEN** CI evaluates the origin attester job
+- **THEN** it skips that job and retains ordinary Requirements enforcement without requesting signing permissions for that subject.
