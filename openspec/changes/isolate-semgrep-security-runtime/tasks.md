@@ -29,3 +29,15 @@
 - [ ] Prepare any later dependency-only release from published v0.55.4.
 - [ ] Link verified coverage before closing related dependency PRs.
 - [ ] Archive through OpenSpec only after completion and merge.
+
+## 5. Implement owner-authorized scoped admission
+
+- [x] Ground all three core consumers and compare distinct implementation designs.
+- [x] Specify independent live policy evaluation and distinct admission semantics.
+- [x] Preserve genuine behavioral failing-before workflow evidence.
+- [x] Implement bounded policy, exact human grant and authenticated native origin.
+- [x] Integrate the immutable evaluator into producer, fresh and final CI paths.
+- [x] Prove hostile input refusal, unchanged native success and pinned Code Review compatibility.
+- [ ] Complete independent review, normal hooks and pre-deployment CI.
+- [ ] Present exact protected deployment and new authority requests for owner approval.
+- [ ] After approval only, activate and verify all required CI without merging.

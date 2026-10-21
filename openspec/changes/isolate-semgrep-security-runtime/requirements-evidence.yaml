@@ -125,3 +125,39 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_mcp_exception_is_exact_and_time_bounded[future-review]
+  openspec:isolate-semgrep-security-runtime:isolated-scanner-runtime:admit-only-the-explicitly-approved-late-cycle-provenance-gap:
+    rationale: Enforce the owner-authorized CI-only admission independently from the dependency advisory exception and native proof.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#780
+    touchpoints:
+      - id: requirements-workflow
+        kind: config_file
+        locator: .github/workflows/requirements-evidence.yml
+      - id: scoped-admission-controls
+        kind: test
+        locator: tests/unit/scripts/test_requirements_late_cycle_workflow.py
+    verification_cases:
+      - case_id: ADMISSION-NATIVE-BYTES-AND-ENFORCEMENT
+        scenario_id: admit-only-the-explicitly-approved-late-cycle-provenance-gap
+        method: test
+        intent: Exercise all three real reconciliation boundaries, preserve raw native bytes and enforce policy exit codes.
+        observable: Native success remains independent and scoped failure proceeds only through the enforced separate decision.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_late_cycle_workflow.py::test_all_three_lanes_preserve_native_bytes_and_enforce_policy_exit
+      - case_id: ADMISSION-SCOPE-AND-PROOF-GUARDS
+        scenario_id: admit-only-the-explicitly-approved-late-cycle-provenance-gap
+        method: test
+        intent: Reject invalid PR contexts and other branches and preserve invalid native RED refusal.
+        observable: Unapproved scope and invalid native proof cannot silently acquire admission.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_late_cycle_workflow.py::test_fresh_and_final_preserve_scope_and_invalid_red_guards
+      - case_id: ADMISSION-ISOLATED-NATIVE-ORIGIN
+        scenario_id: admit-only-the-explicitly-approved-late-cycle-provenance-gap
+        method: test
+        intent: Require an isolated CI-only origin attester with immutable official actions and no candidate execution.
+        observable: The manifest validates native artifact metadata and CI wires an isolated attestation step after producer failure.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_late_cycle_workflow.py::test_origin_attestation_survives_producer_failure

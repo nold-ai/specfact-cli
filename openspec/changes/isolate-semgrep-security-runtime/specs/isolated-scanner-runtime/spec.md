@@ -34,3 +34,33 @@ or expiry. No Semgrep fork or conflicting dependency override SHALL be adopted.
 - **GIVEN** the reviewed record with a different version, advisory, skipped subject or date after expiry
 - **WHEN** the existing audit gate evaluates that input
 - **THEN** it returns a failure instead of suppressing the finding.
+
+### Requirement: Admit only the explicitly approved late-cycle provenance gap
+
+For only issue #780 and the owner-authorized direct follow-up to merged PR #782
+on branch `codex/dependency-hotfix-admission`, CI MAY
+admit missing historical failing-first proof through a separately approved
+HumanApprovedLateCycle decision from immutable protected policy code. Every
+producer, fresh and final boundary SHALL independently authenticate its inputs,
+exact subject and policy, live human permission and unedited bounded approval.
+The native report SHALL remain failed and byte-identical. Admission SHALL NOT
+claim native RED, verified provenance, waive other findings, alter application
+runtime, bypass Code Review, or authorize protected deployment or merge.
+
+#### Scenario: Exact scoped admission retains the failed native report
+
+- **GIVEN** authenticated exact-head evidence, all eleven dependency selectors and three admission controls passing, and a separate unexpired human grant
+- **WHEN** the immutable protected evaluator runs independently at each CI boundary
+- **THEN** it emits HumanApprovedLateCycle with the raw failed native report unchanged and keeps the independent Code Review gate enforced.
+
+#### Scenario: Substitution or expired authority remains blocking
+
+- **GIVEN** missing or changed policy, subject, evidence, selectors, permission, grant, expiry, or an additional failed obligation
+- **WHEN** any CI boundary evaluates admission
+- **THEN** it refuses and preserves the original report and every required check.
+
+#### Scenario: Ordinary native proof retains its existing gate
+
+- **GIVEN** valid complete native failing-first proof outside the scoped exception
+- **WHEN** Requirements reconciles it
+- **THEN** the existing native success path remains independent of late-cycle approval.

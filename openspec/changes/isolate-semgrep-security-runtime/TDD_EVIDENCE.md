@@ -143,3 +143,59 @@ nor technical mapping acceptance fabricates those protected approvals.
 Direct yamllint on the changed mapping passes. The repository-wide wrapper
 prints unrelated baseline errors while returning success, already tracked by
 issue #781. No wrapper behavior is changed in this dependency hotfix.
+
+## Owner-authorized scoped admission implementation, 2026-10-21
+
+The owner authorized actual implementation in policy PR #4 and core PR #782,
+with an explicit pause before protected deployment or merging. This supersedes
+the previous documentation-only policy checkpoint. Native historical proof
+remains missing. No original failed artifact is relabelled RED or modified.
+
+The new workflow wiring test was authored after the updated specification and
+before implementation. It extracts and executes the actual final reconciliation
+shell from requirements-evidence.yml with a synthetic policy-boundary adapter.
+The adapter isolates workflow routing; it does not claim authentic GitHub
+approval or signing. The raw failed native packet must remain byte-identical.
+
+The pre-code command was `python -m pytest -q
+ tests/unit/scripts/test_requirements_late_cycle_workflow.py` in the existing
+full tools environment. Actual result was 1 failed. The behavioral disagreement
+was `assert 1 == 0` with stderr:
+
+```text
+Final reconciliation requires authenticated red or legacy evidence.
+```
+
+This is evidence of the real early-refusal branch, not a missing-module/import
+failure. The complete retained log is
+`/private/tmp/specfact-dependency-audit-20261020/official-only/implementation/workflow-red.txt`.
+The protected policy baseline independently passes all 66 existing tests before
+new implementation. Hostile-input policy tests and all three workflow paths are
+separate required verification. Final CI and new exact-head grants remain open.
+
+## Separate follow-up verification, 2026-10-21
+
+After PR #782 merged, the owner authorized a separate CI-only core follow-up
+with policy PR #4. The fourteen exact mapped selectors pass, including the
+actual frozen certifi artifact test. The protected policy suite passes all
+179 tests. Its historical-attempt regression first failed against the old
+collector and then passed after explicit approved-attempt binding.
+
+The shell tests execute each actual producer, fresh and final boundary using
+transport and policy doubles. They prove preserved raw native bytes, ordinary
+success, enforced policy refusal, scope guards and isolated CI origin wiring.
+They do not prove authentic GitHub attestation or human approval. The final
+clean-code review of the refactored test reports zero findings. A fresh
+independent reviewer accepted the final fourteen-case mapping under its own
+identity in requirements-proof/review-evidence.json.
+
+All three strict frozen audits pass with only the owner-approved MCP exception.
+The required contract command exits zero with no modified source detected.
+This is a CI-only change; that command does not establish contract execution.
+Actual mapped test and policy results are retained separately. Full smart-test,
+normal hooks, final native CI origin verification, protected deployment and
+new exact-head human approvals remain separate gates.
+
+Policy revision pinned in the workflow is `ea0509fc5261e394cbc8de918b85ea02ac5f4126`.
+It remains inactive until separately authorized protected deployment.
+Native failed reports remain immutable and missing historical RED stays missing.
