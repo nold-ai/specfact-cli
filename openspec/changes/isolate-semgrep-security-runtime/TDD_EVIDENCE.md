@@ -199,3 +199,34 @@ new exact-head human approvals remain separate gates.
 Policy revision pinned in the workflow is `ea0509fc5261e394cbc8de918b85ea02ac5f4126`.
 It remains inactive until separately authorized protected deployment.
 Native failed reports remain immutable and missing historical RED stays missing.
+
+### Normal-hook and existing contract corrections
+
+The normal commit hook first rejected job.workflow_sha because the pinned
+workflow linter does not recognize that new context. This origin job is directly
+defined in the workflow. GitHub's context reference documents the equivalent
+github.workflow_sha for this case. An added assertion first failed on the old
+context, then all three shell controls passed with the supported declaration.
+The final normal commit hooks passed, including zero findings for the new test.
+
+The first full follow-up smart suite recorded 7 failed, 3447 passed and 10
+skipped. Every failure was an existing workflow contract tied to the replaced
+enforcement name or previous exact read-permission set. The two existing test
+files now preserve their original mapped parameter IDs, exercise native/admission
+exit combinations in all three lanes, retain upload ordering and independently
+require both Code Review failure guards. The targeted suite passes all 30 cases.
+
+Narrow baseline quality exception: reviewing the two existing test files reports
+four pytest.mark/parametrize unknown-member typing warnings and four fixture-length
+informational findings. An actual unchanged-HEAD helper run records the same
+severity, rule and message for every finding. No new warning or information
+finding remains. The unchanged expanded fixture builders express authenticated
+artifact/run contracts and remain outside this focused CI admission correction.
+No suppression or tool configuration change is introduced. This exception covers
+only these eight baseline findings, not future regressions.
+
+Evidence is retained in the implementation audit as origin-context-red.log,
+origin-context-green.log, core-commit-hooks-final.log, followup-smart-final.log,
+existing-workflow-tests-red.log, existing-workflow-tests-green.log and the actual
+baseline/current review JSON files. The final full-suite rerun remains separately
+required; the targeted result does not turn the earlier failed run into a pass.

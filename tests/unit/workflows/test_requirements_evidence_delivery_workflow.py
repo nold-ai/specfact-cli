@@ -90,9 +90,15 @@ def _workflow_steps(workflow: dict[str, object]) -> list[tuple[str, int, dict[st
     return collected
 
 
-def _step_location(workflow: dict[str, object], name: str) -> tuple[str, int, dict[str, object]]:
+def _step_location(
+    workflow: dict[str, object], name: str, *, job_name: str | None = None
+) -> tuple[str, int, dict[str, object]]:
     """Return the unique job, index, and step for a workflow step name."""
-    matches = [location for location in _workflow_steps(workflow) if location[2].get("name") == name]
+    matches = [
+        location
+        for location in _workflow_steps(workflow)
+        if location[2].get("name") == name and (job_name is None or location[0] == job_name)
+    ]
     assert len(matches) == 1, name
     return matches[0]
 
@@ -101,10 +107,10 @@ def _step_by_name(workflow: dict[str, object], name: str) -> dict[str, object]:
     return _step_location(workflow, name)[2]
 
 
-def _assert_step_order(workflow: dict[str, object], earlier: str, later: str) -> None:
+def _assert_step_order(workflow: dict[str, object], earlier: str, later: str, *, job_name: str | None = None) -> None:
     """Assert two uniquely named steps run in that order within one job."""
-    earlier_job, earlier_index, _ = _step_location(workflow, earlier)
-    later_job, later_index, _ = _step_location(workflow, later)
+    earlier_job, earlier_index, _ = _step_location(workflow, earlier, job_name=job_name)
+    later_job, later_index, _ = _step_location(workflow, later, job_name=job_name)
     assert earlier_job == later_job
     assert earlier_index < later_index
 
@@ -455,7 +461,9 @@ def _assert_retention_contract(workflow: dict[str, object]) -> None:
     publish = _step_by_name(workflow, "Publish Requirements evidence summary")
     upload = _step_by_name(workflow, "Persist Requirements evidence before Code Review")
     upload_review = _step_by_name(workflow, "Upload Code Review evidence artifact")
-    producer_enforce = _step_by_name(workflow, "Enforce Requirements evidence producer verdict")
+    _, _, producer_enforce = _step_location(
+        workflow, "Enforce native or admitted Requirements verdict", job_name="requirements-evidence-producer"
+    )
     review_enforce = _step_by_name(workflow, "Enforce requirements evidence verdict")
     assert publish["if"] == "always()"  # type: ignore[index]
     assert "GITHUB_STEP_SUMMARY" in publish["run"]  # type: ignore[index]
@@ -471,15 +479,20 @@ def _assert_retention_contract(workflow: dict[str, object]) -> None:
         "artifacts/requirements-evidence/legacy-tdd-evidence.json",
     ]
     assert upload_review["with"]["path"] == "artifacts/requirements-evidence/code-review.json"  # type: ignore[index]
-    assert producer_enforce["if"] == "steps.run-evidence.outcome == 'failure'"
-    assert producer_enforce["run"] == "exit 1"
+    assert producer_enforce["if"] == "always()"
     assert review_enforce["if"] == "steps.run-code-review.outcome == 'failure'"
     assert review_enforce["run"] == "exit 1"
     _assert_step_order(
-        workflow, "Publish Requirements evidence summary", "Enforce Requirements evidence producer verdict"
+        workflow,
+        "Publish Requirements evidence summary",
+        "Enforce native or admitted Requirements verdict",
+        job_name="requirements-evidence-producer",
     )
     _assert_step_order(
-        workflow, "Persist Requirements evidence before Code Review", "Enforce Requirements evidence producer verdict"
+        workflow,
+        "Persist Requirements evidence before Code Review",
+        "Enforce native or admitted Requirements verdict",
+        job_name="requirements-evidence-producer",
     )
     _assert_step_order(workflow, "Upload Code Review evidence artifact", "Enforce requirements evidence verdict")
 
@@ -662,7 +675,13 @@ def _assert_fresh_consumer_order(
     workflow: dict[str, object], outputs: dict[str, str], permissions: dict[str, str]
 ) -> None:
     assert outputs["prior-red-run-id"] == "${{ steps.prior-red-run.outputs.run-id }}"
-    assert permissions == {"actions": "read", "contents": "read", "issues": "read", "checks": "read"}
+    assert permissions == {
+        "actions": "read",
+        "contents": "read",
+        "issues": "read",
+        "checks": "read",
+        "pull-requests": "read",
+    }
     _assert_step_order(
         workflow, "Restore Requirements evidence for Code Review", "Download retained red proof for validation"
     )
@@ -1603,18 +1622,60 @@ def test_same_named_fork_does_not_enter_promotion_path() -> None:
         assert "pull_request.head.repo.full_name == github.event.repository.full_name" in condition
 
 
-def _review_and_enforcement_steps() -> tuple[
-    dict[str, object], dict[str, object], dict[str, object], dict[str, object]
-]:
-    """Load the proof and review steps that independently govern final PR status."""
-    workflow = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"
-    parsed = yaml.load(workflow.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
-    return (
-        _step_by_name(parsed, "Run Code Review with finalized Requirements context"),
-        _step_by_name(parsed, "Enforce Requirements evidence producer verdict"),
-        _step_by_name(parsed, "Enforce Requirements evidence producer success"),
-        _step_by_name(parsed, "Enforce requirements evidence verdict"),
+def _assert_independent_review_guards(workflow: dict[str, object]) -> None:
+    """Admission cannot override either Code Review failure or producer failure."""
+    producer_guard = _step_by_name(workflow, "Enforce Requirements evidence producer success")
+    assert producer_guard["if"] == "needs.requirements-evidence-producer.result != 'success'"
+    assert producer_guard["run"] == "exit 1"
+    for review_name, enforce_name, review_id in (
+        (
+            "Run Code Review with finalized Requirements context",
+            "Enforce requirements evidence verdict",
+            "run-code-review",
+        ),
+        (
+            "Run Code Review with trusted final Requirements context",
+            "Enforce final Code Review verdict",
+            "run-final-code-review",
+        ),
+    ):
+        review = _step_by_name(workflow, review_name)
+        review_enforce = _step_by_name(workflow, enforce_name)
+        assert review["continue-on-error"] == "true"
+        assert review_enforce["if"] == f"steps.{review_id}.outcome == 'failure'"
+        assert review_enforce["run"] == "exit 1"
+
+
+def _assert_lane_verdict(workflow: dict[str, object], job_name: str, native_step: str) -> None:
+    """Execute the lane's actual shell verdict for successful and denied outcomes."""
+    _, enforce_index, enforce = _step_location(
+        workflow, "Enforce native or admitted Requirements verdict", job_name=job_name
     )
+    assert enforce["if"] == "always()"
+    assert enforce["shell"] == "bash"
+    assert enforce["env"] == {
+        "NATIVE_OUTCOME": "${{ steps." + native_step + ".outcome }}",
+        "ADMISSION_OUTCOME": "${{ steps.late-cycle-admission.outcome }}",
+    }
+    for native_outcome, admission_outcome, expected_exit in (
+        ("success", "skipped", 0),
+        ("failure", "success", 0),
+        ("failure", "failure", 1),
+        ("failure", "skipped", 1),
+        ("skipped", "skipped", 1),
+        ("", "", 1),
+    ):
+        result = subprocess.run(
+            ["bash", "-c", cast(str, enforce["run"])],
+            env={"NATIVE_OUTCOME": native_outcome, "ADMISSION_OUTCOME": admission_outcome},
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == expected_exit, (job_name, native_outcome, admission_outcome, result.stderr)
+    for owner, index, step in _workflow_steps(workflow):
+        if owner == job_name and str(step.get("uses", "")).startswith("actions/upload-artifact@"):
+            assert index < enforce_index
 
 
 @pytest.mark.parametrize(
@@ -1623,18 +1684,18 @@ def _review_and_enforcement_steps() -> tuple[
     ids=["requirements-failure", "code-review-failure"],
 )
 def test_requirements_evidence_workflow_blocks_each_final_verdict(verdict: str) -> None:
-    """Requirements and Code Review failures remain independently terminal."""
-    review, producer_enforce, producer_guard, review_enforce = _review_and_enforcement_steps()
-
+    """Every lane needs native success or admission, and review failure still blocks."""
+    workflow = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"
+    parsed = yaml.load(workflow.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
     if verdict == "requirements-failure":
-        assert producer_enforce["if"] == "steps.run-evidence.outcome == 'failure'"
-        assert producer_enforce["run"] == "exit 1"
-        assert producer_guard["if"] == "needs.requirements-evidence-producer.result != 'success'"
-        assert producer_guard["run"] == "exit 1"
+        for job_name, native_step in (
+            ("requirements-evidence-producer", "run-evidence"),
+            ("requirements-evidence", "run-native-evidence"),
+            ("requirements-evidence-final", "run-final-native-evidence"),
+        ):
+            _assert_lane_verdict(parsed, job_name, native_step)
     else:
-        assert review["continue-on-error"] == "true"
-        assert review_enforce["if"] == "steps.run-code-review.outcome == 'failure'"
-        assert review_enforce["run"] == "exit 1"
+        _assert_independent_review_guards(parsed)
 
 
 def test_all_proof_consumers_independently_authenticate_live_stack_context() -> None:

@@ -17,4 +17,10 @@ def test_each_proof_consumer_has_explicit_read_only_checks_permission(job_name: 
     """Authenticated check-run reads require permission without check-writing authority."""
     workflow = yaml.safe_load((REPO_ROOT / ".github/workflows/requirements-evidence.yml").read_text())
     permissions = workflow["jobs"][job_name]["permissions"]
-    assert permissions == {"actions": "read", "contents": "read", "issues": "read", "checks": "read"}
+    assert permissions == {
+        "actions": "read",
+        "contents": "read",
+        "issues": "read",
+        "checks": "read",
+        "pull-requests": "read",
+    }
