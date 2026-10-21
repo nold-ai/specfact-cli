@@ -39,5 +39,15 @@
 - [x] Integrate the immutable evaluator into producer, fresh and final CI paths.
 - [x] Prove hostile input refusal, unchanged native success and pinned Code Review compatibility.
 - [ ] Complete independent review, normal hooks and pre-deployment CI.
-- [ ] Present exact protected deployment and new authority requests for owner approval.
-- [ ] After approval only, activate and verify all required CI without merging.
+- [x] Present exact protected deployment and new authority requests; owner approved the original d883 head through comments 6314609869 and 6314563334, and approved policy merge b328ace4 at reviewed 78c2.
+- [x] Activate the approved immutable policy; attempt 2 producer and origin passed.
+- [ ] Verify all required CI after the exact-ID transport correction and renewed head grants, without merging core.
+
+## 6. Correct exact-ID artifact transport
+
+- [x] Specify one workflow-owned transfer program and retain mapping identities.
+- [x] Retain authentic pinned-action failing selection before production edits.
+- [x] Exercise actual YAML-resolved code against valid metadata and hostile inputs.
+- [x] Replace all three current-run transfers without changing names or destinations.
+- [x] Verify genuine producer and retained execution layouts, independent execution digest and live exact-ID transfer; current-head CI remains pending.
+- [ ] Complete independent review, normal hooks, wiki alignment and fresh exact-head grants before CI acceptance.

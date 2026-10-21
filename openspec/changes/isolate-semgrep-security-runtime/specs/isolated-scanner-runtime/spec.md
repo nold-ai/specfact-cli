@@ -70,3 +70,15 @@ runtime, bypass Code Review, or authorize protected deployment or merge.
 - **GIVEN** a fork, another repository, base or branch, or an absent native artifact
 - **WHEN** CI evaluates the origin attester job
 - **THEN** it skips that job and retains ordinary Requirements enforcement without requesting signing permissions for that subject.
+
+#### Scenario: Exact artifact IDs survive same-name reruns
+
+- **GIVEN** the bound producer or execution artifact ID and another artifact with the same name and a greater numeric ID
+- **WHEN** any of the three current-run evidence transfers restores its artifact
+- **THEN** it retrieves the requested immutable ID directly, authenticates repository numeric identity, run, head, name, expiry, SHA-256 and size, and requires the independent execution upload digest.
+
+#### Scenario: Artifact bytes enter only as bounded inert evidence
+
+- **GIVEN** authenticated exact-ID metadata and ZIP bytes
+- **WHEN** the shared isolated workflow-owned program restores evidence
+- **THEN** credentialed transport remains on the fixed GitHub API, HTTPS redirects never forward the token, digest verification precedes bounded flat regular-file extraction, all files validate in staging before exclusive publication, and unsafe paths, links, collisions or uncertain inputs fail closed while preserving unrelated context.

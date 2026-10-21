@@ -96,3 +96,36 @@ The isolated origin attester is restricted to the same-repository dev follow-up
 on the exact admission branch. Forks and unrelated subjects skip that extra job
 and retain their ordinary native Requirements checks. GitHub does not grant
 fork pull-request jobs the attestation write permissions required by this job.
+
+## Exact-ID artifact transport correction (2026-10-21)
+
+The pinned download action applies greatest-ID-per-name filtering before explicit
+ID selection. Authenticated run 39589983181 has fresh producer ID 12341352657
+below old same-name ID 12341630570. One YAML-anchored inline standard-library
+Python program replaces the three current-run transfers. It runs through
+`/usr/bin/python3 -I -S`, never imports candidate checkout code, and preserves
+artifact names, destinations, native consumers and the fourteen-case mapping.
+
+A typed artifact subject binds repository name and numeric ID, run, head, name,
+ID, destination and optional upload digest. REST metadata and exact ZIP are
+fetched directly by ID. Execution artifacts require the existing independent
+upload digest; producer artifacts require authenticated REST SHA-256. Transport
+has HTTPS-only bounded redirects with no forwarded credentials, size bounds,
+read timeouts and a total deadline. Digest verification precedes ZIP parsing.
+
+Only portable flat regular files enter private staging; compressed bytes are
+limited to 16 MiB, each file to 16 MiB, total expansion to 64 MiB, and membership
+to 128 files. These exceed the observed producer's 6,582-byte ZIP and 70,093-byte
+expansion; retained execution is 1,913 compressed bytes and 4,102 expanded bytes.
+The verified ZIP stays in bounded memory (at most 16 MiB of archive bytes); this
+avoids another filesystem lifecycle before extraction. Directory
+file descriptors and no-follow opens protect parents. All members validate
+before exclusive hard-link publication; existing unrelated context survives.
+Publication is atomic per file, not for the whole set. An interrupted run may
+leave partial evidence and retries then refuse collisions. Fresh jobs are the
+recovery path. No new helper, dependency, protected policy or permission exists.
+
+Tests execute the resolved YAML body with test-only HTTP doubles. Local RED
+replays the actual pinned filter over authenticated REST records. Final live
+exact-ID verification, independent review, normal hooks and fresh exact-head
+authority remain required before CI acceptance. Parent owns internal wiki sync.

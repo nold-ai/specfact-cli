@@ -1278,10 +1278,11 @@ def _assert_review_artifact_binding(parsed: dict[str, object]) -> None:
     restore = _step_by_name(parsed, "Restore Requirements evidence for Code Review")
     verify_head = _step_by_name(parsed, "Verify exact head for Code Review")
     assert upload["id"] == "upload-requirements-evidence"
-    assert restore["with"] == {
-        "artifact-ids": "${{ needs.requirements-evidence-producer.outputs.artifact-id }}",
-        "path": "artifacts/requirements-evidence",
-    }
+    environment = cast(dict[str, str], restore["env"])
+    assert environment["ARTIFACT_ID"] == "${{ needs.requirements-evidence-producer.outputs.artifact-id }}"
+    assert environment["ARTIFACT_NAME"] == "requirements-evidence"
+    assert environment["ARTIFACT_DESTINATION"] == "${{ github.workspace }}/artifacts/requirements-evidence"
+    assert "/usr/bin/python3 -I -S" in str(restore["run"])
     assert verify_head["env"] == {"EXPECTED_HEAD": "${{ github.event.pull_request.head.sha || github.sha }}"}
     assert 'test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"' in verify_head["run"]  # type: ignore[operator]
 

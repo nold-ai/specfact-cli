@@ -272,3 +272,119 @@ The exact retry job is
 <https://github.com/nold-ai/specfact-cli/actions/runs/39588065523/job/119186574654>.
 Evidence is retained in pr784-after-rerun-artifacts.json,
 pr784-rerun-producer.log and pr784-retained-attempt1-verification.log.
+
+### Exact-ID artifact transfer correction, 2026-10-21 (Europe/Berlin)
+
+Specification was amended before the local behavioral probe and implementation.
+The actual pinned download-action runtime at
+`3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c` applies `filterLatest` before explicit
+ID filtering. A Node probe executed that function verbatim against the six-record
+authenticated REST fixture for run `39589983181`. Requested producer artifact
+`12341352657` exists, but older same-name `12341630570` has the larger numeric ID.
+The explicit-ID assertion failed with selected `[]`, `0 !== 1`, and exit 1 before
+production edits at `d88310de977bfc5d080e7e03c75256434ed937ea`.
+This retains genuine selection failure, not a missing-helper or empty-step error.
+
+Retained local evidence under
+`/private/tmp/specfact-dependency-audit-20261020/official-only/implementation/`:
+`artifact-design/reproduce-selection-red.js`, `selection-red.log` and
+`selection-red-report.md` (the latter two in the same artifact-design directory),
+and `review/artifact-download-rerun-sources/` with the source and REST fixture.
+Source SHA-256:
+`f4a6b7046eb834bed98bb687f6d08feb0bfe6fb32570e9da7de0707884c08b31`.
+Fixture SHA-256:
+`91bf7c28202053d63a64feb5562486b27f2507e0b110bd49308b8aa916ca55b3`.
+The real producer ZIP digest is
+`2d857d60225b8e0e1073488936d7fc62cee43a58283072ae67ae07c78f05b927`.
+
+The correction uses one YAML scalar with two aliases, invoked through
+`/usr/bin/python3 -I -S`. Tests execute that actual resolved Python body with
+transport-only doubles. The three names/destinations and the fourteen-case
+mapping remain unchanged. Existing workflow tests now inspect the equivalent
+exact-ID environment binding instead of obsolete action inputs.
+
+Passing command (Python 3.13.14, pytest 9.1.1, established run-hatch environment):
+
+```sh
+sh /private/tmp/specfact-dependency-audit-20261020/official-only/run-hatch.sh   python -m pytest -o addopts='' -q -p no:cacheprovider   tests/unit/workflows/test_exact_artifact_transfer.py   tests/unit/workflows/test_requirements_evidence_delivery_workflow.py   tests/unit/security/test_release_promotion_security_gates.py   tests/unit/scripts/test_requirements_late_cycle_workflow.py
+```
+
+Result: **114 passed**, with no warnings, retained in
+`artifact-design/focused-tests.log`. Controls cover both exact requested IDs,
+independent execution digest, metadata association/type/expiry/size/digest,
+duplicate JSON, refusal statuses, truncation, HTTPS redirects and credential
+stripping across redirect chains, total deadline, digest-before-ZIP ordering,
+flat paths, raw NUL, encryption, links/devices/directories, CRC failure, member and
+expansion limits, existing and concurrent collisions, symlink parents, fresh
+exclusive destinations and preservation of unrelated context. Ruff checks pass
+for the three touched test files. Strict OpenSpec validation passes.
+
+The parent independently executed the real workflow program with local
+`/usr/bin/python3` 3.9.6 against authenticated live GitHub endpoints, verifying
+producer `12341352657` in both producer roles (6,582 ZIP bytes; four files;
+70,093 expanded bytes). Retained execution artifact `12302080806` from run
+`39502448590`, head `66ee3d58959e7798a6a7a5a1ed5c41d1db37fbc0`, restored two flat
+files (1,913 ZIP bytes; 4,102 expanded bytes) with independent digest
+`0e20e44875b9a43c4653940ca90a788d541e9ed085fa5c613648f1c41ae9abe5`.
+Byte comparisons and unrelated context preservation passed. Evidence is
+`live-exact-transfer-proof.json` and `.log`; the parent refreshes it if the
+workflow body changes. Historical execution proves transport/layout, not
+current-head native success. Existing grants remain historical. Fresh grants,
+normal hooks, independent review and current-head CI remain delivery gates.
+
+The program keeps verified compressed bytes in bounded memory rather than a
+private ZIP temporary file; extraction still stages every validated member on
+the destination filesystem before exclusive publication. Each file publishes
+atomically; whole-set atomicity is not claimed. Interruption or a late collision
+may leave partial new evidence, and retry refuses it. Existing evidence is never
+overwritten. Rollback is reverting the workflow correction; no artifact deletion,
+protected-policy change, signing or dependency changes are required.
+
+### Final transport review and local gates
+
+Independent reviewer `Codex:/root/artifact_transfer_security_review` returned
+PASS for exact program SHA-256
+`f9a09798fed949615bbd8845fca26044ca53a16fe95c85853ad04590f67e6b8a`.
+It independently passed 114 focused tests, eight additional hostile probe groups,
+compared all workflow YAML outside the three changed steps with the base, and
+compared the live restored files with genuine ZIPs. The review and evidence are
+retained in `review/artifact-transfer-security.md` and adjacent machine records
+under the local evidence root above. No grant, deployment or merge authority is
+implied by that technical review.
+
+The new test file has zero SpecFact findings. The full affected-file review has
+one warning and six informational findings in unchanged existing functions.
+The same independent reviewer explicitly accepted a narrow exception for exactly
+those baseline diagnostics. It compared both complete source and AST against
+`git show d88310de:<path>`, independently of the parent's comparison. The warning
+is `banned-generic-public-names` on
+`test_invalid_utf8_authority_is_stable_metadata_failure`. The six
+`ai-bloat.loc-vs-complexity` findings concern that same function,
+`test_fresh_consumer_reexecutes_trusted_plan`, `_write_late_red_artifact`,
+`_write_late_red_metadata`, `_late_red_fixture`, and
+`test_workflow_revalidates_promotion_reuse_in_all_stages`. No rule, threshold,
+suppression or function body was changed to accept them. The explicit exception
+is limited to these unchanged symbols for this correction; it permits no new
+finding or changed body. Evidence is `artifact-transfer-self-review.json`,
+`artifact-transfer-baseline-findings.json`, and the reviewer's independent
+`review/artifact-transfer-security-baseline.json`.
+
+The review used the committed pinned BasedPyright runner with the actual Hatch
+Python path. The global pyenv shim previously could not resolve pytest and
+produced false unknown-member diagnostics. The isolated executable adapter
+preserves every caller argument and adds only the correct `--pythonpath`; it
+changes no repository configuration or check. The required authoritative full
+project type run reports zero errors and 1,456 warnings, exactly the baseline.
+
+Required formatter passed with all 1,128 files unchanged. Full lint, YAML lint,
+actual pinned actionlint 1.7.11, strict OpenSpec validation and stable fourteen-case
+mapping/plan identity checks passed. The smart-test gate passed its selected 111
+workflow/security tests; its unit-scope coverage notice is not a full-suite
+coverage result. The contract gate exited zero with no modified source scope,
+using its cached result. Fresh complete CI remains required at the new head.
+
+The comment review's two private docstrings and changed-line type suppression
+were removed. Its only kept comment explains redaction of signed URLs emitted
+by the external urllib exception formatter. No production change followed the
+final live transfer proof or independent security verdict. The core dependency,
+version and signed-module inputs remain unchanged. Signing stays in CI/CD.
