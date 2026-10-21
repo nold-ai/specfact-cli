@@ -102,7 +102,7 @@ Recovered from uncommitted proposal-only feature worktrees into local `dev`; rem
 | Bucket | Count | Location |
 |---|---:|---|
 | **Active-tree entries** | 48 | [`openspec/changes/`](changes/) |
-| **Parking-lot entries** | 22 | [`openspec/parking-lot/`](parking-lot/) |
+| **Parking-lot entries** | 21 | [`openspec/parking-lot/`](parking-lot/) |
 | **Archived** | 120 | [`openspec/changes/archive/`](changes/archive/) |
 
 Active-tree entries count direct change folders, excluding `archive/`. They
