@@ -22,7 +22,8 @@ wheel. The later fix adds only the missing source inclusion.
 The full intended production touchpoints are pyproject.toml, uv.lock,
 requirements/ci/locked.txt, ci/vulnerability-audit-exceptions.json, setup.py,
 src/__init__.py, src/specfact_cli/__init__.py, CHANGELOG.md, docs/Gemfile,
-docs/Gemfile.lock, and scripts/check_jekyll_dependencies.rb and .github/workflows/docs-dependency-checks.yml.
+docs/Gemfile.lock, scripts/check_jekyll_dependencies.rb, .github/workflows/docs-dependency-checks.yml,
+and ci/dependency-trust-exceptions.json.
 The Ruby probe runs against installed locked gems after the dependency update.
 Its output is supplementary compatibility evidence, not a substitute for native
 mapped Python evidence.
@@ -52,7 +53,7 @@ No artifact behavior assertion, negative control, or native policy is weakened.
 
 ## Corrected dependency selection and review boundary
 
-The existing parameter table binds the eight exact runtime and tooling versions
+The existing parameter table binds the nine exact runtime and tooling versions
 to both uv.lock and its hashed export. The separate scanner case binds official
 Semgrep 1.179.0 and MCP 1.29.0. Artifact probes continue to inspect the actual
 frozen certifi, GitPython, and PyJWT wheels. Exact-version assertions complement
@@ -81,7 +82,40 @@ expiry tests remain unchanged. The scanner graph contract now requires exactly
 two separate records and official opentelemetry-api 1.37.0. No gate code changes.
 
 The accepted 23-case receipt is preserved as `pre-advisory-review-evidence.json`.
-The active receipt records fresh independent AI technical acceptance in
-`requirements-proof/advisory-mapping-review.md`; new native RED remains pending. The new
-plan includes only observed baseline failures. Supplementary controls must pass.
+The advisory receipt and `requirements-proof/advisory-mapping-review.md` are historical.
+The later quality amendment received acceptance in `requirements-proof/quality-mapping-review.md`
+and authenticated 31-case native RED at commit 4936750186fcb339913a8710f3034cf1d2be901f,
+run 39866724812 attempt 1. Its receipt is retained as `pre-trust-review-evidence.json`.
+The active parser-correction receipt references `requirements-proof/parser-mapping-review.md`
+for fresh independent AI acceptance and local 33-case RED. Native RED remains pending.
+Earlier proof applies only to its original bytes. Supplementary controls must pass.
 Root owns independent acceptance, native RED, wiki synchronization, and production.
+
+## Supported parser and current review boundary
+
+The existing version table gains pycparser 3.12. The existing provenance-record
+case binds its exact official wheel URL, SHA-256, classification, UTC review date,
+and bounded expiry. These two selectors extend the 31-case plan to 33 cases.
+The record's future implementation uses the existing JSON shape and records the
+immutable upstream source, matching BSD license, disclosed Socket capabilities,
+and license-heading classification in its rationale. No checker changes are needed.
+The 2026-10-22 review date is the actual UTC day of the 2026-10-23 Berlin review,
+so the unchanged date.today() check also works on native UTC runners.
+
+The wrong-hash and wrong-package fixtures derive only their baseline version and
+review date from the actual reviewed record. Their expected rejection conditions
+remain fixed. Explicit expiry, prohibited-wheel and 3.0-alias tests remain intact.
+The existing real-clock checker test continues to execute without an injected date.
+
+Review comment 4354335605 identifies inherited PYTHONPATH and PYTHONHOME in the
+otherwise disposable direct-launcher smoke environment. A controlled child-Python
+probe must first demonstrate that inheritance. The fixture then removes only those
+two keys before its existing bootstrap and actual CLI calls. Parent package inventory
+and every existing success assertion remain intact. This test-fixture correction
+requires a later full real smoke run and does not change application behavior.
+
+Review comment 4354335583 identifies stale active acceptance wording. The earlier
+advisory and quality reports remain history, including the authentic 31 native
+failures. The changed 33-case plan now has independent AI acceptance and local RED
+with 33 passing controls. Root owns native execution and the pending authorized
+internal wiki mirror update.

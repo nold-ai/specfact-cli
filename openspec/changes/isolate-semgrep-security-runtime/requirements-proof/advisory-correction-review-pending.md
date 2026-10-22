@@ -1,9 +1,11 @@
 # Historical advisory correction pending note
 
-The pending note below is superseded by accepted independent AI technical
-review in `advisory-mapping-review.md` on 2026-10-23. That acceptance is retained as history. The active receipt now records the
-subsequent quality amendment acceptance in quality-mapping-review.md. Only new authenticated native RED remains pending before
-production adoption. This does not grant human, merge or publication authority.
+The original pending note below was superseded by advisory acceptance and then
+quality acceptance in `quality-mapping-review.md`. The quality amendment received
+authenticated 31-case native RED at commit 4936750186fcb339913a8710f3034cf1d2be901f,
+run 39866724812 attempt 1. Those reports remain history. The active receipt now
+points to `trust-correction-review-pending.md` for the changed 33-case parser plan.
+Fresh independent acceptance and native RED remain pending for that correction.
 
 ## Original pending note
 

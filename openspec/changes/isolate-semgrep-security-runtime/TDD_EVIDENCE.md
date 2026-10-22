@@ -2,6 +2,12 @@
 
 ## Current proof status
 
+The supported pycparser 3.12 correction has fresh independent AI technical
+acceptance and genuine local RED for all 33 selected cases, with 33 passing
+supplementary controls. Fresh native RED remains required before production.
+The active receipt points to `requirements-proof/parser-mapping-review.md`. Earlier measured
+results remain historical and supply no acceptance for the changed bytes.
+
 The prior 23-case correction received independent mapping acceptance and native
 RED at commit 8cce44f449e9559d0100064d629c81991784ab41, run 39843165302 attempt 1.
 Its accepted receipt is preserved in `requirements-proof/pre-advisory-review-evidence.json`.
@@ -12,10 +18,13 @@ Production inputs were restored before the specification and test changes.
 The 31-case advisory mapping first received independent acceptance in
 `requirements-proof/advisory-mapping-review.md`. A subsequent bounded test-only
 quality amendment received fresh independent AI technical acceptance in
-`requirements-proof/quality-mapping-review.md` on 2026-10-23. The active receipt
-uses that repository-relative report. Both earlier receipts remain historical.
-Fresh native RED for the amended test bytes remains pending. No earlier native
-proof approves these changed bytes. The docs floor fixture remains held for its
+`requirements-proof/quality-mapping-review.md` on 2026-10-23. The historical quality receipt
+uses that repository-relative report and is preserved in
+`requirements-proof/pre-trust-review-evidence.json`. Earlier receipts remain historical.
+Fresh native RED for the amended test bytes is authenticated at commit
+4936750186fcb339913a8710f3034cf1d2be901f, run 39866724812 attempt 1, artifact
+12463204671. All 31 cases fail with no errors or skips. No earlier native proof
+approves these changed bytes. The docs floor fixture remains held for its
 matching production metadata, separate from the accepted test-helper repair.
 
 ## Superseded 23-case pending note
@@ -485,3 +494,116 @@ Normal partial staging retains the old docs-floor assertion in this test-only
 commit. Its already-reviewed new floor stays unstaged for the matching Gemfile
 adoption. The four Markdown examples, five memberships and fresh loader behavior
 are staged together. Native RED is still required before production adoption.
+
+## Authenticated quality-amendment native RED on 2026-10-23
+
+GitHub run 39866724812 attempt 1 belongs to PR785's current test-only commit
+`4936750186fcb339913a8710f3034cf1d2be901f`, tree
+`a95395aaf17130d8c7835fe2ee19d3e3c251f818`, main base
+`5262efb0881e4fac7697d629b0530250342bc656`. Artifact 12463204671 is named
+requirements-evidence and is unexpired. Its downloaded ZIP SHA-256 matches the
+GitHub API digest `11744aa3911b4583a6ad116a9ac101de4bf18c2412d58a28d55d919c0c4fefdf`.
+The four bounded archive members have unique safe paths and no symbolic links.
+
+The native report states passed, gate pass, red and failing-first-proven, with
+no findings. The XML has exactly 31 genuine failures, zero errors and zero skips.
+Its SHA-256 is `ed49f886df8d0c6dd0924ca9666b76fb9ba021f33758a8801ee94dae23ea8abe`.
+Root inspected all failure messages and the substantive Git/source-build traces.
+The source build reaches the backend and fails on the absent bundle-mapper
+forced inclusion. Git reaches only mocked clone sentinels. No setup failure is
+counted as a successful behavioral reproduction.
+
+Source commit, complete tree, merge base, all seven test-file digests and all
+31 unique selectors match current reviewed source and the genuine XML. The full
+native plan equals the independently reviewed planned plan except the two
+expected maturity fields, which advance from planned to test-authored. All
+canonical identities and inner cases remain equal. An exploratory local
+standalone test-authored planner invocation without its acceptance input refused
+acceptance-missing. It is retained as a command limitation, not used as proof.
+No machine report or artifact was edited to produce this comparison.
+
+Exact metadata, downloaded archive, extracted native files and root identity
+record remain in `/private/tmp/specfact-release-20261022/quality-red/`, including
+native-ready.json. Normal test-only hooks passed with the docs-floor hunk held.
+That proof authorized the prior twelve-path candidate. The parser correction
+below requires its own fresh native proof before production. Root freezes all
+other tracked content, including mapped tests, conftest and transitive imports. Final local and native GREEN, independent production review,
+current-head authority, all required CI and Linux frozen Ruby proof remain open.
+
+## Supported parser test preparation on 2026-10-23 Europe/Berlin
+
+The twelve production paths remain restored to 4936750186fcb339913a8710f3034cf1d2be901f.
+The active mapping adds pycparser 3.12 lock/export selection and its exact provenance
+record, giving 33 selectors. All prior 31 selector identities remain. The wrong-hash
+and wrong-package fixtures use the record's version and review date solely to isolate
+the identity rejection. The actual-date checker and all hard-block/expiry controls
+are unchanged. No mapped pytest was run before independent acceptance.
+
+The controlled smoke probe executes the existing fixture's environment-construction
+statements and launches real Python in a disposable environment. Before correction,
+the sentinel case imported the parent-only module, and the owner's default environment
+exposed repository src on sys.path. Both child processes inherited PYTHONHOME.
+The isolation check exited 1. Removing only PYTHONPATH and PYTHONHOME makes both
+observations false and both environment values absent; the unchanged probe exits 0.
+This is a child-interpreter environment proof, not a full bootstrap/CLI smoke result.
+All original bootstrap, CLI success and parent package inventory assertions remain.
+
+Actual before/after JSON and logs, probe source, exact source hashes, command lists,
+and the prepared mapping are retained under
+`/private/tmp/specfact-release-20261022/trust-correction-tests/`.
+Fresh independent acceptance and local RED are recorded below. Native RED and
+later full smoke execution remain required. Production, trust checker/register, Code Review toolchain and signed
+assets were not edited. The held docs-floor hunk was preserved byte for byte.
+
+## Published companion execution boundary
+
+The coordinator's read-only trace is retained at
+`/private/tmp/specfact-release-20261022/audit/semgrep-contract-trace.md`.
+The measured 1.179.0 CLI positive/negative probes and schema 1.2 Code Review result
+exercise pinned companion fixture 0.48.15 through ordinary PATH-based passes.
+They are not proof of current signed-capsule admission. Published main 0.51.2
+and dev 0.51.4 use isolated capsules with `-I -S`, cleared environment, dedicated
+PATH, and expected capsule analyzer versions. Failure returns UNKNOWN without
+core analyzer fallback. The trace inspected both published archives and verified
+their registry hashes. It did not verify their signatures or execute the capsules.
+
+Review comments 4354335589 and 4354335598 correctly identify the companion's admitted
+versions, but their claimed core-upgrade-to-capsule mismatch is unsupported by the
+inspected execution path. A future capsule version change requires a separate
+companion policy/integrity change. No such asset or gate is changed by this release.
+
+## Accepted parser mapping and local RED on 2026-10-23 Europe/Berlin
+
+Independent AI technical reviewer `/root/parser_mapping_acceptance` accepted the
+exact mapping, source correspondence, controlled fixture changes and actual local
+proof in `requirements-proof/parser-mapping-review.md`. This is technical
+acceptance, without human risk, release or merge authority. All original 31
+selectors remain and only the exact parser selection and provenance cases are added.
+The source mapping digest is `sha256:b192853e22bfc854a30366891d76942d5c2ba9cc47260197c3c4df7bd77c923c`.
+The combined digest is `sha256:7752d805c6911e719e9aa3dcb985526f8b10f3e587ebfb1d37c5e67c5703718f`.
+The plan identity is `sha256:105b01868f04e3d382b9266bc38111825ca06ad0d00a42d477ac8f5e322e805b`.
+
+Actual final local execution on 2026-10-22 at 23:23 UTC, equivalent to
+2026-10-23 at 01:23 Europe/Berlin, produced 33 failures, zero errors and zero
+skips. All 33 supplementary controls passed. XML SHA-256 values are
+`99b63cef7ee46814a86ca3e66f1c2bebffc280e72e113389a2990b0c659fd697`
+and `ac3479cf77e1dbcc6ff99744fbc58bb352d6115a55f036f3f3d3c0eec61f7686`.
+Root and the independent reviewer inspected every failure message and the actual
+source-build, certificate, JWT and Git clone-boundary traces. No setup failure
+was counted as behavioral RED. Earlier pre-comment execution remains historical.
+
+The actual final whole-PR Code Review covers 13 Python paths. Its unmodified
+report has zero errors, zero warnings and six visible informational findings with
+fresh source-specific preservation reasons in the independent report. Initial
+three duplication warnings prompted literal parameter tables for five unmapped
+negative fixtures; all inputs, dates, expected errors and expanded AST bodies
+remain equivalent. Two redundant new docstrings were removed after a separate
+comment review. No suppression, policy change or report normalization occurred.
+Final trust-test SHA-256 is `bb20822cb58c8f773f8ed7a54628feef2e1eadbf5cc5c53936422223986ee7ac`.
+Actual outputs, commands, hashes and historical reports are retained under
+`/private/tmp/specfact-release-20261022/trust-correction-tests/`.
+
+Production paths and the trust register/checker remain restored and unchanged.
+Normal test-only hooks, a fresh native 33-case RED artifact, the pending internal
+wiki scope decision, production adoption and full local/native GREEN remain.
+The held docs-floor assertion stays with its later matching production metadata.

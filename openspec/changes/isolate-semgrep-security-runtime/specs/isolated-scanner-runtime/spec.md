@@ -36,7 +36,7 @@ The main release SHALL satisfy this delivery contract using the reviewed officia
 #### Scenario: Select the reviewed compatible tooling graph
 
 - **WHEN** the release frozen graph is resolved
-- **THEN** it SHALL select certifi 2026.10.19, GitPython 3.2.1, PyJWT 2.15.1, Hatchling 1.32.4, urllib3 2.8.0, virtualenv 21.14.12, python-discovery 1.6.1, and packaging 26.3
+- **THEN** it SHALL select certifi 2026.10.19, GitPython 3.2.1, PyJWT 2.15.1, Hatchling 1.32.4, urllib3 2.8.0, virtualenv 21.14.12, python-discovery 1.6.1, packaging 26.3, and pycparser 3.12
 - **AND** the lock and hashed delivery export SHALL agree.
 
 ### Requirement: Bound the temporary official MCP advisory exception
@@ -100,3 +100,17 @@ accept untrusted propagation headers.
 - **THEN** only CVE-2026-114603 and alias GHSA-xcq7-p3pf-p88h SHALL be waived from 2026-10-22 through 2026-11-04 inclusive
 - **AND** other packages or versions, unrelated or mixed advisories, skipped dependencies, missing entries, expired records, and future review dates SHALL fail closed
 - **AND** the separate MCP record SHALL preserve its original version, advisory IDs, review date, and expiry.
+
+### Requirement: Bind the supported parser to current source provenance
+
+The main release SHALL replace expired pycparser 2.22 evidence with a new exact
+pycparser 3.12 source-provenance review. Both dependency declarations SHALL require
+`pycparser>=3.12,!=3.0.*`. The 3.0 release-family block SHALL remain enforced.
+
+#### Scenario: Bind the supported parser to current source provenance
+
+- **WHEN** the required parser's review record is read
+- **THEN** it SHALL bind pycparser 3.12 to the official wheel URL `https://files.pythonhosted.org/packages/b6/ae/315bbeee126a769cbde43cf4908acb4b40408d8bf8bbf334dd7368d8dadf/pycparser-3.12-py3-none-any.whl` and SHA-256 `a076f3f489b39b43ed13563a1dafe42447445bec2e294154ec5c57fcdda4c85e`
+- **AND** its classification SHALL be `source-provenance-reviewed`, with review date 2026-10-22 UTC and expiry 2026-11-04 inclusive
+- **AND** its transitive path SHALL retain cryptography, CFFI, and pycparser
+- **AND** actual-date expiry, wrong-artifact and wrong-package rejection, blocked 3.0 aliases, and prohibited executable-wheel controls SHALL remain enforced.

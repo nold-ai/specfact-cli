@@ -65,6 +65,8 @@ def test_runtime_discovery_smoke_direct_launcher(tmp_path: Path) -> None:
     bin_dir = venv / ("Scripts" if os.name == "nt" else "bin")
     python = bin_dir / ("python.exe" if os.name == "nt" else "python")
     env = os.environ.copy()
+    env.pop("PYTHONPATH", None)
+    env.pop("PYTHONHOME", None)
     env.update(
         VIRTUAL_ENV=str(venv),
         HATCH_ENV_TYPE_VIRTUAL_PATH=str(venv),

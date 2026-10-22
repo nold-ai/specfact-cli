@@ -15,7 +15,8 @@ release selects nine changed Python packages relative to main. That correction r
 
 The owner separately approved GitPython 3.2.1 and the exact opentelemetry-api
 1.37.0 exception on 2026-10-22. Fresh independent mapping acceptance for this new correction is recorded in
-requirements-proof/advisory-mapping-review.md. Only new native RED remains pending. All twelve saved production paths
+requirements-proof/advisory-mapping-review.md. That advisory acceptance was later superseded by the accepted quality amendment
+and authenticated native RED described below. All twelve saved production paths
 were verified and backed up before restoration to HEAD. The four independently
 reviewed fixture corrections were preserved, then received the bounded test-only
 quality amendment recorded in requirements-proof/quality-mapping-review.md. The coordinating agent owns
@@ -24,6 +25,37 @@ the matching internal wiki update and has reported its graph rebuild complete.
 On 2026-10-23 the coordinator refreshed issue metadata and verified OPEN/Todo,
 labels and project assignment. Fresh independent AI technical acceptance covers
 the quality amendment, unchanged canonical 31-case plan, genuine local RED and
-23 passing controls. The active receipt references quality-mapping-review.md.
+23 passing controls. That historical receipt references quality-mapping-review.md.
 The docs floor hunk is excluded from the test-only commit and held for matching
-production metadata. Fresh native RED remains required before adoption.
+production metadata. That requirement was subsequently satisfied for those exact 31-case bytes, as
+recorded below. The new parser correction still requires its own proof.
+
+Native RED was authenticated for commit 4936750186fcb339913a8710f3034cf1d2be901f,
+run 39866724812 attempt 1 and artifact 12463204671. All 31 selected cases fail for
+their intended assertions with no errors or skips. The artifact digest and exact
+source/tree/test/plan identities match. That opened only the then-authorized production
+unit. The parser correction below changes test bytes and closes adoption again.
+Local and native GREEN, independent production review and all final gates remain required.
+
+## Supported parser correction validation on 2026-10-23 Europe/Berlin
+
+The coordinating agent authorized the ordinary supported pycparser 3.12 upgrade
+and factual source review under the current repair grant. This adds one official
+package update to the prior nine. The twelve production paths were restored to
+4936750186fcb339913a8710f3034cf1d2be901f before this specification/test unit.
+The trust register, checker, toolchain, signatures and held docs floor are frozen.
+
+The active receipt references parser-mapping-review.md, which records fresh
+independent AI acceptance of all 33 selected cases and genuine local RED with
+33 passing controls. Native RED for these changed bytes remains pending. The quality acceptance
+and authenticated 31-case native RED remain history under their exact identities.
+The review date is 2026-10-22 UTC, equivalent to the observed review session on
+2026-10-23 Europe/Berlin. Expiry is 2026-11-04 inclusive. Real-clock enforcement
+and the hard-blocked 3.0 family remain unchanged. Root owns the internal wiki
+update, independent acceptance and subsequent production verification.
+
+The internal wiki mirror is pending authorization. Automatic approval review
+rejected the coordinator's sibling-repository write as outside the authorized PR
+and worktree scope. No wiki write or graph rebuild ran for this correction.
+The proposed patch is retained at
+`/private/tmp/specfact-release-20261022/audit/internal-wiki-parser-correction.patch`.
