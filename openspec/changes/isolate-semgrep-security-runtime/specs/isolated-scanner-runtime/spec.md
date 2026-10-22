@@ -36,7 +36,7 @@ The main release SHALL satisfy this delivery contract using the reviewed officia
 #### Scenario: Select the reviewed compatible tooling graph
 
 - **WHEN** the release frozen graph is resolved
-- **THEN** it SHALL select Hatchling 1.32.4, urllib3 2.8.0, virtualenv 21.11.0, and python-discovery 1.6.0
+- **THEN** it SHALL select certifi 2026.10.19, GitPython 3.2.0, PyJWT 2.15.1, Hatchling 1.32.4, urllib3 2.8.0, virtualenv 21.14.12, python-discovery 1.6.1, and packaging 26.3
 - **AND** the lock and hashed delivery export SHALL agree.
 
 ### Requirement: Bound the temporary official MCP advisory exception

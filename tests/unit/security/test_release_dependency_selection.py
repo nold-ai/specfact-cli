@@ -12,7 +12,16 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 
 @pytest.mark.parametrize(
     ("name", "version"),
-    [("hatchling", "1.32.4"), ("urllib3", "2.8.0"), ("virtualenv", "21.11.0"), ("python-discovery", "1.6.0")],
+    [
+        ("certifi", "2026.10.19"),
+        ("gitpython", "3.2.0"),
+        ("pyjwt", "2.15.1"),
+        ("hatchling", "1.32.4"),
+        ("urllib3", "2.8.0"),
+        ("virtualenv", "21.14.12"),
+        ("python-discovery", "1.6.1"),
+        ("packaging", "26.3"),
+    ],
 )
 def test_reviewed_tooling_versions_match_frozen_export(name: str, version: str) -> None:
     lock = tomllib.loads((REPO_ROOT / "uv.lock").read_text(encoding="utf-8"))

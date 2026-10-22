@@ -67,6 +67,38 @@ requirements:
     stakeholder_refs: *id001
     touchpoints: *id002
     verification_cases:
+    - case_id: CERTIFI-FROZEN-SELECTION
+      scenario_id: select-the-reviewed-compatible-tooling-graph
+      method: test
+      intent: Check reviewed certifi 2026.10.19 selection and export parity.
+      observable: The official registry lock version and exported requirement both match the reviewed version.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[certifi-2026.10.19]
+    - case_id: GITPYTHON-FROZEN-SELECTION
+      scenario_id: select-the-reviewed-compatible-tooling-graph
+      method: test
+      intent: Check reviewed gitpython 3.2.0 selection and export parity.
+      observable: The official registry lock version and exported requirement both match the reviewed version.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[gitpython-3.2.0]
+    - case_id: PYJWT-FROZEN-SELECTION
+      scenario_id: select-the-reviewed-compatible-tooling-graph
+      method: test
+      intent: Check reviewed pyjwt 2.15.1 selection and export parity.
+      observable: The official registry lock version and exported requirement both match the reviewed version.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[pyjwt-2.15.1]
+    - case_id: PACKAGING-FROZEN-SELECTION
+      scenario_id: select-the-reviewed-compatible-tooling-graph
+      method: test
+      intent: Check reviewed packaging 26.3 selection and export parity.
+      observable: The official registry lock version and exported requirement both match the reviewed version.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[packaging-26.3]
     - case_id: HATCHLING-FROZEN-SELECTION
       scenario_id: select-the-reviewed-compatible-tooling-graph
       method: test
@@ -90,7 +122,7 @@ requirements:
       observable: The official registry lock version and exported requirement both match the reviewed version.
       selector:
         runner: pytest
-        node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[virtualenv-21.11.0]
+        node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[virtualenv-21.14.12]
     - case_id: PYTHON-DISCOVERY-FROZEN-SELECTION
       scenario_id: select-the-reviewed-compatible-tooling-graph
       method: test
@@ -98,7 +130,7 @@ requirements:
       observable: The official registry lock version and exported requirement both match the reviewed version.
       selector:
         runner: pytest
-        node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[python-discovery-1.6.0]
+        node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[python-discovery-1.6.1]
   openspec:isolate-semgrep-security-runtime:isolated-scanner-runtime:bound-the-temporary-official-mcp-advisory-exception:
     rationale: Keep both main audit lanes strict with one exact, expiring owner-approved exception.
     stakeholder_refs:

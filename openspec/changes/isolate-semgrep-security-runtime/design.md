@@ -41,10 +41,26 @@ must be retained before final review and is not implied by the Python mapping.
 
 The pinned native reconciler requires every RED-plan selector to fail. The first
 34-case CI attempt retained genuine output but refused fifteen passing controls.
-It remains incomplete evidence and must not be relabelled RED. The corrected
-plan contains nineteen genuinely failing change cases. The fifteen malformed
+It remains incomplete evidence and must not be relabelled RED. That historical corrected
+plan contained nineteen genuinely failing change cases. The fifteen malformed
 artifact and negative audit controls remain unchanged in their test files and
 in the normal required pytest suite. They are supplementary safety checks,
-not new behavior needing failure-before-fix provenance. Final verification runs
-both the nineteen selected cases and all supplementary controls. No check,
-assertion, production file, or native policy is changed by this correction.
+not new behavior needing failure-before-fix provenance. The newly approved dependency correction expands the plan to 23 cases.
+It adds exact certifi, GitPython, PyJWT, and packaging lock/export selections
+and updates the virtualenv and python-discovery expectations. Final verification
+runs all 23 selected cases and all fifteen supplementary controls.
+No artifact behavior assertion, negative control, or native policy is weakened.
+
+## Corrected dependency selection and review boundary
+
+The existing parameter table binds the eight exact runtime and tooling versions
+to both uv.lock and its hashed export. The separate scanner case binds official
+Semgrep 1.179.0 and MCP 1.29.0. Artifact probes continue to inspect the actual
+frozen certifi, GitPython, and PyJWT wheels. Exact-version assertions complement
+those behavior checks.
+
+The prior accepted 19-case proof applies only to its original test and mapping
+bytes. Keep its reports as history. A new acceptance record remains pending
+until independent review of the corrected mapping, and its reference must be
+repository-relative or pinned to an immutable commit. The coordinator must
+verify fresh native RED before restoring the saved production patch.

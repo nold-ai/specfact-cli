@@ -11,8 +11,8 @@ proof for this main branch.
 ## What Changes
 
 - Refresh official Python packages to certifi 2026.10.19, GitPython 3.2.0,
-  Hatchling 1.32.4, PyJWT 2.15.1, urllib3 2.8.0, virtualenv 21.11.0,
-  python-discovery 1.6.0, and Semgrep 1.179.0. Preserve MCP 1.29.0.
+  Hatchling 1.32.4, PyJWT 2.15.1, urllib3 2.8.0, virtualenv 21.14.12,
+  python-discovery 1.6.1, packaging 26.3, and Semgrep 1.179.0. Preserve MCP 1.29.0.
 - Bound the existing advisory register to MCP 1.29.0 and its reviewed advisory,
   with review date 2026-10-21 and expiry 2026-11-04 inclusive.
 - Refresh documentation gems to jekyll-feed 0.18.0,
@@ -50,6 +50,8 @@ outside this release. No local signing, merge, or publication is authorized.
 
 ## Acceptance Criteria
 
+- The lock and hashed export select every exact reviewed Python version.
+
 - The exact frozen certificate wheel excludes the compromised emSign root.
 - The exact GitPython wheel rejects an outside submodule path before cloning.
 - The exact PyJWT wheel preserves caller options and expiry verification on reuse.
@@ -57,3 +59,13 @@ outside this release. No local signing, merge, or publication is authorized.
 - A real offline source-to-wheel build includes the unchanged bundled manifest.
 - Native CI retains genuine test-first failures before dependency or release edits.
 - Required quality checks, independent review, strict signatures, and dependency audits pass before the PR is offered for merge.
+
+## Approved correction on 2026-10-22
+
+The owner approved replacing virtualenv 21.11.0 after the strict audit reported
+five additional advisories. The official virtualenv 21.14.12 wheel requires
+python-discovery >=1.6.1 and packaging >=26.3. The corrected selections are
+21.14.12, 1.6.1, and 26.3. All other reviewed targets remain unchanged.
+The retained scratch resolution changes only these three packages relative to
+the prior candidate, with no added or removed packages. Fresh independent
+mapping acceptance and native RED are required before applying production edits.
