@@ -36,3 +36,15 @@ Native mapped proof covers the Python artifact behavior, release selections,
 source build, bounded audit decision, and version metadata. Real Ruby behavior
 published-runtime equality, and changelog scope are separate final acceptance checks. Their output
 must be retained before final review and is not implied by the Python mapping.
+
+## Native failing-first selection
+
+The pinned native reconciler requires every RED-plan selector to fail. The first
+34-case CI attempt retained genuine output but refused fifteen passing controls.
+It remains incomplete evidence and must not be relabelled RED. The corrected
+plan contains nineteen genuinely failing change cases. The fifteen malformed
+artifact and negative audit controls remain unchanged in their test files and
+in the normal required pytest suite. They are supplementary safety checks,
+not new behavior needing failure-before-fix provenance. Final verification runs
+both the nineteen selected cases and all supplementary controls. No check,
+assertion, production file, or native policy is changed by this correction.

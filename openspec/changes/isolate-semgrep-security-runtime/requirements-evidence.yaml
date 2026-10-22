@@ -35,94 +35,6 @@ requirements:
       selector:
         runner: pytest
         node_id: tests/unit/security/test_frozen_dependency_artifacts.py::test_frozen_certifi_bundle_excludes_compromised_root
-    - case_id: CERTIFI-WRONG-HASH
-      scenario_id: exclude-compromised-certificate-authorities-from-delivered-trust
-      method: test
-      intent: Reject downloaded bytes that differ from the pinned hash.
-      observable: The downloader raises a SHA256 mismatch.
-      selector:
-        runner: pytest
-        node_id: tests/unit/security/test_frozen_dependency_artifacts.py::test_artifact_download_rejects_wrong_sha256
-    - case_id: WHEEL-DUPLICATE-MEMBER
-      scenario_id: exclude-compromised-certificate-authorities-from-delivered-trust
-      method: test
-      intent: Reject a malformed wheel before using its contents.
-      observable: The duplicate_member fixture is refused with its specific diagnostic.
-      selector:
-        runner: pytest
-        node_id: tests/unit/security/test_frozen_dependency_artifacts.py::test_wheel_reader_rejects_malformed_artifacts[duplicate_member]
-    - case_id: WHEEL-DUPLICATE-RECORD
-      scenario_id: exclude-compromised-certificate-authorities-from-delivered-trust
-      method: test
-      intent: Reject a malformed wheel before using its contents.
-      observable: The duplicate_record fixture is refused with its specific diagnostic.
-      selector:
-        runner: pytest
-        node_id: tests/unit/security/test_frozen_dependency_artifacts.py::test_wheel_reader_rejects_malformed_artifacts[duplicate_record]
-    - case_id: WHEEL-TRAVERSAL
-      scenario_id: exclude-compromised-certificate-authorities-from-delivered-trust
-      method: test
-      intent: Reject a malformed wheel before using its contents.
-      observable: The traversal fixture is refused with its specific diagnostic.
-      selector:
-        runner: pytest
-        node_id: tests/unit/security/test_frozen_dependency_artifacts.py::test_wheel_reader_rejects_malformed_artifacts[traversal]
-    - case_id: WHEEL-EXTRA-MEMBER
-      scenario_id: exclude-compromised-certificate-authorities-from-delivered-trust
-      method: test
-      intent: Reject a malformed wheel before using its contents.
-      observable: The extra_member fixture is refused with its specific diagnostic.
-      selector:
-        runner: pytest
-        node_id: tests/unit/security/test_frozen_dependency_artifacts.py::test_wheel_reader_rejects_malformed_artifacts[extra_member]
-    - case_id: WHEEL-CORRUPT-PAYLOAD
-      scenario_id: exclude-compromised-certificate-authorities-from-delivered-trust
-      method: test
-      intent: Reject a malformed wheel before using its contents.
-      observable: The corrupt_payload fixture is refused with its specific diagnostic.
-      selector:
-        runner: pytest
-        node_id: tests/unit/security/test_frozen_dependency_artifacts.py::test_wheel_reader_rejects_malformed_artifacts[corrupt_payload]
-    - case_id: WHEEL-WRONG-IDENTITY
-      scenario_id: exclude-compromised-certificate-authorities-from-delivered-trust
-      method: test
-      intent: Reject a malformed wheel before using its contents.
-      observable: The wrong_identity fixture is refused with its specific diagnostic.
-      selector:
-        runner: pytest
-        node_id: tests/unit/security/test_frozen_dependency_artifacts.py::test_wheel_reader_rejects_malformed_artifacts[wrong_identity]
-    - case_id: WHEEL-ORIGIN-8
-      scenario_id: exclude-compromised-certificate-authorities-from-delivered-trust
-      method: test
-      intent: Reject an unapproved artifact URL before download.
-      observable: The origin or query validation rejects the URL.
-      selector:
-        runner: pytest
-        node_id: tests/unit/security/test_frozen_dependency_artifacts.py::test_artifact_download_rejects_unapproved_urls[http]
-    - case_id: WHEEL-ORIGIN-9
-      scenario_id: exclude-compromised-certificate-authorities-from-delivered-trust
-      method: test
-      intent: Reject an unapproved artifact URL before download.
-      observable: The origin or query validation rejects the URL.
-      selector:
-        runner: pytest
-        node_id: tests/unit/security/test_frozen_dependency_artifacts.py::test_artifact_download_rejects_unapproved_urls[other-host]
-    - case_id: WHEEL-ORIGIN-10
-      scenario_id: exclude-compromised-certificate-authorities-from-delivered-trust
-      method: test
-      intent: Reject an unapproved artifact URL before download.
-      observable: The origin or query validation rejects the URL.
-      selector:
-        runner: pytest
-        node_id: tests/unit/security/test_frozen_dependency_artifacts.py::test_artifact_download_rejects_unapproved_urls[credentials]
-    - case_id: WHEEL-ORIGIN-11
-      scenario_id: exclude-compromised-certificate-authorities-from-delivered-trust
-      method: test
-      intent: Reject an unapproved artifact URL before download.
-      observable: The origin or query validation rejects the URL.
-      selector:
-        runner: pytest
-        node_id: tests/unit/security/test_frozen_dependency_artifacts.py::test_artifact_download_rejects_unapproved_urls[query]
   openspec:isolate-semgrep-security-runtime:isolated-scanner-runtime:reject-submodule-checkouts-outside-the-repository:
     rationale: Inspect the delivery artifact independently of installed verifier packages.
     stakeholder_refs: *id001
@@ -145,8 +57,8 @@ requirements:
       scenario_id: preserve-jwt-verification-options-and-compatibility
       method: test
       intent: Exercise the frozen JWT artifact in an isolated process.
-      observable: The frozen artifact preserves inspection options, rejects expiry on reuse, and decodes signed
-        and padded tokens without mutating caller options.
+      observable: The frozen artifact preserves inspection options, rejects expiry on reuse, and decodes signed and padded
+        tokens without mutating caller options.
       selector:
         runner: pytest
         node_id: tests/unit/security/test_frozen_jwt_compatibility.py::test_inspection_preserves_options_and_expiry_on_reuse
@@ -243,38 +155,6 @@ requirements:
       selector:
         runner: pytest
         node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_mcp_exception_is_exact_and_time_bounded[expiry-day]
-    - case_id: MCP-OTHER-VERSION
-      scenario_id: bound-the-temporary-official-mcp-advisory-exception
-      method: test
-      intent: Exercise the committed register through the existing strict audit gate.
-      observable: Only the approved package, version, and advisory inside the inclusive date window is waived.
-      selector:
-        runner: pytest
-        node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_mcp_exception_is_exact_and_time_bounded[other-version]
-    - case_id: MCP-UNRELATED-ADVISORY
-      scenario_id: bound-the-temporary-official-mcp-advisory-exception
-      method: test
-      intent: Exercise the committed register through the existing strict audit gate.
-      observable: Only the approved package, version, and advisory inside the inclusive date window is waived.
-      selector:
-        runner: pytest
-        node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_mcp_exception_is_exact_and_time_bounded[unrelated-advisory]
-    - case_id: MCP-MIXED-ADVISORIES
-      scenario_id: bound-the-temporary-official-mcp-advisory-exception
-      method: test
-      intent: Exercise the committed register through the existing strict audit gate.
-      observable: Only the approved package, version, and advisory inside the inclusive date window is waived.
-      selector:
-        runner: pytest
-        node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_mcp_exception_is_exact_and_time_bounded[mixed-advisories]
-    - case_id: MCP-SKIPPED
-      scenario_id: bound-the-temporary-official-mcp-advisory-exception
-      method: test
-      intent: Exercise the committed register through the existing strict audit gate.
-      observable: Only the approved package, version, and advisory inside the inclusive date window is waived.
-      selector:
-        runner: pytest
-        node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_mcp_exception_is_exact_and_time_bounded[skipped]
     - case_id: MCP-EXPIRED
       scenario_id: bound-the-temporary-official-mcp-advisory-exception
       method: test
