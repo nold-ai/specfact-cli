@@ -21,6 +21,15 @@ prevents a compatible upgrade. Official Semgrep 1.182.0 still requires
   release exists. Expiry, unrelated advisories and other versions fail closed.
 - Preserve strict audits of all three committed requirement graphs, independent
   SAST, module signatures, protected authority and CI/CD-only signing.
+- Implement the owner-requested scoped late-cycle admission in policy PR #4 and
+  its CI-only core integration. Keep the failed native report intact. A separate
+  exact-head human grant may admit only missing historical failing-first proof
+  for the eleven dependency scenarios and three new admission control cases. It grants no dependency-audit waiver,
+  native RED claim, merge, release or local signing.
+- Authenticate the retained native evidence and execute the same immutable
+  protected evaluator at producer, fresh and final reconciliation. Every
+  consumer independently verifies live scope, approval, permission and expiry.
+  Policy activation, protected deployment and merging require owner approval.
 
 ## Capabilities
 
@@ -31,7 +40,8 @@ prevents a compatible upgrade. Official Semgrep 1.182.0 still requires
 
 ### Modified Capabilities
 
-None.
+- CI Requirements admission for only issue #780 and the direct admission follow-up to merged PR #782. Application runtime
+  and the ordinary native-provenance path retain their existing contracts.
 
 ## Impact
 
@@ -63,6 +73,21 @@ promotion is authorized. Final commit/tree authority remains separate.
 - Only the exact reviewed MCP finding is waived before expiry. Every other
   advisory, audit error, skipped dependency or expired record remains blocking.
 - Required quality, review, CI and human authority gates remain enforced.
+- Scoped admission is distinct from native proof, refuses all extra findings and
+  cannot transfer across heads, trees, policies, mappings or expired approvals.
+- Genuine pre-code failures and adversarial controls verify the new admission
+  implementation separately from the dependency scenarios being admitted.
 
 Sources checked 2026-10-21: [official Semgrep metadata](https://pypi.org/pypi/semgrep/json),
 [upstream MCP advisory](https://github.com/modelcontextprotocol/python-sdk/security/advisories/GHSA-84m7-p3x7-pcfv).
+
+## Direct follow-up after dependency merge
+
+On 2026-10-21 the owner merged dependency PR #782 as dev commit
+`3cf72e848a2b5a233d3f599898d6983319d375de`, then explicitly authorized a
+separate core admission follow-up alongside policy PR #4. This continuation
+uses branch `codex/dependency-hotfix-admission`, the same still-open issue #780,
+and the exact numeric follow-up PR from live GitHub metadata. Its separate
+human grant must bind that PR's own head/tree and authentic evidence. The old
+PR #782 grant cannot transfer. The follow-up changes CI controls and their
+verification, without changing merged dependency pins or application runtime.

@@ -164,7 +164,7 @@ def _assert_review_tool_and_artifact_order(review: dict[str, Any]) -> None:
         "Restore Requirements evidence for Code Review"
     )
     restore = _named_step(review, "Restore Requirements evidence for Code Review")
-    assert restore["with"]["artifact-ids"] == "${{ needs.requirements-evidence-producer.outputs.artifact-id }}"  # type: ignore[index]
+    assert restore["env"]["ARTIFACT_ID"] == "${{ needs.requirements-evidence-producer.outputs.artifact-id }}"
 
 
 def _assert_review_diff_is_fail_closed(review: dict[str, Any]) -> None:

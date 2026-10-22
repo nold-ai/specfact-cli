@@ -11,6 +11,9 @@ permissions:
   contents: read
   issues: read
 
+env:
+  LATE_CYCLE_POLICY_REVISION: 5cd61c45303bc5da174a39ff79945fafad77ea3b
+
 jobs:
   requirements-evidence-producer:
     name: Requirements evidence producer
@@ -19,6 +22,7 @@ jobs:
       checks: read
       contents: read
       issues: read
+      pull-requests: read
     outputs:
       artifact-id: ${{ steps.upload-requirements-evidence.outputs.artifact-id }}
       prior-red-run-id: ${{ steps.prior-red-run.outputs.run-id }}
@@ -926,6 +930,9 @@ jobs:
               "${reconciliation_arguments[@]}"
               exit_code=$?
               set -e
+              if [[ "$run_stage" == "final" ]]; then
+                printf 'native-reconciled=true\nselected-change=%s\n' "$selected_change" >> "$GITHUB_OUTPUT"
+              fi
               failure_diagnostic="Requirements proof reconciliation exited with status $exit_code before writing reports."
               if [[ "$run_stage" == "red" && "$exit_code" -eq 0 ]]; then
                 if ! binding_error="$("${isolated_python[@]}" scripts/requirements_proof_provenance.py \
@@ -955,6 +962,36 @@ jobs:
           fi
           exit "$exit_code"
 
+      - name: Evaluate scoped late-cycle admission
+        id: late-cycle-admission
+        continue-on-error: true
+        if: >-
+          always() && steps.run-evidence.outcome == 'failure' &&
+          steps.run-evidence.outputs.native-reconciled == 'true' &&
+          steps.run-evidence.outputs.selected-change == 'isolate-semgrep-security-runtime' &&
+          github.repository == 'nold-ai/specfact-cli' &&
+          github.event_name == 'pull_request' && github.event.pull_request.number > 0 &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          github.base_ref == 'dev' && github.head_ref == 'codex/dependency-hotfix-admission'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NATIVE_REPORT: artifacts/requirements-evidence/requirements-evidence.json
+          NATIVE_PLAN: artifacts/requirements-evidence/requirements-evidence-plan.json
+          NATIVE_JUNIT: artifacts/requirements-evidence/requirements-proof.xml
+          ADMISSION_AUDIT: artifacts/requirements-evidence/late-cycle-admission.json
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$LATE_CYCLE_POLICY_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          LATE_CYCLE_POLICY_ROOT="$(mktemp -d "${RUNNER_TEMP}/late-cycle-policy.XXXXXX")"
+          mkdir -p "$LATE_CYCLE_POLICY_ROOT/.github/scripts"
+          curl --fail --silent --show-error --max-filesize 1048576 --connect-timeout 10 --max-time 60 --proto '=https' --tlsv1.2 \
+            "https://raw.githubusercontent.com/nold-ai/.github/${LATE_CYCLE_POLICY_REVISION}/.github/scripts/late_cycle_admission.py" \
+            --output "$LATE_CYCLE_POLICY_ROOT/.github/scripts/late_cycle_admission.py"
+          python3 -I -S "$LATE_CYCLE_POLICY_ROOT/.github/scripts/late_cycle_admission.py" decide \
+            --event "$GITHUB_EVENT_PATH" --report "$NATIVE_REPORT" --plan "$NATIVE_PLAN" --junit "$NATIVE_JUNIT" \
+            --policy-revision "$LATE_CYCLE_POLICY_REVISION" --output "$ADMISSION_AUDIT"
+
       - name: Publish Requirements evidence summary
         if: always()
         run: |
@@ -978,9 +1015,110 @@ jobs:
             artifacts/requirements-evidence/legacy-tdd-evidence.json
           if-no-files-found: warn
 
-      - name: Enforce Requirements evidence producer verdict
-        if: steps.run-evidence.outcome == 'failure'
-        run: exit 1
+      - name: Upload producer admission audit
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: requirements-late-cycle-producer-audit
+          path: artifacts/requirements-evidence/late-cycle-admission.json
+          if-no-files-found: ignore
+
+      - name: Enforce native or admitted Requirements verdict
+        if: always()
+        env:
+          NATIVE_OUTCOME: ${{ steps.run-evidence.outcome }}
+          ADMISSION_OUTCOME: ${{ steps.late-cycle-admission.outcome }}
+        shell: bash
+        run: |
+          [[ "$NATIVE_OUTCOME" == "success" || "$ADMISSION_OUTCOME" == "success" ]]
+
+  requirements-native-origin:
+    name: Native Requirements Origin
+    needs: [requirements-evidence-producer]
+    if: >-
+      always() && needs.requirements-evidence-producer.outputs.artifact-id != '' &&
+      github.repository == 'nold-ai/specfact-cli' &&
+      github.event_name == 'pull_request' && github.event.pull_request.number > 0 &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.base_ref == 'dev' && github.head_ref == 'codex/dependency-hotfix-admission'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Bind native artifact to executed workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NATIVE_ARTIFACT_ID: ${{ needs.requirements-evidence-producer.outputs.artifact-id }}
+          NATIVE_HEAD_COMMIT: ${{ github.event.pull_request.head.sha }}
+          NATIVE_WORKFLOW_SHA: ${{ github.workflow_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REPOSITORY" == "nold-ai/specfact-cli" ]]
+          [[ "$NATIVE_ARTIFACT_ID" =~ ^[0-9]+$ ]]
+          [[ "$NATIVE_HEAD_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$NATIVE_WORKFLOW_SHA" =~ ^[0-9a-f]{40}$ ]]
+          origin_root="${RUNNER_TEMP}/requirements-native-origin"
+          mkdir -p "$origin_root"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${NATIVE_ARTIFACT_ID}" > "$origin_root/artifact.json"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${NATIVE_ARTIFACT_ID}/zip" > "$origin_root/native.zip"
+          python3 -I -S - "$origin_root" <<'PY'
+          import hashlib
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          root = Path(sys.argv[1])
+          metadata = json.loads((root / "artifact.json").read_text())
+          digest = "sha256:" + hashlib.sha256((root / "native.zip").read_bytes()).hexdigest()
+          artifact_id = int(os.environ["NATIVE_ARTIFACT_ID"])
+          run_id = int(os.environ["GITHUB_RUN_ID"])
+          if (metadata["id"] != artifact_id or metadata["name"] != "requirements-evidence"
+              or metadata["expired"] or metadata["workflow_run"]["id"] != run_id
+              or metadata["workflow_run"]["head_sha"] != os.environ["NATIVE_HEAD_COMMIT"]
+              or metadata["digest"] != digest):
+              raise SystemExit("Native artifact association or ZIP digest mismatch")
+          manifest = {
+              "schema_version": 1,
+              "repository": os.environ["GITHUB_REPOSITORY"],
+              "run_id": run_id,
+              "run_attempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
+              "artifact_id": artifact_id,
+              "artifact_digest": digest,
+              "head_commit": os.environ["NATIVE_HEAD_COMMIT"],
+              "workflow_path": ".github/workflows/requirements-evidence.yml",
+              "workflow_sha": os.environ["NATIVE_WORKFLOW_SHA"],
+          }
+          (root / "origin.json").write_text(json.dumps(manifest, sort_keys=True, separators=(",", ":")))
+          PY
+
+      - name: Attest native origin manifest
+        id: attest-native-origin
+        uses: actions/attest@7a37fbbab9669658a566371acd1cf2f8c7a40d32
+        with:
+          subject-path: ${{ runner.temp }}/requirements-native-origin/origin.json
+
+      - name: Retain native origin verification bundle
+        env:
+          ORIGIN_BUNDLE_PATH: ${{ steps.attest-native-origin.outputs.bundle-path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "$ORIGIN_BUNDLE_PATH"
+          cp "$ORIGIN_BUNDLE_PATH" "${RUNNER_TEMP}/requirements-native-origin/origin.bundle.jsonl"
+
+      - name: Upload authenticated native origin
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: requirements-native-origin-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/requirements-native-origin/origin.json
+            ${{ runner.temp }}/requirements-native-origin/origin.bundle.jsonl
+          if-no-files-found: error
 
   requirements-evidence:
     name: Requirements evidence execution
@@ -991,6 +1129,7 @@ jobs:
       checks: read
       contents: read
       issues: read
+      pull-requests: read
     outputs:
       artifact-id: ${{ steps.upload-fresh-requirements-evidence.outputs.artifact-id }}
       artifact-digest: ${{ steps.upload-fresh-requirements-evidence.outputs.artifact-digest }}
@@ -1283,10 +1422,296 @@ jobs:
           echo "PYLINT_WRAPPER=$pylint_wrapper" >> "$GITHUB_ENV"
 
       - name: Restore Requirements evidence for Code Review
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        with:
-          artifact-ids: ${{ needs.requirements-evidence-producer.outputs.artifact-id }}
-          path: artifacts/requirements-evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: ${{ needs.requirements-evidence-producer.outputs.artifact-id }}
+          ARTIFACT_NAME: requirements-evidence
+          ARTIFACT_REPOSITORY: ${{ github.repository }}
+          ARTIFACT_RUN_ID: ${{ github.run_id }}
+          ARTIFACT_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          ARTIFACT_EXPECTED_SHA256: ''
+          ARTIFACT_DESTINATION: ${{ github.workspace }}/artifacts/requirements-evidence
+        shell: bash
+        run: &restore_exact_requirements_artifact |
+          set -euo pipefail
+          /usr/bin/python3 -I -S - <<'PYTHON'
+          import hashlib
+          import io
+          import json
+          import os
+          import re
+          import secrets
+          import signal
+          import stat
+          import time
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+          import zipfile
+          from dataclasses import dataclass
+          from pathlib import Path
+
+          MAX_ARCHIVE = 16 * 1024 * 1024
+          MAX_FILE = 16 * 1024 * 1024
+          MAX_EXPANDED = 64 * 1024 * 1024
+          DIRECTORY_FLAGS = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+
+
+          @dataclass(frozen=True)
+          class ArtifactSubject:
+              artifact_id: int
+              name: str
+              repository: str
+              repository_id: int
+              run_id: int
+              head_sha: str
+              expected_sha256: str
+              destination: Path
+              allow_existing: bool
+
+
+          def positive_id(value):
+              if not re.fullmatch(r"[1-9][0-9]*", value):
+                  raise ValueError("Invalid subject ID")
+              return int(value)
+
+
+          def parse_subject():
+              env = os.environ
+              name = env["ARTIFACT_NAME"]
+              digest = env["ARTIFACT_EXPECTED_SHA256"].removeprefix("sha256:")
+              repository = env["ARTIFACT_REPOSITORY"]
+              head = env["ARTIFACT_HEAD_SHA"]
+              if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository):
+                  raise ValueError("Invalid repository")
+              if not re.fullmatch(r"[0-9a-f]{40}", head):
+                  raise ValueError("Invalid head SHA")
+              if digest and not re.fullmatch(r"[0-9a-f]{64}", digest):
+                  raise ValueError("Invalid independent digest")
+              if name not in ("requirements-evidence", "requirements-evidence-execution"):
+                  raise ValueError("Invalid artifact name")
+              if name == "requirements-evidence-execution" and not digest:
+                  raise ValueError("Execution upload digest is required")
+              workspace = Path(env["GITHUB_WORKSPACE"])
+              runner = Path(env["RUNNER_TEMP"])
+              destination = Path(env["ARTIFACT_DESTINATION"])
+              paths = (workspace, runner, destination)
+              if any(not p.is_absolute() or ".." in p.parts for p in paths):
+                  raise ValueError("Invalid runner path")
+              review = workspace / "artifacts/requirements-evidence"
+              allowed = (runner / "requirements-execution",) if name.endswith("-execution") else (review, runner / "requirements-producer")
+              if destination not in allowed:
+                  raise ValueError("Unexpected artifact destination")
+              return ArtifactSubject(
+                  positive_id(env["ARTIFACT_ID"]), name, repository,
+                  positive_id(env["GITHUB_REPOSITORY_ID"]), positive_id(env["ARTIFACT_RUN_ID"]),
+                  head, digest, destination, destination == review,
+              )
+
+
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  return None
+
+
+          def read_bounded(response, limit, deadline):
+              declared = response.headers.get("Content-Length")
+              if declared is not None and (not declared.isdecimal() or int(declared) > limit):
+                  raise ValueError("Oversized or malformed response length")
+              chunks = bytearray()
+              while True:
+                  if time.monotonic() >= deadline:
+                      raise TimeoutError("Artifact transfer deadline exceeded")
+                  chunk = response.read(min(65536, limit + 1 - len(chunks)))
+                  if not chunk:
+                      break
+                  chunks.extend(chunk)
+                  if len(chunks) > limit:
+                      raise ValueError("Response exceeds size limit")
+              if declared is not None and len(chunks) != int(declared):
+                  raise ValueError("Truncated response")
+              return bytes(chunks)
+
+
+          def fetch(url, token, limit, deadline, redirects=False):
+              opener = urllib.request.build_opener(NoRedirect())
+              for hop in range(5):
+                  parsed = urllib.parse.urlsplit(url)
+                  if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.fragment:
+                      raise ValueError("Unsafe artifact redirect")
+                  headers = {"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}
+                  if hop == 0:
+                      if parsed.netloc != "api.github.com":
+                          raise ValueError("Credentials require the fixed GitHub API")
+                      headers["Authorization"] = "Bearer " + token
+                  remaining = deadline - time.monotonic()
+                  if remaining <= 0:
+                      raise TimeoutError("Artifact transfer deadline exceeded")
+                  request = urllib.request.Request(url, headers=headers)
+                  try:
+                      response = opener.open(request, timeout=min(15, remaining))
+                  except urllib.error.HTTPError as error:
+                      response = error
+                  with response:
+                      if response.status in (301, 302, 303, 307, 308) and redirects:
+                          location = response.headers.get("Location")
+                          if not location:
+                              raise ValueError("Missing artifact redirect")
+                          url = urllib.parse.urljoin(url, location)
+                          continue
+                      if response.status != 200:
+                          raise ValueError("Artifact HTTP request refused")
+                      return read_bounded(response, limit, deadline)
+              raise ValueError("Too many artifact redirects")
+
+
+          def unique_object(pairs):
+              result = {}
+              for key, value in pairs:
+                  if key in result:
+                      raise ValueError("Duplicate metadata field")
+                  result[key] = value
+              return result
+
+
+          def authenticate_metadata(raw, subject):
+              value = json.loads(raw, object_pairs_hook=unique_object)
+              if not isinstance(value, dict):
+                  raise ValueError("Invalid artifact metadata")
+              run = value.get("workflow_run")
+              if not isinstance(run, dict):
+                  raise ValueError("Missing workflow association")
+              for actual, expected in (
+                  (value.get("id"), subject.artifact_id), (run.get("id"), subject.run_id),
+                  (run.get("repository_id"), subject.repository_id),
+              ):
+                  if type(actual) is not int or actual != expected:
+                      raise ValueError("Artifact identity mismatch")
+              if value.get("name") != subject.name or value.get("expired") is not False or run.get("head_sha") != subject.head_sha:
+                  raise ValueError("Artifact association mismatch")
+              digest = value.get("digest")
+              size = value.get("size_in_bytes")
+              if not isinstance(digest, str) or not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
+                  raise ValueError("Missing authenticated SHA-256")
+              if type(size) is not int or not 0 < size <= MAX_ARCHIVE:
+                  raise ValueError("Invalid artifact size")
+              if subject.expected_sha256 and subject.expected_sha256 != digest[7:]:
+                  raise ValueError("Independent upload digest mismatch")
+              return digest[7:], size
+
+
+          def validated_members(archive):
+              members = archive.infolist()
+              if not 0 < len(members) <= 128:
+                  raise ValueError("Invalid archive member count")
+              names = set()
+              expanded = 0
+              for member in members:
+                  name = member.orig_filename
+                  kind = stat.S_IFMT(member.external_attr >> 16)
+                  if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,239}", name) or name != member.filename:
+                      raise ValueError("Unsafe archive filename")
+                  if name.casefold() in names or member.is_dir() or member.external_attr & 0x10 or member.flag_bits & 1:
+                      raise ValueError("Duplicate, directory or encrypted archive member")
+                  if kind not in (0, stat.S_IFREG) or member.compress_type not in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED):
+                      raise ValueError("Unsupported archive member")
+                  if not 0 <= member.file_size <= MAX_FILE:
+                      raise ValueError("Expanded member exceeds limit")
+                  expanded += member.file_size
+                  if expanded > MAX_EXPANDED:
+                      raise ValueError("Expanded archive exceeds limit")
+                  names.add(name.casefold())
+              return members
+
+
+          def open_destination(subject):
+              descriptor = os.open("/", DIRECTORY_FLAGS)
+              try:
+                  for index, part in enumerate(subject.destination.parts[1:]):
+                      final = index == len(subject.destination.parts) - 2
+                      try:
+                          os.mkdir(part, 0o700, dir_fd=descriptor)
+                      except FileExistsError:
+                          if final and not subject.allow_existing:
+                              raise ValueError("Fresh artifact destination already exists") from None
+                      child = os.open(part, DIRECTORY_FLAGS, dir_fd=descriptor)
+                      os.close(descriptor)
+                      descriptor = child
+                  return descriptor
+              except BaseException:
+                  os.close(descriptor)
+                  raise
+
+
+          def publish_archive(payload, subject):
+              with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+                  members = validated_members(archive)
+                  destination = open_destination(subject)
+                  staging_name = ".artifact-stage-" + secrets.token_hex(16)
+                  staging = None
+                  try:
+                      existing = {name.casefold() for name in os.listdir(destination)}
+                      if any(member.filename.casefold() in existing for member in members):
+                          raise ValueError("Artifact destination collision")
+                      os.mkdir(staging_name, 0o700, dir_fd=destination)
+                      staging = os.open(staging_name, DIRECTORY_FLAGS, dir_fd=destination)
+                      expanded = 0
+                      for member in members:
+                          descriptor = os.open(member.filename, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=staging)
+                          with os.fdopen(descriptor, "wb") as output, archive.open(member) as source:
+                              size = 0
+                              while chunk := source.read(65536):
+                                  size += len(chunk)
+                                  expanded += len(chunk)
+                                  if size > MAX_FILE or expanded > MAX_EXPANDED or size > member.file_size:
+                                      raise ValueError("Actual expansion exceeds limit")
+                                  output.write(chunk)
+                              if size != member.file_size:
+                                  raise ValueError("Truncated archive member")
+                      for member in members:
+                          os.link(member.filename, member.filename, src_dir_fd=staging, dst_dir_fd=destination, follow_symlinks=False)
+                      return len(members), expanded
+                  finally:
+                      if staging is not None:
+                          for name in os.listdir(staging):
+                              os.unlink(name, dir_fd=staging)
+                          os.close(staging)
+                          os.rmdir(staging_name, dir_fd=destination)
+                      os.close(destination)
+
+
+          def deadline_expired(signum, frame):
+              raise TimeoutError("Artifact transfer deadline exceeded")
+
+
+          def main():
+              subject = parse_subject()
+              token = os.environ["GH_TOKEN"]
+              if not token:
+                  raise ValueError("Missing artifact read credential")
+              previous = signal.signal(signal.SIGALRM, deadline_expired)
+              signal.alarm(90)
+              try:
+                  deadline = time.monotonic() + 90
+                  url = f"https://api.github.com/repos/{subject.repository}/actions/artifacts/{subject.artifact_id}"
+                  digest, size = authenticate_metadata(fetch(url, token, 1024 * 1024, deadline), subject)
+                  payload = fetch(url + "/zip", token, size, deadline, redirects=True)
+                  if len(payload) != size or hashlib.sha256(payload).hexdigest() != digest:
+                      raise ValueError("Artifact ZIP size or SHA-256 mismatch")
+                  count, expanded = publish_archive(payload, subject)
+                  print(f"Restored artifact {subject.artifact_id}: sha256:{digest}, {size} bytes, {count} files, {expanded} expanded bytes")
+              finally:
+                  signal.alarm(0)
+                  signal.signal(signal.SIGALRM, previous)
+
+
+          if __name__ == "__main__":
+              try:
+                  main()
+              except Exception:
+                  # Network exceptions can contain signed URLs; keep failure output inert.
+                  raise SystemExit("Exact artifact restore refused; identity, transport or archive validation failed") from None
+          PYTHON
 
       - name: Checkout trusted promotion authority policy for fresh execution
         if: >-
@@ -1598,8 +2023,12 @@ jobs:
           run-id: ${{ needs.requirements-evidence-producer.outputs.prior-red-run-id }}
 
       - name: Reconcile Requirements evidence on fresh runner
+        id: run-native-evidence
+        continue-on-error: true
         timeout-minutes: 12
         env:
+          EVIDENCE_PULL_REQUEST: ${{ github.event.pull_request.number }}
+          EVIDENCE_HEAD_BRANCH: ${{ github.head_ref }}
           EVIDENCE_PROMOTION_REUSE: ${{ steps.execution-promotion.outputs.active }}
           LATE_RED_ACTIVE: ${{ github.event.pull_request.number == 717 && github.head_ref == 'bugfix/692-promotion-final-context' && hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') != '' }}
           LATE_RED_CYCLE_BASE: ${{ steps.late-red.outputs.cycle-base-ref }}
@@ -1929,12 +2358,58 @@ jobs:
                  .plan_digest == $plan_digest' \
                 "$legacy_tdd_evidence" > /dev/null
               reconciliation_arguments+=(--legacy-tdd-evidence "$legacy_tdd_evidence")
+            elif [[ "$GITHUB_REPOSITORY" == "nold-ai/specfact-cli" && "$EVIDENCE_PULL_REQUEST" =~ ^[1-9][0-9]*$ && "$EVIDENCE_HEAD_BRANCH" == "codex/dependency-hotfix-admission" && "$selected_change" == "isolate-semgrep-security-runtime" ]]; then
+              :
             else
               printf 'Fresh final reconciliation requires authenticated red or legacy evidence.\n' >&2
               exit 1
             fi
-            "${reconciliation_arguments[@]}"
+            native_exit=0
+            "${reconciliation_arguments[@]}" || native_exit=$?
+            printf 'native-reconciled=true\nselected-change=%s\n' "$selected_change" >> "$GITHUB_OUTPUT"
+            if [[ "$native_exit" -ne 0 ]]; then
+              exit "$native_exit"
+            fi
+            jq -e '.gate_decision == "pass" and .verdict == "passed"' "$consumer_report" > /dev/null
           fi
+
+      - name: Evaluate scoped late-cycle admission
+        id: late-cycle-admission
+        continue-on-error: true
+        if: >-
+          always() && steps.run-native-evidence.outcome == 'failure' &&
+          steps.run-native-evidence.outputs.native-reconciled == 'true' &&
+          steps.run-native-evidence.outputs.selected-change == 'isolate-semgrep-security-runtime' &&
+          github.repository == 'nold-ai/specfact-cli' &&
+          github.event_name == 'pull_request' && github.event.pull_request.number > 0 &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          github.base_ref == 'dev' && github.head_ref == 'codex/dependency-hotfix-admission'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NATIVE_REPORT: artifacts/requirements-evidence/requirements-evidence-consumer.json
+          NATIVE_PLAN: artifacts/requirements-evidence/requirements-evidence-consumer-plan.json
+          NATIVE_JUNIT: ${{ runner.temp }}/requirements-proof-consumer.xml
+          ADMISSION_AUDIT: artifacts/requirements-evidence/late-cycle-admission-consumer.json
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$LATE_CYCLE_POLICY_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          LATE_CYCLE_POLICY_ROOT="$(mktemp -d "${RUNNER_TEMP}/late-cycle-policy.XXXXXX")"
+          mkdir -p "$LATE_CYCLE_POLICY_ROOT/.github/scripts"
+          curl --fail --silent --show-error --max-filesize 1048576 --connect-timeout 10 --max-time 60 --proto '=https' --tlsv1.2 \
+            "https://raw.githubusercontent.com/nold-ai/.github/${LATE_CYCLE_POLICY_REVISION}/.github/scripts/late_cycle_admission.py" \
+            --output "$LATE_CYCLE_POLICY_ROOT/.github/scripts/late_cycle_admission.py"
+          python3 -I -S "$LATE_CYCLE_POLICY_ROOT/.github/scripts/late_cycle_admission.py" decide \
+            --event "$GITHUB_EVENT_PATH" --report "$NATIVE_REPORT" --plan "$NATIVE_PLAN" --junit "$NATIVE_JUNIT" \
+            --policy-revision "$LATE_CYCLE_POLICY_REVISION" --output "$ADMISSION_AUDIT"
+
+      - name: Upload execution admission audit
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: requirements-late-cycle-execution-audit
+          path: artifacts/requirements-evidence/late-cycle-admission-consumer.json
+          if-no-files-found: ignore
 
       - name: Prepare fresh Requirements execution artifact
         if: always()
@@ -2024,6 +2499,15 @@ jobs:
           path: artifacts/requirements-evidence/code-review.json
           if-no-files-found: warn
 
+      - name: Enforce native or admitted Requirements verdict
+        if: always()
+        env:
+          NATIVE_OUTCOME: ${{ steps.run-native-evidence.outcome }}
+          ADMISSION_OUTCOME: ${{ steps.late-cycle-admission.outcome }}
+        shell: bash
+        run: |
+          [[ "$NATIVE_OUTCOME" == "success" || "$ADMISSION_OUTCOME" == "success" ]]
+
       - name: Enforce requirements evidence verdict
         if: steps.run-code-review.outcome == 'failure'
         run: exit 1
@@ -2037,6 +2521,7 @@ jobs:
       checks: read
       contents: read
       issues: read
+      pull-requests: read
     runs-on: ubuntu-latest
     steps:
       - name: Enforce trusted Requirements execution success
@@ -2326,10 +2811,17 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Restore fresh Requirements execution artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        with:
-          artifact-ids: ${{ needs.requirements-evidence.outputs.artifact-id }}
-          path: ${{ runner.temp }}/requirements-execution
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: ${{ needs.requirements-evidence.outputs.artifact-id }}
+          ARTIFACT_NAME: requirements-evidence-execution
+          ARTIFACT_REPOSITORY: ${{ github.repository }}
+          ARTIFACT_RUN_ID: ${{ github.run_id }}
+          ARTIFACT_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          ARTIFACT_EXPECTED_SHA256: ${{ needs.requirements-evidence.outputs.artifact-digest }}
+          ARTIFACT_DESTINATION: ${{ runner.temp }}/requirements-execution
+        shell: bash
+        run: *restore_exact_requirements_artifact
 
       - name: Checkout trusted promotion authority policy for final verdict
         if: >-
@@ -2463,10 +2955,17 @@ jobs:
           printf 'active=true\n' >> "$GITHUB_OUTPUT"
 
       - name: Restore producer Requirements evidence for final verdict
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        with:
-          artifact-ids: ${{ needs.requirements-evidence.outputs.producer-artifact-id }}
-          path: ${{ runner.temp }}/requirements-producer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: ${{ needs.requirements-evidence.outputs.producer-artifact-id }}
+          ARTIFACT_NAME: requirements-evidence
+          ARTIFACT_REPOSITORY: ${{ github.repository }}
+          ARTIFACT_RUN_ID: ${{ github.run_id }}
+          ARTIFACT_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          ARTIFACT_EXPECTED_SHA256: ''
+          ARTIFACT_DESTINATION: ${{ runner.temp }}/requirements-producer
+        shell: bash
+        run: *restore_exact_requirements_artifact
 
       - name: Download exact late RED artifact for final verification
         if: github.event.pull_request.number == 717 && github.head_ref == 'bugfix/692-promotion-final-context' && hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') != ''
@@ -2568,7 +3067,11 @@ jobs:
           run-id: ${{ needs.requirements-evidence.outputs.prior-red-run-id }}
 
       - name: Reconcile final Requirements verdict on fresh runner
+        id: run-final-native-evidence
+        continue-on-error: true
         env:
+          EVIDENCE_PULL_REQUEST: ${{ github.event.pull_request.number }}
+          EVIDENCE_HEAD_BRANCH: ${{ github.head_ref }}
           EVIDENCE_PROMOTION_REUSE: ${{ steps.final-promotion.outputs.active }}
           LATE_RED_ACTIVE: ${{ github.event.pull_request.number == 717 && github.head_ref == 'bugfix/692-promotion-final-context' && hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') != '' }}
           PRIOR_RED_HEAD_SHA: ${{ steps.final-retained-red.outputs.head-sha }}
@@ -2783,13 +3286,58 @@ jobs:
                .plan_digest == $plan_digest' \
               "$legacy_tdd_evidence" > /dev/null
             reconciliation_arguments+=(--legacy-tdd-evidence "$legacy_tdd_evidence")
+          elif [[ "$GITHUB_REPOSITORY" == "nold-ai/specfact-cli" && "$EVIDENCE_PULL_REQUEST" =~ ^[1-9][0-9]*$ && "$EVIDENCE_HEAD_BRANCH" == "codex/dependency-hotfix-admission" && "$selected_change" == "isolate-semgrep-security-runtime" ]]; then
+            :
           else
             printf 'Final reconciliation requires authenticated red or legacy evidence.\n' >&2
             exit 1
           fi
-          "${reconciliation_arguments[@]}"
+          native_exit=0
+          "${reconciliation_arguments[@]}" || native_exit=$?
+          printf 'native-reconciled=true\nselected-change=%s\n' "$selected_change" >> "$GITHUB_OUTPUT"
+          if [[ "$native_exit" -ne 0 ]]; then
+            exit "$native_exit"
+          fi
           jq -e '.gate_decision == "pass" and .verdict == "passed"' "$final_report" > /dev/null
           cat "$final_summary" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Evaluate scoped late-cycle admission
+        id: late-cycle-admission
+        continue-on-error: true
+        if: >-
+          always() && steps.run-final-native-evidence.outcome == 'failure' &&
+          steps.run-final-native-evidence.outputs.native-reconciled == 'true' &&
+          steps.run-final-native-evidence.outputs.selected-change == 'isolate-semgrep-security-runtime' &&
+          github.repository == 'nold-ai/specfact-cli' &&
+          github.event_name == 'pull_request' && github.event.pull_request.number > 0 &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          github.base_ref == 'dev' && github.head_ref == 'codex/dependency-hotfix-admission'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NATIVE_REPORT: ${{ runner.temp }}/final-requirements.json
+          NATIVE_PLAN: ${{ runner.temp }}/final-requirements-plan.json
+          NATIVE_JUNIT: ${{ runner.temp }}/requirements-execution/requirements-proof.xml
+          ADMISSION_AUDIT: ${{ runner.temp }}/final-late-cycle-admission.json
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$LATE_CYCLE_POLICY_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          LATE_CYCLE_POLICY_ROOT="$(mktemp -d "${RUNNER_TEMP}/late-cycle-policy.XXXXXX")"
+          mkdir -p "$LATE_CYCLE_POLICY_ROOT/.github/scripts"
+          curl --fail --silent --show-error --max-filesize 1048576 --connect-timeout 10 --max-time 60 --proto '=https' --tlsv1.2 \
+            "https://raw.githubusercontent.com/nold-ai/.github/${LATE_CYCLE_POLICY_REVISION}/.github/scripts/late_cycle_admission.py" \
+            --output "$LATE_CYCLE_POLICY_ROOT/.github/scripts/late_cycle_admission.py"
+          python3 -I -S "$LATE_CYCLE_POLICY_ROOT/.github/scripts/late_cycle_admission.py" decide \
+            --event "$GITHUB_EVENT_PATH" --report "$NATIVE_REPORT" --plan "$NATIVE_PLAN" --junit "$NATIVE_JUNIT" \
+            --policy-revision "$LATE_CYCLE_POLICY_REVISION" --output "$ADMISSION_AUDIT"
+
+      - name: Upload final admission audit
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: requirements-late-cycle-final-audit
+          path: ${{ runner.temp }}/final-late-cycle-admission.json
+          if-no-files-found: ignore
 
       - name: Set up reviewed Code Review Node runtime for final verdict
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
@@ -2889,6 +3437,15 @@ jobs:
           name: requirements-final-code-review
           path: ${{ runner.temp }}/final-code-review.json
           if-no-files-found: error
+
+      - name: Enforce native or admitted Requirements verdict
+        if: always()
+        env:
+          NATIVE_OUTCOME: ${{ steps.run-final-native-evidence.outcome }}
+          ADMISSION_OUTCOME: ${{ steps.late-cycle-admission.outcome }}
+        shell: bash
+        run: |
+          [[ "$NATIVE_OUTCOME" == "success" || "$ADMISSION_OUTCOME" == "success" ]]
 
       - name: Enforce final Code Review verdict
         if: steps.run-final-code-review.outcome == 'failure'
