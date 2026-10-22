@@ -175,57 +175,122 @@ def test_main_allows_only_a_matching_unexpired_reviewed_exception(gate_mod, tmp_
     assert "WAIVED" in capsys.readouterr().out
 
 
-class McpExceptionScenario(NamedTuple):
+class AuditExceptionScenario(NamedTuple):
     version: str
     advisory_ids: list[str]
     skip_reason: str | None
     today: str
     expected: int
     message: str
+    package: str = "mcp"
+    omit_entry: bool = False
 
 
 @pytest.mark.parametrize(
     "scenario",
     [
         pytest.param(
-            McpExceptionScenario("1.29.0", ["CVE-2026-59951"], None, "2026-10-21", 0, "WAIVED"), id="exact-cve"
+            AuditExceptionScenario("1.29.0", ["CVE-2026-59951"], None, "2026-10-22", 0, "WAIVED"), id="exact-cve"
         ),
         pytest.param(
-            McpExceptionScenario("1.29.0", ["GHSA-84m7-p3x7-pcfv"], None, "2026-10-21", 0, "WAIVED"), id="exact-ghsa"
+            AuditExceptionScenario("1.29.0", ["GHSA-84m7-p3x7-pcfv"], None, "2026-10-22", 0, "WAIVED"), id="exact-ghsa"
         ),
         pytest.param(
-            McpExceptionScenario("1.29.0", ["CVE-2026-59951"], None, "2026-11-04", 0, "WAIVED"), id="expiry-day"
+            AuditExceptionScenario("1.29.0", ["CVE-2026-59951"], None, "2026-11-04", 0, "WAIVED"), id="expiry-day"
         ),
         pytest.param(
-            McpExceptionScenario("1.30.0", ["CVE-2026-59951"], None, "2026-10-21", 1, "FAIL:"), id="other-version"
+            AuditExceptionScenario("1.30.0", ["CVE-2026-59951"], None, "2026-10-22", 1, "FAIL:"), id="other-version"
         ),
         pytest.param(
-            McpExceptionScenario("1.29.0", ["UNRELATED-1"], None, "2026-10-21", 1, "FAIL:"), id="unrelated-advisory"
+            AuditExceptionScenario("1.29.0", ["UNRELATED-1"], None, "2026-10-22", 1, "FAIL:"), id="unrelated-advisory"
         ),
         pytest.param(
-            McpExceptionScenario("1.29.0", ["CVE-2026-59951", "UNRELATED-1"], None, "2026-10-21", 1, "FAIL:"),
+            AuditExceptionScenario("1.29.0", ["CVE-2026-59951", "UNRELATED-1"], None, "2026-10-22", 1, "FAIL:"),
             id="mixed-advisories",
         ),
         pytest.param(
-            McpExceptionScenario(
-                "1.29.0", ["CVE-2026-59951"], "could not audit", "2026-10-21", 1, "skipped dependency"
+            AuditExceptionScenario(
+                "1.29.0", ["CVE-2026-59951"], "could not audit", "2026-10-22", 1, "skipped dependency"
             ),
             id="skipped",
         ),
         pytest.param(
-            McpExceptionScenario("1.29.0", ["CVE-2026-59951"], None, "2026-11-05", 1, "not currently valid"),
+            AuditExceptionScenario("1.29.0", ["CVE-2026-59951"], None, "2026-11-05", 1, "not currently valid"),
             id="expired",
         ),
         pytest.param(
-            McpExceptionScenario("1.29.0", ["CVE-2026-59951"], None, "2026-10-20", 1, "not currently valid"),
+            AuditExceptionScenario("1.29.0", ["CVE-2026-59951"], None, "2026-10-20", 1, "not currently valid"),
             id="future-review",
+        ),
+        pytest.param(
+            AuditExceptionScenario("1.37.0", ["CVE-2026-114603"], None, "2026-10-22", 0, "WAIVED", "opentelemetry-api"),
+            id="otel-exact-cve",
+        ),
+        pytest.param(
+            AuditExceptionScenario(
+                "1.37.0", ["GHSA-xcq7-p3pf-p88h"], None, "2026-10-22", 0, "WAIVED", "opentelemetry-api"
+            ),
+            id="otel-exact-ghsa",
+        ),
+        pytest.param(
+            AuditExceptionScenario("1.37.0", ["CVE-2026-114603"], None, "2026-11-04", 0, "WAIVED", "opentelemetry-api"),
+            id="otel-expiry-day",
+        ),
+        pytest.param(
+            AuditExceptionScenario("1.38.0", ["CVE-2026-114603"], None, "2026-10-22", 1, "FAIL:", "opentelemetry-api"),
+            id="otel-other-version",
+        ),
+        pytest.param(
+            AuditExceptionScenario("1.37.0", ["CVE-2026-114603"], None, "2026-10-22", 1, "FAIL:", "other-package"),
+            id="otel-other-package",
+        ),
+        pytest.param(
+            AuditExceptionScenario("1.37.0", ["UNRELATED-1"], None, "2026-10-22", 1, "FAIL:", "opentelemetry-api"),
+            id="otel-unrelated-advisory",
+        ),
+        pytest.param(
+            AuditExceptionScenario(
+                "1.37.0", ["CVE-2026-114603", "UNRELATED-1"], None, "2026-10-22", 1, "FAIL:", "opentelemetry-api"
+            ),
+            id="otel-mixed-advisories",
+        ),
+        pytest.param(
+            AuditExceptionScenario(
+                "1.37.0",
+                ["CVE-2026-114603"],
+                "could not audit",
+                "2026-10-22",
+                1,
+                "skipped dependency",
+                "opentelemetry-api",
+            ),
+            id="otel-skipped",
+        ),
+        pytest.param(
+            AuditExceptionScenario(
+                "1.37.0", ["CVE-2026-114603"], None, "2026-11-05", 1, "not currently valid", "opentelemetry-api"
+            ),
+            id="otel-expired",
+        ),
+        pytest.param(
+            AuditExceptionScenario(
+                "1.37.0", ["CVE-2026-114603"], None, "2026-10-21", 1, "not currently valid", "opentelemetry-api"
+            ),
+            id="otel-future-review",
+        ),
+        pytest.param(
+            AuditExceptionScenario(
+                "1.37.0", ["CVE-2026-114603"], None, "2026-10-22", 1, "FAIL:", "opentelemetry-api", True
+            ),
+            id="otel-missing-entry",
         ),
     ],
 )
-def test_committed_mcp_exception_is_exact_and_time_bounded(
+def test_committed_advisory_exception_is_exact_and_time_bounded(
     gate_mod: ModuleType,
     capsys: pytest.CaptureFixture[str],
-    scenario: McpExceptionScenario,
+    scenario: AuditExceptionScenario,
+    tmp_path: Path,
 ) -> None:
     class AuditDate(date):
         @classmethod
@@ -233,7 +298,7 @@ def test_committed_mcp_exception_is_exact_and_time_bounded(
             return date.fromisoformat(scenario.today)
 
     dependency: dict[str, object] = {
-        "name": "mcp",
+        "name": scenario.package,
         "version": scenario.version,
         "vulns": [{"id": value} for value in scenario.advisory_ids],
     }
@@ -241,6 +306,11 @@ def test_committed_mcp_exception_is_exact_and_time_bounded(
         dependency["skip_reason"] = scenario.skip_reason
     proc = MagicMock(stdout=json.dumps({"dependencies": [dependency]}), stderr="", returncode=1)
     exceptions = Path(__file__).resolve().parents[3] / "ci/vulnerability-audit-exceptions.json"
+    if scenario.omit_entry:
+        register = json.loads(exceptions.read_text(encoding="utf-8"))
+        register["exceptions"] = [entry for entry in register["exceptions"] if entry["package"] != scenario.package]
+        exceptions = tmp_path / "exceptions.json"
+        exceptions.write_text(json.dumps(register), encoding="utf-8")
     with patch.object(gate_mod, "date", AuditDate), patch.object(gate_mod.subprocess, "run", return_value=proc):
         assert gate_mod.main(["--exceptions", str(exceptions)]) == scenario.expected
     captured = capsys.readouterr()

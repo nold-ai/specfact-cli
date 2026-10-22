@@ -2,6 +2,22 @@
 
 ## Current proof status
 
+The prior 23-case correction received independent mapping acceptance and native
+RED at commit 8cce44f449e9559d0100064d629c81991784ab41, run 39843165302 attempt 1.
+Its accepted receipt is preserved in `requirements-proof/pre-advisory-review-evidence.json`.
+The subsequent local production results below remain authentic history.
+
+The owner has now approved GitPython 3.2.1 and the separate exact OpenTelemetry
+exception. Production inputs have been restored before specification and test
+changes. Fresh independent acceptance for the 31-case advisory correction is recorded in
+`requirements-proof/advisory-mapping-review.md` on 2026-10-23. Only new native RED
+remains pending. The active receipt uses that repository-relative accepted report. No earlier proof is reused to approve changed test or mapping bytes.
+
+## Superseded 23-case pending note
+
+This note records the state before the 23-case acceptance and native RED above.
+Its pending claims are historical and do not describe the current 23-case status.
+
 The owner-approved correction now selects 23 cases. It changes virtualenv to
 21.14.12 and python-discovery to 1.6.1, adds packaging 26.3, and binds the exact
 certifi 2026.10.19, GitPython 3.2.0, and PyJWT 2.15.1 selections. The artifact
@@ -267,3 +283,159 @@ The plan identity digest is `sha256:29af99fc48f7afd6a0dc641716e9ccb5c8bf230ef290
 The sibling raw logs, argument arrays, and `failure-diagnostics.json` preserve
 every case's actual failure message. The artifact paths are relative to
 `/private/tmp/specfact-release-20261022/`.
+
+## Corrected production verification on 2026-10-22
+
+The coordinator authenticated native RED run 39843165302 attempt 1, artifact
+12453832458, for HEAD 8cce44f449e9559d0100064d629c81991784ab41 and tree
+a3cfdc441190e11a0c4db22cbdc324b44a2b7f8e. All 23 selected cases failed with
+no errors or skips. The record is retained at
+`/private/tmp/specfact-release-20261022/correction-tests/native-ready.json`.
+Production changes began only after that acceptance. All 406 frozen source,
+test, mapping and review hashes still match after the verification below.
+
+The normal targeted resolver selected virtualenv 21.14.12, python-discovery
+1.6.1 and packaging 26.3. The complete graph differs from main by the nine
+approved third-party updates and the core 0.55.11 version, with no package
+names added or removed. The canonical export, hash-enforced environment sync,
+canonical refresh, frozen parity and `uv lock --check` passed.
+
+Fresh local GREEN passed all 23 selected cases and all seven complete files,
+68 tests, with no skips or errors. The source distribution rebuilt offline
+into the real wheel. Strict signatures passed for all four unchanged module
+manifests. The coordinator independently compared 295 payload members and
+297 guarded source files with published 0.55.4 and accepted only the authorized
+version and metadata differences. Wheel SHA256 remains
+`a0ca37c5030d88d33c93286aabd1e6fe27c28224031a0b7dd4cc7d9ffa8fc709`.
+
+Normal virtualenv creation and hash-enforced installation of the built wheel
+passed. Installed-wheel GitOperations, ChangeAnalyzer and CodeAnalyzer probes
+passed. Official Semgrep 1.179.0 returned one positive finding with exit 1 and
+zero negative findings with exit 0, both without scanner errors. The 29 analyzer
+tests passed. The separate Code Review frozen audit passed. License, Bandit,
+dependency trust, version parity, strict PyPI-ahead, frozen Node install, format,
+type-check, lint and YAML checks passed. BasedPyright reported zero errors and
+1525 warnings. The normal contract command exited zero through its
+no-modified-files path; it did not execute contract scenarios.
+
+The primary strict audit failed on GitPython 3.2.0 CVE-2026-114145 alias
+GHSA-83vg-56qc-22m7 and opentelemetry-api 1.37.0 CVE-2026-114603 alias
+GHSA-xcq7-p3pf-p88h. Only the previously approved exact MCP advisory was waived.
+No additional exception, target update or suppression was made.
+
+The full smart-test run collected 3252 cases and finished with 3212 passed,
+29 failed, 10 skipped and one setup error in 203.282 seconds. Post-run inspection
+found 37 installed distributions differing from the frozen versions. Beartype
+and Semgrep installation timestamps fall inside the test run. Twenty-six
+failures or errors involve inconsistent Beartype imports. The cause of these
+mid-run installations remains unverified, so the run is not accepted as stable
+frozen-environment compatibility evidence. Four other failures cover the old
+JSON floor literal, the old Hatchling backend literal, and two staged-version
+follow-up fixtures. All frozen tests remain unchanged. The private environment
+was restored using the unchanged hash-pinned export and final version parity
+confirmed. Repository SAST was then repeated with frozen Semgrep 1.179.0 and
+passed with zero findings against the zero-finding baseline.
+
+The earlier eight Ruby probes and both root/prefix documentation builds remain
+applicable because dependency and workflow bytes match and the Ruby probe only
+loses two narration comments. The prior private macOS-platform adaptation is
+retained as evidence. Actual Linux frozen Bundler CI is still required.
+
+All fresh commands, exit codes, JUnit results, failure diagnostics and hashes are
+retained under `/private/tmp/specfact-release-20261022/correction-green/`.
+`results.jsonl` is the command ledger and `checkpoint.md` records the handoff.
+The two strict-audit findings and full-suite failures block release readiness.
+No staging, commit, push, signing, merge, publication or archive occurred.
+
+## Advisory correction local RED on 2026-10-23
+
+The owner approved GitPython 3.2.1 and the separate exact opentelemetry-api 1.37.0
+exception on 2026-10-22. This test-only correction first verified and backed up
+all twelve saved production paths, then restored them to HEAD. The four reviewed
+fixture files remain byte-identical to their accepted checkpoint. No environment
+synchronization, production adoption, staging, commit, push, or signing occurred.
+
+The new plan selects 31 cases. Its unchanged host-access run reports **31 failed,
+0 passed, 0 errors, 0 skipped**. The supplementary run reports **23 passed,
+0 failed, 0 errors, 0 skipped**. Both ran with the restored main source inputs.
+The shared interpreter retains its existing tooling environment; the dependency
+behavior probes separately install the exact hash-pinned frozen delivery wheels.
+
+All three new Git metadata paths reached the mocked clone boundary exactly once
+with no ValueError under frozen GitPython 3.1.61. Hook contents remained unchanged,
+and neither `.gitmodules` nor module metadata was created. Ordinary `vendor/module`
+and `.github/module` reached the same boundary once and passed. The original
+`../outside` update probe remains unchanged and failed at its clone sentinel.
+No unsafe repository was cloned and no active hook was created.
+
+The empty restored exception register rejects the six MCP/OpenTelemetry exact-ID
+and expiry-day cases. The four expired/future cases reject the finding but lack
+the required invalid-record diagnostic. These are real assertion failures.
+Wrong package/version, unrelated/mixed advisories, skipped dependencies and the
+missing-entry control pass. Ordinary MCP evaluations use 2026-10-22; its record
+still requires the original 2026-10-21 review date. Future/expiry controls remain.
+
+The remaining failures show the compromised certifi root, seven mutated JWT option
+keys, the absent source bundle-mapper inclusion, old package selections, old docs
+gem selections/JSON floor, and old core version. Every actual failure message and
+traceback is retained in `advisory-correction-tests/failure-diagnostics.json`.
+
+The first sandbox run failed official wheel downloads because DNS was blocked.
+Its `sandbox-*.log/xml` files remain limitation evidence and are excluded from
+behavioral RED. The unchanged commands passed artifact installation with host
+network access. Exact pytest argv, times and exits are in `mapped-command.json`,
+`controls-command.json`, `mapped-exit.json` and `controls-exit.json` under
+`/private/tmp/specfact-release-20261022/advisory-correction-tests/`.
+
+The released canonical planning command uses the exact base and planned maturity:
+
+```sh
+. /private/tmp/specfact-release-20261022/red-owner/env.sh
+export GITHUB_BASE_REF=main
+python scripts/requirements_evidence_delivery_gate.py \
+  --base-ref 5262efb0881e4fac7697d629b0530250342bc656 \
+  --required-maturity planned \
+  --output /private/tmp/specfact-release-20261022/advisory-correction-tests/planning-final.json \
+  --summary /private/tmp/specfact-release-20261022/advisory-correction-tests/planning-final.md \
+  --plan-output /private/tmp/specfact-release-20261022/advisory-correction-tests/plan-final.json
+```
+
+The source mapping digest is `sha256:0788c6326b39842e80a8cf4e308ac8508c754c384d9e6479b5cd61f0ca8b1c1d`.
+The combined mapping digest is `sha256:d4d5c52f4194122dd0745e808dd29d9e19104cc704256c5c66414c3d247d0dbd`.
+The plan identity digest is `sha256:59785c8bb37070043e729a0d06c63ce1841f39c4631038fa010e9fc7d8437a69`.
+`advisory-correction-tests/mapped.xml` SHA256 is
+`e39cc98cc217500edd23697c97b05de9a2306c3acf391fdd845d99585eb9a425`.
+`advisory-correction-tests/controls.xml` SHA256 is
+`4b568ffc2679d0712f1d51f878ca09d9b5a6eda2cceddfc7d2275a9bee70616b`.
+
+Ruff formatting/checks, Markdown auto-fix/lint, strict OpenSpec validation and
+`git diff --check` pass. These local results require fresh independent mapping
+acceptance and native RED before any production adoption. Root owns that review,
+the normal test-only commit and hooks, native evidence, and the internal wiki.
+The coordinator reports the wiki update and graph rebuild complete. The original
+23-case accepted proof remains intact and applies only to its original bytes.
+
+## Advisory correction independent acceptance on 2026-10-23
+
+The independent AI technical review accepted the exact 31-case mapping and
+reviewed test/proposal bytes. Its durable report is
+`requirements-proof/advisory-mapping-review.md`, SHA256
+`b5ff286ab72e9702bf26fd70ba423bfcb5255e8c956977c07ab0458152aa358e`.
+The active receipt records AI technical acceptance without human authority.
+The coordinator reconciled every active status tracker to acceptance complete
+and native RED pending. Earlier pending notes remain explicitly historical.
+
+The coordinator separately executed the same safe create-submodule probe on
+the installed former candidate GitPython 3.2.0. All three metadata representations
+reached the mocked clone once without rejection; ordinary paths did likewise.
+Hooks were unchanged and no module/config artifacts were created. This is
+supplemental reproduction of CVE-2026-114145 on 3.2.0, separate from baseline
+3.1.61 native-proof preparation. The managed JSON evidence SHA256 is
+`154d18696b02b3d8ca47b1af83b341685fad583cac8e37141038626abfd00f09`.
+No real unsafe clone or active hook was used. Native RED remains required.
+
+The first normal test-only commit attempt correctly failed the docs security
+hook because the updated JSON assertion expected its matching Gemfile change.
+That one reviewed fixture is retained locally for the production commit with
+the Gemfile. The 31 mapped tests, selectors and accepted proof bytes are
+unchanged. No hook exception, skip or production adoption was used.

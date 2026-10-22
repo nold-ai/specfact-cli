@@ -78,11 +78,11 @@ requirements:
     - case_id: GITPYTHON-FROZEN-SELECTION
       scenario_id: select-the-reviewed-compatible-tooling-graph
       method: test
-      intent: Check reviewed gitpython 3.2.0 selection and export parity.
+      intent: Check reviewed gitpython 3.2.1 selection and export parity.
       observable: The official registry lock version and exported requirement both match the reviewed version.
       selector:
         runner: pytest
-        node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[gitpython-3.2.0]
+        node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[gitpython-3.2.1]
     - case_id: PYJWT-FROZEN-SELECTION
       scenario_id: select-the-reviewed-compatible-tooling-graph
       method: test
@@ -132,10 +132,10 @@ requirements:
         runner: pytest
         node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[python-discovery-1.6.1]
   openspec:isolate-semgrep-security-runtime:isolated-scanner-runtime:bound-the-temporary-official-mcp-advisory-exception:
-    rationale: Keep both main audit lanes strict with one exact, expiring owner-approved exception.
+    rationale: Keep both main audit lanes strict with separate exact, expiring owner-approved exceptions.
     stakeholder_refs:
     - nold-ai/specfact-cli#780
-    touchpoints:
+    touchpoints: &id005
     - id: touchpoint-1
       kind: config_file
       locator: pyproject.toml
@@ -159,7 +159,8 @@ requirements:
       scenario_id: bound-the-temporary-official-mcp-advisory-exception
       method: test
       intent: Bind the official scanner graph and exact advisory record.
-      observable: Only official Semgrep 1.179.0 and MCP 1.29.0 occur with the approved exact exception.
+      observable: Official Semgrep 1.179.0, MCP 1.29.0 and opentelemetry-api 1.37.0 occur with exactly the two separate approved
+        records.
       selector:
         runner: pytest
         node_id: tests/unit/security/test_release_promotion_security_gates.py::test_frozen_graph_uses_official_semgrep_with_bounded_mcp_exception
@@ -170,7 +171,7 @@ requirements:
       observable: Only the approved package, version, and advisory inside the inclusive date window is waived.
       selector:
         runner: pytest
-        node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_mcp_exception_is_exact_and_time_bounded[exact-cve]
+        node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_advisory_exception_is_exact_and_time_bounded[exact-cve]
     - case_id: MCP-EXACT-GHSA
       scenario_id: bound-the-temporary-official-mcp-advisory-exception
       method: test
@@ -178,7 +179,7 @@ requirements:
       observable: Only the approved package, version, and advisory inside the inclusive date window is waived.
       selector:
         runner: pytest
-        node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_mcp_exception_is_exact_and_time_bounded[exact-ghsa]
+        node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_advisory_exception_is_exact_and_time_bounded[exact-ghsa]
     - case_id: MCP-EXPIRY-DAY
       scenario_id: bound-the-temporary-official-mcp-advisory-exception
       method: test
@@ -186,7 +187,7 @@ requirements:
       observable: Only the approved package, version, and advisory inside the inclusive date window is waived.
       selector:
         runner: pytest
-        node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_mcp_exception_is_exact_and_time_bounded[expiry-day]
+        node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_advisory_exception_is_exact_and_time_bounded[expiry-day]
     - case_id: MCP-EXPIRED
       scenario_id: bound-the-temporary-official-mcp-advisory-exception
       method: test
@@ -194,7 +195,7 @@ requirements:
       observable: Only the approved package, version, and advisory inside the inclusive date window is waived.
       selector:
         runner: pytest
-        node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_mcp_exception_is_exact_and_time_bounded[expired]
+        node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_advisory_exception_is_exact_and_time_bounded[expired]
     - case_id: MCP-FUTURE-REVIEW
       scenario_id: bound-the-temporary-official-mcp-advisory-exception
       method: test
@@ -202,7 +203,7 @@ requirements:
       observable: Only the approved package, version, and advisory inside the inclusive date window is waived.
       selector:
         runner: pytest
-        node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_mcp_exception_is_exact_and_time_bounded[future-review]
+        node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_advisory_exception_is_exact_and_time_bounded[future-review]
   ? openspec:isolate-semgrep-security-runtime:isolated-scanner-runtime:rebuild-the-source-distribution-with-its-bundled-manifest
   : rationale: Exercise the actual standard source-to-wheel delivery path.
     stakeholder_refs: &id003
@@ -303,3 +304,84 @@ requirements:
       selector:
         runner: pytest
         node_id: tests/unit/security/test_release_promotion_security_gates.py::test_patch_release_uses_next_version_in_all_sources
+  ? openspec:isolate-semgrep-security-runtime:isolated-scanner-runtime:reject-submodule-checkouts-into-git-metadata-before-cloning
+  : rationale: Observe rejection before the clone boundary without cloning unsafe repositories.
+    stakeholder_refs:
+    - nold-ai/specfact-cli#780
+    touchpoints: *id002
+    verification_cases:
+    - case_id: GITPYTHON-CREATE-GIT-METADATA
+      scenario_id: reject-submodule-checkouts-into-git-metadata-before-cloning
+      method: test
+      intent: Exercise frozen Repo.create_submodule with a mocked clone sentinel.
+      observable: ValueError occurs before clone; hooks stay unchanged and neither .gitmodules nor module metadata is created.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_frozen_gitpython_compatibility.py::test_submodule_creation_validates_checkout_before_clone[git-metadata]
+    - case_id: GITPYTHON-CREATE-GIT-SHORT-NAME
+      scenario_id: reject-submodule-checkouts-into-git-metadata-before-cloning
+      method: test
+      intent: Exercise frozen Repo.create_submodule with a mocked clone sentinel.
+      observable: ValueError occurs before clone; hooks stay unchanged and neither .gitmodules nor module metadata is created.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_frozen_gitpython_compatibility.py::test_submodule_creation_validates_checkout_before_clone[git-short-name]
+    - case_id: GITPYTHON-CREATE-ABSOLUTE-METADATA
+      scenario_id: reject-submodule-checkouts-into-git-metadata-before-cloning
+      method: test
+      intent: Exercise frozen Repo.create_submodule with a mocked clone sentinel.
+      observable: ValueError occurs before clone; hooks stay unchanged and neither .gitmodules nor module metadata is created.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_frozen_gitpython_compatibility.py::test_submodule_creation_validates_checkout_before_clone[absolute-metadata]
+  openspec:isolate-semgrep-security-runtime:isolated-scanner-runtime:bound-the-separate-opentelemetry-advisory-exception:
+    rationale: Keep the exact OpenTelemetry waiver separate from the unchanged MCP record.
+    stakeholder_refs:
+    - nold-ai/specfact-cli#780
+    touchpoints: *id005
+    verification_cases:
+    - case_id: OTEL-EXACT-CVE
+      scenario_id: bound-the-separate-opentelemetry-advisory-exception
+      method: test
+      intent: Exercise the committed exact OpenTelemetry record through the strict audit gate.
+      observable: Only the approved package, version and advisory inside the inclusive review and expiry window is waived;
+        invalid dates fail closed.
+      selector:
+        runner: pytest
+        node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_advisory_exception_is_exact_and_time_bounded[otel-exact-cve]
+    - case_id: OTEL-EXACT-GHSA
+      scenario_id: bound-the-separate-opentelemetry-advisory-exception
+      method: test
+      intent: Exercise the committed exact OpenTelemetry record through the strict audit gate.
+      observable: Only the approved package, version and advisory inside the inclusive review and expiry window is waived;
+        invalid dates fail closed.
+      selector:
+        runner: pytest
+        node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_advisory_exception_is_exact_and_time_bounded[otel-exact-ghsa]
+    - case_id: OTEL-EXPIRY-DAY
+      scenario_id: bound-the-separate-opentelemetry-advisory-exception
+      method: test
+      intent: Exercise the committed exact OpenTelemetry record through the strict audit gate.
+      observable: Only the approved package, version and advisory inside the inclusive review and expiry window is waived;
+        invalid dates fail closed.
+      selector:
+        runner: pytest
+        node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_advisory_exception_is_exact_and_time_bounded[otel-expiry-day]
+    - case_id: OTEL-EXPIRED
+      scenario_id: bound-the-separate-opentelemetry-advisory-exception
+      method: test
+      intent: Exercise the committed exact OpenTelemetry record through the strict audit gate.
+      observable: Only the approved package, version and advisory inside the inclusive review and expiry window is waived;
+        invalid dates fail closed.
+      selector:
+        runner: pytest
+        node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_advisory_exception_is_exact_and_time_bounded[otel-expired]
+    - case_id: OTEL-FUTURE-REVIEW
+      scenario_id: bound-the-separate-opentelemetry-advisory-exception
+      method: test
+      intent: Exercise the committed exact OpenTelemetry record through the strict audit gate.
+      observable: Only the approved package, version and advisory inside the inclusive review and expiry window is waived;
+        invalid dates fail closed.
+      selector:
+        runner: pytest
+        node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_advisory_exception_is_exact_and_time_bounded[otel-future-review]

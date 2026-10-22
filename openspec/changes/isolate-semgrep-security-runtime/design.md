@@ -47,8 +47,7 @@ artifact and negative audit controls remain unchanged in their test files and
 in the normal required pytest suite. They are supplementary safety checks,
 not new behavior needing failure-before-fix provenance. The newly approved dependency correction expands the plan to 23 cases.
 It adds exact certifi, GitPython, PyJWT, and packaging lock/export selections
-and updates the virtualenv and python-discovery expectations. Final verification
-runs all 23 selected cases and all fifteen supplementary controls.
+and updates the virtualenv and python-discovery expectations. That correction verified all 23 selected cases and all fifteen supplementary controls.
 No artifact behavior assertion, negative control, or native policy is weakened.
 
 ## Corrected dependency selection and review boundary
@@ -60,7 +59,29 @@ frozen certifi, GitPython, and PyJWT wheels. Exact-version assertions complement
 those behavior checks.
 
 The prior accepted 19-case proof applies only to its original test and mapping
-bytes. Keep its reports as history. A new acceptance record remains pending
-until independent review of the corrected mapping, and its reference must be
+bytes. Keep its reports as history. That corrected mapping was independently accepted before native RED. Any subsequent
+changed mapping requires fresh independent acceptance, and its reference must be
 repository-relative or pinned to an immutable commit. The coordinator must
 verify fresh native RED before restoring the saved production patch.
+
+## Advisory correction boundary
+
+The checkout probe adds a path-scenario table around the existing full three-package
+hash-pinned wheel extraction. A dedicated sentinel replaces `Submodule._clone_repo`.
+`Repo.create_submodule` must raise ValueError before that sentinel for Git metadata
+paths. The probe records clone calls and compares inert hook bytes before and after.
+It creates no malicious remote repository or executable hook. Passing ordinary-path
+controls stay outside the native RED mapping. Preserve the existing `../outside`
+update probe unchanged.
+
+The audit scenario table covers the committed register through the existing strict
+gate. Ordinary MCP evaluations move to 2026-10-22 because the whole register includes
+the new OpenTelemetry review date. MCP's own 2026-10-21 record and true future and
+expiry tests remain unchanged. The scanner graph contract now requires exactly
+two separate records and official opentelemetry-api 1.37.0. No gate code changes.
+
+The accepted 23-case receipt is preserved as `pre-advisory-review-evidence.json`.
+The active receipt records fresh independent AI technical acceptance in
+`requirements-proof/advisory-mapping-review.md`; new native RED remains pending. The new
+plan includes only observed baseline failures. Supplementary controls must pass.
+Root owns independent acceptance, native RED, wiki synchronization, and production.
