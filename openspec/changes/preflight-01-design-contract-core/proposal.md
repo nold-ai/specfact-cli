@@ -1,5 +1,11 @@
 # Change: Deterministic Pre-Implementation Design Contract Core
 
+## Scope rescope — 2026-09-20
+
+Seal, checkpoint, frozen mapping, successor approval, and historical RED/GREEN requirements in this issue apply only when an explicitly selected assurance policy requests them. They are not prerequisites for ordinary implementation, Code Review, release promotion, skill installation, or generated instructions. Keep the internal optional-feature dependency chain and source/signature integrity. Missing optional chronology is not a failed current-execution claim. No runtime policy changes in this planning update.
+
+This owner-requested scope amendment takes precedence over conflicting default-workflow or dependency wording below. It changes planning only; runtime policy is unchanged. [Replacement policy](../requirements-09-minimal-evidence/proposal.md).
+
 ## Why
 
 Implementation can start from change artifacts that are individually plausible but collectively stale, incomplete, contradictory, or wider than the approved intent. The core repository needs a stable, runtime-neutral contract for representing what was reviewed, what remained unknown, what was approved, and whether the reviewed inputs have changed.

@@ -1,0 +1,37 @@
+schema_version: '2'
+requirements:
+  openspec:fix-native-planning-lineage:requirements-native-stack-lineage:preserve-native-planning-parent-lineage:
+    rationale: Native planning and ordinary protected ancestry reach reconciliation without shifting verifier trust.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#760
+    touchpoints:
+      - id: independent-lineage
+        kind: config_file
+        locator: .github/workflows/requirements-evidence.yml
+    verification_cases:
+      - case_id: NATIVE-LINEAGE
+        scenario_id: preserve-native-planning-parent-lineage
+        method: test
+        intent: Execute actual workflow shell preflight against protected, runtime and planning Git ancestry.
+        observable: Native planning and ordinary protected ancestry reach reconciliation without shifting verifier
+          trust.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_native_planning_lineage.py::test_native_planning_parent_preserves_review_trust
+  openspec:fix-native-planning-lineage:requirements-native-stack-lineage:reject-independent-lineage-forgery:
+    rationale: The real consumer preflight rejects every invalid boundary before provider execution.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#760
+    touchpoints:
+      - id: independent-lineage
+        kind: config_file
+        locator: .github/workflows/requirements-evidence.yml
+    verification_cases:
+      - case_id: NATIVE-FORGERY
+        scenario_id: reject-independent-lineage-forgery
+        method: test
+        intent: Exercise unrelated trust, unrelated planning and candidate-newer evidence in actual Git histories.
+        observable: The real consumer preflight rejects every invalid boundary before provider execution.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_native_planning_lineage.py::test_independent_lineage_rejects_forged_trust_or_parent

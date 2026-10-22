@@ -99,6 +99,39 @@ These controls validate the checked-in lock and explicit exceptions. They do
 not independently establish an upstream package's source provenance, and they
 cannot prove absence of malicious behavior in any dependency. The remaining
 mitigations are reviewed lock changes, short exception expiry, dependency
-alerts, reproducible builds, and human security review. The MCP exception is
-no longer a residual risk because the reviewed Semgrep/MCP pair is fixed in the
-frozen dependency set.
+alerts, reproducible builds, and human security review. The earlier MCP exceptions covered three older advisories fixed by MCP 1.29.0.
+A later advisory requires a separate review, below.
+
+## Temporary official MCP exception, 2026-10-21
+
+The previous MCP upgrade remains effective for its three original advisories.
+CVE-2026-59951, also GHSA-84m7-p3x7-pcfv, is a later session-memory exhaustion
+advisory affecting stateful Streamable HTTP servers. MCP 1.30.0 fixes the 1.x
+line. Official Semgrep 1.182.0 still requires exactly MCP 1.29.0. A fresh normal
+resolver rejects Semgrep 1.182.0 with MCP >=1.30.0,<2. The frozen graph therefore
+keeps official Semgrep 1.179.0 and MCP 1.29.0.
+
+On 2026-10-21 Europe/Berlin the owner approved an exception while this upstream
+pin prevents a compatible upgrade. The register selects only MCP 1.29.0 and
+this advisory, reviewed 2026-10-21 and expiring 2026-11-04 inclusive. All three
+frozen requirement audits still run in strict mode. Other advisories, different
+versions, skipped subjects and expired records remain blocking.
+
+The path is `specfact-cli[scanning/dev] -> semgrep==1.179.0 -> mcp==1.29.0`.
+Ordinary base-wheel dependencies do not include MCP or Semgrep. Semgrep imports
+MCP at CLI startup, even for normal scanning. Reviewed automation does not start
+the MCP server. This is not proof of universal unreachability. While the
+exception applies, use ordinary scanning commands and do not expose a stateful
+Streamable HTTP MCP server. The vulnerable package remains installed for
+opt-in scanner users, and this exception does not remediate that risk.
+
+Review official releases weekly. Remove the exception immediately when an
+official compatible patched graph passes artifact, resolver, installation,
+scanner and audit verification. The gate fails after expiry unless the package
+is removed or the owner explicitly approves a renewed review. No fork, package
+publication, local signing or required-check bypass is part of this change.
+
+Sources accessed 2026-10-21.
+
+- [Official Semgrep metadata](https://pypi.org/pypi/semgrep/json).
+- [MCP maintainer advisory](https://github.com/modelcontextprotocol/python-sdk/security/advisories/GHSA-84m7-p3x7-pcfv).

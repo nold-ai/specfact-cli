@@ -10,6 +10,115 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.55.11] - 2026-10-20
+
+### Security
+
+- Require certifi >=2026.10.19 and refresh frozen dependencies to remove the compromised
+  emSign ECC Root CA - G3 from the delivered CA trust store (GHSA-6q48-6c7w-9gw2).
+- Retain official Semgrep and record an owner-approved MCP 1.29.0 exception for
+  CVE-2026-59951 only, expiring 2026-11-04 while its upstream exact pin blocks
+  patched MCP. All strict security audits and CI checks remain enforced.
+
+---
+
+## [0.55.10] - 2026-10-13
+
+### Security
+
+- Reject malformed alternate project manifests during authenticated admission without aborting CLI startup.
+
+- Require authenticated project authority for indirect category mounts and shared member loaders, including bundle aliases and cross-category claims.
+
+- Bind privileged project registration metadata and executable inventory to authenticated artifact bytes; reproduce source caches before the final file check and recheck authority before registration effects.
+
+- Reject category-less grouped workspace root commands, external claims to permanent core commands and
+  unauthenticated workspace claims to official category roots before registry, bridge or import-source activation.
+- Preserve resolved built-in authority, reject forged source labels and escaping symlinks, and prevent
+  rejected workspace sources from shadowing eligible package dependencies.
+- Reject unsigned executable caches and omitted Python/native artifacts; authenticate captured signed source
+  bytes before reproducing compatible interpreter caches without executing candidate code.
+
+### Fixed
+
+- Select the first fully eligible copy of each module, reconsider dependency fallbacks against selected versions
+  and each candidate's own version, and refuse contradictory priority cycles before registration effects.
+- Preserve categorized routing and supported unreserved legacy registration, including operator-configured
+  built-in discovery, while retaining the completed removal of flat bundle shims.
+- Preserve all six official project-scoped bundle roots only after full artifact checksum and signature
+  verification against the core-bundled key; reject unsigned, tampered and workspace-key replacements.
+- Preserve genuine installed bundles when a rejected project copy claims the same name, retain authenticated
+  project priority, and skip artifact payload verification for disabled module names.
+- Synchronize bugfix version declarations, frozen project metadata and the promotion fixture.
+
+## [0.55.9] - 2026-10-13
+
+### Security
+
+- Authenticate unchanged finalized root Requirements proof for inherited Code Review on closed native
+  planning children. Verify live root/context, artifact provenance, digest and bounded report identity.
+  Preserve full review against protected dev and reject forged, non-final or stale context.
+
+### Fixed
+
+- Keep child planning receipts separate from execution proof so independently validated planning layers
+  retain the immutable Code Review provider's finalized-proof requirement.
+
+## [0.55.8] - 2026-10-12
+
+### Security
+
+- Independently validate protected-proof and immutable review-base identities before Requirements execution.
+  Reject unrelated trust, unrelated planning ancestry and evidence newer than the candidate without changing
+  root authentication, source authority, signatures, plan equality or required gates.
+
+### Fixed
+
+- Validate native-stack planning parents against candidate ancestry while retaining protected dev/main as
+  review and verifier trust. Planning parents newer than dev can reach independent evidence reconciliation.
+- Synchronize bugfix declarations, frozen project metadata and the generated promotion fixture.
+
+## [0.55.7] - 2026-10-12
+
+### Security
+
+- Authenticate signed native-stack roots and exact successful Requirements and member-authority checks before
+  separating deferred planning evidence. Protected validator sources, full implementation proof, child authority
+  and independent review remain mandatory; executable, symlink, runtime and inherited-source changes cannot
+  receive a planning exemption.
+- Require inherited root proof workflow and local CI action bytes to match protected-base objects. Authenticate
+  complete check listings and immutable workflow repository, issuer, event, branch, SHA and run attempts.
+
+### Fixed
+
+- Validate planning-only native stack members at planned maturity without applying one implementation mapping
+  acceptance to unrelated proposals. All three consumers compare the same authenticated context and planning
+  plan while continuing to materialize validators from protected dev/main.
+
+## [0.55.6] - 2026-10-11
+
+### Security
+
+- Update jekyll-feed to 0.18.0 to preserve XML language and CDATA escaping fixes.
+- Update jekyll-redirect-from to 0.17.0 and retain its unsafe-target security fix.
+- Require JSON >=2.21.2,<3 for documentation while retaining JSON 2.21.2 and
+  Jekyll 4.4.1; defer the incompatible JSON 3 migration.
+- Raise the runtime GitPython floor and frozen graph to 3.2.0, including its
+  additional submodule containment security fixes.
+
+### Fixed
+
+- Update jekyll-relative-links to 0.9.1 so rebuilt links, included navigation
+  and configured base URLs use current targets.
+- Update the frozen Hatchling backend to 1.32.4 and include the bundled module
+  manifest in source distributions so offline wheel rebuilding remains complete.
+- Authenticate native GitHub stack ancestry in Requirements proof reuse while
+  preserving complete plan equality and original failing-first evidence.
+- Isolate direct and console marketplace smoke installations from the running
+  pytest environment and use reviewed, hash-pinned module dependencies.
+
+---
+
 ## [0.55.4] - 2026-09-02
 
 ### Security

@@ -1,0 +1,163 @@
+schema_version: '2'
+requirements:
+  ? openspec:isolate-semgrep-security-runtime:isolated-scanner-runtime:exclude-compromised-certificate-authorities-from-delivered-trust
+  : rationale: Inspect the exact frozen certificate artifact independently of the trusted verifier's installed dependencies.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#780
+    touchpoints:
+      - id: runtime-floor
+        kind: config_file
+        locator: pyproject.toml
+      - id: frozen-delivery
+        kind: config_file
+        locator: requirements/ci/locked.txt
+      - id: frozen-trust-test
+        kind: test
+        locator: tests/unit/security/test_frozen_dependency_artifacts.py
+    verification_cases:
+      - case_id: CERTIFI-COMPROMISED-ROOT-ABSENT
+        scenario_id: exclude-compromised-certificate-authorities-from-delivered-trust
+        method: test
+        intent: Verify the candidate lock/export wheel hash and parse its inert CA data with trusted SSL code.
+        observable: The trust store is nonempty and excludes the compromised emSign ECC Root CA - G3 DER SHA256.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_frozen_dependency_artifacts.py::test_frozen_certifi_bundle_excludes_compromised_root
+  openspec:isolate-semgrep-security-runtime:isolated-scanner-runtime:bound-the-temporary-official-mcp-advisory-exception:
+    rationale: Use the existing strict gate with only the owner-approved exact, expiring MCP advisory exception
+      while official Semgrep pins the affected version.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#780
+    touchpoints:
+      - id: reviewed-exception
+        kind: config_file
+        locator: ci/vulnerability-audit-exceptions.json
+      - id: exception-policy-test
+        kind: test
+        locator: tests/unit/security/test_release_promotion_security_gates.py
+    verification_cases:
+      - case_id: MCP-OFFICIAL-EXCEPTION-EXACT
+        scenario_id: bound-the-temporary-official-mcp-advisory-exception
+        method: test
+        intent: Bind the only exception to the official MCP package/version/advisory and review/expiry dates.
+        observable: The graph remains official and the exception is exact and time bounded.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_promotion_security_gates.py::test_frozen_graph_uses_official_semgrep_with_bounded_mcp_exception
+      - case_id: MCP-EXACT-CVE
+        scenario_id: bound-the-temporary-official-mcp-advisory-exception
+        method: test
+        intent: Approve only the exact MCP CVE on its review date.
+        observable: Only the approved version/advisory within its approval window succeeds; unrelated/mixed advisories,
+          other versions, skipped subjects and invalid dates fail.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_mcp_exception_is_exact_and_time_bounded[exact-cve]
+      - case_id: MCP-EXACT-GHSA
+        scenario_id: bound-the-temporary-official-mcp-advisory-exception
+        method: test
+        intent: Approve the same reviewed advisory under its exact GHSA primary ID.
+        observable: Only the approved version/advisory within its approval window succeeds; unrelated/mixed advisories,
+          other versions, skipped subjects and invalid dates fail.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_mcp_exception_is_exact_and_time_bounded[exact-ghsa]
+      - case_id: MCP-EXPIRY-DAY
+        scenario_id: bound-the-temporary-official-mcp-advisory-exception
+        method: test
+        intent: Keep the review valid through its inclusive expiry date.
+        observable: Only the approved version/advisory within its approval window succeeds; unrelated/mixed advisories,
+          other versions, skipped subjects and invalid dates fail.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_mcp_exception_is_exact_and_time_bounded[expiry-day]
+      - case_id: MCP-OTHER-VERSION
+        scenario_id: bound-the-temporary-official-mcp-advisory-exception
+        method: test
+        intent: Reject the same advisory for another package version.
+        observable: Only the approved version/advisory within its approval window succeeds; unrelated/mixed advisories,
+          other versions, skipped subjects and invalid dates fail.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_mcp_exception_is_exact_and_time_bounded[other-version]
+      - case_id: MCP-UNRELATED-ADVISORY
+        scenario_id: bound-the-temporary-official-mcp-advisory-exception
+        method: test
+        intent: Reject an advisory outside the approved IDs.
+        observable: Only the approved version/advisory within its approval window succeeds; unrelated/mixed advisories,
+          other versions, skipped subjects and invalid dates fail.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_mcp_exception_is_exact_and_time_bounded[unrelated-advisory]
+      - case_id: MCP-MIXED-ADVISORIES
+        scenario_id: bound-the-temporary-official-mcp-advisory-exception
+        method: test
+        intent: Reject a graph containing both waived and unreviewed advisories.
+        observable: Only the approved version/advisory within its approval window succeeds; unrelated/mixed advisories,
+          other versions, skipped subjects and invalid dates fail.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_mcp_exception_is_exact_and_time_bounded[mixed-advisories]
+      - case_id: MCP-SKIPPED
+        scenario_id: bound-the-temporary-official-mcp-advisory-exception
+        method: test
+        intent: Reject incomplete strict-audit coverage even with a matching advisory.
+        observable: Only the approved version/advisory within its approval window succeeds; unrelated/mixed advisories,
+          other versions, skipped subjects and invalid dates fail.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_mcp_exception_is_exact_and_time_bounded[skipped]
+      - case_id: MCP-EXPIRED
+        scenario_id: bound-the-temporary-official-mcp-advisory-exception
+        method: test
+        intent: Reject the register after its expiry date.
+        observable: Only the approved version/advisory within its approval window succeeds; unrelated/mixed advisories,
+          other versions, skipped subjects and invalid dates fail.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_mcp_exception_is_exact_and_time_bounded[expired]
+      - case_id: MCP-FUTURE-REVIEW
+        scenario_id: bound-the-temporary-official-mcp-advisory-exception
+        method: test
+        intent: Reject a review date later than the audit date.
+        observable: Only the approved version/advisory within its approval window succeeds; unrelated/mixed advisories,
+          other versions, skipped subjects and invalid dates fail.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_mcp_exception_is_exact_and_time_bounded[future-review]
+  openspec:isolate-semgrep-security-runtime:isolated-scanner-runtime:admit-only-the-explicitly-approved-late-cycle-provenance-gap:
+    rationale: Enforce the owner-authorized CI-only admission independently from the dependency advisory exception and native proof.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#780
+    touchpoints:
+      - id: requirements-workflow
+        kind: config_file
+        locator: .github/workflows/requirements-evidence.yml
+      - id: scoped-admission-controls
+        kind: test
+        locator: tests/unit/scripts/test_requirements_late_cycle_workflow.py
+    verification_cases:
+      - case_id: ADMISSION-NATIVE-BYTES-AND-ENFORCEMENT
+        scenario_id: admit-only-the-explicitly-approved-late-cycle-provenance-gap
+        method: test
+        intent: Exercise all three real reconciliation boundaries, preserve raw native bytes and enforce policy exit codes.
+        observable: Native success remains independent and scoped failure proceeds only through the enforced separate decision.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_late_cycle_workflow.py::test_all_three_lanes_preserve_native_bytes_and_enforce_policy_exit
+      - case_id: ADMISSION-SCOPE-AND-PROOF-GUARDS
+        scenario_id: admit-only-the-explicitly-approved-late-cycle-provenance-gap
+        method: test
+        intent: Reject invalid PR contexts and other branches and preserve invalid native RED refusal.
+        observable: Unapproved scope and invalid native proof cannot silently acquire admission.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_late_cycle_workflow.py::test_fresh_and_final_preserve_scope_and_invalid_red_guards
+      - case_id: ADMISSION-ISOLATED-NATIVE-ORIGIN
+        scenario_id: admit-only-the-explicitly-approved-late-cycle-provenance-gap
+        method: test
+        intent: Require an isolated CI-only origin attester with immutable official actions and no candidate execution.
+        observable: The manifest validates native artifact metadata and CI wires an isolated attestation step after producer failure.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_late_cycle_workflow.py::test_origin_attestation_survives_producer_failure

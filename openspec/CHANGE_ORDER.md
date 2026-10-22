@@ -4,11 +4,104 @@ This document is the **single source of truth for active work** in this
 repository. It lists what is in flight, what is paused, and the order in which
 active changes should be implemented.
 
+## High-priority trusted local Code Review reset (2026-10-16)
+
+Planned only. The approved ordinary local sequence is
+[modules #513](https://github.com/nold-ai/specfact-cli-modules/issues/513) (`code-review-17-project-runtime-bootstrap`)
+-> [modules #514](https://github.com/nold-ai/specfact-cli-modules/issues/514) (`code-review-18-project-standards-and-checks`)
+-> [modules #515](https://github.com/nold-ai/specfact-cli-modules/issues/515) (`code-review-19-local-report-and-cutover`)
+-> [core #769](https://github.com/nold-ai/specfact-cli/issues/769) ([`code-review-local-report-adoption`](changes/code-review-local-report-adoption/proposal.md))
+-> [modules #516](https://github.com/nold-ai/specfact-cli-modules/issues/516) (`code-review-20-external-installation-acceptance`).
+Core #769 has only modules #515 as its direct blocker and blocks only modules #516.
+
+This reset removes capsule infrastructure from ordinary trusted-local scope and plans report schema 2.0.
+It makes no shipped-support claim. Older capsule/runtime references below remain historical or separate protected work, not current local reset acceptance.
+Core protected #680 remains separate and cannot be satisfied by local schema 2.0. C15 core #679 and modules #417 retain owners, status, and acceptance.
+Optional preflight, architecture, and Requirements addons may consume later without blanket blocker edges.
+Independent security modules #511 and core #719/#718 and existing signing gates remain independent.
+
+## Authorized #747 dependency stack (2026-10-10)
+
+### Official dependency hotfix and temporary MCP exception (2026-10-21)
+
+[PR #782 / issue #780](changes/isolate-semgrep-security-runtime/proposal.md) retains
+certifi 2026.10.19 and core 0.55.11. The owner rejected the Semgrep fork and
+requested its removal. Use official packages only. Latest official Semgrep still
+pins MCP 1.29.0; the owner authorized one exact, expiring advisory exception
+through 2026-11-04 while upstream remains blocked. Keep every strict audit and
+required CI check, independent scanner coverage and CI/CD-only signing. Actual
+final authority and verified coverage precede readiness or related-PR closure.
+A later dependency-only hotfix starts from published v0.55.4, not all dev runtime
+commits. No merge, package publication or promotion is authorized here.
+
+The owner approved `dev <- #744 <- #727 <- #752 <- #754 <- #753`, retaining
+all PR numbers and compatible JSON 2.21.2/Jekyll 4.4.1. After #758 reserved
+0.55.5 on protected dev, the required version gate selects one 0.55.6 bugfix release.
+The merged #756 evidence remains historical and unchanged. Reconcile conflicting
+planning PR #748 and the internal wiki; broader inventory and JSON 3 migration
+remain deferred. Keep #747 open. New native RED/final evidence and ordinary quality,
+security, signature and exact authority gates remain required for this stack.
+
+## Focused #747 baseline repair (2026-10-09)
+
+The owner authorized dependency-update-consolidation's focused security slice and
+versioning fixture repair to unblock #755. Original #748 remains broader planning.
+This branch covers only the focused scenarios; existing gates, authentic RED and final
+authority remain required.
+
+## Minimal-evidence rescope (2026-09-20)
+
+The paired `requirements-09-minimal-evidence` owns the default policy correction:
+[core #740](https://github.com/nold-ai/specfact-cli/issues/740) and [modules #481](https://github.com/nold-ai/specfact-cli-modules/issues/481). Implementation order is signed modules
+current-run contract -> core adoption/pilot -> coordinated organization/repository
+cutover. Existing corrected R07 is superseded planning, not an additional prerequisite.
+R08 remains abandoned. Runtime and branch rules have not changed in this planning update.
+
+For every independently runnable change rescoped here, check effective governance
+at implementation start. Lean evidence tasks apply after the governance migration
+is merged or under an explicit owner-authorized exception; otherwise current
+requirements still apply. A proposal does not bypass required checks. This
+transition does not add a dependency on the complete R09 runtime rollout.
+
+Optional preflight keeps core #682 -> modules #431, then core #683 after both
+modules #431 and independently delivered C14 #680 -> modules #432 -> core #684/modules #434.
+Remove default dependencies C14 #680 <- #431, C15 #417 <- #432, generic skills
+core #251 <- #434, and native execution #460 <- #434. Optional adapters #433 require
+both #434 and core #253 explicitly. C14/C15 retain their actual producer, layout,
+policy/profile/exception and release prerequisites. No full-chain graph or preflight
+release blocks the new MEB stories. This section supersedes contradictory historical
+ordering prose below; individual affected proposals carry the same scope amendment.
+
+Core #680/#679 and modules #417 were recovered from uncommitted planning-only feature worktrees into local `dev` and the R09 planning worktrees on 2026-09-20. Remote integration remains pending. All three remain planned; no implementation was imported. Modules C14 #416 shipped and is closed, but its existing proposal remains unarchived on dev; it is distinct from core C14 adoption #680.
+
+## Risk-first workflow amendment (2026-10-08)
+
+Extend the existing paired `workflow-01-turn-orchestration` stories, modules [#483](https://github.com/nold-ai/specfact-cli-modules/issues/483) and core [#742](https://github.com/nold-ai/specfact-cli/issues/742), preserving the owner-approved 2026-10-04 optional-context, producer trust/basis, structured-pytest identity and shared-budget amendment. Modules owns reusable guidance/runtime; core owns wrappers/projection. Deliver skills/projection -> deterministic verification -> bounded repair -> opt-in PR automation. Skills do not activate unavailable runtime commands. The signed modules #481 -> #483 -> core #742 runtime prerequisites remain; independent projection proceeds separately. Modules #483 also retains its existing blocking relationship to core #492.
+
+Use one or two early critical-assumption probes, evidence-based finding triage and compact one-writer repair handoffs within existing gates/budgets. No default panel, pstack installation, ledger, new interfaces or policy cutover is added. Review the initial skills/projection investment after two engineer-days. Bounded trials await the next subsequently authorized nontrivial change per repository; measurements reuse available records and do not establish causal savings. Planning creation completes no implementation/trial task and does not archive either change.
+
+## Bounded turn workflow (2026-09-20)
+
+`workflow-01-turn-orchestration` pairs [core #742](https://github.com/nold-ai/specfact-cli/issues/742) with [modules #483](https://github.com/nold-ai/specfact-cli-modules/issues/483). Both are planning/Todo. Core owns repository check-only adoption and canonical wrapper projection; modules owns the reusable runtime, producer adapters, local progress and bounded loops.
+
+Native release dependencies: modules #481 -> modules #483 -> core #742 runtime adoption. Repository projection and standalone adapter development can proceed independently. R09 #740 retains its own policy cutover; C15-specific consumption retains its own signed policy readiness. Optional preflight, full-chain graph, parked findings taxonomy and generic #251/#253 installation are related, not blanket prerequisites. No workflow receipt becomes mandatory historical delivery evidence or protected CI authority.
+
+Delivery slices: projection -> signed deterministic pre-validation/verification -> bounded local repair -> opt-in local PR automation. Verification preserves source/index contents and independent gate outcomes. Implementation uses effective governance or an explicit owner-authorized exception. Publish through normal reviewed integration and the canonical signed release path before stable downstream adoption.
+
+## Recovered planning proposals (2026-09-20)
+
+Recovered from uncommitted proposal-only feature worktrees into local `dev`; remote integration is still pending. These are planned changes, not active implementations. Optional preflight does not block them; signed runtime, policy/profile and exception prerequisites remain.
+
+| Change | Issue | Status / prerequisites |
+|---|---|---|
+| `code-review-14-protected-range-adoption` | [#680](https://github.com/nold-ai/specfact-cli/issues/680) | Planned core consumer; shipped signed C14 producer and runtime/layout compatibility |
+| `cli-val-07-code-review-gate-adoption` | [#679](https://github.com/nold-ai/specfact-cli/issues/679) | Planned C15 consumer; core C14, signed modules C15, profile, policy and exceptions |
+
 ## Status snapshot
 
 | Bucket | Count | Location |
 |---|---:|---|
-| **Active-tree entries** | 35 | [`openspec/changes/`](changes/) |
+| **Active-tree entries** | 48 | [`openspec/changes/`](changes/) |
 | **Parking-lot entries** | 21 | [`openspec/parking-lot/`](parking-lot/) |
 | **Archived** | 120 | [`openspec/changes/archive/`](changes/archive/) |
 
@@ -54,6 +147,10 @@ brownfield delivery. The active roadmap should make that thesis stronger:
 
 ## Active tracks
 
+### Planning integration prerequisite
+
+`fix-planning-evidence-multichange` ([#745](https://github.com/nold-ai/specfact-cli/issues/745), PR #746) corrects planning-only review selection in the existing Requirements workflow. It unblocks coordinated planning integration in PR #741 without activating R09 or relaxing implementation proof, trusted authority, or promotion verification. PR #746 merged into dev on 2026-09-21 after its evidence checks passed; integration into planning PR #741 is in progress.
+
 The inventory includes five product tracks and scoped reliability and documentation
 follow-ups. Tracks can run in parallel; within a track, follow the order column
 and the explicit dependencies below.
@@ -84,7 +181,7 @@ upstream intent-engineering product.
 
 | Order | Change | Issue | Positioning | Blocked by |
 |---:|---|---|---|---|
-| 1 | `ai-integration-01-agent-skill` | [#251](https://github.com/nold-ai/specfact-cli/issues/251) | Discover, verify, install, update, uninstall, and canonically export module-owned skills under `.agents/skills`; no workflow-content ownership | signed modules checkpoint/conformance release [#434](https://github.com/nold-ai/specfact-cli-modules/issues/434) |
+| 1 | `ai-integration-01-agent-skill` | [#251](https://github.com/nold-ai/specfact-cli/issues/251) | Discover, verify, install, update, uninstall, and canonically export module-owned skills under `.agents/skills`; no workflow-content ownership | bounded module-owned descriptor/asset fixtures; optional #434 assets only after their own release |
 | 2 | `ai-integration-03-instruction-files` | [#253](https://github.com/nold-ai/specfact-cli/issues/253) | Generate compact AGENTS/OpenSpec/Spec Kit and harness gate references; no validation logic or adapter packaging | ai-integration-01 |
 | 3 | `ai-integration-02-mcp-server` | [#252](https://github.com/nold-ai/specfact-cli/issues/252) | Later thin adapter with 2-3 validation tools only | CLI pull from ai-integration-01 |
 
@@ -102,7 +199,7 @@ planning workflows.
 | 3 | `openspec-01-intent-trace` | [#350](https://github.com/nold-ai/specfact-cli/issues/350) | Import-first OpenSpec and Spec Kit requirement evidence with pass/fail gates (rescoped 2026-07-13) | requirements-01/02 |
 | 4 | `requirements-04-upstream-source-readiness` | [#648](https://github.com/nold-ai/specfact-cli/issues/648) | Reject incomplete or policy-invalid native OpenSpec and Spec Kit sources before requirement normalization | openspec-01; paired modules #346 |
 | 5 | `requirements-06-evidence-enforcement` | [#657](https://github.com/nold-ai/specfact-cli/issues/657) | Enforce released Requirements evidence reports in staged pre-commit and pull-request delivery gates | released modules #361 fixture |
-| 6 | `requirements-07-runtime-proof-delivery` | [#662](https://github.com/nold-ai/specfact-cli/issues/662) | Execute exact scenario selectors and report current-run JUnit evidence independently from historical chronology | corrected modules R07 signed release |
+| 6 | `requirements-07-runtime-proof-delivery` | [#662](https://github.com/nold-ai/specfact-cli/issues/662) | Reconcile superseded R07 after replacement delivery; no independent correction pipeline | core #740 and paired modules #481 |
 | 8 | `architecture-01-solution-layer` | [#240](https://github.com/nold-ai/specfact-cli/issues/240) | Architecture-boundary records and drift validation | requirements input contracts |
 | Parked | `requirements-03-backlog-sync` | [#244](https://github.com/nold-ai/specfact-cli/issues/244) | Read-first drift evidence; no write-back critical path. Deprioritized 2026-07-13 behind openspec-01 | requirements-02; modules `sync-01` |
 | Gated | `architecture-02-well-architected-review` | [#524](https://github.com/nold-ai/specfact-cli/issues/524) | Architecture-boundary review findings | architecture-01 shipped plus one usage cycle |
@@ -144,15 +241,15 @@ separate authority class.
 | Order | Change | Issue | Positioning | Blocked by |
 |---:|---|---|---|---|
 | 1 | `preflight-01-design-contract-core` | [#682](https://github.com/nold-ai/specfact-cli/issues/682) | Design-contract, validation-result, canonical digest, approval-seal, and side-effect-free verifier interfaces | architecture/governance/traceability/OpenSpec import are upstream inputs, not reowned blockers |
-| 2 | `preflight-03-dogfood-hardening-and-release` (core) | [#683](https://github.com/nold-ai/specfact-cli/issues/683) | Identity-bound C14 dogfood evidence and bounded readiness decision | core C14 [#680](https://github.com/nold-ai/specfact-cli/issues/680) |
+| 2 | `preflight-03-dogfood-hardening-and-release` (core) | [#683](https://github.com/nold-ai/specfact-cli/issues/683) | Optional identity-bound C14 dogfood and readiness | core C14 [#680](https://github.com/nold-ai/specfact-cli/issues/680) and modules [#431](https://github.com/nold-ai/specfact-cli-modules/issues/431) |
 | 3 | `preflight-05-implementation-conformance` (core) | [#684](https://github.com/nold-ai/specfact-cli/issues/684) | Worktree/index/range snapshots, sealed-obligation mapping, local checkpoint/final conformance results, findings, authority, and pure verifier | signed modules hardening/publication [#432](https://github.com/nold-ai/specfact-cli-modules/issues/432) |
 
-The cross-repository dependency sequence is:
-
-`core #682 -> modules #431 -> core C14 #680/#683 -> modules #432 -> core #684 -> modules #434 -> core #251 -> core #253 -> modules #433`.
-Modules #432 also unblocks modules C15 #417, which remains upstream of core C15
-issue #679. Native GitHub relationships, not this prose alone, are authoritative
-for readiness.
+The optional assurance chain is core #682 -> modules #431; core #683 requires
+both #431 and independently delivered C14 #680, then #683 -> modules #432 ->
+core #684 -> modules #434. Optional adapters #433 require both #434 and
+core #253. Generic #251 -> #253 and modules C15 #417 -> core C15 #679 do not depend
+on that optional runtime chain. C15 retains its actual producer/profile/policy
+prerequisites. Native GitHub relationships must match this scope at readiness.
 
 ## Modify queue before implementation
 
@@ -178,16 +275,16 @@ Update each proposal first, then run strict OpenSpec validation.
 
 ## Implementation waves
 
-### Preflight assurance sequence - mandatory dependency gate
+### Optional preflight assurance sequence
 
 1. Implement core `preflight-01-design-contract-core` [#682](https://github.com/nold-ai/specfact-cli/issues/682).
 2. Implement the unpublished modules runtime `preflight-02-assurance-runtime` [#431](https://github.com/nold-ai/specfact-cli-modules/issues/431).
-3. Complete core C14 adoption [#680](https://github.com/nold-ai/specfact-cli/issues/680).
+3. Independently complete core C14 adoption [#680](https://github.com/nold-ai/specfact-cli/issues/680); it does not wait for preflight.
 4. Run the exact preflight loop through core dogfood/readiness [#683](https://github.com/nold-ai/specfact-cli/issues/683).
 5. Harden, sign, and publish the stable modules release [#432](https://github.com/nold-ai/specfact-cli-modules/issues/432) from accepted dogfood evidence only.
 6. Implement core seal-bound checkpoint/conformance contracts [#684](https://github.com/nold-ai/specfact-cli/issues/684).
 7. Implement, dogfood, sign, and publish modules checkpoint/conformance runtime [#434](https://github.com/nold-ai/specfact-cli-modules/issues/434).
-8. Use that release for #251 -> #253 -> external adapters #433. Modules C15 #417 -> core C15 #679 may proceed from the stable #432 handoff independently.
+8. Optional external adapters #433 consume both that release and independently delivered #253. Generic #251 -> #253 and C15 #417 -> #679 do not wait for #432/#434.
 
 Every implementation item starts in its own issue-linked worktree and dedicated
 session. Proposal-stage preflight review may refine another pending change only
@@ -223,7 +320,7 @@ and requires a complete rerun.
 
 ### Wave 4 - AI IDE validation loop
 
-- `ai-integration-01-agent-skill` after the signed preflight workflow exists.
+- `ai-integration-01-agent-skill` uses bounded module-owned descriptor/asset fixtures; optional preflight assets are integrated only after their own signed release.
 - `ai-integration-03-instruction-files` after canonical installation/export is released.
 - Dogfooding slice: run review on a real repo, emit JSON evidence, identify
   AI-bloat findings, hand remediation packets to an AI IDE, rerun review, and
@@ -241,9 +338,9 @@ and requires a complete rerun.
   `openspec-01`; it blocks the paired modules command/persistence patch.
 - `architecture-02`, `telemetry-01`, and `ai-integration-02` only after pull
   from the validation loop exists.
-- core/modules `preflight-05` after the signed #432 handoff and before generic
-  installation/instructions; modules `preflight-04-harness-adapters` only after
-  #253 and the signed #434 checkpoint/conformance handoff.
+- core/modules `preflight-05` after the signed #432 handoff, independently of
+  generic installation/instructions. Optional modules `preflight-04-harness-adapters`
+  require both #253 and the signed #434 checkpoint/conformance handoff.
 
 ## Wave exit gates
 
@@ -260,7 +357,8 @@ A wave is complete only when all listed criteria are auditable:
 - **Wave 5**: External planning artifacts are consumed as inputs. They are not
   positioned as workflows SpecFact replaces.
 - **Preflight sequence**: Exact C14 dogfood evidence produces a bounded go/no-go
-  decision; stable publication and downstream installation stay blocked on no-go.
+  decision; no-go blocks that optional preflight publication and its assets/adapters,
+  never generic #251/#253 delivery, C14/C15 or native review.
 
 ## Ownership authority
 
@@ -307,3 +405,40 @@ repo root. Do not move folders manually.
 - [`INTEGRATION.md`](INTEGRATION.md) - cross-change ownership contract
 - [`config.yaml`](config.yaml) - repo-wide OpenSpec rules and context
 - [`specfact-cli-modules/openspec/CHANGE_ORDER.md`](https://github.com/nold-ai/specfact-cli-modules/blob/main/openspec/CHANGE_ORDER.md) - module-side companion plan
+
+## Lean evidence delivery
+
+| Change | Issue | Dependency |
+|---|---|---|
+| `requirements-09-minimal-evidence` | [#740](https://github.com/nold-ai/specfact-cli/issues/740) | signed modules #481 for runtime adoption |
+
+## Security stack gate readiness (2026-10-11, Europe/Berlin)
+
+The owner resumed #747 to resolve stack #757 gates without bypasses.
+Implement `security-stack-gate-readiness` as a reviewed prerequisite before
+rebasing the approved five-layer `dependency-update-consolidation` slice.
+Keep broader dependency work deferred and #747 open.
+
+## Planning stack proof boundary (2026-10-11, Europe/Berlin)
+
+Issue #760 / `requirements-planning-stack-boundary` is a protective prerequisite for stack #759.
+Implement and review it on protected dev before restacking #719/#743/#751 and regenerating native proof.
+Keep implemented root evidence and deferred planning maturity separate, with unchanged protected proof
+workflow/local action bytes and independent exact-head member authority. Runtime, tests, delivery and
+inherited source changes retain the full existing proof path. Owner mapping/grant/integration approval is
+required for this separate prerequisite; stack membership does not infer it. The three stack PRs remain
+unmerged, and future module-side work remains deferred under verified #481/#483 readiness.
+
+## Native planning consumer lineage correction (2026-10-12)
+
+Existing issue #760 / `fix-native-planning-lineage` corrects the independent execution preflight discovered
+after merged #761. Preserve protected-base-to-review and planning-parent-to-candidate ancestry separately.
+Reviewed protected integration precedes stack #759 restacking. No required proof, authority, review or
+signature gate changes meaning. Leave #719/#743/#751 unmerged.
+
+### Protected planning review context follow-up
+
+Issue #760 / `fix-planning-review-proof-context` follows merged #767. Real #743 run 38303860784
+rejects planning receipts at the immutable finalized Code Review boundary. Preserve full protected-dev
+review scope and supply independently authenticated genuine root final proof. Protected integration,
+fresh root RED/GREEN and sequential planning-child validation remain prerequisites; no gate is weakened.

@@ -1,0 +1,38 @@
+schema_version: "2"
+x-planning-context: &planning-context
+  rationale: "Make this requirement reviewable before implementation begins."
+  stakeholder_refs: ["nold-ai/specfact-cli#247"]
+x-planning-inspection: &planning-inspection
+  method: inspection
+  observable: >-
+    Strict OpenSpec validation retains the requirement and its scenarios
+    without claiming implementation or test execution.
+x-spec-1: &spec-1
+  - id: openspec-source-spec
+    kind: config_file
+    locator: "openspec/changes/governance-01-evidence-output/specs/governance-evidence-output/spec.md"
+requirements:
+  openspec:governance-01-evidence-output:governance-evidence-output:governance-evidence-output:
+    <<: *planning-context
+    touchpoints: *spec-1
+    verification_cases:
+      - <<: *planning-inspection
+        case_id: GOV01-001
+        scenario_id: governance-evidence-output
+        intent: "Inspect the governance evidence output planning contract and its scenarios."
+  openspec:governance-01-evidence-output:governance-evidence-output:full-chain-evidence-serialization:
+    <<: *planning-context
+    touchpoints: *spec-1
+    verification_cases:
+      - <<: *planning-inspection
+        case_id: GOV01-002
+        scenario_id: full-chain-evidence-serialization
+        intent: "Inspect the full chain evidence serialization planning contract and its scenarios."
+  openspec:governance-01-evidence-output:governance-evidence-output:policy-evidence-serialization:
+    <<: *planning-context
+    touchpoints: *spec-1
+    verification_cases:
+      - <<: *planning-inspection
+        case_id: GOV01-003
+        scenario_id: policy-evidence-serialization
+        intent: "Inspect the policy evidence serialization planning contract and its scenarios."

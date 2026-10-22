@@ -31,7 +31,7 @@ PROMOTION_CONDITION = (
 EVIDENCE_COMMAND_FRAGMENTS = (
     '"${isolated_specfact[@]}" requirements evidence',
     '--base-ref "$evidence_base_commit"',
-    'evidence_base_commit="$(git merge-base "origin/${EVIDENCE_BASE_BRANCH}" HEAD)"',
+    'evidence_base_commit="${PLANNING_BASE_COMMIT:-${PROOF_BASE_COMMIT:-}}"',
     "required_maturity=planned",
     "required_maturity=test-authored",
     "requirements/*|pyproject.toml|setup.py|uv.lock",
@@ -90,9 +90,15 @@ def _workflow_steps(workflow: dict[str, object]) -> list[tuple[str, int, dict[st
     return collected
 
 
-def _step_location(workflow: dict[str, object], name: str) -> tuple[str, int, dict[str, object]]:
+def _step_location(
+    workflow: dict[str, object], name: str, *, job_name: str | None = None
+) -> tuple[str, int, dict[str, object]]:
     """Return the unique job, index, and step for a workflow step name."""
-    matches = [location for location in _workflow_steps(workflow) if location[2].get("name") == name]
+    matches = [
+        location
+        for location in _workflow_steps(workflow)
+        if location[2].get("name") == name and (job_name is None or location[0] == job_name)
+    ]
     assert len(matches) == 1, name
     return matches[0]
 
@@ -101,10 +107,10 @@ def _step_by_name(workflow: dict[str, object], name: str) -> dict[str, object]:
     return _step_location(workflow, name)[2]
 
 
-def _assert_step_order(workflow: dict[str, object], earlier: str, later: str) -> None:
+def _assert_step_order(workflow: dict[str, object], earlier: str, later: str, *, job_name: str | None = None) -> None:
     """Assert two uniquely named steps run in that order within one job."""
-    earlier_job, earlier_index, _ = _step_location(workflow, earlier)
-    later_job, later_index, _ = _step_location(workflow, later)
+    earlier_job, earlier_index, _ = _step_location(workflow, earlier, job_name=job_name)
+    later_job, later_index, _ = _step_location(workflow, later, job_name=job_name)
     assert earlier_job == later_job
     assert earlier_index < later_index
 
@@ -455,7 +461,9 @@ def _assert_retention_contract(workflow: dict[str, object]) -> None:
     publish = _step_by_name(workflow, "Publish Requirements evidence summary")
     upload = _step_by_name(workflow, "Persist Requirements evidence before Code Review")
     upload_review = _step_by_name(workflow, "Upload Code Review evidence artifact")
-    producer_enforce = _step_by_name(workflow, "Enforce Requirements evidence producer verdict")
+    _, _, producer_enforce = _step_location(
+        workflow, "Enforce native or admitted Requirements verdict", job_name="requirements-evidence-producer"
+    )
     review_enforce = _step_by_name(workflow, "Enforce requirements evidence verdict")
     assert publish["if"] == "always()"  # type: ignore[index]
     assert "GITHUB_STEP_SUMMARY" in publish["run"]  # type: ignore[index]
@@ -471,15 +479,20 @@ def _assert_retention_contract(workflow: dict[str, object]) -> None:
         "artifacts/requirements-evidence/legacy-tdd-evidence.json",
     ]
     assert upload_review["with"]["path"] == "artifacts/requirements-evidence/code-review.json"  # type: ignore[index]
-    assert producer_enforce["if"] == "steps.run-evidence.outcome == 'failure'"
-    assert producer_enforce["run"] == "exit 1"
+    assert producer_enforce["if"] == "always()"
     assert review_enforce["if"] == "steps.run-code-review.outcome == 'failure'"
     assert review_enforce["run"] == "exit 1"
     _assert_step_order(
-        workflow, "Publish Requirements evidence summary", "Enforce Requirements evidence producer verdict"
+        workflow,
+        "Publish Requirements evidence summary",
+        "Enforce native or admitted Requirements verdict",
+        job_name="requirements-evidence-producer",
     )
     _assert_step_order(
-        workflow, "Persist Requirements evidence before Code Review", "Enforce Requirements evidence producer verdict"
+        workflow,
+        "Persist Requirements evidence before Code Review",
+        "Enforce native or admitted Requirements verdict",
+        job_name="requirements-evidence-producer",
     )
     _assert_step_order(workflow, "Upload Code Review evidence artifact", "Enforce requirements evidence verdict")
 
@@ -496,13 +509,13 @@ def _assert_prior_red_run_selection(locate: dict[str, object]) -> None:
         "--jq '.workflow_runs[] | [.id, .head_sha, .conclusion] | @tsv'",
         'current_head="$(git rev-parse HEAD)"',
         '[[ "$head_sha" != "$current_head" ]]',
-        'git merge-base --is-ancestor "origin/${GITHUB_BASE_REF}" "$head_sha"',
+        'git merge-base --is-ancestor "$PROOF_BASE_COMMIT" "$head_sha"',
         'git merge-base --is-ancestor "$head_sha" "$current_head"',
         'mv "$candidate_dir/requirements-evidence.json" "$candidate_dir/red.json"',
         'mv "$candidate_dir/requirements-proof.xml" "$candidate_dir/red.xml"',
         '"${isolated_python[@]}" scripts/requirements_proof_provenance.py',
         '--prior-red-proof "$candidate_dir/red.json"',
-        '--base-ref "origin/${GITHUB_BASE_REF}"',
+        '--base-ref "$PROOF_BASE_COMMIT"',
         '--final-ref "$current_head"',
         "continue",
     )
@@ -662,7 +675,13 @@ def _assert_fresh_consumer_order(
     workflow: dict[str, object], outputs: dict[str, str], permissions: dict[str, str]
 ) -> None:
     assert outputs["prior-red-run-id"] == "${{ steps.prior-red-run.outputs.run-id }}"
-    assert permissions == {"actions": "read", "contents": "read", "issues": "read"}
+    assert permissions == {
+        "actions": "read",
+        "contents": "read",
+        "issues": "read",
+        "checks": "read",
+        "pull-requests": "read",
+    }
     _assert_step_order(
         workflow, "Restore Requirements evidence for Code Review", "Download retained red proof for validation"
     )
@@ -682,7 +701,7 @@ def _assert_reconciliation_fragments(reconcile: str) -> None:
         '"${isolated_python[@]}"',
         "del sys.argv[1:3]",
         'source_ref="$(git rev-parse HEAD)"',
-        'evidence_base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" "$source_ref")"',
+        'evidence_base_commit="${PLANNING_BASE_COMMIT:-$PROOF_BASE_COMMIT}"',
         '"${isolated_specfact[@]}" requirements evidence',
         '"${isolated_specfact[@]}" requirements reconcile',
         "requirements-evidence-consumer.json",
@@ -1004,7 +1023,7 @@ def test_fresh_consumer_authenticates_retained_red_run_and_artifact() -> None:
 
 def _assert_trusted_core_materialization(materialize: str) -> None:
     materialize_fragments = (
-        'base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" HEAD)"',
+        'base_commit="$PROOF_BASE_COMMIT"',
         'git archive "$base_commit" --',
         ".pylintrc",
         "src/specfact_cli",
@@ -1249,6 +1268,7 @@ def _assert_review_job_boundary(parsed: dict[str, object], review: dict[str, obj
     assert producer["outputs"] == {
         "artifact-id": "${{ steps.upload-requirements-evidence.outputs.artifact-id }}",
         "prior-red-run-id": "${{ steps.prior-red-run.outputs.run-id }}",
+        "stack-context-digest": "${{ steps.stack-context.outputs.digest }}",
     }
 
 
@@ -1258,10 +1278,11 @@ def _assert_review_artifact_binding(parsed: dict[str, object]) -> None:
     restore = _step_by_name(parsed, "Restore Requirements evidence for Code Review")
     verify_head = _step_by_name(parsed, "Verify exact head for Code Review")
     assert upload["id"] == "upload-requirements-evidence"
-    assert restore["with"] == {
-        "artifact-ids": "${{ needs.requirements-evidence-producer.outputs.artifact-id }}",
-        "path": "artifacts/requirements-evidence",
-    }
+    environment = cast(dict[str, str], restore["env"])
+    assert environment["ARTIFACT_ID"] == "${{ needs.requirements-evidence-producer.outputs.artifact-id }}"
+    assert environment["ARTIFACT_NAME"] == "requirements-evidence"
+    assert environment["ARTIFACT_DESTINATION"] == "${{ github.workspace }}/artifacts/requirements-evidence"
+    assert "/usr/bin/python3 -I -S" in str(restore["run"])
     assert verify_head["env"] == {"EXPECTED_HEAD": "${{ github.event.pull_request.head.sha || github.sha }}"}
     assert 'test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"' in verify_head["run"]  # type: ignore[operator]
 
@@ -1460,17 +1481,18 @@ def _assert_promotion_stage_outputs(workflow: dict[str, object]) -> None:
 
 def _assert_promotion_scope(workflow: dict[str, object], commands: tuple[str, str, str]) -> None:
     producer_command, consumer_command, final_command = commands
-    producer_base = 'evidence_base_commit="$(git merge-base "origin/${EVIDENCE_BASE_BRANCH}" HEAD)"'
-    consumer_base = 'evidence_base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" "$source_ref")"'
+    producer_base = 'evidence_base_commit="${PLANNING_BASE_COMMIT:-${PROOF_BASE_COMMIT:-}}"'
+    consumer_base = 'evidence_base_commit="${PLANNING_BASE_COMMIT:-$PROOF_BASE_COMMIT}"'
     assert producer_command.count(producer_base) == 1
     assert consumer_command.count(consumer_base) == 1
     assert producer_command.count('--base-ref "$evidence_base_commit"') == 1
     assert consumer_command.count('--base-ref "$evidence_base_commit"') == 1
-    assert final_command.count('--base-ref "$FINAL_BASE_COMMIT"') == 1
+    assert final_command.count('--base-ref "$evidence_base_commit"') == 1
+    assert 'evidence_base_commit="${PLANNING_BASE_COMMIT:-$FINAL_BASE_COMMIT}"' in final_command
     assert "evidence_scope_commit=" not in producer_command + consumer_command
     assert "final_scope_commit=" not in final_command
     final_core = cast(str, _step_by_name(workflow, "Materialize trusted final Requirements core")["run"])
-    assert 'base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" HEAD)"' in final_core
+    assert 'base_commit="$PROOF_BASE_COMMIT"' in final_core
     assert "printf 'FINAL_BASE_COMMIT=%s\\n' \"$base_commit\"" in final_core
 
 
@@ -1601,18 +1623,60 @@ def test_same_named_fork_does_not_enter_promotion_path() -> None:
         assert "pull_request.head.repo.full_name == github.event.repository.full_name" in condition
 
 
-def _review_and_enforcement_steps() -> tuple[
-    dict[str, object], dict[str, object], dict[str, object], dict[str, object]
-]:
-    """Load the proof and review steps that independently govern final PR status."""
-    workflow = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"
-    parsed = yaml.load(workflow.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
-    return (
-        _step_by_name(parsed, "Run Code Review with finalized Requirements context"),
-        _step_by_name(parsed, "Enforce Requirements evidence producer verdict"),
-        _step_by_name(parsed, "Enforce Requirements evidence producer success"),
-        _step_by_name(parsed, "Enforce requirements evidence verdict"),
+def _assert_independent_review_guards(workflow: dict[str, object]) -> None:
+    """Admission cannot override either Code Review failure or producer failure."""
+    producer_guard = _step_by_name(workflow, "Enforce Requirements evidence producer success")
+    assert producer_guard["if"] == "needs.requirements-evidence-producer.result != 'success'"
+    assert producer_guard["run"] == "exit 1"
+    for review_name, enforce_name, review_id in (
+        (
+            "Run Code Review with finalized Requirements context",
+            "Enforce requirements evidence verdict",
+            "run-code-review",
+        ),
+        (
+            "Run Code Review with trusted final Requirements context",
+            "Enforce final Code Review verdict",
+            "run-final-code-review",
+        ),
+    ):
+        review = _step_by_name(workflow, review_name)
+        review_enforce = _step_by_name(workflow, enforce_name)
+        assert review["continue-on-error"] == "true"
+        assert review_enforce["if"] == f"steps.{review_id}.outcome == 'failure'"
+        assert review_enforce["run"] == "exit 1"
+
+
+def _assert_lane_verdict(workflow: dict[str, object], job_name: str, native_step: str) -> None:
+    """Execute the lane's actual shell verdict for successful and denied outcomes."""
+    _, enforce_index, enforce = _step_location(
+        workflow, "Enforce native or admitted Requirements verdict", job_name=job_name
     )
+    assert enforce["if"] == "always()"
+    assert enforce["shell"] == "bash"
+    assert enforce["env"] == {
+        "NATIVE_OUTCOME": "${{ steps." + native_step + ".outcome }}",
+        "ADMISSION_OUTCOME": "${{ steps.late-cycle-admission.outcome }}",
+    }
+    for native_outcome, admission_outcome, expected_exit in (
+        ("success", "skipped", 0),
+        ("failure", "success", 0),
+        ("failure", "failure", 1),
+        ("failure", "skipped", 1),
+        ("skipped", "skipped", 1),
+        ("", "", 1),
+    ):
+        result = subprocess.run(
+            ["bash", "-c", cast(str, enforce["run"])],
+            env={"NATIVE_OUTCOME": native_outcome, "ADMISSION_OUTCOME": admission_outcome},
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == expected_exit, (job_name, native_outcome, admission_outcome, result.stderr)
+    for owner, index, step in _workflow_steps(workflow):
+        if owner == job_name and str(step.get("uses", "")).startswith("actions/upload-artifact@"):
+            assert index < enforce_index
 
 
 @pytest.mark.parametrize(
@@ -1621,15 +1685,35 @@ def _review_and_enforcement_steps() -> tuple[
     ids=["requirements-failure", "code-review-failure"],
 )
 def test_requirements_evidence_workflow_blocks_each_final_verdict(verdict: str) -> None:
-    """Requirements and Code Review failures remain independently terminal."""
-    review, producer_enforce, producer_guard, review_enforce = _review_and_enforcement_steps()
-
+    """Every lane needs native success or admission, and review failure still blocks."""
+    workflow = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"
+    parsed = yaml.load(workflow.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
     if verdict == "requirements-failure":
-        assert producer_enforce["if"] == "steps.run-evidence.outcome == 'failure'"
-        assert producer_enforce["run"] == "exit 1"
-        assert producer_guard["if"] == "needs.requirements-evidence-producer.result != 'success'"
-        assert producer_guard["run"] == "exit 1"
+        for job_name, native_step in (
+            ("requirements-evidence-producer", "run-evidence"),
+            ("requirements-evidence", "run-native-evidence"),
+            ("requirements-evidence-final", "run-final-native-evidence"),
+        ):
+            _assert_lane_verdict(parsed, job_name, native_step)
     else:
-        assert review["continue-on-error"] == "true"
-        assert review_enforce["if"] == "steps.run-code-review.outcome == 'failure'"
-        assert review_enforce["run"] == "exit 1"
+        _assert_independent_review_guards(parsed)
+
+
+def test_all_proof_consumers_independently_authenticate_live_stack_context() -> None:
+    """A parent push cannot let a consumer silently reuse a different proof boundary."""
+    workflow = yaml.load(
+        (REPO_ROOT / ".github/workflows/requirements-evidence.yml").read_text(), Loader=yaml.BaseLoader
+    )
+    jobs = workflow["jobs"]
+    for job_name in ("requirements-evidence-producer", "requirements-evidence", "requirements-evidence-final"):
+        steps = jobs[job_name]["steps"]
+        context = next(step for step in steps if step.get("id") == "stack-context")
+        run = context["run"]
+        assert 'git archive "$policy_ref" -- scripts/requirements_stack_context.py' in run
+        assert 'python3 -I -S "$policy_root/scripts/requirements_stack_context.py"' in run
+        assert 'case "$GITHUB_BASE_REF" in dev|main) ;; *) exit 1 ;; esac' in run
+        assert 'git merge-base --is-ancestor "$proof_base" "$proof_head"' in run
+        assert 'git merge-base --is-ancestor "$proof_head" HEAD' in run
+        assert 'test "$digest" = "$EXPECTED_CONTEXT_DIGEST"' in run
+        if job_name != "requirements-evidence-producer":
+            assert "stack-context-digest" in context["env"]["EXPECTED_CONTEXT_DIGEST"]

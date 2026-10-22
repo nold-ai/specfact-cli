@@ -1,0 +1,60 @@
+# Planned implementation tasks
+
+All tasks remain planned and unchecked. Planning validation is not implementation evidence. Before starting an
+implementation unit estimated above two hours of active work, split it into additional unchecked tasks; external CI
+waiting does not count as completed work.
+
+- [ ] 1. Create or verify a dedicated git worktree on an issue-linked implementation branch from the current approved
+  baseline; reject dev/main and the old planning checkout, then revalidate modules #515 delivery, GitHub
+  hierarchy/status, exact producer schema and ordinary consumer paths.
+- [ ] 2. Confirm spec scenarios against the exact reviewed producer candidate contract and strictly validate OpenSpec
+  and requirement mappings before adding tests.
+- [ ] 3. Add behavior tests for explicit supported-version dispatch, separate C15 schema 1.7 routing and retirement
+  authority, historical 1.6 boundaries, unsupported same-major and major versions, malformed evidence and
+  process/report disagreement.
+- [ ] 4. Add behavior tests for producer assurance/completeness and truthful shadow summaries independent of
+  score/fixability.
+- [ ] 5. Add scenario-derived installation and module loading/discovery tests for pipx, uv tool and repeated uvx
+  invocations, including uvx without pip, a different project Python, descriptor semantics, capsule-free ordinary
+  execution, provisioned offline execution and required failure cases before implementing compatibility; bind every
+  behavior scenario to executable test selectors in requirements-evidence.yaml before recording RED, preserving stable
+  requirement and case identities.
+- [ ] 6. Record observed RED commands, timestamps, results and causes for the consumer and installation tests in
+  openspec/changes/code-review-local-report-adoption/TDD_EVIDENCE.md before production edits.
+- [ ] 7. Implement narrow ordinary hook/workflow report consumption and invocation updates.
+- [ ] 8. Implement only necessary module loading/discovery/install compatibility using supported external tooling or
+  declared dependencies; preserve descriptor semantics and customer environment isolation.
+- [ ] 9. Run the consumer-compatibility preflight tests for exact installed core and signed modules across pipx, uv
+  tool and repeated uvx, including no pip, a different project Python and verified local artifacts with networking
+  disabled; hand preflight evidence to modules #516, which owns release-level installation acceptance and the
+  manager/platform matrix.
+- [ ] 10. Record GREEN commands, timestamps and results in
+  openspec/changes/code-review-local-report-adoption/TDD_EVIDENCE.md only after all mapped tests and the
+  consumer-compatibility preflight matrix pass and the Requirements evidence gate verifies executable selectors and
+  implementation maturity against the actual test results, including one complete installed customer local review
+  workflow; rerun affected tests and refresh GREEN evidence after any later production correction.
+- [ ] 11. Run required format, type-check, lint, YAML, contract, smart-test, independent security, clean-code review
+  and applicable signature/version gates; cover public API contract decorators where applicable and resolve findings.
+  Before PR publication, verify module signatures with `hatch run ./scripts/verify-modules-signature.py
+  --require-signature`; if module assets change, bump their versions, re-sign affected manifests and reverify until
+  green.
+- [ ] 12. Identify and update affected docs/ reference, guides, adapters and getting-started content, README.md and
+  docs/index.md; preserve documentation frontmatter and update navigation if pages are added or moved. Align the
+  internal wiki source and rebuild its graph from that repository root.
+- [ ] 13. Select the owner-approved semver change for the implemented behavior; synchronize pyproject.toml, setup.py,
+  src/__init__.py and src/specfact_cli/__init__.py, and add a dated CHANGELOG.md entry after quality gates and
+  documentation, before opening the implementation PR.
+- [ ] 14. After documentation and version edits, run the final full SpecFact code review and affected quality gates,
+  verify .specfact/code-review.json is fresh for the final changed inputs, resolve all findings including warnings or
+  obtain an explicitly approved exception, and refresh affected test/GREEN evidence.
+- [ ] 15. Revalidate the final spec and implementation evidence, create signed commits, push the branch and publish the
+  implementation PR to dev.
+- [ ] 16. Complete required CI and review feedback in bounded repair passes; after the last substantive repair, rerun
+  the final full review and affected quality/test gates, resolve findings including warnings or obtain an explicitly
+  approved exception, and verify .specfact/code-review.json and affected GREEN evidence are fresh. Retain honest status
+  for external blockers.
+- [ ] 17. Seek owner-authorized integration of the reviewed implementation through the normal merge process.
+- [ ] 18. After actual completed implementation and reviewed merge, run `openspec archive
+  code-review-local-report-adoption` from the repository root; reconcile source tracking and project state without
+  marking incomplete acceptance complete. Publish archival changes through normal reviewed delivery, then clean up only
+  the clean, fully integrated implementation worktree and branch while retaining needed evidence and unrelated work.

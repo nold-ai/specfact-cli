@@ -1,0 +1,74 @@
+schema_version: "2"
+x-planning-context: &planning-context
+  rationale: "Make this requirement reviewable before implementation begins."
+  stakeholder_refs: ["nold-ai/specfact-cli#740"]
+x-planning-inspection: &planning-inspection
+  method: inspection
+  observable: >-
+    Strict OpenSpec validation retains the requirement and its scenarios
+    without claiming implementation or test execution.
+x-spec-1: &spec-1
+  - id: openspec-source-spec
+    kind: config_file
+    locator: "openspec/changes/requirements-09-minimal-evidence/specs/minimum-evidence-delivery/spec.md"
+x-spec-2: &spec-2
+  - id: openspec-source-spec
+    kind: config_file
+    locator: "openspec/changes/requirements-09-minimal-evidence/specs/requirements-runtime-proof-delivery/spec.md"
+requirements:
+  openspec:requirements-09-minimal-evidence:minimum-evidence-delivery:minimum-current-run-delivery-evidence:
+    <<: *planning-context
+    touchpoints: *spec-1
+    verification_cases:
+      - <<: *planning-inspection
+        case_id: R09-001
+        scenario_id: minimum-current-run-delivery-evidence
+        intent: "Inspect the minimum current-run delivery evidence planning contract and its scenarios."
+  openspec:requirements-09-minimal-evidence:minimum-evidence-delivery:independent-gates-and-bounded-collection:
+    <<: *planning-context
+    touchpoints: *spec-1
+    verification_cases:
+      - <<: *planning-inspection
+        case_id: R09-002
+        scenario_id: independent-gates-and-bounded-collection
+        intent: "Inspect the independent gates and bounded collection planning contract and its scenarios."
+  openspec:requirements-09-minimal-evidence:minimum-evidence-delivery:optional-assurance-is-not-a-default-prerequisite:
+    <<: *planning-context
+    touchpoints: *spec-1
+    verification_cases:
+      - <<: *planning-inspection
+        case_id: R09-003
+        scenario_id: optional-assurance-is-not-a-default-prerequisite
+        intent: "Inspect the optional assurance is not a default prerequisite planning contract and its scenarios."
+  openspec:requirements-09-minimal-evidence:minimum-evidence-delivery:coordinated-trusted-enforcement-cutover:
+    <<: *planning-context
+    touchpoints: *spec-1
+    verification_cases:
+      - <<: *planning-inspection
+        case_id: R09-004
+        scenario_id: coordinated-trusted-enforcement-cutover
+        intent: "Inspect the coordinated trusted enforcement cutover planning contract and its scenarios."
+  openspec:requirements-09-minimal-evidence:minimum-evidence-delivery:workflow-state-is-not-delivery-evidence:
+    <<: *planning-context
+    touchpoints: *spec-1
+    verification_cases:
+      - <<: *planning-inspection
+        case_id: R09-005
+        scenario_id: workflow-state-is-not-delivery-evidence
+        intent: "Inspect the workflow state is not delivery evidence planning contract and its scenarios."
+  openspec:requirements-09-minimal-evidence:minimum-evidence-delivery:acceptance-uniqueness-is-per-selected-execution-unit:
+    <<: *planning-context
+    touchpoints: *spec-1
+    verification_cases:
+      - <<: *planning-inspection
+        case_id: R09-006
+        scenario_id: acceptance-uniqueness-is-per-selected-execution-unit
+        intent: "Inspect the acceptance uniqueness is per selected execution unit planning contract and its scenarios."
+  openspec:requirements-09-minimal-evidence:requirements-runtime-proof-delivery:producer-bound-retained-red-proof:
+    <<: *planning-context
+    touchpoints: *spec-2
+    verification_cases:
+      - <<: *planning-inspection
+        case_id: R09-007
+        scenario_id: producer-bound-retained-red-proof
+        intent: "Inspect the producer-bound retained red proof planning contract and its scenarios."

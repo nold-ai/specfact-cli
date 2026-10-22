@@ -1,0 +1,86 @@
+schema_version: "2"
+x-planning-context: &planning-context
+  rationale: "Make this requirement reviewable before implementation begins."
+  stakeholder_refs: ["nold-ai/specfact-cli#679"]
+x-planning-inspection: &planning-inspection
+  method: inspection
+  observable: >-
+    Strict OpenSpec validation retains the requirement and its scenarios
+    without claiming implementation or test execution.
+x-spec-1: &spec-1
+  - id: openspec-source-spec
+    kind: config_file
+    locator: "openspec/changes/cli-val-07-code-review-gate-adoption/specs/ci-integration/spec.md"
+x-spec-2: &spec-2
+  - id: openspec-source-spec
+    kind: config_file
+    locator: "openspec/changes/cli-val-07-code-review-gate-adoption/specs/code-review-gate-consumer/spec.md"
+x-spec-3: &spec-3
+  - id: openspec-source-spec
+    kind: config_file
+    locator: "openspec/changes/cli-val-07-code-review-gate-adoption/specs/pre-commit-review-gate/spec.md"
+x-spec-4: &spec-4
+  - id: openspec-source-spec
+    kind: config_file
+    locator: "openspec/changes/cli-val-07-code-review-gate-adoption/specs/protected-code-review-range-assurance/spec.md"
+x-spec-5: &spec-5
+  - id: openspec-source-spec
+    kind: config_file
+    locator: "openspec/changes/cli-val-07-code-review-gate-adoption/specs/trustworthy-green-checks/spec.md"
+requirements:
+  openspec:cli-val-07-code-review-gate-adoption:ci-integration:protected-code-review-uses-approved-signed-evidence:
+    <<: *planning-context
+    touchpoints: *spec-1
+    verification_cases:
+      - <<: *planning-inspection
+        case_id: C15-001
+        scenario_id: protected-code-review-uses-approved-signed-evidence
+        intent: "Inspect the protected code review uses approved signed evidence planning contract and its scenarios."
+  openspec:cli-val-07-code-review-gate-adoption:code-review-gate-consumer:authoritative-schema-1-7-local-consumer:
+    <<: *planning-context
+    touchpoints: *spec-2
+    verification_cases:
+      - <<: *planning-inspection
+        case_id: C15-002
+        scenario_id: authoritative-schema-1-7-local-consumer
+        intent: "Inspect the authoritative schema 1.7 local consumer planning contract and its scenarios."
+  openspec:cli-val-07-code-review-gate-adoption:code-review-gate-consumer:protected-schema-1-7-waiver-verification:
+    <<: *planning-context
+    touchpoints: *spec-2
+    verification_cases:
+      - <<: *planning-inspection
+        case_id: C15-003
+        scenario_id: protected-schema-1-7-waiver-verification
+        intent: "Inspect the protected schema 1.7 waiver verification planning contract and its scenarios."
+  openspec:cli-val-07-code-review-gate-adoption:code-review-gate-consumer:trusted-integration-precedes-c15-activation:
+    <<: *planning-context
+    touchpoints: *spec-2
+    verification_cases:
+      - <<: *planning-inspection
+        case_id: C15-004
+        scenario_id: trusted-integration-precedes-c15-activation
+        intent: "Inspect the trusted integration precedes c15 activation planning contract and its scenarios."
+  openspec:cli-val-07-code-review-gate-adoption:pre-commit-review-gate:repository-pre-commit-review-gate:
+    <<: *planning-context
+    touchpoints: *spec-3
+    verification_cases:
+      - <<: *planning-inspection
+        case_id: C15-005
+        scenario_id: repository-pre-commit-review-gate
+        intent: "Inspect the repository pre-commit review gate planning contract and its scenarios."
+  openspec:cli-val-07-code-review-gate-adoption:protected-code-review-range-assurance:protected-consumer-shall-independently-verify-c14-range-evidence:
+    <<: *planning-context
+    touchpoints: *spec-4
+    verification_cases:
+      - <<: *planning-inspection
+        case_id: C15-006
+        scenario_id: protected-consumer-shall-independently-verify-c14-range-evidence
+        intent: "Inspect the protected consumer shall independently verify c14 range evidence planning contract and its scenarios."
+  openspec:cli-val-07-code-review-gate-adoption:trustworthy-green-checks:protected-code-review-green-shall-require-a-verified-c14-envelope:
+    <<: *planning-context
+    touchpoints: *spec-5
+    verification_cases:
+      - <<: *planning-inspection
+        case_id: C15-007
+        scenario_id: protected-code-review-green-shall-require-a-verified-c14-envelope
+        intent: "Inspect the protected code review green shall require a verified c14 envelope planning contract and its scenarios."
