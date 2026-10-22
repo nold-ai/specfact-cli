@@ -423,8 +423,13 @@ def test_frozen_graph_uses_official_semgrep_with_bounded_mcp_exception() -> None
     for record, expected_record in zip(
         sorted(records, key=lambda entry: entry["package"]), expected_records, strict=True
     ):
-        actual_record = {key: record[key] for key in expected_record}
-        actual_record["vulnerability_ids"] = sorted(record["vulnerability_ids"])
+        actual_record = {
+            "package": record["package"],
+            "version": record["version"],
+            "vulnerability_ids": sorted(record["vulnerability_ids"]),
+            "reviewed_on": record["reviewed_on"],
+            "expires_on": record["expires_on"],
+        }
         assert actual_record == expected_record
         assert tuple(bool(record[key].strip()) for key in ("rationale", "mitigation")) == (True, True)
     lock = tomllib.loads((REPO_ROOT / "uv.lock").read_text(encoding="utf-8"))
@@ -537,7 +542,7 @@ def test_proof_executor_imports_installed_pytest_before_repository_root(tmp_path
     assert bootstrap.index("import pytest") < bootstrap.index("sys.path.append(repo_root)")
 
 
-def test_invalid_utf8_authority_is_stable_metadata_failure(tmp_path: Path) -> None:
+def test_invalid_utf8_authority_rejects_malformed_bytes(tmp_path: Path) -> None:
     """Malformed external bytes fail closed without exposing parser details."""
     comment = tmp_path / "comment.json"
     comment.write_bytes(b"\xff")

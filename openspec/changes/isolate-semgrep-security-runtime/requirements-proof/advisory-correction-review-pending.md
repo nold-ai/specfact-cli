@@ -1,8 +1,8 @@
 # Historical advisory correction pending note
 
 The pending note below is superseded by accepted independent AI technical
-review in `advisory-mapping-review.md` on 2026-10-23. The active receipt records
-that acceptance. Only new authenticated native RED remains pending before
+review in `advisory-mapping-review.md` on 2026-10-23. That acceptance is retained as history. The active receipt now records the
+subsequent quality amendment acceptance in quality-mapping-review.md. Only new authenticated native RED remains pending before
 production adoption. This does not grant human, merge or publication authority.
 
 ## Original pending note
