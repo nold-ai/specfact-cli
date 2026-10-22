@@ -3,7 +3,6 @@ import re
 import shutil
 import subprocess
 import sys
-from importlib.metadata import distribution
 from pathlib import Path
 
 
@@ -43,12 +42,21 @@ print(json.dumps({"version": git.__version__, "rejected": rejected,
 
 def _frozen_gitpython_requirement(tmp_path: Path) -> tuple[Path, str]:
     locked = (REPO_ROOT / "requirements/ci/locked.txt").read_text(encoding="utf-8")
-    entries = re.findall(r"(?m)^gitpython==([^\s]+) \\\n((?:[ \t]+--hash=sha256:[0-9a-f]{64}(?: \\)?\n)+)", locked)
-    assert len(entries) == 1, "Expected one hash-pinned GitPython delivery requirement"
-    version, hashes = entries[0]
+    requirements: dict[str, tuple[str, str]] = {}
+    for package in ("gitdb", "gitpython", "smmap"):
+        declarations = re.findall(rf"(?m)^{package}(?=[\s=<>!~;\[@]|$)", locked)
+        assert len(declarations) == 1, f"Expected one {package} delivery requirement"
+        entries = re.findall(
+            rf"(?m)^{package}==([^\s]+) \\\n((?:[ \t]+--hash=sha256:[0-9a-f]{{64}}(?: \\)?\n)+)", locked
+        )
+        assert len(entries) == 1, f"Expected one hash-pinned {package} delivery requirement"
+        requirements[package] = entries[0]
     requirement = tmp_path / "gitpython.txt"
-    requirement.write_text(f"gitpython=={version} \\\n{hashes}", encoding="utf-8")
-    return requirement, version
+    requirement.write_text(
+        "".join(f"{package}=={version} \\\n{hashes}" for package, (version, hashes) in requirements.items()),
+        encoding="utf-8",
+    )
+    return requirement, requirements["gitpython"][0]
 
 
 def test_submodule_update_rejects_outside_checkout_before_clone(tmp_path: Path) -> None:
@@ -64,8 +72,7 @@ def test_submodule_update_rejects_outside_checkout_before_clone(tmp_path: Path) 
         text=True,
         timeout=120,
     )
-    dependency_roots = {str(distribution(package).locate_file("")) for package in ("gitdb", "smmap")}
-    probe_arguments = [str(target), *sorted(dependency_roots), str(tmp_path)]
+    probe_arguments = [str(target), str(tmp_path)]
     observed = subprocess.run(
         [sys.executable, "-I", "-S", "-c", SUBMODULE_PROBE, *probe_arguments],
         check=False,

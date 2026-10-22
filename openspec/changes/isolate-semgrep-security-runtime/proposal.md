@@ -18,6 +18,9 @@ proof for this main branch.
 - Refresh documentation gems to jekyll-feed 0.18.0,
   jekyll-redirect-from 0.17.0, and jekyll-relative-links 0.9.1.
   Require JSON >=2.21.2,<3 and verify the installed gem behavior separately.
+- Add the scoped Ruby compatibility probe at `scripts/check_jekyll_dependencies.rb`
+  and its CI workflow at `.github/workflows/docs-dependency-checks.yml`, ported
+  from the reviewed dev implementation after native RED acceptance.
 - Include the existing bundle-mapper source in the source distribution so the
   standard source-to-wheel build preserves its existing manifest bytes.
 - Synchronize the four version sources to 0.55.11 and record the release in the changelog.
