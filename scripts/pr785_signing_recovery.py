@@ -296,16 +296,33 @@ class _CommitIntent:
     message: str
 
 
+@dataclass(frozen=True)
+class _ServiceIdentity:
+    role: Literal["author", "committer"]
+    name: str
+    email: str
+    login: str
+    account_id: int
+    account_type: Literal["Bot", "User"]
+
+
+_SERVICE_IDENTITIES = (
+    _ServiceIdentity("author", BOT, BOT_EMAIL, BOT, 41898282, "Bot"),
+    _ServiceIdentity("committer", "GitHub", "noreply@github.com", "web-flow", 19864447, "User"),
+)
+
+
 def _verify_payload(payload: str, intent: _CommitIntent) -> None:
     headers, separator, message = payload.partition("\n\n")
     _check(separator == "\n\n" and message == intent.message, "Signed message mismatch")
     lines = headers.splitlines()
     _check(len(lines) == 4, "Unexpected signed headers")
     _check(lines[:2] == [f"tree {intent.tree}", f"parent {intent.parent}"], "Signed tree or parent mismatch")
-    identity = re.escape(f"{BOT} <{BOT_EMAIL}>")
-    for line, role in zip(lines[2:], ("author", "committer"), strict=True):
+    for line, expected in zip(lines[2:], _SERVICE_IDENTITIES, strict=True):
+        identity = re.escape(f"{expected.name} <{expected.email}>")
         _check(
-            re.fullmatch(rf"{role} {identity} [0-9]+ [+-][0-9]{{4}}", line) is not None, "Signed attribution mismatch"
+            re.fullmatch(rf"{expected.role} {identity} [0-9]+ [+-][0-9]{{4}}", line) is not None,
+            "Signed attribution mismatch",
         )
 
 
@@ -335,18 +352,19 @@ def _verify_signature(record: Mapping[str, Any], intent: _CommitIntent) -> None:
     _check(_field(record, "verification", "verified") is True, "Commit is not verified")
     _check(_field(record, "verification", "reason") == "valid", "Signature reason is not valid")
     _check(bool(_string(_field(record, "verification", "signature")).strip()), "Missing signature")
-    for role in ("author", "committer"):
-        _check(_field(record, role, "name") == BOT, "Git attribution mismatch")
-        _check(_field(record, role, "email") == BOT_EMAIL, "Git attribution email mismatch")
+    for expected in _SERVICE_IDENTITIES:
+        _check(_field(record, expected.role, "name") == expected.name, "Git attribution mismatch")
+        _check(_field(record, expected.role, "email") == expected.email, "Git attribution email mismatch")
     _verify_payload(_string(_field(record, "verification", "payload")), intent)
 
 
 def _verify_attribution(record: Mapping[str, Any], sha: str) -> None:
     _check(_field(record, "sha") == sha, "Attribution identity mismatch")
-    for role in ("author", "committer"):
-        expected = {"login": BOT, "id": 41898282, "type": "Bot"}
+    for identity in _SERVICE_IDENTITIES:
+        expected = {"login": identity.login, "id": identity.account_id, "type": identity.account_type}
         _check(
-            all(_field(record, role, key) == value for key, value in expected.items()), "Service attribution mismatch"
+            all(_field(record, identity.role, key) == value for key, value in expected.items()),
+            "Service attribution mismatch",
         )
 
 

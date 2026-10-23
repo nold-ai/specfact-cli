@@ -1,5 +1,15 @@
 # PR785 probe TDD evidence
 
+## Exact service role correction passing-after evidence
+
+Recorded 23 October 2026, Europe/Berlin. Root normally committed the independently accepted test/spec package at `958a23567fbec4ea06caa9474a8378afd6c057a5` before authorizing runtime edits. Both genuine former positive failures are retained below and were independently reproduced against unchanged runtime `38456f44`. The implementation changes only the exact role model in three existing verification functions. A frozen identity record binds the Actions bot author and GitHub web-flow committer separately. All 52 other existing top-level AST nodes and every nonidentity guard are conserved.
+
+Runtime SHA-256 is `416d507c43d34a0b8d6d793070f4849b676f3eeb961535ec8a5d9b7be8146358`. Test SHA-256 remains `a71283b3ec1447777f8365bb1d560c441f48fa80312f0f8a4eaf2211ee241c93`. Canonical mapping remains `sha256:f686345a624d61150d5fd2901ea0b6e567795a21d8e7b7d4a6eb6379c89dca27`. The exact full focused command executed all 90 cases with zero failures, errors and skips. Fresh independent runtime review repeated all 90 cases and accepted the frozen correction with no findings. Its report is `requirements-proof/service-identity-runtime-review.md`. A separate comment review found no changes required.
+
+Focused lint/type checks report zero errors, warnings and notes. Actual SpecFact CodeReview reports PASS with zero findings of any severity. The configured six-rule independent SAST, Bandit, scoped YAML, actionlint, strict OpenSpec and whitespace checks pass. Root checked every retained implementation evidence hash. Full inherited type/YAML debt remains unresolved and is not called clean. Existing bootstrap, dependency inputs, workflow and manifest bytes are unchanged.
+
+The retained authentic create response and separate Git/attribution readbacks now pass the corrected verifier locally. This is a replay only. Actual first run39918437102 remains refused and partial, with zero accepted objects and both anchor flags false. This note does not claim a new complete live probe, root anchors, signed release history, native 33-case RED, final authority, merge readiness or publication. Root owns the normal production commit and a fresh CI probe at its independently reviewed executor.
+
 ## Exact service role correction failing-before evidence
 
 Recorded 23 October 2026, Europe/Berlin. Root authenticated actual run 39918437102, attempt 1, at auxiliary executor `d30507854113fa42af86fd2db82a3a0554121cfb`. Artifact 12486046412 has ZIP SHA-256 `ecbe22efd7429db12d9a00dfdf0753a0200da42117d7170f293553f97e0bd55c`. Its raw response 0004 created GitHub-verified commit `192a8db76d7356e7ccae1788ed86604154174786`, with reason `valid`, a signature and the exact role-specific payload. The author is the Actions bot. The committer is GitHub, attributed to `web-flow`. Root retained independent Git and commit-attribution readbacks. The actual old runtime refused that valid baseline because it required the Actions bot in both roles. The receipt has zero accepted objects and both anchor flags false. No complete probe or release acceptance is inferred from this partial run.
