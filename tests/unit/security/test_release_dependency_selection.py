@@ -14,7 +14,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
     ("name", "version"),
     [
         ("certifi", "2026.10.19"),
-        ("gitpython", "3.2.0"),
+        ("gitpython", "3.2.1"),
         ("pyjwt", "2.15.1"),
         ("hatchling", "1.32.4"),
         ("urllib3", "2.8.0"),

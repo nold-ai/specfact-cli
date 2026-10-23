@@ -36,7 +36,7 @@ The main release SHALL satisfy this delivery contract using the reviewed officia
 #### Scenario: Select the reviewed compatible tooling graph
 
 - **WHEN** the release frozen graph is resolved
-- **THEN** it SHALL select certifi 2026.10.19, GitPython 3.2.0, PyJWT 2.15.1, Hatchling 1.32.4, urllib3 2.8.0, virtualenv 21.14.12, python-discovery 1.6.1, and packaging 26.3
+- **THEN** it SHALL select certifi 2026.10.19, GitPython 3.2.1, PyJWT 2.15.1, Hatchling 1.32.4, urllib3 2.8.0, virtualenv 21.14.12, python-discovery 1.6.1, and packaging 26.3
 - **AND** the lock and hashed delivery export SHALL agree.
 
 ### Requirement: Bound the temporary official MCP advisory exception
@@ -76,3 +76,27 @@ The main release SHALL satisfy this delivery contract using the reviewed officia
 
 - **WHEN** release metadata is read
 - **THEN** all four canonical version sources SHALL declare 0.55.11.
+
+### Requirement: Reject submodule checkouts into Git metadata before cloning
+
+The main release SHALL use the reviewed official GitPython 3.2.1 artifact to
+validate submodule checkout paths before any clone operation.
+
+#### Scenario: Reject submodule checkouts into Git metadata before cloning
+
+- **WHEN** the exact frozen GitPython wheel creates a submodule at `.git/hooks`, `GIT~1/hooks`, or the absolute in-checkout `.git/hooks` path
+- **THEN** it SHALL raise ValueError before cloning and SHALL leave hooks unchanged with no `.gitmodules` or module metadata created
+- **AND** ordinary `vendor/module` and `.github/module` paths SHALL reach the mocked clone boundary exactly once without ValueError.
+
+### Requirement: Bound the separate OpenTelemetry advisory exception
+
+The main release SHALL retain a separate exact opentelemetry-api exception for
+ordinary local-rule CLI scanning, excluding instrumented HTTP services that
+accept untrusted propagation headers.
+
+#### Scenario: Bound the separate OpenTelemetry advisory exception
+
+- **WHEN** official Semgrep selects opentelemetry-api 1.37.0
+- **THEN** only CVE-2026-114603 and alias GHSA-xcq7-p3pf-p88h SHALL be waived from 2026-10-22 through 2026-11-04 inclusive
+- **AND** other packages or versions, unrelated or mixed advisories, skipped dependencies, missing entries, expired records, and future review dates SHALL fail closed
+- **AND** the separate MCP record SHALL preserve its original version, advisory IDs, review date, and expiry.

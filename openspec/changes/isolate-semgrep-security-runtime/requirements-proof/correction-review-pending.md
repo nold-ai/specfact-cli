@@ -1,4 +1,15 @@
-# Corrected mapping review pending
+# Historical corrected mapping review status
+
+The pending note below is superseded. The 23-case correction received independent
+acceptance in correction-mapping-review.md and native RED at
+8cce44f449e9559d0100064d629c81991784ab41, run 39843165302 attempt 1.
+The accepted receipt is preserved as pre-advisory-review-evidence.json.
+Only the new advisory correction remains pending, as recorded in
+advisory-correction-review-pending.md. PRRT_kwDOQLaPE86vWprX identified this stale note.
+
+## Original pending note
+
+### Corrected mapping review pending
 
 The approved correction selects virtualenv 21.14.12, python-discovery 1.6.1,
 and packaging 26.3. Four new cases bind exact certifi 2026.10.19, GitPython
