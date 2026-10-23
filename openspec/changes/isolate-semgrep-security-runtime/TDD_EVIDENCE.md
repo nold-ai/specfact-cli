@@ -1,5 +1,13 @@
 # Test-first evidence
 
+## Current proof status
+
+The corrected native plan selects nineteen cases. Its fresh local run reports
+19 failed, 0 passed, 0 errors and 0 skipped. Independent AI review accepted the
+corrected mapping. Fresh native RED acceptance remains pending. The initial 34-case planning,
+review and local run below are historical. The first native artifact is incomplete.
+All fifteen passing controls remain unchanged in the required test suite.
+
 ## Local RED before production edits
 
 Captured on 2026-10-22 Europe/Berlin against main commit 5262efb0 in the
@@ -86,3 +94,39 @@ to reduce its line count. Independent mapping review verified this boundary.
 The exact local report and changed-line comparison are retained under
 `/private/tmp/specfact-release-20261022/red-owner/test-only-code-review.json` and
 `code-review-line-triage.json`. Native CI RED and final release gates remain pending.
+
+## First native attempt and corrected proof selection
+
+GitHub run [39809800598](https://github.com/nold-ai/specfact-cli/actions/runs/39809800598),
+at test-only commit `dd1b4121944f247c4d5dff0903902e2721d8c1a6`, retained
+artifact `12440155998`. It executed all 34 exact cases with genuine failures
+and passing controls. Its unchanged report has `gate_decision=fail`,
+`observed_maturity=incomplete` and fifteen `red-proof-passed-not-failed` findings.
+This artifact is not accepted RED. Its original bytes remain unchanged.
+
+The pinned native lifecycle requires each RED selector to fail. Earlier planning
+and review incorrectly assumed passing safety controls could share that plan.
+The corrected selection retains all nineteen actually failing cases. Fifteen
+already-passing malformed-artifact and negative-audit controls remain unchanged
+and enforced by the normal required test suite. They will run during final
+verification. This changes no assertion or production behavior and waives no
+check. A fresh independent review, test-only commit and accepted native RED
+are required before dependency edits. The earlier 34-case review is historical
+evidence, not acceptance of this corrected mapping.
+
+## Corrected mapping acceptance and proposal bytes
+
+Independent AI reviewer `/root/release_corrected_mapping_review` using
+gpt-6-astra accepted the nineteen-case mapping. Current acceptance references
+`requirements-proof/corrected-mapping-review.md` and source mapping digest
+`sha256:1abe2b6dc3e8a294795a00236803b002b98ad02ec05b22b2b0deb2cbf13a2020`.
+All nineteen selectors have genuine recorded CI failures. All fifteen omitted
+controls remain byte-identical in required tests. Local rerun of the corrected
+selectors reports nineteen failures, no errors and no skips.
+
+The earlier report's proposal hash predates normal Markdown autolink formatting.
+The new independent review examined the exact two URL-wrapper changes and
+accepts current proposal SHA256
+`83e860e44ebc7778c48fb0ef382ed26c4d8ebe80ccdcd18037f85c57f37d21df`.
+The original report remains historical with its original byte identities.
+Fresh native RED is still required before production edits.
