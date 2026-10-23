@@ -20,7 +20,9 @@ The executor SHALL run only a manually dispatched probe on the fixed auxiliary b
 
 ### Requirement: Ref or source drift
 
-The executor SHALL create only a baseline commit and an inert workflow commit, each parented by fixed main. It SHALL pin the exact full source manifest and probe bytes/tree and permit only bounded tree and commit POSTs without custom attribution, date or signature.
+The executor SHALL create only a baseline commit and an inert workflow commit, each parented by fixed main. It SHALL pin the exact full source manifest and probe bytes/tree and permit only the two bounded commit POSTs without custom attribution, date or signature.
+
+The owner SHALL prepare the exact unreferenced inert tree separately. Before either commit, CI SHALL read only the pinned root, linked `.github`, and linked `workflows` tree through three bounded nonrecursive GET requests. Each response SHALL have the exact expected SHA, explicit `truncated` equal to boolean false, and a list of unique, correctly typed direct entries. The required child entries SHALL match the pinned tree identities and tree mode. The inert workflow SHALL be a `100644` blob with its Git hash derived from the exact manifest bytes. Missing, unavailable, malformed, truncated or mismatched data SHALL refuse before any commit. CI SHALL NOT create trees or mutate refs. No caller input SHALL select a prepared SHA, manifest digest, success flag, path, content, ref or API endpoint.
 
 #### Scenario: Ref or source drift
 
@@ -29,7 +31,7 @@ The executor SHALL create only a baseline commit and an inert workflow commit, e
 
 ### Requirement: Signature and identity verification
 
-The executor SHALL create only a baseline commit and an inert workflow commit, each parented by fixed main. It SHALL pin the exact full source manifest and probe bytes/tree and permit only bounded tree and commit POSTs without custom attribution, date or signature.
+The executor SHALL create only a baseline commit and an inert workflow commit, each parented by fixed main. It SHALL pin the exact full source manifest and probe bytes/tree and permit only the two bounded commit POSTs without custom attribution, date or signature.
 
 The executor SHALL require author name `github-actions[bot]`, email `41898282+github-actions[bot]@users.noreply.github.com`, service login `github-actions[bot]`, numeric ID `41898282` and type `Bot`. It SHALL require committer name `GitHub`, email `noreply@github.com`, service login `web-flow`, numeric ID `19864447` and type `User`. Both create and independent Git readback metadata and signed payload headers SHALL match their exact role names and emails. The separate commit attribution readback SHALL match each role login, ID and type. A value from the other role SHALL NOT satisfy any identity field. All signature, context, intent, request and refusal guards remain required.
 
@@ -40,7 +42,7 @@ The executor SHALL require author name `github-actions[bot]`, email `41898282+gi
 
 ### Requirement: Signing refusal
 
-The executor SHALL create only a baseline commit and an inert workflow commit, each parented by fixed main. It SHALL pin the exact full source manifest and probe bytes/tree and permit only bounded tree and commit POSTs without custom attribution, date or signature.
+The executor SHALL create only a baseline commit and an inert workflow commit, each parented by fixed main. It SHALL pin the exact full source manifest and probe bytes/tree and permit only the two bounded commit POSTs without custom attribution, date or signature.
 
 The CLI SHALL write the already sanitized, program-authored `ProbeRefusalError` reason to stderr on refusal. HTTP refusals SHALL expose only the sanitized status diagnostic, never the HTTP error body, reason phrase, credentials or chained traceback. A caught local `OSError` SHALL produce only the fixed stderr message `Probe refused: Local I/O failure`, without interpolating the exception. These diagnostics SHALL NOT add receipt fields or alter refusal, persistence, signature, identity, context, ref or transport guards.
 
@@ -64,7 +66,7 @@ The executor SHALL persist receipts bound to the run ID, attempt, executor SHA a
 
 #### Scenario: Later refusal preserves earlier successful responses
 
-- **WHEN** one signed probe object is verified and a subsequent tree request is refused
+- **WHEN** one signed probe object is verified and the second commit request is refused
 - **THEN** a refusal receipt retains the exact execution identities and verified first object, all successful raw JSON remains available, and credentials and error bodies are absent
 
 ### Requirement: Early context refusal remains unauthenticated

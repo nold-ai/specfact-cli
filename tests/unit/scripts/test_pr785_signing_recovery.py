@@ -3,9 +3,11 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import subprocess
 import urllib.error
 import urllib.request
 from collections.abc import Mapping
+from dataclasses import replace
 from email.message import Message
 from io import BytesIO
 from pathlib import Path
@@ -21,6 +23,12 @@ if TYPE_CHECKING:
 
 JSONValue = str | int | float | bool | None | list["JSONValue"] | dict[str, "JSONValue"]
 ROOT = Path(__file__).resolve().parents[3]
+PREPARED_TREES = {
+    "root": "4b2cf05809c1cf687e4eae17a770cd33c97eff72",
+    "github": "6c8d9363427fb97b00eae0a452dab167ba41b8a4",
+    "workflows": "f0a1368e6f068ece5c3b1f1bb9264720778af6bd",
+}
+PREPARED_BLOB = "c00d710f49c952dee0ef3886acf476c7e49e0a8e"
 SERVICE_IDENTITIES: dict[str, dict[str, str | int]] = {
     "author": {
         "name": "github-actions[bot]",
@@ -93,6 +101,8 @@ class FakeAPI:
         self.calls: list[tuple[str, str, dict[str, Any]]] = []
         self.objects: dict[str, dict[str, Any]] = {}
         self.writes = 0
+        self.prepared = prepared_responses()
+        self.drift_after_prepared = False
 
     def request(self, method: str, path: str, body: dict[str, Any] | None = None) -> dict[str, Any]:
         self.calls.append((method, path, body or {}))
@@ -103,10 +113,12 @@ class FakeAPI:
         }
         if path in read_routes:
             return read_routes[path]()
+        if method == "GET" and path.startswith("/git/trees/"):
+            return self.prepared_tree(path.rsplit("/", 1)[1])
         if method == "POST":
             self.writes += 1
             if path == "/git/trees":
-                return {"sha": "f" * 40 if self.fault == "tree_response" else self.manifest.probe_tree}
+                return {"sha": self.manifest.probe_tree}
             assert path == "/git/commits"
             assert body is not None
             return self.create_commit(body)
@@ -115,6 +127,16 @@ class FakeAPI:
         if path.startswith("/commits/"):
             return self.commit_attribution(path.rsplit("/", 1)[1])
         raise AssertionError((method, path, body))
+
+    def prepared_tree(self, sha: str) -> dict[str, Any]:
+        from scripts.pr785_signing_recovery import ProbeRefusalError
+
+        if self.fault == f"unavailable:{sha}":
+            raise ProbeRefusalError("API refused HTTP 404")
+        result = copy.deepcopy(self.prepared[sha])
+        if self.fault == "tree_response" and sha == PREPARED_TREES["root"]:
+            result["sha"] = "f" * 40
+        return result
 
     def workflow_run(self) -> dict[str, Any]:
         run: dict[str, Any] = {
@@ -136,6 +158,9 @@ class FakeAPI:
 
     def main_ref(self) -> dict[str, Any]:
         sha = "f" * 40 if self.fault == "main" or self.writes == self.drift_after else self.manifest.main
+        prepared_reads = [path for method, path, _ in self.calls if method == "GET" and path.startswith("/git/trees/")]
+        if self.drift_after_prepared and len(prepared_reads) == 3:
+            sha = "f" * 40
         return {"object": {"sha": sha}}
 
     def pull_request(self) -> dict[str, Any]:
@@ -306,7 +331,7 @@ def test_invalid_object_stops_subsequent_writes(fault: str) -> None:
     api = FakeAPI(manifest, fault)
     with pytest.raises(ProbeRefusalError):
         Probe(manifest, context(), api).run()
-    assert api.writes == (2 if fault == "tree_response" else 1)
+    assert api.writes == (0 if fault == "tree_response" else 1)
 
 
 @pytest.mark.parametrize("surface", ["create", "readback"])
@@ -335,7 +360,7 @@ def test_service_role_mismatch_stops_subsequent_writes(role: str, field: str) ->
     assert api.writes == 1
 
 
-@pytest.mark.parametrize("after", [1, 2, 3])
+@pytest.mark.parametrize("after", [1, 2])
 def test_drift_after_each_write_stops(after: int) -> None:
     from scripts.pr785_signing_recovery import Manifest, Probe, ProbeRefusalError
 
@@ -479,7 +504,7 @@ def test_context_failure_still_writes_refusal_receipt(tmp_path: Path, monkeypatc
 
 
 def run_probe_cli(
-    output: Path, monkeypatch: pytest.MonkeyPatch, *, refuse_tree_write: bool = False
+    output: Path, monkeypatch: pytest.MonkeyPatch, *, refuse_second_commit: bool = False, refuse_prepared_tree: str = ""
 ) -> tuple[int, FakeAPI, list[dict[str, Any]]]:
     from scripts.pr785_signing_recovery import MANIFEST_SHA256, Manifest, main
 
@@ -493,9 +518,13 @@ def run_probe_cli(
     def respond(_opener: Any, request: urllib.request.Request, *args: Any, **kwargs: Any) -> BytesIO:
         assert request.full_url.startswith("https://api.github.com/repos/nold-ai/specfact-cli/")
         path = request.full_url.removeprefix("https://api.github.com/repos/nold-ai/specfact-cli")
-        if refuse_tree_write and request.get_method() == "POST" and path == "/git/trees":
+        if refuse_second_commit and request.get_method() == "POST" and path == "/git/commits" and api.objects:
             raise urllib.error.HTTPError(
                 request.full_url, 403, "Forbidden", Message(), BytesIO(b"unique-secret-never-in-evidence")
+            )
+        if request.get_method() == "GET" and path == f"/git/trees/{refuse_prepared_tree}":
+            raise urllib.error.HTTPError(
+                request.full_url, 404, "Not Found", Message(), BytesIO(b"unique-secret-never-in-evidence")
             )
         data = request.data
         assert data is None or isinstance(data, bytes)
@@ -543,7 +572,7 @@ def test_later_refusal_preserves_bound_receipt_and_successful_raw_json(
 ) -> None:
     from scripts.pr785_signing_recovery import MANIFEST_SHA256
 
-    exit_code, api, responses = run_probe_cli(tmp_path, monkeypatch, refuse_tree_write=True)
+    exit_code, api, responses = run_probe_cli(tmp_path, monkeypatch, refuse_second_commit=True)
     assert exit_code == 1
     assert api.writes == 1
     receipt = json.loads((tmp_path / "receipt.json").read_text())
@@ -594,19 +623,21 @@ def assert_bound_probe_execution(steps: list[dict[str, Any]]) -> None:
 
 
 def assert_bounded_object_writes(api: FakeAPI, manifest: Manifest) -> None:
-    assert [path for method, path, _ in api.calls if method == "POST"] == ["/git/commits", "/git/trees", "/git/commits"]
-    for method, path, body in api.calls:
-        if method == "POST" and path == "/git/commits":
-            assert set(body) == {"message", "tree", "parents"}
-            assert body["parents"] == [manifest.main]
-            assert body["tree"] in (manifest.main_tree, manifest.probe_tree)
-        if method == "POST" and path == "/git/trees":
-            assert body == {
-                "base_tree": manifest.main_tree,
-                "tree": [
-                    {"path": manifest.probe_path, "mode": "100644", "type": "blob", "content": manifest.probe_content}
-                ],
-            }
+    writes = [(path, body) for method, path, body in api.calls if method != "GET"]
+    assert [path for path, _ in writes] == ["/git/commits", "/git/commits"]
+    assert [body["tree"] for _, body in writes] == [manifest.main_tree, manifest.probe_tree]
+    for _, body in writes:
+        assert set(body) == {"message", "tree", "parents"}
+        assert body["parents"] == [manifest.main]
+    assert_prepared_reads_before_writes(api)
+
+
+def assert_prepared_reads_before_writes(api: FakeAPI) -> None:
+    reads = [(method, path) for method, path, _ in api.calls if path.startswith("/git/trees/")]
+    expected = [("GET", f"/git/trees/{sha}") for sha in PREPARED_TREES.values()]
+    assert reads == expected
+    first_write = next(i for i, (method, _, _) in enumerate(api.calls) if method == "POST")
+    assert all((method, path, {}) in api.calls[:first_write] for method, path in expected)
 
 
 def assert_inert_workflow(content: str) -> None:
@@ -620,7 +651,7 @@ def assert_inert_workflow(content: str) -> None:
 def test_cli_reports_sanitized_http_refusal(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    exit_code, api, responses = run_probe_cli(tmp_path, monkeypatch, refuse_tree_write=True)
+    exit_code, api, responses = run_probe_cli(tmp_path, monkeypatch, refuse_second_commit=True)
     captured = capsys.readouterr()
     assert exit_code == 1
     assert api.writes == 1
@@ -687,3 +718,262 @@ def test_cli_reports_generic_local_io_failure(
     assert "local-error-body-never-in-evidence" not in persisted + captured.out + captured.err
     assert captured.out == ""
     assert captured.err == "Probe refused: Local I/O failure\n"
+
+
+def prepared_responses() -> dict[str, dict[str, Any]]:
+    children = {
+        "root": (".github", "040000", "tree", PREPARED_TREES["github"]),
+        "github": ("workflows", "040000", "tree", PREPARED_TREES["workflows"]),
+        "workflows": ("pr785-inert-probe.yml", "100644", "blob", PREPARED_BLOB),
+    }
+    return {
+        PREPARED_TREES[level]: {
+            "sha": PREPARED_TREES[level],
+            "truncated": False,
+            "tree": [dict(zip(("path", "mode", "type", "sha"), entry, strict=True))],
+        }
+        for level, entry in children.items()
+    }
+
+
+def corrupt_prepared_response(record: dict[str, Any], fault: str) -> None:
+    response_faults: dict[str, dict[str, Any]] = {
+        "wrong-sha": {"sha": "f" * 40},
+        "malformed-sha": {"sha": 7},
+        "truncated": {"truncated": True},
+        "false-integer": {"truncated": 0},
+        "false-string": {"truncated": "false"},
+        "malformed-list": {"tree": {}},
+        "malformed-entry": {"tree": [None]},
+        "missing-child": {"tree": []},
+    }
+    if fault in response_faults:
+        record.update(response_faults[fault])
+    elif fault == "missing-truncated":
+        del record["truncated"]
+    else:
+        corrupt_prepared_entry(record, fault)
+
+
+def corrupt_prepared_entry(record: dict[str, Any], fault: str) -> None:
+    entry = record["tree"][0]
+    fields: dict[str, dict[str, Any]] = {
+        "wrong-child": {"sha": "f" * 40},
+        "wrong-type": {"type": "commit"},
+        "wrong-mode": {"mode": "100755"},
+        "nested-path": {"path": ".github/workflows/pr785-inert-probe.yml"},
+        "non-string-path": {"path": 1},
+        "malformed-child-sha": {"sha": "bad"},
+    }
+    if fault in fields:
+        entry.update(fields[fault])
+        return
+    if fault == "missing-entry-field":
+        del entry["type"]
+        return
+    if fault == "duplicate-child":
+        record["tree"].append(copy.deepcopy(entry))
+        return
+    if fault == "malformed-unrelated-entry":
+        record["tree"].append({"path": "other", "mode": "100644", "type": "tree", "sha": "d" * 40})
+        return
+    raise AssertionError(f"Unknown prepared fault {fault}")
+
+
+@pytest.mark.parametrize("level", ["root", "github", "workflows"])
+@pytest.mark.parametrize(
+    "fault",
+    [
+        "unavailable",
+        "wrong-sha",
+        "malformed-sha",
+        "truncated",
+        "false-integer",
+        "false-string",
+        "missing-truncated",
+        "malformed-list",
+        "malformed-entry",
+        "missing-child",
+        "wrong-child",
+        "wrong-type",
+        "wrong-mode",
+        "nested-path",
+        "non-string-path",
+        "malformed-child-sha",
+        "missing-entry-field",
+        "duplicate-child",
+        "malformed-unrelated-entry",
+    ],
+)
+def test_prepared_tree_refusal_precedes_either_commit(level: str, fault: str) -> None:
+    from scripts.pr785_signing_recovery import Manifest, Probe, ProbeRefusalError
+
+    manifest = Manifest.load(ROOT / "ci/recovery/pr785-signing-inputs.json")
+    api = FakeAPI(manifest)
+    sha = PREPARED_TREES[level]
+    if fault == "unavailable":
+        api.fault = f"unavailable:{sha}"
+    else:
+        corrupt_prepared_response(api.prepared[sha], fault)
+    probe = Probe(manifest, context(), api)
+    with pytest.raises(ProbeRefusalError):
+        probe.run()
+    assert api.writes == 0
+    assert probe.receipt["status"] == "refused"
+    assert probe.receipt["objects"] == []
+    assert_unverified_anchors(probe.receipt)
+
+
+def test_drift_after_prepared_reads_stops() -> None:
+    from scripts.pr785_signing_recovery import Manifest, Probe, ProbeRefusalError
+
+    api = FakeAPI(Manifest.load(ROOT / "ci/recovery/pr785-signing-inputs.json"))
+    api.drift_after_prepared = True
+    with pytest.raises(ProbeRefusalError):
+        Probe(api.manifest, context(), api).run()
+    assert api.writes == 0
+
+
+def test_prepared_blob_identity_is_derived_from_manifest_bytes() -> None:
+    from scripts.pr785_signing_recovery import Manifest
+
+    manifest = Manifest.load(ROOT / "ci/recovery/pr785-signing-inputs.json")
+    content = manifest.probe_content.encode()
+    result = subprocess.run(["git", "hash-object", "--stdin"], input=content, check=True, capture_output=True, cwd=ROOT)
+    assert result.stdout.decode().strip() == PREPARED_BLOB
+
+
+def test_prepared_blob_must_match_manifest_content_before_either_commit() -> None:
+    from scripts.pr785_signing_recovery import Manifest, Probe, ProbeRefusalError
+
+    original = Manifest.load(ROOT / "ci/recovery/pr785-signing-inputs.json")
+    manifest = replace(original, probe_content=original.probe_content + "\n")
+    api = FakeAPI(manifest)
+    probe = Probe(manifest, context(), api)
+    with pytest.raises(ProbeRefusalError):
+        probe.run()
+    assert api.writes == 0
+    assert probe.receipt["status"] == "refused"
+    assert probe.receipt["objects"] == []
+    assert_unverified_anchors(probe.receipt)
+
+
+def test_transport_refuses_tree_creation_before_network(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from scripts.pr785_signing_recovery import GitHubAPI, ProbeRefusalError
+
+    calls: list[str] = []
+
+    def respond(_opener: Any, request: urllib.request.Request, *args: Any, **kwargs: Any) -> BytesIO:
+        calls.append(request.full_url)
+        return BytesIO(b"{}")
+
+    monkeypatch.setattr(urllib.request.OpenerDirector, "open", respond)
+    with pytest.raises(ProbeRefusalError):
+        GitHubAPI("never-sent", tmp_path).request("POST", "/git/trees", {})
+    assert calls == []
+
+
+@pytest.mark.parametrize("level", ["root", "github", "workflows"])
+def test_transport_reads_exact_prepared_tree(level: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from scripts.pr785_signing_recovery import GitHubAPI, ProbeRefusalError
+
+    sha = PREPARED_TREES[level]
+    expected = prepared_responses()[sha]
+    calls: list[str] = []
+
+    def respond(_opener: Any, request: urllib.request.Request, *args: Any, **kwargs: Any) -> BytesIO:
+        calls.append(request.full_url)
+        assert request.get_method() == "GET"
+        assert request.data is None
+        return BytesIO(json.dumps(expected).encode())
+
+    monkeypatch.setattr(urllib.request.OpenerDirector, "open", respond)
+    try:
+        result = GitHubAPI("never-sent", tmp_path).request("GET", f"/git/trees/{sha}")
+    except ProbeRefusalError as error:
+        pytest.fail(f"Pinned prepared tree GET was refused: {error}")
+    assert result == expected
+    assert calls == [f"https://api.github.com/repos/nold-ai/specfact-cli/git/trees/{sha}"]
+
+
+@pytest.mark.parametrize(
+    "path",
+    [f"/git/trees/{'f' * 40}", f"/git/trees/{PREPARED_TREES['root']}?recursive=1"],
+    ids=["arbitrary-tree", "recursive-tree"],
+)
+def test_transport_rejects_unpinned_tree_reads(path: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    test_transport_rejects_forbidden_endpoints("GET", path, tmp_path, monkeypatch)
+
+
+@pytest.mark.parametrize(
+    "option,value",
+    [
+        ("--prepared-tree", "f" * 40),
+        ("--manifest-digest", "f" * 64),
+        ("--preparation-success", "true"),
+        ("--ref", "refs/heads/main"),
+        ("--api-url", "https://evil.invalid"),
+        ("--tree", "f" * 40),
+        ("--content", "arbitrary"),
+        ("--author", "arbitrary"),
+    ],
+    ids=["prepared-tree", "manifest-digest", "preparation-success", "ref", "api-url", "tree", "content", "author"],
+)
+def test_cli_rejects_arbitrary_signing_inputs(option: str, value: str, tmp_path: Path) -> None:
+    from scripts.pr785_signing_recovery import main
+
+    with pytest.raises(SystemExit) as error:
+        main(["--stage", "probe", "--expected-executor", "a" * 40, "--output", str(tmp_path), option, value])
+    assert error.value.code == 2
+    assert not list(tmp_path.iterdir())
+
+
+@pytest.mark.parametrize("level", ["root", "github", "workflows"])
+def test_cli_prepared_tree_refusal_retains_no_signed_object(
+    level: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    exit_code, api, responses = run_probe_cli(tmp_path, monkeypatch, refuse_prepared_tree=PREPARED_TREES[level])
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert api.writes == 0
+    receipt = json.loads((tmp_path / "receipt.json").read_text())
+    assert receipt["status"] == "refused"
+    assert receipt["context_verified"] is True
+    assert receipt["objects"] == []
+    assert_unverified_anchors(receipt)
+    assert_receipt_execution_identity(receipt)
+    assert_persisted_responses(tmp_path, responses)
+    assert captured.out == ""
+    assert captured.err == "Probe refused: API refused HTTP 404\n"
+
+
+def test_success_returns_existing_receipt_with_complete_same_run_pair() -> None:
+    from scripts.pr785_signing_recovery import MANIFEST_SHA256, Manifest, Probe
+
+    manifest = Manifest.load(ROOT / "ci/recovery/pr785-signing-inputs.json")
+    probe = Probe(manifest, context(), FakeAPI(manifest))
+    receipt = probe.run()
+    assert receipt is probe.receipt
+    assert set(receipt) == {
+        "status",
+        "manifest_digest",
+        "context_verified",
+        "context",
+        "objects",
+        "ci_anchor_verified",
+        "root_anchor_verified",
+    }
+    assert receipt["status"] == "signed_objects_verified"
+    objects = receipt["objects"]
+    assert len(objects) == len({item["sha"] for item in objects}) == 2
+    for item, tree, label in zip(
+        objects, (manifest.main_tree, manifest.probe_tree), ("baseline", "inert-workflow"), strict=True
+    ):
+        assert set(item) == {"sha", "tree", "parent", "message", "signature", "payload", "signed_object_verified"}
+        assert item["tree"] == tree
+        assert item["parent"] == manifest.main
+        assert item["message"] == (
+            f"PR785 signing probe {label}\n\nManifest: {MANIFEST_SHA256}\nExecutor: {'a' * 40}\nRun: 123\nAttempt: 1"
+        )
+        assert item["signed_object_verified"] is True
+    assert_unverified_anchors(receipt)

@@ -17,7 +17,7 @@
 - [x] Review actual executor SHA before manual dispatch.
 - [ ] Authenticate actual CI signing receipts, run/job/artifact digest and readback signatures.
 - [ ] Prove root-owned immutable auxiliary anchors and fetching for both objects.
-- [ ] Reject REST on actual signing refusal without an automatic alternative.
+- [ ] Reject only the operation demonstrated to fail, without an automatic alternative or new access.
 - [ ] Archive this operational change with OpenSpec CLI after acceptance.
 
 ## Exact service role correction
@@ -43,3 +43,13 @@
 - [x] Implement the bounded stderr correction after root authorization and pass all focused controls and required quality gates.
 - [ ] Follow up on the absent auxiliary wiki source. The approved release-page and graph update is complete; this separate page was not created under that narrow grant.
 - [ ] Authenticate a fresh complete probe and both root anchors after independent runtime acceptance.
+
+## Prepared tree correction
+
+- [x] Freeze prepared-tree spec and tests with genuine semantic RED against unchanged runtime, exact selector conservation and native planned mapping.
+- [ ] Obtain fresh independent test acceptance, root review receipt, actual staged gate and normal test-first commit before runtime changes.
+- [ ] Validate the three pinned prepared trees before either commit and restrict CI writes to commits after root authorization.
+- [ ] Pass focused controls and required quality gates, then obtain fresh independent runtime acceptance and normal fix commit.
+- [ ] Separately test and independently review the root-owned preparation operation, including denial, uncertainty and postguard failures, before its bounded live write.
+- [ ] Authenticate a fresh complete same-run pair and both immutable root anchors with fetchability. Earlier partial runs remain unadopted.
+- [ ] Retain the absent auxiliary wiki source follow-up. The approved release-page and graph update is complete; creating a separate source remains outside this unit.

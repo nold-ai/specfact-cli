@@ -206,6 +206,70 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_expected_executor_must_equal_actual_workflow_sha
+      - case_id: PR785-PROBE-158
+        scenario_id: context-mismatch
+        method: test
+        intent: Keep arbitrary signing input outside the exact CLI contract.
+        observable: An unknown content, identity or endpoint option exits 2 before API or output access.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_cli_rejects_arbitrary_signing_inputs[prepared-tree]
+      - case_id: PR785-PROBE-159
+        scenario_id: context-mismatch
+        method: test
+        intent: Keep arbitrary signing input outside the exact CLI contract.
+        observable: An unknown content, identity or endpoint option exits 2 before API or output access.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_cli_rejects_arbitrary_signing_inputs[manifest-digest]
+      - case_id: PR785-PROBE-160
+        scenario_id: context-mismatch
+        method: test
+        intent: Keep arbitrary signing input outside the exact CLI contract.
+        observable: An unknown content, identity or endpoint option exits 2 before API or output access.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_cli_rejects_arbitrary_signing_inputs[preparation-success]
+      - case_id: PR785-PROBE-161
+        scenario_id: context-mismatch
+        method: test
+        intent: Keep arbitrary signing input outside the exact CLI contract.
+        observable: An unknown content, identity or endpoint option exits 2 before API or output access.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_cli_rejects_arbitrary_signing_inputs[ref]
+      - case_id: PR785-PROBE-162
+        scenario_id: context-mismatch
+        method: test
+        intent: Keep arbitrary signing input outside the exact CLI contract.
+        observable: An unknown content, identity or endpoint option exits 2 before API or output access.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_cli_rejects_arbitrary_signing_inputs[api-url]
+      - case_id: PR785-PROBE-163
+        scenario_id: context-mismatch
+        method: test
+        intent: Keep arbitrary signing input outside the exact CLI contract.
+        observable: An unknown content, identity or endpoint option exits 2 before API or output access.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_cli_rejects_arbitrary_signing_inputs[tree]
+      - case_id: PR785-PROBE-164
+        scenario_id: context-mismatch
+        method: test
+        intent: Keep arbitrary signing input outside the exact CLI contract.
+        observable: An unknown content, identity or endpoint option exits 2 before API or output access.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_cli_rejects_arbitrary_signing_inputs[content]
+      - case_id: PR785-PROBE-165
+        scenario_id: context-mismatch
+        method: test
+        intent: Keep arbitrary signing input outside the exact CLI contract.
+        observable: An unknown content, identity or endpoint option exits 2 before API or output access.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_cli_rejects_arbitrary_signing_inputs[author]
   openspec:pr785-ci-signing-recovery:pr785-signing-probe:ref-or-source-drift:
     rationale: Conserve source identities and bound writes to the two independent inert probe objects.
     stakeholder_refs:
@@ -411,11 +475,11 @@ requirements:
       - case_id: PR785-PROBE-054
         scenario_id: ref-or-source-drift
         method: test
-        intent: drift after each write stops.
+        intent: Refuse drift after prepared-tree reads before the first commit.
         observable: Ref or source drift raises ProbeRefusalError and prevents subsequent writes.
         selector:
           runner: pytest
-          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_drift_after_each_write_stops[3]
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_drift_after_prepared_reads_stops
       - case_id: PR785-PROBE-055
         scenario_id: ref-or-source-drift
         method: test
@@ -424,6 +488,555 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_manifest_tampering_refuses
+      - case_id: PR785-PROBE-094
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[unavailable-root]
+      - case_id: PR785-PROBE-095
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[unavailable-github]
+      - case_id: PR785-PROBE-096
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[unavailable-workflows]
+      - case_id: PR785-PROBE-097
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[wrong-sha-root]
+      - case_id: PR785-PROBE-098
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[wrong-sha-github]
+      - case_id: PR785-PROBE-099
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[wrong-sha-workflows]
+      - case_id: PR785-PROBE-100
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[malformed-sha-root]
+      - case_id: PR785-PROBE-101
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[malformed-sha-github]
+      - case_id: PR785-PROBE-102
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[malformed-sha-workflows]
+      - case_id: PR785-PROBE-103
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[truncated-root]
+      - case_id: PR785-PROBE-104
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[truncated-github]
+      - case_id: PR785-PROBE-105
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[truncated-workflows]
+      - case_id: PR785-PROBE-106
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[false-integer-root]
+      - case_id: PR785-PROBE-107
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[false-integer-github]
+      - case_id: PR785-PROBE-108
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[false-integer-workflows]
+      - case_id: PR785-PROBE-109
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[false-string-root]
+      - case_id: PR785-PROBE-110
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[false-string-github]
+      - case_id: PR785-PROBE-111
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[false-string-workflows]
+      - case_id: PR785-PROBE-112
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[missing-truncated-root]
+      - case_id: PR785-PROBE-113
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[missing-truncated-github]
+      - case_id: PR785-PROBE-114
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[missing-truncated-workflows]
+      - case_id: PR785-PROBE-115
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[malformed-list-root]
+      - case_id: PR785-PROBE-116
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[malformed-list-github]
+      - case_id: PR785-PROBE-117
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[malformed-list-workflows]
+      - case_id: PR785-PROBE-118
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[malformed-entry-root]
+      - case_id: PR785-PROBE-119
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[malformed-entry-github]
+      - case_id: PR785-PROBE-120
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[malformed-entry-workflows]
+      - case_id: PR785-PROBE-121
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[missing-child-root]
+      - case_id: PR785-PROBE-122
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[missing-child-github]
+      - case_id: PR785-PROBE-123
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[missing-child-workflows]
+      - case_id: PR785-PROBE-124
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[wrong-child-root]
+      - case_id: PR785-PROBE-125
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[wrong-child-github]
+      - case_id: PR785-PROBE-126
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[wrong-child-workflows]
+      - case_id: PR785-PROBE-127
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[wrong-type-root]
+      - case_id: PR785-PROBE-128
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[wrong-type-github]
+      - case_id: PR785-PROBE-129
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[wrong-type-workflows]
+      - case_id: PR785-PROBE-130
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[wrong-mode-root]
+      - case_id: PR785-PROBE-131
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[wrong-mode-github]
+      - case_id: PR785-PROBE-132
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[wrong-mode-workflows]
+      - case_id: PR785-PROBE-133
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[nested-path-root]
+      - case_id: PR785-PROBE-134
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[nested-path-github]
+      - case_id: PR785-PROBE-135
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[nested-path-workflows]
+      - case_id: PR785-PROBE-136
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[non-string-path-root]
+      - case_id: PR785-PROBE-137
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[non-string-path-github]
+      - case_id: PR785-PROBE-138
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[non-string-path-workflows]
+      - case_id: PR785-PROBE-139
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[malformed-child-sha-root]
+      - case_id: PR785-PROBE-140
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[malformed-child-sha-github]
+      - case_id: PR785-PROBE-141
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[malformed-child-sha-workflows]
+      - case_id: PR785-PROBE-142
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[missing-entry-field-root]
+      - case_id: PR785-PROBE-143
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[missing-entry-field-github]
+      - case_id: PR785-PROBE-144
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[missing-entry-field-workflows]
+      - case_id: PR785-PROBE-145
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[duplicate-child-root]
+      - case_id: PR785-PROBE-146
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[duplicate-child-github]
+      - case_id: PR785-PROBE-147
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[duplicate-child-workflows]
+      - case_id: PR785-PROBE-148
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[malformed-unrelated-entry-root]
+      - case_id: PR785-PROBE-149
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[malformed-unrelated-entry-github]
+      - case_id: PR785-PROBE-150
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Validate the exact prepared tree data before either commit.
+        observable: Malformed, mismatched or unavailable prepared data raises ProbeRefusalError before any write and
+          retains a refused empty receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_tree_refusal_precedes_either_commit[malformed-unrelated-entry-workflows]
+      - case_id: PR785-PROBE-153
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Read this pinned prepared tree through the actual bounded HTTP adapter.
+        observable: The adapter accepts the exact nonrecursive GET route with no body and retains the exact returned
+          JSON.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_transport_reads_exact_prepared_tree[root]
+      - case_id: PR785-PROBE-154
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Read this pinned prepared tree through the actual bounded HTTP adapter.
+        observable: The adapter accepts the exact nonrecursive GET route with no body and retains the exact returned
+          JSON.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_transport_reads_exact_prepared_tree[github]
+      - case_id: PR785-PROBE-155
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Read this pinned prepared tree through the actual bounded HTTP adapter.
+        observable: The adapter accepts the exact nonrecursive GET route with no body and retains the exact returned
+          JSON.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_transport_reads_exact_prepared_tree[workflows]
+      - case_id: PR785-PROBE-170
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: Derive expected prepared blob identity from the actual typed manifest content.
+        observable: Changing only manifest content while the prepared tree remains original raises ProbeRefusalError
+          before either commit and retains an empty refused receipt.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_blob_must_match_manifest_content_before_either_commit
   openspec:pr785-ci-signing-recovery:pr785-signing-probe:signature-and-identity-verification:
     rationale: Conserve source identities and bound writes to the two independent inert probe objects.
     stakeholder_refs:
@@ -446,8 +1059,8 @@ requirements:
         scenario_id: signature-and-identity-verification
         method: test
         intent: probe api contract.
-        observable: Exactly two independently parented commits and one bounded workflow tree are requested, and
-          frozen source identities and probe content match.
+        observable: Exactly three pinned nonrecursive tree reads precede both independent commit requests; CI writes
+          only commits with fixed main parents and exact reviewed trees.
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_probe_api_contract
@@ -637,6 +1250,14 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_service_role_mismatch_stops_subsequent_writes[type-committer]
+      - case_id: PR785-PROBE-151
+        scenario_id: signature-and-identity-verification
+        method: test
+        intent: Derive the pinned blob identity from unchanged manifest bytes.
+        observable: The Git blob hash of the manifest content equals the independently grounded inert blob.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_prepared_blob_identity_is_derived_from_manifest_bytes
   openspec:pr785-ci-signing-recovery:pr785-signing-probe:signing-refusal:
     rationale: Conserve source identities and bound writes to the two independent inert probe objects.
     stakeholder_refs:
@@ -730,7 +1351,7 @@ requirements:
       - case_id: PR785-PROBE-051
         scenario_id: signing-refusal
         method: test
-        intent: invalid object stops subsequent writes.
+        intent: Refuse a wrong prepared root identity before either commit.
         observable: Invalid object or API operations refuse; API error bodies and credentials are absent from evidence.
         selector:
           runner: pytest
@@ -817,6 +1438,60 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_cli_reports_generic_local_io_failure
+      - case_id: PR785-PROBE-152
+        scenario_id: signing-refusal
+        method: test
+        intent: Refuse unapproved CI tree operations before network access.
+        observable: Tree creation, arbitrary tree reads and recursive query paths raise ProbeRefusalError without
+          network access.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_transport_refuses_tree_creation_before_network
+      - case_id: PR785-PROBE-156
+        scenario_id: signing-refusal
+        method: test
+        intent: Refuse unapproved CI tree operations before network access.
+        observable: Tree creation, arbitrary tree reads and recursive query paths raise ProbeRefusalError without
+          network access.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_transport_rejects_unpinned_tree_reads[arbitrary-tree]
+      - case_id: PR785-PROBE-157
+        scenario_id: signing-refusal
+        method: test
+        intent: Refuse unapproved CI tree operations before network access.
+        observable: Tree creation, arbitrary tree reads and recursive query paths raise ProbeRefusalError without
+          network access.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_transport_rejects_unpinned_tree_reads[recursive-tree]
+      - case_id: PR785-PROBE-166
+        scenario_id: signing-refusal
+        method: test
+        intent: Retain safe CLI refusal evidence when a prepared tree is unavailable.
+        observable: Exit 1 reports only HTTP 404, preserves successful raw JSON and verified context, contains no
+          signed object and makes no anchor claim.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_cli_prepared_tree_refusal_retains_no_signed_object[root]
+      - case_id: PR785-PROBE-167
+        scenario_id: signing-refusal
+        method: test
+        intent: Retain safe CLI refusal evidence when a prepared tree is unavailable.
+        observable: Exit 1 reports only HTTP 404, preserves successful raw JSON and verified context, contains no
+          signed object and makes no anchor claim.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_cli_prepared_tree_refusal_retains_no_signed_object[github]
+      - case_id: PR785-PROBE-168
+        scenario_id: signing-refusal
+        method: test
+        intent: Retain safe CLI refusal evidence when a prepared tree is unavailable.
+        observable: Exit 1 reports only HTTP 404, preserves successful raw JSON and verified context, contains no
+          signed object and makes no anchor claim.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_cli_prepared_tree_refusal_retains_no_signed_object[workflows]
   openspec:pr785-ci-signing-recovery:pr785-signing-probe:root-acceptance-remains-pending:
     rationale: Retain truthful receipts and keep root authentication and anchoring pending.
     stakeholder_refs:
@@ -844,6 +1519,15 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_success_persists_bound_receipt_and_raw_responses
+      - case_id: PR785-PROBE-169
+        scenario_id: root-acceptance-remains-pending
+        method: test
+        intent: Accept only a complete same-run pair in the existing receipt.
+        observable: Success returns the same receipt with exactly two distinct verified fixed-main children, run-bound
+          intent and unchanged fields; both anchors stay false.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_success_returns_existing_receipt_with_complete_same_run_pair
   openspec:pr785-ci-signing-recovery:pr785-signing-probe:later-refusal-preserves-earlier-successful-responses:
     rationale: Retain truthful receipts and keep root authentication and anchoring pending.
     stakeholder_refs:
@@ -864,7 +1548,7 @@ requirements:
     verification_cases:
       - scenario_id: later-refusal-preserves-earlier-successful-responses
         method: test
-        intent: Refuse the tree request after the baseline object has been verified through the real CLI and HTTP
+        intent: Refuse the second commit request after the baseline object has been verified through the real CLI and HTTP
           adapter.
         observable: Exit 1 retains the bound refusal receipt, first verified object and all earlier successful raw
           JSON, without credentials or error-body disclosure.
