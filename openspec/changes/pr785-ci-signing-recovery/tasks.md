@@ -47,8 +47,8 @@
 ## Prepared tree correction
 
 - [x] Freeze prepared-tree spec and tests with genuine semantic RED against unchanged runtime, exact selector conservation and native planned mapping.
-- [ ] Obtain fresh independent test acceptance, root review receipt, actual staged gate and normal test-first commit before runtime changes.
-- [ ] Validate the three pinned prepared trees before either commit and restrict CI writes to commits after root authorization.
+- [x] Obtain fresh independent test acceptance, root review receipt, actual staged gate and normal test-first commit before runtime changes.
+- [x] Validate the three pinned prepared trees before either commit and restrict CI writes to commits after root authorization.
 - [ ] Pass focused controls and required quality gates, then obtain fresh independent runtime acceptance and normal fix commit.
 - [ ] Separately test and independently review the root-owned preparation operation, including denial, uncertainty and postguard failures, before its bounded live write.
 - [ ] Authenticate a fresh complete same-run pair and both immutable root anchors with fetchability. Earlier partial runs remain unadopted.

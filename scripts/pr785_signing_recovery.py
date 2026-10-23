@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 import sys
 import urllib.error
 import urllib.request
@@ -222,11 +223,70 @@ class RequestAPI(Protocol):
     request: Callable[[str, str, dict[str, Any] | None], dict[str, Any]]
 
 
+@dataclass(frozen=True)
+class _PreparedTreeIntent:
+    sha: str
+    path: str
+    mode: str
+    kind: str
+    child: str
+
+
+_PREPARED_TREES = (
+    _PreparedTreeIntent(
+        "4b2cf05809c1cf687e4eae17a770cd33c97eff72",
+        ".github",
+        "040000",
+        "tree",
+        "6c8d9363427fb97b00eae0a452dab167ba41b8a4",
+    ),
+    _PreparedTreeIntent(
+        "6c8d9363427fb97b00eae0a452dab167ba41b8a4",
+        "workflows",
+        "040000",
+        "tree",
+        "f0a1368e6f068ece5c3b1f1bb9264720778af6bd",
+    ),
+    _PreparedTreeIntent(
+        "f0a1368e6f068ece5c3b1f1bb9264720778af6bd",
+        "pr785-inert-probe.yml",
+        "100644",
+        "blob",
+        "c00d710f49c952dee0ef3886acf476c7e49e0a8e",
+    ),
+)
+
+
+def _verify_tree_response(intent: _PreparedTreeIntent, record: Mapping[str, Any]) -> None:
+    _check(_sha(_field(record, "sha")) == intent.sha, "Prepared tree identity mismatch")
+    _check(_field(record, "truncated") is False, "Prepared tree is truncated")
+    entries = _field(record, "tree")
+    _check(isinstance(entries, list), "Expected prepared tree entries")
+    children: dict[str, tuple[str, str, str]] = {}
+    for entry in entries:
+        path = _string(_field(entry, "path"))
+        _check(
+            bool(path) and path not in {".", ".."} and "/" not in path and "\0" not in path, "Invalid direct tree path"
+        )
+        _check(path not in children, "Duplicate prepared tree entry")
+        mode = _string(_field(entry, "mode"))
+        kind = _string(_field(entry, "type"))
+        _check(
+            (mode, kind)
+            in {("040000", "tree"), ("100644", "blob"), ("100755", "blob"), ("120000", "blob"), ("160000", "commit")},
+            "Invalid prepared tree entry mode or type",
+        )
+        children[path] = (mode, kind, _sha(_field(entry, "sha")))
+    _check(children.get(intent.path) == (intent.mode, intent.kind, intent.child), "Prepared tree child mismatch")
+
+
 def _allowed_route(method: str, path: str) -> bool:
     if method == "POST":
-        return path in {"/git/commits", "/git/trees"}
+        return path == "/git/commits"
     if method != "GET":
         return False
+    if path in {f"/git/trees/{intent.sha}" for intent in _PREPARED_TREES}:
+        return True
     patterns = (
         r"/actions/runs/[1-9][0-9]{0,19}",
         r"/git/ref/heads/main",
@@ -395,8 +455,8 @@ class Probe:
         """Verify the live run, then create and reread the two approved objects."""
         self._verify_run()
         self.receipt["context_verified"] = True
+        self._verify_prepared_tree()
         self._create_commit(self._manifest.main_tree, "baseline")
-        self._create_tree()
         self._create_commit(self._manifest.probe_tree, "inert-workflow")
         self.receipt["status"] = "signed_objects_verified"
         return self.receipt
@@ -436,23 +496,29 @@ class Probe:
             _check(_field(pr, side, "ref") == ref, "Pull request branch drift")
             _check(_field(pr, side, "repo", "full_name") == REPOSITORY, "Pull request repository drift")
 
-    def _create_tree(self) -> None:
+    def _verify_prepared_tree(self) -> None:
         manifest = self._manifest
-        body = {
-            "base_tree": manifest.main_tree,
-            "tree": [
-                {
-                    "path": manifest.probe_path,
-                    "mode": "100644",
-                    "type": "blob",
-                    "content": manifest.probe_content,
-                }
-            ],
-        }
-        self._guard_refs()
-        result = self._api.request("POST", "/git/trees", body)
-        self._guard_refs()
-        _check(_field(result, "sha") == manifest.probe_tree, "Created probe tree mismatch")
+        try:
+            result = subprocess.run(
+                ["git", "hash-object", "--stdin"],
+                input=manifest.probe_content.encode(),
+                capture_output=True,
+                check=True,
+                timeout=10,
+                cwd=ROOT,
+            )
+            blob = _sha(result.stdout.decode("ascii").strip())
+        except (OSError, subprocess.SubprocessError, UnicodeError):
+            raise ProbeRefusalError("Prepared blob identity calculation failed") from None
+        _check(blob == _PREPARED_TREES[-1].child, "Prepared blob content mismatch")
+        _check(manifest.probe_tree == _PREPARED_TREES[0].sha, "Prepared root manifest mismatch")
+        _check(
+            manifest.probe_path == "/".join(intent.path for intent in _PREPARED_TREES),
+            "Prepared path manifest mismatch",
+        )
+        for intent in _PREPARED_TREES:
+            response = self._api.request("GET", f"/git/trees/{intent.sha}", None)
+            _verify_tree_response(intent, response)
 
     def _create_commit(self, tree: str, label: str) -> None:
         context = self._context

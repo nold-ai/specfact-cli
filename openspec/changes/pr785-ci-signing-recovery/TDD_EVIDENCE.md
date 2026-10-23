@@ -1,5 +1,15 @@
 # PR785 probe TDD evidence
 
+## Prepared tree correction passing-after evidence
+
+Recorded 23 October 2026, Europe/Berlin. Root normally committed the independently accepted test-only unit at `5b96ebc6fbd4b1d8c1d71abee32b7ab052ad4865` after the actual staged test-authored gate passed with the new exact-mapping review receipt. Every normal hook passed and its actual CodeReview had zero findings. Only then did root authorize this runtime correction.
+
+The unchanged tests `b10822edbdcb007902937cb4754759165d9f843b72d99e02c7aaf4e12ab0a3a7` now pass all 170 cases with zero failures, errors or skips against runtime SHA-256 `8cb3f3bc7c49557c35898199b0f5cf95d7e36bcd992000b2bfdfc3cf84513102`. Fresh independent runtime review reproduced all 170 passes and verified every frozen input, exact mapping `sha256:be6a74c5a802494546f51c96bd7605aa00f2506bc67825b49f44c38f6880f08a`, inverse diff and protected AST. Its actual report is `requirements-proof/prepared-tree-runtime-review.md`. Genuine earlier 70-failure RED remains unchanged.
+
+CI validates the three pinned nonrecursive trees and exact manifest-derived blob before either commit. It uses canonical read-only `git hash-object --stdin`, no `-w`, shell, filters or local signing, with a ten-second bound and safe refusals. The old tree POST is removed. All existing receipt, CLI, signature, identity, context, ref and commit verification machinery is conserved. Scoped lint/types, full CodeReview, six-rule SAST, Bandit medium/high, YAML, strict OpenSpec and whitespace checks pass. Low-severity subprocess metrics remain visible and no suppressions or waivers apply. Inherited whole-project diagnostics remain unresolved.
+
+Private evidence under `/private/tmp/specfact-release-20261022/signing-recovery/prepared-tree-correction/runtime/` retains exact commands, reports, hashes, independent reproduction and source conservation. No owner preparation, live workflow-tree signing, accepted probe, anchors or release ref change is established by local passing tests. All later native RED, signed-history, authority, CI and forge gates remain mandatory. No merge or publication.
+
 ## Prepared tree correction failing-before evidence
 
 Recorded 23 October 2026, Europe/Berlin. This test-only unit starts from auxiliary HEAD `a8323345ff3dce8cfe456f84ede211d9cf3bf34d`. Runtime remains unchanged at SHA-256 `77c290d1a7326f89df49980ef217f66f99d84fd84cb1146331d55945b42f24f7`. The accepted root design records that actual run 39927910182, artifact 12489599286, verified its baseline and refused POST trees with HTTP 403. The exact permission predicate is unknown. All three earlier partial runs remain refused and unadopted, with no accepted anchors.
