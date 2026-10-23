@@ -4,6 +4,7 @@ import os
 import shutil
 import subprocess
 import sys
+from importlib.metadata import distributions
 from pathlib import Path
 
 import pytest
@@ -53,15 +54,45 @@ def _resolve_modules_repo() -> Path | None:
 
 
 @pytest.mark.integration
-@pytest.mark.timeout(180)
-def test_runtime_discovery_smoke_direct_launcher() -> None:
+@pytest.mark.timeout(600)
+def test_runtime_discovery_smoke_direct_launcher(tmp_path: Path) -> None:
     modules_repo = _resolve_modules_repo()
     if modules_repo is None:
         pytest.skip("specfact-cli-modules checkout not available")
 
+    parent_packages = sorted((dist.metadata["Name"], dist.version) for dist in distributions())
+    venv = tmp_path / "runtime-venv"
+    bin_dir = venv / ("Scripts" if os.name == "nt" else "bin")
+    python = bin_dir / ("python.exe" if os.name == "nt" else "python")
+    env = os.environ.copy()
+    env.pop("PYTHONPATH", None)
+    env.pop("PYTHONHOME", None)
+    env.update(
+        VIRTUAL_ENV=str(venv),
+        HATCH_ENV_TYPE_VIRTUAL_PATH=str(venv),
+        UV_PROJECT_ENVIRONMENT=str(venv),
+        PATH=os.pathsep.join([str(bin_dir), env.get("PATH", "")]),
+    )
+    for command in (
+        ["uv", "venv", "--python", sys.executable, str(venv)],
+        ["uv", "pip", "sync", "--python", str(python), "--require-hashes", "requirements/ci/locked.txt"],
+        ["uv", "pip", "install", "--python", str(python), "--no-deps", "--no-build-isolation", "-e", "."],
+    ):
+        bootstrap = subprocess.run(
+            command,
+            cwd=REPO_ROOT,
+            env=env,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=120,
+            check=False,
+        )
+        assert bootstrap.returncode == 0, bootstrap.stdout
+
     result = subprocess.run(
         [
-            sys.executable,
+            str(python),
             str(REPO_ROOT / "scripts" / "runtime_discovery_smoke.py"),
             "--modules-repo",
             str(modules_repo),
@@ -69,6 +100,7 @@ def test_runtime_discovery_smoke_direct_launcher() -> None:
             "direct",
         ],
         cwd=REPO_ROOT,
+        env=env,
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -76,6 +108,7 @@ def test_runtime_discovery_smoke_direct_launcher() -> None:
         check=False,
     )
 
+    assert sorted((dist.metadata["Name"], dist.version) for dist in distributions()) == parent_packages
     assert result.returncode == 0, result.stdout
     assert "runtime-discovery smoke passed for launcher=direct" in result.stdout
 

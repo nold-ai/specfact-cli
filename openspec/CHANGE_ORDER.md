@@ -8,7 +8,7 @@ active changes should be implemented.
 
 | Bucket | Count | Location |
 |---|---:|---|
-| **Active-tree entries** | 35 | [`openspec/changes/`](changes/) |
+| **Active-tree entries** | 36 | [`openspec/changes/`](changes/) |
 | **Parking-lot entries** | 21 | [`openspec/parking-lot/`](parking-lot/) |
 | **Archived** | 120 | [`openspec/changes/archive/`](changes/archive/) |
 
@@ -307,3 +307,11 @@ repo root. Do not move folders manually.
 - [`INTEGRATION.md`](INTEGRATION.md) - cross-change ownership contract
 - [`config.yaml`](config.yaml) - repo-wide OpenSpec rules and context
 - [`specfact-cli-modules/openspec/CHANGE_ORDER.md`](https://github.com/nold-ai/specfact-cli-modules/blob/main/openspec/CHANGE_ORDER.md) - module-side companion plan
+
+## Main dependency-only release phase
+
+`isolate-semgrep-security-runtime` prepares issue #780 under parent #747 on
+`hotfix/security-dependencies-0-55-11`, based on main 5262efb0. Its native
+test-first proof precedes production changes. This scope excludes dev-only
+admission and runtime-smoke infrastructure. Future issues #523 and #783 do not
+block this bounded release. No merge, signing, or publication is authorized.

@@ -6,12 +6,14 @@ import importlib.util
 import json
 from datetime import date, timedelta
 from pathlib import Path
+from types import ModuleType
+from typing import NamedTuple
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 
-def _load_gate_mod():
+def _load_gate_mod() -> ModuleType:
     root = Path(__file__).resolve().parents[3]
     path = root / "scripts" / "security_audit_gate.py"
     assert path.is_file(), path
@@ -23,17 +25,17 @@ def _load_gate_mod():
 
 
 @pytest.fixture
-def gate_mod():
+def gate_mod() -> ModuleType:
     return _load_gate_mod()
 
 
-def test_cvss_for_vuln_reads_numeric_fields(gate_mod) -> None:
+def test_cvss_for_vuln_reads_numeric_fields(gate_mod: ModuleType) -> None:
     """Nested CVSS-like keys should contribute to the max score."""
     vuln = {"id": "TEST-1", "severity": {"score": 8.2}}
     assert gate_mod._cvss_for_vuln(vuln) == pytest.approx(8.2)
 
 
-def test_main_passes_when_no_vulnerabilities(gate_mod, capsys) -> None:
+def test_main_passes_when_no_vulnerabilities(gate_mod: ModuleType, capsys: pytest.CaptureFixture[str]) -> None:
     payload = {"dependencies": [{"name": "requests", "version": "2.0.0", "vulns": []}]}
     proc = MagicMock(stdout=json.dumps(payload), stderr="", returncode=0)
     with patch.object(gate_mod.subprocess, "run", return_value=proc):
@@ -41,7 +43,7 @@ def test_main_passes_when_no_vulnerabilities(gate_mod, capsys) -> None:
     assert "passed" in capsys.readouterr().out.lower()
 
 
-def test_main_warns_when_cvss_below_threshold(gate_mod, capsys) -> None:
+def test_main_warns_when_cvss_below_threshold(gate_mod: ModuleType, capsys: pytest.CaptureFixture[str]) -> None:
     payload = {
         "dependencies": [
             {
@@ -58,7 +60,7 @@ def test_main_warns_when_cvss_below_threshold(gate_mod, capsys) -> None:
     assert "ACTION REQUIRED" in out
 
 
-def test_main_fails_when_cvss_at_or_above_threshold(gate_mod, capsys) -> None:
+def test_main_fails_when_cvss_at_or_above_threshold(gate_mod: ModuleType, capsys: pytest.CaptureFixture[str]) -> None:
     payload = {
         "dependencies": [
             {
@@ -74,13 +76,15 @@ def test_main_fails_when_cvss_at_or_above_threshold(gate_mod, capsys) -> None:
     assert "ACTION REQUIRED" in capsys.readouterr().out
 
 
-def test_main_fail_closed_on_empty_stdout(gate_mod) -> None:
+def test_main_fail_closed_on_empty_stdout(gate_mod: ModuleType) -> None:
     proc = MagicMock(stdout="", stderr="pip-audit failed\n", returncode=2)
     with patch.object(gate_mod.subprocess, "run", return_value=proc):
         assert gate_mod.main() == 1
 
 
-def test_main_fails_when_strict_audit_skips_a_dependency(gate_mod, capsys) -> None:
+def test_main_fails_when_strict_audit_skips_a_dependency(
+    gate_mod: ModuleType, capsys: pytest.CaptureFixture[str]
+) -> None:
     """A strict audit cannot report success when any dependency was skipped."""
     payload = {"dependencies": [{"name": "opaque", "skip_reason": "could not audit"}]}
     proc = MagicMock(stdout=json.dumps(payload), stderr="", returncode=1)
@@ -89,7 +93,9 @@ def test_main_fails_when_strict_audit_skips_a_dependency(gate_mod, capsys) -> No
     assert "skipped dependency" in capsys.readouterr().err.lower()
 
 
-def test_main_fails_when_strict_audit_returns_an_unexplained_error(gate_mod, capsys) -> None:
+def test_main_fails_when_strict_audit_returns_an_unexplained_error(
+    gate_mod: ModuleType, capsys: pytest.CaptureFixture[str]
+) -> None:
     """A nonzero strict-audit status without advisories is an audit failure."""
     proc = MagicMock(stdout=json.dumps({"dependencies": []}), stderr="resolver failed", returncode=1)
     with patch.object(gate_mod.subprocess, "run", return_value=proc):
@@ -97,12 +103,12 @@ def test_main_fails_when_strict_audit_returns_an_unexplained_error(gate_mod, cap
     assert "strict audit failed" in capsys.readouterr().err.lower()
 
 
-def test_main_fail_closed_when_pip_audit_unavailable(gate_mod) -> None:
+def test_main_fail_closed_when_pip_audit_unavailable(gate_mod: ModuleType) -> None:
     with patch.object(gate_mod.subprocess, "run", side_effect=FileNotFoundError("pip-audit not found")):
         assert gate_mod.main() == 1
 
 
-def test_dependencies_from_pip_audit_json_accepts_wrapped_and_bare_list(gate_mod) -> None:
+def test_dependencies_from_pip_audit_json_accepts_wrapped_and_bare_list(gate_mod: ModuleType) -> None:
     wrapped = {"dependencies": [{"name": "a", "version": "1", "vulns": []}], "fixes": []}
     assert gate_mod._dependencies_from_pip_audit_json(wrapped) == wrapped["dependencies"]
     bare = [{"name": "b", "version": "2", "vulns": []}]
@@ -111,7 +117,7 @@ def test_dependencies_from_pip_audit_json_accepts_wrapped_and_bare_list(gate_mod
     assert gate_mod._dependencies_from_pip_audit_json({"dependencies": "nope"}) is None
 
 
-def test_main_passes_with_top_level_list_json(gate_mod, capsys) -> None:
+def test_main_passes_with_top_level_list_json(gate_mod: ModuleType, capsys: pytest.CaptureFixture[str]) -> None:
     payload = [{"name": "requests", "version": "2.0.0", "vulns": []}]
     proc = MagicMock(stdout=json.dumps(payload), stderr="", returncode=0)
     with patch.object(gate_mod.subprocess, "run", return_value=proc):
@@ -119,7 +125,7 @@ def test_main_passes_with_top_level_list_json(gate_mod, capsys) -> None:
     assert "passed" in capsys.readouterr().out.lower()
 
 
-def test_main_audits_the_frozen_requirements_file_in_strict_mode(gate_mod) -> None:
+def test_main_audits_the_frozen_requirements_file_in_strict_mode(gate_mod: ModuleType) -> None:
     payload = {"dependencies": [{"name": "requests", "version": "2.0.0", "vulns": []}]}
     proc = MagicMock(stdout=json.dumps(payload), stderr="", returncode=0)
     with patch.object(gate_mod.subprocess, "run", return_value=proc) as run_mock:
@@ -132,12 +138,14 @@ def test_main_audits_the_frozen_requirements_file_in_strict_mode(gate_mod) -> No
     assert "--skip-editable" not in cmd
 
 
-def test_main_rejects_an_unexpected_argument(gate_mod) -> None:
+def test_main_rejects_an_unexpected_argument(gate_mod: ModuleType) -> None:
     with pytest.raises(SystemExit, match="2"):
         gate_mod.main(["--unknown"])
 
 
-def test_main_allows_only_a_matching_unexpired_reviewed_exception(gate_mod, tmp_path: Path, capsys) -> None:
+def test_main_allows_only_a_matching_unexpired_reviewed_exception(
+    gate_mod: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     """A non-upgradable transitive advisory needs an exact, short-lived review record."""
     payload = {
         "dependencies": [
@@ -171,3 +179,145 @@ def test_main_allows_only_a_matching_unexpired_reviewed_exception(gate_mod, tmp_
     with patch.object(gate_mod.subprocess, "run", return_value=proc):
         assert gate_mod.main(["--exceptions", str(exceptions_path)]) == 0
     assert "WAIVED" in capsys.readouterr().out
+
+
+class AuditExceptionScenario(NamedTuple):
+    version: str
+    advisory_ids: list[str]
+    skip_reason: str | None
+    today: str
+    expected: int
+    message: str
+    package: str = "mcp"
+    omit_entry: bool = False
+
+
+@pytest.mark.parametrize(
+    "scenario",
+    [
+        pytest.param(
+            AuditExceptionScenario("1.29.0", ["CVE-2026-59951"], None, "2026-10-22", 0, "WAIVED"), id="exact-cve"
+        ),
+        pytest.param(
+            AuditExceptionScenario("1.29.0", ["GHSA-84m7-p3x7-pcfv"], None, "2026-10-22", 0, "WAIVED"), id="exact-ghsa"
+        ),
+        pytest.param(
+            AuditExceptionScenario("1.29.0", ["CVE-2026-59951"], None, "2026-11-04", 0, "WAIVED"), id="expiry-day"
+        ),
+        pytest.param(
+            AuditExceptionScenario("1.30.0", ["CVE-2026-59951"], None, "2026-10-22", 1, "FAIL:"), id="other-version"
+        ),
+        pytest.param(
+            AuditExceptionScenario("1.29.0", ["UNRELATED-1"], None, "2026-10-22", 1, "FAIL:"), id="unrelated-advisory"
+        ),
+        pytest.param(
+            AuditExceptionScenario("1.29.0", ["CVE-2026-59951", "UNRELATED-1"], None, "2026-10-22", 1, "FAIL:"),
+            id="mixed-advisories",
+        ),
+        pytest.param(
+            AuditExceptionScenario(
+                "1.29.0", ["CVE-2026-59951"], "could not audit", "2026-10-22", 1, "skipped dependency"
+            ),
+            id="skipped",
+        ),
+        pytest.param(
+            AuditExceptionScenario("1.29.0", ["CVE-2026-59951"], None, "2026-11-05", 1, "not currently valid"),
+            id="expired",
+        ),
+        pytest.param(
+            AuditExceptionScenario("1.29.0", ["CVE-2026-59951"], None, "2026-10-20", 1, "not currently valid"),
+            id="future-review",
+        ),
+        pytest.param(
+            AuditExceptionScenario("1.37.0", ["CVE-2026-114603"], None, "2026-10-22", 0, "WAIVED", "opentelemetry-api"),
+            id="otel-exact-cve",
+        ),
+        pytest.param(
+            AuditExceptionScenario(
+                "1.37.0", ["GHSA-xcq7-p3pf-p88h"], None, "2026-10-22", 0, "WAIVED", "opentelemetry-api"
+            ),
+            id="otel-exact-ghsa",
+        ),
+        pytest.param(
+            AuditExceptionScenario("1.37.0", ["CVE-2026-114603"], None, "2026-11-04", 0, "WAIVED", "opentelemetry-api"),
+            id="otel-expiry-day",
+        ),
+        pytest.param(
+            AuditExceptionScenario("1.38.0", ["CVE-2026-114603"], None, "2026-10-22", 1, "FAIL:", "opentelemetry-api"),
+            id="otel-other-version",
+        ),
+        pytest.param(
+            AuditExceptionScenario("1.37.0", ["CVE-2026-114603"], None, "2026-10-22", 1, "FAIL:", "other-package"),
+            id="otel-other-package",
+        ),
+        pytest.param(
+            AuditExceptionScenario("1.37.0", ["UNRELATED-1"], None, "2026-10-22", 1, "FAIL:", "opentelemetry-api"),
+            id="otel-unrelated-advisory",
+        ),
+        pytest.param(
+            AuditExceptionScenario(
+                "1.37.0", ["CVE-2026-114603", "UNRELATED-1"], None, "2026-10-22", 1, "FAIL:", "opentelemetry-api"
+            ),
+            id="otel-mixed-advisories",
+        ),
+        pytest.param(
+            AuditExceptionScenario(
+                "1.37.0",
+                ["CVE-2026-114603"],
+                "could not audit",
+                "2026-10-22",
+                1,
+                "skipped dependency",
+                "opentelemetry-api",
+            ),
+            id="otel-skipped",
+        ),
+        pytest.param(
+            AuditExceptionScenario(
+                "1.37.0", ["CVE-2026-114603"], None, "2026-11-05", 1, "not currently valid", "opentelemetry-api"
+            ),
+            id="otel-expired",
+        ),
+        pytest.param(
+            AuditExceptionScenario(
+                "1.37.0", ["CVE-2026-114603"], None, "2026-10-21", 1, "not currently valid", "opentelemetry-api"
+            ),
+            id="otel-future-review",
+        ),
+        pytest.param(
+            AuditExceptionScenario(
+                "1.37.0", ["CVE-2026-114603"], None, "2026-10-22", 1, "FAIL:", "opentelemetry-api", True
+            ),
+            id="otel-missing-entry",
+        ),
+    ],
+)
+def test_committed_advisory_exception_is_exact_and_time_bounded(
+    gate_mod: ModuleType,
+    capsys: pytest.CaptureFixture[str],
+    scenario: AuditExceptionScenario,
+    tmp_path: Path,
+) -> None:
+    class AuditDate(date):
+        @classmethod
+        def today(cls) -> date:
+            return date.fromisoformat(scenario.today)
+
+    dependency: dict[str, object] = {
+        "name": scenario.package,
+        "version": scenario.version,
+        "vulns": [{"id": value} for value in scenario.advisory_ids],
+    }
+    if scenario.skip_reason:
+        dependency["skip_reason"] = scenario.skip_reason
+    proc = MagicMock(stdout=json.dumps({"dependencies": [dependency]}), stderr="", returncode=1)
+    exceptions = Path(__file__).resolve().parents[3] / "ci/vulnerability-audit-exceptions.json"
+    if scenario.omit_entry:
+        register = json.loads(exceptions.read_text(encoding="utf-8"))
+        register["exceptions"] = [entry for entry in register["exceptions"] if entry["package"] != scenario.package]
+        exceptions = tmp_path / "exceptions.json"
+        exceptions.write_text(json.dumps(register), encoding="utf-8")
+    with patch.object(gate_mod, "date", AuditDate), patch.object(gate_mod.subprocess, "run", return_value=proc):
+        assert gate_mod.main(["--exceptions", str(exceptions)]) == scenario.expected
+    captured = capsys.readouterr()
+    assert scenario.message in captured.out + captured.err

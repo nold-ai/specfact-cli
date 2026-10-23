@@ -1,0 +1,9 @@
+{
+  "schema_version": "1",
+  "decision": "accepted",
+  "reviewer_id": "Codex:/root/parser_mapping_acceptance (gpt-6.1-sol)",
+  "reviewer_role": "independent AI technical mapping reviewer",
+  "recorded_at": "2026-10-22T23:27:31.405035+00:00",
+  "reference": "openspec/changes/isolate-semgrep-security-runtime/requirements-proof/parser-mapping-review.md",
+  "mapping_digest": "sha256:b192853e22bfc854a30366891d76942d5c2ba9cc47260197c3c4df7bd77c923c"
+}

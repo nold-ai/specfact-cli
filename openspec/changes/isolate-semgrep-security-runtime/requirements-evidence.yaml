@@ -1,0 +1,423 @@
+schema_version: '2'
+requirements:
+  ? openspec:isolate-semgrep-security-runtime:isolated-scanner-runtime:exclude-compromised-certificate-authorities-from-delivered-trust
+  : rationale: Inspect the delivery artifact independently of installed verifier packages.
+    stakeholder_refs: &id001
+    - nold-ai/specfact-cli#780
+    touchpoints: &id002
+    - id: touchpoint-1
+      kind: config_file
+      locator: pyproject.toml
+    - id: touchpoint-2
+      kind: config_file
+      locator: uv.lock
+    - id: touchpoint-3
+      kind: config_file
+      locator: requirements/ci/locked.txt
+    - id: touchpoint-4
+      kind: test
+      locator: tests/unit/security/test_frozen_dependency_artifacts.py
+    - id: touchpoint-5
+      kind: test
+      locator: tests/unit/security/test_frozen_gitpython_compatibility.py
+    - id: touchpoint-6
+      kind: test
+      locator: tests/unit/security/test_frozen_jwt_compatibility.py
+    - id: touchpoint-7
+      kind: test
+      locator: tests/unit/security/test_release_dependency_selection.py
+    verification_cases:
+    - case_id: CERTIFI-COMPROMISED-ROOT-ABSENT
+      scenario_id: exclude-compromised-certificate-authorities-from-delivered-trust
+      method: test
+      intent: Inspect the exact frozen wheel and parse its inert CA data.
+      observable: The trust store is nonempty and excludes the compromised certificate fingerprint.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_frozen_dependency_artifacts.py::test_frozen_certifi_bundle_excludes_compromised_root
+  openspec:isolate-semgrep-security-runtime:isolated-scanner-runtime:reject-submodule-checkouts-outside-the-repository:
+    rationale: Inspect the delivery artifact independently of installed verifier packages.
+    stakeholder_refs: *id001
+    touchpoints: *id002
+    verification_cases:
+    - case_id: GITPYTHON-SUBMODULE-CONTAINMENT
+      scenario_id: reject-submodule-checkouts-outside-the-repository
+      method: test
+      intent: Attempt an outside submodule update with clone boundary observation.
+      observable: The path is rejected before clone and no outside directory is created.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_frozen_gitpython_compatibility.py::test_submodule_update_rejects_outside_checkout_before_clone
+  openspec:isolate-semgrep-security-runtime:isolated-scanner-runtime:preserve-jwt-verification-options-and-compatibility:
+    rationale: Inspect the delivery artifact independently of installed verifier packages.
+    stakeholder_refs: *id001
+    touchpoints: *id002
+    verification_cases:
+    - case_id: PYJWT-OPTIONS-AND-EXPIRY
+      scenario_id: preserve-jwt-verification-options-and-compatibility
+      method: test
+      intent: Exercise the frozen JWT artifact in an isolated process.
+      observable: The frozen artifact preserves inspection options, rejects expiry on reuse, and decodes signed and padded
+        tokens without mutating caller options.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_frozen_jwt_compatibility.py::test_inspection_preserves_options_and_expiry_on_reuse
+  openspec:isolate-semgrep-security-runtime:isolated-scanner-runtime:select-the-reviewed-compatible-tooling-graph:
+    rationale: Inspect the delivery artifact independently of installed verifier packages.
+    stakeholder_refs: *id001
+    touchpoints: *id002
+    verification_cases:
+    - case_id: CERTIFI-FROZEN-SELECTION
+      scenario_id: select-the-reviewed-compatible-tooling-graph
+      method: test
+      intent: Check reviewed certifi 2026.10.19 selection and export parity.
+      observable: The official registry lock version and exported requirement both match the reviewed version.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[certifi-2026.10.19]
+    - case_id: GITPYTHON-FROZEN-SELECTION
+      scenario_id: select-the-reviewed-compatible-tooling-graph
+      method: test
+      intent: Check reviewed gitpython 3.2.1 selection and export parity.
+      observable: The official registry lock version and exported requirement both match the reviewed version.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[gitpython-3.2.1]
+    - case_id: PYJWT-FROZEN-SELECTION
+      scenario_id: select-the-reviewed-compatible-tooling-graph
+      method: test
+      intent: Check reviewed pyjwt 2.15.1 selection and export parity.
+      observable: The official registry lock version and exported requirement both match the reviewed version.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[pyjwt-2.15.1]
+    - case_id: PACKAGING-FROZEN-SELECTION
+      scenario_id: select-the-reviewed-compatible-tooling-graph
+      method: test
+      intent: Check reviewed packaging 26.3 selection and export parity.
+      observable: The official registry lock version and exported requirement both match the reviewed version.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[packaging-26.3]
+    - case_id: HATCHLING-FROZEN-SELECTION
+      scenario_id: select-the-reviewed-compatible-tooling-graph
+      method: test
+      intent: Check reviewed hatchling selection and export parity.
+      observable: The official registry lock version and exported requirement both match the reviewed version.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[hatchling-1.32.4]
+    - case_id: URLLIB3-FROZEN-SELECTION
+      scenario_id: select-the-reviewed-compatible-tooling-graph
+      method: test
+      intent: Check reviewed urllib3 selection and export parity.
+      observable: The official registry lock version and exported requirement both match the reviewed version.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[urllib3-2.8.0]
+    - case_id: VIRTUALENV-FROZEN-SELECTION
+      scenario_id: select-the-reviewed-compatible-tooling-graph
+      method: test
+      intent: Check reviewed virtualenv selection and export parity.
+      observable: The official registry lock version and exported requirement both match the reviewed version.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[virtualenv-21.14.12]
+    - case_id: PYTHON-DISCOVERY-FROZEN-SELECTION
+      scenario_id: select-the-reviewed-compatible-tooling-graph
+      method: test
+      intent: Check reviewed python-discovery selection and export parity.
+      observable: The official registry lock version and exported requirement both match the reviewed version.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[python-discovery-1.6.1]
+    - case_id: PYCPARSER-FROZEN-SELECTION
+      scenario_id: select-the-reviewed-compatible-tooling-graph
+      method: test
+      intent: Check reviewed pycparser 3.12 selection and export parity.
+      observable: The official registry lock version and exported requirement both match the reviewed version.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[pycparser-3.12]
+  openspec:isolate-semgrep-security-runtime:isolated-scanner-runtime:bound-the-temporary-official-mcp-advisory-exception:
+    rationale: Keep both main audit lanes strict with separate exact, expiring owner-approved exceptions.
+    stakeholder_refs:
+    - nold-ai/specfact-cli#780
+    touchpoints: &id005
+    - id: touchpoint-1
+      kind: config_file
+      locator: pyproject.toml
+    - id: touchpoint-2
+      kind: config_file
+      locator: uv.lock
+    - id: touchpoint-3
+      kind: config_file
+      locator: requirements/ci/locked.txt
+    - id: touchpoint-4
+      kind: config_file
+      locator: ci/vulnerability-audit-exceptions.json
+    - id: touchpoint-5
+      kind: test
+      locator: tests/unit/security/test_release_promotion_security_gates.py
+    - id: touchpoint-6
+      kind: test
+      locator: tests/unit/scripts/test_security_audit_gate.py
+    verification_cases:
+    - case_id: MCP-OFFICIAL-EXCEPTION-EXACT
+      scenario_id: bound-the-temporary-official-mcp-advisory-exception
+      method: test
+      intent: Bind the official scanner graph and exact advisory record.
+      observable: Official Semgrep 1.179.0, MCP 1.29.0 and opentelemetry-api 1.37.0 occur with exactly the two separate approved
+        records.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_release_promotion_security_gates.py::test_frozen_graph_uses_official_semgrep_with_bounded_mcp_exception
+    - case_id: MCP-EXACT-CVE
+      scenario_id: bound-the-temporary-official-mcp-advisory-exception
+      method: test
+      intent: Exercise the committed register through the existing strict audit gate.
+      observable: Only the approved package, version, and advisory inside the inclusive date window is waived.
+      selector:
+        runner: pytest
+        node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_advisory_exception_is_exact_and_time_bounded[exact-cve]
+    - case_id: MCP-EXACT-GHSA
+      scenario_id: bound-the-temporary-official-mcp-advisory-exception
+      method: test
+      intent: Exercise the committed register through the existing strict audit gate.
+      observable: Only the approved package, version, and advisory inside the inclusive date window is waived.
+      selector:
+        runner: pytest
+        node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_advisory_exception_is_exact_and_time_bounded[exact-ghsa]
+    - case_id: MCP-EXPIRY-DAY
+      scenario_id: bound-the-temporary-official-mcp-advisory-exception
+      method: test
+      intent: Exercise the committed register through the existing strict audit gate.
+      observable: Only the approved package, version, and advisory inside the inclusive date window is waived.
+      selector:
+        runner: pytest
+        node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_advisory_exception_is_exact_and_time_bounded[expiry-day]
+    - case_id: MCP-EXPIRED
+      scenario_id: bound-the-temporary-official-mcp-advisory-exception
+      method: test
+      intent: Exercise the committed register through the existing strict audit gate.
+      observable: Only the approved package, version, and advisory inside the inclusive date window is waived.
+      selector:
+        runner: pytest
+        node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_advisory_exception_is_exact_and_time_bounded[expired]
+    - case_id: MCP-FUTURE-REVIEW
+      scenario_id: bound-the-temporary-official-mcp-advisory-exception
+      method: test
+      intent: Exercise the committed register through the existing strict audit gate.
+      observable: Only the approved package, version, and advisory inside the inclusive date window is waived.
+      selector:
+        runner: pytest
+        node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_advisory_exception_is_exact_and_time_bounded[future-review]
+  ? openspec:isolate-semgrep-security-runtime:isolated-scanner-runtime:rebuild-the-source-distribution-with-its-bundled-manifest
+  : rationale: Exercise the actual standard source-to-wheel delivery path.
+    stakeholder_refs: &id003
+    - nold-ai/specfact-cli#780
+    touchpoints: &id004
+    - id: touchpoint-1
+      kind: config_file
+      locator: pyproject.toml
+    - id: touchpoint-2
+      kind: test
+      locator: tests/integration/test_distribution_build.py
+    - id: touchpoint-3
+      kind: config_file
+      locator: docs/Gemfile
+    - id: touchpoint-4
+      kind: config_file
+      locator: docs/Gemfile.lock
+    - id: touchpoint-5
+      kind: config_file
+      locator: scripts/check_jekyll_dependencies.rb
+    - id: touchpoint-6
+      kind: ci_workflow
+      locator: .github/workflows/docs-dependency-checks.yml
+    - id: touchpoint-7
+      kind: test
+      locator: tests/unit/security/test_release_dependency_selection.py
+    - id: touchpoint-8
+      kind: config_file
+      locator: setup.py
+    - id: touchpoint-9
+      kind: config_file
+      locator: src/__init__.py
+    - id: touchpoint-10
+      kind: config_file
+      locator: src/specfact_cli/__init__.py
+    - id: touchpoint-11
+      kind: config_file
+      locator: CHANGELOG.md
+    - id: touchpoint-12
+      kind: test
+      locator: tests/unit/security/test_release_promotion_security_gates.py
+    verification_cases:
+    - case_id: SOURCE-DISTRIBUTION-BUNDLED-MANIFEST
+      scenario_id: rebuild-the-source-distribution-with-its-bundled-manifest
+      method: test
+      intent: Build sdist then wheel through offline PEP 517.
+      observable: Build succeeds and the wheel manifest bytes equal the existing repository manifest.
+      selector:
+        runner: pytest
+        node_id: tests/integration/test_distribution_build.py::test_source_distribution_rebuild_preserves_bundle_mapper
+  openspec:isolate-semgrep-security-runtime:isolated-scanner-runtime:select-the-reviewed-documentation-dependency-versions:
+    rationale: Exercise the actual standard source-to-wheel delivery path.
+    stakeholder_refs: *id003
+    touchpoints: *id004
+    verification_cases:
+    - case_id: JEKYLL-FEED-LOCKED
+      scenario_id: select-the-reviewed-documentation-dependency-versions
+      method: test
+      intent: Check the reviewed documentation plugin lock selection.
+      observable: The lock selects the reviewed official version.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_documentation_plugins_are_locked[jekyll-feed-0.18.0]
+    - case_id: JEKYLL-REDIRECT-FROM-LOCKED
+      scenario_id: select-the-reviewed-documentation-dependency-versions
+      method: test
+      intent: Check the reviewed documentation plugin lock selection.
+      observable: The lock selects the reviewed official version.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_documentation_plugins_are_locked[jekyll-redirect-from-0.17.0]
+    - case_id: JEKYLL-RELATIVE-LINKS-LOCKED
+      scenario_id: select-the-reviewed-documentation-dependency-versions
+      method: test
+      intent: Check the reviewed documentation plugin lock selection.
+      observable: The lock selects the reviewed official version.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_documentation_plugins_are_locked[jekyll-relative-links-0.9.1]
+    - case_id: JSON-REVIEWED-FLOOR
+      scenario_id: select-the-reviewed-documentation-dependency-versions
+      method: test
+      intent: Check the reviewed JSON floor and major-version limit.
+      observable: The declaration requires >=2.21.2 and <3.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_release_dependency_selection.py::test_documentation_json_has_reviewed_floor_and_major_bound
+  openspec:isolate-semgrep-security-runtime:isolated-scanner-runtime:publish-one-coherent-patch-version:
+    rationale: Exercise the actual standard source-to-wheel delivery path.
+    stakeholder_refs: *id003
+    touchpoints: *id004
+    verification_cases:
+    - case_id: RELEASE-0-55-11-VERSION-SOURCES
+      scenario_id: publish-one-coherent-patch-version
+      method: test
+      intent: Read all four version files as data without importing runtime modules.
+      observable: All canonical version sources declare 0.55.11.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_release_promotion_security_gates.py::test_patch_release_uses_next_version_in_all_sources
+  ? openspec:isolate-semgrep-security-runtime:isolated-scanner-runtime:reject-submodule-checkouts-into-git-metadata-before-cloning
+  : rationale: Observe rejection before the clone boundary without cloning unsafe repositories.
+    stakeholder_refs:
+    - nold-ai/specfact-cli#780
+    touchpoints: *id002
+    verification_cases:
+    - case_id: GITPYTHON-CREATE-GIT-METADATA
+      scenario_id: reject-submodule-checkouts-into-git-metadata-before-cloning
+      method: test
+      intent: Exercise frozen Repo.create_submodule with a mocked clone sentinel.
+      observable: ValueError occurs before clone; hooks stay unchanged and neither .gitmodules nor module metadata is created.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_frozen_gitpython_compatibility.py::test_submodule_creation_validates_checkout_before_clone[git-metadata]
+    - case_id: GITPYTHON-CREATE-GIT-SHORT-NAME
+      scenario_id: reject-submodule-checkouts-into-git-metadata-before-cloning
+      method: test
+      intent: Exercise frozen Repo.create_submodule with a mocked clone sentinel.
+      observable: ValueError occurs before clone; hooks stay unchanged and neither .gitmodules nor module metadata is created.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_frozen_gitpython_compatibility.py::test_submodule_creation_validates_checkout_before_clone[git-short-name]
+    - case_id: GITPYTHON-CREATE-ABSOLUTE-METADATA
+      scenario_id: reject-submodule-checkouts-into-git-metadata-before-cloning
+      method: test
+      intent: Exercise frozen Repo.create_submodule with a mocked clone sentinel.
+      observable: ValueError occurs before clone; hooks stay unchanged and neither .gitmodules nor module metadata is created.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_frozen_gitpython_compatibility.py::test_submodule_creation_validates_checkout_before_clone[absolute-metadata]
+  openspec:isolate-semgrep-security-runtime:isolated-scanner-runtime:bound-the-separate-opentelemetry-advisory-exception:
+    rationale: Keep the exact OpenTelemetry waiver separate from the unchanged MCP record.
+    stakeholder_refs:
+    - nold-ai/specfact-cli#780
+    touchpoints: *id005
+    verification_cases:
+    - case_id: OTEL-EXACT-CVE
+      scenario_id: bound-the-separate-opentelemetry-advisory-exception
+      method: test
+      intent: Exercise the committed exact OpenTelemetry record through the strict audit gate.
+      observable: Only the approved package, version and advisory inside the inclusive review and expiry window is waived;
+        invalid dates fail closed.
+      selector:
+        runner: pytest
+        node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_advisory_exception_is_exact_and_time_bounded[otel-exact-cve]
+    - case_id: OTEL-EXACT-GHSA
+      scenario_id: bound-the-separate-opentelemetry-advisory-exception
+      method: test
+      intent: Exercise the committed exact OpenTelemetry record through the strict audit gate.
+      observable: Only the approved package, version and advisory inside the inclusive review and expiry window is waived;
+        invalid dates fail closed.
+      selector:
+        runner: pytest
+        node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_advisory_exception_is_exact_and_time_bounded[otel-exact-ghsa]
+    - case_id: OTEL-EXPIRY-DAY
+      scenario_id: bound-the-separate-opentelemetry-advisory-exception
+      method: test
+      intent: Exercise the committed exact OpenTelemetry record through the strict audit gate.
+      observable: Only the approved package, version and advisory inside the inclusive review and expiry window is waived;
+        invalid dates fail closed.
+      selector:
+        runner: pytest
+        node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_advisory_exception_is_exact_and_time_bounded[otel-expiry-day]
+    - case_id: OTEL-EXPIRED
+      scenario_id: bound-the-separate-opentelemetry-advisory-exception
+      method: test
+      intent: Exercise the committed exact OpenTelemetry record through the strict audit gate.
+      observable: Only the approved package, version and advisory inside the inclusive review and expiry window is waived;
+        invalid dates fail closed.
+      selector:
+        runner: pytest
+        node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_advisory_exception_is_exact_and_time_bounded[otel-expired]
+    - case_id: OTEL-FUTURE-REVIEW
+      scenario_id: bound-the-separate-opentelemetry-advisory-exception
+      method: test
+      intent: Exercise the committed exact OpenTelemetry record through the strict audit gate.
+      observable: Only the approved package, version and advisory inside the inclusive review and expiry window is waived;
+        invalid dates fail closed.
+      selector:
+        runner: pytest
+        node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_advisory_exception_is_exact_and_time_bounded[otel-future-review]
+  openspec:isolate-semgrep-security-runtime:isolated-scanner-runtime:bind-the-supported-parser-to-current-source-provenance:
+    rationale: Bind the supported parser to fresh exact source evidence without renewing the expired record or weakening trust policy.
+    stakeholder_refs: *id001
+    touchpoints:
+    - id: touchpoint-1
+      kind: config_file
+      locator: ci/dependency-trust-exceptions.json
+    - id: touchpoint-2
+      kind: config_file
+      locator: uv.lock
+    - id: touchpoint-3
+      kind: config_file
+      locator: pyproject.toml
+    - id: touchpoint-4
+      kind: config_file
+      locator: setup.py
+    - id: touchpoint-5
+      kind: test
+      locator: tests/unit/scripts/test_dependency_trust_review.py
+    verification_cases:
+    - case_id: PYCPARSER-EXACT-PROVENANCE-REVIEW
+      scenario_id: bind-the-supported-parser-to-current-source-provenance
+      method: test
+      intent: Read the committed exact pycparser 3.12 provenance record.
+      observable: The record binds the official wheel URL and SHA-256, source-provenance-reviewed classification, actual UTC review date, bounded expiry, and cryptography/CFFI path.
+      selector:
+        runner: pytest
+        node_id: tests/unit/scripts/test_dependency_trust_review.py::test_pycparser_has_current_exact_version_review_record
