@@ -1,0 +1,699 @@
+schema_version: '2'
+requirements:
+  openspec:pr785-ci-signing-recovery:pr785-signing-probe:existing-normal-validation-triggers-are-removed:
+    rationale: Refuse unapproved execution contexts before object writes.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#780
+    touchpoints:
+      - id: executor
+        kind: ci_workflow
+        locator: .github/workflows/specfact.yml
+      - id: probe-policy
+        kind: code
+        locator: scripts/pr785_signing_recovery.py
+      - id: probe-inputs
+        kind: config_file
+        locator: ci/recovery/pr785-signing-inputs.json
+      - id: probe-tests
+        kind: test
+        locator: tests/unit/scripts/test_pr785_signing_recovery.py
+    verification_cases:
+      - case_id: PR785-PROBE-001
+        scenario_id: existing-normal-validation-triggers-are-removed
+        method: test
+        intent: executor is dispatch only.
+        observable: The workflow has only manual dispatch, one bounded job, pinned actions, scoped permissions and
+          no secret or module access.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_executor_is_dispatch_only
+      - case_id: PR785-PROBE-062
+        scenario_id: existing-normal-validation-triggers-are-removed
+        method: test
+        intent: workflow has only bounded steps and pinned actions.
+        observable: The workflow has only manual dispatch, one bounded job, pinned actions, scoped permissions and
+          no secret or module access.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_workflow_has_only_bounded_steps_and_pinned_actions
+  openspec:pr785-ci-signing-recovery:pr785-signing-probe:context-mismatch:
+    rationale: Refuse unapproved execution contexts before object writes.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#780
+    touchpoints:
+      - id: executor
+        kind: ci_workflow
+        locator: .github/workflows/specfact.yml
+      - id: probe-policy
+        kind: code
+        locator: scripts/pr785_signing_recovery.py
+      - id: probe-inputs
+        kind: config_file
+        locator: ci/recovery/pr785-signing-inputs.json
+      - id: probe-tests
+        kind: test
+        locator: tests/unit/scripts/test_pr785_signing_recovery.py
+    verification_cases:
+      - case_id: PR785-PROBE-003
+        scenario_id: context-mismatch
+        method: test
+        intent: context refusal precedes api.
+        observable: An invalid context or stage raises ProbeRefusalError before API writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_context_refusal_precedes_api[GITHUB_ACTIONS]
+      - case_id: PR785-PROBE-004
+        scenario_id: context-mismatch
+        method: test
+        intent: context refusal precedes api.
+        observable: An invalid context or stage raises ProbeRefusalError before API writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_context_refusal_precedes_api[GITHUB_REPOSITORY]
+      - case_id: PR785-PROBE-005
+        scenario_id: context-mismatch
+        method: test
+        intent: context refusal precedes api.
+        observable: An invalid context or stage raises ProbeRefusalError before API writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_context_refusal_precedes_api[GITHUB_ACTOR]
+      - case_id: PR785-PROBE-006
+        scenario_id: context-mismatch
+        method: test
+        intent: context refusal precedes api.
+        observable: An invalid context or stage raises ProbeRefusalError before API writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_context_refusal_precedes_api[GITHUB_TRIGGERING_ACTOR]
+      - case_id: PR785-PROBE-007
+        scenario_id: context-mismatch
+        method: test
+        intent: context refusal precedes api.
+        observable: An invalid context or stage raises ProbeRefusalError before API writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_context_refusal_precedes_api[GITHUB_EVENT_NAME]
+      - case_id: PR785-PROBE-008
+        scenario_id: context-mismatch
+        method: test
+        intent: context refusal precedes api.
+        observable: An invalid context or stage raises ProbeRefusalError before API writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_context_refusal_precedes_api[GITHUB_REF]
+      - case_id: PR785-PROBE-009
+        scenario_id: context-mismatch
+        method: test
+        intent: context refusal precedes api.
+        observable: An invalid context or stage raises ProbeRefusalError before API writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_context_refusal_precedes_api[GITHUB_SHA]
+      - case_id: PR785-PROBE-010
+        scenario_id: context-mismatch
+        method: test
+        intent: context refusal precedes api.
+        observable: An invalid context or stage raises ProbeRefusalError before API writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_context_refusal_precedes_api[GITHUB_WORKFLOW_SHA]
+      - case_id: PR785-PROBE-011
+        scenario_id: context-mismatch
+        method: test
+        intent: context refusal precedes api.
+        observable: An invalid context or stage raises ProbeRefusalError before API writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_context_refusal_precedes_api[GITHUB_WORKFLOW_REF]
+      - case_id: PR785-PROBE-012
+        scenario_id: context-mismatch
+        method: test
+        intent: context refusal precedes api.
+        observable: An invalid context or stage raises ProbeRefusalError before API writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_context_refusal_precedes_api[GITHUB_RUN_ID]
+      - case_id: PR785-PROBE-013
+        scenario_id: context-mismatch
+        method: test
+        intent: context refusal precedes api.
+        observable: An invalid context or stage raises ProbeRefusalError before API writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_context_refusal_precedes_api[GITHUB_RUN_ATTEMPT]
+      - case_id: PR785-PROBE-014
+        scenario_id: context-mismatch
+        method: test
+        intent: context refusal precedes api.
+        observable: An invalid context or stage raises ProbeRefusalError before API writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_context_refusal_precedes_api[GITHUB_SERVER_URL]
+      - case_id: PR785-PROBE-015
+        scenario_id: context-mismatch
+        method: test
+        intent: context refusal precedes api.
+        observable: An invalid context or stage raises ProbeRefusalError before API writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_context_refusal_precedes_api[GITHUB_API_URL]
+      - case_id: PR785-PROBE-016
+        scenario_id: context-mismatch
+        method: test
+        intent: only probe is implemented.
+        observable: An invalid context or stage raises ProbeRefusalError before API writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_only_probe_is_implemented[prefix7]
+      - case_id: PR785-PROBE-017
+        scenario_id: context-mismatch
+        method: test
+        intent: only probe is implemented.
+        observable: An invalid context or stage raises ProbeRefusalError before API writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_only_probe_is_implemented[advisory9]
+      - case_id: PR785-PROBE-018
+        scenario_id: context-mismatch
+        method: test
+        intent: only probe is implemented.
+        observable: An invalid context or stage raises ProbeRefusalError before API writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_only_probe_is_implemented[final10]
+      - case_id: PR785-PROBE-019
+        scenario_id: context-mismatch
+        method: test
+        intent: only probe is implemented.
+        observable: An invalid context or stage raises ProbeRefusalError before API writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_only_probe_is_implemented[empty-stage]
+      - case_id: PR785-PROBE-020
+        scenario_id: context-mismatch
+        method: test
+        intent: only probe is implemented.
+        observable: An invalid context or stage raises ProbeRefusalError before API writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_only_probe_is_implemented[shell-stage]
+      - case_id: PR785-PROBE-063
+        scenario_id: context-mismatch
+        method: test
+        intent: expected executor must equal actual workflow sha.
+        observable: An invalid context or stage raises ProbeRefusalError before API writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_expected_executor_must_equal_actual_workflow_sha
+  openspec:pr785-ci-signing-recovery:pr785-signing-probe:ref-or-source-drift:
+    rationale: Conserve source identities and bound writes to the two independent inert probe objects.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#780
+    touchpoints:
+      - id: executor
+        kind: ci_workflow
+        locator: .github/workflows/specfact.yml
+      - id: probe-policy
+        kind: code
+        locator: scripts/pr785_signing_recovery.py
+      - id: probe-inputs
+        kind: config_file
+        locator: ci/recovery/pr785-signing-inputs.json
+      - id: probe-tests
+        kind: test
+        locator: tests/unit/scripts/test_pr785_signing_recovery.py
+    verification_cases:
+      - case_id: PR785-PROBE-021
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: preflight refuses before writes.
+        observable: Ref or source drift raises ProbeRefusalError and prevents subsequent writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_preflight_refuses_before_writes[main]
+      - case_id: PR785-PROBE-022
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: preflight refuses before writes.
+        observable: Ref or source drift raises ProbeRefusalError and prevents subsequent writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_preflight_refuses_before_writes[head]
+      - case_id: PR785-PROBE-023
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: preflight refuses before writes.
+        observable: Ref or source drift raises ProbeRefusalError and prevents subsequent writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_preflight_refuses_before_writes[auto_merge]
+      - case_id: PR785-PROBE-024
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: preflight refuses before writes.
+        observable: Ref or source drift raises ProbeRefusalError and prevents subsequent writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_preflight_refuses_before_writes[closed]
+      - case_id: PR785-PROBE-025
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: preflight refuses before writes.
+        observable: Ref or source drift raises ProbeRefusalError and prevents subsequent writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_preflight_refuses_before_writes[merged]
+      - case_id: PR785-PROBE-026
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: preflight refuses before writes.
+        observable: Ref or source drift raises ProbeRefusalError and prevents subsequent writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_preflight_refuses_before_writes[base-sha]
+      - case_id: PR785-PROBE-027
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: preflight refuses before writes.
+        observable: Ref or source drift raises ProbeRefusalError and prevents subsequent writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_preflight_refuses_before_writes[base-ref]
+      - case_id: PR785-PROBE-028
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: preflight refuses before writes.
+        observable: Ref or source drift raises ProbeRefusalError and prevents subsequent writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_preflight_refuses_before_writes[head-ref]
+      - case_id: PR785-PROBE-029
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: preflight refuses before writes.
+        observable: Ref or source drift raises ProbeRefusalError and prevents subsequent writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_preflight_refuses_before_writes[base-repo]
+      - case_id: PR785-PROBE-030
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: preflight refuses before writes.
+        observable: Ref or source drift raises ProbeRefusalError and prevents subsequent writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_preflight_refuses_before_writes[head-repo]
+      - case_id: PR785-PROBE-031
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: preflight refuses before writes.
+        observable: Ref or source drift raises ProbeRefusalError and prevents subsequent writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_preflight_refuses_before_writes[run:id]
+      - case_id: PR785-PROBE-032
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: preflight refuses before writes.
+        observable: Ref or source drift raises ProbeRefusalError and prevents subsequent writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_preflight_refuses_before_writes[run:event]
+      - case_id: PR785-PROBE-033
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: preflight refuses before writes.
+        observable: Ref or source drift raises ProbeRefusalError and prevents subsequent writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_preflight_refuses_before_writes[run:repository]
+      - case_id: PR785-PROBE-034
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: preflight refuses before writes.
+        observable: Ref or source drift raises ProbeRefusalError and prevents subsequent writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_preflight_refuses_before_writes[run:head_branch]
+      - case_id: PR785-PROBE-035
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: preflight refuses before writes.
+        observable: Ref or source drift raises ProbeRefusalError and prevents subsequent writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_preflight_refuses_before_writes[run:triggering_actor]
+      - case_id: PR785-PROBE-036
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: preflight refuses before writes.
+        observable: Ref or source drift raises ProbeRefusalError and prevents subsequent writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_preflight_refuses_before_writes[run:status]
+      - case_id: PR785-PROBE-037
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: preflight refuses before writes.
+        observable: Ref or source drift raises ProbeRefusalError and prevents subsequent writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_preflight_refuses_before_writes[run:actor]
+      - case_id: PR785-PROBE-038
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: preflight refuses before writes.
+        observable: Ref or source drift raises ProbeRefusalError and prevents subsequent writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_preflight_refuses_before_writes[run:head_sha]
+      - case_id: PR785-PROBE-039
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: preflight refuses before writes.
+        observable: Ref or source drift raises ProbeRefusalError and prevents subsequent writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_preflight_refuses_before_writes[run:run_attempt]
+      - case_id: PR785-PROBE-040
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: preflight refuses before writes.
+        observable: Ref or source drift raises ProbeRefusalError and prevents subsequent writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_preflight_refuses_before_writes[run:workflow_id]
+      - case_id: PR785-PROBE-041
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: preflight refuses before writes.
+        observable: Ref or source drift raises ProbeRefusalError and prevents subsequent writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_preflight_refuses_before_writes[run:path]
+      - case_id: PR785-PROBE-052
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: drift after each write stops.
+        observable: Ref or source drift raises ProbeRefusalError and prevents subsequent writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_drift_after_each_write_stops[1]
+      - case_id: PR785-PROBE-053
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: drift after each write stops.
+        observable: Ref or source drift raises ProbeRefusalError and prevents subsequent writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_drift_after_each_write_stops[2]
+      - case_id: PR785-PROBE-054
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: drift after each write stops.
+        observable: Ref or source drift raises ProbeRefusalError and prevents subsequent writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_drift_after_each_write_stops[3]
+      - case_id: PR785-PROBE-055
+        scenario_id: ref-or-source-drift
+        method: test
+        intent: manifest tampering refuses.
+        observable: Ref or source drift raises ProbeRefusalError and prevents subsequent writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_manifest_tampering_refuses
+  openspec:pr785-ci-signing-recovery:pr785-signing-probe:signature-and-identity-verification:
+    rationale: Conserve source identities and bound writes to the two independent inert probe objects.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#780
+    touchpoints:
+      - id: executor
+        kind: ci_workflow
+        locator: .github/workflows/specfact.yml
+      - id: probe-policy
+        kind: code
+        locator: scripts/pr785_signing_recovery.py
+      - id: probe-inputs
+        kind: config_file
+        locator: ci/recovery/pr785-signing-inputs.json
+      - id: probe-tests
+        kind: test
+        locator: tests/unit/scripts/test_pr785_signing_recovery.py
+    verification_cases:
+      - case_id: PR785-PROBE-002
+        scenario_id: signature-and-identity-verification
+        method: test
+        intent: probe api contract.
+        observable: Exactly two independently parented commits and one bounded workflow tree are requested, and
+          frozen source identities and probe content match.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_probe_api_contract
+      - case_id: PR785-PROBE-064
+        scenario_id: signature-and-identity-verification
+        method: test
+        intent: Compare the original source digest and exact root-grounded baseline and inert workflow bytes/tree
+          against the immutable manifest.
+        observable: All ten source records retain their independent digest; baseline tree, probe tree and probe
+          bytes equal the independently grounded constants.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_complete_source_manifest_and_probe_bytes_are_frozen
+  openspec:pr785-ci-signing-recovery:pr785-signing-probe:signing-refusal:
+    rationale: Conserve source identities and bound writes to the two independent inert probe objects.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#780
+    touchpoints:
+      - id: executor
+        kind: ci_workflow
+        locator: .github/workflows/specfact.yml
+      - id: probe-policy
+        kind: code
+        locator: scripts/pr785_signing_recovery.py
+      - id: probe-inputs
+        kind: config_file
+        locator: ci/recovery/pr785-signing-inputs.json
+      - id: probe-tests
+        kind: test
+        locator: tests/unit/scripts/test_pr785_signing_recovery.py
+    verification_cases:
+      - case_id: PR785-PROBE-042
+        scenario_id: signing-refusal
+        method: test
+        intent: invalid object stops subsequent writes.
+        observable: Invalid object or API operations refuse; API error bodies and credentials are absent from evidence.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_invalid_object_stops_subsequent_writes[tree]
+      - case_id: PR785-PROBE-043
+        scenario_id: signing-refusal
+        method: test
+        intent: invalid object stops subsequent writes.
+        observable: Invalid object or API operations refuse; API error bodies and credentials are absent from evidence.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_invalid_object_stops_subsequent_writes[parent]
+      - case_id: PR785-PROBE-044
+        scenario_id: signing-refusal
+        method: test
+        intent: invalid object stops subsequent writes.
+        observable: Invalid object or API operations refuse; API error bodies and credentials are absent from evidence.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_invalid_object_stops_subsequent_writes[message]
+      - case_id: PR785-PROBE-045
+        scenario_id: signing-refusal
+        method: test
+        intent: invalid object stops subsequent writes.
+        observable: Invalid object or API operations refuse; API error bodies and credentials are absent from evidence.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_invalid_object_stops_subsequent_writes[unsigned]
+      - case_id: PR785-PROBE-046
+        scenario_id: signing-refusal
+        method: test
+        intent: invalid object stops subsequent writes.
+        observable: Invalid object or API operations refuse; API error bodies and credentials are absent from evidence.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_invalid_object_stops_subsequent_writes[reason]
+      - case_id: PR785-PROBE-047
+        scenario_id: signing-refusal
+        method: test
+        intent: invalid object stops subsequent writes.
+        observable: Invalid object or API operations refuse; API error bodies and credentials are absent from evidence.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_invalid_object_stops_subsequent_writes[signature]
+      - case_id: PR785-PROBE-048
+        scenario_id: signing-refusal
+        method: test
+        intent: invalid object stops subsequent writes.
+        observable: Invalid object or API operations refuse; API error bodies and credentials are absent from evidence.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_invalid_object_stops_subsequent_writes[payload]
+      - case_id: PR785-PROBE-049
+        scenario_id: signing-refusal
+        method: test
+        intent: invalid object stops subsequent writes.
+        observable: Invalid object or API operations refuse; API error bodies and credentials are absent from evidence.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_invalid_object_stops_subsequent_writes[bot]
+      - case_id: PR785-PROBE-050
+        scenario_id: signing-refusal
+        method: test
+        intent: invalid object stops subsequent writes.
+        observable: Invalid object or API operations refuse; API error bodies and credentials are absent from evidence.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_invalid_object_stops_subsequent_writes[readback]
+      - case_id: PR785-PROBE-051
+        scenario_id: signing-refusal
+        method: test
+        intent: invalid object stops subsequent writes.
+        observable: Invalid object or API operations refuse; API error bodies and credentials are absent from evidence.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_invalid_object_stops_subsequent_writes[tree_response]
+      - case_id: PR785-PROBE-056
+        scenario_id: signing-refusal
+        method: test
+        intent: transport rejects forbidden endpoints.
+        observable: Invalid object or API operations refuse; API error bodies and credentials are absent from evidence.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_transport_rejects_forbidden_endpoints[post-ref]
+      - case_id: PR785-PROBE-057
+        scenario_id: signing-refusal
+        method: test
+        intent: transport rejects forbidden endpoints.
+        observable: Invalid object or API operations refuse; API error bodies and credentials are absent from evidence.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_transport_rejects_forbidden_endpoints[patch-main-ref]
+      - case_id: PR785-PROBE-058
+        scenario_id: signing-refusal
+        method: test
+        intent: transport rejects forbidden endpoints.
+        observable: Invalid object or API operations refuse; API error bodies and credentials are absent from evidence.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_transport_rejects_forbidden_endpoints[delete-main-ref]
+      - case_id: PR785-PROBE-059
+        scenario_id: signing-refusal
+        method: test
+        intent: transport rejects forbidden endpoints.
+        observable: Invalid object or API operations refuse; API error bodies and credentials are absent from evidence.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_transport_rejects_forbidden_endpoints[external-url]
+      - case_id: PR785-PROBE-060
+        scenario_id: signing-refusal
+        method: test
+        intent: transport rejects forbidden endpoints.
+        observable: Invalid object or API operations refuse; API error bodies and credentials are absent from evidence.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_transport_rejects_forbidden_endpoints[parent-path]
+      - case_id: PR785-PROBE-061
+        scenario_id: signing-refusal
+        method: test
+        intent: transport rejects forbidden endpoints.
+        observable: Invalid object or API operations refuse; API error bodies and credentials are absent from evidence.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_transport_rejects_forbidden_endpoints[commit-query]
+      - case_id: PR785-PROBE-065
+        scenario_id: signing-refusal
+        method: test
+        intent: api error body and token are not persisted.
+        observable: Invalid object or API operations refuse; API error bodies and credentials are absent from evidence.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_api_error_body_and_token_are_not_persisted
+  openspec:pr785-ci-signing-recovery:pr785-signing-probe:root-acceptance-remains-pending:
+    rationale: Retain truthful receipts and keep root authentication and anchoring pending.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#780
+    touchpoints:
+      - id: executor
+        kind: ci_workflow
+        locator: .github/workflows/specfact.yml
+      - id: probe-policy
+        kind: code
+        locator: scripts/pr785_signing_recovery.py
+      - id: probe-inputs
+        kind: config_file
+        locator: ci/recovery/pr785-signing-inputs.json
+      - id: probe-tests
+        kind: test
+        locator: tests/unit/scripts/test_pr785_signing_recovery.py
+    verification_cases:
+      - scenario_id: root-acceptance-remains-pending
+        method: test
+        intent: Run the real CLI and HTTP adapter against a fake network through complete probe success.
+        observable: The persisted receipt binds the exact run, attempt, executor and manifest, contains two verified
+          objects, leaves both anchor claims false, and retains every successful raw response in order without credentials.
+        case_id: PR785-PROBE-067
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_success_persists_bound_receipt_and_raw_responses
+  openspec:pr785-ci-signing-recovery:pr785-signing-probe:later-refusal-preserves-earlier-successful-responses:
+    rationale: Retain truthful receipts and keep root authentication and anchoring pending.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#780
+    touchpoints:
+      - id: executor
+        kind: ci_workflow
+        locator: .github/workflows/specfact.yml
+      - id: probe-policy
+        kind: code
+        locator: scripts/pr785_signing_recovery.py
+      - id: probe-inputs
+        kind: config_file
+        locator: ci/recovery/pr785-signing-inputs.json
+      - id: probe-tests
+        kind: test
+        locator: tests/unit/scripts/test_pr785_signing_recovery.py
+    verification_cases:
+      - scenario_id: later-refusal-preserves-earlier-successful-responses
+        method: test
+        intent: Refuse the tree request after the baseline object has been verified through the real CLI and HTTP
+          adapter.
+        observable: Exit 1 retains the bound refusal receipt, first verified object and all earlier successful raw
+          JSON, without credentials or error-body disclosure.
+        case_id: PR785-PROBE-068
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_later_refusal_preserves_bound_receipt_and_successful_raw_json
+  openspec:pr785-ci-signing-recovery:pr785-signing-probe:early-context-refusal-remains-unauthenticated:
+    rationale: Retain truthful receipts and keep root authentication and anchoring pending.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#780
+    touchpoints:
+      - id: executor
+        kind: ci_workflow
+        locator: .github/workflows/specfact.yml
+      - id: probe-policy
+        kind: code
+        locator: scripts/pr785_signing_recovery.py
+      - id: probe-inputs
+        kind: config_file
+        locator: ci/recovery/pr785-signing-inputs.json
+      - id: probe-tests
+        kind: test
+        locator: tests/unit/scripts/test_pr785_signing_recovery.py
+    verification_cases:
+      - case_id: PR785-PROBE-066
+        scenario_id: early-context-refusal-remains-unauthenticated
+        method: test
+        intent: Reject an unapproved actor before any network access through the real CLI.
+        observable: The persisted refusal receipt binds observed run, attempt and executor to the pinned manifest,
+          marks context unverified, and contains no signed objects or root anchoring claim.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_context_failure_still_writes_refusal_receipt

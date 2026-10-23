@@ -1,0 +1,9 @@
+{
+  "schema_version": "1",
+  "decision": "accepted",
+  "reviewer_id": "Codex:/root/probe_runtime_independent_acceptance (gpt-6.1-sol)",
+  "reviewer_role": "independent AI technical mapping and implementation reviewer",
+  "recorded_at": "2026-10-23T07:27:44.280797+00:00",
+  "reference": "openspec/changes/pr785-ci-signing-recovery/requirements-proof/independent-runtime-review.md",
+  "mapping_digest": "sha256:3c5f10dd228ae37cca648489438ff1bdb01a7aa8bba28d2e3413546060c9b06a"
+}

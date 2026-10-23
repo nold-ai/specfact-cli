@@ -1,0 +1,112 @@
+{
+  "source": {
+    "version": 1,
+    "repository": "nold-ai/specfact-cli",
+    "pull_request": 785,
+    "branch": "hotfix/security-dependencies-0-55-11",
+    "expected_old_head": "3ce8248e0cb4249413f738759d8e5d89cdaca794",
+    "expected_main": "5262efb0881e4fac7697d629b0530250342bc656",
+    "reviewed_final_tree": "2bdfb083faae0093043dbe080ceb4a9d698ad41a",
+    "old_red_head": "2eef82529a8eb166b9a18898316ae92ce170f02a",
+    "old_red_tree": "f82634e9b0f290cfce89a35199dfe5d6216fd54f",
+    "old_red_run": 39872159349,
+    "old_red_artifact": 12466049727,
+    "commits": [
+      {
+        "sha": "dd1b4121944f247c4d5dff0903902e2721d8c1a6",
+        "tree": "4925c1deff2a09235570f76f3630f15581f679ca",
+        "parents": [
+          "5262efb0881e4fac7697d629b0530250342bc656"
+        ],
+        "subject": "test(release): prove dependency security regressions"
+      },
+      {
+        "sha": "08126f3f8a8e46a79c46c574dfd7b0c44e915831",
+        "tree": "0822952c8a8004c3b92d9c7560b3a24c436443b3",
+        "parents": [
+          "dd1b4121944f247c4d5dff0903902e2721d8c1a6"
+        ],
+        "subject": "test(release): bind native proof to change failures"
+      },
+      {
+        "sha": "a2ee2c9d96e1cce5ba1f13f733ccc49580262ffb",
+        "tree": "b852f08abbaa1fe90f8fa927369611d31fdd0d58",
+        "parents": [
+          "08126f3f8a8e46a79c46c574dfd7b0c44e915831"
+        ],
+        "subject": "test(release): isolate the frozen GitPython closure"
+      },
+      {
+        "sha": "8cce44f449e9559d0100064d629c81991784ab41",
+        "tree": "a3cfdc441190e11a0c4db22cbdc324b44a2b7f8e",
+        "parents": [
+          "a2ee2c9d96e1cce5ba1f13f733ccc49580262ffb"
+        ],
+        "subject": "test(release): refresh official dependency proof"
+      },
+      {
+        "sha": "fe1e1e9c0ce77ee0b3b620a882c77b0be8501860",
+        "tree": "f19f5e36d8535cc7b21c5eaf745661ffb52f0992",
+        "parents": [
+          "8cce44f449e9559d0100064d629c81991784ab41"
+        ],
+        "subject": "test(security): bind advisory correction"
+      },
+      {
+        "sha": "4936750186fcb339913a8710f3034cf1d2be901f",
+        "tree": "a95395aaf17130d8c7835fe2ee19d3e3c251f818",
+        "parents": [
+          "fe1e1e9c0ce77ee0b3b620a882c77b0be8501860"
+        ],
+        "subject": "test(security): reconcile release proof quality"
+      },
+      {
+        "sha": "2eef82529a8eb166b9a18898316ae92ce170f02a",
+        "tree": "f82634e9b0f290cfce89a35199dfe5d6216fd54f",
+        "parents": [
+          "4936750186fcb339913a8710f3034cf1d2be901f"
+        ],
+        "subject": "test(security): bind supported parser proof"
+      },
+      {
+        "sha": "754e9c04188b0bcc824f7810e15926eb0ae4b00a",
+        "tree": "9bdf313a124367d8e8ee03b5945b4a20b131aece",
+        "parents": [
+          "2eef82529a8eb166b9a18898316ae92ce170f02a"
+        ],
+        "subject": "fix(release): apply official security updates"
+      },
+      {
+        "sha": "7f0066b95b937a5168a0e4b393ab0139bafb9254",
+        "tree": "7096c275384903baebd4077fc875073f00b80c89",
+        "parents": [
+          "754e9c04188b0bcc824f7810e15926eb0ae4b00a"
+        ],
+        "subject": "test(ci): prove resolver selection separation"
+      },
+      {
+        "sha": "3ce8248e0cb4249413f738759d8e5d89cdaca794",
+        "tree": "2bdfb083faae0093043dbe080ceb4a9d698ad41a",
+        "parents": [
+          "7f0066b95b937a5168a0e4b393ab0139bafb9254"
+        ],
+        "subject": "fix(ci): isolate frozen release proof selection"
+      }
+    ],
+    "status": "proposal-only-no-rewrite-authorized",
+    "constraints": [
+      "CI/CD signing only",
+      "no merge or auto-merge",
+      "no policy/check waiver",
+      "no old native proof or authority transfer",
+      "explicit approval before shared-branch history replacement",
+      "fail closed on source/head/base/signer drift"
+    ]
+  },
+  "probe": {
+    "main_tree": "4c9ba46b2ace65cd8df0fcd5a77c2b14a42f599c",
+    "probe_path": ".github/workflows/pr785-inert-probe.yml",
+    "probe_content": "name: PR785 inert signing probe\non:\n  workflow_dispatch:\npermissions:\n  contents: read\njobs:\n  inert:\n    runs-on: ubuntu-24.04\n    steps:\n      - run: \"true\"\n",
+    "probe_tree": "4b2cf05809c1cf687e4eae17a770cd33c97eff72"
+  }
+}

@@ -1,0 +1,10 @@
+name: PR785 inert signing probe
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inert:
+    runs-on: ubuntu-24.04
+    steps:
+      - run: "true"
