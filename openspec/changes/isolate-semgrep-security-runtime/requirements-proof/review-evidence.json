@@ -1,0 +1,9 @@
+{
+  "schema_version": "1",
+  "decision": "accepted",
+  "reviewer_id": "Codex:/root/release_mapping_review (gpt-6.1-sol)",
+  "reviewer_role": "independent AI technical mapping reviewer",
+  "recorded_at": "2026-10-22T15:55:08.939596+00:00",
+  "reference": "https://github.com/nold-ai/specfact-cli/blob/hotfix/security-dependencies-0-55-11/openspec/changes/isolate-semgrep-security-runtime/requirements-proof/independent-review.md",
+  "mapping_digest": "sha256:8e3941ca05ccf9bceaea351df6cc1e642508debfc4ab87ecdc7b6b9cc45e6820"
+}
