@@ -31,10 +31,12 @@ The executor SHALL create only a baseline commit and an inert workflow commit, e
 
 The executor SHALL create only a baseline commit and an inert workflow commit, each parented by fixed main. It SHALL pin the exact full source manifest and probe bytes/tree and permit only bounded tree and commit POSTs without custom attribution, date or signature.
 
+The executor SHALL require author name `github-actions[bot]`, email `41898282+github-actions[bot]@users.noreply.github.com`, service login `github-actions[bot]`, numeric ID `41898282` and type `Bot`. It SHALL require committer name `GitHub`, email `noreply@github.com`, service login `web-flow`, numeric ID `19864447` and type `User`. Both create and independent Git readback metadata and signed payload headers SHALL match their exact role names and emails. The separate commit attribution readback SHALL match each role login, ID and type. A value from the other role SHALL NOT satisfy any identity field. All signature, context, intent, request and refusal guards remain required.
+
 #### Scenario: Signature and identity verification
 
 - **WHEN** a commit is created and independently reread
-- **THEN** its SHA, tree, sole parent, message, valid signature/payload and GitHub Actions bot attribution match the exact probe intent
+- **THEN** its SHA, tree, sole parent, message, valid signature/payload and exact separate author and committer identities match the probe intent
 
 ### Requirement: Signing refusal
 

@@ -1,5 +1,25 @@
 # PR785 probe TDD evidence
 
+## Exact service role correction failing-before evidence
+
+Recorded 23 October 2026, Europe/Berlin. Root authenticated actual run 39918437102, attempt 1, at auxiliary executor `d30507854113fa42af86fd2db82a3a0554121cfb`. Artifact 12486046412 has ZIP SHA-256 `ecbe22efd7429db12d9a00dfdf0753a0200da42117d7170f293553f97e0bd55c`. Its raw response 0004 created GitHub-verified commit `192a8db76d7356e7ccae1788ed86604154174786`, with reason `valid`, a signature and the exact role-specific payload. The author is the Actions bot. The committer is GitHub, attributed to `web-flow`. Root retained independent Git and commit-attribution readbacks. The actual old runtime refused that valid baseline because it required the Actions bot in both roles. The receipt has zero accepted objects and both anchor flags false. No complete probe or release acceptance is inferred from this partial run.
+
+The existing eight native Requirement and Scenario names remain unchanged. The spec now states both exact identities. The test fixture reflects the authenticated role values. All original 68 case IDs, selectors, case objects, test bodies, decorators and assertions are conserved. Twenty-two new negative controls substitute the opposite role value in each name or email field in create metadata, readback metadata and both signed payloads, and in each login, ID or type field in service attribution. The new controls are authored and collected. Their future passing run must accompany both positive cases after the runtime correction.
+
+The unchanged runtime SHA-256 is `38456f4429f5e3b4a68f82307dcfce2c1b74cd94063b2da1af198058db93d7f3`. The following exact command ran against that module after the spec and test edits, before any runtime edit.
+
+```sh
+python -B -m pytest -q -o addopts='' -p no:cacheprovider tests/unit/scripts/test_pr785_signing_recovery.py::test_probe_api_contract tests/unit/scripts/test_pr785_signing_recovery.py::test_success_persists_bound_receipt_and_raw_responses --junitxml=/private/tmp/specfact-release-20261022/signing-recovery/service-committer-correction/positive-red.xml
+```
+
+Exit 1. Two failures, zero errors and zero skips. The API contract raises `ProbeRefusalError: Git attribution mismatch` from the real name check. The existing persisted-success assertion reports `assert 1 == 0`. Neither failure is an import or setup error. The raw log, JUnit and exit status are retained in the private correction directory.
+
+Fresh collection returns 90 selectors. The pinned module fixture was verified against its clean commit and tree. Its real native importer and lifecycle evaluator return planned maturity, a pass decision and no source-binding findings for all eight requirements. The canonical mapping digest is `sha256:f686345a624d61150d5fd2901ea0b6e567795a21d8e7b7d4a6eb6379c89dca27`. This direct source-bound evaluation does not claim a staged delivery command or a test-authored receipt. Root owns those next gates because index changes are excluded from this phase.
+
+Focused lint, format and type checks, scoped YAML, strict OpenSpec, six configured independent SAST rules, Bandit and whitespace checks pass. SpecFact CodeReview reports PASS with zero findings at all severities. The first direct review invocation lacked the configured module-root environment and produced no review report. The retry supplied the existing pinned module package root and retained a genuine clean report. No package installation, waiver or scanner change occurred. Exact commands, statuses and reports are retained in the private correction directory.
+
+The runtime, manifest, inert bytes, executor workflow, five-package bootstrap subset, original lock inputs, module fixture lock and original release sources remain unchanged. Root removed the previous active receipt before this phase and retains its historical copy. Fresh independent test acceptance, a new root receipt and normal test-first commit remain required before runtime authority opens. Root owns the internal wiki update and graph rebuild follow-up. No runtime implementation, index operation, commit, ref update, signing, dispatch, API request or merge occurred in this phase.
+
 ## Local implementation evidence
 
 Recorded 23 October 2026, Europe/Berlin. Root opened implementation after independently accepted test c8dd2081, canonical mapping3c5f10dd and the genuine structural RED retained below. The final actual green.xml contains68passing cases and zero failures, errors or skips against runtime SHA38456f4429f5e3b4a68f82307dcfce2c1b74cd94063b2da1af198058db93d7f3 and test SHA02497db0fe053be57fde1f79f89d28dfdaab507f61599f8bcfa58f5d43b0b79a.

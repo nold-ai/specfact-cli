@@ -1,9 +1,9 @@
 {
   "schema_version": "1",
   "decision": "accepted",
-  "reviewer_id": "Codex:/root/probe_runtime_independent_acceptance (gpt-6.1-sol)",
-  "reviewer_role": "independent AI technical mapping and implementation reviewer",
-  "recorded_at": "2026-10-23T07:27:44.280797+00:00",
-  "reference": "openspec/changes/pr785-ci-signing-recovery/requirements-proof/independent-runtime-review.md",
-  "mapping_digest": "sha256:3c5f10dd228ae37cca648489438ff1bdb01a7aa8bba28d2e3413546060c9b06a"
+  "reviewer_id": "Codex:/root/service_committer_tests_acceptance (gpt-6.1-sol)",
+  "reviewer_role": "independent AI technical test and mapping reviewer",
+  "recorded_at": "2026-10-23T07:55:53.915882+00:00",
+  "reference": "openspec/changes/pr785-ci-signing-recovery/requirements-proof/service-identity-tests-review.md",
+  "mapping_digest": "sha256:f686345a624d61150d5fd2901ea0b6e567795a21d8e7b7d4a6eb6379c89dca27"
 }

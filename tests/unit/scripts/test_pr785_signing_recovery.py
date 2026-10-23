@@ -21,6 +21,22 @@ if TYPE_CHECKING:
 
 JSONValue = str | int | float | bool | None | list["JSONValue"] | dict[str, "JSONValue"]
 ROOT = Path(__file__).resolve().parents[3]
+SERVICE_IDENTITIES: dict[str, dict[str, str | int]] = {
+    "author": {
+        "name": "github-actions[bot]",
+        "email": "41898282+github-actions[bot]@users.noreply.github.com",
+        "login": "github-actions[bot]",
+        "id": 41898282,
+        "type": "Bot",
+    },
+    "committer": {
+        "name": "GitHub",
+        "email": "noreply@github.com",
+        "login": "web-flow",
+        "id": 19864447,
+        "type": "User",
+    },
+}
 
 
 def test_executor_is_dispatch_only() -> None:
@@ -153,7 +169,7 @@ class FakeAPI:
     def create_commit(self, body: dict[str, Any]) -> dict[str, Any]:
         manifest = self.manifest
         sha = str(self.writes) * 40
-        payload = f"tree {body['tree']}\nparent {manifest.main}\nauthor github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com> 1 +0000\ncommitter github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com> 1 +0000\n\n{body['message']}"
+        payload = f"tree {body['tree']}\nparent {manifest.main}\nauthor github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com> 1 +0000\ncommitter GitHub <noreply@github.com> 1 +0000\n\n{body['message']}"
         result: dict[str, Any] = {
             "sha": sha,
             "tree": {"sha": body["tree"]},
@@ -163,10 +179,7 @@ class FakeAPI:
                 "name": "github-actions[bot]",
                 "email": "41898282+github-actions[bot]@users.noreply.github.com",
             },
-            "committer": {
-                "name": "github-actions[bot]",
-                "email": "41898282+github-actions[bot]@users.noreply.github.com",
-            },
+            "committer": {"name": "GitHub", "email": "noreply@github.com"},
             "verification": {"verified": True, "reason": "valid", "signature": "signature", "payload": payload},
         }
         object_faults: dict[str, dict[str, JSONValue]] = {
@@ -182,6 +195,7 @@ class FakeAPI:
         }
         result.update(object_faults.get(self.fault, {}))
         result["verification"].update(verification_faults.get(self.fault, {}))
+        self.corrupt_identity(result, "create")
         self.objects[sha] = copy.deepcopy(result)
         return result
 
@@ -189,18 +203,38 @@ class FakeAPI:
         result = copy.deepcopy(self.objects[sha])
         if self.fault == "readback":
             result["sha"] = "f" * 40
+        self.corrupt_identity(result, "readback")
         return result
 
     def commit_attribution(self, sha: str) -> dict[str, Any]:
-        return {
+        result: dict[str, Any] = {
             "sha": sha,
             "author": {
                 "login": "wrong" if self.fault == "bot" else "github-actions[bot]",
                 "id": 41898282,
                 "type": "Bot",
             },
-            "committer": {"login": "github-actions[bot]", "id": 41898282, "type": "Bot"},
+            "committer": {"login": "web-flow", "id": 19864447, "type": "User"},
         }
+        self.corrupt_identity(result, "attribution")
+        return result
+
+    def corrupt_identity(self, result: dict[str, Any], surface: str) -> None:
+        parts = self.fault.split(":")
+        if len(parts) != 4 or parts[0] != surface:
+            return
+        _, representation, role, field = parts
+        opposite = "committer" if role == "author" else "author"
+        replacement = SERVICE_IDENTITIES[opposite][field]
+        if representation == "metadata":
+            result[role][field] = replacement
+            return
+        identity = SERVICE_IDENTITIES[role]
+        changed = {**identity, field: replacement}
+        result["verification"]["payload"] = result["verification"]["payload"].replace(
+            f"{role} {identity['name']} <{identity['email']}>",
+            f"{role} {changed['name']} <{changed['email']}>",
+        )
 
 
 @pytest.mark.parametrize("field", list(context_env()))
@@ -273,6 +307,32 @@ def test_invalid_object_stops_subsequent_writes(fault: str) -> None:
     with pytest.raises(ProbeRefusalError):
         Probe(manifest, context(), api).run()
     assert api.writes == (2 if fault == "tree_response" else 1)
+
+
+@pytest.mark.parametrize("surface", ["create", "readback"])
+@pytest.mark.parametrize("representation", ["metadata", "payload"])
+@pytest.mark.parametrize("role", ["author", "committer"])
+@pytest.mark.parametrize("field", ["name", "email"])
+def test_git_role_mismatch_stops_subsequent_writes(surface: str, representation: str, role: str, field: str) -> None:
+    from scripts.pr785_signing_recovery import Manifest, Probe, ProbeRefusalError
+
+    manifest = Manifest.load(ROOT / "ci/recovery/pr785-signing-inputs.json")
+    api = FakeAPI(manifest, f"{surface}:{representation}:{role}:{field}")
+    with pytest.raises(ProbeRefusalError):
+        Probe(manifest, context(), api).run()
+    assert api.writes == 1
+
+
+@pytest.mark.parametrize("role", ["author", "committer"])
+@pytest.mark.parametrize("field", ["login", "id", "type"])
+def test_service_role_mismatch_stops_subsequent_writes(role: str, field: str) -> None:
+    from scripts.pr785_signing_recovery import Manifest, Probe, ProbeRefusalError
+
+    manifest = Manifest.load(ROOT / "ci/recovery/pr785-signing-inputs.json")
+    api = FakeAPI(manifest, f"attribution:metadata:{role}:{field}")
+    with pytest.raises(ProbeRefusalError):
+        Probe(manifest, context(), api).run()
+    assert api.writes == 1
 
 
 @pytest.mark.parametrize("after", [1, 2, 3])

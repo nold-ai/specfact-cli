@@ -19,3 +19,13 @@
 - [ ] Prove root-owned immutable auxiliary anchors and fetching for both objects.
 - [ ] Reject REST on actual signing refusal without an automatic alternative.
 - [ ] Archive this operational change with OpenSpec CLI after acceptance.
+
+## Exact service role correction
+
+- [x] Authenticate the actual signed baseline and separate author and committer roles through root-owned evidence.
+- [x] Clarify the existing eight-scenario contract without renaming native requirements or scenarios.
+- [x] Freeze corrected fixture, exact-role negative controls, unchanged original cases and genuine positive RED.
+- [ ] Obtain fresh independent test acceptance, root receipt and normal test-first commit before runtime edits.
+- [ ] Correct the three identity verification functions with exact per-role values after root authorization.
+- [ ] Pass focused runtime quality and all original and new controls, then obtain fresh independent review.
+- [ ] Authenticate a new complete live probe and both root-owned anchors. Never adopt the earlier partial run.

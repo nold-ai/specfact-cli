@@ -461,6 +461,182 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_complete_source_manifest_and_probe_bytes_are_frozen
+      - case_id: PR785-PROBE-069
+        scenario_id: signature-and-identity-verification
+        method: test
+        intent: Reject the opposite service role in name-author-metadata-create.
+        observable: ProbeRefusalError stops subsequent writes when this exact role field is replaced by the other role value.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_git_role_mismatch_stops_subsequent_writes[name-author-metadata-create]
+      - case_id: PR785-PROBE-070
+        scenario_id: signature-and-identity-verification
+        method: test
+        intent: Reject the opposite service role in name-author-metadata-readback.
+        observable: ProbeRefusalError stops subsequent writes when this exact role field is replaced by the other role value.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_git_role_mismatch_stops_subsequent_writes[name-author-metadata-readback]
+      - case_id: PR785-PROBE-071
+        scenario_id: signature-and-identity-verification
+        method: test
+        intent: Reject the opposite service role in name-author-payload-create.
+        observable: ProbeRefusalError stops subsequent writes when this exact role field is replaced by the other role value.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_git_role_mismatch_stops_subsequent_writes[name-author-payload-create]
+      - case_id: PR785-PROBE-072
+        scenario_id: signature-and-identity-verification
+        method: test
+        intent: Reject the opposite service role in name-author-payload-readback.
+        observable: ProbeRefusalError stops subsequent writes when this exact role field is replaced by the other role value.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_git_role_mismatch_stops_subsequent_writes[name-author-payload-readback]
+      - case_id: PR785-PROBE-073
+        scenario_id: signature-and-identity-verification
+        method: test
+        intent: Reject the opposite service role in name-committer-metadata-create.
+        observable: ProbeRefusalError stops subsequent writes when this exact role field is replaced by the other role value.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_git_role_mismatch_stops_subsequent_writes[name-committer-metadata-create]
+      - case_id: PR785-PROBE-074
+        scenario_id: signature-and-identity-verification
+        method: test
+        intent: Reject the opposite service role in name-committer-metadata-readback.
+        observable: ProbeRefusalError stops subsequent writes when this exact role field is replaced by the other role value.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_git_role_mismatch_stops_subsequent_writes[name-committer-metadata-readback]
+      - case_id: PR785-PROBE-075
+        scenario_id: signature-and-identity-verification
+        method: test
+        intent: Reject the opposite service role in name-committer-payload-create.
+        observable: ProbeRefusalError stops subsequent writes when this exact role field is replaced by the other role value.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_git_role_mismatch_stops_subsequent_writes[name-committer-payload-create]
+      - case_id: PR785-PROBE-076
+        scenario_id: signature-and-identity-verification
+        method: test
+        intent: Reject the opposite service role in name-committer-payload-readback.
+        observable: ProbeRefusalError stops subsequent writes when this exact role field is replaced by the other role value.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_git_role_mismatch_stops_subsequent_writes[name-committer-payload-readback]
+      - case_id: PR785-PROBE-077
+        scenario_id: signature-and-identity-verification
+        method: test
+        intent: Reject the opposite service role in email-author-metadata-create.
+        observable: ProbeRefusalError stops subsequent writes when this exact role field is replaced by the other role value.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_git_role_mismatch_stops_subsequent_writes[email-author-metadata-create]
+      - case_id: PR785-PROBE-078
+        scenario_id: signature-and-identity-verification
+        method: test
+        intent: Reject the opposite service role in email-author-metadata-readback.
+        observable: ProbeRefusalError stops subsequent writes when this exact role field is replaced by the other role value.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_git_role_mismatch_stops_subsequent_writes[email-author-metadata-readback]
+      - case_id: PR785-PROBE-079
+        scenario_id: signature-and-identity-verification
+        method: test
+        intent: Reject the opposite service role in email-author-payload-create.
+        observable: ProbeRefusalError stops subsequent writes when this exact role field is replaced by the other role value.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_git_role_mismatch_stops_subsequent_writes[email-author-payload-create]
+      - case_id: PR785-PROBE-080
+        scenario_id: signature-and-identity-verification
+        method: test
+        intent: Reject the opposite service role in email-author-payload-readback.
+        observable: ProbeRefusalError stops subsequent writes when this exact role field is replaced by the other role value.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_git_role_mismatch_stops_subsequent_writes[email-author-payload-readback]
+      - case_id: PR785-PROBE-081
+        scenario_id: signature-and-identity-verification
+        method: test
+        intent: Reject the opposite service role in email-committer-metadata-create.
+        observable: ProbeRefusalError stops subsequent writes when this exact role field is replaced by the other role value.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_git_role_mismatch_stops_subsequent_writes[email-committer-metadata-create]
+      - case_id: PR785-PROBE-082
+        scenario_id: signature-and-identity-verification
+        method: test
+        intent: Reject the opposite service role in email-committer-metadata-readback.
+        observable: ProbeRefusalError stops subsequent writes when this exact role field is replaced by the other role value.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_git_role_mismatch_stops_subsequent_writes[email-committer-metadata-readback]
+      - case_id: PR785-PROBE-083
+        scenario_id: signature-and-identity-verification
+        method: test
+        intent: Reject the opposite service role in email-committer-payload-create.
+        observable: ProbeRefusalError stops subsequent writes when this exact role field is replaced by the other role value.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_git_role_mismatch_stops_subsequent_writes[email-committer-payload-create]
+      - case_id: PR785-PROBE-084
+        scenario_id: signature-and-identity-verification
+        method: test
+        intent: Reject the opposite service role in email-committer-payload-readback.
+        observable: ProbeRefusalError stops subsequent writes when this exact role field is replaced by the other role value.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_git_role_mismatch_stops_subsequent_writes[email-committer-payload-readback]
+      - case_id: PR785-PROBE-085
+        scenario_id: signature-and-identity-verification
+        method: test
+        intent: Reject the opposite service role in login-author.
+        observable: ProbeRefusalError stops subsequent writes when this exact role field is replaced by the other role value.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_service_role_mismatch_stops_subsequent_writes[login-author]
+      - case_id: PR785-PROBE-086
+        scenario_id: signature-and-identity-verification
+        method: test
+        intent: Reject the opposite service role in login-committer.
+        observable: ProbeRefusalError stops subsequent writes when this exact role field is replaced by the other role value.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_service_role_mismatch_stops_subsequent_writes[login-committer]
+      - case_id: PR785-PROBE-087
+        scenario_id: signature-and-identity-verification
+        method: test
+        intent: Reject the opposite service role in id-author.
+        observable: ProbeRefusalError stops subsequent writes when this exact role field is replaced by the other role value.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_service_role_mismatch_stops_subsequent_writes[id-author]
+      - case_id: PR785-PROBE-088
+        scenario_id: signature-and-identity-verification
+        method: test
+        intent: Reject the opposite service role in id-committer.
+        observable: ProbeRefusalError stops subsequent writes when this exact role field is replaced by the other role value.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_service_role_mismatch_stops_subsequent_writes[id-committer]
+      - case_id: PR785-PROBE-089
+        scenario_id: signature-and-identity-verification
+        method: test
+        intent: Reject the opposite service role in type-author.
+        observable: ProbeRefusalError stops subsequent writes when this exact role field is replaced by the other role value.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_service_role_mismatch_stops_subsequent_writes[type-author]
+      - case_id: PR785-PROBE-090
+        scenario_id: signature-and-identity-verification
+        method: test
+        intent: Reject the opposite service role in type-committer.
+        observable: ProbeRefusalError stops subsequent writes when this exact role field is replaced by the other role value.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_service_role_mismatch_stops_subsequent_writes[type-committer]
   openspec:pr785-ci-signing-recovery:pr785-signing-probe:signing-refusal:
     rationale: Conserve source identities and bound writes to the two independent inert probe objects.
     stakeholder_refs:
