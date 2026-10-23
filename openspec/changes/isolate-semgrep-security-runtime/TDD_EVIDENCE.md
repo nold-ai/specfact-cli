@@ -130,3 +130,31 @@ accepts current proposal SHA256
 `83e860e44ebc7778c48fb0ef382ed26c4d8ebe80ccdcd18037f85c57f37d21df`.
 The original report remains historical with its original byte identities.
 Fresh native RED is still required before production edits.
+
+## Frozen GitPython closure and explicit Ruby scope
+
+The nineteen-case mapping achieved accepted native RED at commit
+`08126f3f8a8e46a79c46c574dfd7b0c44e915831`, run
+[39811618606](https://github.com/nold-ai/specfact-cli/actions/runs/39811618606),
+artifact `12439638334`. Its unchanged report has `gate_decision=pass`,
+`observed_maturity=red`, and no findings.
+
+Subsequent review identified that the GitPython probe borrowed gitdb and smmap
+from the verifier environment. The probe now installs the exact three hash-pinned
+requirements into the isolated target. Its selector and assertions are unchanged.
+Twelve private missing, duplicate and unhashed-declaration controls pass. A real
+rerun installs the three wheels and fails at `AssertionError: clone boundary reached`.
+An earlier DNS-limited invocation is not behavioral evidence. This test edit
+requires fresh native RED at its new commit before production changes.
+
+The proposal and task now explicitly name creation of the already-mapped Ruby
+compatibility probe and workflow. No new production touchpoint or release scope
+is added. New independent review must accept the actual current proposal bytes.
+
+Independent AI reviewer `/root/release_probe_final_review` using gpt-6.1-sol
+accepted the strengthened frozen closure, unchanged nineteen-case mapping and
+current proposal SHA256
+`7a448d1b6702eb3abca880172f6286ac4e77948119023f07ea21796a4b4a8f97`.
+Current technical acceptance references `requirements-proof/frozen-closure-review.md`.
+Earlier review reports retain their original historical boundaries. Fresh native
+RED at this test-only revision remains required before production changes.

@@ -6,6 +6,7 @@
 - [ ] Refresh the eight reviewed official Python packages and both frozen files.
 - [ ] Add only the exact approved MCP advisory exception.
 - [ ] Update documentation dependency declarations and lock, then execute real gem compatibility probes.
+- [ ] After native RED acceptance, port the reviewed dev Ruby compatibility probe to `scripts/check_jekyll_dependencies.rb` and its CI workflow to `.github/workflows/docs-dependency-checks.yml`.
 - [ ] Add the missing bundle-mapper source-distribution inclusion and synchronize version 0.55.11 with the changelog.
 - [ ] Verify published runtime equality, strict module signatures, both audit lanes, and required local and CI gates.
 - [ ] Complete independent final review and present the unmerged PR.

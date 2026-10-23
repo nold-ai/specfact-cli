@@ -1,9 +1,9 @@
 {
   "schema_version": "1",
   "decision": "accepted",
-  "reviewer_id": "Codex:/root/release_corrected_mapping_review (gpt-6-astra)",
+  "reviewer_id": "Codex:/root/release_probe_final_review (gpt-6.1-sol)",
   "reviewer_role": "independent AI technical mapping reviewer",
-  "recorded_at": "2026-10-22T16:09:12.996170+00:00",
-  "reference": "https://github.com/nold-ai/specfact-cli/blob/hotfix/security-dependencies-0-55-11/openspec/changes/isolate-semgrep-security-runtime/requirements-proof/corrected-mapping-review.md",
+  "recorded_at": "2026-10-22T16:18:44.881679+00:00",
+  "reference": "https://github.com/nold-ai/specfact-cli/blob/hotfix/security-dependencies-0-55-11/openspec/changes/isolate-semgrep-security-runtime/requirements-proof/frozen-closure-review.md",
   "mapping_digest": "sha256:1abe2b6dc3e8a294795a00236803b002b98ad02ec05b22b2b0deb2cbf13a2020"
 }
