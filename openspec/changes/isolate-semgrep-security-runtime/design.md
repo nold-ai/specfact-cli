@@ -81,15 +81,13 @@ the new OpenTelemetry review date. MCP's own 2026-10-21 record and true future a
 expiry tests remain unchanged. The scanner graph contract now requires exactly
 two separate records and official opentelemetry-api 1.37.0. No gate code changes.
 
-The accepted 23-case receipt is preserved as `pre-advisory-review-evidence.json`.
-The advisory receipt and `requirements-proof/advisory-mapping-review.md` are historical.
-The later quality amendment received acceptance in `requirements-proof/quality-mapping-review.md`
-and authenticated 31-case native RED at commit 4936750186fcb339913a8710f3034cf1d2be901f,
-run 39866724812 attempt 1. Its receipt is retained as `pre-trust-review-evidence.json`.
-The active parser-correction receipt references `requirements-proof/parser-mapping-review.md`
-for fresh independent AI acceptance and local 33-case RED. Native RED remains pending.
-Earlier proof applies only to its original bytes. Supplementary controls must pass.
-Root owns independent acceptance, native RED, wiki synchronization, and production.
+The active independent review is selected by
+`requirements-proof/review-evidence.json`. Historical receipts and measured local
+and native outcomes belong in `TDD_EVIDENCE.md`, so progress updates do not change
+this design's review binding. A scope or test change requires fresh technical
+acceptance. Before production, authenticate native RED against its immutable
+head/tree/base, every selected test hash and the accepted canonical plan.
+Supplementary controls must pass.
 
 ## Supported parser and current review boundary
 
@@ -112,10 +110,4 @@ otherwise disposable direct-launcher smoke environment. A controlled child-Pytho
 probe must first demonstrate that inheritance. The fixture then removes only those
 two keys before its existing bootstrap and actual CLI calls. Parent package inventory
 and every existing success assertion remain intact. This test-fixture correction
-requires a later full real smoke run and does not change application behavior.
-
-Review comment 4354335583 identifies stale active acceptance wording. The earlier
-advisory and quality reports remain history, including the authentic 31 native
-failures. The changed 33-case plan now has independent AI acceptance and local RED
-with 33 passing controls. Root owns native execution and the pending authorized
-internal wiki mirror update.
+requires the full bootstrap/CLI smoke check and does not change application behavior.

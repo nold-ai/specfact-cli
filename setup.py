@@ -7,7 +7,7 @@ from setuptools import find_packages, setup
 if __name__ == "__main__":
     _setup = setup(
         name="specfact-cli",
-        version="0.55.4",
+        version="0.55.11",
         description=(
             "AI-bloat defense CLI for Python teams. Run deterministic code review, cleanup forecasts, "
             "and spec/contract evidence for AI-assisted and brownfield delivery."
@@ -19,9 +19,10 @@ if __name__ == "__main__":
             "typing-extensions>=4.15.0",
             "PyYAML>=6.0.3",
             "requests>=2.32.3",
+            "certifi>=2026.10.19",
             "azure-identity>=1.17.1",
             "cryptography>=50.0.0",
-            "pycparser>=2.22,!=3.0.*",
+            "pycparser>=3.12,!=3.0.*",
             "packaging>=24.0",
             "click>=8.3.3,<9",
             "typer>=0.24.0,<1",
@@ -30,7 +31,7 @@ if __name__ == "__main__":
             "jinja2>=3.1.6",
             "networkx>=3.4.2",
             "graphviz>=0.20.1",
-            "gitpython>=3.1.61",
+            "gitpython>=3.2.1",
             "ruamel.yaml>=0.18.16",
             "jsonschema>=4.23.0",
             "commentjson>=0.9.0",

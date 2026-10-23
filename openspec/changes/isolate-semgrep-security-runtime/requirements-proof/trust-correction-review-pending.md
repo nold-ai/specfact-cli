@@ -2,7 +2,8 @@
 
 This historical preparation note is superseded by `parser-mapping-review.md`
 and the active accepted receipt. The final 33-case mapping has independent AI
-acceptance and local RED with 33 passing controls. Fresh native RED is pending.
+acceptance and local RED with 33 passing controls. Native RED is now authenticated
+for commit 2eef82529a8eb166b9a18898316ae92ce170f02a, run 39872159349 attempt 1.
 The authentic quality amendment acceptance is retained in
 `pre-trust-review-evidence.json` and `quality-mapping-review.md`. Its 31-case
 native RED at commit 4936750186fcb339913a8710f3034cf1d2be901f, run 39866724812

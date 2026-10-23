@@ -66,8 +66,8 @@ historical after the parser correction below changes mapped test bytes.
 - [x] Reconcile historical advisory/quality acceptance and authenticated 31-case native RED with the current pending correction.
 - [x] Obtain fresh independent acceptance for the changed 33-case mapping and test bytes.
 - [x] Retain genuine local RED and all 33 supplementary control results.
-- [ ] Authenticate new native RED for the final source bytes before production.
-- [ ] Refresh the ten official updates and both frozen files, raise the parser floors, and write the exact new provenance review.
+- [x] Authenticate new native RED for the final source bytes before production.
+- [x] Refresh the ten official updates and both frozen files, raise the parser floors, and write the exact new provenance review.
 - [ ] Obtain the pending sibling-repository authorization, update the matching internal wiki, and rebuild its graph.
 - [ ] Run the actual full smoke, required release gates, independent final review, and native GREEN.
 
@@ -75,5 +75,5 @@ The 2026-10-22 UTC source review occurred on 2026-10-23 Europe/Berlin. The date
 basis is recorded explicitly; the real clock and trust checker are unchanged.
 Initial preparation ran no mapped pytest. Fresh independent acceptance then
 preceded final local execution with 33 expected failures and 33 passing controls.
-Production adoption, native RED, signing, commit and push are separate later steps. Native proof for the prior 31 cases cannot approve
+Authenticated 33-case native RED preceded production adoption. Signing, commit and push remain separate steps. Native proof for the prior 31 cases cannot approve
 changed test bytes. The earlier full-suite and native results remain historical.

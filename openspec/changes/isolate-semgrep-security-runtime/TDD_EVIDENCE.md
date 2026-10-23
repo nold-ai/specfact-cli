@@ -4,7 +4,7 @@
 
 The supported pycparser 3.12 correction has fresh independent AI technical
 acceptance and genuine local RED for all 33 selected cases, with 33 passing
-supplementary controls. Fresh native RED remains required before production.
+supplementary controls. Fresh native RED is now authenticated for commit `2eef82529a8eb166b9a18898316ae92ce170f02a`.
 The active receipt points to `requirements-proof/parser-mapping-review.md`. Earlier measured
 results remain historical and supply no acceptance for the changed bytes.
 
@@ -607,3 +607,136 @@ Production paths and the trust register/checker remain restored and unchanged.
 Normal test-only hooks, a fresh native 33-case RED artifact, the pending internal
 wiki scope decision, production adoption and full local/native GREEN remain.
 The held docs-floor assertion stays with its later matching production metadata.
+
+## Authenticated parser-correction native RED
+
+Native Requirements run `39872159349`, attempt 1, retained exact artifact
+`12466049727` for commit `2eef82529a8eb166b9a18898316ae92ce170f02a`,
+tree `f82634e9b0f290cfce89a35199dfe5d6216fd54f`, main base
+`5262efb0881e4fac7697d629b0530250342bc656`. GitHub API metadata binds the
+artifact to that run and head, reports it unexpired, and supplies ZIP SHA-256
+`3299a6b6dc8c25f4ce8b4e38abf9c05507972ffafc3a85abfc766e24f511a08a`.
+The actual downloaded bytes match. Its four unique bounded plain files contain
+the unchanged machine proof, plan, Markdown summary and JUnit. No artifact was edited.
+
+The actual machine verdict is pass with RED maturity and failing-first-proven
+delivery. All 33 unique selectors fail for their intended causes, with zero errors
+and zero skips. JUnit SHA-256 is
+`2b249d0c3f273e9766fee45cc9d9323dcfdd574d12d5cc6c8c9c8acee5176536`.
+Root verified every selector, all eight current and committed test hashes, exact
+head/tree/base, the complete inner plan and canonical identities against local
+acceptance. Root read every failure message and the source-build and Git
+clone-boundary traces. No download/setup failure stands in for behavioral proof.
+
+Raw API records, ZIP, four extracted files and authenticated native-ready.json
+are retained under `/private/tmp/specfact-release-20261022/trust-correction-tests/`.
+This source-specific native proof opens only the reviewed production unit. The
+expected test-first CI and missing final-head authority failures are not retried.
+Production GREEN, independent final review, all required CI, Linux frozen Ruby
+proof and the pending internal wiki authorization remain open. Do not merge.
+
+## Final design binding and bounded packaging correction
+
+Review thread 4354615606 exposed a genuine design hash mismatch after operational
+status edits. Fresh independent AI review in
+`requirements-proof/parser-design-binding-review.md` binds final design
+`9f7fbb3c15f4f4fb560ae71d027c27692d05b753b19dfcf27e67211342a446d6`.
+Its report SHA-256 is `62ef2afd23f9b0e1131c16199e78cab97d3a88143cecca28d1fff208bc94995f`.
+The active receipt references that report directly. The original report remains
+unchanged. The complete canonical plan equals the authenticated native plan after
+the receipt change. All eight selected test hashes remain unchanged, so the fresh
+review confirms that the authentic 33-case RED remains applicable. The design is frozen.
+
+The official ten-update production graph was normally resolved and hash-synced.
+All 33 mapped cases, 33 supplementary controls and 97 complete-file cases pass.
+Both strict advisory lanes pass with only the exact owner-approved MCP and
+OpenTelemetry exceptions. Installed-wheel Git and official Semgrep controls,
+source-to-wheel rebuild, strict signatures, licenses, Bandit, real-clock trust,
+full runtime smoke and fresh root/preview Ruby builds pass. The parent environment
+retains the same 178 distributions and locations. Native Linux Ruby evidence remains required.
+
+The first complete smart suite produced 3257 passes, two failures, ten skips and
+zero errors across 3269 cases. Both failures were unchanged packaging assertions
+requiring the obsolete 2.22 parser minimum. A focused before-run reproduced the
+same two failures with seven passes. The bounded fixture correction now accepts
+3.12 and rejects 2.22, while retaining all prior 3.0-family rejection assertions.
+Its focused after-run has nine passes, zero failures, errors or skips. Ruff lint,
+format and diff checks pass. Raw argv, times, logs and JUnit remain under
+`/private/tmp/specfact-release-20261022/parser-packaging-fixture/`.
+The corrected full suite, independent review and native GREEN remain separate gates.
+
+The actual source-built wheel SHA-256 is
+`803e8da8d92428aeeffeae4019d090947044037d556db4e1923048f5bbc5fe7f`.
+Comparison with published 0.55.4 finds the same 295 payload members and 297 guarded
+source files, except two version strings and the explicitly allowed dependency
+metadata. Fifteen negative controls reject unauthorized payload or metadata drift.
+The persistent supplemental result is `artifacts/parser312-published-wheel-comparison.json`.
+This evidence does not claim that all public-install transitive versions are fixed.
+
+Whole-PR Code Review before the packaging correction reports zero errors, zero
+warnings and six visible source-bound accepted infos. BasedPyright reports zero
+errors and 1449 existing warnings over 674 files. The YAML wrapper exits zero with
+existing raw diagnostics. The contract gate reports cached unchanged-file results.
+Fresh full-suite and native checks remain required. No local signing, check bypass,
+merge, publication or protected deployment occurred. The internal wiki scope request
+remains pending after automatic approval review rejected the sibling write.
+
+## Independent production boundary review
+
+The fresh read-only review `artifacts/parser312-candidate-bypass-review.md`
+found no concrete parser bypass or ordinary CFFI regression in the exact thirteen
+production files. Its SHA-256 is
+`323eb4054772839503fc78118c27a4f8654d147e3fc4b00f7de241f72fc91b10`.
+The review's conditional PyJWT observation received a separate independent source
+trace in `artifacts/pyjwt-public-boundary-independent-triage.md`, SHA-256
+`73447609e3ef2928814fdf6750a5d9f8a17bb9b27c49106e73aaa817ae7f2793`.
+Both reports are retained through persistent supplemental artifact storage.
+
+Public dependency metadata still permits PyJWT 2.13.0 through Azure Identity
+1.25.3 and MSAL 1.37.0. The accepted release contract targets the exact frozen
+PyJWT wheel, which is 2.15.1. The actual device-code path uses MSAL's own JSON
+and base64 token decoder. The only PyJWT call found in those installed packages
+is assertion encoding. Core ADO records token.expires_on and has no changed
+authentication source. No PyJWT decode/options-reuse application path or candidate
+regression was established. The conditional finding is dismissed for this bounded
+release contract. A public PyJWT floor remains separately scoped hardening.
+This is not a CVE exception or a guarantee for every public resolver outcome.
+
+The bounded packaging fixture received fresh independent acceptance in
+`requirements-proof/parser-packaging-independent-review.md`, SHA-256
+`91ebf32f6257b0534ad0105df4e9fdfd160f097b17355bebc83bf835214fb59e`.
+The reviewer recomputed raw diff, before/after XML and all selected hashes,
+confirmed the unchanged full canonical plan and mapped import context, and found
+no actionable code or comment issue. The authentic native RED remains applicable.
+
+The corrected full suite's first attempt ran within the restricted sandbox.
+It produced eleven infrastructure failures, 3248 passes and ten skips. The
+failures were blocked package DNS/downloads, the isolated bootstrap, and a
+PermissionError on the normal user metadata cache. The two packaging cases pass.
+A direct DNS probe separately reproduced the sandbox restriction. Raw XML, logs,
+parent inventory and failure traces are retained as full-after.* under the fixture
+evidence directory. The same unchanged suite is running once with normal host
+access. No timeout, TLS, dependency hash, test expectation or policy was relaxed.
+
+## Corrected full-suite GREEN on 2026-10-23 Europe/Berlin
+
+The unchanged normal-host `hatch run smart-test-full` completed from
+2026-10-22T23:55:16Z through 23:58:27Z, equivalent to 2026-10-23
+01:55:16 through 01:58:27 Europe/Berlin. It exited zero with 3259 passes,
+ten skips, zero failures and zero errors across 3269 cases. Both bounded parser
+packaging cases pass. Actual JUnit SHA-256 is
+`54dfe658f69b4708aa1d6bd9d6f0c7cc7021d1a514d609310f3ded844677eb1f`.
+The parent inventory before and after contains the same 178 distributions,
+versions and locations. Raw argv, timestamps, log, XML and inventory are retained
+as full-host-after.*and host-parent-*.json in the packaging-fixture evidence directory.
+The sandbox failure remains separate infrastructure evidence. No test, timeout,
+TLS, resolver or gate changed between these two executions. Native CI remains required.
+
+The final whole-PR Code Review covers all 17 changed Python files and reports
+zero errors, zero warnings and the identical six visible infos. Every finding
+and its source bytes equal the prior independently accepted dispositions. The
+new packaging file contributes no findings. The unmodified machine report,
+actual command, times and exact source binding are retained as final-code-review.*
+and final-source-binding.json in the fixture evidence directory. Final canonical
+planning passes and its complete plan equals the authenticated native plan.
+OpenSpec strict validation and git diff --check pass. Final native CI is pending.

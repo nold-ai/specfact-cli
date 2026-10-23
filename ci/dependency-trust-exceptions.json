@@ -2,14 +2,14 @@
   "exceptions": [
     {
       "package": "pycparser",
-      "version": "2.22",
-      "source_url": "https://files.pythonhosted.org/packages/13/a3/a812df4e2dd5696d1f351d58b8fe16a405b234ad2886a0dab9183fb78109/pycparser-2.22-py3-none-any.whl",
-      "artifact_sha256": "c3702b6d3dd8c7abc1afa565d7e63d53a1d0bd86cdc24edd75470f4de499cfcc",
+      "version": "3.12",
+      "source_url": "https://files.pythonhosted.org/packages/b6/ae/315bbeee126a769cbde43cf4908acb4b40408d8bf8bbf334dd7368d8dadf/pycparser-3.12-py3-none-any.whl",
+      "artifact_sha256": "a076f3f489b39b43ed13563a1dafe42447445bec2e294154ec5c57fcdda4c85e",
       "classification": "source-provenance-reviewed",
-      "reviewed_on": "2026-07-23",
-      "expires_on": "2026-10-22",
+      "reviewed_on": "2026-10-22",
+      "expires_on": "2026-11-04",
       "transitive_path": "specfact-cli -> cryptography -> cffi -> pycparser",
-      "rationale": "Pure-Python C parser required by CFFI. Socket-alerted pycparser 3.0 is blocked; this older release is pinned to the exact PyPI artifact and its frozen digest."
+      "rationale": "Official pycparser 3.12 artifact source review completed during 2026-10-22T23:03Z, which is 2026-10-23 in Europe/Berlin. All eight package files match the official sdist and release_v3.12 commit 3ec766b7cd94724cba714296509604597ea4ce4e. The wheel, sdist and upstream BSD-3-Clause license share SHA-256 0a9e78156ae8b96caf1b4f11ac2df424b83de29736f9e757630548a6272fdf90. Socket shows optional preprocessor, filesystem and URL capabilities plus a license-heading false positive; the separate packaged BSD license was verified. The inspected exact wheel displayed no AI-anomaly, eval, obfuscation or malware category. This AI technical source-provenance review is not an alert-free claim, a human artifact review, a CVE waiver or renewal of the expired 2.22 record. The 3.0 family remains blocked. Retained investigation artifacts/pycparser-supported-replacement-investigation.md has SHA-256 3421322320d59bf16d339ecb6bc0f6ffdc5f02bd20ade001d2290be7cd1faacc."
     }
   ]
 }

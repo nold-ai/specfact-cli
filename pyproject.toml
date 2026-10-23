@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling==1.32.0"]
+requires = ["hatchling==1.32.4"]
 build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.55.4"
+version = "0.55.11"
 description = "AI-bloat defense CLI for Python teams. Run deterministic code review, cleanup forecasts, and spec/contract evidence for AI-assisted and brownfield delivery."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -62,11 +62,12 @@ dependencies = [
     "typing-extensions>=4.15.0",
     "PyYAML>=6.0.3",
     "requests>=2.32.3",
+    "certifi>=2026.10.19",
     "azure-identity>=1.17.1",
     "cryptography>=50.0.0",
     # Transitive through CFFI. The lock supplies reproducibility; this range
     # keeps the known blocked 3.0 release out of every resolver result.
-    "pycparser>=2.22,!=3.0.*",
+    "pycparser>=3.12,!=3.0.*",
     "packaging>=24.0",
     # PEP 440 / markers for module installer and registry (do not rely on transitive pins only)
 
@@ -87,7 +88,7 @@ dependencies = [
     
     # Git operations
     # gitpython: CVE history (CVE-2022-24439, CVE-2023-41040, CVE-2023-40590). Phase 2: replace with dulwich.
-    "gitpython>=3.1.61",
+    "gitpython>=3.2.1",
     
     # YAML utilities
     "ruamel.yaml>=0.18.16",
@@ -117,7 +118,7 @@ telemetry = [
 ]
 
 dev = [
-    "hatchling==1.32.0",  # Frozen PEP 517 backend used by delivery wheel builds.
+    "hatchling==1.32.4",  # Frozen PEP 517 backend used by delivery wheel builds.
     "setuptools>=83.0.0,<85",
     "pip>=26.2",  # CVE-2026-13346 is fixed in pip 26.2; tooling-only, not a core runtime dependency.
     "pytest>=8.4.2",
@@ -461,6 +462,7 @@ sources = ["src"]
 include = [
     "/src",
     "/resources",
+    "/modules/bundle-mapper",
     "/README.md",
     "/LICENSE",
     "/pyproject.toml",

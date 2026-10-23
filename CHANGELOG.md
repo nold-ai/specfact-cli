@@ -10,6 +10,37 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.55.11] - 2026-10-23
+
+### Security
+
+- Upgrade certifi to 2026.10.19 and GitPython to 3.2.1 to remove the compromised
+  emSign ECC Root CA - G3 certificate and reject submodule checkout paths outside
+  the repository and inside Git metadata before cloning.
+- Refresh the frozen security tooling to official Semgrep 1.179.0, PyJWT 2.15.1,
+  urllib3 2.8.0, Hatchling 1.32.4, virtualenv 21.14.12, python-discovery 1.6.1,
+  and packaging 26.3.
+- Replace pycparser 2.22 with official 3.12 and record its exact reviewed artifact
+  provenance through 2026-11-04 inclusive. Raise both dependency floors to 3.12
+  while retaining the 3.0 family block. The review discloses expected optional
+  capabilities and the license-heading false positive; it does not waive a CVE.
+- Retain the exact MCP 1.29.0 CVE-2026-59951 (GHSA-84m7-p3x7-pcfv) exception
+  and the separately approved opentelemetry-api 1.37.0 CVE-2026-114603
+  (GHSA-xcq7-p3pf-p88h) exception through 2026-11-04 inclusive. Both imported
+  dependencies remain affected. These temporary exceptions limit use to ordinary
+  local-rule CLI scanning/SAST, with no stateful HTTP MCP server or instrumented
+  HTTP service accepting untrusted propagation headers; they are not fixes.
+- Upgrade documentation plugins to jekyll-feed 0.18.0, jekyll-redirect-from 0.17.0,
+  and jekyll-relative-links 0.9.1. Require JSON >=2.21.2,<3 and add locked-gem
+  compatibility checks for redirects, feeds, and relative links.
+
+### Fixed
+
+- Include the existing bundle-mapper sources in the source distribution so an
+  ordinary source-to-wheel build preserves the bundled manifest.
+
+---
+
 ## [0.55.4] - 2026-09-02
 
 ### Security
