@@ -1,5 +1,33 @@
 # PR785 probe TDD evidence
 
+## Safe refusal diagnostics failing-before evidence
+
+Recorded 23 October 2026, Europe/Berlin. This test-only correction starts at HEAD `54e8ee9bc807fda92981667aab28ccbebeeb5d0d`. Runtime remains byte-identical with SHA-256 `416d507c43d34a0b8d6d793070f4849b676f3eeb961535ec8a5d9b7be8146358`. The authenticated corrected live probe retained one verified baseline object and then refused its tree request. Its actual refusal reason remains unknown because the current CLI discards the already sanitized policy exception text. The synthetic 403 fixture below does not establish the live HTTP status or permission cause.
+
+The existing Signing refusal requirement now specifies safe stderr diagnostics and the fixed `Probe refused: Local I/O failure` message for caught local I/O errors. The eight Requirement and Scenario names stay unchanged. All 90 prior mapping case objects remain semantically identical. The entire prior test file remains an exact byte prefix of the extended file. Three new controls call the actual `main` entrypoint and retain the original transport fixture. They cover the sanitized HTTP status, early context policy refusal and a raw-response write `OSError` containing arbitrary body and credential markers. Receipt schema and runtime guards remain unchanged.
+
+The configured Python 3.12 environment ran the complete focused suite with this exact command:
+
+```sh
+.venv/bin/python -B -m pytest tests/unit/scripts/test_pr785_signing_recovery.py -q --no-cov -o addopts= --junitxml=/private/tmp/specfact-release-20261022/signing-recovery/probe-refusal-diagnostics/red.xml --basetemp=/private/tmp/specfact-release-20261022/signing-recovery/probe-refusal-diagnostics/pytest-temp
+```
+
+The run exits 1 with 93 tests, 3 failures, 90 passes, zero errors and zero skips. Each new test reaches its final diagnostic assertion after checking refusal status, retained evidence and absence of sensitive output. The decisive failure text is:
+
+```text
+assert 'API refused HTTP 403' in ''
+assert 'Execution context mismatch' in ''
+assert '' == 'Probe refused: Local I/O failure\n'
+```
+
+The failures belong to `test_cli_reports_sanitized_http_refusal`, `test_cli_reports_context_policy_refusal` and `test_cli_reports_generic_local_io_failure`. No import, setup or collection failure is counted as RED. Collection independently returns all 93 exact mapped selectors. The final test SHA-256 is `879533ee4ff8762f1575313d99bc3267ea20eea15b1a4cd82e676f68a5c1b4af`.
+
+The locked actual Requirements fixture is verified by `verify_fixture`; its native source importer and lifecycle evaluator return planned/pass with no findings. The canonical mapping digest is `sha256:8998713988ae1df90f45940f48527a12e6196a5b0ace58e8d3f55f8fbc9fc4e4`. This is a source-bound planned check, not independent acceptance or the staged test-authored gate. The previous active review receipt was preserved privately as `prior-active-receipt.json` and removed from the active location because it binds the previous mapping. No new acceptance is asserted.
+
+Scoped lint and type checks report zero errors, warnings and notes. Actual SpecFact CodeReview reports PASS with no findings after simplifying the new local I/O assertion. The first review invocation lacked the existing fixture roots; the retry used the configured installed fixture without installation. Its intermediate complexity warning is retained privately and resolved in the final bytes. Scoped YAML, strict OpenSpec, Bandit and final whitespace checks pass. Independent SAST executes all six configured rules on the test file and exits zero with no findings or errors. Broad inherited type warnings and YAML failures remain outside this focused check and are not waived or claimed clean.
+
+Raw commands, logs, JUnit, conservation checks, native mapping, quality outputs and hashes remain under `/private/tmp/specfact-release-20261022/signing-recovery/probe-refusal-diagnostics/`. No runtime, workflow, manifest, lock, Git index, ref, signing or dispatch change occurred. Root owns fresh independent acceptance, the review receipt, actual staged gate, normal test-first commit and internal wiki follow-up before any runtime handoff. The separate release signed-prefix native 33-case RED and complete live probe authentication remain mandatory.
+
 ## Exact service role correction passing-after evidence
 
 Recorded 23 October 2026, Europe/Berlin. Root normally committed the independently accepted test/spec package at `958a23567fbec4ea06caa9474a8378afd6c057a5` before authorizing runtime edits. Both genuine former positive failures are retained below and were independently reproduced against unchanged runtime `38456f44`. The implementation changes only the exact role model in three existing verification functions. A frozen identity record binds the Actions bot author and GitHub web-flow committer separately. All 52 other existing top-level AST nodes and every nonidentity guard are conserved.

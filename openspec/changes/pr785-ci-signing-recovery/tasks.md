@@ -34,3 +34,12 @@
 
 - [ ] Commit the accepted runtime correction through normal hooks and review its exact executor bytes before a new complete dispatch.
 - [ ] Authenticate that fresh run and both immutable root anchors before later recovery implementation.
+
+## Safe refusal diagnostic correction
+
+- [x] Specify safe policy stderr and fixed generic local I/O diagnostics within the existing refusal requirement.
+- [x] Preserve all 90 existing controls and eight native IDs, and freeze new CLI controls with genuine assertion RED against unchanged runtime.
+- [ ] Obtain fresh independent test acceptance, a root review receipt and normal test-first commit before runtime edits.
+- [ ] Implement the bounded stderr correction after root authorization and pass all focused controls and required quality gates.
+- [ ] Update the matching internal wiki source and rebuild its graph from the internal checkout before operational acceptance.
+- [ ] Authenticate a fresh complete probe and both root anchors after independent runtime acceptance.

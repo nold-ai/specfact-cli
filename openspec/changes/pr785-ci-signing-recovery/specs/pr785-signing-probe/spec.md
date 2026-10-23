@@ -42,10 +42,12 @@ The executor SHALL require author name `github-actions[bot]`, email `41898282+gi
 
 The executor SHALL create only a baseline commit and an inert workflow commit, each parented by fixed main. It SHALL pin the exact full source manifest and probe bytes/tree and permit only bounded tree and commit POSTs without custom attribution, date or signature.
 
+The CLI SHALL write the already sanitized, program-authored `ProbeRefusalError` reason to stderr on refusal. HTTP refusals SHALL expose only the sanitized status diagnostic, never the HTTP error body, reason phrase, credentials or chained traceback. A caught local `OSError` SHALL produce only the fixed stderr message `Probe refused: Local I/O failure`, without interpolating the exception. These diagnostics SHALL NOT add receipt fields or alter refusal, persistence, signature, identity, context, ref or transport guards.
+
 #### Scenario: Signing refusal
 
-- **WHEN** the API returns unsigned, invalid, misattributed or mismatched data
-- **THEN** the receipt records refusal and available raw JSON without token or error-body disclosure and no fallback or ref mutation occurs
+- **WHEN** the API returns unsigned, invalid, misattributed or mismatched data, a policy check refuses, or a caught local I/O operation fails
+- **THEN** the receipt records refusal and available raw JSON without token or error-body disclosure and no fallback or ref mutation occurs; stderr contains the safe policy reason or the fixed generic local I/O diagnostic without secrets, error bodies or traceback disclosure
 
 ### Requirement: Root acceptance remains pending
 

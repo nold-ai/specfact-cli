@@ -791,6 +791,32 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_api_error_body_and_token_are_not_persisted
+      - case_id: PR785-PROBE-091
+        scenario_id: signing-refusal
+        method: test
+        intent: report safe refusal diagnostics.
+        observable: HTTP refusal exposes its sanitized status on stderr and retains prior successful responses
+          without error bodies or credentials.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_cli_reports_sanitized_http_refusal
+      - case_id: PR785-PROBE-092
+        scenario_id: signing-refusal
+        method: test
+        intent: report safe refusal diagnostics.
+        observable: Context refusal exposes its safe policy reason on stderr before network access, without credentials.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_cli_reports_context_policy_refusal
+      - case_id: PR785-PROBE-093
+        scenario_id: signing-refusal
+        method: test
+        intent: report safe refusal diagnostics.
+        observable: Local I/O refusal emits only the fixed generic stderr diagnostic and never exposes
+          arbitrary exception text or credentials.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_pr785_signing_recovery.py::test_cli_reports_generic_local_io_failure
   openspec:pr785-ci-signing-recovery:pr785-signing-probe:root-acceptance-remains-pending:
     rationale: Retain truthful receipts and keep root authentication and anchoring pending.
     stakeholder_refs:

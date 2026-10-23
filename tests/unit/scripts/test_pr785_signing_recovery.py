@@ -615,3 +615,75 @@ def assert_inert_workflow(content: str) -> None:
     assert inert["permissions"] == {"contents": "read"}
     assert len(inert["jobs"]) == 1
     assert next(iter(inert["jobs"].values()))["steps"] == [{"run": "true"}]
+
+
+def test_cli_reports_sanitized_http_refusal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    exit_code, api, responses = run_probe_cli(tmp_path, monkeypatch, refuse_tree_write=True)
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert api.writes == 1
+    assert_persisted_responses(tmp_path, responses)
+    receipt = json.loads((tmp_path / "receipt.json").read_text())
+    assert receipt["status"] == "refused"
+    assert len(receipt["objects"]) == 1
+    assert_unverified_anchors(receipt)
+    assert captured.out == ""
+    assert "unique-secret-never-in-evidence" not in captured.err
+    assert "Forbidden" not in captured.err
+    assert "Traceback" not in captured.err
+    assert "API refused HTTP 403" in captured.err
+
+
+def test_cli_reports_context_policy_refusal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from scripts.pr785_signing_recovery import MANIFEST_SHA256, main
+
+    for key, value in context_env().items():
+        monkeypatch.setenv(key, value)
+    monkeypatch.setenv("EXPECTED_MANIFEST_SHA256", MANIFEST_SHA256)
+    monkeypatch.setenv("GITHUB_ACTOR", "forbidden")
+    monkeypatch.setenv("GH_TOKEN", "unique-secret-never-in-evidence")
+
+    def forbidden_network(*args: Any, **kwargs: Any) -> Any:
+        raise AssertionError("Invalid context reached the network")
+
+    monkeypatch.setattr(urllib.request.OpenerDirector, "open", forbidden_network)
+    assert main(["--stage", "probe", "--expected-executor", "a" * 40, "--output", str(tmp_path)]) == 1
+    captured = capsys.readouterr()
+    receipt = json.loads((tmp_path / "receipt.json").read_text())
+    assert receipt["status"] == "refused"
+    assert receipt["context_verified"] is False
+    assert receipt["objects"] == []
+    assert_unverified_anchors(receipt)
+    assert not (tmp_path / "raw").exists()
+    assert "unique-secret-never-in-evidence" not in json.dumps(receipt) + captured.out + captured.err
+    assert captured.out == ""
+    assert "Traceback" not in captured.err
+    assert "Execution context mismatch" in captured.err
+
+
+def test_cli_reports_generic_local_io_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def refuse_raw_write(path: Path, data: bytes) -> int:
+        raise OSError("local-error-body-never-in-evidence unique-secret-never-in-evidence")
+
+    monkeypatch.setattr(Path, "write_bytes", refuse_raw_write)
+    exit_code, api, responses = run_probe_cli(tmp_path, monkeypatch)
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert api.writes == 0
+    assert len(responses) == 1
+    assert not list((tmp_path / "raw").iterdir())
+    receipt = json.loads((tmp_path / "receipt.json").read_text())
+    assert receipt["status"] == "refused"
+    assert receipt["objects"] == []
+    assert_unverified_anchors(receipt)
+    persisted = (tmp_path / "receipt.json").read_text()
+    assert "unique-secret-never-in-evidence" not in persisted + captured.out + captured.err
+    assert "local-error-body-never-in-evidence" not in persisted + captured.out + captured.err
+    assert captured.out == ""
+    assert captured.err == "Probe refused: Local I/O failure\n"
