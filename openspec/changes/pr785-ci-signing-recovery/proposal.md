@@ -2,11 +2,11 @@
 
 ## Why
 
-PR785 has ten reviewed unsigned source commits. The owner approved bounded CI signing recovery on 23 October 2026. Actual REST signing has not been established.
+PR785 has ten reviewed unsigned source commits. The owner approved bounded CI signing recovery on 23 October 2026. Root authenticated complete probe run 39936325185, its two immutable anchors and actual fetch roundtrips before this extension.
 
 ## What changes
 
-Create an auxiliary-only manual executor at the registered specfact.yml path. Freeze all original source identities and a harmless workflow probe tree. Mint and verify two independent objects using only CI GITHUB_TOKEN. Reject all other stages. The root operator authenticates artifacts and owns any subsequent auxiliary anchoring.
+Create an auxiliary-only manual executor at the registered specfact.yml path. Freeze all original source identities and a harmless workflow probe tree. Mint and verify two independent objects using only CI GITHUB_TOKEN. Add the bounded Prefix7 operation for the first seven reviewed test/proof trees. Reject all later stages. The root operator authenticates artifacts and owns any subsequent auxiliary anchoring.
 
 ## Capabilities
 

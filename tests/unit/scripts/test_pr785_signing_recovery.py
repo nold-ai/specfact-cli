@@ -280,6 +280,13 @@ def test_context_refusal_precedes_api(field: str) -> None:
 def test_only_probe_is_implemented(stage: str) -> None:
     from scripts.pr785_signing_recovery import ProbeRefusalError, RunContext
 
+    if stage == "prefix7":
+        try:
+            supported = RunContext.from_env(context_env(), stage, "a" * 40)
+        except ProbeRefusalError as error:
+            pytest.fail(f"Authorized Prefix7 context refused: {error}")
+        assert getattr(supported, "stage", None) == "prefix7"
+        return
     with pytest.raises(ProbeRefusalError):
         RunContext.from_env(context_env(), stage, "a" * 40)
 
@@ -411,7 +418,8 @@ def test_workflow_has_only_bounded_steps_and_pinned_actions() -> None:
     workflow = yaml.safe_load((ROOT / ".github/workflows/specfact.yml").read_text())
     inputs = workflow.get("on", workflow.get(True))["workflow_dispatch"]["inputs"]
     assert set(inputs) == {"stage", "expected_executor"}
-    assert inputs["stage"]["options"] == ["probe"]
+    assert inputs["stage"]["options"] == ["probe", "prefix7"]
+    assert inputs["stage"]["default"] == "probe"
     assert inputs["expected_executor"]["required"] is True
     job = workflow["jobs"]["probe"]
     assert not {"environment", "secrets"}.intersection(job)

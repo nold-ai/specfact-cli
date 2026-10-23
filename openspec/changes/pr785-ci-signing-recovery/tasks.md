@@ -53,3 +53,13 @@
 - [ ] Separately test and independently review the root-owned preparation operation, including denial, uncertainty and postguard failures, before its bounded live write.
 - [ ] Authenticate a fresh complete same-run pair and both immutable root anchors with fetchability. Earlier partial runs remain unadopted.
 - [ ] Retain the absent auxiliary wiki source follow-up. The approved release-page and graph update is complete; creating a separate source remains outside this unit.
+
+## Prefix7 test-first extension
+
+- [x] Root authenticated complete probe run 39936325185, both immutable anchors and actual fetching before this design. Earlier partial runs remain unadopted.
+- [x] Freeze scoped specifications, independently expected fixtures, conserved old controls and real semantic RED against unchanged runtime.
+- [ ] Obtain fresh independent test acceptance, truthful exact-mapping receipt, staged gate and normal test-first commit.
+- [ ] Implement only accepted Prefix7 after root authorization and pass scoped quality gates.
+- [ ] Root authenticate actual Prefix7 CI, all seven mappings, anchors and fetch proof.
+- [ ] Root authenticate genuine native 33-case RED on signed step seven before production stages.
+- [ ] Complete the existing absent auxiliary wiki source follow-up separately.
