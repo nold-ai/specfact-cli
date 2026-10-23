@@ -12,7 +12,10 @@ proof for this main branch.
 
 - Refresh official Python packages to certifi 2026.10.19, GitPython 3.2.1,
   Hatchling 1.32.4, PyJWT 2.15.1, urllib3 2.8.0, virtualenv 21.14.12,
-  python-discovery 1.6.1, packaging 26.3, and Semgrep 1.179.0. Preserve MCP 1.29.0.
+  python-discovery 1.6.1, packaging 26.3, pycparser 3.12, and Semgrep 1.179.0. Preserve MCP 1.29.0.
+- Raise the pycparser floor in pyproject.toml and setup.py to `>=3.12,!=3.0.*`.
+  Replace the expired 2.22 provenance record with an exact 3.12 artifact review
+  dated 2026-10-22 UTC and expiring 2026-11-04 inclusive.
 - Bound the advisory register to two separate exact records: MCP 1.29.0 reviewed
   2026-10-21 and opentelemetry-api 1.37.0 reviewed 2026-10-22. Both expire
   2026-11-04 inclusive and retain only their approved advisory IDs.
@@ -85,3 +88,40 @@ service accepting untrusted propagation headers. Preserve MCP 1.29.0 and its
 original IDs and 2026-10-21 review date. Each record remains exact and expiring.
 The approved scope requires fresh mapping acceptance and native RED before
 production adoption. The earlier 23-case acceptance and native RED remain history.
+
+## Supported parser correction on 2026-10-23 Europe/Berlin
+
+The actual-date trust gate rejects the old pycparser 2.22 record after its
+2026-10-22 expiry. The supported replacement is official pycparser 3.12.
+Its wheel SHA-256 is `a076f3f489b39b43ed13563a1dafe42447445bec2e294154ec5c57fcdda4c85e`.
+All eight package files and the BSD-3-Clause license match upstream commit
+[3ec766b7cd94724cba714296509604597ea4ce4e](https://github.com/eliben/pycparser/commit/3ec766b7cd94724cba714296509604597ea4ce4e).
+The retained investigation accessed the official artifacts and exact Socket wheel
+page on 2026-10-23 Europe/Berlin, during 2026-10-22 UTC.
+
+The source review discloses optional preprocessor shell-access capability,
+filesystem access, URL strings, and a license-heading false positive. The
+inspected exact wheel showed no eval, AI anomaly, obfuscation, or malware category.
+This factual provenance review does not create a CVE waiver or renew the old
+2.22 record. The exact MCP and OpenTelemetry exceptions remain separate.
+
+Normal scratch resolution changes only pycparser 2.22 to 3.12 relative to the
+nine-update candidate. Measured CFFI 2.1.0 and cryptography 50.0.0 compatibility
+and optional-preprocessor/file-open boundary probes pass on macOS Python 3.11.15.
+Other platforms and repository release gates remain to be verified. Fresh
+independent mapping acceptance and genuine native RED must precede production.
+
+## Scanner compatibility evidence boundary
+
+The retained Semgrep 1.179.0 positive/negative CLI probes and schema 1.2 Code Review
+result cover the pinned companion fixture 0.48.15 and its ordinary PATH-based passes.
+They do not establish admission into the current companion's signed capsule.
+The published [main 0.51.2 registry](https://github.com/nold-ai/specfact-cli-modules/blob/209b4ed835187ea857d1fa847abdd351f6f6232a/registry/index.json)
+and [dev 0.51.4 registry](https://github.com/nold-ai/specfact-cli-modules/blob/430e3ccbf9fbd6a6177b033662a76235a8bd6cc8/registry/index.json)
+were inspected on 2026-10-23 Europe/Berlin. Their archive-derived execution paths
+use isolated capsules, `-I -S`, a cleared environment, dedicated PATH, and the
+capsule's expected analyzer-version map. Capsule failure returns UNKNOWN without
+falling back to core Semgrep. Signature verification and capsule execution were
+not performed in this investigation. A future capsule-version change belongs in
+the companion repository with its own policy and CI-produced integrity updates.
+This core release changes no companion gate, capsule asset, or signature.

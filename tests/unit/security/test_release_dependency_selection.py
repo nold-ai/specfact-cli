@@ -21,6 +21,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
         ("virtualenv", "21.14.12"),
         ("python-discovery", "1.6.1"),
         ("packaging", "26.3"),
+        ("pycparser", "3.12"),
     ],
 )
 def test_reviewed_tooling_versions_match_frozen_export(name: str, version: str) -> None:

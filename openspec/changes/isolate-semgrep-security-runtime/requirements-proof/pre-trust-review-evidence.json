@@ -1,0 +1,9 @@
+{
+  "schema_version": "1",
+  "decision": "accepted",
+  "reviewer_id": "Codex:/root/quality_mapping_acceptance (gpt-6.1-sol)",
+  "reviewer_role": "independent AI technical mapping reviewer",
+  "recorded_at": "2026-10-22T22:39:57.741951+00:00",
+  "reference": "openspec/changes/isolate-semgrep-security-runtime/requirements-proof/quality-mapping-review.md",
+  "mapping_digest": "sha256:0788c6326b39842e80a8cf4e308ac8508c754c384d9e6479b5cd61f0ca8b1c1d"
+}

@@ -131,6 +131,14 @@ requirements:
       selector:
         runner: pytest
         node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[python-discovery-1.6.1]
+    - case_id: PYCPARSER-FROZEN-SELECTION
+      scenario_id: select-the-reviewed-compatible-tooling-graph
+      method: test
+      intent: Check reviewed pycparser 3.12 selection and export parity.
+      observable: The official registry lock version and exported requirement both match the reviewed version.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[pycparser-3.12]
   openspec:isolate-semgrep-security-runtime:isolated-scanner-runtime:bound-the-temporary-official-mcp-advisory-exception:
     rationale: Keep both main audit lanes strict with separate exact, expiring owner-approved exceptions.
     stakeholder_refs:
@@ -385,3 +393,31 @@ requirements:
       selector:
         runner: pytest
         node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_advisory_exception_is_exact_and_time_bounded[otel-future-review]
+  openspec:isolate-semgrep-security-runtime:isolated-scanner-runtime:bind-the-supported-parser-to-current-source-provenance:
+    rationale: Bind the supported parser to fresh exact source evidence without renewing the expired record or weakening trust policy.
+    stakeholder_refs: *id001
+    touchpoints:
+    - id: touchpoint-1
+      kind: config_file
+      locator: ci/dependency-trust-exceptions.json
+    - id: touchpoint-2
+      kind: config_file
+      locator: uv.lock
+    - id: touchpoint-3
+      kind: config_file
+      locator: pyproject.toml
+    - id: touchpoint-4
+      kind: config_file
+      locator: setup.py
+    - id: touchpoint-5
+      kind: test
+      locator: tests/unit/scripts/test_dependency_trust_review.py
+    verification_cases:
+    - case_id: PYCPARSER-EXACT-PROVENANCE-REVIEW
+      scenario_id: bind-the-supported-parser-to-current-source-provenance
+      method: test
+      intent: Read the committed exact pycparser 3.12 provenance record.
+      observable: The record binds the official wheel URL and SHA-256, source-provenance-reviewed classification, actual UTC review date, bounded expiry, and cryptography/CFFI path.
+      selector:
+        runner: pytest
+        node_id: tests/unit/scripts/test_dependency_trust_review.py::test_pycparser_has_current_exact_version_review_record
