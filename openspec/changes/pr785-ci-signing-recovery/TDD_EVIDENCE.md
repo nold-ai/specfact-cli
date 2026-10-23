@@ -1,5 +1,17 @@
 # PR785 probe TDD evidence
 
+## Safe refusal diagnostics passing-after evidence
+
+Recorded 23 October 2026, Europe/Berlin. Normal test-first commit `26764ce44b305d4edb1810769341fcd38c0b3c57` passed the actual staged test-authored gate and every normal hook before root opened runtime authority. The unchanged runtime produced three meaningful empty-stderr failures while all 90 original controls passed. That genuine RED and its independent reproduction remain retained below.
+
+The catch-only runtime correction has SHA-256 `77c290d1a7326f89df49980ef217f66f99d84fd84cb1146331d55945b42f24f7`. Test SHA-256 remains `879533ee4ff8762f1575313d99bc3267ea20eea15b1a4cd82e676f68a5c1b4af`, and canonical mapping remains `sha256:8998713988ae1df90f45940f48527a12e6196a5b0ace58e8d3f55f8fbc9fc4e4`. Both the writer and fresh independent reviewer executed the exact 93-case suite with zero failures, errors or skips. The genuine runtime acceptance is `requirements-proof/diagnostic-runtime-review.md`. Separate comment review found no changed comments or required removals.
+
+The main handler writes only the already sanitized program-authored policy reason to stderr, or the exact generic local I/O message. Its initial print-based version triggered two CodeReview warnings; direct stderr writes resolved both without a waiver. Actual final CodeReview has zero findings at every severity. Focused lint/types, configured six-rule independent SAST, Bandit, scoped YAML/OpenSpec and whitespace checks pass. The optional local Semgrep version notification was disabled with all analysis rules and TLS verification retained. Inherited broad type and YAML debt remains unresolved.
+
+Restoring only the old main handlers makes the complete module AST equal to the pre-fix source. All other 2,444 indexed files and the index were unchanged during implementation. Accepted tests/spec/mapping, workflow, manifest, inert bytes, locks, receipt schema and every signature, identity, context, ref and transport guard are conserved. Root directly checked the actual RED/GREEN XML, final CodeReview and frozen source hashes.
+
+The external tree-request refusal remains unknown. Both prior CI probes stay refused and partial, with no accepted anchors. This diagnostic fix establishes no complete live probe, signing recovery, native release RED, final authority or readiness. Root owns the normal fix commit, exact executor and remote byte review, and a fresh actual CI diagnostic probe. The approved release wiki patch and graph rebuild are complete. The auxiliary matching source is absent; its follow-up remains recorded without expanding that narrow grant.
+
 ## Safe refusal diagnostics failing-before evidence
 
 Recorded 23 October 2026, Europe/Berlin. This test-only correction starts at HEAD `54e8ee9bc807fda92981667aab28ccbebeeb5d0d`. Runtime remains byte-identical with SHA-256 `416d507c43d34a0b8d6d793070f4849b676f3eeb961535ec8a5d9b7be8146358`. The authenticated corrected live probe retained one verified baseline object and then refused its tree request. Its actual refusal reason remains unknown because the current CLI discards the already sanitized policy exception text. The synthetic 403 fixture below does not establish the live HTTP status or permission cause.

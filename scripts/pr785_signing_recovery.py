@@ -501,7 +501,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         probe = Probe(manifest, context, GitHubAPI(os.environ.get("GH_TOKEN", ""), output))
         receipt = probe.receipt
         probe.run()
-    except (ProbeRefusalError, OSError):
+    except ProbeRefusalError as error:
+        sys.stderr.write(f"Probe refused: {error}\n")
+        receipt["status"] = "refused"
+    except OSError:
+        sys.stderr.write("Probe refused: Local I/O failure\n")
         receipt["status"] = "refused"
     with (output / "receipt.json").open("x", encoding="utf-8") as stream:
         stream.write(json.dumps(receipt, indent=2) + "\n")
