@@ -1,9 +1,9 @@
 {
   "schema_version": "1",
   "decision": "accepted",
-  "reviewer_id": "Codex:/root/prefix7_corrected_test_acceptance (gpt-6.1-sol)",
-  "reviewer_role": "independent AI technical test and mapping reviewer",
-  "recorded_at": "2026-10-23T11:29:21.748058+00:00",
-  "reference": "openspec/changes/pr785-ci-signing-recovery/requirements-proof/prefix7-test-review.md",
+  "reviewer_id": "Codex:/root/prefix7_runtime_acceptance (gpt-6.1-sol)",
+  "reviewer_role": "independent AI technical runtime and mapping reviewer",
+  "recorded_at": "2026-10-23T11:49:32.943698+00:00",
+  "reference": "openspec/changes/pr785-ci-signing-recovery/requirements-proof/prefix7-runtime-review.md",
   "mapping_digest": "sha256:0908f3ae6df31bd2ffb9340aaf4a2b3af84e55861cef8f70abb1a651728c3487"
 }

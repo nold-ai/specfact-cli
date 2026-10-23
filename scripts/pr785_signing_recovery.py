@@ -1,4 +1,4 @@
-"""Create and verify the two bounded PR785 probe objects from an approved CI run."""
+"""Create and verify bounded PR785 probe or seven-source objects in approved CI."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ import sys
 import urllib.error
 import urllib.request
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal, NoReturn, Protocol, TypedDict, runtime_checkable
 
@@ -85,6 +85,46 @@ def _json_object(data: bytes) -> dict[str, Any]:
 
 
 @dataclass(frozen=True)
+class _SourceCommit:
+    ordinal: int
+    sha: str
+    tree: str
+    parent: str
+    subject: str
+
+
+@dataclass(frozen=True)
+class _PrefixSources:
+    steps: tuple[
+        _SourceCommit, _SourceCommit, _SourceCommit, _SourceCommit, _SourceCommit, _SourceCommit, _SourceCommit
+    ]
+
+
+def _source_commits(record: Mapping[str, Any]) -> tuple[_SourceCommit, ...]:
+    source = _field(record, "source")
+    records = _field(source, "commits")
+    _check(isinstance(records, list) and len(records) == 10, "Expected ten source commits")
+    parent = _sha(_field(source, "expected_main"))
+    seen = {parent}
+    commits: list[_SourceCommit] = []
+    for ordinal, item in enumerate(records, 1):
+        sha = _sha(_field(item, "sha"))
+        _check(sha not in seen, "Duplicate source identity")
+        parents = _field(item, "parents")
+        _check(isinstance(parents, list) and parents == [parent], "Source parent chain mismatch")
+        subject = _string(_field(item, "subject"))
+        _check(bool(subject) and "\n" not in subject and "\r" not in subject, "Invalid source subject")
+        commits.append(_SourceCommit(ordinal, sha, _sha(_field(item, "tree")), parent, subject))
+        seen.add(sha)
+        parent = sha
+    _check(commits[-1].sha == _sha(_field(source, "expected_old_head")), "Final source identity mismatch")
+    _check(commits[-1].tree == _sha(_field(source, "reviewed_final_tree")), "Final source tree mismatch")
+    _check(commits[6].sha == _sha(_field(source, "old_red_head")), "Prefix source identity mismatch")
+    _check(commits[6].tree == _sha(_field(source, "old_red_tree")), "Prefix source tree mismatch")
+    return tuple(commits)
+
+
+@dataclass(frozen=True)
 class Manifest:
     repository: str
     main: str
@@ -94,6 +134,17 @@ class Manifest:
     probe_tree: str
     probe_path: str
     probe_content: str
+    sources: tuple[_SourceCommit, ...]
+
+    @property
+    @ensure(
+        lambda result: (
+            isinstance(result, _PrefixSources) and tuple(step.ordinal for step in result.steps) == (1, 2, 3, 4, 5, 6, 7)
+        )
+    )
+    def prefix(self) -> _PrefixSources:
+        sources = self.sources
+        return _PrefixSources((sources[0], sources[1], sources[2], sources[3], sources[4], sources[5], sources[6]))
 
     @classmethod
     @beartype
@@ -113,6 +164,7 @@ class Manifest:
             probe_tree=_sha(_field(record, "probe", "probe_tree")),
             probe_path=_string(_field(record, "probe", "probe_path")),
             probe_content=_string(_field(record, "probe", "probe_content")),
+            sources=_source_commits(record),
         )
 
 
@@ -153,6 +205,7 @@ class RunContext:
     run_id: int
     run_attempt: int
     executor_sha: str
+    stage: Literal["probe", "prefix7"] = "probe"
 
     @classmethod
     @beartype
@@ -160,7 +213,7 @@ class RunContext:
     @ensure(lambda result: isinstance(result, RunContext) and result.run_id > 0 and result.run_attempt > 0)
     def from_env(cls, env: Mapping[str, str], stage: str, expected_executor: str) -> RunContext:
         """Reject every environment mismatch before constructing an API client."""
-        _check(stage == "probe", "Only probe is authorized")
+        _check(stage in {"probe", "prefix7"}, "Only probe is authorized")
         executor = _sha(expected_executor)
         expected = {
             "GITHUB_ACTIONS": "true",
@@ -180,6 +233,7 @@ class RunContext:
             _positive_integer(env.get("GITHUB_RUN_ID", "")),
             _positive_integer(env.get("GITHUB_RUN_ATTEMPT", "")),
             executor,
+            "prefix7" if stage == "prefix7" else "probe",
         )
 
 
@@ -216,6 +270,69 @@ def _receipt(identity: ReceiptContext) -> ProbeReceipt:
         "ci_anchor_verified": False,
         "root_anchor_verified": False,
     }
+
+
+@dataclass(frozen=True)
+class _AcceptedProbeObject:
+    label: Literal["baseline", "inert-workflow"]
+    sha: str
+    tree: str
+
+    @property
+    @ensure(
+        lambda result: (
+            isinstance(result, str)
+            and result.startswith(f"refs/heads/codex/pr785-signing-recovery/{MANIFEST_SHA256}/probe-")
+        )
+    )
+    def ref(self) -> str:
+        return f"refs/heads/codex/pr785-signing-recovery/{MANIFEST_SHA256}/probe-{self.label}"
+
+
+@dataclass(frozen=True)
+class _AcceptedProbe:
+    executor: str
+    run: int
+    attempt: int
+    artifact: int
+    zip_sha256: str
+    objects: tuple[_AcceptedProbeObject, _AcceptedProbeObject]
+
+    @ensure(
+        lambda result: (
+            isinstance(result, dict)
+            and set(result) == {"executor", "run", "attempt", "artifact", "zip_sha256", "objects"}
+            and len(result["objects"]) == 2
+        )
+    )
+    def as_json(self) -> dict[str, object]:
+        return {
+            "executor": self.executor,
+            "run": self.run,
+            "attempt": self.attempt,
+            "artifact": self.artifact,
+            "zip_sha256": self.zip_sha256,
+            "objects": [
+                {"label": item.label, "sha": item.sha, "tree": item.tree, "ref": item.ref} for item in self.objects
+            ],
+        }
+
+
+_ACCEPTED_PROBE = _AcceptedProbe(
+    executor="88dc8c40c7a1e852c539d0668238b94da5ca32b2",
+    run=39936325185,
+    attempt=1,
+    artifact=12494410796,
+    zip_sha256="7fc151d4549bc6c47e09764106339b8cb52e227cfcc9848ee65373b34f36bb51",
+    objects=(
+        _AcceptedProbeObject(
+            "baseline", "db02837c1922eaa191e10238606ac83571c4f228", "4c9ba46b2ace65cd8df0fcd5a77c2b14a42f599c"
+        ),
+        _AcceptedProbeObject(
+            "inert-workflow", "837a9d68fe62bb13e9b272f0c6f11634894ae0fb", "4b2cf05809c1cf687e4eae17a770cd33c97eff72"
+        ),
+    ),
+)
 
 
 @runtime_checkable
@@ -287,6 +404,8 @@ def _allowed_route(method: str, path: str) -> bool:
         return False
     if path in {f"/git/trees/{intent.sha}" for intent in _PREPARED_TREES}:
         return True
+    if path in {f"/git/ref/{item.ref.removeprefix('refs/')}" for item in _ACCEPTED_PROBE.objects}:
+        return True
     patterns = (
         r"/actions/runs/[1-9][0-9]{0,19}",
         r"/git/ref/heads/main",
@@ -357,6 +476,111 @@ class _CommitIntent:
 
 
 @dataclass(frozen=True)
+class _SignedCommit:
+    sha: str
+    intent: _CommitIntent
+    signature: str
+    payload: str
+
+    @ensure(
+        lambda result: (
+            isinstance(result, dict)
+            and set(result) == {"sha", "tree", "parent", "message", "signature", "payload", "signed_object_verified"}
+            and result["signed_object_verified"] is True
+        )
+    )
+    def as_probe_object(self) -> VerifiedObject:
+        return {
+            "sha": self.sha,
+            "tree": self.intent.tree,
+            "parent": self.intent.parent,
+            "message": self.intent.message,
+            "signature": self.signature,
+            "payload": self.payload,
+            "signed_object_verified": True,
+        }
+
+
+@dataclass(frozen=True)
+class _PrefixStep:
+    source: _SourceCommit
+    signed: _SignedCommit
+
+    @ensure(
+        lambda result: (
+            isinstance(result, dict)
+            and set(result)
+            == {
+                "ordinal",
+                "source_sha",
+                "source_tree",
+                "source_parent",
+                "subject",
+                "sha",
+                "tree",
+                "parent",
+                "message",
+                "signature",
+                "payload",
+                "signed_object_verified",
+            }
+            and result["signed_object_verified"] is True
+        )
+    )
+    def as_json(self) -> dict[str, object]:
+        return {
+            "ordinal": self.source.ordinal,
+            "source_sha": self.source.sha,
+            "source_tree": self.source.tree,
+            "source_parent": self.source.parent,
+            "subject": self.source.subject,
+            "sha": self.signed.sha,
+            "tree": self.signed.intent.tree,
+            "parent": self.signed.intent.parent,
+            "message": self.signed.intent.message,
+            "signature": self.signed.signature,
+            "payload": self.signed.payload,
+            "signed_object_verified": True,
+        }
+
+
+@dataclass
+class Prefix7Receipt:
+    context: ReceiptContext
+    context_verified: bool = False
+    accepted_probe_verified: bool = False
+    sources_verified: bool = False
+    steps: tuple[_PrefixStep, ...] = ()
+    status: Literal["refused", "prefix7_verified"] = "refused"
+    stage: Literal["prefix7"] = field(default="prefix7", init=False)
+    ci_anchor_verified: Literal[False] = field(default=False, init=False)
+    root_anchor_verified: Literal[False] = field(default=False, init=False)
+
+    @ensure(
+        lambda result: (
+            isinstance(result, dict)
+            and result["stage"] == "prefix7"
+            and "objects" not in result
+            and result["ci_anchor_verified"] is result["root_anchor_verified"] is False
+        )
+    )
+    def as_json(self) -> dict[str, object]:
+        return {
+            "stage": self.stage,
+            "status": self.status,
+            "manifest_digest": MANIFEST_SHA256,
+            "context": self.context,
+            "context_verified": self.context_verified,
+            "accepted_probe": _ACCEPTED_PROBE.as_json(),
+            "accepted_probe_verified": self.accepted_probe_verified,
+            "sources_verified": self.sources_verified,
+            "steps": [step.as_json() for step in self.steps],
+            "ci_anchor_verified": self.ci_anchor_verified,
+            "root_anchor_verified": self.root_anchor_verified,
+        }
+
+
+@dataclass(frozen=True)
 class _ServiceIdentity:
     role: Literal["author", "committer"]
     name: str
@@ -388,7 +612,7 @@ def _verify_payload(payload: str, intent: _CommitIntent) -> None:
 
 def _verified_commit(
     record: Mapping[str, Any], intent: _CommitIntent, expected_sha: str | None = None
-) -> VerifiedObject:
+) -> _SignedCommit:
     sha = _sha(_field(record, "sha"))
     _check(expected_sha is None or sha == expected_sha, "Commit readback identity mismatch")
     _check(_field(record, "tree", "sha") == intent.tree, "Commit tree mismatch")
@@ -397,15 +621,12 @@ def _verified_commit(
     _check(_field(parents[0], "sha") == intent.parent, "Commit parent mismatch")
     _check(_field(record, "message") == intent.message, "Commit message mismatch")
     _verify_signature(record, intent)
-    return {
-        "sha": sha,
-        "tree": intent.tree,
-        "parent": intent.parent,
-        "message": intent.message,
-        "signature": _string(_field(record, "verification", "signature")),
-        "payload": _string(_field(record, "verification", "payload")),
-        "signed_object_verified": True,
-    }
+    return _SignedCommit(
+        sha,
+        intent,
+        _string(_field(record, "verification", "signature")),
+        _string(_field(record, "verification", "payload")),
+    )
 
 
 def _verify_signature(record: Mapping[str, Any], intent: _CommitIntent) -> None:
@@ -428,73 +649,188 @@ def _verify_attribution(record: Mapping[str, Any], sha: str) -> None:
         )
 
 
+def _context_identity(context: RunContext) -> ReceiptContext:
+    return {
+        "run_id": context.run_id,
+        "run_attempt": context.run_attempt,
+        "executor_sha": context.executor_sha,
+        "repository": REPOSITORY,
+        "actor": ACTOR,
+        "event": "workflow_dispatch",
+        "ref": f"refs/heads/{AUXILIARY_BRANCH}",
+        "workflow_id": WORKFLOW_ID,
+        "workflow_path": WORKFLOW_PATH,
+    }
+
+
+def _verify_run(api: RequestAPI, context: RunContext) -> None:
+    run = api.request("GET", f"/actions/runs/{context.run_id}", None)
+    expected = {
+        "id": context.run_id,
+        "run_attempt": context.run_attempt,
+        "head_sha": context.executor_sha,
+        "head_branch": AUXILIARY_BRANCH,
+        "event": "workflow_dispatch",
+        "path": WORKFLOW_PATH,
+        "workflow_id": WORKFLOW_ID,
+        "status": "in_progress",
+    }
+    _check(
+        all(type(_field(run, key)) is type(value) and _field(run, key) == value for key, value in expected.items()),
+        "Live workflow run mismatch",
+    )
+    _check(_field(run, "repository", "full_name") == REPOSITORY, "Live run repository mismatch")
+    for role in ("actor", "triggering_actor"):
+        _check(_field(run, role, "login") == ACTOR, "Live run actor mismatch")
+
+
+def _guard_refs(api: RequestAPI, manifest: Manifest) -> None:
+    main_ref = api.request("GET", "/git/ref/heads/main", None)
+    _check(_field(main_ref, "object", "sha") == manifest.main, "Main has drifted")
+    pr = api.request("GET", "/pulls/785", None)
+    _check(_field(pr, "state") == "open", "Pull request is not open")
+    _check(_field(pr, "merged") is False, "Pull request is merged")
+    _check(_field(pr, "auto_merge") is None, "Auto-merge is enabled")
+    for side, sha, ref in (
+        ("base", manifest.main, "main"),
+        ("head", manifest.old_head, manifest.branch),
+    ):
+        _check(_field(pr, side, "sha") == sha, "Pull request revision drift")
+        _check(_field(pr, side, "ref") == ref, "Pull request branch drift")
+        _check(_field(pr, side, "repo", "full_name") == REPOSITORY, "Pull request repository drift")
+
+
+def _create_verified_commit(
+    api: RequestAPI, manifest: Manifest, intent: _CommitIntent, excluded: frozenset[str]
+) -> _SignedCommit:
+    _guard_refs(api, manifest)
+    try:
+        result = api.request(
+            "POST", "/git/commits", {"message": intent.message, "tree": intent.tree, "parents": [intent.parent]}
+        )
+    except (ProbeRefusalError, OSError) as primary:
+        try:
+            _guard_refs(api, manifest)
+        except (ProbeRefusalError, OSError):
+            raise primary from None
+        raise
+    _guard_refs(api, manifest)
+    created = _verified_commit(result, intent)
+    _check(created.sha not in excluded, "Signed identity is not new")
+    readback = api.request("GET", f"/git/commits/{created.sha}", None)
+    verified = _verified_commit(readback, intent, created.sha)
+    _check(verified == created, "Commit readback differs")
+    _verify_attribution(api.request("GET", f"/commits/{verified.sha}", None), verified.sha)
+    return verified
+
+
+def _probe_intent(tree: str, parent: str, label: str, context: RunContext) -> _CommitIntent:
+    message = (
+        f"PR785 signing probe {label}\n\nManifest: {MANIFEST_SHA256}\n"
+        f"Executor: {context.executor_sha}\nRun: {context.run_id}\nAttempt: {context.run_attempt}"
+    )
+    return _CommitIntent(tree, parent, message)
+
+
+def _verify_accepted_probe(api: RequestAPI, manifest: Manifest) -> None:
+    witness = _ACCEPTED_PROBE
+    context = RunContext(witness.run, witness.attempt, witness.executor)
+    for item in witness.objects:
+        ref = api.request("GET", f"/git/ref/{item.ref.removeprefix('refs/')}", None)
+        _check(_field(ref, "ref") == item.ref, "Accepted probe ref mismatch")
+        _check(_field(ref, "object", "type") == "commit", "Accepted probe ref type mismatch")
+        _check(_field(ref, "object", "sha") == item.sha, "Accepted probe ref identity mismatch")
+        intent = _probe_intent(item.tree, manifest.main, item.label, context)
+        _verified_commit(api.request("GET", f"/git/commits/{item.sha}", None), intent, item.sha)
+        _verify_attribution(api.request("GET", f"/commits/{item.sha}", None), item.sha)
+
+
+def _verify_sources(api: RequestAPI, manifest: Manifest) -> _PrefixSources:
+    prefix = manifest.prefix
+    for source in prefix.steps:
+        record = api.request("GET", f"/git/commits/{source.sha}", None)
+        _check(_sha(_field(record, "sha")) == source.sha, "Source identity mismatch")
+        _check(_field(record, "tree", "sha") == source.tree, "Source tree mismatch")
+        parents = _field(record, "parents")
+        _check(isinstance(parents, list) and len(parents) == 1, "Source must have one parent")
+        _check(_field(parents[0], "sha") == source.parent, "Source parent mismatch")
+        message = _string(_field(record, "message"))
+        _check(message.partition("\n")[0] == source.subject, "Source subject mismatch")
+    return prefix
+
+
+def _prefix_intent(source: _SourceCommit, parent: str, context: RunContext) -> _CommitIntent:
+    message = (
+        f"{source.subject}\n\nStage: prefix7\nSource: {source.sha}\nOrdinal: {source.ordinal}\n"
+        f"Manifest: {MANIFEST_SHA256}\nExecutor: {context.executor_sha}\n"
+        f"Run: {context.run_id}\nAttempt: {context.run_attempt}"
+    )
+    return _CommitIntent(source.tree, parent, message)
+
+
+class Prefix7:
+    @beartype
+    def __init__(self, manifest: Manifest, context: RunContext, api: RequestAPI) -> None:
+        self._manifest = manifest
+        self._context = context
+        self._api = api
+        self._started = False
+        self.receipt = Prefix7Receipt(_context_identity(context))
+
+    @beartype
+    @ensure(
+        lambda result: (
+            isinstance(result, Prefix7Receipt) and result.status == "prefix7_verified" and len(result.steps) == 7
+        )
+    )
+    def run(self) -> Prefix7Receipt:
+        """Verify the fixed witness and sources before building the seven-step chain."""
+        _check(not self._started, "Prefix operation already attempted")
+        self._started = True
+        _check(self._context.stage == "prefix7", "Operation context mismatch")
+        _verify_run(self._api, self._context)
+        self.receipt.context_verified = True
+        _verify_accepted_probe(self._api, self._manifest)
+        self.receipt.accepted_probe_verified = True
+        sources = _verify_sources(self._api, self._manifest)
+        self.receipt.sources_verified = True
+        excluded = frozenset(
+            [source.sha for source in self._manifest.sources]
+            + [item.sha for item in _ACCEPTED_PROBE.objects]
+            + [self._manifest.main, self._context.executor_sha, _ACCEPTED_PROBE.executor]
+        )
+        parent = self._manifest.main
+        for source in sources.steps:
+            intent = _prefix_intent(source, parent, self._context)
+            signed = _create_verified_commit(self._api, self._manifest, intent, excluded)
+            self.receipt.steps += (_PrefixStep(source, signed),)
+            parent = signed.sha
+            excluded = excluded | {signed.sha}
+        self.receipt.status = "prefix7_verified"
+        return self.receipt
+
+
 class Probe:
     @beartype
     def __init__(self, manifest: Manifest, context: RunContext, api: RequestAPI) -> None:
         self._manifest = manifest
         self._context = context
         self._api = api
-        self.receipt = _receipt(
-            {
-                "run_id": context.run_id,
-                "run_attempt": context.run_attempt,
-                "executor_sha": context.executor_sha,
-                "repository": REPOSITORY,
-                "actor": ACTOR,
-                "event": "workflow_dispatch",
-                "ref": f"refs/heads/{AUXILIARY_BRANCH}",
-                "workflow_id": WORKFLOW_ID,
-                "workflow_path": WORKFLOW_PATH,
-            }
-        )
+        self.receipt = _receipt(_context_identity(context))
 
     @beartype
     @require(lambda self: isinstance(self, Probe) and not self.receipt["objects"])
     @ensure(lambda result: result["status"] == "signed_objects_verified" and len(result["objects"]) == 2)
     def run(self) -> ProbeReceipt:
         """Verify the live run, then create and reread the two approved objects."""
-        self._verify_run()
+        _check(self._context.stage == "probe", "Operation context mismatch")
+        _verify_run(self._api, self._context)
         self.receipt["context_verified"] = True
         self._verify_prepared_tree()
         self._create_commit(self._manifest.main_tree, "baseline")
         self._create_commit(self._manifest.probe_tree, "inert-workflow")
         self.receipt["status"] = "signed_objects_verified"
         return self.receipt
-
-    def _verify_run(self) -> None:
-        run = self._api.request("GET", f"/actions/runs/{self._context.run_id}", None)
-        expected = {
-            "id": self._context.run_id,
-            "run_attempt": self._context.run_attempt,
-            "head_sha": self._context.executor_sha,
-            "head_branch": AUXILIARY_BRANCH,
-            "event": "workflow_dispatch",
-            "path": WORKFLOW_PATH,
-            "workflow_id": WORKFLOW_ID,
-            "status": "in_progress",
-        }
-        _check(
-            all(type(_field(run, key)) is type(value) and _field(run, key) == value for key, value in expected.items()),
-            "Live workflow run mismatch",
-        )
-        _check(_field(run, "repository", "full_name") == REPOSITORY, "Live run repository mismatch")
-        for role in ("actor", "triggering_actor"):
-            _check(_field(run, role, "login") == ACTOR, "Live run actor mismatch")
-
-    def _guard_refs(self) -> None:
-        main_ref = self._api.request("GET", "/git/ref/heads/main", None)
-        _check(_field(main_ref, "object", "sha") == self._manifest.main, "Main has drifted")
-        pr = self._api.request("GET", "/pulls/785", None)
-        _check(_field(pr, "state") == "open", "Pull request is not open")
-        _check(_field(pr, "merged") is False, "Pull request is merged")
-        _check(_field(pr, "auto_merge") is None, "Auto-merge is enabled")
-        for side, sha, ref in (
-            ("base", self._manifest.main, "main"),
-            ("head", self._manifest.old_head, self._manifest.branch),
-        ):
-            _check(_field(pr, side, "sha") == sha, "Pull request revision drift")
-            _check(_field(pr, side, "ref") == ref, "Pull request branch drift")
-            _check(_field(pr, side, "repo", "full_name") == REPOSITORY, "Pull request repository drift")
 
     def _verify_prepared_tree(self) -> None:
         manifest = self._manifest
@@ -521,24 +857,9 @@ class Probe:
             _verify_tree_response(intent, response)
 
     def _create_commit(self, tree: str, label: str) -> None:
-        context = self._context
-        message = (
-            f"PR785 signing probe {label}\n\nManifest: {MANIFEST_SHA256}\n"
-            f"Executor: {context.executor_sha}\nRun: {context.run_id}\nAttempt: {context.run_attempt}"
-        )
-        intent = _CommitIntent(tree, self._manifest.main, message)
-        self._guard_refs()
-        result = self._api.request(
-            "POST", "/git/commits", {"message": message, "tree": tree, "parents": [intent.parent]}
-        )
-        self._guard_refs()
-        created = _verified_commit(result, intent)
-        sha = created["sha"]
-        readback = self._api.request("GET", f"/git/commits/{sha}", None)
-        verified = _verified_commit(readback, intent, sha)
-        _check(verified == created, "Commit readback differs")
-        _verify_attribution(self._api.request("GET", f"/commits/{sha}", None), sha)
-        self.receipt["objects"].append(verified)
+        intent = _probe_intent(tree, self._manifest.main, label, self._context)
+        verified = _create_verified_commit(self._api, self._manifest, intent, frozenset())
+        self.receipt["objects"].append(verified.as_probe_object())
 
 
 def _parse_arguments(argv: Sequence[str] | None) -> argparse.Namespace:
@@ -556,26 +877,42 @@ def main(argv: Sequence[str] | None = None) -> int:
     """Persist a truthful bound receipt for either success or refusal."""
     args = _parse_arguments(argv)
     output = Path(args.output)
-    output.mkdir(parents=True, exist_ok=True)
-    if any(output.iterdir()):
+    try:
+        output.mkdir(parents=True, exist_ok=True)
+        if any(output.iterdir()):
+            return 1
+    except OSError:
+        sys.stderr.write("Probe refused: Local I/O failure\n")
         return 1
-    receipt = _receipt(_observed_context(os.environ))
+    identity = _observed_context(os.environ)
+    receipt: ProbeReceipt | Prefix7Receipt = Prefix7Receipt(identity) if args.stage == "prefix7" else _receipt(identity)
+    succeeded = False
     try:
         _check(os.environ.get("EXPECTED_MANIFEST_SHA256") == MANIFEST_SHA256, "Expected manifest mismatch")
         context = RunContext.from_env(os.environ, args.stage, args.expected_executor)
         manifest = Manifest.load(ROOT / "ci/recovery/pr785-signing-inputs.json")
-        probe = Probe(manifest, context, GitHubAPI(os.environ.get("GH_TOKEN", ""), output))
-        receipt = probe.receipt
-        probe.run()
+        api = GitHubAPI(os.environ.get("GH_TOKEN", ""), output)
+        runner = Prefix7(manifest, context, api) if context.stage == "prefix7" else Probe(manifest, context, api)
+        receipt = runner.receipt
+        runner.run()
+        succeeded = True
     except ProbeRefusalError as error:
         sys.stderr.write(f"Probe refused: {error}\n")
-        receipt["status"] = "refused"
     except OSError:
         sys.stderr.write("Probe refused: Local I/O failure\n")
-        receipt["status"] = "refused"
-    with (output / "receipt.json").open("x", encoding="utf-8") as stream:
-        stream.write(json.dumps(receipt, indent=2) + "\n")
-    return 0 if receipt["status"] == "signed_objects_verified" else 1
+    try:
+        wire = receipt.as_json() if isinstance(receipt, Prefix7Receipt) else receipt
+        serialized = json.dumps(wire, indent=2) + "\n"
+    except (TypeError, ValueError):
+        sys.stderr.write("Probe refused: Evidence serialization failed\n")
+        return 1
+    try:
+        with (output / "receipt.json").open("x", encoding="utf-8") as stream:
+            stream.write(serialized)
+    except OSError:
+        sys.stderr.write("Probe refused: Local I/O failure\n")
+        return 1
+    return 0 if succeeded else 1
 
 
 if __name__ == "__main__":

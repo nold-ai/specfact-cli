@@ -4,7 +4,7 @@ on:
     inputs:
       stage:
         type: choice
-        options: [probe]
+        options: [probe, prefix7]
         required: true
         default: probe
       expected_executor:
@@ -27,7 +27,7 @@ jobs:
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: '3.12'
-      - name: Run bounded probe
+      - name: Run bounded signing stage
         env:
           GH_TOKEN: ${{ github.token }}
           PROBE_STAGE: ${{ inputs.stage }}
@@ -39,6 +39,6 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()
         with:
-          name: pr785-probe-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.sha }}
+          name: pr785-${{ inputs.stage }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.sha }}
           path: probe-evidence/
           if-no-files-found: error

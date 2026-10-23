@@ -15,8 +15,8 @@
 - [x] Independently review implementation and capture SpecFact clean-code evidence.
 - [ ] Mirror operational scope in the internal wiki and rebuild its graph from that checkout.
 - [x] Review actual executor SHA before manual dispatch.
-- [ ] Authenticate actual CI signing receipts, run/job/artifact digest and readback signatures.
-- [ ] Prove root-owned immutable auxiliary anchors and fetching for both objects.
+- [x] Authenticate actual CI signing receipts, run/job/artifact digest and readback signatures.
+- [x] Prove root-owned immutable auxiliary anchors and fetching for both objects.
 - [ ] Reject only the operation demonstrated to fail, without an automatic alternative or new access.
 - [ ] Archive this operational change with OpenSpec CLI after acceptance.
 
@@ -28,12 +28,12 @@
 - [x] Obtain fresh independent test acceptance, root receipt and normal test-first commit before runtime edits.
 - [x] Correct the three identity verification functions with exact per-role values after root authorization.
 - [x] Pass focused runtime quality and all original and new controls, then obtain fresh independent review.
-- [ ] Authenticate a new complete live probe and both root-owned anchors. Never adopt the earlier partial run.
+- [x] Authenticate a new complete live probe and both root-owned anchors. Never adopt the earlier partial run.
 
 ## Service correction delivery
 
 - [x] Commit the accepted runtime correction through normal hooks and review its exact executor bytes before a new complete dispatch.
-- [ ] Authenticate that fresh run and both immutable root anchors before later recovery implementation.
+- [x] Authenticate that fresh run and both immutable root anchors before later recovery implementation.
 
 ## Safe refusal diagnostic correction
 
@@ -42,24 +42,24 @@
 - [x] Obtain fresh independent test acceptance, a root review receipt and normal test-first commit before runtime edits.
 - [x] Implement the bounded stderr correction after root authorization and pass all focused controls and required quality gates.
 - [ ] Follow up on the absent auxiliary wiki source. The approved release-page and graph update is complete; this separate page was not created under that narrow grant.
-- [ ] Authenticate a fresh complete probe and both root anchors after independent runtime acceptance.
+- [x] Authenticate a fresh complete probe and both root anchors after independent runtime acceptance.
 
 ## Prepared tree correction
 
 - [x] Freeze prepared-tree spec and tests with genuine semantic RED against unchanged runtime, exact selector conservation and native planned mapping.
 - [x] Obtain fresh independent test acceptance, root review receipt, actual staged gate and normal test-first commit before runtime changes.
 - [x] Validate the three pinned prepared trees before either commit and restrict CI writes to commits after root authorization.
-- [ ] Pass focused controls and required quality gates, then obtain fresh independent runtime acceptance and normal fix commit.
-- [ ] Separately test and independently review the root-owned preparation operation, including denial, uncertainty and postguard failures, before its bounded live write.
-- [ ] Authenticate a fresh complete same-run pair and both immutable root anchors with fetchability. Earlier partial runs remain unadopted.
+- [x] Pass focused controls and required quality gates, then obtain fresh independent runtime acceptance and normal fix commit.
+- [x] Separately test and independently review the root-owned preparation operation, including denial, uncertainty and postguard failures, before its bounded live write.
+- [x] Authenticate a fresh complete same-run pair and both immutable root anchors with fetchability. Earlier partial runs remain unadopted.
 - [ ] Retain the absent auxiliary wiki source follow-up. The approved release-page and graph update is complete; creating a separate source remains outside this unit.
 
 ## Prefix7 test-first extension
 
 - [x] Root authenticated complete probe run 39936325185, both immutable anchors and actual fetching before this design. Earlier partial runs remain unadopted.
 - [x] Freeze scoped specifications, independently expected fixtures, conserved old controls and real semantic RED against unchanged runtime.
-- [ ] Obtain fresh independent test acceptance, truthful exact-mapping receipt, staged gate and normal test-first commit.
-- [ ] Implement only accepted Prefix7 after root authorization and pass scoped quality gates.
+- [x] Obtain fresh independent test acceptance, truthful exact-mapping receipt, staged gate and normal test-first commit.
+- [x] Implement only accepted Prefix7 after root authorization and pass scoped quality gates.
 - [ ] Root authenticate actual Prefix7 CI, all seven mappings, anchors and fetch proof.
 - [ ] Root authenticate genuine native 33-case RED on signed step seven before production stages.
 - [ ] Complete the existing absent auxiliary wiki source follow-up separately.
