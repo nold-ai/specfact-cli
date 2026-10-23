@@ -42,3 +42,16 @@ The earlier 23-case acceptance and native RED are complete historical evidence.
 Their bytes do not approve this newly changed specification or tests. Review
 thread PRRT_kwDOQLaPE86vWprX correctly identified the stale status statements;
 they are reconciled here and in CHANGE_VALIDATION.md and TDD_EVIDENCE.md.
+
+## Current quality amendment on 2026-10-23
+
+- [x] Resolve every warning in the actual complete PR review without weakening assertions or tools.
+- [x] Retain six visible informational findings with independently accepted source inspections.
+- [x] Refresh the exact 31 local RED cases and pass all 23 supplementary controls.
+- [x] Record fresh independent acceptance in requirements-proof/quality-mapping-review.md.
+- [ ] Commit the test-only amendment with normal hooks, holding the docs floor for its matching metadata.
+- [ ] Authenticate fresh native RED for these exact test bytes before production adoption.
+
+The earlier advisory acceptance remains authentic history. The active receipt now
+references the fresh quality amendment acceptance. No native proof is reused for
+changed test bytes. Only the docs-floor fixture hunk remains held for production.

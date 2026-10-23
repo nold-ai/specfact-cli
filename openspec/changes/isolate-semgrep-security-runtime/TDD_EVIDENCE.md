@@ -7,11 +7,16 @@ RED at commit 8cce44f449e9559d0100064d629c81991784ab41, run 39843165302 attempt 
 Its accepted receipt is preserved in `requirements-proof/pre-advisory-review-evidence.json`.
 The subsequent local production results below remain authentic history.
 
-The owner has now approved GitPython 3.2.1 and the separate exact OpenTelemetry
-exception. Production inputs have been restored before specification and test
-changes. Fresh independent acceptance for the 31-case advisory correction is recorded in
-`requirements-proof/advisory-mapping-review.md` on 2026-10-23. Only new native RED
-remains pending. The active receipt uses that repository-relative accepted report. No earlier proof is reused to approve changed test or mapping bytes.
+The owner approved GitPython 3.2.1 and the separate exact OpenTelemetry exception.
+Production inputs were restored before the specification and test changes.
+The 31-case advisory mapping first received independent acceptance in
+`requirements-proof/advisory-mapping-review.md`. A subsequent bounded test-only
+quality amendment received fresh independent AI technical acceptance in
+`requirements-proof/quality-mapping-review.md` on 2026-10-23. The active receipt
+uses that repository-relative report. Both earlier receipts remain historical.
+Fresh native RED for the amended test bytes remains pending. No earlier native
+proof approves these changed bytes. The docs floor fixture remains held for its
+matching production metadata, separate from the accepted test-helper repair.
 
 ## Superseded 23-case pending note
 
@@ -439,3 +444,44 @@ hook because the updated JSON assertion expected its matching Gemfile change.
 That one reviewed fixture is retained locally for the production commit with
 the Gemfile. The 31 mapped tests, selectors and accepted proof bytes are
 unchanged. No hook exception, skip or production adoption was used.
+
+## Quality amendment and refreshed local RED on 2026-10-23
+
+The complete PR Code Review initially reported 67 warnings and six informational
+inspection recommendations. The bounded repair adds truthful module/capture types,
+removes redundant smoke output, gives the malformed-byte and guidance cases precise
+names, consolidates the four unchanged Markdown examples, and states the five-field
+exception projection explicitly. Actual Radon complexity changes from 13 to 12.
+No policy, assertion, tool configuration, suppression or production file changes.
+
+The final actual review reports zero errors, zero warnings and six visible infos.
+Its unmodified JSON SHA-256 is
+`d932e26b4795aab317f9c03fb91ae536e1fc95cf6d3806c6c2f01f54c9592d5a`.
+The independent review checks each retained informational recommendation against
+source and records the specific provenance, policy literals, formats or mandatory
+argv that justify its expanded test. These are completed inspection dispositions,
+not hidden findings. A fresh comment review finds no changed comments or
+suppressions and no actionable flags. No comment deletion or restoration occurs.
+
+Root ran the exact 31 mapped selectors after the quality edits against all twelve
+restored production inputs. Result is 31 failures, zero passes, errors or skips.
+All 23 supplementary controls pass. Failure messages and tracebacks were inspected.
+They reproduce the intended old dependency behavior, missing records, source-build
+inclusion and exact selection/version mismatches. The canonical plan is unchanged.
+The independent reviewer reran that planner, compared the complete plan and source
+hashes, verified the XML and every assertion, and accepted this bounded amendment.
+This AI technical review supplies no human authority or release approval.
+
+The exact commands, exits, timestamps and XML remain in
+`/private/tmp/specfact-release-20261022/quality-red/`. Mapped XML SHA-256 is
+`7987303f817d4f24e6221873539f66d6c6f4d31a8cb8c9b954566c3008dec155`.
+Controls XML SHA-256 is
+`ebbab7bf849a76a60a57cc879ae006f5f5567500253e8b13d084d626aa88a777`.
+The repository-relative accepted report binds all seven mapped tests, four quality
+files, proposal/spec/mapping and actual evidence hashes. The source mapping digest
+remains `sha256:0788c6326b39842e80a8cf4e308ac8508c754c384d9e6479b5cd61f0ca8b1c1d`.
+
+Normal partial staging retains the old docs-floor assertion in this test-only
+commit. Its already-reviewed new floor stays unstaged for the matching Gemfile
+adoption. The four Markdown examples, five memberships and fresh loader behavior
+are staged together. Native RED is still required before production adoption.

@@ -106,7 +106,6 @@ def test_runtime_discovery_smoke_direct_launcher(tmp_path: Path) -> None:
         check=False,
     )
 
-    print(result.stdout)
     assert sorted((dist.metadata["Name"], dist.version) for dist in distributions()) == parent_packages
     assert result.returncode == 0, result.stdout
     assert "runtime-discovery smoke passed for launcher=direct" in result.stdout
