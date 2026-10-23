@@ -82,3 +82,10 @@ before-run has two failures and seven passes. The bounded correction accepts
 3.12, rejects 2.22 and retains the complete 3.0-family checks. Independent review
 and the corrected full-suite result are recorded separately in TDD_EVIDENCE.md.
 No final CI or merge readiness is claimed here. The wiki authorization remains pending.
+
+The existing blocking-frozen/advisory-resolver contract also covers the bounded
+selection repair recorded in requirements-proof/compatibility-lane-independent-review.md.
+Only the scheduled advisory array changes. Exact release versions, proof selectors,
+packaging inputs and all blocking jobs are unchanged. This does not expand the
+runtime target or waive a release check. Fresh native CI and authority must bind
+the final amendment head.

@@ -77,3 +77,14 @@ Initial preparation ran no mapped pytest. Fresh independent acceptance then
 preceded final local execution with 33 expected failures and 33 passing controls.
 Authenticated 33-case native RED preceded production adoption. Signing, commit and push remain separate steps. Native proof for the prior 31 cases cannot approve
 changed test bytes. The earlier full-suite and native results remain historical.
+
+## Advisory resolver verification repair
+
+- [x] Reproduce incorrect frozen-case selection before editing the schedule-only job.
+- [x] Exclude only seven committed-proof functions, retaining ordinary resolver and negative unit coverage.
+- [x] Verify all blocking job data, exact dependency inputs and mapped proof remain unchanged.
+- [x] Obtain fresh independent review, full local suite and exact-source quality checks.
+- [ ] Verify new-head native CI and exact authority through the PR checks before merge readiness.
+
+The first native GREEN at 754e9c04 remains historical execution evidence. Final
+current-head CI is recorded by GitHub checks and the coordinator's artifact ledger.

@@ -1371,6 +1371,13 @@ jobs:
           compatibility_deselections=(
             --deselect=tests/unit/scripts/test_dependency_trust_review.py
             --deselect=tests/unit/scripts/test_reproducible_delivery.py
+            --deselect=tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export
+            --deselect=tests/unit/security/test_release_promotion_security_gates.py::test_frozen_graph_uses_official_semgrep_with_bounded_mcp_exception
+            --deselect=tests/unit/security/test_frozen_dependency_artifacts.py::test_frozen_certifi_bundle_excludes_compromised_root
+            --deselect=tests/unit/security/test_frozen_dependency_artifacts.py::test_artifact_download_rejects_wrong_sha256
+            --deselect=tests/unit/security/test_frozen_jwt_compatibility.py::test_inspection_preserves_options_and_expiry_on_reuse
+            --deselect=tests/unit/security/test_frozen_gitpython_compatibility.py::test_submodule_update_rejects_outside_checkout_before_clone
+            --deselect=tests/unit/security/test_frozen_gitpython_compatibility.py::test_submodule_creation_validates_checkout_before_clone
           )
           uv lock --upgrade
           uv sync --locked --all-extras

@@ -740,3 +740,65 @@ actual command, times and exact source binding are retained as final-code-review
 and final-source-binding.json in the fixture evidence directory. Final canonical
 planning passes and its complete plan equals the authenticated native plan.
 OpenSpec strict validation and git diff --check pass. Final native CI is pending.
+
+## Native GREEN and advisory resolver selection repair
+
+Native Requirements run 39875529967, attempt 1, verifies commit
+754e9c04188b0bcc824f7810e15926eb0ae4b00a and tree
+9bdf313a124367d8e8ee03b5945b4a20b131aece. Producer artifact 12468600639 has
+ZIP SHA-256 5dac4a1bfec30d91000268f92c26d0676d39a2b88f272e432b98e9126a5780bc.
+Fresh execution artifact 12468850212 has ZIP SHA-256
+764c14e3bc733772ac18211239112713ebcccdacc29c94b11f97597d88c42f64.
+Both unexpired exact-ID artifacts were authenticated against live GitHub metadata,
+run/head/attempt and their actual ZIP bytes. Both XMLs contain the same 33 passing
+selectors, with no failures, errors or skips. The producer report is verified,
+implementation-verified and passing-after-red-proven, with no findings. All three
+Requirements jobs pass. The complete canonical plan equals the authentic native RED.
+The two independent execution XMLs have distinct real timing bytes; each is
+verified separately, with the producer digest bound to its machine report.
+Native and final Code Review both match the same six accepted infos, with no
+errors or warnings. All applicable native checks subsequently passed for that head.
+
+Review thread PRRT_kwDOQLaPE86vbOnw identified a genuine verification defect.
+The schedule-only advisory job upgrades its lock, then incorrectly runs exact
+committed-release selections and pinned-wheel probes. Seven function-level
+exclusions now affect only that advisory job. All 22 other parsed jobs and every
+compatibility-job field outside that array are unchanged. Both resolver lanes
+still run all remaining unit tests. No blocking frozen check is deselected.
+
+The first local regression ran before the workflow edit and produced one intended
+failure and one pass. Real pytest collection contained all 19 frozen cases that
+should have been absent, with no ordinary cases lost. After the seven entries,
+three regression checks and 48 retained controls pass. Actual collection changes
+from 84 cases to 65, removing exactly the 19 committed-input cases. Both pinned
+GitPython permissive controls remain in frozen suites, rather than claiming to
+exercise the upgraded resolver environment. This verifies selection correctness;
+actual latest/lower-bound compatibility remains an advisory execution responsibility.
+
+The regression was committed first as 7f0066b95b937a5168a0e4b393ab0139bafb9254
+with normal hooks. A separate exact-HEAD verification of that committed test against
+its original workflow produces one intended failure and two passing controls.
+The reviewed workflow was then restored byte-identically before its fix commit.
+The original earlier RED is retained separately. No artifact is relabelled.
+
+Fresh independent AI review in requirements-proof/compatibility-lane-independent-review.md
+binds final workflow SHA-256 19e91fa0a8564445373f16e6283dd3057ca9d17de43297efba380dcdef1ed4a3
+and test SHA-256 7a98462b1b731654b76393df4053ac1afe2a8146000a73c185517b86bc909644.
+Report SHA-256 is b9aef103b48b4b700de818252cb8cef90b4428c7a1a0763fba7f56bf94688abe.
+The reviewer confirmed unchanged mapped imports, packaged build inputs and all
+eight mapped tests, and independently rechecked live native metadata and ZIP/XML.
+The original 33-case RED remains applicable. New-head native CI remains required.
+
+The final whole suite before removal of one redundant module docstring passed
+3263 cases, skipped nine, and had zero failures/errors across 3272 cases.
+JUnit SHA-256 is 0acced582df17499c27e2893332691237974507202152c0e29cb67043e39123e.
+The prior tenth skip was the version-tree/HEAD consistency test, which now passes
+with the release version committed. The parent inventory of 178 distributions is unchanged.
+Only the module docstring and one blank line were then deleted after comment review;
+AST equivalence and a fresh three-case run pass. Final Code Review covers all
+18 changed Python files and has the same six accepted infos, zero errors and zero
+warnings. Ruff, actionlint and diff checks pass. Native CI, authority and final
+forge readiness must bind the subsequent actual head; the earlier grant cannot transfer.
+Private raw records remain under compatibility-lane-fix/. The internal wiki
+scope request remains pending. No merge, package publication, local signing,
+protected deployment or additional risk exception occurred.
