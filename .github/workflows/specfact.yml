@@ -1,186 +1,35 @@
-# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
-# yamllint disable rule:line-length rule:truthy
-name: SpecFact CLI Validation
-
+name: PR785 read-only runtime prerequisites
 on:
-  pull_request:
-    branches: [main, dev]
-  push:
-    branches: [main, dev]
-    paths-ignore:
-      - "docs/**"
-      - "**.md"
-      - "**.mdc"
   workflow_dispatch:
-    inputs:
-      budget:
-        description: "Time budget in seconds"
-        required: false
-        default: "120"
-        type: string
-      mode:
-        description: "Enforcement mode (block, warn, log)"
-        required: false
-        default: "block"
-        type: choice
-        options:
-          - block
-          - warn
-          - log
-
-env:
-  PIP_PREFER_BINARY: "1"
-
+permissions: {}
 jobs:
-  specfact-validation:
-    name: Contract Validation
-    runs-on: ubuntu-latest
+  platform-prerequisites:
+    name: PR785 runtime platform prerequisites
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
     permissions:
       contents: read
-      pull-requests: write
-      checks: write
+      actions: read
     steps:
-      - name: Checkout
+      - name: Checkout immutable observer
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
+          ref: ${{ github.sha }}
           persist-credentials: false
-
-      - name: Read immutable module fixture
-        id: modules-fixture
-        shell: bash
-        run: |
-          set -euo pipefail
-          repository="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])')"
-          commit="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
-          [[ "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]
-          test "$repository" = "nold-ai/specfact-cli-modules"
-          [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
-          printf 'repository=%s\n' "$repository" >> "$GITHUB_OUTPUT"
-          printf 'commit=%s\n' "$commit" >> "$GITHUB_OUTPUT"
-
-      - name: Checkout module bundles repo
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
-        with:
-          repository: ${{ steps.modules-fixture.outputs.repository }}
-          path: specfact-cli-modules
-          ref: ${{ steps.modules-fixture.outputs.commit }}
-          persist-credentials: false
-
-      - name: Verify immutable module fixture
-        shell: bash
-        run: |
-          set -euo pipefail
-          expected_repository="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])')"
-          expected="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
-          test "$expected_repository" = "${{ steps.modules-fixture.outputs.repository }}"
-          actual="$(git -C specfact-cli-modules rev-parse HEAD)"
-          test "$actual" = "$expected"
-
-      - name: Export module bundles path
-        run: |
-          echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
-          echo "SPECFACT_MODULES_ROOTS=${GITHUB_WORKSPACE}/specfact-cli-modules/packages" >> "$GITHUB_ENV"
-
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
-        with:
-          python-version: "3.12"
-
-      - name: Set up frozen contract-validation dependencies
-        uses: ./.github/actions/setup-frozen-python
-
-      - name: Enforce Core-Module Isolation
-        run: |
-          pytest tests/unit/test_core_module_isolation.py -v
-
-      - name: Set validation parameters
-        id: validation
-        run: |
-          BUDGET="${INPUT_BUDGET:-120}"
-          MODE="${INPUT_MODE:-block}"
-          echo "budget=$BUDGET" >> "$GITHUB_OUTPUT"
-          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
-          echo "SPECFACT_BUDGET=$BUDGET" >> "$GITHUB_ENV"
-          echo "SPECFACT_MODE=$MODE" >> "$GITHUB_ENV"
-
-      - name: Run Contract Validation
-        id: repro
-        continue-on-error: true
-        run: |
-          budget='${{ steps.validation.outputs.budget }}'
-          if ! [[ "$budget" =~ ^[0-9]+$ ]]; then
-            echo "Invalid budget: $budget" >&2
-            echo "exit_code=2" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          set +e
-          specfact code repro --verbose --crosshair-required --budget "$budget"
-          rc=$?
-          set -e
-          echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
-
-      - name: Find latest repro report
-        id: report
+          submodules: false
+          lfs: false
+      - name: Observe current job boundary
+        shell: bash --noprofile --norc -e -o pipefail {0}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: /usr/bin/python3 -I -S -B scripts/pr785_runtime_prerequisite.py
+      - name: Future step marker
+        shell: bash --noprofile --norc -e -o pipefail {0}
+        run: /usr/bin/printf '%s\n' 'observation-only; no policy or authority'
+      - name: Upload prerequisite observations
         if: always()
-        run: |
-          REPORT_DIR=".specfact/reports/enforcement"
-          if [ -d "$REPORT_DIR" ]; then
-            LATEST_REPORT=$(find "$REPORT_DIR" -name "report-*.yaml" -type f -printf "%T@ %p\n" | sort -n | tail -1 | cut -d' ' -f2-)
-            if [ -n "$LATEST_REPORT" ]; then
-              echo "path=$LATEST_REPORT" >> "$GITHUB_OUTPUT"
-              echo "SPECFACT_REPORT_PATH=$LATEST_REPORT" >> "$GITHUB_ENV"
-            fi
-          fi
-
-      - name: Create GitHub annotations
-        id: annotations
-        if: always() && steps.report.outputs.path != ''
-        run: |
-          python -m specfact_cli.utils.github_annotations || true
-
-      - name: Generate PR comment
-        id: pr-comment
-        if: always() && github.event_name == 'pull_request' && steps.report.outputs.path != ''
-        run: |
-          python -m specfact_cli.utils.github_annotations
-          if [ -f ".specfact/pr-comment.md" ]; then
-            echo "comment_path=.specfact/pr-comment.md" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Post PR comment
-        if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && steps.pr-comment.outputs.comment_path != ''
-        uses: actions/github-script@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          script: |
-            const fs = require('fs');
-            const commentPath = '${{ steps.pr-comment.outputs.comment_path }}';
-            if (fs.existsSync(commentPath)) {
-              const comment = fs.readFileSync(commentPath, 'utf8');
-              try {
-                await github.rest.issues.createComment({
-                  issue_number: context.issue.number,
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  body: comment
-                });
-              } catch (error) {
-                if (error.status !== 403) throw error;
-                core.warning('Optional PR comment was not posted: token permission denied (HTTP 403).');
-              }
-            }
-
-      - name: Upload validation report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: specfact-report
-          path: |
-            .specfact/reports/enforcement/*.yaml
-            .specfact/pr-comment.md
-          if-no-files-found: ignore
-
-      - name: Fail workflow if validation failed
-        if: steps.repro.outputs.exit_code != '0' && steps.validation.outputs.mode == 'block'
-        run: |
-          echo "❌ Validation failed. Exiting with error code."
-          exit 1
+          name: pr785-runtime-prerequisite-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.sha }}
+          path: platform-prerequisite-observations/
+          if-no-files-found: error

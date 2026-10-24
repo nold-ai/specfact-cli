@@ -7,13 +7,13 @@
 - [x] 1.3 Write the prerequisite spec and two workflow contract tests without production edits.
 - [x] 1.4 Freeze files, hashes, and one baseline plan privately for independent mapping acceptance before collection or execution.
 - [x] 1.5 Run the accepted baseline once with the existing auxiliary Python 3.12.13 test environment and retain actual failures in `TDD_EVIDENCE.md`.
-- [ ] 1.6 Obtain independent test/spec mapping acceptance and make the normal test-first commit through the coordinator.
+- [x] 1.6 Obtain independent test/spec mapping acceptance and make the normal test-first commit through the coordinator.
 
 ## 2. Implement the accepted diagnostic
 
-- [ ] 2.1 Add the independently accepted observer with verified formatting reconciliation and the exact accepted auxiliary workflow contract.
-- [ ] 2.2 Run the focused workflow tests, record GREEN separately from hosted claims, and preserve every existing test and case ID.
-- [ ] 2.3 Inspect fixed context, direct transport, request bounds, and output fields independently. No HTTP mock result substitutes for hosted evidence.
+- [x] 2.1 Add the independently accepted observer with verified formatting reconciliation and the exact accepted auxiliary workflow contract.
+- [x] 2.2 Run the focused workflow tests, record GREEN separately from hosted claims, and preserve every existing test and case ID.
+- [x] 2.3 Inspect fixed context, direct transport, request bounds, and output fields independently. No HTTP mock result substitutes for hosted evidence.
 - [ ] 2.4 Run applicable formatting, typing, lint, YAML, contract, smart-test, independent analysis, and fresh SpecFact code-review gates through the coordinator. Resolve all findings.
 - [ ] 2.5 Review affected documentation. This maintainer-only diagnostic has no product command or navigation change. Record version/signature gate applicability without changing signed assets or application versions.
 

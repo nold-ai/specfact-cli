@@ -30,7 +30,9 @@ requirements:
         scenario_id: immutable-observation-invocation-and-durable-upload
         method: test
         intent: Preserve immutable action identities, the only observer command, explicit future steps, and fail-on-missing upload.
-        observable: The actual four-step workflow uses the accepted pins and isolated invocation, then always uploads only the observation directory with run/attempt/commit identity.
+        observable: >-
+          The actual four-step workflow uses the accepted pins and isolated invocation, then always uploads only
+          the observation directory with run/attempt/commit identity.
         selector:
           runner: pytest
           node_id: tests/unit/workflows/test_pr785_runtime_prerequisites.py::test_prerequisite_workflow_runs_isolated_observer_and_preserves_output
@@ -47,9 +49,13 @@ requirements:
         scenario_id: bounded-current-job-evidence-has-no-authority
         method: inspection
         intent: Independently inspect fixed context, direct transport, request bounds, and the retained output contract.
-        observable: Source review confirms the specified restrictions and output fields. This pending inspection supplies no hosted response or service availability proof.
+        observable: >-
+          Source review confirms the specified restrictions and output fields. This pending inspection supplies
+          no hosted response or service availability proof.
       - case_id: PR785-PREREQ-HOSTED-004
         scenario_id: bounded-current-job-evidence-has-no-authority
         method: inspection
         intent: Independently inspect authenticated one-shot current-job responses after a separately coordinated hosted run.
-        observable: Actual source/workflow/run/attempt/job/artifact identities bind the retained response bytes and raw steps. No such hosted evidence exists in this test/spec unit.
+        observable: >-
+          Actual source/workflow/run/attempt/job/artifact identities bind the retained response bytes and raw
+          steps. No such hosted evidence exists in this test/spec unit.
