@@ -37,3 +37,12 @@ task. The coordinator owns refs, commits, API operations, CI, and final evidence
 - [ ] 4.5 Record native GREEN and required review and quality gates separately from any hosted claim.
 - [ ] 4.6 Separately review one changed hosted measurement and preserve actual responses and raw steps. Marker visibility does not establish policy compatibility or delivery readiness.
 - [ ] 4.7 Align the absent internal wiki source and rebuild from the internal root under coordinator authority before wider delivery. No wiki write is claimed here.
+
+## 5. Refuse responses shorter than their advertised length
+
+- [ ] 5.1 Freeze the short-body spec, one additive four-route regression, exact mapping case `PR785-PREREQ-TRANSPORT-017`, and conservation evidence privately.
+- [ ] 5.2 Require root full read, explicit author stop, exact adoption, and one confined fifteen-case baseline against unchanged observer `79beb00319b7fc269b0d162cfdcbe237f5d892b2203a9106de88c5535e3a2bbf`.
+- [ ] 5.3 Record the actual intended completeness RED and fourteen unchanged passing selectors. Preserve prior fourteen-PASS evidence and raw native selector properties.
+- [ ] 5.4 Obtain fresh independent test/spec/mapping acceptance and normal TEST hooks. Keep the prior review-evidence record historical until then.
+- [ ] 5.5 Correct the shared body-completeness decision only after RED, then verify all four short-body routes and the unchanged controls. Resolve source review findings and applicable quality gates.
+- [ ] 5.6 Keep hosted dispatch closed until the correction and independent acceptance are complete. Retain the internal wiki alignment follow-up under coordinator authority.

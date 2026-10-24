@@ -137,3 +137,29 @@ matches. Its actual HTTP status remains non-200, so it cannot prove visibility.
 A 200 payload with zero matches remains absent, and multiple matches remain
 ambiguous. All summaries retain authority false, policy execution false, and
 compatibility unjudged. Step statuses and post-step numbers are preserved.
+
+## Short advertised body amendment on 24 October 2026, Europe/Berlin
+
+The shared response-read boundary must distinguish complete bounded bytes from
+a body shorter than its advertised `Content-Length`. This applies to ordinary
+responses and HTTP-error wrappers on both direct API and storage routes.
+A successful bounded read alone does not establish completeness. The incomplete
+response must exit 1 with `body-read-failed`, preserve its actual status and local
+UTC body-finish timestamp, and keep `response_retained=false`. Earlier complete
+responses remain intact. No incomplete raw file or terminal observation-only
+summary may be written, even when the bytes contain an exact marker.
+
+The existing real HTTPResponse wire fixture gains only an optional explicit
+`declared_length` integer. Its default preserves `Content-Length=len(body)`.
+One append-only selector covers direct 200 and 404 plus storage 200 and 404
+after an authenticated API 302. The actual urllib opener and HTTPError path stay
+in use. No response-read method is replaced. Existing fixture reads enforce the
+4 MiB plus one-byte bound, and existing checks enforce response closure and
+secret-free output. The twelve earlier transport selectors and two workflow
+selectors retain their assertions and loop cases.
+
+Root first runs the frozen fifteen-case baseline against the unchanged observer.
+The intended first failure is the new completeness assertion. Existing mapping
+review evidence remains historical until fresh independent acceptance. Local
+results establish synthetic behavior only. Hosted dispatch remains separately
+gated, and the earlier fourteen-case passing evidence remains immutable.

@@ -131,6 +131,7 @@ class WireResponse(NamedTuple):
     locations: tuple[str, ...] = ()
     failure: str | None = None
     date: str | None = DATE
+    declared_length: int | None = None
 
 
 class Result(NamedTuple):
@@ -182,7 +183,7 @@ def _wire_response(fixture: WireResponse) -> http.client.HTTPResponse:
     if fixture.failure == "urlerror":
         raise urllib.error.URLError("Synthetic URL error " + LOCATION + TOKEN)
     headers = [
-        f"Content-Length: {len(fixture.body)}",
+        f"Content-Length: {len(fixture.body) if fixture.declared_length is None else fixture.declared_length}",
         "Connection: close",
         "X-GitHub-Request-Id: SYNTHETIC-REQUEST-ID",
     ]
@@ -589,3 +590,53 @@ def test_lagging_steps_and_post_step_numbers_remain_unmodified(tmp_path: Path, m
     assert summary["observed_steps"][2]["status"] == "pending"
     assert summary["observed_steps"][-1]["number"] == 10
     _retained(result, "jobs", WireResponse(200, JOBS))
+
+
+def test_short_content_length_body_is_refused_on_direct_and_storage_routes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = (MARKER + "\n").encode()
+    jobs = WireResponse(200, JOBS)
+    redirect = WireResponse(302, b"API redirect remains", (LOCATION,))
+    for via_storage, status in ((False, 200), (False, 404), (True, 200), (True, 404)):
+        terminal = WireResponse(status, payload, declared_length=len(payload) + 15)
+        fixtures = [jobs, redirect, terminal] if via_storage else [jobs, terminal]
+        started = datetime.now().astimezone()
+        result = _run(tmp_path, monkeypatch, fixtures)
+        finished = datetime.now().astimezone()
+        assert result.exit_code == 1, "A body shorter than Content-Length must not be treated as complete"
+        _refused(result, "body-read-failed")
+        storage = [("fixture.blob.core.windows.net", "/logs?sig=SYNTHETIC-LOCATION-ONE")] if via_storage else []
+        _requests(result, storage)
+        terminal_name = "current-job-logs-storage-01" if via_storage else "current-job-logs"
+        _retained(result, "jobs", jobs)
+        if via_storage:
+            _retained(result, "current-job-logs", redirect)
+        records = _records(result)
+        expected_names = ["jobs", "current-job-logs", terminal_name] if via_storage else ["jobs", terminal_name]
+        record = records[-1]
+        requested = _utc(record["request_started_at_utc"])
+        completed = _utc(record["body_finished_at_utc"])
+        assert {
+            "record_names": [record["name"] for record in records],
+            "earlier_retained": all(record["response_retained"] is True for record in records[:-1]),
+            "http_status": record["http_status"],
+            "incomplete": record["response_retained"] is False,
+            "raw_absent": terminal_name + ".raw" not in result.files,
+            "body_bounds": started <= requested <= completed <= finished,
+            "exchange_order": all(
+                _utc(previous["body_finished_at_utc"]) <= _utc(following["request_started_at_utc"])
+                for previous, following in pairwise(records)
+            ),
+            "output": (result.stdout, result.stderr),
+        } == {
+            "record_names": expected_names,
+            "earlier_retained": True,
+            "http_status": status,
+            "incomplete": True,
+            "raw_absent": True,
+            "body_bounds": True,
+            "exchange_order": True,
+            "output": (MARKER + "\n", ""),
+        }

@@ -140,6 +140,17 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/workflows/test_pr785_log_continuation.py::test_transport_failures_are_sanitized_and_keep_earlier_responses
+      - case_id: PR785-PREREQ-TRANSPORT-017
+        scenario_id: explicit-bounded-current-log-continuation
+        method: test
+        intent: Refuse short advertised bodies on direct API and storage routes for successful and HTTP-error responses.
+        observable: >-
+          Direct and storage HTTP 200 and 404 bodies shorter than Content-Length exit 1 with body-read-failed,
+          actual status and completion time, no retained incomplete payload or terminal summary, preserved earlier
+          responses, bounded reads, closed responses, and secret-free output.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_pr785_log_continuation.py::test_short_content_length_body_is_refused_on_direct_and_storage_routes
   openspec:pr785-runtime-prerequisites:pr785-runtime-prerequisites:current-marker-visibility-remains-a-separate-observation:
     rationale: Measure bounded current-log evidence without conferring authority.
     stakeholder_refs:

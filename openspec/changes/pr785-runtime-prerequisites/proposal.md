@@ -85,3 +85,18 @@ availability. The workflow bytes, permission scope, authority boundary, and
 closed delivery actions remain unchanged. This addendum records proposed
 behavior before baseline execution or implementation. The existing internal
 wiki follow-up remains open under coordinator authority.
+
+## Short-body completeness amendment on 24 October 2026, Europe/Berlin
+
+A bounded response read can return fewer bytes than the advertised
+`Content-Length` without raising an exception. The observer must refuse that
+incomplete payload for direct API and storage responses, including HTTP errors.
+An exact marker inside the partial bytes cannot establish a complete response.
+
+One additive regression covers direct and storage HTTP 200 and 404 responses.
+The existing twelve transport tests and two workflow tests remain positive and
+negative controls. The new case requires exit 1, `body-read-failed`, actual
+status and local completion time, preserved earlier responses, and no incomplete
+raw file or terminal summary. This amendment precedes the new failing baseline
+and source correction. It grants no hosted proof or authority. The existing
+internal wiki follow-up remains open under coordinator authority.

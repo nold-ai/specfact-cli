@@ -1,39 +1,51 @@
 {
   "schema_version": "1",
   "decision": "accepted",
-  "reviewer_id": "Codex:/root/redirect_test_final_acceptance",
+  "reviewer_id": "Codex:/root/short_body_test_acceptance",
   "reviewer_role": "independent test/spec/mapping reviewer",
-  "recorded_at": "2026-10-24T05:58:03.407620+02:00",
+  "recorded_at": "2026-10-24T06:34:14.164745+02:00",
   "reference": "https://github.com/nold-ai/specfact-cli/pull/785",
-  "mapping_digest": "sha256:856f4980df5a9183940738e89ae7fa5b3905502346d09d2961e6f8eea3aa8987",
-  "review_report_sha256": "0aaaaaa036d2dd436c50efeac5167ac6199846fc1313b6de84a509a76167fbf1",
-  "test_sha256": "0e79b031fdc476289ecf7e3b2ada88e75aa7c90e4ebf1e126629054464fc49f1",
-  "scope": "Sixteen mapped cases. Independent exact TEST/spec/mapping acceptance after genuine native transport RED and zero-finding scoped CodeReview. Normal TEST hooks remain required. No runtime GREEN, hosted compatibility or policy admission verdict.",
+  "mapping_digest": "sha256:b982df70fed4502e477353c93478cf5f6065fc93ee0458ad3cc0de56dd797f28",
+  "review_report_sha256": "a7e33a579c220aaf04dc7145d4741ffdf50520d2998f4ed0fc14266740fdb5c7",
+  "test_sha256": "03f78c4438e10eee5b380a1ddd4db16ae189ccb1cadb6fea3299a39f3f5d284f",
+  "scope": "Seventeen mapped cases. Exact TEST/spec/mapping acceptance after genuine short-body native RED, preserved fourteen passing controls and input-bound zero-finding scoped CodeReview. Only first direct200 case executed before RED. Normal TEST hooks required. No runtime GREEN, hosted compatibility or policy admission verdict.",
   "historical_review_record": {
     "schema_version": "1",
     "decision": "accepted",
-    "reviewer_id": "Codex:/root/diagnostic_redirect_test_acceptance",
-    "reviewer_role": "independent test/spec reviewer",
-    "recorded_at": "2026-10-24T05:24:17.395109+02:00",
+    "reviewer_id": "Codex:/root/redirect_test_final_acceptance",
+    "reviewer_role": "independent test/spec/mapping reviewer",
+    "recorded_at": "2026-10-24T05:58:03.407620+02:00",
     "reference": "https://github.com/nold-ai/specfact-cli/pull/785",
-    "mapping_digest": "sha256:08b295630e5b3d108b23fa7ad01633158b12f2e4f048d029ad848fda24c051ab",
-    "review_report_sha256": "dd85c0e709e128e1245cd5dc4263a037ee7e3eb8b06c3db76ebb7cfb5f8e82b3",
-    "scope": "Sixteen mapped cases. Independent test/spec acceptance after genuine diagnostic transport RED. No runtime implementation, hosted compatibility or policy admission verdict.",
-    "historical_test_review": {
+    "mapping_digest": "sha256:856f4980df5a9183940738e89ae7fa5b3905502346d09d2961e6f8eea3aa8987",
+    "review_report_sha256": "0aaaaaa036d2dd436c50efeac5167ac6199846fc1313b6de84a509a76167fbf1",
+    "test_sha256": "0e79b031fdc476289ecf7e3b2ada88e75aa7c90e4ebf1e126629054464fc49f1",
+    "scope": "Sixteen mapped cases. Independent exact TEST/spec/mapping acceptance after genuine native transport RED and zero-finding scoped CodeReview. Normal TEST hooks remain required. No runtime GREEN, hosted compatibility or policy admission verdict.",
+    "historical_review_record": {
       "schema_version": "1",
       "decision": "accepted",
-      "reviewer_id": "Codex:/root/prerequisite_test_acceptance",
+      "reviewer_id": "Codex:/root/diagnostic_redirect_test_acceptance",
       "reviewer_role": "independent test/spec reviewer",
-      "recorded_at": "2026-10-24T03:51:22+02:00",
+      "recorded_at": "2026-10-24T05:24:17.395109+02:00",
       "reference": "https://github.com/nold-ai/specfact-cli/pull/785",
-      "mapping_digest": "sha256:721dc3f5429ffda93be617d05650aa54f76fea8ae79a5687507c1a791db5a576",
-      "review_report_sha256": "46feb2348a17a48b473cf75a30e9e72431abadf46f585e09a9233709a9fe7c22",
-      "scope": "Two local workflow contracts and two pending inspections. Static mapping acceptance only; no hosted or runtime admission verdict.",
-      "supplementary_test_review": {
-        "reviewer_id": "Codex:/root/prerequisite_cc_review",
+      "mapping_digest": "sha256:08b295630e5b3d108b23fa7ad01633158b12f2e4f048d029ad848fda24c051ab",
+      "review_report_sha256": "dd85c0e709e128e1245cd5dc4263a037ee7e3eb8b06c3db76ebb7cfb5f8e82b3",
+      "scope": "Sixteen mapped cases. Independent test/spec acceptance after genuine diagnostic transport RED. No runtime implementation, hosted compatibility or policy admission verdict.",
+      "historical_test_review": {
+        "schema_version": "1",
         "decision": "accepted",
-        "report_sha256": "37aa10768f7d23385869fbd7dc5f80c715a9116d5f1fa067d599c849b70ab85d",
-        "test_sha256": "6256afb8aa1ced621c27b896b3a69fdc56e83a0711697d75d926b15ab7bbf149"
+        "reviewer_id": "Codex:/root/prerequisite_test_acceptance",
+        "reviewer_role": "independent test/spec reviewer",
+        "recorded_at": "2026-10-24T03:51:22+02:00",
+        "reference": "https://github.com/nold-ai/specfact-cli/pull/785",
+        "mapping_digest": "sha256:721dc3f5429ffda93be617d05650aa54f76fea8ae79a5687507c1a791db5a576",
+        "review_report_sha256": "46feb2348a17a48b473cf75a30e9e72431abadf46f585e09a9233709a9fe7c22",
+        "scope": "Two local workflow contracts and two pending inspections. Static mapping acceptance only; no hosted or runtime admission verdict.",
+        "supplementary_test_review": {
+          "reviewer_id": "Codex:/root/prerequisite_cc_review",
+          "decision": "accepted",
+          "report_sha256": "37aa10768f7d23385869fbd7dc5f80c715a9116d5f1fa067d599c849b70ab85d",
+          "test_sha256": "6256afb8aa1ced621c27b896b3a69fdc56e83a0711697d75d926b15ab7bbf149"
+        }
       }
     }
   }

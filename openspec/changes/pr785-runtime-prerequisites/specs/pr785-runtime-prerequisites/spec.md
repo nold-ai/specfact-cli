@@ -85,6 +85,8 @@ headers, cookies, or ambient proxies. Jobs redirects SHALL stop before logs.
 - **THEN** the complete body is retained with the actual HTTP status, including a non-200 status
 - **AND** a larger body, timeout, URL error, or body-read failure exits nonzero with a fixed sanitized code and `response_retained=false`
 - **AND** prior responses remain intact, incomplete bytes are not saved as a complete raw payload, every response closes, and no retry occurs
+- **AND** a direct API or storage body shorter than its advertised `Content-Length`, for HTTP 200 or an HTTP-error response, exits 1 with `body-read-failed` even when the partial bytes contain the exact marker
+- **AND** that incomplete response records its actual HTTP status, `response_retained=false`, and an actual local UTC body-finish timestamp without a raw payload file or terminal observation-only summary
 
 Failure metadata SHALL attach `failure_reason` to the latest safe response
 record, using `redirect-location-invalid`, `redirect-limit-exceeded`,
