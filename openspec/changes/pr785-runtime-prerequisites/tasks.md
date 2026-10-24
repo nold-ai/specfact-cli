@@ -27,3 +27,13 @@
 
 No test result, source inspection, or hosted observation is claimed by an unchecked
 task. The coordinator owns refs, commits, API operations, CI, and final evidence.
+
+## 4. Measure explicit logs continuation and the current marker
+
+- [ ] 4.1 Freeze the agreed redirect and marker spec, new command behavior tests, additive mapping, conserved old cases, and exactly one baseline plan before execution.
+- [ ] 4.2 Obtain the coordinator full read and approval, then run the one frozen native baseline against the unchanged observer. Require the missing storage request as the focused RED.
+- [ ] 4.3 Obtain fresh independent TEST acceptance and make a normal TEST commit before observer changes.
+- [ ] 4.4 Implement only the accepted observer continuation and marker contract with unchanged workflow bytes.
+- [ ] 4.5 Record native GREEN and required review and quality gates separately from any hosted claim.
+- [ ] 4.6 Separately review one changed hosted measurement and preserve actual responses and raw steps. Marker visibility does not establish policy compatibility or delivery readiness.
+- [ ] 4.7 Align the absent internal wiki source and rebuild from the internal root under coordinator authority before wider delivery. No wiki write is claimed here.

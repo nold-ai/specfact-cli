@@ -59,3 +59,119 @@ requirements:
         observable: >-
           Actual source/workflow/run/attempt/job/artifact identities bind the retained response bytes and raw
           steps. No such hosted evidence exists in this test/spec unit.
+  openspec:pr785-runtime-prerequisites:pr785-runtime-prerequisites:explicit-bounded-current-log-continuation:
+    rationale: Measure bounded current-log evidence without conferring authority.
+    stakeholder_refs:
+      - https://github.com/nold-ai/specfact-cli/pull/785
+    touchpoints:
+      - id: observer
+        kind: cli_command
+        locator: scripts/pr785_runtime_prerequisite.py
+    verification_cases:
+      - case_id: PR785-PREREQ-TRANSPORT-005
+        scenario_id: explicit-bounded-current-log-continuation
+        method: test
+        intent: API 302 and storage 200 remain distinct and only API requests carry the bearer.
+        observable: API 302 and storage 200 remain distinct and only API requests carry the bearer.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_pr785_log_continuation.py::test_api_redirect_retains_both_responses_and_separates_bearer
+      - case_id: PR785-PREREQ-TRANSPORT-007
+        scenario_id: explicit-bounded-current-log-continuation
+        method: test
+        intent: All redirect statuses and both allowed host families retain bounded responses with token-free storage requests.
+        observable: All redirect statuses and both allowed host families retain bounded responses with token-free storage requests.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_pr785_log_continuation.py::test_three_storage_hops_revalidate_both_allowed_host_families
+      - case_id: PR785-PREREQ-TRANSPORT-008
+        scenario_id: explicit-bounded-current-log-continuation
+        method: test
+        intent: The fourth redirect is retained and refused without a fifth logs request.
+        observable: The fourth redirect is retained and refused without a fifth logs request.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_pr785_log_continuation.py::test_fourth_redirect_is_retained_without_a_fifth_logs_request
+      - case_id: PR785-PREREQ-TRANSPORT-009
+        scenario_id: explicit-bounded-current-log-continuation
+        method: test
+        intent: Malformed, missing, duplicate, disallowed, or unsafe destinations are refused before I/O.
+        observable: Malformed, missing, duplicate, disallowed, or unsafe destinations are refused before I/O.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_pr785_log_continuation.py::test_rejected_locations_never_receive_a_request
+      - case_id: PR785-PREREQ-TRANSPORT-010
+        scenario_id: explicit-bounded-current-log-continuation
+        method: test
+        intent: A later hop cannot return to API authentication or downgrade to HTTP.
+        observable: A later hop cannot return to API authentication or downgrade to HTTP.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_pr785_log_continuation.py::test_storage_redirect_to_api_or_http_is_refused
+      - case_id: PR785-PREREQ-TRANSPORT-011
+        scenario_id: explicit-bounded-current-log-continuation
+        method: test
+        intent: Jobs redirects retain their response and stop before marker emission or logs.
+        observable: Jobs redirects retain their response and stop before marker emission or logs.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_pr785_log_continuation.py::test_jobs_redirect_stops_before_marker_or_logs
+      - case_id: PR785-PREREQ-TRANSPORT-012
+        scenario_id: explicit-bounded-current-log-continuation
+        method: test
+        intent: Complete non-200 bodies remain received evidence with no compatibility verdict.
+        observable: Complete non-200 bodies remain received evidence with no compatibility verdict.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_pr785_log_continuation.py::test_non_200_terminal_remains_an_unjudged_received_response
+      - case_id: PR785-PREREQ-TRANSPORT-014
+        scenario_id: explicit-bounded-current-log-continuation
+        method: test
+        intent: Exactly 4 MiB is complete; overflow preserves earlier evidence and marks the terminal payload incomplete.
+        observable: Exactly 4 MiB is complete; overflow preserves earlier evidence and marks the terminal payload incomplete.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_pr785_log_continuation.py::test_size_limit_preserves_complete_and_refuses_incomplete_payloads
+      - case_id: PR785-PREREQ-TRANSPORT-015
+        scenario_id: explicit-bounded-current-log-continuation
+        method: test
+        intent: Timeout, URL error, and body-read failure use fixed safe codes and preserve earlier responses.
+        observable: Timeout, URL error, and body-read failure use fixed safe codes and preserve earlier responses.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_pr785_log_continuation.py::test_transport_failures_are_sanitized_and_keep_earlier_responses
+  openspec:pr785-runtime-prerequisites:pr785-runtime-prerequisites:current-marker-visibility-remains-a-separate-observation:
+    rationale: Measure bounded current-log evidence without conferring authority.
+    stakeholder_refs:
+      - https://github.com/nold-ai/specfact-cli/pull/785
+    touchpoints:
+      - id: observer
+        kind: cli_command
+        locator: scripts/pr785_runtime_prerequisite.py
+    verification_cases:
+      - case_id: PR785-PREREQ-TRANSPORT-006
+        scenario_id: current-marker-visibility-remains-a-separate-observation
+        method: test
+        intent: A direct terminal payload is retained and measured without a storage request.
+        observable: A direct terminal payload is retained and measured without a storage request.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_pr785_log_continuation.py::test_direct_terminal_payload_is_measured_without_storage
+      - case_id: PR785-PREREQ-TRANSPORT-013
+        scenario_id: current-marker-visibility-remains-a-separate-observation
+        method: test
+        intent: Exact byte lines count zero, one, or ambiguous multiple matches and reject stale identities and lossy text.
+        observable: Exact byte lines count zero, one, or ambiguous multiple matches and reject stale identities and lossy text.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_pr785_log_continuation.py::test_marker_matching_uses_exact_bytes_and_identity
+      - case_id: PR785-PREREQ-TRANSPORT-016
+        scenario_id: current-marker-visibility-remains-a-separate-observation
+        method: test
+        intent: Preserve lagging metadata without inferring current service availability.
+        observable: >-
+          The full synthetic step list retains pending statuses and post-step number 10 with authority false and
+          compatibility unjudged.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_pr785_log_continuation.py::test_lagging_steps_and_post_step_numbers_remain_unmodified

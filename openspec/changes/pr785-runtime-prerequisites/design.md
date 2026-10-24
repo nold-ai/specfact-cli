@@ -105,3 +105,35 @@ mismatch stops the observation before the logs request.
 
 Abandon the isolated branch or revert it through normal review. No installed
 runtime or host mount needs cleanup because this diagnostic creates neither.
+
+## Test-first continuation addendum on 24 October 2026, Europe/Berlin
+
+The original request description above is historical. The newly agreed command
+contract preserves the explicit no-redirect urllib opener and adds a logs-only
+loop over at most three validated storage destinations. Every response has its
+own bounded raw file. The response state separates actual status and bytes from
+transient Location and Location count. Marker visibility is a separate result.
+No workflow edit, generic redirect callback, policy client, retry, or delay is
+part of this unit.
+
+The exact destination, body, marker, metadata, and failure contracts are in the
+new requirements in `specs/pr785-runtime-prerequisites/spec.md`. Additive output
+fields are `marker` and `emitted_at_utc` in `marker-emission.json`, per-response
+`request_started_at_utc` and `body_finished_at_utc`, and the four fields under
+`log_measurement`. A fixed `failure_reason` annotates the latest safe response
+record. Received incomplete bodies retain actual status while failures before
+receipt retain null status. Early failures leave no completed summary.
+
+The new tests call the existing `_main` entry. Only HTTPSConnection is replaced
+with a recorder that returns real HTTPResponse objects parsed from wire bytes.
+The actual opener, Request, handlers, and HTTPError chain remain in use. Tests
+assert outbound headers, raw files, hashes, counts, timestamps, and summaries.
+Their first regression assertion requires the missing storage request before
+checking the new marker metadata. New helper symbols are never imported.
+Native pytest uses the existing canonical-selector plugin exactly once.
+
+A non-200 terminal body may contain an exact marker and report its byte count of
+matches. Its actual HTTP status remains non-200, so it cannot prove visibility.
+A 200 payload with zero matches remains absent, and multiple matches remain
+ambiguous. All summaries retain authority false, policy execution false, and
+compatibility unjudged. Step statuses and post-step numbers are preserved.

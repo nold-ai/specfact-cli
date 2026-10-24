@@ -66,3 +66,22 @@ is to create or align `wiki/sources/pr785-runtime-prerequisites.md`, including
 depends-on, blocks, external-deps, status, and summary, then run
 `python3 scripts/wiki_rebuild_graph.py` from the internal repository root under
 the coordinator's applicable authority.
+
+## Addendum on 24 October 2026, Europe/Berlin
+
+The paragraphs above describe the original diagnostic unit. The newly agreed
+test-first scope adds logs-only explicit storage continuation and a flushed
+runtime marker. Automatic redirects and ambient proxies remain disabled. One
+jobs API request and one logs API request may be followed by at most three
+validated HTTPS storage requests without the GitHub bearer. Each received
+response keeps its own bytes and metadata. The initial API 302 is never replaced
+by the terminal response.
+
+New offline command tests cover retained responses, credential separation,
+destination rejection, bounded failures, exact marker matching, and unchanged
+raw step metadata. The existing two workflow tests and four mapping cases remain
+unchanged. A complete local test result cannot establish current hosted log
+availability. The workflow bytes, permission scope, authority boundary, and
+closed delivery actions remain unchanged. This addendum records proposed
+behavior before baseline execution or implementation. The existing internal
+wiki follow-up remains open under coordinator authority.
