@@ -8,7 +8,7 @@ active changes should be implemented.
 
 | Bucket | Count | Location |
 |---|---:|---|
-| **Active-tree entries** | 35 | [`openspec/changes/`](changes/) |
+| **Active-tree entries** | 36 | [`openspec/changes/`](changes/) |
 | **Parking-lot entries** | 21 | [`openspec/parking-lot/`](parking-lot/) |
 | **Archived** | 120 | [`openspec/changes/archive/`](changes/archive/) |
 
@@ -114,6 +114,17 @@ planning workflows.
 |---|---|---|---|
 | `required-check-workflow-trigger-parity` | [#733](https://github.com/nold-ai/specfact-cli/issues/733) | Native required check triggers for every supported PR; preserve push filters | none; unblocks PR #732 and release PR #731 |
 | `ci-02-release-workflow-review` | [#736](https://github.com/nold-ai/specfact-cli/issues/736) | Base-owned module authentication, explicit Node runtime and supplemental filter evidence; merged in PR [#738](https://github.com/nold-ai/specfact-cli/pull/738), archival pending | required-check-workflow-trigger-parity (merged); precedes docs-17 fixture finalization |
+
+### PR785 isolated platform prerequisite observation
+
+| Change | Existing recovery | Scope | Dependency |
+|---|---|---|---|
+| `pr785-runtime-prerequisites` | [PR #785](https://github.com/nold-ai/specfact-cli/pull/785) | Manual-only read-only Actions prerequisite diagnostic on `codex/pr785-runtime-prerequisites`; no policy execution or release authority | Independent test/spec mapping acceptance, normal test-first commit, exact source/workflow readback before any separately coordinated hosted observation |
+
+This diagnostic is scoped to the existing owner-authorized recovery. It has no
+new issue or wiki write in this unit. Its auxiliary workflow must not replace
+native validation on a protected branch. Hosted service behavior remains
+unmeasured until the retained current-job responses are independently reviewed.
 
 ### Scoped documentation follow-up
 

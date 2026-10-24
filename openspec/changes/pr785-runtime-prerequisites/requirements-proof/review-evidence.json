@@ -1,0 +1,17 @@
+{
+  "schema_version": "1",
+  "decision": "accepted",
+  "reviewer_id": "Codex:/root/prerequisite_test_acceptance",
+  "reviewer_role": "independent test/spec reviewer",
+  "recorded_at": "2026-10-24T03:51:22+02:00",
+  "reference": "https://github.com/nold-ai/specfact-cli/pull/785",
+  "mapping_digest": "sha256:721dc3f5429ffda93be617d05650aa54f76fea8ae79a5687507c1a791db5a576",
+  "review_report_sha256": "46feb2348a17a48b473cf75a30e9e72431abadf46f585e09a9233709a9fe7c22",
+  "scope": "Two local workflow contracts and two pending inspections. Static mapping acceptance only; no hosted or runtime admission verdict.",
+  "supplementary_test_review": {
+    "reviewer_id": "Codex:/root/prerequisite_cc_review",
+    "decision": "accepted",
+    "report_sha256": "37aa10768f7d23385869fbd7dc5f80c715a9116d5f1fa067d599c849b70ab85d",
+    "test_sha256": "6256afb8aa1ced621c27b896b3a69fdc56e83a0711697d75d926b15ab7bbf149"
+  }
+}

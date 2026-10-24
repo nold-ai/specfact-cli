@@ -1,0 +1,55 @@
+schema_version: "2"
+requirements:
+  openspec:pr785-runtime-prerequisites:pr785-runtime-prerequisites:isolated-manual-read-only-prerequisite-workflow:
+    rationale: The disposable diagnostic must have only manual entry and bounded read access.
+    stakeholder_refs:
+      - https://github.com/nold-ai/specfact-cli/pull/785
+    touchpoints:
+      - id: auxiliary-workflow
+        kind: ci_workflow
+        locator: .github/workflows/specfact.yml
+    verification_cases:
+      - case_id: PR785-PREREQ-WORKFLOW-001
+        scenario_id: isolated-manual-read-only-prerequisite-workflow
+        method: test
+        intent: Prevent native triggers, additional jobs, privilege expansion, and an unbounded diagnostic.
+        observable: The actual workflow has input-free manual dispatch, one fixed-runner five-minute job, and only contents/actions read.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_pr785_runtime_prerequisites.py::test_prerequisite_workflow_is_manual_read_only_and_bounded
+  openspec:pr785-runtime-prerequisites:pr785-runtime-prerequisites:immutable-observation-invocation-and-durable-upload:
+    rationale: The observer must run in isolation and preserve its output under the actual run identity.
+    stakeholder_refs:
+      - https://github.com/nold-ai/specfact-cli/pull/785
+    touchpoints:
+      - id: auxiliary-workflow
+        kind: ci_workflow
+        locator: .github/workflows/specfact.yml
+    verification_cases:
+      - case_id: PR785-PREREQ-WORKFLOW-002
+        scenario_id: immutable-observation-invocation-and-durable-upload
+        method: test
+        intent: Preserve immutable action identities, the only observer command, explicit future steps, and fail-on-missing upload.
+        observable: The actual four-step workflow uses the accepted pins and isolated invocation, then always uploads only the observation directory with run/attempt/commit identity.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_pr785_runtime_prerequisites.py::test_prerequisite_workflow_runs_isolated_observer_and_preserves_output
+  openspec:pr785-runtime-prerequisites:pr785-runtime-prerequisites:bounded-current-job-evidence-has-no-authority:
+    rationale: Hosted service observations must retain their actual limits and confer no recovery authority.
+    stakeholder_refs:
+      - https://github.com/nold-ai/specfact-cli/pull/785
+    touchpoints:
+      - id: observer
+        kind: cli_command
+        locator: scripts/pr785_runtime_prerequisite.py
+    verification_cases:
+      - case_id: PR785-PREREQ-INSPECTION-003
+        scenario_id: bounded-current-job-evidence-has-no-authority
+        method: inspection
+        intent: Independently inspect fixed context, direct transport, request bounds, and the retained output contract.
+        observable: Source review confirms the specified restrictions and output fields. This pending inspection supplies no hosted response or service availability proof.
+      - case_id: PR785-PREREQ-HOSTED-004
+        scenario_id: bounded-current-job-evidence-has-no-authority
+        method: inspection
+        intent: Independently inspect authenticated one-shot current-job responses after a separately coordinated hosted run.
+        observable: Actual source/workflow/run/attempt/job/artifact identities bind the retained response bytes and raw steps. No such hosted evidence exists in this test/spec unit.
