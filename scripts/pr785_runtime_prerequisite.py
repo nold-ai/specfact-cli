@@ -1,12 +1,14 @@
 """Observe two read-only service responses. No policy/admission outcome."""
 
 import hashlib
+import http.client
 import json
 import os
 import re
 import urllib.error
 import urllib.request
 from pathlib import Path
+from typing import NamedTuple
 
 
 REPOSITORY = "nold-ai/specfact-cli"
@@ -14,12 +16,24 @@ JOB_NAME = "PR785 runtime platform prerequisites"
 LIMIT = 4 * 1024 * 1024
 
 
-class NoRedirect(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        return None
+_Record = dict[str, str | int | bool | None]
 
 
-def main():
+class _Context(NamedTuple):
+    run: str
+    attempt: str
+    revision: str
+    workflow_revision: str
+    context: dict[str, str]
+
+
+class _ObservationState(NamedTuple):
+    output: Path
+    opener: urllib.request.OpenerDirector
+    observations: list[_Record]
+
+
+def _context() -> _Context:
     run, attempt = os.environ["GITHUB_RUN_ID"], os.environ["GITHUB_RUN_ATTEMPT"]
     revision = os.environ["GITHUB_SHA"]
     workflow_revision = os.environ["GITHUB_WORKFLOW_SHA"]
@@ -39,60 +53,70 @@ def main():
         raise SystemExit(1)
     if not all(re.fullmatch(r"[0-9a-f]{40}", value) for value in (revision, workflow_revision)):
         raise SystemExit(1)
-    output = Path("platform-prerequisite-observations")
-    output.mkdir(mode=0o700, exist_ok=False)
-    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
-    observations = []
+    return _Context(run, attempt, revision, workflow_revision, context)
 
-    def observe(name, path):
-        request = urllib.request.Request(
-            "https://api.github.com/" + path,
-            headers={
-                "Authorization": "Bearer " + os.environ["GH_TOKEN"],
-                "Accept": "application/vnd.github+json",
-                "X-GitHub-Api-Version": "2022-11-28",
-                "User-Agent": "specfact-pr785-read-only-prerequisite",
-            },
-        )
-        try:
-            response = opener.open(request, timeout=30)
-        except urllib.error.HTTPError as error:
-            response = error
-        except (urllib.error.URLError, OSError, TimeoutError):
-            observations.append(
-                {
-                    "name": name,
-                    "endpoint": path,
-                    "http_status": None,
-                    "transport": "unavailable",
-                    "response_retained": False,
-                }
-            )
-            (output / "responses.json").write_text(json.dumps(observations, indent=2) + "\n")
-            raise SystemExit(1) from None
-        with response:
-            raw = response.read(LIMIT + 1)
-            if len(raw) > LIMIT:
-                raise SystemExit(1)
-            status = response.code
-            location = response.headers.get("Location")
-            record = {
+
+def _observe(state: _ObservationState, name: str, path: str) -> tuple[int, bytes]:
+    request = urllib.request.Request(
+        "https://api.github.com/" + path,
+        headers={
+            "Authorization": "Bearer " + os.environ["GH_TOKEN"],
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent": "specfact-pr785-read-only-prerequisite",
+        },
+    )
+    response: http.client.HTTPResponse | urllib.error.HTTPError
+    try:
+        response = state.opener.open(request, timeout=30)
+    except urllib.error.HTTPError as error:
+        response = error
+    except (urllib.error.URLError, OSError, TimeoutError):
+        state.observations.append(
+            {
                 "name": name,
                 "endpoint": path,
-                "http_status": status,
-                "request_id": response.headers.get("X-GitHub-Request-Id"),
-                "date": response.headers.get("Date"),
-                "bytes": len(raw),
-                "sha256": hashlib.sha256(raw).hexdigest(),
-                "redirect_present": location is not None,
-                "redirect_sha256": hashlib.sha256(location.encode()).hexdigest() if location else None,
+                "http_status": None,
+                "transport": "unavailable",
+                "response_retained": False,
             }
-        (output / (name + ".raw")).write_bytes(raw)
-        observations.append(record)
-        (output / "responses.json").write_text(json.dumps(observations, indent=2) + "\n")
-        return status, raw
+        )
+        (state.output / "responses.json").write_text(json.dumps(state.observations, indent=2) + "\n")
+        raise SystemExit(1) from None
+    with response:
+        raw = response.read(LIMIT + 1)
+        if len(raw) > LIMIT:
+            raise SystemExit(1)
+        status = response.code if isinstance(response, urllib.error.HTTPError) else response.status
+        location = response.headers.get("Location")
+        record: _Record = {
+            "name": name,
+            "endpoint": path,
+            "http_status": status,
+            "request_id": response.headers.get("X-GitHub-Request-Id"),
+            "date": response.headers.get("Date"),
+            "bytes": len(raw),
+            "sha256": hashlib.sha256(raw).hexdigest(),
+            "redirect_present": location is not None,
+            "redirect_sha256": hashlib.sha256(location.encode()).hexdigest() if location else None,
+        }
+    (state.output / (name + ".raw")).write_bytes(raw)
+    state.observations.append(record)
+    (state.output / "responses.json").write_text(json.dumps(state.observations, indent=2) + "\n")
+    return status, raw
 
-    status, raw = observe("jobs", f"repos/{REPOSITORY}/actions/runs/{run}/attempts/{attempt}/jobs?per_page=100")
+
+def _main() -> None:
+    run, attempt, revision, workflow_revision, context = _context()
+    output = Path("platform-prerequisite-observations")
+    output.mkdir(mode=0o700, exist_ok=False)
+    opener = urllib.request.OpenerDirector()
+    opener.add_handler(urllib.request.ProxyHandler({}))
+    opener.add_handler(urllib.request.HTTPSHandler())
+    opener.add_handler(urllib.request.HTTPDefaultErrorHandler())
+    opener.add_handler(urllib.request.HTTPErrorProcessor())
+    state = _ObservationState(output, opener, [])
+    status, raw = _observe(state, "jobs", f"repos/{REPOSITORY}/actions/runs/{run}/attempts/{attempt}/jobs?per_page=100")
     if status != 200:
         raise SystemExit(1)
     jobs = json.loads(raw)
@@ -110,7 +134,7 @@ def main():
     observed_job = {name: job[name] for name in expected_job}
     if observed_job != expected_job or type(job["id"]) is not int or job["id"] <= 0:
         raise SystemExit(1)
-    observe("current-job-logs", f"repos/{REPOSITORY}/actions/jobs/{job['id']}/logs")
+    _observe(state, "current-job-logs", f"repos/{REPOSITORY}/actions/jobs/{job['id']}/logs")
     (output / "observation-only.json").write_text(
         json.dumps(
             {
@@ -135,4 +159,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    _main()

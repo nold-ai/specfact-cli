@@ -15,7 +15,7 @@
 - [x] 2.2 Run the focused workflow tests, record GREEN separately from hosted claims, and preserve every existing test and case ID.
 - [x] 2.3 Inspect fixed context, direct transport, request bounds, and output fields independently. No HTTP mock result substitutes for hosted evidence.
 - [ ] 2.4 Run applicable formatting, typing, lint, YAML, contract, smart-test, independent analysis, and fresh SpecFact code-review gates through the coordinator. Resolve all findings.
-- [ ] 2.5 Review affected documentation. This maintainer-only diagnostic has no product command or navigation change. Record version/signature gate applicability without changing signed assets or application versions.
+- [x] 2.5 Review affected documentation. This maintainer-only diagnostic has no product command or navigation change. Record version/signature gate applicability without changing signed assets or application versions.
 
 ## 3. Retain honest hosted evidence
 
