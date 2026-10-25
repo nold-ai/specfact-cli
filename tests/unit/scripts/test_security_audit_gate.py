@@ -184,6 +184,90 @@ class McpExceptionScenario(NamedTuple):
     message: str
 
 
+class OtelExceptionScenario(NamedTuple):
+    version: str
+    advisory_ids: list[str]
+    today: str
+    expected: int
+    message: str
+    package: str = "opentelemetry-api"
+    skip_reason: str | None = None
+    omit_entry: bool = False
+
+
+@pytest.mark.parametrize(
+    "scenario",
+    [
+        pytest.param(OtelExceptionScenario("1.37.0", ["CVE-2026-114603"], "2026-10-22", 0, "WAIVED"), id="exact-cve"),
+        pytest.param(
+            OtelExceptionScenario("1.37.0", ["GHSA-xcq7-p3pf-p88h"], "2026-10-22", 0, "WAIVED"), id="exact-ghsa"
+        ),
+        pytest.param(OtelExceptionScenario("1.37.0", ["CVE-2026-114603"], "2026-11-04", 0, "WAIVED"), id="expiry-day"),
+        pytest.param(
+            OtelExceptionScenario("1.38.0", ["CVE-2026-114603"], "2026-10-22", 1, "FAIL:"), id="other-version"
+        ),
+        pytest.param(
+            OtelExceptionScenario("1.37.0", ["CVE-2026-114603"], "2026-10-22", 1, "FAIL:", package="other-package"),
+            id="other-package",
+        ),
+        pytest.param(
+            OtelExceptionScenario("1.37.0", ["UNRELATED-1"], "2026-10-22", 1, "FAIL:"), id="unrelated-advisory"
+        ),
+        pytest.param(
+            OtelExceptionScenario("1.37.0", ["CVE-2026-114603", "UNRELATED-1"], "2026-10-22", 1, "FAIL:"),
+            id="mixed-advisories",
+        ),
+        pytest.param(
+            OtelExceptionScenario(
+                "1.37.0", ["CVE-2026-114603"], "2026-10-22", 1, "skipped dependency", skip_reason="could not audit"
+            ),
+            id="skipped",
+        ),
+        pytest.param(
+            OtelExceptionScenario("1.37.0", ["CVE-2026-114603"], "2026-11-05", 1, "not currently valid"), id="expired"
+        ),
+        pytest.param(
+            OtelExceptionScenario("1.37.0", ["CVE-2026-114603"], "2026-10-21", 1, "not currently valid"),
+            id="future-review",
+        ),
+        pytest.param(
+            OtelExceptionScenario("1.37.0", ["CVE-2026-114603"], "2026-10-22", 1, "FAIL:", omit_entry=True),
+            id="missing-entry",
+        ),
+    ],
+)
+def test_committed_otel_exception_is_exact_and_time_bounded(
+    gate_mod: ModuleType,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+    scenario: OtelExceptionScenario,
+) -> None:
+    class AuditDate(date):
+        @classmethod
+        def today(cls) -> date:
+            return date.fromisoformat(scenario.today)
+
+    dependency: dict[str, object] = {
+        "name": scenario.package,
+        "version": scenario.version,
+        "vulns": [{"id": value} for value in scenario.advisory_ids],
+    }
+    if scenario.skip_reason is not None:
+        dependency["skip_reason"] = scenario.skip_reason
+    proc = MagicMock(stdout=json.dumps({"dependencies": [dependency]}), stderr="", returncode=1)
+    committed = Path(__file__).resolve().parents[3] / "ci/vulnerability-audit-exceptions.json"
+    register = json.loads(committed.read_text(encoding="utf-8"))
+    register["exceptions"] = [
+        entry for entry in register["exceptions"] if entry["package"] == "opentelemetry-api" and not scenario.omit_entry
+    ]
+    exceptions = tmp_path / "exceptions.json"
+    exceptions.write_text(json.dumps(register), encoding="utf-8")
+    with patch.object(gate_mod, "date", AuditDate), patch.object(gate_mod.subprocess, "run", return_value=proc):
+        assert gate_mod.main(["--exceptions", str(exceptions)]) == scenario.expected
+    captured = capsys.readouterr()
+    assert scenario.message in captured.out + captured.err
+
+
 @pytest.mark.parametrize(
     "scenario",
     [
@@ -226,6 +310,7 @@ def test_committed_mcp_exception_is_exact_and_time_bounded(
     gate_mod: ModuleType,
     capsys: pytest.CaptureFixture[str],
     scenario: McpExceptionScenario,
+    tmp_path: Path,
 ) -> None:
     class AuditDate(date):
         @classmethod
@@ -240,7 +325,11 @@ def test_committed_mcp_exception_is_exact_and_time_bounded(
     if scenario.skip_reason:
         dependency["skip_reason"] = scenario.skip_reason
     proc = MagicMock(stdout=json.dumps({"dependencies": [dependency]}), stderr="", returncode=1)
-    exceptions = Path(__file__).resolve().parents[3] / "ci/vulnerability-audit-exceptions.json"
+    committed = Path(__file__).resolve().parents[3] / "ci/vulnerability-audit-exceptions.json"
+    register = json.loads(committed.read_text(encoding="utf-8"))
+    register["exceptions"] = [entry for entry in register["exceptions"] if entry["package"] == "mcp"]
+    exceptions = tmp_path / "exceptions.json"
+    exceptions.write_text(json.dumps(register), encoding="utf-8")
     with patch.object(gate_mod, "date", AuditDate), patch.object(gate_mod.subprocess, "run", return_value=proc):
         assert gate_mod.main(["--exceptions", str(exceptions)]) == scenario.expected
     captured = capsys.readouterr()

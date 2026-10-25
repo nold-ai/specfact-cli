@@ -43,12 +43,16 @@ def test_pycparser_has_current_exact_version_review_record() -> None:
     payload = json.loads(TRUST_RECORD.read_text(encoding="utf-8"))
     records = payload["exceptions"]
     pycparser = next(record for record in records if record["package"] == "pycparser")
-    assert pycparser["version"] == "2.22"
-    assert pycparser["source_url"].startswith("https://files.pythonhosted.org/")
-    assert pycparser["artifact_sha256"] == "c3702b6d3dd8c7abc1afa565d7e63d53a1d0bd86cdc24edd75470f4de499cfcc"
+    assert pycparser["version"] == "3.12"
+    assert pycparser["source_url"] == (
+        "https://files.pythonhosted.org/packages/b6/ae/315bbeee126a769cbde43cf4908acb4b40408d8bf8bbf334dd7368d8dadf/"
+        "pycparser-3.12-py3-none-any.whl"
+    )
+    assert pycparser["artifact_sha256"] == "a076f3f489b39b43ed13563a1dafe42447445bec2e294154ec5c57fcdda4c85e"
     assert pycparser["classification"] == "source-provenance-reviewed"
-    assert pycparser["expires_on"] >= "2026-07-24"
-    assert "cryptography" in pycparser["transitive_path"]
+    assert pycparser["reviewed_on"] == "2026-10-22"
+    assert pycparser["expires_on"] == "2026-11-04"
+    assert pycparser["transitive_path"] == "specfact-cli -> cryptography -> cffi -> pycparser"
 
 
 def test_alerted_pycparser_release_is_blocked_even_with_a_review_record(tmp_path: Path) -> None:
@@ -142,14 +146,15 @@ def test_expired_exception_fails_closed(tmp_path: Path) -> None:
 def test_reviewed_artifact_must_exist_in_the_frozen_lock(tmp_path: Path) -> None:
     """A copied review record cannot approve a different frozen artifact."""
     payload = json.loads(TRUST_RECORD.read_text(encoding="utf-8"))
-    payload["exceptions"][0]["artifact_sha256"] = "0" * 64
+    reviewed = payload["exceptions"][0]
+    reviewed["artifact_sha256"] = "0" * 64
     register_path = tmp_path / "exceptions.json"
     register_path.write_text(json.dumps(payload), encoding="utf-8")
     checker = _load_checker()
 
-    errors = checker.validate_frozen_dependency_policy(register_path, today=date(2026, 7, 24))
+    errors = checker.validate_frozen_dependency_policy(register_path, today=date.fromisoformat(reviewed["reviewed_on"]))
 
-    assert errors == ["pycparser==2.22 artifact digest is absent from its frozen lock record"]
+    assert errors == [f"pycparser=={reviewed['version']} artifact digest is absent from its frozen lock record"]
 
 
 def test_review_evidence_must_bind_to_the_matching_lock_package(tmp_path: Path) -> None:
@@ -164,7 +169,7 @@ def test_review_evidence_must_bind_to_the_matching_lock_package(tmp_path: Path) 
             [
                 "[[package]]",
                 'name = "pycparser"',
-                'version = "2.22"',
+                f'version = "{reviewed["version"]}"',
                 'sdist = { url = "https://files.pythonhosted.org/other.tar.gz", hash = "sha256:' + "0" * 64 + '" }',
                 "",
                 "[[package]]",
@@ -182,11 +187,13 @@ def test_review_evidence_must_bind_to_the_matching_lock_package(tmp_path: Path) 
     )
     checker = _load_checker()
 
-    errors = checker.validate_frozen_dependency_policy(register_path, lock_path, today=date(2026, 7, 24))
+    errors = checker.validate_frozen_dependency_policy(
+        register_path, lock_path, today=date.fromisoformat(reviewed["reviewed_on"])
+    )
 
     assert errors == [
-        "pycparser==2.22 source artifact is absent from its frozen lock record",
-        "pycparser==2.22 artifact digest is absent from its frozen lock record",
+        f"pycparser=={reviewed['version']} source artifact is absent from its frozen lock record",
+        f"pycparser=={reviewed['version']} artifact digest is absent from its frozen lock record",
     ]
 
 
