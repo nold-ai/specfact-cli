@@ -56,3 +56,28 @@ expired pycparser 2.22 review. No renewal or check waiver is claimed.
 
 Passing-after, full quality gates, genuine accepted native evidence, independent
 final review, CI-only Git signatures and actual forge readiness remain pending.
+
+## Test-prefix quality correction
+
+On 26 October 2026 Europe/Berlin, the normal Code Review identified duplicated
+trust fixtures and unknown member types inherited by the edited audit tests.
+The correction groups the five unchanged hostile fixture oracles and adds
+fixture/function annotations. Mapping YAML indentation changes parsed no data.
+A fresh independent review accepted these exact changes and their local results.
+
+The distinct `local-red-quality` run again produced 15 intended assertion
+failures, zero errors and zero skips. Its receipt binds all 13 input hashes.
+The separate `local-controls-quality` run passed 20 cases, including all nine
+original MCP scenarios, the grouped hostile fixtures and ordinary clone paths.
+These reports remain private local evidence and replace no native identity.
+
+The actual normal SpecFact Code Review run
+`review-f821c36e-2ff9-43f9-8f4c-1a403be11ec1` reports PASS with zero findings.
+Direct yamllint of the new YAML files passes. The repository-wide YAML hook
+prints inherited findings and returns success incorrectly; full YAML cleanliness
+is not claimed. That wrapper defect remains tracked separately in
+[issue #781](https://github.com/nold-ai/specfact-cli/issues/781).
+
+The local test prefix has passed normal hooks. Its unsigned source snapshot is
+not a published branch or accepted commit signature. A bounded create-only CI
+signer must produce and verify the delivered tree with dev as its sole parent.

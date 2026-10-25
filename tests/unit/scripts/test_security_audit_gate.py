@@ -13,7 +13,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 
-def _load_gate_mod():
+def _load_gate_mod() -> ModuleType:
     root = Path(__file__).resolve().parents[3]
     path = root / "scripts" / "security_audit_gate.py"
     assert path.is_file(), path
@@ -25,17 +25,17 @@ def _load_gate_mod():
 
 
 @pytest.fixture
-def gate_mod():
+def gate_mod() -> ModuleType:
     return _load_gate_mod()
 
 
-def test_cvss_for_vuln_reads_numeric_fields(gate_mod) -> None:
+def test_cvss_for_vuln_reads_numeric_fields(gate_mod: ModuleType) -> None:
     """Nested CVSS-like keys should contribute to the max score."""
     vuln = {"id": "TEST-1", "severity": {"score": 8.2}}
     assert gate_mod._cvss_for_vuln(vuln) == pytest.approx(8.2)
 
 
-def test_main_passes_when_no_vulnerabilities(gate_mod, capsys) -> None:
+def test_main_passes_when_no_vulnerabilities(gate_mod: ModuleType, capsys: pytest.CaptureFixture[str]) -> None:
     payload = {"dependencies": [{"name": "requests", "version": "2.0.0", "vulns": []}]}
     proc = MagicMock(stdout=json.dumps(payload), stderr="", returncode=0)
     with patch.object(gate_mod.subprocess, "run", return_value=proc):
@@ -43,7 +43,7 @@ def test_main_passes_when_no_vulnerabilities(gate_mod, capsys) -> None:
     assert "passed" in capsys.readouterr().out.lower()
 
 
-def test_main_warns_when_cvss_below_threshold(gate_mod, capsys) -> None:
+def test_main_warns_when_cvss_below_threshold(gate_mod: ModuleType, capsys: pytest.CaptureFixture[str]) -> None:
     payload = {
         "dependencies": [
             {
@@ -60,7 +60,7 @@ def test_main_warns_when_cvss_below_threshold(gate_mod, capsys) -> None:
     assert "ACTION REQUIRED" in out
 
 
-def test_main_fails_when_cvss_at_or_above_threshold(gate_mod, capsys) -> None:
+def test_main_fails_when_cvss_at_or_above_threshold(gate_mod: ModuleType, capsys: pytest.CaptureFixture[str]) -> None:
     payload = {
         "dependencies": [
             {
@@ -76,13 +76,15 @@ def test_main_fails_when_cvss_at_or_above_threshold(gate_mod, capsys) -> None:
     assert "ACTION REQUIRED" in capsys.readouterr().out
 
 
-def test_main_fail_closed_on_empty_stdout(gate_mod) -> None:
+def test_main_fail_closed_on_empty_stdout(gate_mod: ModuleType) -> None:
     proc = MagicMock(stdout="", stderr="pip-audit failed\n", returncode=2)
     with patch.object(gate_mod.subprocess, "run", return_value=proc):
         assert gate_mod.main() == 1
 
 
-def test_main_fails_when_strict_audit_skips_a_dependency(gate_mod, capsys) -> None:
+def test_main_fails_when_strict_audit_skips_a_dependency(
+    gate_mod: ModuleType, capsys: pytest.CaptureFixture[str]
+) -> None:
     """A strict audit cannot report success when any dependency was skipped."""
     payload = {"dependencies": [{"name": "opaque", "skip_reason": "could not audit"}]}
     proc = MagicMock(stdout=json.dumps(payload), stderr="", returncode=1)
@@ -91,7 +93,9 @@ def test_main_fails_when_strict_audit_skips_a_dependency(gate_mod, capsys) -> No
     assert "skipped dependency" in capsys.readouterr().err.lower()
 
 
-def test_main_fails_when_strict_audit_returns_an_unexplained_error(gate_mod, capsys) -> None:
+def test_main_fails_when_strict_audit_returns_an_unexplained_error(
+    gate_mod: ModuleType, capsys: pytest.CaptureFixture[str]
+) -> None:
     """A nonzero strict-audit status without advisories is an audit failure."""
     proc = MagicMock(stdout=json.dumps({"dependencies": []}), stderr="resolver failed", returncode=1)
     with patch.object(gate_mod.subprocess, "run", return_value=proc):
@@ -99,12 +103,12 @@ def test_main_fails_when_strict_audit_returns_an_unexplained_error(gate_mod, cap
     assert "strict audit failed" in capsys.readouterr().err.lower()
 
 
-def test_main_fail_closed_when_pip_audit_unavailable(gate_mod) -> None:
+def test_main_fail_closed_when_pip_audit_unavailable(gate_mod: ModuleType) -> None:
     with patch.object(gate_mod.subprocess, "run", side_effect=FileNotFoundError("pip-audit not found")):
         assert gate_mod.main() == 1
 
 
-def test_dependencies_from_pip_audit_json_accepts_wrapped_and_bare_list(gate_mod) -> None:
+def test_dependencies_from_pip_audit_json_accepts_wrapped_and_bare_list(gate_mod: ModuleType) -> None:
     wrapped = {"dependencies": [{"name": "a", "version": "1", "vulns": []}], "fixes": []}
     assert gate_mod._dependencies_from_pip_audit_json(wrapped) == wrapped["dependencies"]
     bare = [{"name": "b", "version": "2", "vulns": []}]
@@ -113,7 +117,7 @@ def test_dependencies_from_pip_audit_json_accepts_wrapped_and_bare_list(gate_mod
     assert gate_mod._dependencies_from_pip_audit_json({"dependencies": "nope"}) is None
 
 
-def test_main_passes_with_top_level_list_json(gate_mod, capsys) -> None:
+def test_main_passes_with_top_level_list_json(gate_mod: ModuleType, capsys: pytest.CaptureFixture[str]) -> None:
     payload = [{"name": "requests", "version": "2.0.0", "vulns": []}]
     proc = MagicMock(stdout=json.dumps(payload), stderr="", returncode=0)
     with patch.object(gate_mod.subprocess, "run", return_value=proc):
@@ -121,7 +125,7 @@ def test_main_passes_with_top_level_list_json(gate_mod, capsys) -> None:
     assert "passed" in capsys.readouterr().out.lower()
 
 
-def test_main_audits_the_frozen_requirements_file_in_strict_mode(gate_mod) -> None:
+def test_main_audits_the_frozen_requirements_file_in_strict_mode(gate_mod: ModuleType) -> None:
     payload = {"dependencies": [{"name": "requests", "version": "2.0.0", "vulns": []}]}
     proc = MagicMock(stdout=json.dumps(payload), stderr="", returncode=0)
     with patch.object(gate_mod.subprocess, "run", return_value=proc) as run_mock:
@@ -134,12 +138,14 @@ def test_main_audits_the_frozen_requirements_file_in_strict_mode(gate_mod) -> No
     assert "--skip-editable" not in cmd
 
 
-def test_main_rejects_an_unexpected_argument(gate_mod) -> None:
+def test_main_rejects_an_unexpected_argument(gate_mod: ModuleType) -> None:
     with pytest.raises(SystemExit, match="2"):
         gate_mod.main(["--unknown"])
 
 
-def test_main_allows_only_a_matching_unexpired_reviewed_exception(gate_mod, tmp_path: Path, capsys) -> None:
+def test_main_allows_only_a_matching_unexpired_reviewed_exception(
+    gate_mod: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     """A non-upgradable transitive advisory needs an exact, short-lived review record."""
     payload = {
         "dependencies": [
