@@ -1,0 +1,169 @@
+{
+  "repository_id": 1085706003,
+  "repository_full_name": "nold-ai/specfact-cli",
+  "actor": {
+    "login": "djm81",
+    "id": 39115308
+  },
+  "triggering_actor": {
+    "login": "djm81",
+    "id": 39115308
+  },
+  "dev": "9b5ad1e78430cc0b061cb16de42f73de96f4f312",
+  "main": "5262efb0881e4fac7697d629b0530250342bc656",
+  "source_commit": "3752d92a9c895eef726ec336c3ae212f06e2dc52",
+  "source_tree": "baeb88acf0d2a5015810ad12dbfccfa7fdf9a21e",
+  "delta": [
+    {
+      "path": "openspec/CHANGE_ORDER.md",
+      "before": [
+        "100644",
+        "e69b71c83755504d62cca8f1f8e055b653c8c58c"
+      ],
+      "after": [
+        "100644",
+        "5e62f346cac925dea34fbd63eb906e99c44d927b"
+      ]
+    },
+    {
+      "path": "openspec/changes/security-dependencies-0-55-11-dev/.openspec.yaml",
+      "before": null,
+      "after": [
+        "100644",
+        "7ccf7c369511c5b08e33676571f5f1b1d310f7f9"
+      ]
+    },
+    {
+      "path": "openspec/changes/security-dependencies-0-55-11-dev/CHANGE_VALIDATION.md",
+      "before": null,
+      "after": [
+        "100644",
+        "58dd459869fa34fabb0190f74ed2680ed0bfe7f2"
+      ]
+    },
+    {
+      "path": "openspec/changes/security-dependencies-0-55-11-dev/TDD_EVIDENCE.md",
+      "before": null,
+      "after": [
+        "100644",
+        "1916a0ee6bd00e12e6990e2d4aa31e91898874ad"
+      ]
+    },
+    {
+      "path": "openspec/changes/security-dependencies-0-55-11-dev/design.md",
+      "before": null,
+      "after": [
+        "100644",
+        "ed2e394e67a16b328cc5ffe59b59f7260962302b"
+      ]
+    },
+    {
+      "path": "openspec/changes/security-dependencies-0-55-11-dev/proposal.md",
+      "before": null,
+      "after": [
+        "100644",
+        "01d578d2122e6c04271c78e230184356d734ca0a"
+      ]
+    },
+    {
+      "path": "openspec/changes/security-dependencies-0-55-11-dev/requirements-evidence.yaml",
+      "before": null,
+      "after": [
+        "100644",
+        "a9e1ddd30a3a5b5452f49920b7a7fc4cd9741b0d"
+      ]
+    },
+    {
+      "path": "openspec/changes/security-dependencies-0-55-11-dev/requirements-proof/local-red-behavior-20261026-receipt.json",
+      "before": null,
+      "after": [
+        "100644",
+        "62f8319d4c9d270c3e4091a4bb849478faff5fd3"
+      ]
+    },
+    {
+      "path": "openspec/changes/security-dependencies-0-55-11-dev/requirements-proof/local-red-behavior-20261026.xml.gz",
+      "before": null,
+      "after": [
+        "100644",
+        "0385155197f7e797f7936fcaa7dcf311fea5d9d1"
+      ]
+    },
+    {
+      "path": "openspec/changes/security-dependencies-0-55-11-dev/requirements-proof/review-evidence.json",
+      "before": null,
+      "after": [
+        "100644",
+        "9e971b54045123d70579209285c2f36c0126e87e"
+      ]
+    },
+    {
+      "path": "openspec/changes/security-dependencies-0-55-11-dev/specs/dev-security-dependencies/spec.md",
+      "before": null,
+      "after": [
+        "100644",
+        "cd8db9ff0009ef5b9581bc6a055cc8b30bb5c4fd"
+      ]
+    },
+    {
+      "path": "openspec/changes/security-dependencies-0-55-11-dev/tasks.md",
+      "before": null,
+      "after": [
+        "100644",
+        "fc04a961dfdfbab13da9cb2f894df06eaab0d36a"
+      ]
+    },
+    {
+      "path": "tests/unit/scripts/test_dependency_compatibility_workflow.py",
+      "before": null,
+      "after": [
+        "100644",
+        "09875b3dd14a19bca7ec3bf1ddeaa10818a53e10"
+      ]
+    },
+    {
+      "path": "tests/unit/scripts/test_dependency_trust_review.py",
+      "before": [
+        "100644",
+        "959879755e81673498c498a3cf4c8fcdc655e86f"
+      ],
+      "after": [
+        "100644",
+        "76e77e783b89e8e4d36b5e87b1fa5e5d3a6adecc"
+      ]
+    },
+    {
+      "path": "tests/unit/scripts/test_security_audit_gate.py",
+      "before": [
+        "100644",
+        "19c08cdb435354d415d1b0ee28623c442d658426"
+      ],
+      "after": [
+        "100644",
+        "092f0fb34dccced1764cf54ad2bfb1e53b8d39d8"
+      ]
+    },
+    {
+      "path": "tests/unit/security/test_frozen_gitpython_compatibility.py",
+      "before": [
+        "100644",
+        "19635578a96cdcc5cbd1c0d6f4e709b22ca185c7"
+      ],
+      "after": [
+        "100644",
+        "8be7f32bb5d976ddfb5440b10726e3184cd414ce"
+      ]
+    },
+    {
+      "path": "tests/unit/security/test_release_dependency_selection.py",
+      "before": null,
+      "after": [
+        "100644",
+        "86745a06259f2f746c2a1396401c8888e05365ef"
+      ]
+    }
+  ],
+  "auxiliary_ref": "refs/heads/codex/security-dev-ci-signer",
+  "destination": "refs/heads/codex/security-dependencies-0-55-11-dev",
+  "message_stem": "test(security): scope dev 0.55.11 regressions"
+}

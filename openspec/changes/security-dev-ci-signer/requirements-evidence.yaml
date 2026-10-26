@@ -1,0 +1,93 @@
+schema_version: '2'
+requirements:
+  openspec:security-dev-ci-signer:dev-security-ci-signer:frozen-source-and-live-authority:
+    rationale: Specify the bounded create-only signer contract before runtime implementation.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#780
+    touchpoints:
+      - id: signer-contract
+        kind: test
+        locator: tests/unit/scripts/test_dev_security_ci_signer.py
+    verification_cases:
+      - case_id: SIGNER-EXECUTOR
+        scenario_id: frozen-source-and-live-authority
+        method: test
+        intent: Reject an expected executor mismatch with zero writes.
+        observable: Reject an expected executor mismatch with zero writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_dev_security_ci_signer.py::test_dispatch_executor_is_independent_of_agreeing_live_context
+      - case_id: SIGNER-COMPLETE-TREE
+        scenario_id: frozen-source-and-live-authority
+        method: test
+        intent: Reuse T with unchanged production and executable leaves and directory records.
+        observable: Reuse T with unchanged production and executable leaves and directory records.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_dev_security_ci_signer.py::test_whole_tree_preserves_unchanged_production_executables_and_directories
+      - case_id: SIGNER-BASE-COMPLETE
+        scenario_id: frozen-source-and-live-authority
+        method: test
+        intent: Reject an incomplete base inventory with zero writes.
+        observable: Reject an incomplete base inventory with zero writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_dev_security_ci_signer.py::test_each_inventory_requires_unique_paths_and_explicit_completeness[truncated-base]
+  openspec:security-dev-ci-signer:dev-security-ci-signer:two-create-only-writes:
+    rationale: Specify the bounded create-only signer contract before runtime implementation.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#780
+    touchpoints:
+      - id: signer-contract
+        kind: test
+        locator: tests/unit/scripts/test_dev_security_ci_signer.py
+    verification_cases:
+      - case_id: SIGNER-TWO-WRITES
+        scenario_id: two-create-only-writes
+        method: test
+        intent: Create only the exact commit and ref with guards and final readback.
+        observable: Create only the exact commit and ref with guards and final readback.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_dev_security_ci_signer.py::test_exact_two_writes_reuse_tree_and_sole_dev_parent
+      - case_id: SIGNER-READBACK
+        scenario_id: two-create-only-writes
+        method: test
+        intent: Reject a changed nonempty readback signature while retaining the commit SHA.
+        observable: Reject a changed nonempty readback signature while retaining the commit SHA.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_dev_security_ci_signer.py::test_post_and_readback_verification_must_agree[signature-GET]
+      - case_id: SIGNER-INTENT
+        scenario_id: two-create-only-writes
+        method: test
+        intent: Reject a self-consistent signed commit with an unauthorized tree.
+        observable: Reject a self-consistent signed commit with an unauthorized tree.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_dev_security_ci_signer.py::test_self_consistent_signed_commit_must_match_intent[tree]
+  openspec:security-dev-ci-signer:dev-security-ci-signer:truthful-partial-outcomes:
+    rationale: Specify the bounded create-only signer contract before runtime implementation.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#780
+    touchpoints:
+      - id: signer-contract
+        kind: test
+        locator: tests/unit/scripts/test_dev_security_ci_signer.py
+    verification_cases:
+      - case_id: SIGNER-UNCERTAIN
+        scenario_id: truthful-partial-outcomes
+        method: test
+        intent: Retain known commit SHA after an ambiguous ref write without retry.
+        observable: Retain known commit SHA after an ambiguous ref write without retry.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_dev_security_ci_signer.py::test_lost_post_response_never_retries_or_becomes_success[refs-uncertain_ref]
+      - case_id: SIGNER-FINAL
+        scenario_id: truthful-partial-outcomes
+        method: test
+        intent: Report created_ref_with_drift after final attribution failure without further writes.
+        observable: Report created_ref_with_drift after final attribution failure without further writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_dev_security_ci_signer.py::test_final_verification_failure_retains_creation_effects[attribution]

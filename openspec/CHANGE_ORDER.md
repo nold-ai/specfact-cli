@@ -453,3 +453,10 @@ Issue #760 / `fix-planning-review-proof-context` follows merged #767. Real #743 
 rejects planning receipts at the immutable finalized Code Review boundary. Preserve full protected-dev
 review scope and supply independently authenticated genuine root final proof. Protected integration,
 fresh root RED/GREEN and sequential planning-child validation remain prerequisites; no gate is weakened.
+
+## Auxiliary dev security signer
+
+`security-dev-ci-signer` is an auxiliary executor for the reviewed test-only
+`security-dependencies-0-55-11-dev` snapshot. It creates an absent dev-target
+branch with a CI service signature. Its executor files never enter the delivered
+source tree. Native bootstrap and production delivery remain separately gated.
