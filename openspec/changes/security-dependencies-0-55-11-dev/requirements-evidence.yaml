@@ -1,0 +1,200 @@
+schema_version: '2'
+requirements:
+  openspec:security-dependencies-0-55-11-dev:dev-security-dependencies:select-reviewed-official-patch-versions:
+    rationale: Deliver only the reviewed missing official updates on current dev.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#780
+    touchpoints:
+      - id: input-1
+        kind: config_file
+        locator: uv.lock
+      - id: input-2
+        kind: config_file
+        locator: requirements/ci/locked.txt
+      - id: proof-test
+        kind: test
+        locator: tests/unit/security/test_release_dependency_selection.py
+    verification_cases:
+      - case_id: DEV-PIN-GITPYTHON
+        scenario_id: select-reviewed-official-patch-versions
+        method: test
+        intent: Frozen lock and hash export select official gitpython 3.2.1.
+        observable: Frozen lock and hash export select official gitpython 3.2.1.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[gitpython-3.2.1]
+      - case_id: DEV-PIN-PACKAGING
+        scenario_id: select-reviewed-official-patch-versions
+        method: test
+        intent: Frozen lock and hash export select official packaging 26.3.
+        observable: Frozen lock and hash export select official packaging 26.3.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[packaging-26.3]
+      - case_id: DEV-PIN-PYCPARSER
+        scenario_id: select-reviewed-official-patch-versions
+        method: test
+        intent: Frozen lock and hash export select official pycparser 3.12.
+        observable: Frozen lock and hash export select official pycparser 3.12.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[pycparser-3.12]
+      - case_id: DEV-PIN-PYTHON-DISCOVERY
+        scenario_id: select-reviewed-official-patch-versions
+        method: test
+        intent: Frozen lock and hash export select official python-discovery 1.6.1.
+        observable: Frozen lock and hash export select official python-discovery 1.6.1.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[python-discovery-1.6.1]
+      - case_id: DEV-PIN-VIRTUALENV
+        scenario_id: select-reviewed-official-patch-versions
+        method: test
+        intent: Frozen lock and hash export select official virtualenv 21.14.12.
+        observable: Frozen lock and hash export select official virtualenv 21.14.12.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[virtualenv-21.14.12]
+  openspec:security-dependencies-0-55-11-dev:dev-security-dependencies:declare-the-corrected-public-dependency-floors:
+    rationale: Keep both distributed declarations above the corrected security floors.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#780
+    touchpoints:
+      - id: input-1
+        kind: config_file
+        locator: pyproject.toml
+      - id: input-2
+        kind: config_file
+        locator: setup.py
+      - id: proof-test
+        kind: test
+        locator: tests/unit/security/test_release_dependency_selection.py
+    verification_cases:
+      - case_id: DEV-FLOOR-GITPYTHON
+        scenario_id: declare-the-corrected-public-dependency-floors
+        method: test
+        intent: Both public declarations require gitpython>=3.2.1.
+        observable: Both public declarations require gitpython>=3.2.1.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_dependency_selection.py::test_public_declarations_require_reviewed_security_floor[gitpython-floor]
+      - case_id: DEV-FLOOR-PYCPARSER
+        scenario_id: declare-the-corrected-public-dependency-floors
+        method: test
+        intent: Both public declarations require pycparser>=3.12,!=3.0.*.
+        observable: Both public declarations require pycparser>=3.12,!=3.0.*.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_dependency_selection.py::test_public_declarations_require_reviewed_security_floor[pycparser-floor]
+  ? openspec:security-dependencies-0-55-11-dev:dev-security-dependencies:replace-expired-parser-provenance-with-exact-reviewed-bytes
+  : rationale: Replace the expired artifact without extending its authority.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#780
+    touchpoints:
+      - id: input-1
+        kind: config_file
+        locator: ci/dependency-trust-exceptions.json
+      - id: proof-test
+        kind: test
+        locator: tests/unit/scripts/test_dependency_trust_review.py
+    verification_cases:
+      - case_id: DEV-PARSER-EXACT-REVIEW
+        scenario_id: replace-expired-parser-provenance-with-exact-reviewed-bytes
+        method: test
+        intent: The record binds only the reviewed official 3.12 artifact and exact original review/expiry window.
+        observable: The record binds only the reviewed official 3.12 artifact and exact original review/expiry window.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_dependency_trust_review.py::test_pycparser_has_current_exact_version_review_record
+  openspec:security-dependencies-0-55-11-dev:dev-security-dependencies:bound-the-separately-approved-opentelemetry-exception:
+    rationale: Use the existing strict engine with the separately approved exact record.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#780
+    touchpoints:
+      - id: input-1
+        kind: config_file
+        locator: ci/vulnerability-audit-exceptions.json
+      - id: proof-test
+        kind: test
+        locator: tests/unit/scripts/test_security_audit_gate.py
+    verification_cases:
+      - case_id: DEV-OTEL-EXACT-CVE
+        scenario_id: bound-the-separately-approved-opentelemetry-exception
+        method: test
+        intent: The exact reviewed advisory is visibly admitted only within the approved window.
+        observable: The exact reviewed advisory is visibly admitted only within the approved window.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_otel_exception_is_exact_and_time_bounded[exact-cve]
+      - case_id: DEV-OTEL-EXACT-GHSA
+        scenario_id: bound-the-separately-approved-opentelemetry-exception
+        method: test
+        intent: The exact reviewed advisory is visibly admitted only within the approved window.
+        observable: The exact reviewed advisory is visibly admitted only within the approved window.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_otel_exception_is_exact_and_time_bounded[exact-ghsa]
+      - case_id: DEV-OTEL-EXPIRY-DAY
+        scenario_id: bound-the-separately-approved-opentelemetry-exception
+        method: test
+        intent: The exact reviewed advisory is visibly admitted only within the approved window.
+        observable: The exact reviewed advisory is visibly admitted only within the approved window.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_security_audit_gate.py::test_committed_otel_exception_is_exact_and_time_bounded[expiry-day]
+  openspec:security-dependencies-0-55-11-dev:dev-security-dependencies:reject-submodule-creation-inside-git-metadata:
+    rationale: Observe the actual frozen GitPython API before clone or metadata writes.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#780
+    touchpoints:
+      - id: input-1
+        kind: config_file
+        locator: requirements/ci/locked.txt
+      - id: proof-test
+        kind: test
+        locator: tests/unit/security/test_frozen_gitpython_compatibility.py
+    verification_cases:
+      - case_id: DEV-GIT-CREATE-GIT-METADATA
+        scenario_id: reject-submodule-creation-inside-git-metadata
+        method: test
+        intent: Metadata checkout is rejected with no clone, hook change or submodule metadata.
+        observable: Metadata checkout is rejected with no clone, hook change or submodule metadata.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_frozen_gitpython_compatibility.py::test_submodule_creation_validates_checkout_before_clone[git-metadata]
+      - case_id: DEV-GIT-CREATE-GIT-SHORT-NAME
+        scenario_id: reject-submodule-creation-inside-git-metadata
+        method: test
+        intent: Metadata checkout is rejected with no clone, hook change or submodule metadata.
+        observable: Metadata checkout is rejected with no clone, hook change or submodule metadata.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_frozen_gitpython_compatibility.py::test_submodule_creation_validates_checkout_before_clone[git-short-name]
+      - case_id: DEV-GIT-CREATE-ABSOLUTE-METADATA
+        scenario_id: reject-submodule-creation-inside-git-metadata
+        method: test
+        intent: Metadata checkout is rejected with no clone, hook change or submodule metadata.
+        observable: Metadata checkout is rejected with no clone, hook change or submodule metadata.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_frozen_gitpython_compatibility.py::test_submodule_creation_validates_checkout_before_clone[absolute-metadata]
+  openspec:security-dependencies-0-55-11-dev:dev-security-dependencies:keep-frozen-assertions-out-of-advisory-resolver-lanes:
+    rationale: Keep scheduled moving-resolution checks distinct from blocking frozen delivery.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#780
+    touchpoints:
+      - id: input-1
+        kind: config_file
+        locator: .github/workflows/pr-orchestrator.yml
+      - id: proof-test
+        kind: test
+        locator: tests/unit/scripts/test_dependency_compatibility_workflow.py
+    verification_cases:
+      - case_id: DEV-ADVISORY-SELECTION
+        scenario_id: keep-frozen-assertions-out-of-advisory-resolver-lanes
+        method: test
+        intent: Collection retains all ordinary cases and excludes only the reviewed frozen selectors.
+        observable: Collection retains all ordinary cases and excludes only the reviewed frozen selectors.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_dependency_compatibility_workflow.py::test_resolver_selection_excludes_only_frozen_release_cases
