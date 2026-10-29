@@ -13,5 +13,9 @@
 - [x] Implement only after contract review and actual failing evidence.
 - [ ] Pass focused tests and required normal repository checks/reviews.
 - [ ] Independently review remote executor and frozen intent bytes.
-- [ ] Perform one real CI invocation and independently verify live and raw fetched output.
+- [x] Retain historical completed/consumed run 40248154362 and its original evidence.
+- [x] Specify the fresh reviewed-parent/19-path/PR786 guard adaptation within this change.
+- [x] Record 11 genuine behavioral before failures and 186 mocked after passes.
+- [ ] Bind final normally checked source SHA/tree/full delta, new intent digest and immutable executor.
+- [ ] Obtain fresh execution authority; independently verify any new live and raw fetched output.
 - [ ] Preserve blocked native status; no merge/publication/readiness claim.

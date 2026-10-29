@@ -33,6 +33,14 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_dev_security_ci_signer.py::test_each_inventory_requires_unique_paths_and_explicit_completeness[truncated-base]
+      - case_id: SIGNER-PR-DRAFT
+        scenario_id: frozen-source-and-live-authority
+        method: test
+        intent: Refuse a draft PR786 before any write.
+        observable: Refused receipt and zero writes.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_dev_security_ci_signer.py::test_refresh_refuses_pr_drift_before_writes[draft-True]
   openspec:security-dev-ci-signer:dev-security-ci-signer:two-create-only-writes:
     rationale: Specify the bounded create-only signer contract before runtime implementation.
     stakeholder_refs:
@@ -49,7 +57,7 @@ requirements:
         observable: Create only the exact commit and ref with guards and final readback.
         selector:
           runner: pytest
-          node_id: tests/unit/scripts/test_dev_security_ci_signer.py::test_exact_two_writes_reuse_tree_and_sole_dev_parent
+          node_id: tests/unit/scripts/test_dev_security_ci_signer.py::test_exact_two_writes_reuse_tree_and_sole_reviewed_parent
       - case_id: SIGNER-READBACK
         scenario_id: two-create-only-writes
         method: test
@@ -66,6 +74,14 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_dev_security_ci_signer.py::test_self_consistent_signed_commit_must_match_intent[tree]
+      - case_id: SIGNER-REVIEWED-PARENT
+        scenario_id: two-create-only-writes
+        method: test
+        intent: Reject a self-consistent signature with the old dev parent.
+        observable: Known commit retained as object_only without a ref write.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_dev_security_ci_signer.py::test_refresh_rejects_old_dev_parent_even_with_consistent_signature
   openspec:security-dev-ci-signer:dev-security-ci-signer:truthful-partial-outcomes:
     rationale: Specify the bounded create-only signer contract before runtime implementation.
     stakeholder_refs:

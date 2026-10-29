@@ -16,11 +16,12 @@ from scripts import dev_security_ci_signer as signer
 
 
 REPO = "/repos/nold-ai/specfact-cli"
+PARENT = "4ae6175a4d337296d0347e73b66c9da1f0e43f7f"
 DEV = "9b5ad1e78430cc0b061cb16de42f73de96f4f312"
 MAIN, SOURCE, TREE, BASE_TREE, EXECUTOR, CREATED = (letter * 40 for letter in "abcdef")
 OLD, NEW = "1" * 40, "2" * 40
-DEST = "refs/heads/codex/security-dependencies-0-55-11-dev"
-AUX = "refs/heads/codex/security-dev-ci-signer"
+DEST = "refs/heads/codex/security-dev-refreshed-test-prefix-20261029"
+AUX = "refs/heads/codex/security-dev-ci-test-refresh-20261029"
 PATH = "openspec/changes/security-dependencies-0-55-11-dev/tasks.md"
 AUTHOR = {"name": "github-actions[bot]", "email": "41898282+github-actions[bot]@users.noreply.github.com"}
 COMMITTER = {"name": "GitHub", "email": "noreply@github.com"}
@@ -57,12 +58,24 @@ class GitHub:
         }
         self.records: dict[str, dict[str, Any]] = {
             REPO: {"id": 123, "full_name": "nold-ai/specfact-cli"},
+            f"{REPO}/pulls/786": {
+                "number": 786,
+                "state": "open",
+                "draft": False,
+                "auto_merge": None,
+                "head": {
+                    "sha": PARENT,
+                    "ref": "codex/security-dependencies-0-55-11-dev",
+                    "repo": {"id": 123, "full_name": "nold-ai/specfact-cli"},
+                },
+                "base": {"sha": DEV, "ref": "dev", "repo": {"id": 123, "full_name": "nold-ai/specfact-cli"}},
+            },
             f"{REPO}/actions/runs/789": self.run,
             f"{REPO}/actions/workflows/204352514/runs?event=workflow_dispatch&per_page=100": {
                 "total_count": 1,
                 "workflow_runs": [self.run],
             },
-            f"{REPO}/git/commits/{SOURCE}": {"sha": SOURCE, "tree": {"sha": TREE}},
+            f"{REPO}/git/commits/{SOURCE}": {"sha": SOURCE, "tree": {"sha": TREE}, "parents": [{"sha": PARENT}]},
             f"{REPO}/git/commits/{DEV}": {"sha": DEV, "tree": {"sha": BASE_TREE}},
             f"{REPO}/git/trees/{BASE_TREE}?recursive=1": self.tree(BASE_TREE, OLD),
             f"{REPO}/git/trees/{TREE}?recursive=1": self.tree(TREE, NEW),
@@ -204,13 +217,13 @@ def case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Case:
     return Case(api, publish)
 
 
-def test_exact_two_writes_reuse_tree_and_sole_dev_parent(case: Case) -> None:
+def test_exact_two_writes_reuse_tree_and_sole_reviewed_parent(case: Case) -> None:
     api, publish = case.api, case.publish
     receipt = publish()
     digest = hashlib.sha256(json.dumps(api.intent).encode()).hexdigest()
     message = f"Dev security reviewed snapshot\n\nIntent: {digest}\nExecutor: {EXECUTOR}\nRun: 789\nAttempt: 1"
     assert api.writes == [
-        ("POST", f"{REPO}/git/commits", {"tree": TREE, "parents": [DEV], "message": message}),
+        ("POST", f"{REPO}/git/commits", {"tree": TREE, "parents": [PARENT], "message": message}),
         ("POST", f"{REPO}/git/refs", {"ref": DEST, "sha": CREATED}),
     ]
     _assert_publication_trace(api)
@@ -230,6 +243,7 @@ def _assert_publication_trace(api: GitHub) -> None:
 def _assert_live_guards_in_each_segment(api: GitHub, commit_post: int, ref_post: int) -> None:
     guards = [
         REPO,
+        f"{REPO}/pulls/786",
         f"{REPO}/actions/runs/789",
         f"{REPO}/actions/workflows/204352514/runs?event=workflow_dispatch&per_page=100",
         *(api.ref_path(ref) for ref in ("refs/heads/dev", "refs/heads/main", AUX, DEST)),
@@ -765,7 +779,7 @@ def test_self_consistent_signed_commit_must_match_intent(case: Case, field: str)
             payload = payload.replace(f"tree {TREE}\n", f"tree {MAIN}\n", 1)
         elif field == "parent":
             record["parents"] = [{"sha": MAIN}]
-            payload = payload.replace(f"parent {DEV}\n", f"parent {MAIN}\n", 1)
+            payload = payload.replace(f"parent {PARENT}\n", f"parent {MAIN}\n", 1)
         else:
             record["message"] += "unauthorized"
             payload += "unauthorized"
@@ -796,7 +810,7 @@ def test_whole_tree_preserves_unchanged_production_executables_and_directories(c
     receipt = case.publish()
     assert receipt.status == "published"
     assert api.created is not None
-    assert api.writes[0][2] == {"tree": TREE, "parents": [DEV], "message": api.created["message"]}
+    assert api.writes[0][2] == {"tree": TREE, "parents": [PARENT], "message": api.created["message"]}
     assert len(api.writes) == 2
 
 
@@ -942,3 +956,107 @@ def test_http_protocol_cli_writes_the_preserved_partial_receipt(
     if endpoint == "refs":
         assert receipt["commit_sha"] == CREATED
         assert api.destination == CREATED
+
+
+@pytest.mark.parametrize("parents", [None, [], [{"sha": DEV}], [{"sha": PARENT}, {"sha": DEV}]])
+def test_refresh_refuses_wrong_source_parent_before_writes(case: Case, parents: object) -> None:
+    source = case.api.records[f"{REPO}/git/commits/{SOURCE}"]
+    if parents is None:
+        source.pop("parents")
+    else:
+        source["parents"] = parents
+    receipt = case.publish()
+    assert receipt.status == "refused"
+    assert not case.api.writes
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [("state", "closed"), ("draft", True), ("auto_merge", {}), ("head", {"sha": DEV}), ("base", {"sha": MAIN})],
+)
+def test_refresh_refuses_pr_drift_before_writes(case: Case, field: str, value: object) -> None:
+    case.api.records[f"{REPO}/pulls/786"][field] = value
+    assert case.publish().status == "refused"
+    assert not case.api.writes
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "tests/unit/security/test_code_review_dependency_security.py",
+        "tests/unit/security/test_release_promotion_security_gates.py",
+    ],
+)
+def test_refresh_accepts_only_added_test_paths(case: Case, path: str) -> None:
+    api = case.api
+    api.intent["delta"].append({"path": path, "before": None, "after": ["100644", NEW]})
+    api.records[f"{REPO}/git/trees/{TREE}?recursive=1"]["tree"].append(
+        {"path": path, "mode": "100644", "type": "blob", "sha": NEW}
+    )
+    assert case.publish().status == "published"
+    commit_body = api.writes[0][2]
+    assert commit_body is not None
+    assert commit_body["parents"] == [PARENT]
+
+
+@pytest.mark.parametrize("path", ["src/specfact_cli/cli.py", "tests/unit/security/test_unreviewed.py"])
+def test_refresh_refuses_unreviewed_scope(case: Case, path: str) -> None:
+    case.api.intent["delta"][0]["path"] = path
+    assert case.publish().status == "refused"
+    assert not case.api.writes
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("auxiliary_ref", "refs/heads/codex/security-dev-ci-signer"),
+        ("destination", "refs/heads/codex/security-dependencies-0-55-11-dev"),
+    ],
+)
+def test_refresh_refuses_old_scope(case: Case, field: str, value: str) -> None:
+    case.api.intent[field] = value
+    assert case.publish().status == "refused"
+    assert not case.api.writes
+
+
+@pytest.mark.parametrize("guard_number,status,writes", [(2, "object_only", 1), (3, "created_ref_with_drift", 2)])
+def test_refresh_retains_partial_outcome_on_late_pr_drift(
+    case: Case, guard_number: int, status: str, writes: int
+) -> None:
+    observed = 0
+
+    def edit(method: str, path: str, body: dict[str, Any] | None, response: signer._Response) -> signer._Response:
+        nonlocal observed
+        if path == f"{REPO}/pulls/786":
+            observed += 1
+            if observed == guard_number:
+                record = json.loads(response.body)
+                record["head"]["sha"] = DEV
+                return signer._Response(200, json.dumps(record).encode())
+        return response
+
+    case.api.edit = edit
+    assert case.publish().status == status
+    assert len(case.api.writes) == writes
+
+
+def test_refresh_rejects_old_dev_parent_even_with_consistent_signature(case: Case) -> None:
+    def edit(method: str, path: str, body: dict[str, Any] | None, response: signer._Response) -> signer._Response:
+        if path == f"{REPO}/git/commits":
+            record = json.loads(response.body)
+            record["parents"] = [{"sha": DEV}]
+            record["verification"]["payload"] = record["verification"]["payload"].replace(
+                f"parent {PARENT}\n", f"parent {DEV}\n", 1
+            )
+            return signer._Response(201, json.dumps(record).encode())
+        return response
+
+    case.api.edit = edit
+    assert case.publish().status == "object_only"
+    assert len(case.api.writes) == 1
+
+
+def test_unbound_template_refuses_before_transport(case: Case) -> None:
+    raw = json.dumps({**case.api.intent, "source_commit": "UNBOUND", "source_tree": "UNBOUND", "delta": []}).encode()
+    assert case.publish(raw).status == "refused"
+    assert case.api.trace == []

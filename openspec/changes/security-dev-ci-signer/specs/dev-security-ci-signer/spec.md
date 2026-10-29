@@ -4,7 +4,11 @@
 
 The signer SHALL strictly decode the intent, authenticate S to T, prove the
 complete exact dev-to-T leaf delta and verify every frozen execution identity
-and ref before any write. It SHALL reject production, auxiliary signer and workflow changes in D and every
+and ref before any write. S SHALL have exactly the fixed reviewed PR786 head
+as its sole parent. At each existing guard boundary PR786 SHALL be open,
+non-draft, without auto-merge, at that exact head/ref/repository and the frozen
+dev base/ref/repository. The exact reviewed allowlist contains 19 test/SPEC-only
+paths; frozen dev/main guards and complete dev-to-T comparison remain. It SHALL reject production, auxiliary signer and workflow changes in D and every
 unknown, duplicate, malformed or incomplete input. The allowlist applies only
 to changed leaves. Authenticated unchanged production and executable leaves
 and directory entries remain valid parts of the complete trees. Dispatch
@@ -14,7 +18,8 @@ expectations and context SHALL independently agree with live observations.
 
 - **GIVEN** a digest-bound valid intent and complete matching source/tree/delta
 - **WHEN** all live run and ref guards agree
-- **THEN** signing may proceed using T and sole parent dev
+- **THEN** signing may proceed using T and sole reviewed parent
+  `4ae6175a4d337296d0347e73b66c9da1f0e43f7f`
 
 #### Scenario: Precondition failure
 
@@ -26,7 +31,9 @@ expectations and context SHALL independently agree with live observations.
 
 The signer SHALL create exactly one GitHub verified service commit, validate
 response/readback/signed payload and attribution, then create the absent fixed
-ref. It SHALL recheck guards around both writes and verify the final objects.
+ref. The created commit and signed payload SHALL use the same fixed reviewed
+parent as S; the old dev parent SHALL refuse even with a consistent signature.
+It SHALL recheck guards around both writes and verify the final objects.
 
 #### Scenario: Successful creation
 

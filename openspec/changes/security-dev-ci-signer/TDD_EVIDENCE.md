@@ -61,3 +61,29 @@ setting selects the clean documentation source at bdaab8a while the Requirements
 setting remains pinned to 69f0758. Regeneration then leaves all three tracked
 command catalogs byte-identical to the base. No runtime command was removed
 and no hook rule changed.
+
+## Fresh PR786 test refresh — 29 October 2026 Europe/Berlin
+
+The earlier statements about a pending first real signing run describe their
+historical stage. Run `40248154362` subsequently completed and is consumed;
+retain its original records without reusing its authority or redispatching it.
+
+The fresh bounded adaptation changes the sole reviewed parent, two allowlisted
+test paths, fresh auxiliary/destination refs and repeated exact PR786 guards.
+Private before evidence records 11 genuine behavioral failures against the
+prior implementation: four source-parent cases, five PR drift cases and two
+newly allowed paths. Saved after evidence records 186 passes using mocked
+transport. The normal public tests copied to `tests/unit/scripts/` likewise
+passed 186 with imports from `scripts`. These are synthetic contract results,
+not native acceptance or actual signature/publication authority. The function
+name for the two-write case is clarified to `sole_reviewed_parent`; its
+assertions are unchanged.
+
+Independent code-only review accepted candidate SHA256
+`6ba5820b67587520620ebe4a1b143c9b167154e00c167f324ff7e2d2bc95046b`
+in the private `ci-refresh-signer-code-review/REPORT.md`. Final source SHA/tree,
+complete delta, intent digest and immutable executor still require root binding
+and independent review after the pending source fixture correction. No
+provisional source SHA is accepted here. Final normal hooks and fresh live
+execution/output gates remain pending. The sibling internal wiki is unavailable;
+updating its matching source and rebuilding its graph remains a follow-up.

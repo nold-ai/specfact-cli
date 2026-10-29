@@ -17,7 +17,8 @@ Only the exact reviewed changed paths in D are eligible; production, auxiliary
 signer and workflow changes are forbidden. Unchanged production/executable
 leaves and directory entries are valid in the authenticated complete trees. The exact intent digest binds the complete approved path set.
 
-Source S must resolve to T. Complete dev-tree and T leaf inventories must prove
+Source S must resolve to T and have exactly the sole parent
+`4ae6175a4d337296d0347e73b66c9da1f0e43f7f`. Complete dev-tree and T leaf inventories must prove
 the exact delta including additions, deletions, blob changes and mode changes.
 Reject truncated or malformed inventories. Source ancestry never enters the
 created commit. Tests include complete recursive inventories with directory records; complete
@@ -32,10 +33,20 @@ A complete workflow run listing must rule out another dispatch for E or a prior
 attempt. Any incomplete observation refuses. Workflow concurrency configuration
 and independent actual run SHA review remain root-owned requirements.
 
+At every existing guard boundary PR786 must remain open, non-draft and without
+auto-merge; its head SHA must equal the fixed reviewed parent on the intended
+feature ref/repository, and its base must remain dev at the frozen dev SHA in
+the intended repository. The frozen dev baseline remains
+`9b5ad1e78430cc0b061cb16de42f73de96f4f312`; frozen main remains intent-bound.
+The new auxiliary/destination refs and exact 19-path allowlist are specified in
+the proposal. Old refs and unreviewed deltas refuse. No schema, public API,
+workflow, permission or pinned runtime change is included.
+
 Only POST /git/commits and POST /git/refs may mutate. The first request has
 exactly tree, parents and message, omitting author/committer/signature. Message
 is message_stem followed by a blank line and Intent, Executor, Run, Attempt
-lines. The only parent is dev. Require POST and GET commit agreement, valid
+lines. The only parent is the frozen reviewed PR786 head
+`4ae6175a4d337296d0347e73b66c9da1f0e43f7f`, in both API data and signed payload. Require POST and GET commit agreement, valid
 GitHub verification, nonempty signature and exact signed payload. Author is
 github-actions[bot]/41898282/Bot with Git name github-actions[bot] and email
 41898282+github-actions[bot]@users.noreply.github.com. Committer is
