@@ -3,14 +3,16 @@
 ### Requirement: Select reviewed official patch versions
 
 The frozen graph and CI export SHALL select official GitPython 3.2.1,
-packaging 26.3, pycparser 3.12, python-discovery 1.6.1 and virtualenv 21.14.12.
+packaging 26.3, pycparser 3.12, python-discovery 1.6.1, virtualenv 21.14.13,
+filelock 4.2.1, msgpack 1.2.3, setuptools 84.1.0 and Semgrep 1.182.1.
 Every selected artifact SHALL remain hash-bound to the official registry.
 
 #### Scenario: Each missing package update reaches frozen delivery
 
 - **GIVEN** the reviewed package/version table
 - **WHEN** the lock and CI export are inspected
-- **THEN** each contains exactly the reviewed official version and its hashes.
+- **THEN** each contains exactly the reviewed official version and equal
+  nonempty SHA-256 artifact sets; missing or substituted export hashes fail.
 
 ### Requirement: Declare the corrected public dependency floors
 
@@ -80,3 +82,25 @@ complete frozen test selection.
 - **THEN** both use exactly the two existing file exclusions and seven added
   selectors, retain all other cases in the exercised files and leave every
   blocking job unchanged.
+
+### Requirement: Preserve strict audits with exact bounded residual risk
+
+All three strict frozen audits SHALL remain enforced, including setuptools
+84.1.0 in the affected graphs and Pylint 4.0.9 in the isolated Code Review
+input and hash-bound lock. Only the exact reviewed package, version and
+advisory identities MAY be admitted within their existing dates. The original
+MCP 1.29.0 record and the separate OpenTelemetry 1.37.0 record SHALL remain
+separate from the MCP 1.29.0 record reviewed on 29 October 2026 for
+CVE-2026-116685 / GHSA-5h93-6whr-6q8j, CVE-2026-116686 /
+GHSA-rwrf-2pqf-9j8j and CVE-2026-116684 / GHSA-w4fh-qvv9-3v23.
+All records SHALL expire on 4 November 2026 inclusive. This is accepted
+residual risk while the official Semgrep 1.182.1 pin remains incompatible
+with patched MCP, not remediation or a general waiver. The documented CLI-only
+mitigations SHALL remain in force.
+
+#### Scenario: Unreviewed or expired findings remain blocking
+
+- **GIVEN** the three strict audit reports and the exact three review records
+- **WHEN** a finding has another package, version or advisory, or the record
+  is expired, or an audit subject is skipped
+- **THEN** the audit fails without widening an exception or omitting a subject.

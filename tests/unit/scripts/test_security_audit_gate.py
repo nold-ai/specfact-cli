@@ -333,7 +333,9 @@ def test_committed_mcp_exception_is_exact_and_time_bounded(
     proc = MagicMock(stdout=json.dumps({"dependencies": [dependency]}), stderr="", returncode=1)
     committed = Path(__file__).resolve().parents[3] / "ci/vulnerability-audit-exceptions.json"
     register = json.loads(committed.read_text(encoding="utf-8"))
-    register["exceptions"] = [entry for entry in register["exceptions"] if entry["package"] == "mcp"]
+    register["exceptions"] = [
+        entry for entry in register["exceptions"] if entry["package"] == "mcp" and entry["reviewed_on"] == "2026-10-21"
+    ]
     exceptions = tmp_path / "exceptions.json"
     exceptions.write_text(json.dumps(register), encoding="utf-8")
     with patch.object(gate_mod, "date", AuditDate), patch.object(gate_mod.subprocess, "run", return_value=proc):

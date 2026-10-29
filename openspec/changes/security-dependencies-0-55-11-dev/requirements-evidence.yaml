@@ -50,11 +50,43 @@ requirements:
       - case_id: DEV-PIN-VIRTUALENV
         scenario_id: select-reviewed-official-patch-versions
         method: test
-        intent: Frozen lock and hash export select official virtualenv 21.14.12.
-        observable: Frozen lock and hash export select official virtualenv 21.14.12.
+        intent: Frozen lock and hash export select official virtualenv 21.14.13.
+        observable: Frozen lock and hash export select official virtualenv 21.14.13.
         selector:
           runner: pytest
-          node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[virtualenv-21.14.12]
+          node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[virtualenv-21.14.13]
+      - case_id: DEV-PIN-FILELOCK
+        scenario_id: select-reviewed-official-patch-versions
+        method: test
+        intent: Frozen lock and hash export select official filelock 4.2.1.
+        observable: Frozen lock and hash export select official filelock 4.2.1.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[filelock-4.2.1]
+      - case_id: DEV-PIN-MSGPACK
+        scenario_id: select-reviewed-official-patch-versions
+        method: test
+        intent: Frozen lock and hash export select official msgpack 1.2.3.
+        observable: Frozen lock and hash export select official msgpack 1.2.3.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[msgpack-1.2.3]
+      - case_id: DEV-PIN-SETUPTOOLS
+        scenario_id: select-reviewed-official-patch-versions
+        method: test
+        intent: Frozen lock and hash export select official setuptools 84.1.0.
+        observable: Frozen lock and hash export select official setuptools 84.1.0.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[setuptools-84.1.0]
+      - case_id: DEV-PIN-SEMGREP
+        scenario_id: select-reviewed-official-patch-versions
+        method: test
+        intent: Frozen lock and hash export select official semgrep 1.182.1.
+        observable: Frozen lock and hash export select official semgrep 1.182.1.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[semgrep-1.182.1]
   openspec:security-dependencies-0-55-11-dev:dev-security-dependencies:declare-the-corrected-public-dependency-floors:
     rationale: Keep both distributed declarations above the corrected security floors.
     stakeholder_refs:
@@ -198,3 +230,40 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_dependency_compatibility_workflow.py::test_resolver_selection_excludes_only_frozen_release_cases
+  openspec:security-dependencies-0-55-11-dev:dev-security-dependencies:preserve-strict-audits-with-exact-bounded-residual-risk:
+    rationale: Preserve exact advisory scope and fix the isolated Code Review vulnerability.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#780
+    touchpoints:
+      - id: exact-advisories
+        kind: config_file
+        locator: ci/vulnerability-audit-exceptions.json
+      - id: code-review-input
+        kind: config_file
+        locator: requirements/code-review/requirements.in
+      - id: code-review-lock
+        kind: config_file
+        locator: requirements/code-review/locked.txt
+      - id: code-review-test
+        kind: test
+        locator: tests/unit/security/test_code_review_dependency_security.py
+      - id: exact-advisory-test
+        kind: test
+        locator: tests/unit/security/test_release_promotion_security_gates.py
+    verification_cases:
+      - case_id: DEV-PYLINT-FIXED
+        scenario_id: preserve-strict-audits-with-exact-bounded-residual-risk
+        method: test
+        intent: Actual Code Review installer inputs select patched Pylint and official hashes.
+        observable: Exact version, full artifact hashes and input digest agree.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_code_review_dependency_security.py::test_code_review_pins_fixed_pylint_with_bound_artifact_hashes
+      - case_id: DEV-EXACT-RESIDUAL-RISK
+        scenario_id: preserve-strict-audits-with-exact-bounded-residual-risk
+        method: test
+        intent: Only the three exact reviewed records remain admitted within their dates.
+        observable: Exact records, versions, IDs, dates and official frozen sources agree.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_release_promotion_security_gates.py::test_frozen_graph_uses_official_semgrep_with_bounded_mcp_exception
