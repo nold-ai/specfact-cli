@@ -397,33 +397,67 @@ def test_frozen_graph_uses_official_semgrep_with_bounded_mcp_exception() -> None
     assert {"semgrep>=1.175.0"} <= set(dev) & set(scanning)
 
     locked = (REPO_ROOT / "requirements" / "ci" / "locked.txt").read_text(encoding="utf-8")
-    assert set(re.findall(r"^(?:semgrep|mcp)==[^\s]+", locked, re.MULTILINE)) == {"semgrep==1.179.0", "mcp==1.29.0"}
+    assert set(re.findall(r"^(?:semgrep|mcp)==[^\s]+", locked, re.MULTILINE)) == {"semgrep==1.182.1", "mcp==1.29.0"}
+    assert re.search(r"^opentelemetry-api==1\.37\.0[ \t]", locked, re.MULTILINE)
     policy = json.loads((REPO_ROOT / "ci" / "security-tool-minimum-versions.json").read_text(encoding="utf-8"))
-    assert policy["minimum_versions"] == {"mcp": "1.28.1", "semgrep": "1.175.0"}
     exceptions = json.loads((REPO_ROOT / "ci" / "vulnerability-audit-exceptions.json").read_text(encoding="utf-8"))
     records = exceptions["exceptions"]
-    assert len(records) == 1, "Only the reviewed MCP advisory may be waived"
-    record = records[0]
-    expected_record = {
-        "package": "mcp",
-        "version": "1.29.0",
-        "vulnerability_ids": ["CVE-2026-59951", "GHSA-84m7-p3x7-pcfv"],
-        "reviewed_on": "2026-10-21",
-        "expires_on": "2026-11-04",
-    }
-    actual_record = {key: record[key] for key in expected_record}
-    actual_record["vulnerability_ids"] = sorted(record["vulnerability_ids"])
-    assert actual_record == expected_record
-    assert tuple(bool(record[key].strip()) for key in ("rationale", "mitigation")) == (True, True)
+    assert (policy["minimum_versions"], len(records)) == ({"mcp": "1.28.1", "semgrep": "1.175.0"}, 3)
+    expected_records = [
+        {
+            "package": "mcp",
+            "version": "1.29.0",
+            "vulnerability_ids": ["CVE-2026-59951", "GHSA-84m7-p3x7-pcfv"],
+            "reviewed_on": "2026-10-21",
+            "expires_on": "2026-11-04",
+        },
+        {
+            "package": "mcp",
+            "version": "1.29.0",
+            "vulnerability_ids": [
+                "CVE-2026-116684",
+                "CVE-2026-116685",
+                "CVE-2026-116686",
+                "GHSA-5h93-6whr-6q8j",
+                "GHSA-rwrf-2pqf-9j8j",
+                "GHSA-w4fh-qvv9-3v23",
+            ],
+            "reviewed_on": "2026-10-29",
+            "expires_on": "2026-11-04",
+        },
+        {
+            "package": "opentelemetry-api",
+            "version": "1.37.0",
+            "vulnerability_ids": ["CVE-2026-114603", "GHSA-xcq7-p3pf-p88h"],
+            "reviewed_on": "2026-10-22",
+            "expires_on": "2026-11-04",
+        },
+    ]
+    for record, expected_record in zip(
+        sorted(records, key=lambda entry: (entry["package"], entry["reviewed_on"])), expected_records, strict=True
+    ):
+        actual_record = {
+            "package": record["package"],
+            "version": record["version"],
+            "vulnerability_ids": sorted(record["vulnerability_ids"]),
+            "reviewed_on": record["reviewed_on"],
+            "expires_on": record["expires_on"],
+        }
+        assert (actual_record, bool(record["rationale"].strip()), bool(record["mitigation"].strip())) == (
+            expected_record,
+            True,
+            True,
+        )
     lock = tomllib.loads((REPO_ROOT / "uv.lock").read_text(encoding="utf-8"))
     packages = [
         (package["name"], package["version"], package["source"])
         for package in lock["package"]
-        if package["name"] in {"semgrep", "mcp", "specfact-semgrep"}
+        if package["name"] in {"semgrep", "mcp", "opentelemetry-api", "specfact-semgrep"}
     ]
     assert sorted(packages) == [
         ("mcp", "1.29.0", {"registry": "https://pypi.org/simple"}),
-        ("semgrep", "1.179.0", {"registry": "https://pypi.org/simple"}),
+        ("opentelemetry-api", "1.37.0", {"registry": "https://pypi.org/simple"}),
+        ("semgrep", "1.182.1", {"registry": "https://pypi.org/simple"}),
     ]
 
 
