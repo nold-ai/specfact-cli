@@ -1,9 +1,10 @@
 # Design
 
 The data contract is the reviewed package/version table, two public dependency
-floors and two distinct advisory records. The existing frozen refresh and audit
-implementations remain the source of behavior. No new dependency resolver or
-advisory engine is needed.
+floors and three distinct advisory records. The existing frozen refresh and audit
+implementations remain the source of behavior. The existing selection test
+compares nonempty SHA-256 sets from lock artifacts and exported requirements.
+No new dependency resolver or advisory engine is needed.
 
 Use a new change root because Requirements selects the complete mapping for
 each changed root. Editing the delivered `isolate-semgrep-security-runtime`

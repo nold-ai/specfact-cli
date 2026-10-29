@@ -19,7 +19,11 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
         ("pyjwt", "2.15.1"),
         ("hatchling", "1.32.4"),
         ("urllib3", "2.8.0"),
-        ("virtualenv", "21.14.12"),
+        ("virtualenv", "21.14.13"),
+        ("filelock", "4.2.1"),
+        ("msgpack", "1.2.3"),
+        ("setuptools", "84.1.0"),
+        ("semgrep", "1.182.1"),
         ("python-discovery", "1.6.1"),
         ("packaging", "26.3"),
         ("pycparser", "3.12"),
@@ -28,11 +32,21 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 def test_reviewed_tooling_versions_match_frozen_export(name: str, version: str) -> None:
     lock = tomllib.loads((REPO_ROOT / "uv.lock").read_text(encoding="utf-8"))
     packages = [package for package in lock["package"] if package["name"] == name]
-    assert len(packages) == 1
-    assert packages[0]["version"] == version
-    assert packages[0]["source"] == {"registry": "https://pypi.org/simple"}
+    assert [(package["version"], package["source"]) for package in packages] == [
+        (version, {"registry": "https://pypi.org/simple"})
+    ]
     export = (REPO_ROOT / "requirements/ci/locked.txt").read_text(encoding="utf-8")
-    assert re.search(rf"^{re.escape(name)}=={re.escape(version)}\s", export, re.MULTILINE)
+    requirements = re.findall(
+        rf"^{re.escape(name)}=={re.escape(version)}(?:[ \t][^\n]*|$)",
+        export.replace("\\\n", ""),
+        re.MULTILINE,
+    )
+    assert len(requirements) == 1
+    artifacts = [packages[0]["sdist"], *packages[0]["wheels"]]
+    expected_hashes = {artifact["hash"] for artifact in artifacts}
+    assert expected_hashes
+    assert all(re.fullmatch(r"sha256:[0-9a-f]{64}", digest) for digest in expected_hashes)
+    assert set(re.findall(r"--hash=(\S+)", requirements[0])) == expected_hashes
 
 
 @pytest.mark.parametrize(
