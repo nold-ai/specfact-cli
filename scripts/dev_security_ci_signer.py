@@ -17,8 +17,9 @@ from icontract import ensure, require
 
 
 _REPO = "/repos/nold-ai/specfact-cli"
-_AUX = "refs/heads/codex/security-dev-ci-signer"
-_DEST = "refs/heads/codex/security-dependencies-0-55-11-dev"
+_AUX = "refs/heads/codex/security-dev-ci-test-refresh-20261029"
+_DEST = "refs/heads/codex/security-dev-refreshed-test-prefix-20261029"
+_PARENT = "4ae6175a4d337296d0347e73b66c9da1f0e43f7f"
 _DEV = "9b5ad1e78430cc0b061cb16de42f73de96f4f312"
 _WORKFLOW = 204352514
 _WORKFLOW_PATH = ".github/workflows/specfact.yml"
@@ -47,6 +48,8 @@ _ALLOWED = frozenset(
         "tests/unit/scripts/test_security_audit_gate.py",
         "tests/unit/security/test_frozen_gitpython_compatibility.py",
         "tests/unit/security/test_release_dependency_selection.py",
+        "tests/unit/security/test_code_review_dependency_security.py",
+        "tests/unit/security/test_release_promotion_security_gates.py",
     }
 )
 _GIT_ROLES = {
@@ -339,6 +342,20 @@ def _context(intent: _Intent, expected: DispatchExpectation, context: RunContext
 def _guards(intent: _Intent, context: RunContext, destination: str | None) -> None:
     repository = {"id": intent.repository_id, "full_name": intent.repository_full_name}
     _check(_matches(_get(_REPO), repository), "Repository identity mismatch")
+    _check(
+        _matches(
+            _get(f"{_REPO}/pulls/786"),
+            {
+                "number": 786,
+                "state": "open",
+                "draft": False,
+                "auto_merge": None,
+                "head": {"sha": _PARENT, "ref": "codex/security-dependencies-0-55-11-dev", "repo": repository},
+                "base": {"sha": intent.dev, "ref": "dev", "repo": repository},
+            },
+        ),
+        "PR 786 state drift",
+    )
     expected = _run_expected(intent, context)
     history = _get(f"{_REPO}/actions/workflows/{_WORKFLOW}/runs?event=workflow_dispatch&per_page=100")
     runs = [_object(run) for run in _array(history["workflow_runs"])]
@@ -373,6 +390,8 @@ def _inventory(sha: str) -> dict[str, _Entry]:
 def _source(intent: _Intent) -> None:
     source = _get(f"{_REPO}/git/commits/{intent.source_commit}")
     _check(_matches(source, {"sha": intent.source_commit, "tree": {"sha": intent.source_tree}}), "Source tree mismatch")
+    parents = _array(source["parents"])
+    _check(len(parents) == 1 and _matches(parents[0], {"sha": _PARENT}), "Wrong source parent")
     base = _get(f"{_REPO}/git/commits/{intent.dev}")
     _check(base.get("sha") == intent.dev, "Base commit mismatch")
     before = _inventory(_sha(_object(base["tree"])["sha"]))
@@ -388,14 +407,14 @@ def _source(intent: _Intent) -> None:
 def _signed(record: dict[str, object], intent: _Intent, message: str, sha: str) -> tuple[str, str]:
     _check(_matches(record, {"sha": sha, "tree": {"sha": intent.source_tree}, "message": message}), "Commit mismatch")
     parents = _array(record["parents"])
-    _check(len(parents) == 1 and _matches(parents[0], {"sha": intent.dev}), "Wrong commit parent")
+    _check(len(parents) == 1 and _matches(parents[0], {"sha": _PARENT}), "Wrong commit parent")
     verification = _object(record["verification"])
     _check(verification.get("verified") is True and verification.get("reason") == "valid", "Invalid verification")
     signature, payload = _text(verification["signature"]), _text(verification["payload"])
     headers, separator, signed_message = payload.partition("\n\n")
     lines = headers.split("\n")
     _check(separator == "\n\n" and signed_message == message and len(lines) == 4, "Invalid signed payload")
-    _check(lines[:2] == [f"tree {intent.source_tree}", f"parent {intent.dev}"], "Wrong signed tree/parent")
+    _check(lines[:2] == [f"tree {intent.source_tree}", f"parent {_PARENT}"], "Wrong signed tree/parent")
     for index, (role, identity) in enumerate(_GIT_ROLES.items(), start=2):
         _check(_matches(record.get(role), identity), "Wrong Git service identity")
         prefix = f"{role} {identity['name']} <{identity['email']}> "
@@ -453,7 +472,7 @@ def publish_once(intent_file: Path, expected: DispatchExpectation, context: RunC
         )
         outcome = replace(outcome, status="uncertain_commit")
         response = _request(
-            "POST", _REPO + "/git/commits", {"tree": intent.source_tree, "parents": [intent.dev], "message": message}
+            "POST", _REPO + "/git/commits", {"tree": intent.source_tree, "parents": [_PARENT], "message": message}
         )
         _check(response.status == 201, f"Commit POST returned HTTP {response.status}")
         commit = _decode(response.body)

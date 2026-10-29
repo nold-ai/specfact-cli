@@ -87,3 +87,7 @@ and independent review after the pending source fixture correction. No
 provisional source SHA is accepted here. Final normal hooks and fresh live
 execution/output gates remain pending. The sibling internal wiki is unavailable;
 updating its matching source and rebuilding its graph remains a follow-up.
+
+Final source binding: normal-hook test-only source 78b11468696a47cd2792e1d45a6f91bad142a860 / tree fd6a43314d221ee03f6bf476c737487a71aa3677 / sole parent 4ae6175a4d337296d0347e73b66c9da1f0e43f7f. The executor TEST checkpoint is 028bcfc6eda9a45a91dcf3510d94147c3739f2fd. The final intent records all 19 dev-to-source entries. This is an unsigned, unpublished local source; actual CI signing is pending.
+
+The Code Review typechecker produced two errors and 86 warnings because its bare executable resolves the global Python site-packages without pytest, beartype or icontract. The same exact source and basedpyright 1.39.9 with the repository-configured Hatch interpreter returns zero errors and zero warnings. Verbose import-resolution output and both results are retained privately for independent disposition. No type suppression or tooling rule was changed.

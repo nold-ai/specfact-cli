@@ -11,8 +11,8 @@
   },
   "dev": "9b5ad1e78430cc0b061cb16de42f73de96f4f312",
   "main": "5262efb0881e4fac7697d629b0530250342bc656",
-  "source_commit": "3752d92a9c895eef726ec336c3ae212f06e2dc52",
-  "source_tree": "baeb88acf0d2a5015810ad12dbfccfa7fdf9a21e",
+  "source_commit": "78b11468696a47cd2792e1d45a6f91bad142a860",
+  "source_tree": "fd6a43314d221ee03f6bf476c737487a71aa3677",
   "delta": [
     {
       "path": "openspec/CHANGE_ORDER.md",
@@ -54,7 +54,7 @@
       "before": null,
       "after": [
         "100644",
-        "ed2e394e67a16b328cc5ffe59b59f7260962302b"
+        "28f2399e337ea1ffe82f172cc6ca36031e57e1cd"
       ]
     },
     {
@@ -62,7 +62,7 @@
       "before": null,
       "after": [
         "100644",
-        "01d578d2122e6c04271c78e230184356d734ca0a"
+        "f589df23bbbe01b5ad34d3382a75baa97ab5d53c"
       ]
     },
     {
@@ -70,7 +70,7 @@
       "before": null,
       "after": [
         "100644",
-        "a9e1ddd30a3a5b5452f49920b7a7fc4cd9741b0d"
+        "0d25511a5c717c436897c6748a4804d0c556edd8"
       ]
     },
     {
@@ -94,7 +94,7 @@
       "before": null,
       "after": [
         "100644",
-        "9e971b54045123d70579209285c2f36c0126e87e"
+        "67c863ce72496cba9d7418499720281ca5e73639"
       ]
     },
     {
@@ -102,7 +102,7 @@
       "before": null,
       "after": [
         "100644",
-        "cd8db9ff0009ef5b9581bc6a055cc8b30bb5c4fd"
+        "3abdc245bb8af0e87b6078b242c289b899d9d460"
       ]
     },
     {
@@ -110,7 +110,7 @@
       "before": null,
       "after": [
         "100644",
-        "fc04a961dfdfbab13da9cb2f894df06eaab0d36a"
+        "f8757615596d8390e64024eaacc8d2552d4b9491"
       ]
     },
     {
@@ -140,7 +140,15 @@
       ],
       "after": [
         "100644",
-        "092f0fb34dccced1764cf54ad2bfb1e53b8d39d8"
+        "a12cb08c91452e536cb9bd4b83bc810acd4c1363"
+      ]
+    },
+    {
+      "path": "tests/unit/security/test_code_review_dependency_security.py",
+      "before": null,
+      "after": [
+        "100644",
+        "8c69efcd3fe12a7d0a2f3efde61ed1f1aa81251a"
       ]
     },
     {
@@ -159,11 +167,22 @@
       "before": null,
       "after": [
         "100644",
-        "86745a06259f2f746c2a1396401c8888e05365ef"
+        "ce0f9264d88836b030fe0cbee19e7d5ab53ee8b0"
+      ]
+    },
+    {
+      "path": "tests/unit/security/test_release_promotion_security_gates.py",
+      "before": [
+        "100644",
+        "e1f0aac258513353799e055a7725c216a7d43656"
+      ],
+      "after": [
+        "100644",
+        "721d3c134a3f1f02a290ec22219967a702aa0615"
       ]
     }
   ],
-  "auxiliary_ref": "refs/heads/codex/security-dev-ci-signer",
-  "destination": "refs/heads/codex/security-dependencies-0-55-11-dev",
-  "message_stem": "test(security): scope dev 0.55.11 regressions"
+  "auxiliary_ref": "refs/heads/codex/security-dev-ci-test-refresh-20261029",
+  "destination": "refs/heads/codex/security-dev-refreshed-test-prefix-20261029",
+  "message_stem": "test(security): refresh reviewed dev-first 0.55.11 proof source"
 }
