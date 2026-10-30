@@ -140,3 +140,16 @@ review rules, suppressions, artifacts, exception dates or required CI gates.
 
 The raw findings remain visible. No zero-findings claim is made for these two
 test files. Normal hooks and independent exact review remain required.
+
+### Git blob wire-format boundary before CODE installation
+
+A read-only actual GitHub blob observation for the immutable f7 object confirms
+base64 content contains LF wrapping. The connector presents decoded content,
+so the raw existing gh API read was retained separately with matching object
+and SHA-256. It supplies wire-format grounding only, not new policy authority.
+Before CODE installation, the CLI-positive fixture now independently covers
+unwrapped, LF and CRLF encodings of the same accepted bytes. Space, tab and
+Unicode whitespace corruption are additional refusals. No source, resource,
+metadata or content hash guard is relaxed. Synthetic schema-refusal before
+results do not prove these separate guards until corrected positive and full
+negative after results pass together.

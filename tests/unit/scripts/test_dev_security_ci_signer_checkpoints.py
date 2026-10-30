@@ -78,6 +78,14 @@ class FiniteGitHub(old.GitHub):
             )
         ]
 
+    def wrap_blobs(self, line_ending: str) -> None:
+        for blob in self.records.values():
+            if blob.get("encoding") == "base64":
+                content: str = blob["content"]
+                blob["content"] = (
+                    line_ending.join(content[i : i + 76] for i in range(0, len(content), 76)) + line_ending
+                )
+
     def _create_commit(self, body: dict[str, Any] | None) -> signer._Response:
         super()._create_commit(body)
         assert self.created is not None
@@ -279,11 +287,14 @@ def run_cli(finite: FiniteCase, tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
     return signer._main(), output
 
 
+@pytest.mark.parametrize("line_ending", ["", "\n", "\r\n"], ids=["unwrapped", "lf", "crlf"])
 def test_cli_copies_exact_four_authenticated_api_blobs_inertly(
     finite: FiniteCase,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    line_ending: str,
 ) -> None:
+    finite.api.wrap_blobs(line_ending)
     status, output = run_cli(finite, tmp_path, monkeypatch)
     assert status == 0, (output / "receipt.json").read_text()
     members = output / "copy-members"
@@ -313,6 +324,9 @@ _PACKET_MUTATIONS: list[tuple[str, str, Callable[[dict[str, Any], dict[str, Any]
         "fixture-metadata.json",
         lambda blob, entry, delta: blob.update(content=base64.b64encode(b"corrupt").decode()),
     ),
+    ("space", "plan.json", lambda blob, entry, delta: blob.update(content=blob["content"] + " ")),
+    ("tab", "plan.json", lambda blob, entry, delta: blob.update(content=blob["content"] + "\t")),
+    ("unicode-space", "plan.json", lambda blob, entry, delta: blob.update(content=blob["content"] + "\u2000")),
 ]
 
 
