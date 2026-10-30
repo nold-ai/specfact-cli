@@ -17,9 +17,9 @@ from icontract import ensure, require
 
 
 _REPO = "/repos/nold-ai/specfact-cli"
-_AUX = "refs/heads/codex/security-dev-ci-test-refresh-20261029"
-_DEST = "refs/heads/codex/security-dev-refreshed-test-prefix-20261029"
-_PARENT = "4ae6175a4d337296d0347e73b66c9da1f0e43f7f"
+_AUX = "refs/heads/codex/dev786-version12-test-signer-20261030"
+_DEST = "refs/heads/codex/dev786-version12-test-prefix-20261030"
+_PARENT = "22b2fa7bd763b18ada1bfd1a9ea482a624f34cca"
 _DEV = "9b5ad1e78430cc0b061cb16de42f73de96f4f312"
 _WORKFLOW = 204352514
 _WORKFLOW_PATH = ".github/workflows/specfact.yml"

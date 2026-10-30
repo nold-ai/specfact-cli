@@ -11,8 +11,8 @@
   },
   "dev": "9b5ad1e78430cc0b061cb16de42f73de96f4f312",
   "main": "5262efb0881e4fac7697d629b0530250342bc656",
-  "source_commit": "78b11468696a47cd2792e1d45a6f91bad142a860",
-  "source_tree": "fd6a43314d221ee03f6bf476c737487a71aa3677",
+  "source_commit": "884412622301a8d5b91bc2a615e77476db496d2d",
+  "source_tree": "cfba03cf57f6de2fc6dd37709c9d8e38d03f2187",
   "delta": [
     {
       "path": "openspec/CHANGE_ORDER.md",
@@ -46,7 +46,7 @@
       "before": null,
       "after": [
         "100644",
-        "1916a0ee6bd00e12e6990e2d4aa31e91898874ad"
+        "2bcf243d037fe2c4797d8c937bb1729101562a1f"
       ]
     },
     {
@@ -54,7 +54,7 @@
       "before": null,
       "after": [
         "100644",
-        "28f2399e337ea1ffe82f172cc6ca36031e57e1cd"
+        "7cefa4b034c99b366da5d1b637d125c5463fad8a"
       ]
     },
     {
@@ -62,7 +62,7 @@
       "before": null,
       "after": [
         "100644",
-        "f589df23bbbe01b5ad34d3382a75baa97ab5d53c"
+        "fe41af7ecc18324a409c39f6d8f55cdd51330148"
       ]
     },
     {
@@ -178,11 +178,11 @@
       ],
       "after": [
         "100644",
-        "721d3c134a3f1f02a290ec22219967a702aa0615"
+        "6d2fb8c2a2d899b46cf8fd61a1f681b07bb9cda7"
       ]
     }
   ],
-  "auxiliary_ref": "refs/heads/codex/security-dev-ci-test-refresh-20261029",
-  "destination": "refs/heads/codex/security-dev-refreshed-test-prefix-20261029",
-  "message_stem": "test(security): refresh reviewed dev-first 0.55.11 proof source"
+  "auxiliary_ref": "refs/heads/codex/dev786-version12-test-signer-20261030",
+  "destination": "refs/heads/codex/dev786-version12-test-prefix-20261030",
+  "message_stem": "test(security): require owner-selected 0.55.12 release"
 }

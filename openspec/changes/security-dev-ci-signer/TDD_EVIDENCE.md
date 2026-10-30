@@ -112,3 +112,29 @@ staged-scope mechanism. No guard, active change or check is deleted or waived.
 
 The internal signer wiki mirror remains a follow-up; no sibling write is
 claimed. No merge, local signing, remote publication or dispatch has occurred.
+
+The normal fresh-scope TEST checkpoint is48376e12066b911ca3649f488a68483ac91c6e55.
+Implementation changes exactly the existing three private constants, with no
+logic, schema, workflow, runtime, allowlist, permission or limit change.
+All186existing synthetic contract cases pass under the new fixed scope.
+This validates the mocked boundary; no actual signature or publication is
+claimed. The source is normal TEST884412622301a8d5b91bc2a615e77476db496d2d,
+treecfba03cf57f6de2fc6dd37709c9d8e38d03f2187, directly above signedR2.
+The exact intent binds its complete nineteen-entry C-relative delta, actor
+djm81/39115308, devC and main5262. Raw intent SHA256 is
+e2b47b37b13bae38e6ad901e57cce6fbf086274d8bb0bc68c189a54482b06d88. The source itself remains unpublished.
+
+The final independent binding, normal CODE hooks, fresh remote404/context
+checks, create-only source authentication and one-use signing decision are
+still required before execution. No old dispatch authority is transferred.
+
+The normal full-file review's three informational recommendations have explicit
+dispositions. Keep the finite mocked GitHub constructor's concrete identity
+and response records; they expose the exact API associations. Keep the HTTP
+CLI partial-receipt test's context/argv and receipt assertions together; a
+generic launcher would hide the two failure stages. Keep the Publish Protocol's
+optional raw=None signature: it specifies the actual fixture callable, whose
+implementation checks None and whose callers deliberately omit raw. A Protocol
+stub has no body in which to repeat that check. These decisions preserve actual
+semantics under the rule's design-judgment guidance. No warning, suppression,
+configuration or enforcement threshold changes.
