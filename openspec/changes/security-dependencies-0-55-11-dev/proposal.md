@@ -1,4 +1,4 @@
-# Change: Complete the 0.55.11 security dependencies on dev
+# Change: Complete the 0.55.12 security dependency patch on dev
 
 ## Why
 
@@ -31,7 +31,9 @@ and is not a replacement for this dev follow-up.
 - Exclude only frozen-version assertions from the scheduled advisory resolver
   lanes. Keep ordinary negative tests and every blocking job selected.
 - Preserve dev runtime changes, portable smoke fixtures, all three strict
-  audits, existing version 0.55.11 and all delivered Requirements controls.
+  audits and all delivered Requirements controls. Release the corrected metadata
+  as 0.55.12 in all four canonical version files, as explicitly selected by the
+  owner on 30 October 2026. Keep the existing version rule enforced.
 
 ## Capabilities
 
@@ -47,7 +49,8 @@ None. The existing admission capability and its original evidence stay intact.
 ## Impact
 
 This follow-up changes dependency inputs, their records and verification. It
-does not change application source or module manifests. The frozen graph's
+changes application source only for the two canonical version constants and
+does not change module manifests. The frozen graph's
 PyJWT remediation is not a claim about every public resolver outcome.
 
 Native CI currently rejects the base's expired parser record before tests.

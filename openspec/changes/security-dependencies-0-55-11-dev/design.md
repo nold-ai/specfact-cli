@@ -35,3 +35,26 @@ deployment approval before adoption. No implementation is claimed here.
 
 Rollback before merge is disposal of the unmerged candidate branch. A later
 merged dependency correction can be reverted through an ordinary reviewed PR.
+
+## Owner-selected 0.55.12 refresh
+
+On 30 October 2026 the owner selected 0.55.12 and refreshed version-bound
+evidence. The actual dev baseline remains 0.55.11 and main remains 0.55.4.
+Keep the version checker unchanged. Change the existing version assertion
+before the four production versions and local lock record; capture its
+assertion failure against 0.55.11 and commit a normal TEST checkpoint.
+
+This TEST source is isolated directly above signed R2. Existing private CODE
+history and the complete candidate remain retained separately, because they
+cannot be relabeled preproduction RED. The selected whole test-file hash
+changes even though this assertion is outside the twenty-one native selectors.
+A fresh CI-signed test source and native packet must bind the new exact input;
+native34 remains immutable historical R2 evidence. Reconcile only actual new
+identities in the existing owners. Preserve every original numerical, cleanup,
+provenance, audit and review gate. No framework or missing-RED waiver is added.
+
+The matching internal wiki source is absent. Update that exact source mirror
+and rebuild its graph as a follow-up when available; no sibling write is
+claimed. The existing OpenSpec identifier and historical evidence retain their
+original names. No merge, protected adoption or final-head authority is granted
+by this version decision.

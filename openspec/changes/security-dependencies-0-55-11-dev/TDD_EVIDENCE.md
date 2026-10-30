@@ -81,3 +81,43 @@ is not claimed. That wrapper defect remains tracked separately in
 The local test prefix has passed normal hooks. Its unsigned source snapshot is
 not a published branch or accepted commit signature. A bounded create-only CI
 signer must produce and verify the delivered tree with dev as its sole parent.
+
+## Owner-selected 0.55.12 TEST refresh
+
+On 30 October 2026 the owner selected “Use 0.55.12; refresh version-bound
+evidence.” The version checker remains unchanged. The active proposal/design
+was updated first; the existing version test then changed only its expected
+string from0.55.11 to0.55.12. The actual four production version declarations
+and dependency inputs remain unchanged in this isolated TEST source.
+
+The existing version test fails with its intended AssertionError, actual
+0.55.11 versus expected0.55.12, with zero setup errors or skips. This is local
+failing-before evidence for the version assertion only. It is not fresh native
+RED, API or signing evidence. Source is isolated directly on signed R2; the
+completed private CODE candidate and its normal history are preserved outside
+this test-only branch. No CODE-bearing snapshot is called preproduction RED.
+
+The version assertion shares a whole selected test file with a native case.
+Trusted C checks whole-file identities and every intervening commit, so native34
+remains immutable historical R2 evidence. A fresh signed test source and actual
+native packet are required for this new hash, preserving all twenty-one mapped
+selectors, unchanged source components and every original gate and limit.
+No old grant, artifact, raw result or native acceptance is transferred.
+
+The matching internal wiki source is absent. Its existing mirror follow-up
+remains open. No sibling write or wiki update is claimed. No merge.
+
+The first unpublished TEST checkpoint067d8ec5 passed normal hooks but exposed
+an existing full-file naming warning in the invalid-UTF8 test. Its original
+commit/diff and review remain retained. The final TEST checkpoint corrects
+only that unmapped test's name; its body and assertions are unchanged. All
+twenty-one selected case names and mappings remain unchanged. The independent
+review also corrected the proposal's source-scope sentence to name only the
+two authorized canonical version constants.
+
+Three informational readability recommendations are retained explicitly: the
+fresh-consumer test keeps its named command observations, the frozen-graph
+test keeps its explicit package and advisory records, and the UTF8-refusal
+test keeps its actual CLI argument vector and two output assertions. These
+finite test shapes are clearer than another generic fixture or wrapper.
+No warning, rule, report, configuration or enforcement threshold is suppressed.

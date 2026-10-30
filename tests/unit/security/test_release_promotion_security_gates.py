@@ -558,7 +558,7 @@ def test_proof_executor_imports_installed_pytest_before_repository_root(tmp_path
     assert bootstrap.index("import pytest") < bootstrap.index("sys.path.append(repo_root)")
 
 
-def test_invalid_utf8_authority_is_stable_metadata_failure(tmp_path: Path) -> None:
+def test_invalid_utf8_authority_refuses_with_stable_error(tmp_path: Path) -> None:
     """Malformed external bytes fail closed without exposing parser details."""
     comment = tmp_path / "comment.json"
     comment.write_bytes(b"\xff")
@@ -619,7 +619,7 @@ def test_doc_owner_rg_terminates_options(monkeypatch: Any, tmp_path: Path) -> No
 
 def test_patch_release_uses_next_version_in_all_sources() -> None:
     """The security baseline consumes only the next semver patch."""
-    expected = "0.55.11"
+    expected = "0.55.12"
     project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     assert project["project"]["version"] == expected
     for path in ("setup.py", "src/__init__.py", "src/specfact_cli/__init__.py"):
