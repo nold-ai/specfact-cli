@@ -34,3 +34,22 @@ deployment approval before adoption. No implementation is claimed here.
 
 Rollback before merge is disposal of the unmerged candidate branch. A later
 merged dependency correction can be reverted through an ordinary reviewed PR.
+
+## Bounded complete delivery signing
+
+The existing one-purpose signer will validate the entire exact normal source
+sequence before writes, service-sign each exact checkpoint tree and message
+in order, and create one new final ref only after all outputs verify. Original
+source and signed output parent identities remain distinct. Every confirmed
+partial output is retained truthfully; failures never overwrite or retry refs.
+The existing artifact action will upload only four byte-exact accepted native
+members as a distinct COPY. This does not acquire native proof again.
+
+The core candidate pins the signer program, workflow and runtime file hashes
+independently of its eventual source intent. Final F's verified message then
+binds the actual executor, intent, run and attempt. Independent consumers check
+all checkpoint outputs, completed-run success and the unique COPY artifact.
+No executor/intent self-reference or future artifact ID appears in F's tree.
+A complete independently reviewed CI-signed candidate precedes the separate
+exact-F protected adoption decision. This local design grants no dispatch,
+protected deployment, advisory waiver, publication or merge authority.

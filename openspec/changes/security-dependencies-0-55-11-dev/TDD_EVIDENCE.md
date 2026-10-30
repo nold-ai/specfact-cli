@@ -81,3 +81,62 @@ is not claimed. That wrapper defect remains tracked separately in
 The local test prefix has passed normal hooks. Its unsigned source snapshot is
 not a published branch or accepted commit signature. A bounded create-only CI
 signer must produce and verify the delivered tree with dev as its sole parent.
+
+## Complete delivery signer regression checkpoint
+
+The final delivery must retain every normal TEST/CODE checkpoint tree and full
+message in order, with each original source identity recorded by its service
+signed output. The consumed singleton signer cannot do that. The bounded local
+correction uses one exact ordered intent, preserves all existing live-context,
+source, service-signature and create-only-ref guards, and uploads only four
+accepted native34 member bytes as a separately identified same-repository COPY.
+It adds no native run or original-archive download claim.
+
+Before runtime changes, two tests at the existing publish_once and CLI entry
+points both fail their intended publication/success assertions. The unchanged
+program SHA-256 is
+`6ba5820b67587520620ebe4a1b143c9b167154e00c167f324ff7e2d2bc95046b`.
+Both observed refusals report unexpected or missing intent fields because the
+singleton cannot accept the required checkpoint tuple. There are no collection,
+import or fixture failures. API objects, signatures and service writes in these
+tests are explicitly Synthetic; this supplies no real API, signing, native,
+origin, publication, protected deployment or final authority evidence.
+
+The complete old guard matrix is retained with only the finite intent shape,
+R2 parent and new unused auxiliary/destination identities adapted. Additional
+cases exercise all-checkpoint prevalidation, source order/messages/parents,
+partial confirmed receipts, exact API-blob copy and refusal before any write
+for corrupt inputs. Exact accepted native fixture bytes and their existing
+mapping are unit data, not a regenerated proof package. No runtime or workflow
+correction is installed at this TEST checkpoint. The actual final sequence must
+include all current checkpoints plus later normal work, not hardcode today's
+count.
+
+### Exact informational test-review dispositions
+
+The unchanged raw review reports PASS_WITH_ADVISORY with zero errors, zero
+warnings and five design-judgment info findings. Real nesting, complexity,
+constructor-length and unknown-type warnings were corrected without removing
+any test, mutation or assertion. These five finite dispositions do not alter
+review rules, suppressions, artifacts, exception dates or required CI gates.
+
+- Keep the baseline 59-line HTTP-protocol test. Its explicit setup, intercepted
+  service responses, CLI execution and receipt readback expose the real tested
+  boundary; a shared mini-server helper would obscure those distinct checks.
+- Keep the 72-line baseline fake API constructor after extracting packet setup.
+  Its literal repository, PR, run and Git-object records show the exact guards
+  independently. Generating them through a record framework would hide fields.
+- Keep the optional raw argument on the Publish Protocol. This is an interface
+  declaration with an ellipsis body. The actual fixture implementation checks
+  raw is None and callers intentionally invoke publish() without an argument.
+  Making it required would violate the rule's own caller-safety prerequisite.
+- Keep the 41-line positive finite publication test. Its two explicit source
+  versus output parent sequences, complete messages and independent readbacks
+  are the behavior under test; collapsing them would hide the distinction.
+- Keep the 47-line finite fake constructor after reusing the parent packet
+  inventory. It retains only the two different source/checkpoint identities and
+  their complete intent data, without the former duplicate blob-construction
+  loop or another fixture layer.
+
+The raw findings remain visible. No zero-findings claim is made for these two
+test files. Normal hooks and independent exact review remain required.

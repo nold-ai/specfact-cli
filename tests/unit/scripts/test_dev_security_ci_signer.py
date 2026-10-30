@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import copy
 import hashlib
 import json
@@ -16,12 +17,12 @@ from scripts import dev_security_ci_signer as signer
 
 
 REPO = "/repos/nold-ai/specfact-cli"
-PARENT = "4ae6175a4d337296d0347e73b66c9da1f0e43f7f"
+PARENT = "22b2fa7bd763b18ada1bfd1a9ea482a624f34cca"
 DEV = "9b5ad1e78430cc0b061cb16de42f73de96f4f312"
 MAIN, SOURCE, TREE, BASE_TREE, EXECUTOR, CREATED = (letter * 40 for letter in "abcdef")
 OLD, NEW = "1" * 40, "2" * 40
-DEST = "refs/heads/codex/security-dev-refreshed-test-prefix-20261029"
-AUX = "refs/heads/codex/security-dev-ci-test-refresh-20261029"
+DEST = "refs/heads/codex/security-dev-complete-candidate-20261030"
+AUX = "refs/heads/codex/dev786-complete-ci-signer-20261030"
 PATH = "openspec/changes/security-dependencies-0-55-11-dev/tasks.md"
 AUTHOR = {"name": "github-actions[bot]", "email": "41898282+github-actions[bot]@users.noreply.github.com"}
 COMMITTER = {"name": "GitHub", "email": "noreply@github.com"}
@@ -36,12 +37,17 @@ class GitHub:
             "triggering_actor": {"id": 456, "login": "owner"},
             "dev": DEV,
             "main": MAIN,
-            "source_commit": SOURCE,
-            "source_tree": TREE,
-            "delta": [{"path": PATH, "before": ["100644", OLD], "after": ["100644", NEW]}],
+            "checkpoints": [
+                {
+                    "source_commit": SOURCE,
+                    "source_parent": PARENT,
+                    "source_tree": TREE,
+                    "source_message": "Dev security reviewed snapshot",
+                    "delta": [{"path": PATH, "before": ["100644", OLD], "after": ["100644", NEW]}],
+                }
+            ],
             "auxiliary_ref": AUX,
             "destination": DEST,
-            "message_stem": "Dev security reviewed snapshot",
         }
         self.run: dict[str, Any] = {
             "id": 789,
@@ -75,11 +81,17 @@ class GitHub:
                 "total_count": 1,
                 "workflow_runs": [self.run],
             },
-            f"{REPO}/git/commits/{SOURCE}": {"sha": SOURCE, "tree": {"sha": TREE}, "parents": [{"sha": PARENT}]},
+            f"{REPO}/git/commits/{SOURCE}": {
+                "sha": SOURCE,
+                "tree": {"sha": TREE},
+                "parents": [{"sha": PARENT}],
+                "message": "Dev security reviewed snapshot",
+            },
             f"{REPO}/git/commits/{DEV}": {"sha": DEV, "tree": {"sha": BASE_TREE}},
             f"{REPO}/git/trees/{BASE_TREE}?recursive=1": self.tree(BASE_TREE, OLD),
             f"{REPO}/git/trees/{TREE}?recursive=1": self.tree(TREE, NEW),
         }
+        self._add_packet_fixtures()
         for ref, sha in (("refs/heads/dev", DEV), ("refs/heads/main", MAIN), (AUX, EXECUTOR)):
             self.records[self.ref_path(ref)] = self.ref(ref, sha)
         self.trace: list[tuple[str, str, dict[str, Any] | None]] = []
@@ -89,6 +101,23 @@ class GitHub:
             lambda method, path, body, response: response
         )
         self.uncertain: str | None = None
+
+    def _add_packet_fixtures(self) -> None:
+        fixture = Path(__file__).parent / "fixtures/fixed786-native-packet"
+        for item in fixture.iterdir():
+            data = item.read_bytes()
+            blob = hashlib.sha1(b"blob " + str(len(data)).encode() + b"\0" + data).hexdigest()
+            path = "tests/unit/scripts/fixtures/fixed786-native-packet/" + item.name
+            self.records[f"{REPO}/git/blobs/{blob}"] = {
+                "sha": blob,
+                "encoding": "base64",
+                "size": len(data),
+                "content": base64.b64encode(data).decode(),
+            }
+            self.records[f"{REPO}/git/trees/{TREE}?recursive=1"]["tree"].append(
+                {"path": path, "mode": "100644", "type": "blob", "sha": blob}
+            )
+            self.intent["checkpoints"][0]["delta"].append({"path": path, "before": None, "after": ["100644", blob]})
 
     @staticmethod
     def tree(sha: str, blob: str) -> dict[str, Any]:
@@ -221,7 +250,7 @@ def test_exact_two_writes_reuse_tree_and_sole_reviewed_parent(case: Case) -> Non
     api, publish = case.api, case.publish
     receipt = publish()
     digest = hashlib.sha256(json.dumps(api.intent).encode()).hexdigest()
-    message = f"Dev security reviewed snapshot\n\nIntent: {digest}\nExecutor: {EXECUTOR}\nRun: 789\nAttempt: 1"
+    message = f"Dev security reviewed snapshot\n\nSource-Commit: {SOURCE}\nIntent: {digest}\nExecutor: {EXECUTOR}\nRun: 789\nAttempt: 1"
     assert api.writes == [
         ("POST", f"{REPO}/git/commits", {"tree": TREE, "parents": [PARENT], "message": message}),
         ("POST", f"{REPO}/git/refs", {"ref": DEST, "sha": CREATED}),
@@ -284,17 +313,17 @@ def test_malformed_intent_refuses_without_writes(case: Case, raw: bytes) -> None
 _INTENT_MUTATIONS: list[Callable[[dict[str, Any]], None]] = [
     lambda d: d.update(unknown=True),
     lambda d: d["actor"].update(unknown=True),
-    lambda d: d["delta"][0].update(unknown=True),
+    lambda d: d["checkpoints"][0]["delta"][0].update(unknown=True),
     lambda d: d.update(repository_id=True),
     lambda d: d.update(dev="bad-sha"),
     lambda d: d.update(destination="refs/heads/main"),
-    lambda d: d["delta"].append(copy.deepcopy(d["delta"][0])),
-    lambda d: d["delta"][0].update(path="../escape"),
-    lambda d: d["delta"][0].update(path="src/specfact_cli/unsafe.py"),
-    lambda d: d["delta"][0].update(path=".github/workflows/specfact.yml"),
-    lambda d: d["delta"][0].update(after=["120000", NEW]),
-    lambda d: d["delta"][0].update(after=["160000", NEW]),
-    lambda d: d["delta"][0].update(after=["100755", NEW]),
+    lambda d: d["checkpoints"][0]["delta"].append(copy.deepcopy(d["checkpoints"][0]["delta"][0])),
+    lambda d: d["checkpoints"][0]["delta"][0].update(path="../escape"),
+    lambda d: d["checkpoints"][0]["delta"][0].update(path="src/specfact_cli/unsafe.py"),
+    lambda d: d["checkpoints"][0]["delta"][0].update(path=".github/workflows/specfact.yml"),
+    lambda d: d["checkpoints"][0]["delta"][0].update(after=["120000", NEW]),
+    lambda d: d["checkpoints"][0]["delta"][0].update(after=["160000", NEW]),
+    lambda d: d["checkpoints"][0]["delta"][0].update(after=["100755", NEW]),
 ]
 
 
@@ -535,11 +564,12 @@ def test_drift_after_known_creation_is_not_success(case: Case, after: int, statu
 def test_exact_delta_includes_additions_and_deletions(case: Case, change: str) -> None:
     api, publish = case.api, case.publish
     if change == "addition":
-        api.intent["delta"][0]["before"] = None
+        api.intent["checkpoints"][0]["delta"][0]["before"] = None
         api.records[f"{REPO}/git/trees/{BASE_TREE}?recursive=1"]["tree"] = []
     else:
-        api.intent["delta"][0]["after"] = None
-        api.records[f"{REPO}/git/trees/{TREE}?recursive=1"]["tree"] = []
+        api.intent["checkpoints"][0]["delta"][0]["after"] = None
+        inventory = api.records[f"{REPO}/git/trees/{TREE}?recursive=1"]["tree"]
+        inventory[:] = [entry for entry in inventory if entry["path"] != PATH]
     assert publish().status == "published"
     assert len(api.writes) == 2
 
@@ -835,7 +865,7 @@ def test_each_inventory_requires_unique_paths_and_explicit_completeness(case: Ca
 @pytest.mark.parametrize("path", ["scripts/dev_security_ci_signer.py", ".github/workflows/specfact.yml"])
 def test_source_delta_cannot_add_auxiliary_signer_or_workflow(case: Case, path: str) -> None:
     api = case.api
-    api.intent["delta"].append({"path": path, "before": None, "after": ["100644", NEW]})
+    api.intent["checkpoints"][0]["delta"].append({"path": path, "before": None, "after": ["100644", NEW]})
     api.records[f"{REPO}/git/trees/{TREE}?recursive=1"]["tree"].append(
         {"path": path, "mode": "100644", "type": "blob", "sha": NEW}
     )
@@ -989,7 +1019,7 @@ def test_refresh_refuses_pr_drift_before_writes(case: Case, field: str, value: o
 )
 def test_refresh_accepts_only_added_test_paths(case: Case, path: str) -> None:
     api = case.api
-    api.intent["delta"].append({"path": path, "before": None, "after": ["100644", NEW]})
+    api.intent["checkpoints"][0]["delta"].append({"path": path, "before": None, "after": ["100644", NEW]})
     api.records[f"{REPO}/git/trees/{TREE}?recursive=1"]["tree"].append(
         {"path": path, "mode": "100644", "type": "blob", "sha": NEW}
     )
@@ -1001,7 +1031,7 @@ def test_refresh_accepts_only_added_test_paths(case: Case, path: str) -> None:
 
 @pytest.mark.parametrize("path", ["src/specfact_cli/cli.py", "tests/unit/security/test_unreviewed.py"])
 def test_refresh_refuses_unreviewed_scope(case: Case, path: str) -> None:
-    case.api.intent["delta"][0]["path"] = path
+    case.api.intent["checkpoints"][0]["delta"][0]["path"] = path
     assert case.publish().status == "refused"
     assert not case.api.writes
 
@@ -1057,6 +1087,8 @@ def test_refresh_rejects_old_dev_parent_even_with_consistent_signature(case: Cas
 
 
 def test_unbound_template_refuses_before_transport(case: Case) -> None:
-    raw = json.dumps({**case.api.intent, "source_commit": "UNBOUND", "source_tree": "UNBOUND", "delta": []}).encode()
+    intent = copy.deepcopy(case.api.intent)
+    intent["checkpoints"][0].update(source_commit="UNBOUND", source_tree="UNBOUND", delta=[])
+    raw = json.dumps(intent).encode()
     assert case.publish(raw).status == "refused"
     assert case.api.trace == []
