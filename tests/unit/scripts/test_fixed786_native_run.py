@@ -44,6 +44,28 @@ def recorded_run() -> dict[str, Any]:
     return cast(dict[str, Any], json.loads(payload))
 
 
+@pytest.fixture
+def manifest() -> dict[str, Any]:
+    return {
+        "kind": "fixed-pr786-native-red-proof",
+        "pull_request": 786,
+        "change_id": "security-dependencies-0-55-11-dev",
+        "repository": "nold-ai/specfact-cli",
+        "red_commit": SOURCE_COMMIT,
+        "red_tree": "fd6a43314d221ee03f6bf476c737487a71aa3677",
+        "executor_repository": "nold-ai/.github",
+        "executor_commit": EXECUTOR_COMMIT,
+        "executor_tree": "3967631c545b5d6ad9bd1132d635cb5b39b3dd78",
+        "executor_head_branch": "codex/dev786-original-native-34",
+        "executor_workflow_path": ".github/workflows/native-materialization-preflight.yml",
+        "executor_workflow_name": "Native materialization development preflight 34",
+        "executor_event": "create",
+        "executor_conclusion": "success",
+        "run_id": 41082128288,
+        "run_attempt": 1,
+    }
+
+
 @pytest.mark.parametrize(
     "mutation",
     [
@@ -63,30 +85,14 @@ def recorded_run() -> dict[str, Any]:
         "historical-scope",
     ],
 )
-def test_fixed786_run_identity(owner: Any, recorded_run: dict[str, Any], mutation: str) -> None:
-    manifest = {
-        "kind": "fixed-pr786-native-red-proof",
-        "pull_request": 786,
-        "change_id": "security-dependencies-0-55-11-dev",
-        "repository": "nold-ai/specfact-cli",
-        "red_commit": SOURCE_COMMIT,
-        "red_tree": "fd6a43314d221ee03f6bf476c737487a71aa3677",
-        "executor_repository": "nold-ai/.github",
-        "executor_commit": EXECUTOR_COMMIT,
-        "executor_tree": "3967631c545b5d6ad9bd1132d635cb5b39b3dd78",
-        "executor_head_branch": "codex/dev786-original-native-34",
-        "executor_workflow_path": ".github/workflows/native-materialization-preflight.yml",
-        "executor_workflow_name": "Native materialization development preflight 34",
-        "executor_event": "create",
-        "executor_conclusion": "success",
-        "run_id": 41082128288,
-        "run_attempt": 1,
-    }
+def test_fixed786_run_identity(
+    owner: Any, recorded_run: dict[str, Any], manifest: dict[str, Any], mutation: str
+) -> None:
     scope = owner._ProofScope(
         "security-dependencies-0-55-11-dev", 786, "codex/security-dependencies-0-55-11-dev", "red", "red"
     )
     run = copy.deepcopy(recorded_run)
-    run_updates = {
+    run_updates: dict[str, dict[str, Any]] = {
         "executor-is-source": {"head_sha": SOURCE_COMMIT},
         "core-repository": {"repository": run["repository"] | {"full_name": "nold-ai/specfact-cli"}},
         "other-run": {"id": run["id"] + 1},
@@ -102,7 +108,7 @@ def test_fixed786_run_identity(owner: Any, recorded_run: dict[str, Any], mutatio
             "head_commit": run["head_commit"] | {"id": "0" * 40},
         },
     }
-    manifest_updates = {
+    manifest_updates: dict[str, dict[str, Any]] = {
         "coherent-other-executor": {"executor_commit": "0" * 40},
         "coherent-other-source": {"red_commit": EXECUTOR_COMMIT, "red_tree": manifest["executor_tree"]},
     }
