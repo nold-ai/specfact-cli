@@ -149,6 +149,25 @@ its cyclomatic complexity from 18 to the historical value 10. It adds no helper,
 registry, API, waiver or protected capability. The remaining packet, live-source,
 origin, final-head authority and three-consumer gates remain mandatory.
 
+## Fixed packet portable regression before implementation
+
+On 30 October 2026 Europe/Berlin, the portable packet regression against the
+unchanged owner `1f07ed9d3b885d6939cedf273e2db2af3ba80f3b5c0212e1f8f65980dadbea4e`
+produces two intended acceptance assertion failures and 19 passing controls.
+There are no collection errors or skips. The test retains the authenticated
+report, planning envelope, aggregate plan and JUnit bytes without normalization.
+The test SHA-256 is
+`0a267e07795c9950b0d401e5f0664538b87ed662b40b8e0dca3c6bd3f037a6ca`.
+
+The report selector list is sorted, while the actual aggregate plan and JUnit
+retain execution order. These distinct orders must each be checked directly.
+The existing owner still refuses the new fixed schema and canonical RED report.
+A private candidate passes the frozen 21-case regression. Its initial ordering
+error is retained privately as one failed acceptance and 20 passing controls.
+No runtime candidate is installed in this TEST checkpoint. This unit supplies
+no new native, origin, protected adoption or final-head authority. The matching
+internal wiki source is unavailable, so the recorded mirror follow-up remains.
+
 ## Owner-selected 0.55.12 TEST refresh
 
 On 30 October 2026 the owner selected “Use 0.55.12; refresh version-bound
