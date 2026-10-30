@@ -249,6 +249,39 @@ was fully read and all 20 bindings verified. SpecFact Code Review on the final
 owner and test reports PASS with zero findings. Full workflow integration,
 canonical forwarding, origin and fresh exact-head authority remain open.
 
+## Canonical transfer regression before implementation
+
+The full-history formatter test is installed at
+`tests/proof/test_fixed786_canonical_copy.py`, SHA-256
+`91341ec937b08eb5867674b4e016f6afcfcdc5dde9d53ca1500423998f889026`.
+It uses actual local C/R2 ancestry, the unchanged real C validator and original
+canonical report/XML. Only private routing is patched in formatter cases.
+Its event is explicitly derived unit data binding a real local candidate,
+not a captured public event, origin or owner grant. Public routing stays closed.
+
+Private grounding first stopped at the existing history guard rejecting
+`openspec/CHANGE_ORDER.md`. This is not formatter failing-before evidence.
+Git inspection and independent review confirmed that only this eleven-line
+documentation insertion lies outside the fixed source's tests and change folder.
+The C-to-old-R-to-R2 history has exactly two single-parent commits. A private
+one-path history probe then reached the genuine report-byte assertion,
+showing the historical normalizer rewrites the already-bound canonical JSON.
+
+The unchanged owner is
+`6f57f4a102d9b7c93e2c1958dc809ad040fc66c62e6f92de705e9f1aa8776abc`.
+The 16-case private baseline has one history-acceptance assertion failure,
+one formatter case blocked earlier at that history guard, and 14 passes.
+The history-only probe has one genuine JSON-byte assertion failure and
+15 passes. The full private candidate passes all 16 cases. These are local
+formatter/history units, with no new native, origin or final authority credit.
+
+Independent exact review
+`4328415054f62947031e934f5e91cf822ddf392c278aeb875296741556de02ac`
+was fully read and all 33 input bindings verified. It accepts only the exact
+fixed-path admission and canonical copying candidate. No runtime candidate is
+installed in this TEST checkpoint. The recorded internal wiki mirror follow-up
+remains open because its matching source is unavailable.
+
 ## Owner-selected 0.55.12 TEST refresh
 
 On 30 October 2026 the owner selected “Use 0.55.12; refresh version-bound
