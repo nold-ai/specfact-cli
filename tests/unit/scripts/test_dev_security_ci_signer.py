@@ -16,12 +16,12 @@ from scripts import dev_security_ci_signer as signer
 
 
 REPO = "/repos/nold-ai/specfact-cli"
-PARENT = "4ae6175a4d337296d0347e73b66c9da1f0e43f7f"
+PARENT = "22b2fa7bd763b18ada1bfd1a9ea482a624f34cca"
 DEV = "9b5ad1e78430cc0b061cb16de42f73de96f4f312"
 MAIN, SOURCE, TREE, BASE_TREE, EXECUTOR, CREATED = (letter * 40 for letter in "abcdef")
 OLD, NEW = "1" * 40, "2" * 40
-DEST = "refs/heads/codex/security-dev-refreshed-test-prefix-20261029"
-AUX = "refs/heads/codex/security-dev-ci-test-refresh-20261029"
+DEST = "refs/heads/codex/dev786-version12-test-prefix-20261030"
+AUX = "refs/heads/codex/dev786-version12-test-signer-20261030"
 PATH = "openspec/changes/security-dependencies-0-55-11-dev/tasks.md"
 AUTHOR = {"name": "github-actions[bot]", "email": "41898282+github-actions[bot]@users.noreply.github.com"}
 COMMITTER = {"name": "GitHub", "email": "noreply@github.com"}

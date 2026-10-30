@@ -2,7 +2,7 @@
 
 ## Why
 
-The reviewed PR786 test refresh needs a fresh CI service signature before its
+The owner-selected 0.55.12 TEST refresh for PR786 needs a fresh CI service signature before its
 complete patch can be pushed without merging. Historical PR785 signing evidence grants no new
 scope. This auxiliary executor must never become the target tree.
 
@@ -15,10 +15,10 @@ then create the initially absent fixed destination ref. Preserve partial and
 uncertain outcomes without retries or cleanup.
 
 This existing change now covers a fresh test-only refresh of PR786. The sole
-source and signed-output parent is `4ae6175a4d337296d0347e73b66c9da1f0e43f7f`.
-The new executor ref is `refs/heads/codex/security-dev-ci-test-refresh-20261029`
+source and signed-output parent is `22b2fa7bd763b18ada1bfd1a9ea482a624f34cca`.
+The new executor ref is `refs/heads/codex/dev786-version12-test-signer-20261030`
 and the create-only destination is
-`refs/heads/codex/security-dev-refreshed-test-prefix-20261029`.
+`refs/heads/codex/dev786-version12-test-prefix-20261030`.
 The exact 19-path test/SPEC-only allowlist adds only
 `tests/unit/security/test_code_review_dependency_security.py` and
 `tests/unit/security/test_release_promotion_security_gates.py` to the prior 17.
@@ -40,3 +40,5 @@ remote executor/intent review, the single real CI invocation, live verification
 and raw fetched-object comparison. Native bootstrap remains separately blocked.
 The internal wiki mirror and change-order registration are root follow-ups
 outside this delegate's exclusive paths. No claim is made that either is done.
+
+The version decision changes only this proposed fresh binding. Prior run40959594363, executor f937 and its R2 output are complete, consumed historical evidence. Neither that grant nor run is transferred or repeated. The original nineteen paths, transport, guards, workflow, runtime and permissions remain unchanged. Fresh exact source/executor/intent review and the separately controlled signing decision precede one new attempt.

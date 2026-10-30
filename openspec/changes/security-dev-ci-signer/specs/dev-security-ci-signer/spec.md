@@ -19,7 +19,7 @@ expectations and context SHALL independently agree with live observations.
 - **GIVEN** a digest-bound valid intent and complete matching source/tree/delta
 - **WHEN** all live run and ref guards agree
 - **THEN** signing may proceed using T and sole reviewed parent
-  `4ae6175a4d337296d0347e73b66c9da1f0e43f7f`
+  `22b2fa7bd763b18ada1bfd1a9ea482a624f34cca`
 
 #### Scenario: Precondition failure
 

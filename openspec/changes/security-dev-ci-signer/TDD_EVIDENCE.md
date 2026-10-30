@@ -91,3 +91,24 @@ updating its matching source and rebuilding its graph remains a follow-up.
 Final source binding: normal-hook test-only source 78b11468696a47cd2792e1d45a6f91bad142a860 / tree fd6a43314d221ee03f6bf476c737487a71aa3677 / sole parent 4ae6175a4d337296d0347e73b66c9da1f0e43f7f. The executor TEST checkpoint is 028bcfc6eda9a45a91dcf3510d94147c3739f2fd. The final intent records all 19 dev-to-source entries. This is an unsigned, unpublished local source; actual CI signing is pending.
 
 The Code Review typechecker produced two errors and 86 warnings because its bare executable resolves the global Python site-packages without pytest, beartype or icontract. The same exact source and basedpyright 1.39.9 with the repository-configured Hatch interpreter returns zero errors and zero warnings. Verbose import-resolution output and both results are retained privately for independent disposition. No type suppression or tooling rule was changed.
+
+## Fresh 0.55.12 test-prefix scope
+
+The owner selected0.55.12 with refreshed version-bound evidence on30October2026.
+The preproduction TEST source is isolated directly on signedR2 and leaves all
+production0.55.11 declarations unchanged. This existing singleton signer keeps
+its complete nineteen-path TEST/SPEC allowlist, schema, workflow, runtime,
+permissions and every guard. Only the fixed reviewed parent and two one-use
+ref identities change. Older operations and grants remain consumed history.
+
+The existing typed TEST fixture was updated before implementation. Its positive
+two-write case fails against the unchanged prior program with the intended
+empty write list; the old publication scope refuses before mutation. There
+are no import/setup errors. This is one local synthetic boundary failure,
+not independent proof of each guard and not native or actual signature evidence.
+The normal hook initially found two branch-wide active OpenSpec changes. This
+record correctly selects the existing signer change via the hook's unchanged
+staged-scope mechanism. No guard, active change or check is deleted or waived.
+
+The internal signer wiki mirror remains a follow-up; no sibling write is
+claimed. No merge, local signing, remote publication or dispatch has occurred.

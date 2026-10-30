@@ -18,7 +18,7 @@ signer and workflow changes are forbidden. Unchanged production/executable
 leaves and directory entries are valid in the authenticated complete trees. The exact intent digest binds the complete approved path set.
 
 Source S must resolve to T and have exactly the sole parent
-`4ae6175a4d337296d0347e73b66c9da1f0e43f7f`. Complete dev-tree and T leaf inventories must prove
+`22b2fa7bd763b18ada1bfd1a9ea482a624f34cca`. Complete dev-tree and T leaf inventories must prove
 the exact delta including additions, deletions, blob changes and mode changes.
 Reject truncated or malformed inventories. Source ancestry never enters the
 created commit. Tests include complete recursive inventories with directory records; complete
@@ -46,7 +46,7 @@ Only POST /git/commits and POST /git/refs may mutate. The first request has
 exactly tree, parents and message, omitting author/committer/signature. Message
 is message_stem followed by a blank line and Intent, Executor, Run, Attempt
 lines. The only parent is the frozen reviewed PR786 head
-`4ae6175a4d337296d0347e73b66c9da1f0e43f7f`, in both API data and signed payload. Require POST and GET commit agreement, valid
+`22b2fa7bd763b18ada1bfd1a9ea482a624f34cca`, in both API data and signed payload. Require POST and GET commit agreement, valid
 GitHub verification, nonempty signature and exact signed payload. Author is
 github-actions[bot]/41898282/Bot with Git name github-actions[bot] and email
 41898282+github-actions[bot]@users.noreply.github.com. Committer is
