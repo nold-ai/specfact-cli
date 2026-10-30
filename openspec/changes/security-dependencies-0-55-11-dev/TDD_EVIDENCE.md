@@ -129,6 +129,26 @@ manifest fixture. The corrected test hash is
 A fresh local before run retains one intended failure and 13 passing refusal
 controls, with no setup errors or skips. No selected R2 proof input changed.
 
+## Fixed run admission after the normal TEST checkpoints
+
+The installed existing owner has SHA-256
+`1f07ed9d3b885d6939cedf273e2db2af3ba80f3b5c0212e1f8f65980dadbea4e`.
+It admits the fixed auxiliary run separately from its R2 subject and preserves
+historical admission for validated inputs. No public route is registered.
+The portable test hash is
+`abd3471e97e8fce961bbbc6b22fa991644af9d3bf2cc59f97e8b59c06ad09d94`.
+The final before run has one intended assertion failure and 13 passing controls;
+the after run passes all 14 cases and all three existing historical loader
+regressions, 17 total. Changed-file lint reports zero errors, warnings or notes.
+SpecFact Code Review reports PASS with zero findings. Independent exact review
+`b30f5ae497b12a7e4c0385156e403621f5bfbe2400528588e1319f1d6ceeedf5`
+was read completely and its 45 input hashes were verified.
+
+The quality correction retains finite data in the existing owner and restores
+its cyclomatic complexity from 18 to the historical value 10. It adds no helper,
+registry, API, waiver or protected capability. The remaining packet, live-source,
+origin, final-head authority and three-consumer gates remain mandatory.
+
 ## Owner-selected 0.55.12 TEST refresh
 
 On 30 October 2026 the owner selected “Use 0.55.12; refresh version-bound

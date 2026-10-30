@@ -121,8 +121,4 @@ def test_fixed786_run_identity(
         owner._validate_run(run, manifest, scope)
     except ValueError:
         accepted = False
-    assert accepted is (mutation == "actual-record"), (
-        f"Fixed PR786 run identity admission mismatch for {mutation}. "
-        "The genuine auxiliary executor and SOURCE_COMMIT source must remain distinct. "
-        "This assertion concerns only local run-metadata admission."
-    )
+    assert accepted is (mutation == "actual-record"), f"Fixed PR786 run admission mismatch for {mutation}."
