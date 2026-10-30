@@ -13,7 +13,7 @@ concurrency:
   group: dev-security-create-only-signer
   cancel-in-progress: false
 jobs:
-  publish-test-prefix:
+  publish-checkpoints:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -27,7 +27,7 @@ jobs:
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: '3.12'
-      - name: Create the exact reviewed test prefix once
+      - name: Create the exact reviewed checkpoints once
         env:
           GH_TOKEN: ${{ github.token }}
           EXPECTED_EXECUTOR: ${{ inputs.expected_executor }}
@@ -44,5 +44,14 @@ jobs:
         if: always()
         with:
           name: dev-security-signer-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.sha }}
-          path: signer-evidence/
+          path: |
+            signer-evidence/intent.json
+            signer-evidence/context.json
+            signer-evidence/receipt.json
+          if-no-files-found: error
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: success()
+        with:
+          name: fixed786-native34-copy-${{ github.run_id }}-1-${{ github.sha }}
+          path: signer-evidence/copy-members/
           if-no-files-found: error

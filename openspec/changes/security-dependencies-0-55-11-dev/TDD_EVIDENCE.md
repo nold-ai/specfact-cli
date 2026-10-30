@@ -153,3 +153,41 @@ Unicode whitespace corruption are additional refusals. No source, resource,
 metadata or content hash guard is relaxed. Synthetic schema-refusal before
 results do not prove these separate guards until corrected positive and full
 negative after results pass together.
+
+## Complete delivery signer after normal TEST checkpoints
+
+Normal TEST c1eba66651495cfd1c838d86e61f39e0ff762f9e and wire-format TEST
+dfa453cbd90684c2857fccfda74d15adba2e4d08 precede runtime installation.
+The complete retained guard matrix and finite checkpoint/COPY tests pass all
+217 Synthetic local cases, including unwrapped/LF/CRLF success and space/tab/
+Unicode-whitespace refusal. This is neither actual API/service signing nor
+upload, native execution, dispatch authorization or protected adoption.
+
+Installed program SHA-256 is
+`8999db66b9c074fb257921049e29147f1b3f4fb444e6951ab79ea086d3904af2`;
+workflow is
+`bacdfcb17ecdc0567c9cdc076b86271dcb337a4c4fc0075b752ba25e4f142901`;
+unchanged runtime is
+`bc64c498cf74b3a959a1522c04614e199061dea2e35ab0110d58b9411db38712`.
+The new intent remains deliberately UNBOUND. Exact independent runtime review
+`d8262fc5ea2abf4ec7a398d9c6773cb8d4a936e889fe124c7cc439bfeaecec2b`
+was fully read and all 39 input bindings verified. It accepts only this local
+CODE boundary. Normal final-source freezing, actual signing and separately
+controlled exact-F protected adoption remain mandatory.
+
+The raw code review has zero errors, zero warnings and six informational
+findings. The five test-specific dispositions above remain unchanged. Keep
+publish_once at 56 lines as its sixth explicit design-judgment disposition.
+Its one visible sequence shows all-source validation, each service write,
+independent readback, confirmed prefix, repeated live guards and the sole final
+ref creation. A stage wrapper would split those partial-effect transitions and
+make uncertainty harder to audit. No rule, suppression, raw report or required
+check is changed. The real print warning was fixed with the same direct stderr
+receipt write, preserving the exact output and failure facts.
+
+Eventual source intents must use actual GitHub API-reported messages. One
+read-only observed normal source object shows the API omits Git's terminal LF;
+its complete reported message is otherwise equal. The signer preserves that
+exact reviewed representation and records the original source commit identity.
+It does not claim original Git IDs, author signatures or raw-commit message
+serialization survive service copying.

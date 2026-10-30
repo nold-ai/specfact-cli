@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import json
 import os
 import re
+import sys
 from dataclasses import asdict, dataclass, replace
 from http.client import HTTPException, HTTPResponse
 from pathlib import Path
@@ -17,40 +19,69 @@ from icontract import ensure, require
 
 
 _REPO = "/repos/nold-ai/specfact-cli"
-_AUX = "refs/heads/codex/security-dev-ci-test-refresh-20261029"
-_DEST = "refs/heads/codex/security-dev-refreshed-test-prefix-20261029"
-_PARENT = "4ae6175a4d337296d0347e73b66c9da1f0e43f7f"
+_AUX = "refs/heads/codex/dev786-complete-ci-signer-20261030"
+_DEST = "refs/heads/codex/security-dev-complete-candidate-20261030"
+_PARENT = "22b2fa7bd763b18ada1bfd1a9ea482a624f34cca"
 _DEV = "9b5ad1e78430cc0b061cb16de42f73de96f4f312"
 _WORKFLOW = 204352514
 _WORKFLOW_PATH = ".github/workflows/specfact.yml"
-_CHANGE = "openspec/changes/security-dependencies-0-55-11-dev/"
 _ALLOWED = frozenset(
     {
-        _CHANGE + name
-        for name in (
-            ".openspec.yaml",
-            "CHANGE_VALIDATION.md",
-            "TDD_EVIDENCE.md",
-            "design.md",
-            "proposal.md",
-            "requirements-evidence.yaml",
-            "requirements-proof/local-red-behavior-20261026-receipt.json",
-            "requirements-proof/local-red-behavior-20261026.xml.gz",
-            "requirements-proof/review-evidence.json",
-            "specs/dev-security-dependencies/spec.md",
-            "tasks.md",
-        )
-    }
-    | {
+        ".github/workflows/pr-orchestrator.yml",
+        ".github/workflows/requirements-evidence.yml",
+        "CHANGELOG.md",
+        "ci/dependency-trust-exceptions.json",
+        "ci/vulnerability-audit-exceptions.json",
         "openspec/CHANGE_ORDER.md",
+        "openspec/changes/security-dependencies-0-55-11-dev/.openspec.yaml",
+        "openspec/changes/security-dependencies-0-55-11-dev/CHANGE_VALIDATION.md",
+        "openspec/changes/security-dependencies-0-55-11-dev/TDD_EVIDENCE.md",
+        "openspec/changes/security-dependencies-0-55-11-dev/design.md",
+        "openspec/changes/security-dependencies-0-55-11-dev/proposal.md",
+        "openspec/changes/security-dependencies-0-55-11-dev/requirements-evidence.yaml",
+        "openspec/changes/security-dependencies-0-55-11-dev/requirements-proof/late-red-evidence.json",
+        "openspec/changes/security-dependencies-0-55-11-dev/requirements-proof/local-red-behavior-20261026-receipt.json",
+        "openspec/changes/security-dependencies-0-55-11-dev/requirements-proof/local-red-behavior-20261026.xml.gz",
+        "openspec/changes/security-dependencies-0-55-11-dev/requirements-proof/review-evidence.json",
+        "openspec/changes/security-dependencies-0-55-11-dev/specs/dev-security-dependencies/spec.md",
+        "openspec/changes/security-dependencies-0-55-11-dev/tasks.md",
+        "pyproject.toml",
+        "requirements/ci/locked.txt",
+        "requirements/code-review/locked.txt",
+        "requirements/code-review/requirements.in",
+        "scripts/requirements_late_red_proof.py",
+        "setup.py",
+        "tests/fixtures/requirements-proof/pr786-native34-run.json",
+        "tests/proof/test_fixed786_canonical_copy.py",
+        "tests/unit/scripts/fixtures/fixed786-native-packet/fixture-metadata.json",
+        "tests/unit/scripts/fixtures/fixed786-native-packet/local-red-report.json",
+        "tests/unit/scripts/fixtures/fixed786-native-packet/plan.json",
+        "tests/unit/scripts/fixtures/fixed786-native-packet/planning-report.json",
+        "tests/unit/scripts/fixtures/fixed786-native-packet/requirements-proof.xml",
+        "tests/unit/scripts/fixtures/fixed786_artifact_source/artifact-live-api.json",
+        "tests/unit/scripts/fixtures/fixed786_artifact_source/manifest.json",
+        "tests/unit/scripts/fixtures/fixed786_artifact_source/source-R2-filtered-api.json",
         "tests/unit/scripts/test_dependency_compatibility_workflow.py",
         "tests/unit/scripts/test_dependency_trust_review.py",
+        "tests/unit/scripts/test_fixed786_artifact_source.py",
+        "tests/unit/scripts/test_fixed786_native_packet.py",
+        "tests/unit/scripts/test_fixed786_native_run.py",
+        "tests/unit/scripts/test_fixed786_workflow_integration.py",
         "tests/unit/scripts/test_security_audit_gate.py",
+        "tests/unit/security/test_code_review_dependency_security.py",
         "tests/unit/security/test_frozen_gitpython_compatibility.py",
         "tests/unit/security/test_release_dependency_selection.py",
-        "tests/unit/security/test_code_review_dependency_security.py",
         "tests/unit/security/test_release_promotion_security_gates.py",
+        "uv.lock",
     }
+)
+_COPY_PREFIX = "tests/unit/scripts/fixtures/fixed786-native-packet/"
+_COPY_METADATA_SHA256 = "fab750934aea6f653b4715424ab42d0448c4af5dcaea8c6b6272dbabb75f9bbe"
+_COPY_MEMBERS = (
+    ("requirements-evidence.json", "local-red-report.json", "report_digest"),
+    ("requirements-evidence-plan.json", "planning-report.json", "plan_report_digest"),
+    ("requirements-proof.xml", "requirements-proof.xml", "junit_digest"),
+    ("plan.json", "plan.json", "plan_output_digest"),
 )
 _GIT_ROLES = {
     "author": {"name": "github-actions[bot]", "email": "41898282+github-actions[bot]@users.noreply.github.com"},
@@ -89,6 +120,16 @@ class RunContext:
 
 
 @dataclass(frozen=True)
+class _SignedCheckpoint:
+    source_commit: str
+    source_tree: str
+    parent: str
+    commit_sha: str
+    signature: str
+    payload: str
+
+
+@dataclass(frozen=True)
 class Outcome:
     status: _Status
     intent_sha256: str
@@ -100,6 +141,7 @@ class Outcome:
     ref_sha: str | None = None
     signature: str | None = None
     payload: str | None = None
+    signed_checkpoints: tuple[_SignedCheckpoint, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -110,6 +152,15 @@ class _Delta:
 
 
 @dataclass(frozen=True)
+class _Checkpoint:
+    source_commit: str
+    source_parent: str
+    source_tree: str
+    source_message: str
+    delta: tuple[_Delta, ...]
+
+
+@dataclass(frozen=True)
 class _Intent:
     repository_id: int
     repository_full_name: str
@@ -117,12 +168,9 @@ class _Intent:
     triggering_actor: tuple[int, str]
     dev: str
     main: str
-    source_commit: str
-    source_tree: str
-    delta: tuple[_Delta, ...]
+    checkpoints: tuple[_Checkpoint, ...]
     auxiliary_ref: str
     destination: str
-    message_stem: str
 
 
 @dataclass(frozen=True)
@@ -207,14 +255,43 @@ def _delta(value: object) -> _Delta:
     return delta
 
 
+def _checkpoint(value: object) -> _Checkpoint:
+    record = _object(value)
+    _keys(record, "source_commit source_parent source_tree source_message delta")
+    deltas = tuple(_delta(item) for item in _array(record["delta"]))
+    _check(bool(deltas) and len({d.path for d in deltas}) == len(deltas), "Empty or duplicate delta")
+    message = _text(record["source_message"])
+    _check(
+        not any(
+            re.match(r"\s*(?:Source-Commit|Intent|Executor|Run|Attempt)\s*:", line, re.IGNORECASE)
+            for line in message.splitlines()
+        ),
+        "Reserved signer suffix in source message",
+    )
+    return _Checkpoint(
+        _sha(record["source_commit"]),
+        _sha(record["source_parent"]),
+        _sha(record["source_tree"]),
+        message,
+        deltas,
+    )
+
+
 def _intent(raw: bytes) -> _Intent:
     record = _decode(raw)
     _keys(
         record,
-        "repository_id repository_full_name actor triggering_actor dev main source_commit source_tree delta auxiliary_ref destination message_stem",
+        "repository_id repository_full_name actor triggering_actor dev main checkpoints auxiliary_ref destination",
     )
-    deltas = tuple(_delta(value) for value in _array(record["delta"]))
-    _check(bool(deltas) and len({d.path for d in deltas}) == len(deltas), "Empty or duplicate delta")
+    entries = _array(record["checkpoints"])
+    _check(1 <= len(entries) <= 32, "Expected 1..32 reviewed checkpoints")
+    checkpoints = tuple(_checkpoint(value) for value in entries)
+    parent = _PARENT
+    seen = {_PARENT}
+    for checkpoint in checkpoints:
+        _check(checkpoint.source_parent == parent and checkpoint.source_commit not in seen, "Broken source chain")
+        seen.add(checkpoint.source_commit)
+        parent = checkpoint.source_commit
     intent = _Intent(
         _integer(record["repository_id"]),
         _text(record["repository_full_name"]),
@@ -222,19 +299,15 @@ def _intent(raw: bytes) -> _Intent:
         _identity(record["triggering_actor"]),
         _sha(record["dev"]),
         _sha(record["main"]),
-        _sha(record["source_commit"]),
-        _sha(record["source_tree"]),
-        deltas,
+        checkpoints,
         _text(record["auxiliary_ref"]),
         _text(record["destination"]),
-        _text(record["message_stem"]),
     )
     _check(
         (intent.repository_full_name, intent.dev, intent.auxiliary_ref, intent.destination)
         == ("nold-ai/specfact-cli", _DEV, _AUX, _DEST),
         "Unexpected publication scope",
     )
-    _check(not any(ord(c) < 32 for c in intent.message_stem), "Invalid message stem")
     return intent
 
 
@@ -387,34 +460,80 @@ def _inventory(sha: str) -> dict[str, _Entry]:
     return leaves
 
 
-def _source(intent: _Intent) -> None:
-    source = _get(f"{_REPO}/git/commits/{intent.source_commit}")
-    _check(_matches(source, {"sha": intent.source_commit, "tree": {"sha": intent.source_tree}}), "Source tree mismatch")
-    parents = _array(source["parents"])
-    _check(len(parents) == 1 and _matches(parents[0], {"sha": _PARENT}), "Wrong source parent")
+def _source(intent: _Intent) -> dict[str, _Entry]:
     base = _get(f"{_REPO}/git/commits/{intent.dev}")
     _check(base.get("sha") == intent.dev, "Base commit mismatch")
     before = _inventory(_sha(_object(base["tree"])["sha"]))
-    after = _inventory(intent.source_tree)
-    actual = {
-        _Delta(path, before.get(path), after.get(path))
-        for path in before.keys() | after.keys()
-        if before.get(path) != after.get(path)
-    }
-    _check(actual == set(intent.delta), "Complete source delta mismatch")
+    after: dict[str, _Entry] = {}
+    for checkpoint in intent.checkpoints:
+        source = _get(f"{_REPO}/git/commits/{checkpoint.source_commit}")
+        _check(
+            _matches(
+                source,
+                {
+                    "sha": checkpoint.source_commit,
+                    "tree": {"sha": checkpoint.source_tree},
+                    "message": checkpoint.source_message,
+                },
+            ),
+            "Source tree/message mismatch",
+        )
+        parents = _array(source["parents"])
+        _check(len(parents) == 1 and _matches(parents[0], {"sha": checkpoint.source_parent}), "Wrong source parent")
+        after = _inventory(checkpoint.source_tree)
+        actual = {
+            _Delta(path, before.get(path), after.get(path))
+            for path in before.keys() | after.keys()
+            if before.get(path) != after.get(path)
+        }
+        _check(actual == set(checkpoint.delta), "Complete source delta mismatch")
+    return after
 
 
-def _signed(record: dict[str, object], intent: _Intent, message: str, sha: str) -> tuple[str, str]:
-    _check(_matches(record, {"sha": sha, "tree": {"sha": intent.source_tree}, "message": message}), "Commit mismatch")
+def _copy_blob(inventory: dict[str, _Entry], name: str) -> bytes:
+    mode, oid = inventory[_COPY_PREFIX + name]
+    _check(mode == "100644", "COPY requires regular files")
+    record = _get(f"{_REPO}/git/blobs/{oid}")
+    _check(record.get("sha") == oid and record.get("encoding") == "base64", "Invalid COPY blob identity/encoding")
+    content = _text(record["content"])
+    _check(len(content) <= _MAX_RESPONSE, "COPY encoded blob exceeds bound")
+    raw = base64.b64decode(content.replace("\r", "").replace("\n", ""), validate=True)
+    _check(len(raw) <= _MAX_RESPONSE, "COPY decoded blob exceeds bound")
+    _check(type(record.get("size")) is int and record["size"] == len(raw), "COPY blob size mismatch")
+    git_oid = hashlib.sha1(b"blob " + str(len(raw)).encode() + b"\0" + raw, usedforsecurity=False).hexdigest()
+    _check(git_oid == oid, "COPY Git blob mismatch")
+    return raw
+
+
+def _copy_members(inventory: dict[str, _Entry]) -> dict[str, bytes]:
+    metadata = _copy_blob(inventory, "fixture-metadata.json")
+    _check(hashlib.sha256(metadata).hexdigest() == _COPY_METADATA_SHA256, "COPY metadata mismatch")
+    record = _decode(metadata)
+    files, manifest = _object(record["files"]), _object(record["manifest"])
+    _check(set(files) == {name for name, _, _ in _COPY_MEMBERS}, "Unexpected COPY members")
+    members: dict[str, bytes] = {}
+    for name, source, digest_key in _COPY_MEMBERS:
+        entry = _object(files[name])
+        _check(entry.get("source") == source, "COPY source mapping mismatch")
+        raw = _copy_blob(inventory, source)
+        digest = hashlib.sha256(raw).hexdigest()
+        _check(entry.get("bytes") == len(raw) and entry.get("sha256") == digest, "COPY member mismatch")
+        _check(manifest.get(digest_key) == "sha256:" + digest, "COPY manifest mismatch")
+        members[name] = raw
+    return members
+
+
+def _signed(record: dict[str, object], tree: str, parent: str, message: str, sha: str) -> tuple[str, str]:
+    _check(_matches(record, {"sha": sha, "tree": {"sha": tree}, "message": message}), "Commit mismatch")
     parents = _array(record["parents"])
-    _check(len(parents) == 1 and _matches(parents[0], {"sha": _PARENT}), "Wrong commit parent")
+    _check(len(parents) == 1 and _matches(parents[0], {"sha": parent}), "Wrong commit parent")
     verification = _object(record["verification"])
     _check(verification.get("verified") is True and verification.get("reason") == "valid", "Invalid verification")
     signature, payload = _text(verification["signature"]), _text(verification["payload"])
     headers, separator, signed_message = payload.partition("\n\n")
     lines = headers.split("\n")
     _check(separator == "\n\n" and signed_message == message and len(lines) == 4, "Invalid signed payload")
-    _check(lines[:2] == [f"tree {intent.source_tree}", f"parent {_PARENT}"], "Wrong signed tree/parent")
+    _check(lines[:2] == [f"tree {tree}", f"parent {parent}"], "Wrong signed tree/parent")
     for index, (role, identity) in enumerate(_GIT_ROLES.items(), start=2):
         _check(_matches(record.get(role), identity), "Wrong Git service identity")
         prefix = f"{role} {identity['name']} <{identity['email']}> "
@@ -425,10 +544,10 @@ def _signed(record: dict[str, object], intent: _Intent, message: str, sha: str) 
     return signature, payload
 
 
-def _verify(intent: _Intent, message: str, outcome: Outcome) -> None:
+def _verify(tree: str, parent: str, message: str, outcome: Outcome) -> None:
     record = _get(f"{_REPO}/git/commits/{outcome.commit_sha}")
     _check(
-        _signed(record, intent, message, _text(outcome.commit_sha)) == (outcome.signature, outcome.payload),
+        _signed(record, tree, parent, message, _text(outcome.commit_sha)) == (outcome.signature, outcome.payload),
         "Commit readback verification mismatch",
     )
     attribution = _get(f"{_REPO}/commits/{outcome.commit_sha}")
@@ -464,23 +583,38 @@ def publish_once(intent_file: Path, expected: DispatchExpectation, context: RunC
         outcome = replace(outcome, intent_sha256=hashlib.sha256(raw).hexdigest())
         intent = _intent(raw)
         _context(intent, expected, context, outcome.intent_sha256)
-        _source(intent)
+        _copy_members(_source(intent))
         _guards(intent, context, None)
-        message = (
-            f"{intent.message_stem}\n\nIntent: {outcome.intent_sha256}\nExecutor: {context.executor_sha}"
-            f"\nRun: {context.run_id}\nAttempt: {context.run_attempt}"
-        )
-        outcome = replace(outcome, status="uncertain_commit")
-        response = _request(
-            "POST", _REPO + "/git/commits", {"tree": intent.source_tree, "parents": [_PARENT], "message": message}
-        )
-        _check(response.status == 201, f"Commit POST returned HTTP {response.status}")
-        commit = _decode(response.body)
-        outcome = replace(outcome, status="object_only", commit_sha=_sha(commit["sha"]))
-        signature, payload = _signed(commit, intent, message, _text(outcome.commit_sha))
-        outcome = replace(outcome, signature=signature, payload=payload)
-        _verify(intent, message, outcome)
-        _guards(intent, context, None)
+        parent = _PARENT
+        for checkpoint in intent.checkpoints:
+            message = (
+                f"{checkpoint.source_message}\n\nSource-Commit: {checkpoint.source_commit}"
+                f"\nIntent: {outcome.intent_sha256}\nExecutor: {context.executor_sha}"
+                f"\nRun: {context.run_id}\nAttempt: {context.run_attempt}"
+            )
+            outcome = replace(outcome, status="uncertain_commit", commit_sha=None, signature=None, payload=None)
+            response = _request(
+                "POST",
+                _REPO + "/git/commits",
+                {"tree": checkpoint.source_tree, "parents": [parent], "message": message},
+            )
+            _check(response.status == 201, f"Commit POST returned HTTP {response.status}")
+            commit = _decode(response.body)
+            outcome = replace(outcome, status="object_only", commit_sha=_sha(commit["sha"]))
+            signature, payload = _signed(commit, checkpoint.source_tree, parent, message, _text(outcome.commit_sha))
+            outcome = replace(outcome, signature=signature, payload=payload)
+            _verify(checkpoint.source_tree, parent, message, outcome)
+            confirmed = _SignedCheckpoint(
+                checkpoint.source_commit,
+                checkpoint.source_tree,
+                parent,
+                _text(outcome.commit_sha),
+                signature,
+                payload,
+            )
+            outcome = replace(outcome, signed_checkpoints=(*outcome.signed_checkpoints, confirmed))
+            _guards(intent, context, None)
+            parent = confirmed.commit_sha
         outcome = replace(outcome, status="uncertain_ref")
         response = _request("POST", _REPO + "/git/refs", {"ref": _DEST, "sha": outcome.commit_sha})
         _check(response.status == 201, f"Ref POST returned HTTP {response.status}")
@@ -491,7 +625,8 @@ def publish_once(intent_file: Path, expected: DispatchExpectation, context: RunC
         )
         outcome = replace(outcome, ref_sha=_ref(_DEST))
         _check(outcome.ref_sha == outcome.commit_sha, "Final ref mismatch")
-        _verify(intent, message, outcome)
+        final = outcome.signed_checkpoints[-1]
+        _verify(final.source_tree, final.parent, final.payload.partition("\n\n")[2], outcome)
         _guards(intent, context, outcome.commit_sha)
         return replace(outcome, status="published")
     except (ValueError, KeyError, OSError, HTTPException) as error:
@@ -525,29 +660,50 @@ def _environment_context() -> RunContext:
 
 
 def _main() -> int:
-    parser = argparse.ArgumentParser(description="Create the reviewed dev security snapshot once.")
+    parser = argparse.ArgumentParser(description="Create the reviewed dev security checkpoints once.")
     parser.add_argument("--intent", type=Path, required=True)
     parser.add_argument("--expected-executor", required=True)
     parser.add_argument("--expected-intent", required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     output = cast(Path, args.output)
-    output.mkdir(parents=True, exist_ok=True)
     context_record: dict[str, object] = {}
     receipt: dict[str, object] = {"status": "refused", "reason": "Context or intent unavailable"}
+    evidence_ok = True
     try:
+        output.mkdir(parents=True, exist_ok=True)
         intent_file = cast(Path, args.intent)
-        (output / "intent.json").write_bytes(intent_file.read_bytes())
+        raw = intent_file.read_bytes()
+        (output / "intent.json").write_bytes(raw)
         context = _environment_context()
         context_record = asdict(context)
         expected = DispatchExpectation(cast(str, args.expected_executor), cast(str, args.expected_intent))
+        digest = hashlib.sha256(raw).hexdigest()
+        receipt = asdict(Outcome("refused", digest, context.executor_sha, context.run_id, context.run_attempt))
+        intent = _intent(raw)
+        _context(intent, expected, context, digest)
+        members = _copy_members(_inventory(intent.checkpoints[-1].source_tree))
+        copy_dir = output / "copy-members"
+        copy_dir.mkdir()
+        for name, data in members.items():
+            with (copy_dir / name).open("xb") as member:
+                member.write(data)
         receipt = asdict(publish_once(intent_file, expected, context))
-    except (ValueError, KeyError, OSError) as error:
+    except (ValueError, KeyError, OSError, HTTPException) as error:
         receipt["reason"] = f"{type(error).__name__}: {error}"
     finally:
-        (output / "context.json").write_text(json.dumps(context_record, indent=2) + "\n")
-        (output / "receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
-    return 0 if receipt["status"] == "published" else 1
+        try:
+            (output / "context.json").write_text(json.dumps(context_record, indent=2) + "\n")
+        except OSError as error:
+            evidence_ok = False
+            receipt["evidence_error"] = f"{type(error).__name__}: {error}"
+        try:
+            (output / "receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
+        except OSError as error:
+            evidence_ok = False
+            receipt["evidence_error"] = f"{type(error).__name__}: {error}"
+            sys.stderr.write(json.dumps(receipt) + "\n")
+    return 0 if evidence_ok and receipt["status"] == "published" else 1
 
 
 if __name__ == "__main__":
