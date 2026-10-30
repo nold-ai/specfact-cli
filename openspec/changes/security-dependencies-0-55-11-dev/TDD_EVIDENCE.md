@@ -82,6 +82,45 @@ The local test prefix has passed normal hooks. Its unsigned source snapshot is
 not a published branch or accepted commit signature. A bounded create-only CI
 signer must produce and verify the delivered tree with dev as its sole parent.
 
+## Current native prefix and fixed transfer regression
+
+On 30 October 2026 Europe/Berlin, signed test source
+`22b2fa7bd763b18ada1bfd1a9ea482a624f34cca` received genuine Linux proof in
+[run 41082128288](https://github.com/nold-ai/.github/actions/runs/41082128288),
+attempt 1. Auxiliary executor `7b6b5fc1af7b57c2eb5a3546b7578a81175e4dfa`
+is a distinct identity. Independent packet review accepted 21 intended
+assertion failures, zero errors/passes/skips, all 35 unchanged source identities
+and complete cleanup of all five owned roots. The report digest is
+`befa58f55bad15689605659f8fd209ec853e0831bc99a3532da1ca9264f50e58`.
+Original artifact 12988969594 has ZIP SHA-256
+`ae9f1bd8efb862d2b03f9c584cded897e1ac0d945a3b60265347670d21bcab79`.
+This is current development failing-first evidence. Protected origin, adoption
+and final-head readiness remain separate and unaccepted. Historical15 evidence
+is retained as historical evidence.
+
+The new portable `test_fixed786_native_run.py` exercises the existing late-RED
+owner with a retained public GitHub run object. The fixture SHA-256 is
+`df109a62bd249f55dd25b6d3d22ba5a5b92d0d8d0815334ee424b0b9ab89a072`.
+Before runtime changes, the actual-record admission case fails with the intended
+AssertionError and all 13 refusal controls pass, with zero setup/collection
+errors or skips. The test SHA-256 is
+`160e6f5a249a1f118b160a5b5692f808d34a56bfa047bbc38c9c212bbc98a544`;
+the unchanged owner SHA-256 is
+`de31b828f21ed0bfb580a8d261a3a475a62f61864ecdaae3a0eb551d7184b928`.
+This replay unit grants no native, CLI transfer, origin or owner authority.
+
+The private run-only candidate passes its frozen 14-case unit and has an exact
+independent review. It is not installed in this test-first checkpoint. The public
+route must remain unregistered until complete packet, signature, provenance,
+origin and exact-final-head authority checks are implemented and reviewed.
+The seven selected R2 tests and their Requirements mapping remain unchanged.
+The matching internal wiki source is missing; mirror update and graph rebuild
+remain an explicit follow-up. No merge or protected adoption is authorized here.
+
+The first normal checkpoint hook rejected the test mutation chain for complexity.
+A fixed run/manifest update table retains the same 14 cases without that chain.
+The historical hook failure is retained; no check or finding was waived.
+
 ## Owner-selected 0.55.12 TEST refresh
 
 On 30 October 2026 the owner selected “Use 0.55.12; refresh version-bound
