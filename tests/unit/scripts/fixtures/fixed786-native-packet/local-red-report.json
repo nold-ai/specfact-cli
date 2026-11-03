@@ -659,7 +659,7 @@
     "plan_digest": "sha256:befd8204588ac5de083e48e62c480b23cbdecbf3b4a2006fdf0e2901a213ae0f"
   },
   "execution_proof": {
-    "junit_digest": "sha256:f20bfadc80b82843b79af71e9e466b30f84301031a5ade0ae45cf51df599cb5f",
+    "junit_digest": "sha256:92992ccec3f3e546ce0d79ab8403806be31cd2a267ed61147eee90a27338e401",
     "merge_base": "9b5ad1e78430cc0b061cb16de42f73de96f4f312",
     "run_stage": "red",
     "selectors": [
@@ -685,8 +685,8 @@
       "tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[virtualenv-21.14.13]",
       "tests/unit/security/test_release_promotion_security_gates.py::test_frozen_graph_uses_official_semgrep_with_bounded_mcp_exception"
     ],
-    "source_ref": "22b2fa7bd763b18ada1bfd1a9ea482a624f34cca",
-    "source_tree": "fd6a43314d221ee03f6bf476c737487a71aa3677",
+    "source_ref": "d77209f4b13c386e29391f93e1f1c58d7fd8622f",
+    "source_tree": "cfba03cf57f6de2fc6dd37709c9d8e38d03f2187",
     "test_file_digests": {
       "tests/unit/scripts/test_dependency_compatibility_workflow.py": "sha256:416e367877990ebb2d809e11847c363cd599c32f32d014a818f09053d5fab7fa",
       "tests/unit/scripts/test_dependency_trust_review.py": "sha256:bb20822cb58c8f773f8ed7a54628feef2e1eadbf5cc5c53936422223986ee7ac",
@@ -694,7 +694,7 @@
       "tests/unit/security/test_code_review_dependency_security.py": "sha256:ffc5a4e3f9f1b2b5574a970ab8e5673a68b647f865e620224f788fa5e773b59e",
       "tests/unit/security/test_frozen_gitpython_compatibility.py": "sha256:c1d428aba630c5f4abd4f236c10540632fb86e9c0e93ea1a9ba91809dbe415af",
       "tests/unit/security/test_release_dependency_selection.py": "sha256:aa8ae11968ef7e026599e57e0f47522717726fb8477de62c32ad5944d62684b5",
-      "tests/unit/security/test_release_promotion_security_gates.py": "sha256:32150f1bb33d28f7e1302f80081c3617b37e430d1d99c0d00a9f1a089b7ad093"
+      "tests/unit/security/test_release_promotion_security_gates.py": "sha256:166881163bdd33ef5c5f71ec0bf7911c2f97bbef3caea5a062833a8f7dfbef9f"
     },
     "toolchain_identity": {
       "pytest": "9.1.1",

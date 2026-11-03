@@ -93,8 +93,8 @@ def test_fixed_manifest_accepts_exact_packet_without_claiming_authority(
     [
         ("issue", 692),
         ("pull_request", 717),
-        ("red_commit", "7b6b5fc1af7b57c2eb5a3546b7578a81175e4dfa"),
-        ("artifact_id", 12988824885),
+        ("red_commit", "8ad0a9434ceeac4a910df3c374536d7c909badec"),
+        ("artifact_id", 13270362279),
         ("artifact_repository", "nold-ai/specfact-cli"),
         ("origin_repository", "nold-ai/.github"),
         ("run_attempt", True),
