@@ -21,7 +21,7 @@ from icontract import ensure, require
 _REPO = "/repos/nold-ai/specfact-cli"
 _AUX = "refs/heads/codex/dev786-complete-ci-signer-20261030"
 _DEST = "refs/heads/codex/security-dev-complete-candidate-20261030"
-_PARENT = "22b2fa7bd763b18ada1bfd1a9ea482a624f34cca"
+_PARENT = "d77209f4b13c386e29391f93e1f1c58d7fd8622f"
 _DEV = "9b5ad1e78430cc0b061cb16de42f73de96f4f312"
 _WORKFLOW = 204352514
 _WORKFLOW_PATH = ".github/workflows/specfact.yml"
@@ -51,6 +51,8 @@ _ALLOWED = frozenset(
         "requirements/code-review/requirements.in",
         "scripts/requirements_late_red_proof.py",
         "setup.py",
+        "src/__init__.py",
+        "src/specfact_cli/__init__.py",
         "tests/fixtures/requirements-proof/pr786-native34-run.json",
         "tests/proof/test_fixed786_canonical_copy.py",
         "tests/unit/scripts/fixtures/fixed786-native-packet/fixture-metadata.json",
@@ -76,7 +78,7 @@ _ALLOWED = frozenset(
     }
 )
 _COPY_PREFIX = "tests/unit/scripts/fixtures/fixed786-native-packet/"
-_COPY_METADATA_SHA256 = "fab750934aea6f653b4715424ab42d0448c4af5dcaea8c6b6272dbabb75f9bbe"
+_COPY_METADATA_SHA256 = "e491e7ce89edf6a5c4299dc0d723cb9a3ff90573c062b45269da13f963a65617"
 _COPY_MEMBERS = (
     ("requirements-evidence.json", "local-red-report.json", "report_digest"),
     ("requirements-evidence-plan.json", "planning-report.json", "plan_report_digest"),
