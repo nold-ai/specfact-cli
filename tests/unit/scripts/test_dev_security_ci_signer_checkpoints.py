@@ -158,10 +158,11 @@ def finite(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> FiniteCase:
 def test_exact_release_initializer_paths_can_be_published(finite: FiniteCase, path: str) -> None:
     for record in finite.api.records.values():
         entries: list[dict[str, Any]] | dict[str, Any] | None = record.get("tree")
-        if isinstance(entries, list):
-            for entry in entries:
-                if entry.get("path") == old.PATH:
-                    entry["path"] = path
+        if not isinstance(entries, list):
+            continue
+        for entry in entries:
+            if entry.get("path") == old.PATH:
+                entry["path"] = path
     for checkpoint in finite.api.intent["checkpoints"]:
         checkpoint["delta"][0]["path"] = path
     receipt = finite.publish()
