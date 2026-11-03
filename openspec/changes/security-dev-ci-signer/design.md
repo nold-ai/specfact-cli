@@ -80,3 +80,11 @@ contract-tool closure from the earlier auxiliary signer. This supplies real
 icontract and beartype checks without bootstrapping the subject graph or adding
 a hook exception. The source tree delivered to dev excludes this auxiliary
 closure and executor. Final independent review must assess this design delta.
+
+## Owner-selected 0.55.12 binding refresh
+
+The existing finite signer remains the only publication owner. Root its source/output chains at accepted CI-signed R3 d77209f4b13c386e29391f93e1f1c58d7fd8622f. Add only src/__init__.py and src/specfact_cli/__init__.py to the existing changed-path allowlist because the unchanged version gate requires both canonical version constants for0.55.12. Preserve every other path restriction, all checkpoint/schema/message/delta/signature/actor/ref/run/uncertainty/resource guards and HTTP operations. Do not add a mode, API, wildcard, launcher or framework.
+
+COPY keeps exactly four authenticated actual native36 members, separate from fixture metadata. Pin metadata SHA256 e491e7ce89edf6a5c4299dc0d723cb9a3ff90573c062b45269da13f963a65617 and synchronize the existing fixed COPY artifact label to native36 in signer and consumers. These fixture bytes are from accepted original artifact13269307808/run41715861806; no new native execution or origin credit follows. Keep runtime lockbc64 byte-identical and the existing unused auxiliary/destination ref names.
+
+First update the existing Synthetic API fixtures and add two public publication cases for these exact initializer paths. Require their before result to refuse the unreviewed path before any API write. Then normal TEST, three finite program binding edits plus the two paths and COPY label, all existing preservation cases, fresh independent exact review and normal hooks. The intent stays explicitly UNBOUND until complete normal source history and actual API messages exist. This candidate grants no dispatch, protected integration, final-head provenance, publication/release or merge authority.

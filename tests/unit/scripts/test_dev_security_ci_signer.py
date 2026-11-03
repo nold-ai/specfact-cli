@@ -17,7 +17,7 @@ from scripts import dev_security_ci_signer as signer
 
 
 REPO = "/repos/nold-ai/specfact-cli"
-PARENT = "22b2fa7bd763b18ada1bfd1a9ea482a624f34cca"
+PARENT = "d77209f4b13c386e29391f93e1f1c58d7fd8622f"
 DEV = "9b5ad1e78430cc0b061cb16de42f73de96f4f312"
 MAIN, SOURCE, TREE, BASE_TREE, EXECUTOR, CREATED = (letter * 40 for letter in "abcdef")
 OLD, NEW = "1" * 40, "2" * 40

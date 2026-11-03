@@ -91,3 +91,11 @@ updating its matching source and rebuilding its graph remains a follow-up.
 Final source binding: normal-hook test-only source 78b11468696a47cd2792e1d45a6f91bad142a860 / tree fd6a43314d221ee03f6bf476c737487a71aa3677 / sole parent 4ae6175a4d337296d0347e73b66c9da1f0e43f7f. The executor TEST checkpoint is 028bcfc6eda9a45a91dcf3510d94147c3739f2fd. The final intent records all 19 dev-to-source entries. This is an unsigned, unpublished local source; actual CI signing is pending.
 
 The Code Review typechecker produced two errors and 86 warnings because its bare executable resolves the global Python site-packages without pytest, beartype or icontract. The same exact source and basedpyright 1.39.9 with the repository-configured Hatch interpreter returns zero errors and zero warnings. Verbose import-resolution output and both results are retained privately for independent disposition. No type suppression or tooling rule was changed.
+
+## Owner-selected 0.55.12 TEST refresh
+
+3 November 2026 Europe/Berlin. The existing finite signer must root at independently accepted R3 d77209f4b13c386e29391f93e1f1c58d7fd8622f, permit only the two additional canonical initializer paths and use the four exact actual36 COPY members. No schema, API, algorithm, permission or limit change is planned. Runtimebc64 remains fixed. All original native36 and signing operations remain immutable.
+
+Existing Synthetic API fixtures now describe R3 and metadata e491e7ce89edf6a5c4299dc0d723cb9a3ff90573c062b45269da13f963a65617. Two added public publication cases exercise src/__init__.py and src/specfact_cli/__init__.py through the unchanged finite fixture. Against unchanged signer78/program8999 they fail with intended test-body AssertionError, receipt refused, reason "ValueError: Unreviewed changed path". The parser checks this path before any publication operation. This is local Synthetic evidence, not a real signature, native execution, origin or deployment grant. The original guard matrix remains.
+
+The intent stays explicitly UNBOUND. Any later exact full-CODE CI signing operation, protected integration and fresh final-head provenance remain separately controlled after concrete reviewed candidates. No dispatch, publication or merge is authorized by this TEST checkpoint.

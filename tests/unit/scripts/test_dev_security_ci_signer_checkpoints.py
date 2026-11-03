@@ -20,7 +20,7 @@ from scripts import dev_security_ci_signer as signer
 from tests.unit.scripts import test_dev_security_ci_signer as old
 
 
-ROOT = "22b2fa7bd763b18ada1bfd1a9ea482a624f34cca"
+ROOT = "d77209f4b13c386e29391f93e1f1c58d7fd8622f"
 SECOND_SOURCE, SECOND_TREE, SECOND_OUTPUT = (character * 40 for character in "789")
 PREFIX = "tests/unit/scripts/fixtures/fixed786-native-packet/"
 MESSAGES = (
@@ -152,6 +152,21 @@ def finite(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> FiniteCase:
     )
     monkeypatch.setattr(signer, "_request", api.request)
     return FiniteCase(api, tmp_path / "intent.json", context)
+
+
+@pytest.mark.parametrize("path", ("src/__init__.py", "src/specfact_cli/__init__.py"))
+def test_exact_release_initializer_paths_can_be_published(finite: FiniteCase, path: str) -> None:
+    for record in finite.api.records.values():
+        entries: list[dict[str, Any]] | dict[str, Any] | None = record.get("tree")
+        if isinstance(entries, list):
+            for entry in entries:
+                if entry.get("path") == old.PATH:
+                    entry["path"] = path
+    for checkpoint in finite.api.intent["checkpoints"]:
+        checkpoint["delta"][0]["path"] = path
+    receipt = finite.publish()
+    assert receipt.status == "published", receipt.reason
+    assert len(finite.api.outputs) == 2
 
 
 def test_all_checkpoint_trees_messages_and_service_parents_survive(finite: FiniteCase) -> None:
