@@ -36,5 +36,5 @@
 ## Berlin expiry correction
 
 - [x] Reproduce the two default-clock boundary failures with two passing controls in a separate unselected test file.
-- [ ] Fix the two existing policy clocks without changing selected native proof inputs or exception records.
+- [x] Fix the two existing policy clocks without changing selected native proof inputs or exception records.
 - [ ] Run focused checks, normal hooks and independent review; refresh current-head identities and required evidence honestly.

@@ -27,12 +27,28 @@ import contextlib
 import json
 import subprocess
 import sys
-from datetime import date
+from datetime import date as calendar_date, datetime
 from pathlib import Path
-from typing import TypeAlias, cast
+from typing import Self, TypeAlias, cast
+from zoneinfo import ZoneInfo
 
 from beartype import beartype
 from icontract import ensure
+
+
+def _is_calendar_date(result: object) -> bool:
+    return isinstance(result, calendar_date)
+
+
+class _BerlinDate(calendar_date):
+    @classmethod
+    @ensure(_is_calendar_date)
+    def today(cls) -> Self:
+        current = datetime.now(ZoneInfo("Europe/Berlin"))
+        return cls(current.year, current.month, current.day)
+
+
+date = _BerlinDate
 
 
 DEFAULT_REQUIREMENTS_FILE = "requirements/ci/locked.txt"
@@ -215,7 +231,8 @@ def _approved_exception_ids(item: JsonValue, index: int) -> tuple[set[tuple[str,
         expiry_date = date.fromisoformat(expires_on)
     except ValueError:
         return set(), f"exceptions[{index}] must use ISO-8601 review and expiry dates"
-    if reviewed_date > date.today() or expiry_date < date.today():
+    current_date = date.today()
+    if reviewed_date > current_date or expiry_date < current_date:
         return set(), f"exceptions[{index}] is not currently valid"
     return {(package.casefold(), version, item_id) for item_id in vulnerability_ids}, None
 
