@@ -123,12 +123,40 @@ def inputs(tmp_path: Path, history_context: tuple[str, Path]) -> argparse.Namesp
     )
 
 
-def test_public_fixed_scope_stays_closed(owner: ModuleType) -> None:
-    manifest = REPO_ROOT / (
-        "openspec/changes/security-dependencies-0-55-11-dev/requirements-proof/late-red-evidence.json"
+def test_public_fixed_missing_authentication_refuses_before_formatter(
+    owner: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[object] = []
+    monkeypatch.setattr(owner, "_normalize", lambda arguments: calls.append(arguments))
+    manifest = (
+        REPO_ROOT / "openspec/changes/security-dependencies-0-55-11-dev/requirements-proof/late-red-evidence.json"
     )
-    with pytest.raises(ValueError):
-        owner._proof_scope(manifest, REPO_ROOT)
+    arguments = [
+        "--manifest",
+        str(manifest),
+        "--repo-root",
+        str(REPO_ROOT),
+        "--event",
+        str(tmp_path / "event.json"),
+        "--red-run",
+        str(tmp_path / "run.json"),
+        "--red-artifacts",
+        str(tmp_path / "artifacts.json"),
+        "--red-artifact-root",
+        str(tmp_path / "packet"),
+        "--cycle-base-ref",
+        "9b5ad1e78430cc0b061cb16de42f73de96f4f312",
+        "--final-ref",
+        "HEAD",
+        "--trusted-provenance",
+        str(tmp_path / "provenance.py"),
+        "--output",
+        str(tmp_path / "out.json"),
+    ]
+    assert owner._main(arguments) == 1
+    assert calls == []
 
 
 def test_private_formatter_preserves_canonical_bytes(

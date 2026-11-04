@@ -367,6 +367,32 @@ review rule or Requirements gate is removed or waived. Adding new requirement
 identities here would unnecessarily change the already accepted current native
 proof subject. The same hook must pass normally after this scope correction.
 
+## Complete connection admission regression tests
+
+The fixed public route now requires authentication before the existing formatter;
+the historical route retains its existing inputs. Two obsolete closed-route tests
+are replaced by missing-authentication refusals before formatting. Additional
+partial-input and fake-origin cases do not establish genuine API or crypto proof.
+
+The independently reviewed complete proposal has an existing consumer dispatch
+history check. The review's claim that this owner omitted history is contradicted
+by exact source a7b102e368e9df7e2d95699de54bf88e30f2191850ec00450aa44d08627a1e4b.
+Its named run is typed strictly, but the history row permits boolean True as
+integer attempt one. The actual private predicate tests produce one intended
+DID NOT RAISE failure and seven passing controls on that unchanged source.
+
+The workflow's four inline captures do omit history. Executing only their actual
+AST run-admission statements with synthetic API records produces twelve intended
+DID NOT RAISE failures and four single-run control passes. Combined with the
+owner predicate this is thirteen failures and eleven passes, with no setup errors.
+An earlier test harness used the wrong heredoc delimiter and failed setup; that
+run is retained but supplies no before credit. No real API, signature, attestation,
+native execution, authority or readiness claim follows from these local tests.
+
+The correction must retain complete finite history and unique matching executor
+run identity, enforce strict field types and preserve every other existing gate.
+No new collector, cache, framework, permission or resource change is needed.
+
 ## Owner-selected 0.55.12 TEST refresh
 
 On 30 October 2026 the owner selected “Use 0.55.12; refresh version-bound
