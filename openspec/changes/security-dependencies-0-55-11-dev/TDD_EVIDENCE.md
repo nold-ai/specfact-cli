@@ -121,6 +121,14 @@ The first normal checkpoint hook rejected the test mutation chain for complexity
 A fixed run/manifest update table retains the same 14 cases without that chain.
 The historical hook failure is retained; no check or finding was waived.
 
+The normal test-first commit `74e1924bec949b318879e6b118a48680a24b9b06`
+passed enforced hooks. Its remaining test type warnings and low-complexity length
+notice are corrected by explicit update-table types and a per-case pytest
+manifest fixture. The corrected test hash is
+`78398fbc40ade63be039e1217bee498c17072b67a5e50b22f263dc4685340d2b`.
+A fresh local before run retains one intended failure and 13 passing refusal
+controls, with no setup errors or skips. No selected R2 proof input changed.
+
 ## Owner-selected 0.55.12 TEST refresh
 
 On 30 October 2026 the owner selected “Use 0.55.12; refresh version-bound
