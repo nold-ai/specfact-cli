@@ -191,3 +191,7 @@ its complete reported message is otherwise equal. The signer preserves that
 exact reviewed representation and records the original source commit identity.
 It does not claim original Git IDs, author signatures or raw-commit message
 serialization survive service copying.
+
+### Current-head CI tail signer contract, 4 November 2026
+
+The new tail begins at accepted signed F b0184ae8c3de2c107d888dc23b0e7402a31d520e and uses fresh exact CI-tail refs. Its complete C-relative scope retains all 48 historical paths and adds exactly the SAST rule, existing license allowlist and their two existing test files. Normal TEST precedes CODE. All capabilities, workflow/runtime pins, resource limits and original native36/R3 bindings remain unchanged. The consumed old executor and grants cannot authorize this new operation.

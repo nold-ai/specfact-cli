@@ -18,12 +18,12 @@ from scripts import dev_security_ci_signer as signer
 
 
 REPO = "/repos/nold-ai/specfact-cli"
-PARENT = "d77209f4b13c386e29391f93e1f1c58d7fd8622f"
+PARENT = "b0184ae8c3de2c107d888dc23b0e7402a31d520e"
 DEV = "9b5ad1e78430cc0b061cb16de42f73de96f4f312"
 MAIN, SOURCE, TREE, BASE_TREE, EXECUTOR, CREATED = (letter * 40 for letter in "abcdef")
 OLD, NEW = "1" * 40, "2" * 40
-DEST = "refs/heads/codex/security-dev-complete-candidate-20261104"
-AUX = "refs/heads/codex/dev786-complete-ci-signer-20261104"
+DEST = "refs/heads/codex/security-dev-ci-tail-candidate-20261104"
+AUX = "refs/heads/codex/dev786-ci-tail-signer-20261104"
 PATH = "openspec/changes/security-dependencies-0-55-11-dev/tasks.md"
 AUTHOR = {"name": "github-actions[bot]", "email": "41898282+github-actions[bot]@users.noreply.github.com"}
 COMMITTER = {"name": "GitHub", "email": "noreply@github.com"}
@@ -1017,6 +1017,10 @@ def test_refresh_refuses_pr_drift_before_writes(case: Case, field: str, value: o
     [
         "tests/unit/security/test_code_review_dependency_security.py",
         "tests/unit/security/test_release_promotion_security_gates.py",
+        "tools/semgrep/sast.yml",
+        "scripts/license_allowlist.yaml",
+        "tests/unit/scripts/test_semgrep_sast_gate.py",
+        "tests/unit/scripts/test_check_license_compliance.py",
     ],
 )
 def test_refresh_accepts_only_added_test_paths(case: Case, path: str) -> None:
