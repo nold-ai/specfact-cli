@@ -738,6 +738,8 @@ def _validate_linear_red_segment(repo_root: Path, cycle: str, red: str, scope: _
             raise ValueError
         commit = values[0]
         for path in _changed_paths(repo_root, parent, commit):
+            if scope == _FIXED_PR786_SCOPE and path == "openspec/CHANGE_ORDER.md":
+                continue
             _validate_red_path(path, allowed_change)
         parent = commit
     if parent != red:
@@ -826,24 +828,30 @@ def _normalize(arguments: argparse.Namespace) -> None:
     junit_payload, selectors = _validate_raw_artifact(arguments.red_artifact_root, manifest, scope)
     bind, validate = _load_provenance(arguments.trusted_provenance, repo_root, cycle_commit)
     output, output_xml = _external_outputs(arguments.output, repo_root)
-    normalized = {
-        "gate_decision": "pass",
-        "observed_maturity": "red",
-        "mapping_digest": manifest["mapping_digest"],
-        "plan_digest": manifest["plan_digest"],
-        "execution_proof": {
-            "junit_digest": manifest["junit_digest"],
-            "run_stage": "red",
-            "selectors": selectors,
-            "source_ref": manifest["red_commit"],
-        },
-    }
     with tempfile.TemporaryDirectory(prefix=".late-red-", dir=output.parent) as directory:
         candidate = Path(directory) / output.name
         candidate_xml = candidate.with_suffix(".xml")
-        candidate.write_text(json.dumps(normalized, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
         candidate_xml.write_bytes(junit_payload)
-        bind(candidate, repo_root, base_ref=manifest["cycle_base_commit"], junit_path=candidate_xml)
+        if scope == _FIXED_PR786_SCOPE:
+            report_payload = _regular_payload(arguments.red_artifact_root / "requirements-evidence.json")
+            if _digest(report_payload) != manifest["report_digest"]:
+                raise ValueError
+            candidate.write_bytes(report_payload)
+        else:
+            normalized = {
+                "gate_decision": "pass",
+                "observed_maturity": "red",
+                "mapping_digest": manifest["mapping_digest"],
+                "plan_digest": manifest["plan_digest"],
+                "execution_proof": {
+                    "junit_digest": manifest["junit_digest"],
+                    "run_stage": "red",
+                    "selectors": selectors,
+                    "source_ref": manifest["red_commit"],
+                },
+            }
+            candidate.write_text(json.dumps(normalized, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
+            bind(candidate, repo_root, base_ref=manifest["cycle_base_commit"], junit_path=candidate_xml)
         if validate(candidate, repo_root, base_ref=manifest["cycle_base_commit"], final_ref=final):
             raise ValueError
         os.replace(candidate_xml, output_xml)

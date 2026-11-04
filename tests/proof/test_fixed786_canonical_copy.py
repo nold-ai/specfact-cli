@@ -36,7 +36,7 @@ def owner() -> Iterator[ModuleType]:
 
 
 @pytest.fixture
-def inputs(tmp_path: Path) -> argparse.Namespace:
+def history_context(tmp_path: Path) -> tuple[str, Path]:
     assert not tmp_path.resolve().is_relative_to(REPO_ROOT.resolve())
     final = subprocess.run(
         ["git", "rev-parse", "--verify", "HEAD^{commit}"],
@@ -64,6 +64,12 @@ def inputs(tmp_path: Path) -> argparse.Namespace:
     assert hashlib.sha256(trusted).hexdigest() == VALIDATOR_SHA256
     provenance = tmp_path / "requirements_proof_provenance.py"
     provenance.write_bytes(trusted)
+    return final, provenance
+
+
+@pytest.fixture
+def inputs(tmp_path: Path, history_context: tuple[str, Path]) -> argparse.Namespace:
+    final, provenance = history_context
     packet = tmp_path / "packet"
     packet.mkdir()
     metadata = json.loads((FIXTURES / "fixed786-native-packet/fixture-metadata.json").read_bytes())
@@ -147,13 +153,24 @@ def test_private_formatter_preserves_canonical_bytes(
     assert validate(original, REPO_ROOT, base_ref=CYCLE, final_ref=inputs.final_ref) == []
     monkeypatch.setattr(owner, "_proof_scope", lambda *_: owner._FIXED_PR786_SCOPE)
     assert owner._normalize(inputs) is None
-    assert inputs.output.read_bytes() == before["requirements-evidence.json"]
-    assert inputs.output.with_suffix(".xml").read_bytes() == before["requirements-proof.xml"]
-    assert validate(inputs.output, REPO_ROOT, base_ref=CYCLE, final_ref=inputs.final_ref) == []
-    assert original.read_bytes() == before["requirements-evidence.json"]
-    assert original.with_suffix(".xml").read_bytes() == before["requirements-proof.xml"]
-    assert {path.name: path.read_bytes() for path in inputs.red_artifact_root.iterdir()} == before
-    assert {path: path.read_bytes() for path in metadata_before} == metadata_before
+    observed = {
+        "output_report": inputs.output.read_bytes(),
+        "output_junit": inputs.output.with_suffix(".xml").read_bytes(),
+        "output_provenance": validate(inputs.output, REPO_ROOT, base_ref=CYCLE, final_ref=inputs.final_ref),
+        "original_report": original.read_bytes(),
+        "original_junit": original.with_suffix(".xml").read_bytes(),
+        "packet": {path.name: path.read_bytes() for path in inputs.red_artifact_root.iterdir()},
+        "metadata": {path: path.read_bytes() for path in metadata_before},
+    }
+    assert observed == {
+        "output_report": before["requirements-evidence.json"],
+        "output_junit": before["requirements-proof.xml"],
+        "output_provenance": [],
+        "original_report": before["requirements-evidence.json"],
+        "original_junit": before["requirements-proof.xml"],
+        "packet": before,
+        "metadata": metadata_before,
+    }
 
 
 @pytest.mark.parametrize("member", ["requirements-evidence.json", "requirements-proof.xml"])
