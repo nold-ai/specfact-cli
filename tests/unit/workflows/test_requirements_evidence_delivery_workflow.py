@@ -1106,28 +1106,21 @@ def test_isolated_requirements_installs_follow_reproducible_graph_proof() -> Non
         (REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml").read_text(encoding="utf-8"),
         Loader=yaml.BaseLoader,
     )
-    for install_name in ("Create isolated Requirements validator environment",):
-        install_job, install_index, _ = _step_location(parsed, install_name)
-        matching_proofs = [
-            (job, index, step)
-            for job, index, step in _workflow_steps(parsed)
-            if job == install_job and step.get("name") == "Verify frozen Requirements graph"
-        ]
-        assert len(matching_proofs) == 1
-        _, proof_index, proof = matching_proofs[0]
-        proof_command = proof["run"]
-        assert isinstance(proof_command, str)
-        assert 'frozen_root="${GITHUB_WORKSPACE}/.venv"' in proof_command
-        assert (
-            'if [[ "${FIXED786_ACTIVE}" == "true" ]]; then frozen_root="${RUNNER_TEMP}/fixed786-verifier"; fi'
-            in proof_command
-        )
-        assert '"$frozen_root/bin/python" -I -S -c' in proof_command
-        assert 'frozen_site="$frozen_root/lib/python3.12/site-packages"' in proof_command
-        assert '"$frozen_site"' in proof_command
-        assert '"$TRUSTED_DELIVERY_VERIFIER"' in proof_command
-        assert "python scripts/check_reproducible_delivery.py" not in proof_command
-        assert proof_index < install_index
+    install_job, install_index, _ = _step_location(parsed, "Create isolated Requirements validator environment")
+    _, proof_index, proof = _step_location(parsed, "Verify frozen Requirements graph", job_name=install_job)
+    proof_command = proof["run"]
+    assert isinstance(proof_command, str)
+    assert 'frozen_root="${GITHUB_WORKSPACE}/.venv"' in proof_command
+    assert (
+        'if [[ "${FIXED786_ACTIVE}" == "true" ]]; then frozen_root="${RUNNER_TEMP}/fixed786-verifier"; fi'
+        in proof_command
+    )
+    assert '"$frozen_root/bin/python" -I -S -c' in proof_command
+    assert 'frozen_site="$frozen_root/lib/python3.12/site-packages"' in proof_command
+    assert '"$frozen_site"' in proof_command
+    assert '"$TRUSTED_DELIVERY_VERIFIER"' in proof_command
+    assert "python scripts/check_reproducible_delivery.py" not in proof_command
+    assert proof_index < install_index
 
 
 def test_requirements_evidence_workflow_ignores_archived_review_evidence() -> None:
