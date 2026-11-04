@@ -1021,6 +1021,12 @@ def test_refresh_refuses_pr_drift_before_writes(case: Case, field: str, value: o
         "scripts/license_allowlist.yaml",
         "tests/unit/scripts/test_semgrep_sast_gate.py",
         "tests/unit/scripts/test_check_license_compliance.py",
+        "tests/unit/packaging/test_core_package_includes.py",
+        "tests/unit/scripts/test_reproducible_delivery.py",
+        "tests/unit/scripts/test_requirements_late_cycle_workflow.py",
+        "tests/unit/workflows/test_requirements_evidence_delivery_workflow.py",
+        "tests/unit/workflows/test_requirements_planning_scope.py",
+        "tests/unit/workflows/test_requirements_verifier_boundary.py",
     ],
 )
 def test_refresh_accepts_only_added_test_paths(case: Case, path: str) -> None:

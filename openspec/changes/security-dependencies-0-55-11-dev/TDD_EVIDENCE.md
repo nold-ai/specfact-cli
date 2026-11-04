@@ -195,3 +195,5 @@ serialization survive service copying.
 ### Current-head CI tail signer contract, 4 November 2026
 
 The new tail begins at accepted signed F b0184ae8c3de2c107d888dc23b0e7402a31d520e and uses fresh exact CI-tail refs. Its complete C-relative scope retains all 48 historical paths and adds exactly the SAST rule, existing license allowlist and their two existing test files. Normal TEST precedes CODE. All capabilities, workflow/runtime pins, resource limits and original native36/R3 bindings remain unchanged. The consumed old executor and grants cannot authorize this new operation.
+
+The exact F/ref fixture before run produced 98 intended refusal/positive mismatches and 92 controls; after fixed constants and four initial correction paths all 190 cases pass. Full actual F CI later reports six additional stale test files, which must be individually inspected and named before freezing the complete tail scope. No remote operation is authorized by these local checks.

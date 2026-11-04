@@ -21,7 +21,7 @@ from scripts import dev_security_ci_signer as signer
 from tests.unit.scripts import test_dev_security_ci_signer as old
 
 
-ROOT = "d77209f4b13c386e29391f93e1f1c58d7fd8622f"
+ROOT = "b0184ae8c3de2c107d888dc23b0e7402a31d520e"
 SECOND_SOURCE, SECOND_TREE, SECOND_OUTPUT = (character * 40 for character in "789")
 PREFIX = "tests/unit/scripts/fixtures/fixed786-native-packet/"
 MESSAGES = (
