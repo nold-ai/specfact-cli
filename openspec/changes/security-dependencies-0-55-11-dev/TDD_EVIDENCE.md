@@ -282,6 +282,54 @@ fixed-path admission and canonical copying candidate. No runtime candidate is
 installed in this TEST checkpoint. The recorded internal wiki mirror follow-up
 remains open because its matching source is unavailable.
 
+## Canonical transfer after the normal TEST checkpoint
+
+Normal TEST `9e4b0880c344d35f88cf93edb9eeefa9f5d3d309` precedes runtime
+installation. The corrected full-history test SHA-256 is
+`760837f750522cd0ac6e79303473db0e1783457206d2a0f36a37ee41bd883d76`.
+The original CC13 test warning is fixed by comparing the same seven named
+observations as one dictionary. Real Git and C provenance preparation now has
+a separate per-case fixture. The baseline remains two failures and 14 passes,
+with the formatter blocked at the history guard; the earlier one-path probe
+separately establishes its JSON-byte assertion failure. The installed candidate
+passes all 16 cases using unchanged real C validation.
+
+Runtime SHA-256 is
+`2db085ed0b6d90b9eb8ab90ac8a3fc40ebff16b0f76e2aeb415637261f17f458`.
+The exact source-prefix and canonical-copy review above remains applicable.
+Final independent cleanup review
+`ec792f99a6e815d97baa7d69dfcfb003aa1e947653c1a51decd802782ae0226f`
+was fully read and all 20 input bindings verified. It confirms unchanged
+runtime, fresh per-case fixtures and every original observation and case.
+Public routing remains closed and no native or authority credit is claimed.
+
+### Scoped disposition of informational readability recommendations
+
+The exact raw SpecFact review is retained unchanged. It reports
+PASS_WITH_ADVISORY, zero errors, zero warnings and three informational
+`ai-bloat.loc-vs-complexity` recommendations with `design_judgment` guidance.
+Each asks for inspection and expressly permits keeping an expanded form when
+it carries domain clarity. The following narrow dispositions retain the
+existing review rules, report, enforcement and all required checks.
+
+- Keep `_normalize` at 43 lines. Its explicit fixed-byte copy and historical
+  reconstruction branches share the existing validation and atomic publication
+  sequence. A new helper would move those checks without reducing work and
+  would make the trust order harder to read. No guard is removed.
+- Keep the packet `inputs` fixture at 53 lines after extracting real history
+  preparation. It builds three distinct inputs with stdlib JSON and bounded
+  fixture copying. A generic writer would hide the artifact, event and argument
+  roles. There is no repeated function shape to remove.
+- Keep the positive test at 40 lines. Its named observed/expected dictionaries
+  preserve all seven checks and produce useful keyed failure diffs. Positional
+  compression would remove those diagnostics, while extra assertion helpers
+  would add indirection. The CC13 warning is already corrected.
+
+These are documented design dispositions for this finite readability heuristic,
+not advisory exceptions, source exemptions or check waivers. The raw three info
+findings remain visible. No configuration, suppression or review artifact is
+changed to conceal them. All normal and final CI gates remain mandatory.
+
 ## Owner-selected 0.55.12 TEST refresh
 
 On 30 October 2026 the owner selected “Use 0.55.12; refresh version-bound
