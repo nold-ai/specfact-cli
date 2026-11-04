@@ -158,7 +158,8 @@ def test_reproducible_delivery_checker_rejects_stale_code_review_lock(
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     lock = module.CODE_REVIEW_LOCKED_EXPORT.read_text(encoding="utf-8")
-    stale_result = lock.replace("pylint==4.0.7", "pylint==4.0.8")
+    stale_result = lock.replace("pylint==4.0.9", "pylint==4.0.8")
+    assert stale_result != lock
 
     def compile_stale_result(command: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
         output = command[command.index("--output-file") + 1]
