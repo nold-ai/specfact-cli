@@ -10,6 +10,30 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.55.12] - 2026-11-03
+
+### Security
+
+- Raise the public GitPython floor to 3.2.1 and refresh its frozen artifact to reject
+  submodule creation inside Git metadata before reaching the clone boundary.
+- Select reviewed official pycparser 3.12 with an exact artifact provenance record,
+  retaining the blocked 3.0 family and an inclusive 4 November 2026 expiry.
+- Refresh frozen packaging to 26.3, python-discovery to 1.6.1 and virtualenv to 21.14.13.
+- Update the isolated Code Review lock to official Pylint 4.0.9 to prevent
+  unsafe pickle deserialization from its statistics cache (GHSA-22qq-2fwx-7p67),
+  retaining its six compatible transitive selections.
+- Select official Semgrep 1.182.1, filelock 4.2.1, msgpack 1.2.3 and setuptools
+  84.1.0 in the frozen graph and hash-bound CI export.
+- Record the separately approved OpenTelemetry API 1.37.0 advisory exception through
+  4 November 2026 inclusive. Keep all three strict audits and the existing MCP
+  exception enforced. Ordinary local-rule CLI use is the limited mitigation.
+- Accept the three separately reviewed MCP 1.29.0 advisories CVE-2026-116684,
+  CVE-2026-116685 and CVE-2026-116686 under the owner's 29 October 2026 direction.
+  Preserve the 4 November 2026 expiry and CLI-only mitigation. MCP remains
+  vulnerable while the official Semgrep pin has no compatible patched graph.
+
+---
+
 ## [0.55.11] - 2026-10-20
 
 ### Security
