@@ -69,6 +69,15 @@ an original API response, origin proof or owner grant. Each later consumer
 fetches these records independently and freezes the derived bytes before use.
 Historical callers keep the same signature and do not need a source record.
 
+The immutable C-to-R2 test prefix includes its eleven-line CHANGE_ORDER entry.
+Admit only that exact metadata path for the fixed scope, while retaining the
+generic historical path guard and all production-path refusals. The fixed
+normalizer copies the already-bound canonical report instead of rebuilding
+it. Capture and recheck its exact digest, then use unchanged C validation.
+Full-history integration tests live under tests/proof. Existing full-suite CI
+fetches complete history and collects them. Shallow compatibility jobs select
+other directories, so no new fetch, skip or workflow is needed.
+
 ## Owner-selected 0.55.12 refresh
 
 On 30 October 2026 the owner selected 0.55.12 and refreshed version-bound
