@@ -867,7 +867,7 @@ def _normalize(arguments: argparse.Namespace) -> None:
 
 
 _FIXED_PR786_SIGNER_FILES = (
-    ("scripts/dev_security_ci_signer.py", "4f6fcc2441a7362fd39d63a43d7b7e771608fc08eda506031195f9a58763de4a"),
+    ("scripts/dev_security_ci_signer.py", "dfc44d082253e71d0344e0ead08bb846d37ae2010e70dc06506746610ea6e4c8"),
     (".github/workflows/specfact.yml", "8896864306ea9a1bb385e68348b0a74f029227292e461abb080f937833f8fea6"),
     ("ci/recovery/dev-security-signer-runtime.txt", "bc64c498cf74b3a959a1522c04614e199061dea2e35ab0110d58b9411db38712"),
 )
@@ -1144,8 +1144,8 @@ def _fixed_pr786_intent(
     if (intent["repository_full_name"], intent["dev"], intent["auxiliary_ref"], intent["destination"]) != (
         REPOSITORY,
         "9b5ad1e78430cc0b061cb16de42f73de96f4f312",
-        "refs/heads/codex/dev786-complete-ci-signer-20261030",
-        "refs/heads/codex/security-dev-complete-candidate-20261030",
+        "refs/heads/codex/dev786-complete-ci-signer-20261104",
+        "refs/heads/codex/security-dev-complete-candidate-20261104",
     ):
         raise ValueError
     _string(intent["main"], OBJECT_PATTERN)
