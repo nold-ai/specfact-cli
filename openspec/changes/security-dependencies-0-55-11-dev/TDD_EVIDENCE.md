@@ -168,6 +168,14 @@ No runtime candidate is installed in this TEST checkpoint. This unit supplies
 no new native, origin, protected adoption or final-head authority. The matching
 internal wiki source is unavailable, so the recorded mirror follow-up remains.
 
+The normal TEST checkpoint `4146c185160df2f4315147306923ebc3a5bfb754`
+passed enforced hooks but reported one naming warning for the generic metadata
+fixture. The fixture is renamed to `packet_metadata` without changing any of
+the 21 cases. The fresh before result remains two intended failures and
+19 controls passing. Its corrected test SHA-256 is
+`25b52577bf46c0fdefcdbea55ffddbe9f2240ac26a14425c13e33c159df296c9`.
+No review warning is waived.
+
 ## Owner-selected 0.55.12 TEST refresh
 
 On 30 October 2026 the owner selected “Use 0.55.12; refresh version-bound
