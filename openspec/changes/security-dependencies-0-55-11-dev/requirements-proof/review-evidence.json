@@ -1,0 +1,9 @@
+{
+  "schema_version": "1",
+  "decision": "accepted",
+  "reviewer_id": "Codex:/root/current_mapping_acceptance",
+  "reviewer_role": "independent AI technical static SPEC/TEST/MAPPING reviewer only",
+  "recorded_at": "2026-10-29T20:54:51.528173+00:00",
+  "reference": "https://github.com/nold-ai/specfact-cli/issues/780",
+  "mapping_digest": "sha256:61afa8becd7fed3cbe92a273c955c2e8ba389583f62f0e519c97cafafa7d4307"
+}

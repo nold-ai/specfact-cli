@@ -55,7 +55,7 @@ EVIDENCE_COMMAND_FRAGMENTS = (
     'write_failure_reports "Unable to derive changed paths for $EVIDENCE_BASE_BRANCH"',
     "--plan-output artifacts/requirements-evidence/requirements-evidence-plan.json",
     '--review-evidence "$review_evidence"',
-    '"${isolated_python[@]}" scripts/requirements_proof_executor.py',
+    '"${isolated_python[@]}" "$producer_executor"',
     "if [[ ! -s artifacts/requirements-evidence/requirements-proof.xml ]]; then",
     "--junit artifacts/requirements-evidence/requirements-proof.xml",
     '"${isolated_python[@]}" scripts/requirements_proof_provenance.py',
@@ -644,7 +644,9 @@ def test_requirements_evidence_workflow_disables_site_startup_for_security_valid
     assert isinstance(run_evidence, str)
     assert isinstance(locate_red, str)
     assert 'isolated_python=("${REQUIREMENTS_VALIDATOR_ROOT}/bin/python" -I -S -c' in run_evidence
-    assert '"${isolated_python[@]}" scripts/requirements_proof_executor.py' in run_evidence
+    assert '"${isolated_python[@]}" "$producer_executor"' in run_evidence
+    assert 'producer_executor="scripts/requirements_proof_executor.py"' in run_evidence
+    assert 'producer_executor="$FIXED786_EXECUTOR"' in run_evidence
     assert 'isolated_python=("${REQUIREMENTS_VALIDATOR_ROOT}/bin/python" -I -S -c' in locate_red
     assert '"${isolated_python[@]}" scripts/requirements_proof_provenance.py' in locate_red
     assert '"${isolated_python[@]}" scripts/requirements_bootstrap_authority.py' in run_evidence
@@ -1104,22 +1106,21 @@ def test_isolated_requirements_installs_follow_reproducible_graph_proof() -> Non
         (REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml").read_text(encoding="utf-8"),
         Loader=yaml.BaseLoader,
     )
-    for install_name in ("Create isolated Requirements validator environment",):
-        install_job, install_index, _ = _step_location(parsed, install_name)
-        matching_proofs = [
-            (job, index, step)
-            for job, index, step in _workflow_steps(parsed)
-            if job == install_job and step.get("name") == "Verify frozen Requirements graph"
-        ]
-        assert len(matching_proofs) == 1
-        _, proof_index, proof = matching_proofs[0]
-        proof_command = proof["run"]
-        assert isinstance(proof_command, str)
-        assert '"${GITHUB_WORKSPACE}/.venv/bin/python" -I -S -c' in proof_command
-        assert '"${GITHUB_WORKSPACE}/.venv/lib/python3.12/site-packages"' in proof_command
-        assert '"$TRUSTED_DELIVERY_VERIFIER"' in proof_command
-        assert "python scripts/check_reproducible_delivery.py" not in proof_command
-        assert proof_index < install_index
+    install_job, install_index, _ = _step_location(parsed, "Create isolated Requirements validator environment")
+    _, proof_index, proof = _step_location(parsed, "Verify frozen Requirements graph", job_name=install_job)
+    proof_command = proof["run"]
+    assert isinstance(proof_command, str)
+    assert 'frozen_root="${GITHUB_WORKSPACE}/.venv"' in proof_command
+    assert (
+        'if [[ "${FIXED786_ACTIVE}" == "true" ]]; then frozen_root="${RUNNER_TEMP}/fixed786-verifier"; fi'
+        in proof_command
+    )
+    assert '"$frozen_root/bin/python" -I -S -c' in proof_command
+    assert 'frozen_site="$frozen_root/lib/python3.12/site-packages"' in proof_command
+    assert '"$frozen_site"' in proof_command
+    assert '"$TRUSTED_DELIVERY_VERIFIER"' in proof_command
+    assert "python scripts/check_reproducible_delivery.py" not in proof_command
+    assert proof_index < install_index
 
 
 def test_requirements_evidence_workflow_ignores_archived_review_evidence() -> None:
@@ -1246,10 +1247,10 @@ def _assert_frozen_code_review_license_inputs() -> None:
     """Keep the frozen Pylint version and license decision synchronized."""
     lock = (REPO_ROOT / "requirements" / "code-review" / "locked.txt").read_text(encoding="utf-8")
     requirement = (REPO_ROOT / "requirements" / "code-review" / "requirements.in").read_text(encoding="utf-8")
-    assert requirement.split("#", maxsplit=1)[0].strip() == "pylint==4.0.7"
+    assert requirement.split("#", maxsplit=1)[0].strip() == "pylint==4.0.9"
     assert "GPL-2.0-or-later" in requirement
     assert "Phase 2" in requirement
-    assert "pylint==4.0.7" in lock
+    assert "pylint==4.0.9" in lock
 
 
 def _assert_review_job_boundary(parsed: dict[str, object], review: dict[str, object]) -> None:

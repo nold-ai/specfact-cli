@@ -5,8 +5,9 @@ import re
 import shutil
 import subprocess
 import sys
-from importlib.metadata import distribution
 from pathlib import Path
+
+import pytest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -45,12 +46,21 @@ print(json.dumps({"version": git.__version__, "rejected": rejected,
 
 def _frozen_gitpython_requirement(tmp_path: Path) -> tuple[Path, str]:
     locked = (REPO_ROOT / "requirements/ci/locked.txt").read_text(encoding="utf-8")
-    entries = re.findall(r"(?m)^gitpython==([^\s]+) \\\n((?:[ \t]+--hash=sha256:[0-9a-f]{64}(?: \\)?\n)+)", locked)
-    assert len(entries) == 1, "Expected one hash-pinned GitPython delivery requirement"
-    version, hashes = entries[0]
+    requirements: dict[str, tuple[str, str]] = {}
+    for package in ("gitdb", "gitpython", "smmap"):
+        declarations = re.findall(rf"(?m)^{package}(?=[\s=<>!~;\[@]|$)", locked)
+        assert len(declarations) == 1, f"Expected one {package} delivery requirement"
+        entries = re.findall(
+            rf"(?m)^{package}==([^\s]+) \\\n((?:[ \t]+--hash=sha256:[0-9a-f]{{64}}(?: \\)?\n)+)", locked
+        )
+        assert len(entries) == 1, f"Expected one hash-pinned {package} delivery requirement"
+        requirements[package] = entries[0]
     requirement = tmp_path / "gitpython.txt"
-    requirement.write_text(f"gitpython=={version} \\\n{hashes}", encoding="utf-8")
-    return requirement, version
+    requirement.write_text(
+        "".join(f"{package}=={version} \\\n{hashes}" for package, (version, hashes) in requirements.items()),
+        encoding="utf-8",
+    )
+    return requirement, requirements["gitpython"][0]
 
 
 def test_submodule_update_rejects_outside_checkout_before_clone(tmp_path: Path) -> None:
@@ -67,8 +77,7 @@ def test_submodule_update_rejects_outside_checkout_before_clone(tmp_path: Path) 
         text=True,
         timeout=120,
     )
-    dependency_roots = {str(distribution(package).locate_file("")) for package in ("gitdb", "smmap")}
-    probe_arguments = [str(target), *sorted(dependency_roots), str(tmp_path)]
+    probe_arguments = [str(target), str(tmp_path)]
     observed = subprocess.run(
         [sys.executable, "-I", "-S", "-c", SUBMODULE_PROBE, *probe_arguments],
         check=False,
@@ -82,3 +91,84 @@ def test_submodule_update_rejects_outside_checkout_before_clone(tmp_path: Path) 
     assert result["rejected"] is True
     assert result["clone_calls"] == 0
     assert result["outside_exists"] is False
+
+
+SUBMODULE_ADD_PROBE = """
+import json, sys
+from pathlib import Path
+from unittest.mock import patch
+sys.path.append(sys.argv[1])
+import git
+from git.objects.submodule.base import Submodule
+workspace = Path(sys.argv[2])
+checkout_path = sys.argv[3]
+parent = git.Repo.init(workspace / "parent")
+if checkout_path == "absolute-metadata":
+    checkout_path = str(Path(parent.working_tree_dir) / ".git" / "hooks")
+hooks = Path(parent.git_dir) / "hooks"
+before_hooks = {str(path.relative_to(hooks)): path.read_bytes().hex()
+                for path in hooks.rglob("*") if path.is_file()}
+class CloneBoundaryReached(Exception):
+    pass
+rejected = False
+boundary_reached = False
+with patch.object(Submodule, "_clone_repo", side_effect=CloneBoundaryReached) as clone:
+    try:
+        parent.create_submodule(name="module", path=checkout_path, url="unused")
+    except ValueError:
+        rejected = True
+    except CloneBoundaryReached:
+        boundary_reached = True
+    clone_calls = clone.call_count
+after_hooks = {str(path.relative_to(hooks)): path.read_bytes().hex()
+               for path in hooks.rglob("*") if path.is_file()}
+print(json.dumps({"version": git.__version__, "rejected": rejected,
+                  "boundary_reached": boundary_reached, "clone_calls": clone_calls,
+                  "hooks_unchanged": before_hooks == after_hooks,
+                  "gitmodules_exists": (Path(parent.working_tree_dir) / ".gitmodules").exists(),
+                  "module_metadata_exists": (Path(parent.git_dir) / "modules").exists()}))
+"""
+
+
+@pytest.mark.parametrize(
+    ("checkout_path", "expected_rejection"),
+    [
+        pytest.param(".git/hooks", True, id="git-metadata"),
+        pytest.param("GIT~1/hooks", True, id="git-short-name"),
+        pytest.param("absolute-metadata", True, id="absolute-metadata"),
+        pytest.param("vendor/module", False, id="ordinary-checkout"),
+        pytest.param(".github/module", False, id="github-checkout"),
+    ],
+)
+def test_submodule_creation_validates_checkout_before_clone(
+    tmp_path: Path, checkout_path: str, expected_rejection: bool
+) -> None:
+    requirement, version = _frozen_gitpython_requirement(tmp_path)
+    uv = shutil.which("uv")
+    assert uv is not None, "The frozen delivery probe requires uv"
+    target = tmp_path / "delivery-package"
+    subprocess.run(
+        [uv, *FROZEN_WHEEL_INSTALL_FLAGS, "--target", str(target), "-r", str(requirement)],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    observed = subprocess.run(
+        [sys.executable, "-I", "-S", "-c", SUBMODULE_ADD_PROBE, str(target), str(tmp_path), checkout_path],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert observed.returncode == 0, observed.stderr
+    result = json.loads(observed.stdout)
+    assert result == {
+        "version": version,
+        "rejected": expected_rejection,
+        "boundary_reached": not expected_rejection,
+        "clone_calls": 0 if expected_rejection else 1,
+        "hooks_unchanged": True,
+        "gitmodules_exists": False,
+        "module_metadata_exists": False,
+    }
