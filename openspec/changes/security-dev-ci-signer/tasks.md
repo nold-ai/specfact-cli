@@ -22,8 +22,8 @@
 
 ## Forward ref observation correction
 
-- [ ] Specify the finite post-201 missing-ref observation window.
-- [ ] Record genuine public-operation before failures and unchanged controls.
+- [x] Specify the finite post-201 missing-ref observation window.
+- [x] Record genuine public-operation before failures and unchanged controls.
 - [ ] Implement one conditional, pass affected cases and normal hooks.
 - [ ] Independently review corrected bytes and necessary exact core bindings.
 - [ ] Prepare a fresh concrete operation without retrying consumed effects.

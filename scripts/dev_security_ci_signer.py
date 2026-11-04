@@ -7,6 +7,7 @@ import json
 import os
 import re
 import sys
+import time
 from dataclasses import asdict, dataclass, replace
 from http.client import HTTPException, HTTPResponse
 from pathlib import Path
@@ -626,6 +627,9 @@ def publish_once(intent_file: Path, expected: DispatchExpectation, context: RunC
             "Ref creation response mismatch",
         )
         outcome = replace(outcome, ref_sha=_ref(_DEST))
+        if outcome.ref_sha is None:
+            time.sleep(60)
+            outcome = replace(outcome, ref_sha=_ref(_DEST))
         _check(outcome.ref_sha == outcome.commit_sha, "Final ref mismatch")
         final = outcome.signed_checkpoints[-1]
         _verify(final.source_tree, final.parent, final.payload.partition("\n\n")[2], outcome)
