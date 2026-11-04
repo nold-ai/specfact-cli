@@ -298,7 +298,6 @@ def synthetic_checkpoint_ledger(
     monkeypatch: pytest.MonkeyPatch,
     synthetic_checkpoint_run: dict[str, object],
 ) -> tuple[ModuleType, dict[str, object], dict[str, object], dict[str, object]]:
-    """Isolate history policy; inert trees/blobs and signatures confer no authenticity."""
     root = "d77209f4b13c386e29391f93e1f1c58d7fd8622f"
     source, executor, tree, executor_tree = (digit * 40 for digit in "abcd")
     path = "openspec/changes/security-dependencies-0-55-11-dev/tasks.md"
@@ -386,7 +385,6 @@ def test_synthetic_checkpoint_dispatch_history_requires_unique_complete_attempt_
     synthetic_checkpoint_ledger: tuple[ModuleType, dict[str, object], dict[str, object], dict[str, object]],
     case: str,
 ) -> None:
-    """Synthetic private predicate test; no public admission, signature or native proof."""
     helper, final, run, history = synthetic_checkpoint_ledger
     cases: dict[str, dict[str, object]] = {
         "single-complete": {"total_count": 1, "workflow_runs": [dict(run)]},
@@ -415,7 +413,6 @@ def test_synthetic_checkpoint_dispatch_history_requires_unique_complete_attempt_
 
 @pytest.fixture(params=("requirements-fixed786-origin", *LANES))
 def inline_run_admission(workflow: dict[str, Any], request: pytest.FixtureRequest, tmp_path: Path) -> Path:
-    """Extract the actual finite admission statements, without running capture or network code."""
     programs = [step.get("run", "") for step in workflow["jobs"][request.param]["steps"]]
     program = next(program for program in programs if "expected_run = {" in program)
     source = program.split("python3 -I -S - <<'PYTHON'\n", 1)[1].split("\nPYTHON", 1)[0]
@@ -439,7 +436,6 @@ def test_each_inline_capture_checks_complete_unique_dispatch(
     synthetic_checkpoint_ledger: tuple[ModuleType, dict[str, object], dict[str, object], dict[str, object]],
     case: str,
 ) -> None:
-    """Run only inline admission with synthetic API records; no public authority or network."""
     helper, _, run, history = synthetic_checkpoint_ledger
     cases = {
         "single-complete": {"total_count": 1, "workflow_runs": [dict(run)]},

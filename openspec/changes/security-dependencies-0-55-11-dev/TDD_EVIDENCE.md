@@ -393,6 +393,51 @@ The correction must retain complete finite history and unique matching executor
 run identity, enforce strict field types and preserve every other existing gate.
 No new collector, cache, framework, permission or resource change is needed.
 
+## Historical 0.55.11 connection implementation and local acceptance
+
+Normal TEST checkpoint c6ee4c17f70430f499f7746c955b66560fcbc9f1 retains the
+three updated test files and this evidence record. Its mandatory hooks pass
+with zero errors and warnings. The final source preserves historical scope
+order by appending the fixed scope. The first candidate instead prepended it;
+the existing historical-index assertion caught that regression before acceptance.
+
+The installed existing owner requires fresh f7 authority, independently verifies
+the complete service-signed checkpoint chain and the distinct four-member COPY,
+and verifies the isolated same-workflow attested origin before formatting. The
+shared capture guard is used independently by origin and all three native lanes.
+No new executable owner, index, collector, credential or resource limit is added.
+The exact manifest remains the accepted native34 fixture. The seven selected
+files and all twenty-one selectors remain byte-exact to signed R2.
+
+All 172 affected local tests pass after the quality decomposition in a separate
+environment installed from the reviewed hash-pinned official lock. The original
+development environment is preserved. Runtime review has zero errors, zero
+warnings and the unchanged `_normalize` informational recommendation already
+dispositioned above. The finite 72-line synthetic ledger fixture is retained
+under the same informational rule because explicit source, intent, tree and
+API records expose the cross-object association; a generic fixture factory
+would obscure it. No warning, suppression or enforcement rule is waived.
+
+Independent workflow review SHA256
+`d4de04b574b2818263ce81b87334191cffae3a184f75eb86b975807fa8067abf`
+and runtime review
+`9df5d72213d87ad60298e193177f71df81964cc86bf7724b56ecc06a5c7bb25b`
+were read in full; all seventeen and sixteen respective input bindings were
+verified before this evidence update. Sixteen narration comments/private
+docstrings were removed without executable changes, and each reviewer confirmed
+its final exact bytes. Runtime SHA256 is
+`90d448dd737651cc11c8d1a901de58b91ab675ba0e9320f0abf35eaee1eadad3`.
+Touched workflow Actionlint and all 82 Bash step syntax checks pass. The full
+locked BasedPyright check with the actual frozen interpreter reports zero
+errors; repository-wide existing warnings remain visible. The earlier default
+interpreter lacked dependencies and is retained without a passing claim.
+
+These are local and independent static acceptance only. They do not supply
+new native-before evidence, actual API or attestation success, signer dispatch
+authority, protected adoption, final-head provenance or current-head CI readiness.
+All later exact authority, CI-only signing, three native consumers, three strict
+audits, Code Review and required forge checks remain mandatory. No merge.
+
 ## Owner-selected 0.55.12 TEST refresh
 
 On 30 October 2026 the owner selected “Use 0.55.12; refresh version-bound
@@ -442,3 +487,13 @@ Actual36 run41715861806 attempt1/job126195535776 succeeded. Original artifact132
 The existing fixture paths now contain exact actual36 member/API bytes and R3 identities. Legacy filenames retain their history; their contents and manifests explicitly name actual36 and R3. Four COPY outputs remain byte-identical to original36. Metadata SHA256 is e491e7ce89edf6a5c4299dc0d723cb9a3ff90573c062b45269da13f963a65617. Original native34 archives and all consumed operations remain immutable.
 
 After this spec/test refresh, the unchanged existing run owner rejects the actual36 record with the intended test-body AssertionError "Fixed PR786 run admission mismatch for actual-record." Its existing fourteen-case unit records1failure/13passes,0setup errors/skips. This is local admission regression evidence, not another native acquisition or per-guard proof. Production declarations, dependency graph, current owner and workflows are still unapplied here. Next is the finite existing-owner/CODE correction and .12 metadata, then passing evidence, fresh exact review and normal hooks. Preserve every original bound, all three strict audits and the4November expiry. No merge or protected authority is granted.
+
+## Refreshed 0.55.12 implementation and local acceptance
+
+3 November 2026 Europe/Berlin. The complete production patch follows the normal current-native TEST checkpoint. The four canonical versions and only the local uv self-record are 0.55.12. All 183 reviewed registry records and hashes, certifi 2026.10.19, current dev runtime, the unchanged version checker and the seven selected whole test files plus proof plugin remain preserved. The existing proof owner and workflow bind accepted R3, native36, the four exact COPY members and the independently accepted finite signer program and workflow. This changes fixed identities within existing owners and adds no framework or limit increase.
+
+The affected suite records 256 passes and six installation failures. Root reproduced the installer failure as an uv cache-lock temporary-file permission refusal before the probe ran. The exact six isolated hash-pinned GitPython delivery-wheel tests then passed with ordinary cache access, without source or test changes. Together these logs account for all 262 affected cases. Actual CLI invocation reports SpecFact CLI version 0.55.12.
+
+All three unchanged strict audits pass against CI, Code Review and runtime-smoke exports with the exact approved advisory records. MCP 1.29.0 and OpenTelemetry API 1.37.0 remain affected. The original 4 November 2026 inclusive expiry is unchanged and fails closed on 5 November at 00:00 Europe/Berlin. Version-source, reproducible-delivery and uv lock checks pass. The full checker with the actual frozen interpreter reports 712 files, zero errors and 1413 warnings, matching the retained frozen-environment baseline; this is not a warning-free report. No check is skipped or relabeled.
+
+Independent exact review and normal CODE hooks are recorded separately. These local results and accepted native36 source closure do not establish protected origin, final-head authority, the three final native consumers, required current-head CI or forge readiness. Full CI-only signing and later concrete protected adoption and exact-head authority remain separate controlled decisions. No merge is authorized.
