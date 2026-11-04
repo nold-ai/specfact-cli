@@ -216,20 +216,20 @@ def test_all_checkpoint_trees_messages_and_service_parents_survive(finite: Finit
 
 
 @pytest.mark.parametrize(
-    "observations,status,ref_sha,waits,reads",
+    "observations,expected",
     (
-        (("valid",), "published", SECOND_OUTPUT, (), 2),
-        (("missing", "valid"), "published", SECOND_OUTPUT, (60,), 3),
-        (("missing", "missing"), "created_ref_with_drift", None, (60,), 2),
-        (("wrong",), "created_ref_with_drift", old.MAIN, (), 1),
-        (("missing", "wrong"), "created_ref_with_drift", old.MAIN, (60,), 2),
-        (("malformed",), "created_ref_with_drift", SECOND_OUTPUT, (), 1),
-        (("error",), "created_ref_with_drift", SECOND_OUTPUT, (), 1),
-        (("timeout",), "created_ref_with_drift", SECOND_OUTPUT, (), 1),
-        (("missing", "malformed"), "created_ref_with_drift", None, (60,), 2),
-        (("missing", "error"), "created_ref_with_drift", None, (60,), 2),
-        (("missing", "timeout"), "created_ref_with_drift", None, (60,), 2),
-        (("missing", "valid", "missing"), "created_ref_with_drift", SECOND_OUTPUT, (60,), 3),
+        (("valid",), ("published", SECOND_OUTPUT, (), 2)),
+        (("missing", "valid"), ("published", SECOND_OUTPUT, (60,), 3)),
+        (("missing", "missing"), ("created_ref_with_drift", None, (60,), 2)),
+        (("wrong",), ("created_ref_with_drift", old.MAIN, (), 1)),
+        (("missing", "wrong"), ("created_ref_with_drift", old.MAIN, (60,), 2)),
+        (("malformed",), ("created_ref_with_drift", SECOND_OUTPUT, (), 1)),
+        (("error",), ("created_ref_with_drift", SECOND_OUTPUT, (), 1)),
+        (("timeout",), ("created_ref_with_drift", SECOND_OUTPUT, (), 1)),
+        (("missing", "malformed"), ("created_ref_with_drift", None, (60,), 2)),
+        (("missing", "error"), ("created_ref_with_drift", None, (60,), 2)),
+        (("missing", "timeout"), ("created_ref_with_drift", None, (60,), 2)),
+        (("missing", "valid", "missing"), ("created_ref_with_drift", SECOND_OUTPUT, (60,), 3)),
     ),
     ids=(
         "already-visible",
@@ -250,11 +250,9 @@ def test_created_ref_confirmation_has_one_bounded_read_window(
     finite: FiniteCase,
     monkeypatch: pytest.MonkeyPatch,
     observations: tuple[str, ...],
-    status: str,
-    ref_sha: str | None,
-    waits: tuple[int, ...],
-    reads: int,
+    expected: tuple[str, str | None, tuple[int, ...], int],
 ) -> None:
+    status, ref_sha, waits, reads = expected
     delays: list[float] = []
     observed: list[str] = []
     monkeypatch.setattr(time, "sleep", delays.append)
