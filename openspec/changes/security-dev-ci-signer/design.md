@@ -119,3 +119,5 @@ every consumed ref, object, artifact and source checkpoint. Bind the corrected
 program digest and new exact refs in the existing core owner, its shared
 workflow branch literal and existing integration fixtures. Keep all eight
 native proof inputs identical to R3. No new framework or waiver is included.
+
+The forward correction uses the fresh exact executor ref `refs/heads/codex/dev786-complete-ci-signer-20261104` and destination `refs/heads/codex/security-dev-complete-candidate-20261104`. Both older operation refs remain consumed and immutable. These are finite bindings within the existing source/authority contract, not a new mode or a retry of the failed operation. Source data remains UNBOUND until the reviewed complete core and its actual API messages are frozen.
