@@ -61,6 +61,73 @@ class _ProofScope(NamedTuple):
     run_stage: str
 
 
+_FIXED_PR786_SCOPE = _ProofScope(
+    "security-dependencies-0-55-11-dev", 786, "codex/security-dependencies-0-55-11-dev", "red", "red"
+)
+_FIXED_PR786_MANIFEST: tuple[tuple[str, str | int], ...] = (
+    ("schema_version", "1"),
+    ("kind", "fixed-pr786-native-red-proof"),
+    ("repository", "nold-ai/specfact-cli"),
+    ("issue", 780),
+    ("pull_request", 786),
+    ("base_branch", "dev"),
+    ("head_branch", "codex/security-dependencies-0-55-11-dev"),
+    ("change_id", "security-dependencies-0-55-11-dev"),
+    ("cycle_base_commit", "9b5ad1e78430cc0b061cb16de42f73de96f4f312"),
+    ("cycle_base_tree", "24112d8c9983333f9059283965230348f718b74c"),
+    ("red_commit", "22b2fa7bd763b18ada1bfd1a9ea482a624f34cca"),
+    ("red_tree", "fd6a43314d221ee03f6bf476c737487a71aa3677"),
+    ("run_id", 41082128288),
+    ("run_attempt", 1),
+    ("artifact_id", 12988969594),
+    ("artifact_digest", "sha256:ae9f1bd8efb862d2b03f9c584cded897e1ac0d945a3b60265347670d21bcab79"),
+    ("report_digest", "sha256:8e4f937211396d0859286e0aa7d4db4bfbe7feed720125c7ee9fff28cddf05fb"),
+    ("plan_report_digest", "sha256:c3de795387a8b289ebf1d8a0b976c25102f5563b7b94a60423cfaccd0c291607"),
+    ("junit_digest", "sha256:f20bfadc80b82843b79af71e9e466b30f84301031a5ade0ae45cf51df599cb5f"),
+    ("mapping_digest", "sha256:caeca573ba8a7c69fad2c530d67e502f6a3a51c82c8d8e6f1659c4bcfe7b34d0"),
+    ("plan_digest", "sha256:befd8204588ac5de083e48e62c480b23cbdecbf3b4a2006fdf0e2901a213ae0f"),
+    ("executor_repository", "nold-ai/.github"),
+    ("executor_commit", "7b6b5fc1af7b57c2eb5a3546b7578a81175e4dfa"),
+    ("executor_tree", "3967631c545b5d6ad9bd1132d635cb5b39b3dd78"),
+    ("executor_head_branch", "codex/dev786-original-native-34"),
+    ("executor_workflow_path", ".github/workflows/native-materialization-preflight.yml"),
+    ("executor_workflow_name", "Native materialization development preflight 34"),
+    ("executor_event", "create"),
+    ("executor_conclusion", "success"),
+    ("artifact_repository", "nold-ai/.github"),
+    ("artifact_name", "original-execution-packet-41082128288-1"),
+    ("artifact_member_prefix", "original15-4e811f75e0e79cf04ba66a15-export"),
+    ("origin_repository", "nold-ai/specfact-cli"),
+    ("origin_workflow_path", ".github/workflows/requirements-evidence.yml"),
+    ("source_mapping_digest", "sha256:61afa8becd7fed3cbe92a273c955c2e8ba389583f62f0e519c97cafafa7d4307"),
+    ("source_plan_digest", "sha256:37841eeb1f226f62250712050c42c52f032689fa19d091b4c83dc74d9eb8487c"),
+    ("plan_output_digest", "sha256:83e229add4081858e5ec708ab4ff35c7d9d5db03e65de2eb8a0a8a064fa8d31b"),
+)
+_FIXED_PR786_SELECTORS = (
+    "tests/unit/scripts/test_dependency_compatibility_workflow.py::test_resolver_selection_excludes_only_frozen_release_cases",
+    "tests/unit/scripts/test_dependency_trust_review.py::test_pycparser_has_current_exact_version_review_record",
+    "tests/unit/scripts/test_security_audit_gate.py::test_committed_otel_exception_is_exact_and_time_bounded[exact-cve]",
+    "tests/unit/scripts/test_security_audit_gate.py::test_committed_otel_exception_is_exact_and_time_bounded[exact-ghsa]",
+    "tests/unit/scripts/test_security_audit_gate.py::test_committed_otel_exception_is_exact_and_time_bounded[expiry-day]",
+    "tests/unit/security/test_code_review_dependency_security.py::test_code_review_pins_fixed_pylint_with_bound_artifact_hashes",
+    "tests/unit/security/test_frozen_gitpython_compatibility.py::test_submodule_creation_validates_checkout_before_clone[absolute-metadata]",
+    "tests/unit/security/test_frozen_gitpython_compatibility.py::test_submodule_creation_validates_checkout_before_clone[git-metadata]",
+    "tests/unit/security/test_frozen_gitpython_compatibility.py::test_submodule_creation_validates_checkout_before_clone[git-short-name]",
+    "tests/unit/security/test_release_dependency_selection.py::test_public_declarations_require_reviewed_security_floor[gitpython-floor]",
+    "tests/unit/security/test_release_dependency_selection.py::test_public_declarations_require_reviewed_security_floor[pycparser-floor]",
+    "tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[filelock-4.2.1]",
+    "tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[gitpython-3.2.1]",
+    "tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[msgpack-1.2.3]",
+    "tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[packaging-26.3]",
+    "tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[pycparser-3.12]",
+    "tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[python-discovery-1.6.1]",
+    "tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[semgrep-1.182.1]",
+    "tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[setuptools-84.1.0]",
+    "tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[virtualenv-21.14.13]",
+    "tests/unit/security/test_release_promotion_security_gates.py::test_frozen_graph_uses_official_semgrep_with_bounded_mcp_exception",
+)
+
+
 _PROOF_SCOPES = (
     _ProofScope("fix-release-promotion-security-gates", 704, "bugfix/692-release-review-followup", "verified", "final"),
     _ProofScope(
@@ -150,7 +217,23 @@ def _strings(value: object) -> list[str]:
     return result
 
 
+def _validate_fixed_pr786_manifest(manifest: dict[str, object]) -> None:
+    expected = dict(_FIXED_PR786_MANIFEST)
+    if set(manifest) != {*expected, "failed_selectors"}:
+        raise ValueError
+    if any(type(manifest[key]) is not type(value) or manifest[key] != value for key, value in expected.items()):
+        raise ValueError
+    if type(manifest["failed_selectors"]) is not list:
+        raise ValueError
+    selectors = _strings(manifest["failed_selectors"])
+    if tuple(selectors) != _FIXED_PR786_SELECTORS:
+        raise ValueError
+
+
 def _validate_manifest(manifest: dict[str, object], scope: _ProofScope) -> None:
+    if scope == _FIXED_PR786_SCOPE:
+        _validate_fixed_pr786_manifest(manifest)
+        return
     if set(manifest) != MANIFEST_FIELDS:
         raise ValueError
     expected = {
@@ -435,7 +518,75 @@ def _validate_plan_report(plan_report: dict[str, object], plan: dict[str, object
         raise ValueError
 
 
+def _validate_fixed_pr786_plan(
+    plan_report: dict[str, object], aggregate: dict[str, object], manifest: dict[str, object]
+) -> list[str]:
+    plan = _object(aggregate.get("plan"))
+    _validate_plan_report(aggregate, plan, manifest)
+    sources = plan_report.get("sources")
+    if not isinstance(sources, list) or len(sources) != 1:
+        raise ValueError
+    source = _object(cast(list[object], sources)[0])
+    source_plan = _object(source.get("plan"))
+    expected = {
+        "mapping_digest": manifest["source_mapping_digest"],
+        "plan_digest": manifest["source_plan_digest"],
+    }
+    if plan_report.get("gate_decision") != "pass" or source.get("gate_decision") != "pass":
+        raise ValueError
+    if source.get("source") != f"openspec/changes/{_FIXED_PR786_SCOPE.change_id}":
+        raise ValueError
+    if any(source_plan.get(key) != value for key, value in expected.items()):
+        raise ValueError
+    planned = _planned_selectors(plan)
+    if sorted(_planned_selectors(source_plan)) != sorted(planned):
+        raise ValueError
+    return planned
+
+
+def _validate_fixed_pr786_packet(root: Path, manifest: dict[str, object]) -> tuple[bytes, list[str]]:
+    _validate_fixed_pr786_manifest(manifest)
+    report_payload, planning_payload, junit_payload = _artifact_payloads(root, manifest)
+    aggregate_payload = _regular_payload(root / "plan.json")
+    if _digest(aggregate_payload) != manifest["plan_output_digest"]:
+        raise ValueError
+    report = _object(json.loads(report_payload, object_pairs_hook=_pairs))
+    planning = _object(json.loads(planning_payload, object_pairs_hook=_pairs))
+    aggregate = _object(json.loads(aggregate_payload, object_pairs_hook=_pairs))
+    execution = _object(report.get("execution_proof"))
+    expected_report = {
+        "delivery_status": "failing-first-proven",
+        "gate_decision": "pass",
+        "observed_maturity": "red",
+        "required_maturity": "red",
+        "verdict": "passed",
+        "mapping_digest": manifest["mapping_digest"],
+        "plan_digest": manifest["plan_digest"],
+    }
+    expected_execution = {
+        "junit_digest": manifest["junit_digest"],
+        "run_stage": "red",
+        "source_ref": manifest["red_commit"],
+        "source_tree": manifest["red_tree"],
+        "merge_base": manifest["cycle_base_commit"],
+    }
+    for actual, expected in ((report, expected_report), (execution, expected_execution)):
+        if any(actual.get(key) != value for key, value in expected.items()):
+            raise ValueError
+    planned = _validate_fixed_pr786_plan(planning, aggregate, manifest)
+    reported = _strings(execution.get("selectors"))
+    junit, failed = _junit_selectors(junit_payload)
+    expected_selectors = list(_FIXED_PR786_SELECTORS)
+    if reported != expected_selectors or junit != planned or failed != junit:
+        raise ValueError
+    if sorted(planned) != expected_selectors:
+        raise ValueError
+    return junit_payload, reported
+
+
 def _validate_raw_artifact(root: Path, manifest: dict[str, object], scope: _ProofScope) -> tuple[bytes, list[str]]:
+    if scope == _FIXED_PR786_SCOPE:
+        return _validate_fixed_pr786_packet(root, manifest)
     report_payload, plan_payload, junit_payload = _artifact_payloads(root, manifest)
     report = _object(json.loads(report_payload, object_pairs_hook=_pairs))
     plan_report = _object(json.loads(plan_payload, object_pairs_hook=_pairs))
@@ -456,8 +607,7 @@ def _validate_raw_artifact(root: Path, manifest: dict[str, object], scope: _Proo
     if set(planned) != expected_selectors or set(normalized_junit) != expected_selectors:
         raise ValueError
     if (
-        not expected_failures
-        or len(expected_failures) != len(set(expected_failures))
+        len(expected_failures) != len(set(expected_failures))
         or set(normalized_failures) != set(expected_failures)
         or not set(normalized_failures).issubset(expected_selectors)
     ):
