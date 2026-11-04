@@ -16,9 +16,9 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 RUN_RECORD = REPO_ROOT / "tests/fixtures/requirements-proof/pr786-native34-run.json"
-API_SHA256 = "df109a62bd249f55dd25b6d3d22ba5a5b92d0d8d0815334ee424b0b9ab89a072"
-SOURCE_COMMIT = "22b2fa7bd763b18ada1bfd1a9ea482a624f34cca"
-EXECUTOR_COMMIT = "7b6b5fc1af7b57c2eb5a3546b7578a81175e4dfa"
+API_SHA256 = "853593331f47eeb8e60bca22f86a442a04e25b536a3627319924c0a337a35043"
+SOURCE_COMMIT = "d77209f4b13c386e29391f93e1f1c58d7fd8622f"
+EXECUTOR_COMMIT = "8ad0a9434ceeac4a910df3c374536d7c909badec"
 
 
 @pytest.fixture
@@ -52,16 +52,16 @@ def manifest() -> dict[str, Any]:
         "change_id": "security-dependencies-0-55-11-dev",
         "repository": "nold-ai/specfact-cli",
         "red_commit": SOURCE_COMMIT,
-        "red_tree": "fd6a43314d221ee03f6bf476c737487a71aa3677",
+        "red_tree": "cfba03cf57f6de2fc6dd37709c9d8e38d03f2187",
         "executor_repository": "nold-ai/.github",
         "executor_commit": EXECUTOR_COMMIT,
-        "executor_tree": "3967631c545b5d6ad9bd1132d635cb5b39b3dd78",
-        "executor_head_branch": "codex/dev786-original-native-34",
+        "executor_tree": "975de5bf33e7621f1606eb344383d690dbdcae8a",
+        "executor_head_branch": "codex/dev786-original-native-36",
         "executor_workflow_path": ".github/workflows/native-materialization-preflight.yml",
-        "executor_workflow_name": "Native materialization development preflight 34",
+        "executor_workflow_name": "Native materialization development preflight 36",
         "executor_event": "create",
         "executor_conclusion": "success",
-        "run_id": 41082128288,
+        "run_id": 41715861806,
         "run_attempt": 1,
     }
 

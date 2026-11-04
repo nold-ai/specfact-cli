@@ -299,7 +299,7 @@ def synthetic_checkpoint_ledger(
     synthetic_checkpoint_run: dict[str, object],
 ) -> tuple[ModuleType, dict[str, object], dict[str, object], dict[str, object]]:
     """Isolate history policy; inert trees/blobs and signatures confer no authenticity."""
-    root = "22b2fa7bd763b18ada1bfd1a9ea482a624f34cca"
+    root = "d77209f4b13c386e29391f93e1f1c58d7fd8622f"
     source, executor, tree, executor_tree = (digit * 40 for digit in "abcd")
     path = "openspec/changes/security-dependencies-0-55-11-dev/tasks.md"
     original = "synthetic checkpoint"

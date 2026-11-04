@@ -16,7 +16,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = REPO_ROOT / "tests/unit/scripts/fixtures"
 CYCLE = "9b5ad1e78430cc0b061cb16de42f73de96f4f312"
-SOURCE = "22b2fa7bd763b18ada1bfd1a9ea482a624f34cca"
+SOURCE = "d77209f4b13c386e29391f93e1f1c58d7fd8622f"
 VALIDATOR_SHA256 = "5bad94f58f6741cd070e6e9f98a95c88d412365a437e0499e30545603cd9f846"
 
 

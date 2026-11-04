@@ -131,3 +131,13 @@ and rebuild its graph as a follow-up when available; no sibling write is
 claimed. The existing OpenSpec identifier and historical evidence retain their
 original names. No merge, protected adoption or final-head authority is granted
 by this version decision.
+
+## Current 0.55.12 source and native association
+
+The CI-signed test root is R3 d77209f4b13c386e29391f93e1f1c58d7fd8622f, tree cfba03cf57f6de2fc6dd37709c9d8e38d03f2187, sole parent R2. Native36 run41715861806 attempt1 at executor8ad0a9434ceeac4a910df3c374536d7c909badec produced the original21 intended failures and Source35 closure. Independent report4a7111e2085bd80fc6950a900b4111f488d07490d47bbf2b34fd79a82ee96ff8 was fully read and root-bound95files/67Gitinputs. Native34 remains immutable historical R2 evidence.
+
+Use only the existing fixed transfer owner, five current proof tests and their finite fixture paths. Bind the actual36 run, original artifact13269307808, original ZIP1885415 bytes/SHA0567a53963df112f2ac3f2e2024c1b93c6f9fafc00052ce137c4d5495c07f433, report/JUnit hashes, R3 service signature/payload and source parent R2. Keep the four COPY members byte-identical to original36, separate from metadata, under the synchronized existing native36 COPY label. Preserve all selectors, original mappings, C provenance, seven selected whole files and plugin, every input/output bound, and all authentication flags. No new owner, index, API, launcher, collector or framework.
+
+First update these fixture and test expectations, demonstrate the existing run admission rejects the actual36 record for its old association, and commit normal TEST. Then update only the finite owner/workflow/signer bindings and existing complete security CODE. The full signer root becomes R3, permits only the two additional canonical initializer paths, and pins the actual new COPY metadata. Its API, schema and resource bounds remain unchanged. Fresh exact reviews and normal hooks remain mandatory.
+
+Set pyproject.toml, setup.py, src/__init__.py and src/specfact_cli/__init__.py to0.55.12, update only the local uv.lock self record, and add the release changelog entry. Keep the version checker unchanged, all183 reviewed official registry records/hash sets and current dev runtime. All three strict audits remain required. Preserve the exact disclosed MCP and separate OTEL records through4November2026 inclusive, failing closed5November00:00Europe/Berlin. Full CODE signing, protected adoption and exact final-head provenance still need their separate concrete decisions. No merge.
