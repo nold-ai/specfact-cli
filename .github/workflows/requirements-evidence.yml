@@ -192,7 +192,7 @@ jobs:
               raise ValueError('fixed786 final checkpoint')
           run_id = int(run_text)
           run = get(f'/repos/nold-ai/specfact-cli/actions/runs/{run_id}')
-          expected_run = {'id': run_id, 'run_attempt': 1, 'head_sha': executor, 'head_branch': 'codex/dev786-complete-ci-signer-20261030', 'event': 'workflow_dispatch', 'path': '.github/workflows/specfact.yml', 'workflow_id': 204352514, 'status': 'completed', 'conclusion': 'success'}
+          expected_run = {'id': run_id, 'run_attempt': 1, 'head_sha': executor, 'head_branch': 'codex/dev786-complete-ci-signer-20261104', 'event': 'workflow_dispatch', 'path': '.github/workflows/specfact.yml', 'workflow_id': 204352514, 'status': 'completed', 'conclusion': 'success'}
           if any(type(run.get(key)) is not type(value) or run.get(key) != value for key, value in expected_run.items()) or run['repository']['full_name'] != 'nold-ai/specfact-cli' or run['repository']['id'] != intent['repository_id']:
               raise ValueError('fixed786 completed signer')
           for role in ('actor', 'triggering_actor'):
