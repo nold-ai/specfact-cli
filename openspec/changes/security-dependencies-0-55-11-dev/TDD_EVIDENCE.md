@@ -221,6 +221,34 @@ are inert API records. Passing this unit grants no network-origin, protected
 adoption, F or fresh owner authority. The matching internal wiki source remains
 unavailable and its recorded mirror follow-up remains open.
 
+## Artifact and signed-source validation after TEST
+
+Normal TEST `e57ed972b6934b7e3af30b223b2c50e3bc0f52b3` precedes the
+finite artifact/source runtime change. Its normal review reported two duplicate
+JSON-fixture warnings. One fresh per-case tuple now loads the three records
+without duplicate fixture functions. All 79 cases and mutation predicates remain
+unchanged. No warning is waived. The final test SHA-256 is
+`ac003f0d5ee2ef450073fcf70f46eb6ab9206399b73017cc23fa676be5cc34d3`.
+The final before result is one intended assertion failure and 78 controls
+passing. The after result is 79 passing cases, with no errors or skips.
+
+The installed existing owner SHA-256 is
+`6f57f4a102d9b7c93e2c1958dc809ad040fc66c62e6f92de705e9f1aa8776abc`.
+Only its artifact entry gains a fixed-kind branch and two finite validators.
+Historical behavior, signature, public registration, normalization and C
+provenance remain unchanged. Artifact E34 and signed source R2 are distinct.
+The exact captured signature and signed payload are independently hash-bound.
+The derived envelope does not authenticate its own network origin or grant
+final-head authority.
+
+Exact independent review
+`e7e9efd83f3eb1bf5d52fa0e6a50c1ae81547f02a3e42a8e17e8f97ad6a9ab7b`
+was fully read and all 43 input bindings verified. Final fixture review
+`d54ef65312f7ea65a0885723396ee95333ffb5eb1d07263239f5a179c616c831`
+was fully read and all 20 bindings verified. SpecFact Code Review on the final
+owner and test reports PASS with zero findings. Full workflow integration,
+canonical forwarding, origin and fresh exact-head authority remain open.
+
 ## Owner-selected 0.55.12 TEST refresh
 
 On 30 October 2026 the owner selected “Use 0.55.12; refresh version-bound

@@ -358,7 +358,73 @@ def _validate_run(run: dict[str, object], manifest: dict[str, object], scope: _P
         raise ValueError
 
 
+def _validate_fixed_pr786_source(source: dict[str, object]) -> None:
+    commit = _object(source.get("commit"))
+    verification = _object(commit.get("verification"))
+    parents = source.get("parents")
+    if not isinstance(parents, list) or len(parents) != 1:
+        raise ValueError
+    expected_sections: tuple[tuple[dict[str, object], dict[str, object]], ...] = (
+        (source, {"sha": "22b2fa7bd763b18ada1bfd1a9ea482a624f34cca"}),
+        (_object(commit.get("tree")), {"sha": "fd6a43314d221ee03f6bf476c737487a71aa3677"}),
+        (_object(cast(list[object], parents)[0]), {"sha": "4ae6175a4d337296d0347e73b66c9da1f0e43f7f"}),
+        (_object(source.get("author")), {"id": 41898282, "login": "github-actions[bot]", "type": "Bot"}),
+        (_object(source.get("committer")), {"id": 19864447, "login": "web-flow", "type": "User"}),
+        (verification, {"verified": True, "reason": "valid"}),
+    )
+    for actual, expected in expected_sections:
+        if any(type(actual.get(key)) is not type(value) or actual.get(key) != value for key, value in expected.items()):
+            raise ValueError
+    signed_digests = (
+        ("signature", "sha256:46efdc6f6ee25520af7582cd2c5ee5040e15181bf95d62ed7c5497b72fd852d5"),
+        ("payload", "sha256:31d04601bd8d9f9fbf4e44473a7f51de3a95b3cfa6debbaf9fca0be64b200d9e"),
+    )
+    for field, expected_digest in signed_digests:
+        if _digest(_string(verification.get(field)).encode("utf-8")) != expected_digest:
+            raise ValueError
+
+
+def _validate_fixed_pr786_artifact(metadata: dict[str, object], manifest: dict[str, object]) -> None:
+    _validate_fixed_pr786_manifest(manifest)
+    entries = metadata.get("artifacts")
+    if not isinstance(entries, list):
+        raise ValueError
+    named = [entry for entry in cast(list[object], entries) if _object(entry).get("name") == manifest["artifact_name"]]
+    if len(named) != 1:
+        raise ValueError
+    artifact = _object(named[0])
+    expected_sections: tuple[tuple[dict[str, object], dict[str, object]], ...] = (
+        (
+            artifact,
+            {
+                "id": manifest["artifact_id"],
+                "name": manifest["artifact_name"],
+                "size_in_bytes": 1881846,
+                "expired": False,
+                "digest": manifest["artifact_digest"],
+            },
+        ),
+        (
+            _object(artifact.get("workflow_run")),
+            {
+                "id": manifest["run_id"],
+                "repository_id": 1110267669,
+                "head_repository_id": 1110267669,
+                "head_branch": manifest["executor_head_branch"],
+                "head_sha": manifest["executor_commit"],
+            },
+        ),
+    )
+    for actual, expected in expected_sections:
+        if any(type(actual.get(key)) is not type(value) or actual.get(key) != value for key, value in expected.items()):
+            raise ValueError
+    _validate_fixed_pr786_source(_object(metadata.get("source_commit")))
+
+
 def _validate_artifact(metadata: dict[str, object], manifest: dict[str, object]) -> None:
+    if manifest.get("kind") == "fixed-pr786-native-red-proof":
+        _validate_fixed_pr786_artifact(metadata, manifest)
+        return
     entries = metadata.get("artifacts")
     if not isinstance(entries, list):
         raise ValueError
