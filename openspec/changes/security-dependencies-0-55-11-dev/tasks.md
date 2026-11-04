@@ -32,3 +32,9 @@
 - [ ] Pass affected local cases, normal hooks and fresh independent review.
 - [ ] Prepare a fresh exact CI/CD operation and preserve the consumed signed prefix.
 - [ ] Obtain separate exact final-head authority and complete every required current-head gate without merging.
+
+## Berlin expiry correction
+
+- [x] Reproduce the two default-clock boundary failures with two passing controls in a separate unselected test file.
+- [ ] Fix the two existing policy clocks without changing selected native proof inputs or exception records.
+- [ ] Run focused checks, normal hooks and independent review; refresh current-head identities and required evidence honestly.

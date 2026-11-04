@@ -98,6 +98,18 @@ residual risk while the official Semgrep 1.182.1 pin remains incompatible
 with patched MCP, not remediation or a general waiver. The documented CLI-only
 mitigations SHALL remain in force.
 
+Every standalone audit and dependency-trust entrypoint SHALL evaluate review
+dates in Europe/Berlin independently of the host timezone. The existing
+4 November 2026 inclusive expiry SHALL remain unchanged; acceptance SHALL end
+at 5 November 2026 00:00 Europe/Berlin without an environment-variable override.
+
+#### Scenario: The Berlin cutoff precedes the host calendar change
+
+- **GIVEN** an exception valid through a Berlin calendar date
+- **WHEN** Berlin reaches the following midnight while the host still has the old date
+- **THEN** both default audit and dependency-trust checks reject the exception
+- **AND** the immediately preceding instant remains within its original window.
+
 #### Scenario: Unreviewed or expired findings remain blocking
 
 - **GIVEN** the three strict audit reports and the exact three review records
