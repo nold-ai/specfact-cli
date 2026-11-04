@@ -23,3 +23,12 @@
   within explicitly authorized sibling-write scope.
 - [ ] Reconcile the main release only after verified dev replacement coverage.
 - [ ] Archive with OpenSpec only after completion and merge.
+
+## Current-head CI tail, 4 November 2026
+
+- [x] Read actual F signing uploads and independent acceptance; fast-forward PR786 to verified F without merging.
+- [x] Reproduce SAST/license defects and new exact F-root/ref test failures before code.
+- [ ] Apply the two narrow CI corrections and exact F-root/ref/signer-pin bindings.
+- [ ] Pass affected local cases, normal hooks and fresh independent review.
+- [ ] Prepare a fresh exact CI/CD operation and preserve the consumed signed prefix.
+- [ ] Obtain separate exact final-head authority and complete every required current-head gate without merging.

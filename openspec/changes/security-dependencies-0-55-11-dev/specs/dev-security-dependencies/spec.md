@@ -104,3 +104,15 @@ mitigations SHALL remain in force.
 - **WHEN** a finding has another package, version or advisory, or the record
   is expired, or an audit subject is skipped
 - **THEN** the audit fails without widening an exception or omitting a subject.
+
+#### Scenario: The exact isolated Pylint selection passes its existing license scope
+
+- **GIVEN** official Pylint 4.0.9 and its existing GPL-2.0-or-later isolated Code Review classification
+- **WHEN** the committed license gate scans that hash-locked review environment
+- **THEN** its single exact code-review-only entry accepts 4.0.9, preserves its Phase 2 removal plan, and refuses other versions or the ordinary runtime and module-manifest scopes.
+
+#### Scenario: Git object identifiers do not become security hash exemptions
+
+- **GIVEN** a Git object identifier computed with explicit usedforsecurity=False
+- **WHEN** the existing SAST rule scans that SHA-1 call
+- **THEN** it accepts that explicit non-security use while still reporting default, security-enabled and dynamically selected SHA-1 uses and every existing MD5 finding.

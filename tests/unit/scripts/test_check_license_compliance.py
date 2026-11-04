@@ -212,10 +212,24 @@ class TestAllowlistAccepted:
         entries = mod._load_allowlist()["pylint"]
         assert len(entries) == 1
         entry = entries[0]
-        assert entry["version"] == "4.0.7"
+        assert entry["version"] == "4.0.9"
         assert entry["license"] == "GPL-2.0-or-later"
         assert entry["scope"] == "code-review-only"
         assert "Phase 2" in entry["reason"]
+
+    @pytest.mark.parametrize(
+        ("version", "scope", "expected"),
+        [
+            ("4.0.9", "code-review-only", 0),
+            ("4.0.9", "dev-only", 1),
+            ("4.0.7", "code-review-only", 1),
+            ("4.0.10", "code-review-only", 1),
+        ],
+    )
+    def test_locked_review_license_is_exact_and_isolated(self, mod, version: str, scope: str, expected: int) -> None:
+        observed = json.dumps([{"Name": "pylint", "Version": version, "License": "GPL-2.0-or-later"}])
+        with patch.object(mod, "_run_pip_licenses", return_value=observed):
+            assert mod.scan_installed_environment(allowlist_scope=scope) == expected
 
     def test_allowlist_entry_suppresses_gpl_failure(self, mod) -> None:
         """GPL package in allowlist must not cause exit 1."""
