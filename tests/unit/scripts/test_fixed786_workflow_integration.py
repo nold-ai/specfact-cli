@@ -261,7 +261,7 @@ def synthetic_checkpoint_run() -> dict[str, object]:
         "id": 91,
         "run_attempt": 1,
         "head_sha": "b" * 40,
-        "head_branch": "codex/dev786-complete-ci-signer-20261030",
+        "head_branch": "codex/dev786-complete-ci-signer-20261104",
         "event": "workflow_dispatch",
         "path": ".github/workflows/specfact.yml",
         "workflow_id": 204352514,
@@ -319,8 +319,8 @@ def synthetic_checkpoint_ledger(
         "dev": "9b5ad1e78430cc0b061cb16de42f73de96f4f312",
         "main": "3" * 40,
         "checkpoints": [checkpoint],
-        "auxiliary_ref": "refs/heads/codex/dev786-complete-ci-signer-20261030",
-        "destination": "refs/heads/codex/security-dev-complete-candidate-20261030",
+        "auxiliary_ref": "refs/heads/codex/dev786-complete-ci-signer-20261104",
+        "destination": "refs/heads/codex/security-dev-complete-candidate-20261104",
     }
     raw_intent = json.dumps(intent).encode()
     digest = hashlib.sha256(raw_intent).hexdigest()
