@@ -432,3 +432,13 @@ test keeps its explicit package and advisory records, and the UTF8-refusal
 test keeps its actual CLI argument vector and two output assertions. These
 finite test shapes are clearer than another generic fixture or wrapper.
 No warning, rule, report, configuration or enforcement threshold is suppressed.
+
+## Current native36 fixture TEST checkpoint
+
+3 November 2026 Europe/Berlin. The preserved twelve normal TEST/CODE units now have honest new descendants above R3, ending cb131af8. Their ordered original/new identities and normal hook logs are retained outside Git. All seven selected whole test files and the proof plugin remain byte-identical to signed R3. Append conflicts retained both original evidence and the owner-selected .12 sections. Intermediate type warnings were resolved by the already preserved next typed-test unit; no finding or hook was waived. Exact raw native JUnit whitespace was retained as authenticated evidence.
+
+Actual36 run41715861806 attempt1/job126195535776 succeeded. Original artifact13269307808 ZIP1885415/SHA0567a53963df112f2ac3f2e2024c1b93c6f9fafc00052ce137c4d5495c07f433 and development13270362279/SHAa91963ba4f2370c72f6b87c1325b6f6563c2dcc0cf26b71651c2f1c4fc52e084 were independently authenticated. Report4a7111e2085bd80fc6950a900b4111f488d07490d47bbf2b34fd79a82ee96ff8 was fully read and root-bound95file/67Git inputs, with original21 assertion failures, Source35,94 preparation receipts,4555 materialization commands and complete5root closure. This supplies refreshed RED/source closure only, not origin or final-head/production readiness.
+
+The existing fixture paths now contain exact actual36 member/API bytes and R3 identities. Legacy filenames retain their history; their contents and manifests explicitly name actual36 and R3. Four COPY outputs remain byte-identical to original36. Metadata SHA256 is e491e7ce89edf6a5c4299dc0d723cb9a3ff90573c062b45269da13f963a65617. Original native34 archives and all consumed operations remain immutable.
+
+After this spec/test refresh, the unchanged existing run owner rejects the actual36 record with the intended test-body AssertionError "Fixed PR786 run admission mismatch for actual-record." Its existing fourteen-case unit records1failure/13passes,0setup errors/skips. This is local admission regression evidence, not another native acquisition or per-guard proof. Production declarations, dependency graph, current owner and workflows are still unapplied here. Next is the finite existing-owner/CODE correction and .12 metadata, then passing evidence, fresh exact review and normal hooks. Preserve every original bound, all three strict audits and the4November expiry. No merge or protected authority is granted.
