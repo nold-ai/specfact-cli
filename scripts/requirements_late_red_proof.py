@@ -199,17 +199,79 @@ def _validate_event(event: dict[str, object], manifest: dict[str, object], final
 
 
 def _validate_run(run: dict[str, object], manifest: dict[str, object], scope: _ProofScope) -> None:
-    if (
-        _integer(run.get("id")) != manifest["run_id"]
-        or run.get("head_sha") != manifest["red_commit"]
-        or run.get("head_branch") != scope.head_branch
-        or run.get("event") != "pull_request"
-        or run.get("status") != "completed"
-        or run.get("conclusion") != "failure"
-        or run.get("name") != "Requirements Evidence"
-        or run.get("path") != WORKFLOW_PATH
-        or _object(run.get("repository")).get("full_name") != REPOSITORY
-    ):
+    fixed_scope = _ProofScope(
+        "security-dependencies-0-55-11-dev", 786, "codex/security-dependencies-0-55-11-dev", "red", "red"
+    )
+    if scope == fixed_scope:
+        expected_manifest = {
+            "kind": "fixed-pr786-native-red-proof",
+            "pull_request": 786,
+            "change_id": "security-dependencies-0-55-11-dev",
+            "repository": "nold-ai/specfact-cli",
+            "red_commit": "22b2fa7bd763b18ada1bfd1a9ea482a624f34cca",
+            "red_tree": "fd6a43314d221ee03f6bf476c737487a71aa3677",
+            "executor_repository": "nold-ai/.github",
+            "executor_commit": "7b6b5fc1af7b57c2eb5a3546b7578a81175e4dfa",
+            "executor_tree": "3967631c545b5d6ad9bd1132d635cb5b39b3dd78",
+            "executor_head_branch": "codex/dev786-original-native-34",
+            "executor_workflow_path": ".github/workflows/native-materialization-preflight.yml",
+            "executor_workflow_name": "Native materialization development preflight 34",
+            "executor_event": "create",
+            "executor_conclusion": "success",
+            "run_id": 41082128288,
+            "run_attempt": 1,
+        }
+        expected_run = {
+            "id": 41082128288,
+            "run_attempt": 1,
+            "workflow_id": 396761484,
+            "head_sha": "7b6b5fc1af7b57c2eb5a3546b7578a81175e4dfa",
+            "head_branch": "codex/dev786-original-native-34",
+            "event": "create",
+            "status": "completed",
+            "conclusion": "success",
+            "name": "Native materialization development preflight 34",
+            "path": ".github/workflows/native-materialization-preflight.yml",
+        }
+        repository = _object(run.get("repository"))
+        head_repository = _object(run.get("head_repository"))
+        expected_repository = {"id": 1110267669, "full_name": "nold-ai/.github", "private": False, "fork": False}
+        expected_owner = {"id": 225190663, "login": "nold-ai", "type": "Organization"}
+        expected_actor = {"id": 39115308, "login": "djm81", "type": "User"}
+        expected_commit = {
+            "id": "7b6b5fc1af7b57c2eb5a3546b7578a81175e4dfa",
+            "tree_id": "3967631c545b5d6ad9bd1132d635cb5b39b3dd78",
+        }
+        for actual, expected in (
+            (manifest, expected_manifest),
+            (run, expected_run),
+            (repository, expected_repository),
+            (head_repository, expected_repository),
+            (_object(repository.get("owner")), expected_owner),
+            (_object(head_repository.get("owner")), expected_owner),
+            (_object(run.get("actor")), expected_actor),
+            (_object(run.get("triggering_actor")), expected_actor),
+            (_object(run.get("head_commit")), expected_commit),
+        ):
+            if any(
+                type(actual.get(key)) is not type(value) or actual.get(key) != value for key, value in expected.items()
+            ):
+                raise ValueError
+        return
+    if _integer(run.get("id")) != manifest["run_id"]:
+        raise ValueError
+    expected_fields = {
+        "head_sha": manifest["red_commit"],
+        "head_branch": scope.head_branch,
+        "event": "pull_request",
+        "status": "completed",
+        "conclusion": "failure",
+        "name": "Requirements Evidence",
+        "path": WORKFLOW_PATH,
+    }
+    if any(run.get(key) != value for key, value in expected_fields.items()):
+        raise ValueError
+    if _object(run.get("repository")).get("full_name") != REPOSITORY:
         raise ValueError
 
 
