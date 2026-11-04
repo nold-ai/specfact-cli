@@ -62,6 +62,13 @@ assertion bodies without rewriting source reports or assigning final authority.
 The portable regression uses inert copies of these bytes. Public registration
 remains closed during this partial unit.
 
+The existing artifact validator takes a derived envelope containing the captured
+artifact API object and signed source commit API object. The fixed variant
+binds the artifact to E34 and the verified source to R2. This envelope is not
+an original API response, origin proof or owner grant. Each later consumer
+fetches these records independently and freezes the derived bytes before use.
+Historical callers keep the same signature and do not need a source record.
+
 ## Owner-selected 0.55.12 refresh
 
 On 30 October 2026 the owner selected 0.55.12 and refreshed version-bound

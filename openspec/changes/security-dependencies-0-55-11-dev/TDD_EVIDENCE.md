@@ -204,6 +204,23 @@ The final fixture rename has separate final review. This unit grants no new
 native, protected adoption, origin or final-head authority. All three native
 consumers and the remaining live authentication gates still require connection.
 
+## Artifact and signed-source regression before implementation
+
+The portable artifact/source test has SHA-256
+`5811aacd6c67a6104bde303975429eac56b2deb7561ab177c4016d5f8a571be4`.
+Against unchanged owner `1892d4e1db1228a65251878e85d6ef2213ffc388b09d1d6b2923b4ad3bfa5716`,
+it produces one intended artifact-admission assertion failure and 78 passing
+controls, with no setup errors or skips. The fixed artifact uses the actual
+auxiliary artifact name and E34 head rather than the historical name and R2
+head assumption. Captured source signature, payload and distinct R2 identity
+are exercised through the same unchanged artifact validator signature.
+
+The private candidate passes the same frozen 79 cases and the separate portable
+79 cases. No runtime change is installed in this TEST checkpoint. All fixtures
+are inert API records. Passing this unit grants no network-origin, protected
+adoption, F or fresh owner authority. The matching internal wiki source remains
+unavailable and its recorded mirror follow-up remains open.
+
 ## Owner-selected 0.55.12 TEST refresh
 
 On 30 October 2026 the owner selected “Use 0.55.12; refresh version-bound

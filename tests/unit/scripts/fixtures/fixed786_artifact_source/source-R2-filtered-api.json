@@ -1,0 +1,82 @@
+{
+  "sha": "22b2fa7bd763b18ada1bfd1a9ea482a624f34cca",
+  "node_id": "C_kwDOQLaPE9oAKDIyYjJmYTdiZDc2M2IxOGFkYTFiZmQxYTllYTQ4MmE2MjRmMzRjY2E",
+  "commit": {
+    "author": {
+      "name": "github-actions[bot]",
+      "email": "41898282+github-actions[bot]@users.noreply.github.com",
+      "date": "2026-10-29T21:39:33Z"
+    },
+    "committer": {
+      "name": "GitHub",
+      "email": "noreply@github.com",
+      "date": "2026-10-29T21:39:33Z"
+    },
+    "message": "test(security): refresh reviewed dev-first 0.55.11 proof source\n\nIntent: f0838394ad0dbfb1144b2ec7f22652f91329540db4752c8a83de676624747471\nExecutor: f937be3695935a94fae077dd8c68caa91640cf42\nRun: 40959594363\nAttempt: 1",
+    "tree": {
+      "sha": "fd6a43314d221ee03f6bf476c737487a71aa3677",
+      "url": "https://api.github.com/repos/nold-ai/specfact-cli/git/trees/fd6a43314d221ee03f6bf476c737487a71aa3677"
+    },
+    "url": "https://api.github.com/repos/nold-ai/specfact-cli/git/commits/22b2fa7bd763b18ada1bfd1a9ea482a624f34cca",
+    "comment_count": 0,
+    "verification": {
+      "verified": true,
+      "reason": "valid",
+      "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsFcBAABCAAQBQJq470VCRC1aQ7uu5UhlAAA8pUQAFTkZMoxAik6r+WVSxg/9AvH\nZiOFUyc31imjDACQWeJD/00AGGR8hQUNzkFKHeW8B231p9T3Mqq3Lt83MS7whuVX\ngyvxutB/jjuVIlVTPm2geikSoo70lI9F09uZEsGOyAieS4RxX+lC40kNZ8QwPT+n\nRpMPvAaA2Sh87T/WKHbTF/A5KJyteSJ/pmiOWu3boxPCEhOom1gTlObRM9So+Smy\nHGHo3mJeIGmh1KwCq0LYX2LmCF4hW3vFGT2PlJl/q1/ybvKqAU3AVj7Fh0zK2ZLF\nPZiRp7F412XvzrDXUrXw86DpxQjcbkED46VG1VrMyWjHCg1TrCPm9Bwz5e4minKc\nMakcReei26QPajrIa6eBHsSJRWP9SwrInFmiz1rkuC6rc+dQL8n6J3gYrAOujHxA\nKYz9hMu3I02anvVjcyQu3V2Adashht7fYCEY7xjz9IU+HKApPP7hjWISZhVjmzpN\nNTYhm/NaPx3jGzRfrgyZ3H+prps7LEPE/fqUn5ejlka90mu0ay3gh6zRF+/jeBKk\nip/t8WYH3J3xlUpGfywcAZYMUWFInV4k+tOw46TSbxYaHoYi746DZJlitLpLUpNz\noTMqm4PTHx5KGwDscdssoyiavCnQVTMXvpc0XDslykWrjQ0VpxGwh5fvVUWUnfMR\nVi0Gp9iflJiRJfHYNJXw\n=ZgjK\n-----END PGP SIGNATURE-----\n",
+      "payload": "tree fd6a43314d221ee03f6bf476c737487a71aa3677\nparent 4ae6175a4d337296d0347e73b66c9da1f0e43f7f\nauthor github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com> 1793309973 +0000\ncommitter GitHub <noreply@github.com> 1793309973 +0000\n\ntest(security): refresh reviewed dev-first 0.55.11 proof source\n\nIntent: f0838394ad0dbfb1144b2ec7f22652f91329540db4752c8a83de676624747471\nExecutor: f937be3695935a94fae077dd8c68caa91640cf42\nRun: 40959594363\nAttempt: 1",
+      "verified_at": "2026-10-29T21:39:33Z"
+    }
+  },
+  "url": "https://api.github.com/repos/nold-ai/specfact-cli/commits/22b2fa7bd763b18ada1bfd1a9ea482a624f34cca",
+  "html_url": "https://github.com/nold-ai/specfact-cli/commit/22b2fa7bd763b18ada1bfd1a9ea482a624f34cca",
+  "comments_url": "https://api.github.com/repos/nold-ai/specfact-cli/commits/22b2fa7bd763b18ada1bfd1a9ea482a624f34cca/comments",
+  "author": {
+    "login": "github-actions[bot]",
+    "id": 41898282,
+    "node_id": "MDM6Qm90NDE4OTgyODI=",
+    "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+    "html_url": "https://github.com/apps/github-actions",
+    "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+    "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+    "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+    "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+    "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+    "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+    "type": "Bot",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "committer": {
+    "login": "web-flow",
+    "id": 19864447,
+    "node_id": "MDQ6VXNlcjE5ODY0NDQ3",
+    "avatar_url": "https://avatars.githubusercontent.com/u/19864447?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/web-flow",
+    "html_url": "https://github.com/web-flow",
+    "followers_url": "https://api.github.com/users/web-flow/followers",
+    "following_url": "https://api.github.com/users/web-flow/following{/other_user}",
+    "gists_url": "https://api.github.com/users/web-flow/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/web-flow/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/web-flow/subscriptions",
+    "organizations_url": "https://api.github.com/users/web-flow/orgs",
+    "repos_url": "https://api.github.com/users/web-flow/repos",
+    "events_url": "https://api.github.com/users/web-flow/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/web-flow/received_events",
+    "type": "User",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "parents": [
+    {
+      "sha": "4ae6175a4d337296d0347e73b66c9da1f0e43f7f",
+      "url": "https://api.github.com/repos/nold-ai/specfact-cli/commits/4ae6175a4d337296d0347e73b66c9da1f0e43f7f",
+      "html_url": "https://github.com/nold-ai/specfact-cli/commit/4ae6175a4d337296d0347e73b66c9da1f0e43f7f"
+    }
+  ]
+}
