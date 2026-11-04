@@ -2,9 +2,9 @@
 
 - [x] Reconcile current dev with the complete reviewed release patch.
 - [x] Specify the additive dev scope without modifying delivered evidence.
-- [ ] Add the mapped failing tests and passing preservation controls.
-- [ ] Review the mapping and capture genuine failing-before results.
-- [ ] Publish a CI-signed test-only draft PR to dev through normal hooks.
+- [x] Add the mapped failing tests and passing preservation controls.
+- [x] Review the mapping and capture genuine failing-before results.
+- [x] Publish a CI-signed test-only prefix to dev through normal hooks.
 - [ ] Resolve the native bootstrap prerequisite through its legitimate review
   and approval boundary; obtain accepted native failing-first evidence.
 - [ ] Apply the reviewed updates, including setuptools 84.1.0, Semgrep 1.182.1,
