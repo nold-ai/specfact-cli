@@ -36,6 +36,24 @@ deployment approval before adoption. No implementation is claimed here.
 Rollback before merge is disposal of the unmerged candidate branch. A later
 merged dependency correction can be reverted through an ordinary reviewed PR.
 
+## Fixed prior-proof connection
+
+The current signed test prefix has genuine native failing-first evidence.
+Connect that one immutable packet through the existing late-RED transfer owner
+and isolated origin workflow. The source commit and auxiliary executor are
+distinct identities. All three consumers must independently authenticate the
+same packet, preserve trusted C provenance and selected source bytes, and
+complete their native final executions. Do not add an index, reusable bootstrap
+framework or missing-native-RED waiver.
+
+A run-identity unit regression uses a retained GitHub API replay as data. Its
+fixed admission does not grant CLI transfer or adoption authority. Keep the new
+route unregistered until complete packet, source signature, origin, exact final
+head and fresh owner authority checks are implemented and reviewed. Protected
+adoption remains a separate owner decision for a concrete reviewed candidate.
+The internal wiki mirror is unavailable at the expected matching source path;
+updating it and rebuilding the internal graph remains an explicit follow-up.
+
 ## Owner-selected 0.55.12 refresh
 
 On 30 October 2026 the owner selected 0.55.12 and refreshed version-bound
