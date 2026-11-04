@@ -330,6 +330,43 @@ not advisory exceptions, source exemptions or check waivers. The raw three info
 findings remain visible. No configuration, suppression or review artifact is
 changed to conceal them. All normal and final CI gates remain mandatory.
 
+## Complete connection regression checkpoint
+
+The typed portable nine-case connection tests were derived from the existing
+private specification before runtime implementation. Against normal core
+`d4973687032a55e31fbf7469de19eb91a6182ae3`, they produce eight intended
+interface/static assertion failures and one historical control pass. Failures
+cover parser inputs, authentication before normalization, absent exact manifest,
+origin-before-producer isolation, all three independent native lanes and the
+strict audit caller's missing Berlin timezone. There are no setup/import errors
+or skipped cases. These are local interface/static observations, not native,
+API, signature, attestation or authority evidence.
+
+A separate isolated-clock child probe using the unchanged real audit gate shows
+that 4 November 2026 23:00 UTC is already 5 November in Berlin. UTC incorrectly
+keeps the date-based record within its last day; explicit Berlin correctly
+refuses it. Host clock and timezone are unchanged. The proposed correction is
+only the existing strict CI step's TZ environment, retaining all three commands
+and exact original exception identities and expiry.
+
+Three read-only architectural candidates and an independent cross-judge select
+the existing signer plus a distinct retained-member COPY. The synthesis fixes
+both future artifact and executor/intent hash cycles. Independent judgment
+`7b6ca3fd76590b1d5ebf86abce1fba6e4704b93483a3b9b8528367b11e83657c`
+was fully read and all thirteen input bindings verified. Its scope permits
+local spec/tests/code/review only, not dispatch, protected integration or fresh
+exact-final-head authority. No runtime integration is installed in this TEST
+checkpoint. The missing matching internal wiki source follow-up remains open.
+
+The first normal TEST hook correctly refused three newly drafted requirement
+entities without source mappings. They were uncommitted integration details,
+not changes to the original security acceptance requirements. Their contract is
+retained in this change's design and private specification; the original spec,
+selected tests and source mapping remain byte-exact. No mapping, case, selector,
+review rule or Requirements gate is removed or waived. Adding new requirement
+identities here would unnecessarily change the already accepted current native
+proof subject. The same hook must pass normally after this scope correction.
+
 ## Owner-selected 0.55.12 TEST refresh
 
 On 30 October 2026 the owner selected “Use 0.55.12; refresh version-bound
