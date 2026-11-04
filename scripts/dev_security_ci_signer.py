@@ -20,8 +20,8 @@ from icontract import ensure, require
 
 
 _REPO = "/repos/nold-ai/specfact-cli"
-_AUX = "refs/heads/codex/dev786-complete-ci-signer-20261030"
-_DEST = "refs/heads/codex/security-dev-complete-candidate-20261030"
+_AUX = "refs/heads/codex/dev786-complete-ci-signer-20261104"
+_DEST = "refs/heads/codex/security-dev-complete-candidate-20261104"
 _PARENT = "d77209f4b13c386e29391f93e1f1c58d7fd8622f"
 _DEV = "9b5ad1e78430cc0b061cb16de42f73de96f4f312"
 _WORKFLOW = 204352514
