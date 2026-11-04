@@ -176,6 +176,34 @@ the 21 cases. The fresh before result remains two intended failures and
 `25b52577bf46c0fdefcdbea55ffddbe9f2240ac26a14425c13e33c159df296c9`.
 No review warning is waived.
 
+## Fixed packet validation after the TEST checkpoints
+
+Normal TEST checkpoints `4146c185160df2f4315147306923ebc3a5bfb754` and
+`43dc10257925987bdf9729b52a85c2e4adbaab6a` precede this runtime change.
+The second metadata fixture name still matched the naming rule's substring
+`data`, so the final fixture is `packet_record`. No rule is suppressed.
+The final portable test SHA-256 is
+`73e27ff983b66f92f23512392a2dc0fb91a42583bdb43529c2ac42788f17e851`.
+Its before result remains two intended acceptance failures and 19 controls
+passing, without errors or skips.
+
+The installed existing owner SHA-256 is
+`1892d4e1db1228a65251878e85d6ef2213ffc388b09d1d6b2923b4ad3bfa5716`.
+It accepts only the exact retained manifest and four payload digests. It
+checks sorted report selectors separately from plan and JUnit execution
+order. It preserves all input bytes, historical behavior and the closed public
+route. The final portable packet, fixed run and historical loader tests pass
+38 cases. SpecFact Code Review reports PASS with zero findings on the exact
+owner and final test.
+
+Independent packet review
+`0aad5205b3989714fc4852dc46ad96a73e817bfd6a806f18487934aacd1dee10`
+was read completely and all 25 input bindings were verified before runtime
+installation. It accepts this exact runtime and the portable test semantics.
+The final fixture rename has separate final review. This unit grants no new
+native, protected adoption, origin or final-head authority. All three native
+consumers and the remaining live authentication gates still require connection.
+
 ## Owner-selected 0.55.12 TEST refresh
 
 On 30 October 2026 the owner selected “Use 0.55.12; refresh version-bound

@@ -35,13 +35,13 @@ def owner() -> Iterator[ModuleType]:
 
 
 @pytest.fixture
-def packet_metadata() -> dict[str, Any]:
+def packet_record() -> dict[str, Any]:
     return json.loads(METADATA.read_bytes())
 
 
 @pytest.fixture
-def manifest(packet_metadata: dict[str, Any]) -> dict[str, Any]:
-    return copy.deepcopy(packet_metadata["manifest"])
+def manifest(packet_record: dict[str, Any]) -> dict[str, Any]:
+    return copy.deepcopy(packet_record["manifest"])
 
 
 @pytest.fixture
@@ -52,9 +52,9 @@ def scope(owner: ModuleType) -> Any:
 
 
 @pytest.fixture
-def packet(tmp_path: Path, packet_metadata: dict[str, Any]) -> Path:
-    source = FIXTURES / packet_metadata["fixture_root"]
-    for alias, expected in packet_metadata["files"].items():
+def packet(tmp_path: Path, packet_record: dict[str, Any]) -> Path:
+    source = FIXTURES / packet_record["fixture_root"]
+    for alias, expected in packet_record["files"].items():
         payload = (source / expected["source"]).read_bytes()
         if len(payload) != expected["bytes"] or hashlib.sha256(payload).hexdigest() != expected["sha256"]:
             raise RuntimeError(f"Authenticated fixture changed: {expected['source']}")
