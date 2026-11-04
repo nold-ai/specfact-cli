@@ -46,6 +46,26 @@ def history_context(tmp_path: Path) -> tuple[str, Path]:
         text=True,
         timeout=30,
     ).stdout.strip()
+    parents = subprocess.run(
+        ["git", "rev-list", "--parents", "-n", "1", final],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        check=True,
+        text=True,
+        timeout=30,
+    ).stdout.split()[1:]
+    if len(parents) > 1:
+        assert len(parents) == 2 and parents[0] == CYCLE
+        trees = subprocess.run(
+            ["git", "rev-parse", f"{final}^{{tree}}", f"{parents[1]}^{{tree}}"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            check=True,
+            text=True,
+            timeout=30,
+        ).stdout.split()
+        assert len(trees) == 2 and trees[0] == trees[1]
+        final = parents[1]
     assert final != SOURCE
     subprocess.run(
         ["git", "merge-base", "--is-ancestor", SOURCE, final],

@@ -95,6 +95,7 @@ def test_producer_keeps_implementation_approval_out_of_planning(tmp_path: Path) 
                 "evidence_base_commit": "0" * 40,
                 "PROOF_BASE_COMMIT": "0" * 40,
                 "LATE_RED_ACTIVE": "false",
+                "FIXED786_ACTIVE": "false",
             },
             check=False,
             capture_output=True,
