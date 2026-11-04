@@ -60,7 +60,7 @@ executor/run identity, known commit SHA, observed ref SHA, signature/payload
 and reason where available. Known commit with later verification/guard failure
 is object_only. A write timeout or ambiguous response is uncertain, even if a
 subsequent read observes the expected object/ref. Read-only reconciliation
-never upgrades uncertainty to published. No retry, PATCH, DELETE, recovery,
+never upgrades uncertainty to published. No mutating request retry, PATCH, DELETE, recovery,
 rollback or tree-construction fallback exists. Drift after known ref creation
 is created_ref_with_drift and requires review.
 
@@ -88,3 +88,34 @@ The existing finite signer remains the only publication owner. Root its source/o
 COPY keeps exactly four authenticated actual native36 members, separate from fixture metadata. Pin metadata SHA256 e491e7ce89edf6a5c4299dc0d723cb9a3ff90573c062b45269da13f963a65617 and synchronize the existing fixed COPY artifact label to native36 in signer and consumers. These fixture bytes are from accepted original artifact13269307808/run41715861806; no new native execution or origin credit follows. Keep runtime lockbc64 byte-identical and the existing unused auxiliary/destination ref names.
 
 First update the existing Synthetic API fixtures and add two public publication cases for these exact initializer paths. Require their before result to refuse the unreviewed path before any API write. Then normal TEST, three finite program binding edits plus the two paths and COPY label, all existing preservation cases, fresh independent exact review and normal hooks. The intent stays explicitly UNBOUND until complete normal source history and actual API messages exist. This candidate grants no dispatch, protected integration, final-head provenance, publication/release or merge authority.
+
+## Bounded observation after acknowledged ref creation
+
+Run 41788765186 remains failed and consumed. Its authenticated receipt records
+fourteen verified service objects, an acknowledged exact ref creation and an
+immediate missing-ref observation. A later read found the expected ref. This
+does not identify a cache or replica cause and cannot promote the old receipt.
+
+In a new invocation, retain the existing first ref observation after HTTP201
+and its exact response-schema check. Only a definite HTTP404, represented by
+None, permits one 60-second wait and exactly one additional GET of that same
+ref. Then require the exact expected SHA, final signature/attribution readback
+and every final live guard. A second missing observation still fails.
+
+Do not wait or repeat an observation after a wrong SHA, malformed response,
+non404 status, read exception or uncertain POST. Never repeat a POST. This is
+a finite observation policy, not a guarantee of service visibility. Keep the
+30-second request timeout, ten-minute job limit and all other caps unchanged.
+The maximum added wait and request time is 90 seconds.
+
+The correction stays inline in publish_once. The existing_ref, _request,
+outcome schema, public signatures, workflow and runtime remain unchanged.
+Patch standard-library time.sleep in the two existing Synthetic fixtures so
+test setup succeeds before the production import exists. Record actual
+before failures at finite.publish, then pass the same cases after CODE.
+
+Any later operation uses new exact refs and a new frozen intent. Preserve
+every consumed ref, object, artifact and source checkpoint. Bind the corrected
+program digest and new exact refs in the existing core owner, its shared
+workflow branch literal and existing integration fixtures. Keep all eight
+native proof inputs identical to R3. No new framework or waiver is included.

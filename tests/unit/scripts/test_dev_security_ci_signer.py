@@ -5,6 +5,7 @@ import copy
 import hashlib
 import json
 import sys
+import time
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from http.client import BadStatusLine, HTTPException, IncompleteRead
@@ -218,6 +219,7 @@ class Case:
 
 @pytest.fixture
 def case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Case:
+    monkeypatch.setattr(time, "sleep", lambda _seconds: None)
     api = GitHub()
     context = signer.RunContext(
         executor_sha=EXECUTOR,

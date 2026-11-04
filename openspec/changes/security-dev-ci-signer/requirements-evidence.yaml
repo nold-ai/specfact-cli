@@ -107,3 +107,44 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_dev_security_ci_signer.py::test_final_verification_failure_retains_creation_effects[attribution]
+  openspec:security-dev-ci-signer:dev-security-ci-signer:bounded-observation-after-acknowledged-ref-creation:
+    rationale: Confirm acknowledged creation through one finite missing-ref observation window without repeating writes.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#780
+    touchpoints:
+      - id: finite-signer-ref-confirmation
+        kind: test
+        locator: tests/unit/scripts/test_dev_security_ci_signer_checkpoints.py
+    verification_cases:
+      - case_id: SIGNER-BOUNDED-REF
+        scenario_id: bounded-observation-after-acknowledged-ref-creation
+        method: test
+        intent: Accept delayed visibility only within two confirmation reads and preserve every failure boundary.
+        observable: One bounded wait, exact known output, unchanged writes and final verification.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_dev_security_ci_signer_checkpoints.py::test_created_ref_confirmation_has_one_bounded_read_window
+      - case_id: SIGNER-BOUNDED-REF-EXHAUSTED
+        scenario_id: bounded-observation-after-acknowledged-ref-creation
+        method: test
+        intent: Refuse a ref that is absent after both allowed observations.
+        observable: Failed known effects, one wait, two reads and no repeated write.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_dev_security_ci_signer_checkpoints.py::test_created_ref_confirmation_has_one_bounded_read_window[still-missing]
+      - case_id: SIGNER-UNCERTAIN-NO-WAIT
+        scenario_id: bounded-observation-after-acknowledged-ref-creation
+        method: test
+        intent: Keep an ambiguous ref POST uncertain without a confirmation attempt.
+        observable: No wait or read after the ambiguous POST, with known prefix retained.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_dev_security_ci_signer_checkpoints.py::test_uncertain_ref_post_never_enters_confirmation_window
+      - case_id: SIGNER-DELAYED-AUTHORITY
+        scenario_id: bounded-observation-after-acknowledged-ref-creation
+        method: test
+        intent: Refuse authority drift after delayed ref confirmation.
+        observable: Known effects remain failed when the PR head changes during the wait.
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_dev_security_ci_signer_checkpoints.py::test_delayed_confirmation_still_requires_current_pr_authority

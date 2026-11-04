@@ -9,6 +9,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -134,6 +135,7 @@ class FiniteCase:
 
 @pytest.fixture
 def finite(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> FiniteCase:
+    monkeypatch.setattr(time, "sleep", lambda _seconds: None)
     api = FiniteGitHub()
     context = signer.RunContext(
         old.EXECUTOR,
@@ -211,6 +213,129 @@ def test_all_checkpoint_trees_messages_and_service_parents_survive(finite: Finit
     for sha in (old.CREATED, SECOND_OUTPUT):
         assert ("GET", f"{old.REPO}/git/commits/{sha}", None) in finite.api.trace
         assert ("GET", f"{old.REPO}/commits/{sha}", None) in finite.api.trace
+
+
+@pytest.mark.parametrize(
+    "observations,status,ref_sha,waits,reads",
+    (
+        (("valid",), "published", SECOND_OUTPUT, (), 2),
+        (("missing", "valid"), "published", SECOND_OUTPUT, (60,), 3),
+        (("missing", "missing"), "created_ref_with_drift", None, (60,), 2),
+        (("wrong",), "created_ref_with_drift", old.MAIN, (), 1),
+        (("missing", "wrong"), "created_ref_with_drift", old.MAIN, (60,), 2),
+        (("malformed",), "created_ref_with_drift", SECOND_OUTPUT, (), 1),
+        (("error",), "created_ref_with_drift", SECOND_OUTPUT, (), 1),
+        (("timeout",), "created_ref_with_drift", SECOND_OUTPUT, (), 1),
+        (("missing", "malformed"), "created_ref_with_drift", None, (60,), 2),
+        (("missing", "error"), "created_ref_with_drift", None, (60,), 2),
+        (("missing", "timeout"), "created_ref_with_drift", None, (60,), 2),
+        (("missing", "valid", "missing"), "created_ref_with_drift", SECOND_OUTPUT, (60,), 3),
+    ),
+    ids=(
+        "already-visible",
+        "visible-after-one-miss",
+        "still-missing",
+        "wrong-first",
+        "wrong-after-miss",
+        "malformed-first",
+        "error-first",
+        "timeout-first",
+        "malformed-after-miss",
+        "error-after-miss",
+        "timeout-after-miss",
+        "missing-at-final-guard",
+    ),
+)
+def test_created_ref_confirmation_has_one_bounded_read_window(
+    finite: FiniteCase,
+    monkeypatch: pytest.MonkeyPatch,
+    observations: tuple[str, ...],
+    status: str,
+    ref_sha: str | None,
+    waits: tuple[int, ...],
+    reads: int,
+) -> None:
+    delays: list[float] = []
+    observed: list[str] = []
+    monkeypatch.setattr(time, "sleep", delays.append)
+    responses = {
+        "missing": signer._Response(404, b'{"message":"Not Found"}'),
+        "wrong": signer._Response(200, json.dumps(finite.api.ref(old.DEST, old.MAIN)).encode()),
+        "malformed": signer._Response(200, b"{}"),
+        "error": signer._Response(500, b'{"message":"Unavailable"}'),
+    }
+
+    def edit(method: str, path: str, body: dict[str, Any] | None, response: signer._Response) -> signer._Response:
+        if method != "GET" or path != finite.api.ref_path(old.DEST) or len(finite.api.writes) != 3:
+            return response
+        fault = observations[len(observed)] if len(observed) < len(observations) else "valid"
+        observed.append(fault)
+        if fault == "timeout":
+            raise TimeoutError("Ref observation timed out")
+        return response if fault == "valid" else responses[fault]
+
+    finite.api.edit = edit
+    receipt = finite.publish()
+    assert receipt.status == status, receipt.reason
+    assert receipt.commit_sha == SECOND_OUTPUT and receipt.ref_sha == ref_sha
+    assert delays == list(waits) and len(observed) == reads
+    assert len(receipt.signed_checkpoints) == len(finite.api.outputs) == 2
+    assert [write[1] for write in finite.api.writes] == [
+        f"{old.REPO}/git/commits",
+        f"{old.REPO}/git/commits",
+        f"{old.REPO}/git/refs",
+    ]
+    if status == "published":
+        ref_post = next(i for i, row in enumerate(finite.api.trace) if row[:2] == ("POST", f"{old.REPO}/git/refs"))
+        tail = finite.api.trace[ref_post + 1 :]
+        for path in (
+            f"{old.REPO}/git/commits/{SECOND_OUTPUT}",
+            f"{old.REPO}/commits/{SECOND_OUTPUT}",
+            f"{old.REPO}/pulls/786",
+            finite.api.ref_path("refs/heads/dev"),
+            finite.api.ref_path("refs/heads/main"),
+            finite.api.ref_path(old.AUX),
+        ):
+            assert ("GET", path, None) in tail
+
+
+def test_uncertain_ref_post_never_enters_confirmation_window(
+    finite: FiniteCase, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    delays: list[float] = []
+    monkeypatch.setattr(time, "sleep", delays.append)
+    finite.api.uncertain = "refs"
+    receipt = finite.publish()
+    assert receipt.status == "uncertain_ref"
+    assert receipt.commit_sha == finite.api.destination == SECOND_OUTPUT
+    assert len(receipt.signed_checkpoints) == 2 and len(finite.api.writes) == 3
+    assert not delays
+    assert finite.api.trace[-1][:2] == ("POST", f"{old.REPO}/git/refs")
+
+
+def test_delayed_confirmation_still_requires_current_pr_authority(
+    finite: FiniteCase, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    delays: list[float] = []
+    missing = [True]
+
+    def wait(seconds: float) -> None:
+        delays.append(seconds)
+        finite.api.records[f"{old.REPO}/pulls/786"]["head"]["sha"] = old.MAIN
+
+    def edit(method: str, path: str, body: dict[str, Any] | None, response: signer._Response) -> signer._Response:
+        if method == "GET" and path == finite.api.ref_path(old.DEST) and len(finite.api.writes) == 3 and missing[0]:
+            missing[0] = False
+            return signer._Response(404, b'{"message":"Not Found"}')
+        return response
+
+    monkeypatch.setattr(time, "sleep", wait)
+    finite.api.edit = edit
+    receipt = finite.publish()
+    assert delays == [60]
+    assert receipt.status == "created_ref_with_drift"
+    assert receipt.commit_sha == receipt.ref_sha == SECOND_OUTPUT
+    assert len(receipt.signed_checkpoints) == 2 and len(finite.api.writes) == 3
 
 
 _CHECKPOINT_MUTATIONS: list[tuple[str, Callable[[FiniteGitHub], object]]] = [
