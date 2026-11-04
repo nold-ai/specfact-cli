@@ -32,23 +32,19 @@ def owner() -> Iterator[ModuleType]:
 
 
 @pytest.fixture
-def manifest() -> dict[str, object]:
-    return cast(dict[str, object], json.loads((FIXTURES / "manifest.json").read_bytes()))
-
-
-@pytest.fixture
-def packet_record() -> dict[str, object]:
-    return cast(dict[str, object], json.loads((FIXTURES / "artifact-live-api.json").read_bytes()))
-
-
-@pytest.fixture
-def source_commit() -> dict[str, object]:
-    return cast(dict[str, object], json.loads((FIXTURES / "source-R2-filtered-api.json").read_bytes()))
+def proof_inputs() -> tuple[dict[str, object], dict[str, object], dict[str, object]]:
+    records = [
+        cast(dict[str, object], json.loads((FIXTURES / filename).read_bytes()))
+        for filename in ("manifest.json", "artifact-live-api.json", "source-R2-filtered-api.json")
+    ]
+    return records[0], records[1], records[2]
 
 
 def test_actual_artifact_is_accepted_without_rewriting(
-    owner: ModuleType, manifest: dict[str, object], packet_record: dict[str, object], source_commit: dict[str, object]
+    owner: ModuleType,
+    proof_inputs: tuple[dict[str, object], dict[str, object], dict[str, object]],
 ) -> None:
+    manifest, packet_record, source_commit = proof_inputs
     original = copy.deepcopy(packet_record)
     original_source = copy.deepcopy(source_commit)
     accepted = True
@@ -94,11 +90,10 @@ def test_actual_artifact_is_accepted_without_rewriting(
 )
 def test_artifact_rejects_mismatched_api_fields(
     owner: ModuleType,
-    manifest: dict[str, object],
-    packet_record: dict[str, object],
-    source_commit: dict[str, object],
+    proof_inputs: tuple[dict[str, object], dict[str, object], dict[str, object]],
     mutation: tuple[str, str, object],
 ) -> None:
+    manifest, packet_record, source_commit = proof_inputs
     section, field, value = mutation
     target = cast(dict[str, object], packet_record[section]) if section else packet_record
     target[field] = value
@@ -125,11 +120,10 @@ def test_artifact_rejects_mismatched_api_fields(
 )
 def test_artifact_rejects_wrong_manifest_binding(
     owner: ModuleType,
-    manifest: dict[str, object],
-    packet_record: dict[str, object],
-    source_commit: dict[str, object],
+    proof_inputs: tuple[dict[str, object], dict[str, object], dict[str, object]],
     mutation: tuple[str, object],
 ) -> None:
+    manifest, packet_record, source_commit = proof_inputs
     field, value = mutation
     manifest[field] = value
     with pytest.raises(ValueError):
@@ -139,11 +133,10 @@ def test_artifact_rejects_wrong_manifest_binding(
 @pytest.mark.parametrize("field", ["artifact_id", "artifact_digest", "run_id", "executor_commit"])
 def test_artifact_rejects_self_consistent_substitution(
     owner: ModuleType,
-    manifest: dict[str, object],
-    packet_record: dict[str, object],
-    source_commit: dict[str, object],
+    proof_inputs: tuple[dict[str, object], dict[str, object], dict[str, object]],
     field: str,
 ) -> None:
+    manifest, packet_record, source_commit = proof_inputs
     run = cast(dict[str, object], packet_record["workflow_run"])
     substitutions: dict[str, tuple[dict[str, object], str, object]] = {
         "artifact_id": (packet_record, "id", 12988824885),
@@ -160,19 +153,19 @@ def test_artifact_rejects_self_consistent_substitution(
 @pytest.mark.parametrize("entries", [None, [], [None], [True]])
 def test_artifact_rejects_invalid_collection(
     owner: ModuleType,
-    manifest: dict[str, object],
+    proof_inputs: tuple[dict[str, object], dict[str, object], dict[str, object]],
     entries: object,
 ) -> None:
+    manifest, _, _ = proof_inputs
     with pytest.raises(ValueError):
         owner._validate_artifact({"artifacts": entries}, manifest)
 
 
 def test_artifact_rejects_duplicate_named_entries(
     owner: ModuleType,
-    manifest: dict[str, object],
-    packet_record: dict[str, object],
-    source_commit: dict[str, object],
+    proof_inputs: tuple[dict[str, object], dict[str, object], dict[str, object]],
 ) -> None:
+    manifest, packet_record, source_commit = proof_inputs
     with pytest.raises(ValueError):
         owner._validate_artifact(
             {"artifacts": [packet_record, copy.deepcopy(packet_record)], "source_commit": source_commit}, manifest
@@ -243,11 +236,10 @@ def test_historical_artifact_contract_is_preserved(owner: ModuleType, defect: st
 )
 def test_source_rejects_wrong_signature_subject(
     owner: ModuleType,
-    manifest: dict[str, object],
-    packet_record: dict[str, object],
-    source_commit: dict[str, object],
+    proof_inputs: tuple[dict[str, object], dict[str, object], dict[str, object]],
     mutation: tuple[str, str, object],
 ) -> None:
+    manifest, packet_record, source_commit = proof_inputs
     section, field, value = mutation
     if section in {"tree", "verification"}:
         commit = cast(dict[str, object], source_commit["commit"])
@@ -262,9 +254,9 @@ def test_source_rejects_wrong_signature_subject(
 @pytest.mark.parametrize("source_commit", [None, True, [], {}])
 def test_source_record_is_required_for_fixed_artifact(
     owner: ModuleType,
-    manifest: dict[str, object],
-    packet_record: dict[str, object],
+    proof_inputs: tuple[dict[str, object], dict[str, object], dict[str, object]],
     source_commit: object,
 ) -> None:
+    manifest, packet_record, _ = proof_inputs
     with pytest.raises(ValueError):
         owner._validate_artifact({"artifacts": [packet_record], "source_commit": source_commit}, manifest)
