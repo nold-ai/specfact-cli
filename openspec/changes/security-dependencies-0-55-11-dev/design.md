@@ -78,6 +78,37 @@ Full-history integration tests live under tests/proof. Existing full-suite CI
 fetches complete history and collects them. Shallow compatibility jobs select
 other directories, so no new fetch, skip or workflow is needed.
 
+## Complete fixed-head connection
+
+The accepted current native proof has 21 intended assertion failures at signed
+R2. Its original policy-repository run and ZIP remain immutable. Core consumers
+cannot assume their repository-scoped token can download that cross-repository
+archive. The minimum proposed transport uses the existing CI signer to upload
+only four byte-exact retained members as a separately identified core COPY.
+It supplies no new native execution or full original-archive claim.
+
+The signer must preserve every normal TEST/CODE checkpoint in order. Its
+program, workflow and runtime bytes are fixed before the eventual source intent.
+F pins those executable hashes; F's verified message identifies the actual
+executor, raw intent digest, run and attempt. This avoids both executor/intent
+and future-artifact identity cycles. Consumers validate all output checkpoints,
+not only a matching final tree. Partial publication or failed upload refuses
+adoption without overwriting or repeating a consumed operation.
+
+A new isolated origin job in the existing Requirements workflow precedes the
+producer and does not import candidate code under attestation credentials.
+The existing late-RED entry point authenticates origin and fresh immutable f7
+owner authority before private normalization. Each of the three native lanes
+independently validates the retained copy and all current associations, uses
+the same protected tool graph, invokes unchanged C provenance and performs
+its actual final native work. Historical routes remain compatible.
+
+This is local implementation scope, not protected deployment or final-head
+approval. A concrete complete independently reviewed CI-signed F must precede
+the separate exact-F owner decision, including the current retained-member
+association. The original strict audit deadline is enforced by setting only
+Europe/Berlin on the existing three-command CI step.
+
 ## Owner-selected 0.55.12 refresh
 
 On 30 October 2026 the owner selected 0.55.12 and refreshed version-bound
