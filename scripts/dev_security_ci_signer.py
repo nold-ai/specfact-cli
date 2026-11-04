@@ -20,9 +20,9 @@ from icontract import ensure, require
 
 
 _REPO = "/repos/nold-ai/specfact-cli"
-_AUX = "refs/heads/codex/dev786-complete-ci-signer-20261104"
-_DEST = "refs/heads/codex/security-dev-complete-candidate-20261104"
-_PARENT = "d77209f4b13c386e29391f93e1f1c58d7fd8622f"
+_AUX = "refs/heads/codex/dev786-ci-tail-signer-20261104"
+_DEST = "refs/heads/codex/security-dev-ci-tail-candidate-20261104"
+_PARENT = "b0184ae8c3de2c107d888dc23b0e7402a31d520e"
 _DEV = "9b5ad1e78430cc0b061cb16de42f73de96f4f312"
 _WORKFLOW = 204352514
 _WORKFLOW_PATH = ".github/workflows/specfact.yml"
@@ -50,6 +50,7 @@ _ALLOWED = frozenset(
         "requirements/ci/locked.txt",
         "requirements/code-review/locked.txt",
         "requirements/code-review/requirements.in",
+        "scripts/license_allowlist.yaml",
         "scripts/requirements_late_red_proof.py",
         "setup.py",
         "src/__init__.py",
@@ -70,6 +71,15 @@ _ALLOWED = frozenset(
         "tests/unit/scripts/test_fixed786_native_packet.py",
         "tests/unit/scripts/test_fixed786_native_run.py",
         "tests/unit/scripts/test_fixed786_workflow_integration.py",
+        "tests/unit/scripts/test_check_license_compliance.py",
+        "tests/unit/scripts/test_semgrep_sast_gate.py",
+        "tools/semgrep/sast.yml",
+        "tests/unit/packaging/test_core_package_includes.py",
+        "tests/unit/scripts/test_reproducible_delivery.py",
+        "tests/unit/scripts/test_requirements_late_cycle_workflow.py",
+        "tests/unit/workflows/test_requirements_evidence_delivery_workflow.py",
+        "tests/unit/workflows/test_requirements_planning_scope.py",
+        "tests/unit/workflows/test_requirements_verifier_boundary.py",
         "tests/unit/scripts/test_security_audit_gate.py",
         "tests/unit/security/test_code_review_dependency_security.py",
         "tests/unit/security/test_frozen_gitpython_compatibility.py",
