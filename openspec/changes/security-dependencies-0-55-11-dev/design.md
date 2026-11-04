@@ -54,6 +54,14 @@ adoption remains a separate owner decision for a concrete reviewed candidate.
 The internal wiki mirror is unavailable at the expected matching source path;
 updating it and rebuilding the internal graph remains an explicit follow-up.
 
+The fixed packet boundary accepts only the retained four native34 payloads.
+It reads the aggregate plan directly and preserves the separate source plan.
+Report selectors retain their sorted order. JUnit selectors retain aggregate
+execution order, and every case must fail. Exact digests bind the reviewed
+assertion bodies without rewriting source reports or assigning final authority.
+The portable regression uses inert copies of these bytes. Public registration
+remains closed during this partial unit.
+
 ## Owner-selected 0.55.12 refresh
 
 On 30 October 2026 the owner selected 0.55.12 and refreshed version-bound
