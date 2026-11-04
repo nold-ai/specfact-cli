@@ -261,7 +261,7 @@ def synthetic_checkpoint_run() -> dict[str, object]:
         "id": 91,
         "run_attempt": 1,
         "head_sha": "b" * 40,
-        "head_branch": "codex/dev786-complete-ci-signer-20261104",
+        "head_branch": "codex/dev786-ci-tail-signer-20261104",
         "event": "workflow_dispatch",
         "path": ".github/workflows/specfact.yml",
         "workflow_id": 204352514,
@@ -298,7 +298,7 @@ def synthetic_checkpoint_ledger(
     monkeypatch: pytest.MonkeyPatch,
     synthetic_checkpoint_run: dict[str, object],
 ) -> tuple[ModuleType, dict[str, object], dict[str, object], dict[str, object]]:
-    root = "d77209f4b13c386e29391f93e1f1c58d7fd8622f"
+    root = "b0184ae8c3de2c107d888dc23b0e7402a31d520e"
     source, executor, tree, executor_tree = (digit * 40 for digit in "abcd")
     path = "openspec/changes/security-dependencies-0-55-11-dev/tasks.md"
     original = "synthetic checkpoint"
@@ -319,8 +319,8 @@ def synthetic_checkpoint_ledger(
         "dev": "9b5ad1e78430cc0b061cb16de42f73de96f4f312",
         "main": "3" * 40,
         "checkpoints": [checkpoint],
-        "auxiliary_ref": "refs/heads/codex/dev786-complete-ci-signer-20261104",
-        "destination": "refs/heads/codex/security-dev-complete-candidate-20261104",
+        "auxiliary_ref": "refs/heads/codex/dev786-ci-tail-signer-20261104",
+        "destination": "refs/heads/codex/security-dev-ci-tail-candidate-20261104",
     }
     raw_intent = json.dumps(intent).encode()
     digest = hashlib.sha256(raw_intent).hexdigest()
