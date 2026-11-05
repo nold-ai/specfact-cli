@@ -123,6 +123,11 @@ so repository hooks and `addopts` cannot rewrite pytest outcomes. The consumer
 selects the changed active OpenSpec change with the same path basis as the
 producer, both frozen-closure checks use the isolated trusted interpreter, and
 the combined execution/reconciliation step has a 12-minute fail-closed timeout.
+The CLI launchers also override `HOME` and `SPECFACT_REPO_ROOT` with the fresh
+runner's temporary root before importing the CLI. Consequently, implicit user
+and workspace discovery cannot select a module from the pull-request checkout;
+the commit-and-tree-authenticated `SPECFACT_MODULES_ROOTS` fixture remains the
+only project-supplied module root.
 
 Retained-proof dependency discovery follows Python namespace semantics for
 literal `pytest_plugins` declarations: module-scope assignments and explicit

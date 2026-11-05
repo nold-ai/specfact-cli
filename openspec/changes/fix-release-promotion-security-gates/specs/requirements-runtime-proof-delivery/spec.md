@@ -45,6 +45,17 @@ review-trusted and assumed not to deliberately tamper with the same-process
 pytest runner, its exit status, or its JUnit channel. This requirement SHALL NOT
 claim sandbox containment of intentionally hostile Python executed by pytest.
 
+The fresh verifier CLI launchers SHALL confine implicit project and user module
+discovery to verifier-owned empty roots while retaining the authenticated module
+fixture as the only explicit module root.
+
+#### Scenario: Pull-request modules cannot shadow verifier modules
+
+- **GIVEN** a pull-request checkout contains a project module with the same ID as an authenticated verifier module
+- **WHEN** a fresh consumer resolves the Requirements or Code Review command
+- **THEN** the launcher SHALL resolve implicit project and user module roots outside the pull-request checkout
+- **AND** it SHALL retain the authenticated fixture through `SPECFACT_MODULES_ROOTS`.
+
 #### Scenario: Repository pytest.py cannot replace installed pytest
 
 - **GIVEN** the candidate repository contains a root-level `pytest.py`
