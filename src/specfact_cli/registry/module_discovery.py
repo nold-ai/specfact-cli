@@ -18,6 +18,7 @@ from specfact_cli.utils.prompts import print_warning
 USER_MODULES_ROOT = Path.home() / ".specfact" / "modules"
 MARKETPLACE_MODULES_ROOT = Path.home() / ".specfact" / "marketplace-modules"
 CUSTOM_MODULES_ROOT = Path.home() / ".specfact" / "custom-modules"
+EXCLUSIVE_MODULE_ROOTS_ENV = "SPECFACT_MODULES_EXCLUSIVE"
 _SHADOW_HINT_KEYS: set[tuple[str, str, str, str]] = set()
 
 
@@ -116,6 +117,10 @@ def _discovery_root_list(options: _DiscoveryRootOptions) -> list[tuple[str, Path
     effective_custom_root = options.custom_root or CUSTOM_MODULES_ROOT
 
     roots: list[tuple[str, Path]] = [("builtin", effective_builtin_root)]
+    if os.environ.get(EXCLUSIVE_MODULE_ROOTS_ENV) == "1":
+        _append_explicit_module_roots(roots)
+        return roots
+
     project_matches_user_root = False
     if effective_project_root is not None:
         try:
