@@ -5,6 +5,7 @@ import hashlib
 import ipaddress
 import json
 import os
+import re
 import shutil
 import ssl
 import subprocess
@@ -367,10 +368,22 @@ def native_https_rules(tmp_path: Path) -> Iterator[tuple[str, Path, list[str]]]:
             yield url.replace("127.0.0.1", "localhost"), ca, requested
 
 
-@pytest.mark.parametrize("case", ["valid", "malformed", "empty"])
+@pytest.mark.parametrize(
+    "expectation",
+    [
+        ("valid", True, ["/valid.yml"], [(True, 1)], ""),
+        ("malformed", False, [], [], "certificate|ssl|tls|trust"),
+        ("empty", False, [], [], "certificate|ssl|tls|trust"),
+    ],
+    ids=["valid", "malformed", "empty"],
+)
 def test_windows_native_https_config_uses_explicit_ca(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, native_https_rules: tuple[str, Path, list[str]], case: str
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    native_https_rules: tuple[str, Path, list[str]],
+    expectation: tuple[str, bool, list[str], list[tuple[bool, int]], str],
 ) -> None:
+    case, success, expected_requests, expected_findings, diagnostic = expectation
     url, ca, requested = native_https_rules
     source = tmp_path / "example.py"
     source.write_text("print('marker')\n", encoding="utf-8")
@@ -395,15 +408,10 @@ def test_windows_native_https_config_uses_explicit_ca(
         str(source),
     ]
     result = subprocess.run(command, env=environment, capture_output=True, encoding="utf-8", timeout=10, check=False)
-    if case == "valid":
-        assert result.returncode == 0, result.stderr
-        assert requested == ["/valid.yml"]
-        findings = json.loads(result.stdout)["results"]
-        assert len(findings) == 1 and findings[0]["check_id"].endswith("loopback-marker")
-        assert findings[0]["start"]["line"] == 1
-    else:
-        assert result.returncode != 0
-        assert requested == []
-        assert any(term in (result.stdout + result.stderr).lower() for term in ("certificate", "ssl", "tls", "trust"))
-        if result.stdout.strip():
-            assert json.loads(result.stdout).get("results", []) == []
+    assert (result.returncode == 0) is success, result.stderr
+    assert requested == expected_requests
+    findings = json.loads(result.stdout or "{}").get("results", [])
+    assert [
+        (entry["check_id"].endswith("loopback-marker"), entry["start"]["line"]) for entry in findings
+    ] == expected_findings
+    assert re.search(diagnostic, result.stdout + result.stderr, re.IGNORECASE)
