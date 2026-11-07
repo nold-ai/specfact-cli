@@ -73,7 +73,7 @@ def test_checker_runs_before_site_packages_are_available() -> None:
         pytest.param({"exceptions": {}}, 1, "must contain an exceptions list", id="malformed-fails-closed"),
     ],
 )
-def test_frozen_trust_bootstrap_without_timezone_data(
+def test_frozen_trust_bootstrap_without_iana_timezones(
     tmp_path: Path, payload: dict[str, object], expected_status: int, expected_output: str
 ) -> None:
     register = tmp_path / "exceptions.json"

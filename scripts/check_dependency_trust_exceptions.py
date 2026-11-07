@@ -174,7 +174,7 @@ def _validate_dates(package_ref: str, *, reviewed_on: date, expires_on: date, cu
 def validate_exception_register(register_path: Path, *, today: date | None = None) -> list[str]:
     """Return deterministic policy errors for a dependency-trust exception register."""
     records, errors = _read_exception_records(register_path)
-    if errors:
+    if errors or not records:
         return errors
 
     current_date = today if today is not None else datetime.now(ZoneInfo("Europe/Berlin")).date()
