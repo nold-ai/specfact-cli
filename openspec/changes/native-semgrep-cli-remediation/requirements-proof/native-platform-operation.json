@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "kind": "native-platform-preparation-proof",
+  "repository": "nold-ai/specfact-cli",
+  "source_commit": "144872fb8af509728a3ec681934780151ef7a05f",
+  "source_tree": "2fbb3cfb4a507b9ec5074d45863430f946f5cb61",
+  "workflow_id": 204352514,
+  "executor_ref": "refs/heads/codex/dev786-native-platform-proof-v2-20261107",
+  "workflow_sha256": "e07670704a7a14629aa986dbd7aa2f7377740eb2755d94b4fe324b00b2fca00f",
+  "attempt": 1,
+  "platforms": [
+    "ubuntu-24.04",
+    "windows-2022"
+  ],
+  "maximum_parallel_jobs": 1,
+  "job_timeout_minutes": 10,
+  "permissions": {
+    "contents": "read"
+  },
+  "artifact_names": [
+    "pr786-native-platform-proof-ubuntu-24.04",
+    "pr786-native-platform-proof-windows-2022"
+  ],
+  "authorization_requirement": "Fresh exact owner grant is required externally; this prepared data file supplies no authority.",
+  "excluded": [
+    "PR advancement",
+    "signing",
+    "protected native origin/adoption",
+    "module adoption",
+    "dependency exception renewal",
+    "release",
+    "merge",
+    "old run/ref retry or overwrite"
+  ]
+}
