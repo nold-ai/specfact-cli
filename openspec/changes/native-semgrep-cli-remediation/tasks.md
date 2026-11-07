@@ -68,5 +68,5 @@
 - [x] Preserve consumed run42357869958 and distinguish Linux partial evidence from unexecuted Windows gates.
 - [x] Specify exact workflow/descriptor byte preservation and extend the existing real Git-filter regression.
 - [x] Capture genuine failing-before conversion with the two existing certifi controls.
-- [ ] Correct only finite literal attributes and verify byte preservation without weakening the checksum guard.
+- [x] Correct only finite literal attributes and verify byte preservation without weakening the checksum guard.
 - [ ] Complete normal source commits and independent review before any fresh exact CI operation decision.

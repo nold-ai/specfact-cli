@@ -6,3 +6,5 @@
 /tools/semgrep/LICENSE.curl-8.23.0 -text
 /tools/semgrep/NOTICE.windows-curl-8.23.0.txt -text
 /ci/security-tool-minimum-versions.json -text
+/.github/workflows/specfact.yml -text
+/openspec/changes/native-semgrep-cli-remediation/requirements-proof/native-platform-operation.json -text
