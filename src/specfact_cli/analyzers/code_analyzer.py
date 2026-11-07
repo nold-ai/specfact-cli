@@ -480,6 +480,7 @@ class CodeAnalyzer:
                 ["osemgrep", "scan", "--experimental", "--metrics=off", "--disable-version-check", "--version"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
                 timeout=5,  # Increased timeout to 5s (Semgrep may need time to initialize)
                 env=_build_semgrep_env(self.repo_path),
             )
@@ -600,6 +601,7 @@ class CodeAnalyzer:
                 ],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
                 timeout=timeout,
                 env=_build_semgrep_env(self.repo_path),
             )

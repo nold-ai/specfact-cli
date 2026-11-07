@@ -373,6 +373,7 @@ def check_tool_in_env(
                 cwd=repo_path,
                 capture_output=True,
                 text=True,
+                encoding="utf-8" if tool_name == "osemgrep" else None,
                 timeout=10,
                 check=False,
                 env=probe_env,

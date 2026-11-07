@@ -169,6 +169,7 @@ class OpenAPITestConverter:
                 ],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
                 timeout=5,  # Reduced from 10 to 5 seconds for faster processing
                 check=False,
                 env=env,

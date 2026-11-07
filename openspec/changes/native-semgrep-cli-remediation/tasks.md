@@ -92,6 +92,6 @@
 - [x] Preserve consumed Windows run42419253003 and authenticate its partial one-member report.
 - [x] Specify strict native UTF-8 decoding and actual HTTPS trust independently of availability status.
 - [x] Capture real-pipe failing-before evidence with nonnative locale controls and establish the Mac native HTTPS positive/negative controls.
-- [ ] Apply explicit strict UTF-8 only at existing native boundaries, retaining unrelated tools and all resource/environment bounds.
+- [x] Apply explicit strict UTF-8 only at existing native boundaries, retaining unrelated tools and all resource/environment bounds.
 - [ ] Verify affected caller sets/types/quality and refresh the bounded local companion handoff without signing or adoption.
 - [ ] Obtain independent source/exact-operation review before any fresh Windows validation decision; actual Windows HTTPS/wheel/complete archive remain unproved.

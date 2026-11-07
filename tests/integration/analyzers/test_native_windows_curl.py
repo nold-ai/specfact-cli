@@ -378,18 +378,11 @@ def test_windows_native_https_config_uses_explicit_ca(
     invalid.write_text("not a certificate", encoding="utf-8")
     value = {"valid": str(ca), "malformed": str(invalid), "empty": ""}[case]
     monkeypatch.setenv("SSL_CERT_FILE", value)
-    environment = _build_semgrep_env(tmp_path)
-    for name in [
-        "HTTP_PROXY",
-        "HTTPS_PROXY",
-        "ALL_PROXY",
-        "NO_PROXY",
-        "http_proxy",
-        "https_proxy",
-        "all_proxy",
-        "no_proxy",
-    ]:
-        environment.pop(name, None)
+    environment = {
+        name: value
+        for name, value in _build_semgrep_env(tmp_path).items()
+        if name.upper() not in {"HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY"}
+    }
     command = [
         "osemgrep",
         "scan",

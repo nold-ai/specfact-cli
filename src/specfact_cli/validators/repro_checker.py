@@ -926,6 +926,7 @@ class ReproChecker:
                 cwd=self.repo_path,
                 capture_output=True,
                 text=True,
+                encoding="utf-8" if tool == "semgrep" else None,
                 timeout=check_timeout,
                 check=False,
                 env=env,

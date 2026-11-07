@@ -109,7 +109,12 @@ def test_repro_checker_runs_native_scanner(native_analyzer: CodeAnalyzer, native
     command, timeout, env = checks[0][2], checks[0][3], checks[0][5]
     assert command
     result = subprocess.run(
-        [*command, "--json"], cwd=native_analyzer.repo_path, env=env, capture_output=True, text=True, timeout=timeout
+        [*command, "--json"],
+        cwd=native_analyzer.repo_path,
+        env=env,
+        capture_output=True,
+        encoding="utf-8",
+        timeout=timeout,
     )
     assert result.returncode == 0, result.stderr
     assert {finding["start"]["line"] for finding in json.loads(result.stdout)["results"]} == {6, 7}
