@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "kind": "native-platform-preparation-proof",
+  "repository": "nold-ai/specfact-cli",
+  "source_commit": "42e695e51fda58d7694838a6cca03e9ae5d68103",
+  "source_tree": "09323c191611a325587fe9c6ad14839305432367",
+  "workflow_id": 204352514,
+  "executor_ref": "refs/heads/codex/dev786-native-windows-bootstrap-proof-20261107",
+  "workflow_sha256": "58b0b1952d0b02b0487fcc4360719056b8e9c4a849af15faf735c8d8bbd155fb",
+  "attempt": 1,
+  "platforms": [
+    "windows-2022"
+  ],
+  "maximum_parallel_jobs": 1,
+  "job_timeout_minutes": 10,
+  "permissions": {
+    "contents": "read"
+  },
+  "artifact_names": [
+    "pr786-native-platform-proof-windows-2022"
+  ],
+  "authorization_requirement": "Fresh exact owner grant is required externally; this prepared data file supplies no authority.",
+  "excluded": [
+    "PR advancement",
+    "signing",
+    "protected native origin/adoption",
+    "module adoption",
+    "dependency exception renewal",
+    "release",
+    "merge",
+    "old run/ref retry or overwrite"
+  ],
+  "expected_test_cases": 23
+}
