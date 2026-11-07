@@ -261,12 +261,22 @@ def test_committed_otel_exception_is_exact_and_time_bounded(
     if scenario.skip_reason is not None:
         dependency["skip_reason"] = scenario.skip_reason
     proc = MagicMock(stdout=json.dumps({"dependencies": [dependency]}), stderr="", returncode=1)
-    committed = Path(__file__).resolve().parents[3] / "ci/vulnerability-audit-exceptions.json"
-    register = json.loads(committed.read_text(encoding="utf-8"))
-    register["exceptions"] = [
-        entry for entry in register["exceptions"] if entry["package"] == "opentelemetry-api" and not scenario.omit_entry
-    ]
-    exceptions = tmp_path / "exceptions.json"
+    register = {
+        "exceptions": []
+        if scenario.omit_entry
+        else [
+            {
+                "package": "opentelemetry-api",
+                "version": "1.37.0",
+                "vulnerability_ids": ["CVE-2026-114603", "GHSA-xcq7-p3pf-p88h"],
+                "reviewed_on": "2026-10-22",
+                "expires_on": "2026-11-04",
+                "rationale": "Synthetic historical policy fixture; not current approval.",
+                "mitigation": "Historical policy matching only; no current waiver.",
+            }
+        ]
+    }
+    exceptions = tmp_path / "historical-otel-exceptions.json"
     exceptions.write_text(json.dumps(register), encoding="utf-8")
     with patch.object(gate_mod, "date", AuditDate), patch.object(gate_mod.subprocess, "run", return_value=proc):
         assert gate_mod.main(["--exceptions", str(exceptions)]) == scenario.expected
@@ -331,14 +341,54 @@ def test_committed_mcp_exception_is_exact_and_time_bounded(
     if scenario.skip_reason:
         dependency["skip_reason"] = scenario.skip_reason
     proc = MagicMock(stdout=json.dumps({"dependencies": [dependency]}), stderr="", returncode=1)
-    committed = Path(__file__).resolve().parents[3] / "ci/vulnerability-audit-exceptions.json"
-    register = json.loads(committed.read_text(encoding="utf-8"))
-    register["exceptions"] = [
-        entry for entry in register["exceptions"] if entry["package"] == "mcp" and entry["reviewed_on"] == "2026-10-21"
-    ]
-    exceptions = tmp_path / "exceptions.json"
+    register = {
+        "exceptions": [
+            {
+                "package": "mcp",
+                "version": "1.29.0",
+                "vulnerability_ids": ["CVE-2026-59951", "GHSA-84m7-p3x7-pcfv"],
+                "reviewed_on": "2026-10-21",
+                "expires_on": "2026-11-04",
+                "rationale": "Synthetic historical policy fixture; not current approval.",
+                "mitigation": "Historical policy matching only; no current waiver.",
+            }
+        ]
+    }
+    exceptions = tmp_path / "historical-mcp-exceptions.json"
     exceptions.write_text(json.dumps(register), encoding="utf-8")
     with patch.object(gate_mod, "date", AuditDate), patch.object(gate_mod.subprocess, "run", return_value=proc):
         assert gate_mod.main(["--exceptions", str(exceptions)]) == scenario.expected
     captured = capsys.readouterr()
     assert scenario.message in captured.out + captured.err
+
+
+def test_current_register_is_empty_and_does_not_waive_historical_advisories(
+    gate_mod: ModuleType, capsys: pytest.CaptureFixture[str]
+) -> None:
+    register = Path(__file__).resolve().parents[3] / "ci/vulnerability-audit-exceptions.json"
+    assert json.loads(register.read_text(encoding="utf-8"))["exceptions"] == []
+    payload = {
+        "dependencies": [
+            {
+                "name": "mcp",
+                "version": "1.29.0",
+                "vulns": [
+                    {"id": "CVE-2026-59951"},
+                    {"id": "CVE-2026-116684"},
+                    {"id": "CVE-2026-116685"},
+                    {"id": "CVE-2026-116686"},
+                ],
+            },
+            {
+                "name": "opentelemetry-api",
+                "version": "1.37.0",
+                "vulns": [{"id": "CVE-2026-114603"}],
+            },
+        ]
+    }
+    proc = MagicMock(stdout=json.dumps(payload), stderr="", returncode=1)
+    with patch.object(gate_mod.subprocess, "run", return_value=proc):
+        assert gate_mod.main(["--exceptions", str(register)]) == 1
+    captured = capsys.readouterr()
+    assert "FAIL:" in captured.out + captured.err
+    assert "WAIVED" not in captured.out + captured.err

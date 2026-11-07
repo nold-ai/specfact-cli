@@ -6,6 +6,7 @@ import importlib.util
 import json
 import subprocess
 import sys
+import tomllib
 from datetime import date
 from pathlib import Path
 from types import ModuleType
@@ -16,6 +17,28 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[3]
 TRUST_RECORD = REPO_ROOT / "ci" / "dependency-trust-exceptions.json"
 CHECKER = REPO_ROOT / "scripts" / "check_dependency_trust_exceptions.py"
+
+
+def _synthetic_historical_pycparser_register() -> dict[str, list[dict[str, str]]]:
+    return {
+        "exceptions": [
+            {
+                "package": "pycparser",
+                "version": "3.12",
+                "source_url": (
+                    "https://files.pythonhosted.org/packages/b6/ae/"
+                    "315bbeee126a769cbde43cf4908acb4b40408d8bf8bbf334dd7368d8dadf/"
+                    "pycparser-3.12-py3-none-any.whl"
+                ),
+                "artifact_sha256": "a076f3f489b39b43ed13563a1dafe42447445bec2e294154ec5c57fcdda4c85e",
+                "classification": "source-provenance-reviewed",
+                "reviewed_on": "2026-10-22",
+                "expires_on": "2026-11-04",
+                "transitive_path": "specfact-cli -> cryptography -> cffi -> pycparser",
+                "rationale": "Synthetic historical policy fixture; not current approval.",
+            }
+        ]
+    }
 
 
 def _load_checker() -> ModuleType:
@@ -40,22 +63,25 @@ def test_checker_runs_before_site_packages_are_available() -> None:
     assert "Dependency trust register is valid" in result.stdout
 
 
-def test_pycparser_has_current_exact_version_review_record() -> None:
-    """The required C parser remains only with scoped, expiring review evidence."""
-    assert TRUST_RECORD.is_file(), "Flagged frozen dependencies require a checked-in review record"
+def test_pycparser_frozen_artifact_has_no_transferred_review_record() -> None:
+    assert TRUST_RECORD.is_file()
     payload = json.loads(TRUST_RECORD.read_text(encoding="utf-8"))
-    records = payload["exceptions"]
-    pycparser = next(record for record in records if record["package"] == "pycparser")
-    assert pycparser["version"] == "3.12"
-    assert pycparser["source_url"] == (
-        "https://files.pythonhosted.org/packages/b6/ae/315bbeee126a769cbde43cf4908acb4b40408d8bf8bbf334dd7368d8dadf/"
-        "pycparser-3.12-py3-none-any.whl"
-    )
-    assert pycparser["artifact_sha256"] == "a076f3f489b39b43ed13563a1dafe42447445bec2e294154ec5c57fcdda4c85e"
-    assert pycparser["classification"] == "source-provenance-reviewed"
-    assert pycparser["reviewed_on"] == "2026-10-22"
-    assert pycparser["expires_on"] == "2026-11-04"
-    assert pycparser["transitive_path"] == "specfact-cli -> cryptography -> cffi -> pycparser"
+    assert payload["exceptions"] == []
+    lock = tomllib.loads((REPO_ROOT / "uv.lock").read_text(encoding="utf-8"))
+    packages = [package for package in lock["package"] if package["name"] == "pycparser"]
+    assert len(packages) == 1
+    pycparser = packages[0]
+    assert pycparser["version"] == "3.11"
+    assert pycparser["source"] == {"registry": "https://pypi.org/simple"}
+    assert [(wheel["url"], wheel["hash"], wheel["size"]) for wheel in pycparser["wheels"]] == [
+        (
+            "https://files.pythonhosted.org/packages/90/11/"
+            "0e6f11117525ff0eec40ebac3d313376f102df93ca44ad9e893ee85e4f89/"
+            "pycparser-3.11-py3-none-any.whl",
+            "sha256:51d5a8ba2be0bbe440b99d2112604c95bbbc3c2748a64260186c541e1729cd80",
+            51178,
+        )
+    ]
 
 
 @pytest.mark.parametrize(
@@ -137,7 +163,7 @@ def test_invalid_trust_register_is_rejected(
 
 def test_alerted_pycparser_release_family_is_blocked_with_a_pep440_spelling(tmp_path: Path) -> None:
     """Post and local spellings must not reintroduce the blocked 3.0 release family."""
-    payload = json.loads(TRUST_RECORD.read_text(encoding="utf-8"))
+    payload = _synthetic_historical_pycparser_register()
     payload["exceptions"][0]["version"] = "3.0.post1"
     register_path = tmp_path / "exceptions.json"
     register_path.write_text(json.dumps(payload), encoding="utf-8")
@@ -165,21 +191,40 @@ def test_unofficial_executable_wheel_is_not_accepted() -> None:
 
 def test_reviewed_artifact_must_exist_in_the_frozen_lock(tmp_path: Path) -> None:
     """A copied review record cannot approve a different frozen artifact."""
-    payload = json.loads(TRUST_RECORD.read_text(encoding="utf-8"))
+    payload = _synthetic_historical_pycparser_register()
     reviewed = payload["exceptions"][0]
+    lock_path = tmp_path / "historical-uv.lock"
+    lock_path.write_text(
+        "\n".join(
+            [
+                "[[package]]",
+                'name = "pycparser"',
+                f'version = "{reviewed["version"]}"',
+                'wheels = [{ url = "'
+                + reviewed["source_url"]
+                + '", hash = "sha256:'
+                + reviewed["artifact_sha256"]
+                + '" }]',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
     reviewed["artifact_sha256"] = "0" * 64
     register_path = tmp_path / "exceptions.json"
     register_path.write_text(json.dumps(payload), encoding="utf-8")
     checker = _load_checker()
 
-    errors = checker.validate_frozen_dependency_policy(register_path, today=date.fromisoformat(reviewed["reviewed_on"]))
+    errors = checker.validate_frozen_dependency_policy(
+        register_path, lock_path, today=date.fromisoformat(reviewed["reviewed_on"])
+    )
 
     assert errors == [f"pycparser=={reviewed['version']} artifact digest is absent from its frozen lock record"]
 
 
 def test_review_evidence_must_bind_to_the_matching_lock_package(tmp_path: Path) -> None:
     """Evidence copied to another lock record cannot approve pycparser."""
-    payload = json.loads(TRUST_RECORD.read_text(encoding="utf-8"))
+    payload = _synthetic_historical_pycparser_register()
     register_path = tmp_path / "exceptions.json"
     register_path.write_text(json.dumps(payload), encoding="utf-8")
     reviewed = payload["exceptions"][0]

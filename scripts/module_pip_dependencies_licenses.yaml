@@ -3,5 +3,27 @@
 #
 # Every package name declared in a manifest must have an entry here (lowercase key).
 # Extend this mapping when adding new pip_dependencies to shipped modules.
-# Intentionally empty today: current shipped module manifests declare no pip_dependencies.
-licenses: {}
+licenses:
+  beartype: MIT
+  certifi: MPL-2.0
+  click: BSD-3-Clause
+  crosshair-tool: MIT
+  gitpython: BSD-3-Clause
+  icontract: MIT
+  jinja2: BSD-3-Clause
+  lz4: BSD-3-Clause
+  networkx: BSD-3-Clause
+  pydantic: MIT
+  pytest: MIT
+  pytest-cov: MIT
+  pyyaml: MIT
+  questionary: MIT
+  radon: MIT
+  requests: Apache-2.0
+  rich: MIT
+  ruamel.yaml: MIT
+  ruff: MIT
+  tomli: MIT
+  tomlkit: MIT
+  typer: MIT
+  watchdog: Apache-2.0

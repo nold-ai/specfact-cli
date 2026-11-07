@@ -8,13 +8,16 @@ in the target repository's environment.
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
+import sys
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from typing import Any, cast
 
+import certifi
 from beartype import beartype
 from icontract import ensure, require
 
@@ -363,7 +366,7 @@ def check_tool_in_env(
         return True, None
 
     if env_info.available and env_info.command_prefix:
-        probe_command = build_tool_command(env_info, [tool_name, "--version"])
+        probe_command, probe_env = _version_probe_inputs(tool_name, env_info)
         try:
             result = subprocess.run(
                 probe_command,
@@ -372,6 +375,7 @@ def check_tool_in_env(
                 text=True,
                 timeout=10,
                 check=False,
+                env=probe_env,
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
             return False, f"Tool '{tool_name}' not available in {env_info.manager.value} environment: {exc}"
@@ -381,8 +385,12 @@ def check_tool_in_env(
         suffix = f": {detail}" if detail else ""
         return False, f"Tool '{tool_name}' not available in {env_info.manager.value} environment{suffix}"
 
-    # Tool not found
-    return False, f"Tool '{tool_name}' not found. Install with: pip install {tool_name} or use your environment manager"
+    return False, {
+        "osemgrep": "Native Semgrep executable osemgrep not found. Install the reviewed upstream native executable."
+    }.get(
+        tool_name,
+        f"Tool '{tool_name}' not found. Install with: pip install {tool_name} or use your environment manager",
+    )
 
 
 @beartype
@@ -573,3 +581,15 @@ def find_test_files_for_source(repo_path: Path, source_file: Path) -> list[Path]
                 test_files.append(test_path)
 
     return test_files
+
+
+def _version_probe_inputs(tool_name: str, env_info: EnvManagerInfo) -> tuple[list[str], dict[str, str] | None]:
+    probe_args = [tool_name]
+    probe_env = None
+    if tool_name == "osemgrep":
+        probe_args.extend(["scan", "--experimental", "--metrics=off", "--disable-version-check"])
+        probe_env = dict(os.environ)
+        probe_env.setdefault("SSL_CERT_FILE", certifi.where())
+        if sys.platform == "linux":
+            probe_env.setdefault("LD_LIBRARY_PATH", "$ORIGIN/libs")
+    return build_tool_command(env_info, [*probe_args, "--version"]), probe_env

@@ -11,10 +11,12 @@ import ast
 import json
 import os
 import subprocess
+import sys
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
+import certifi
 from beartype import beartype
 from icontract import ensure, require
 
@@ -147,14 +149,29 @@ class OpenAPITestConverter:
     def _run_semgrep(self, test_path: Path) -> list[dict[str, Any]]:
         """Run Semgrep on a test file and return results."""
         try:
+            env = dict(os.environ)
+            env.setdefault("SSL_CERT_FILE", certifi.where())
+            if sys.platform == "linux":
+                env.setdefault("LD_LIBRARY_PATH", "$ORIGIN/libs")
             # Reduced timeout to avoid hanging on large test files
             # Further reduced to 5s for faster processing (can be made configurable)
             result = subprocess.run(
-                ["semgrep", "--config", str(self.semgrep_config), "--json", str(test_path)],
+                [
+                    "osemgrep",
+                    "scan",
+                    "--experimental",
+                    "--metrics=off",
+                    "--disable-version-check",
+                    "--config",
+                    str(self.semgrep_config),
+                    "--json",
+                    str(test_path),
+                ],
                 capture_output=True,
                 text=True,
                 timeout=5,  # Reduced from 10 to 5 seconds for faster processing
                 check=False,
+                env=env,
             )
 
             if result.returncode != 0:

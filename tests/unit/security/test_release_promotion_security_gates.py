@@ -11,6 +11,7 @@ import tomllib
 import xml.etree.ElementTree as ElementTree
 from pathlib import Path
 from typing import Any, cast
+from urllib.parse import urlsplit
 
 import pytest
 import yaml
@@ -390,75 +391,155 @@ def test_every_code_review_lock_install_has_exact_closure_proof() -> None:
         assert install.index(closure_proof) < install.index("uv pip install")
 
 
-def test_frozen_graph_uses_official_semgrep_with_bounded_mcp_exception() -> None:
-    project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    dev = cast(list[str], project["project"]["optional-dependencies"]["dev"])
-    scanning = cast(list[str], project["project"]["optional-dependencies"]["scanning"])
-    assert {"semgrep>=1.175.0"} <= set(dev) & set(scanning)
+def _assert_native_provider_binding(release: dict[str, Any], tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    provider_path = REPO_ROOT / ".github/actions/setup-frozen-python/provision_semgrep.py"
+    spec = importlib.util.spec_from_file_location("_release_native_semgrep_provider", provider_path)
+    assert spec is not None and spec.loader is not None
+    provider = importlib.util.module_from_spec(spec)
+    monkeypatch.setitem(sys.modules, spec.name, provider)
+    spec.loader.exec_module(provider)
+    assert provider.POLICY_FILE == REPO_ROOT / "ci/security-tool-minimum-versions.json"
+    verify_installation = provider._verify_installation
+    observed: list[tuple[Path, tuple[Any, ...]]] = []
 
-    locked = (REPO_ROOT / "requirements" / "ci" / "locked.txt").read_text(encoding="utf-8")
-    assert set(re.findall(r"^(?:semgrep|mcp)==[^\s]+", locked, re.MULTILINE)) == {"semgrep==1.182.1", "mcp==1.29.0"}
-    assert re.search(r"^opentelemetry-api==1\.37\.0[ \t]", locked, re.MULTILINE)
-    policy = json.loads((REPO_ROOT / "ci" / "security-tool-minimum-versions.json").read_text(encoding="utf-8"))
-    exceptions = json.loads((REPO_ROOT / "ci" / "vulnerability-audit-exceptions.json").read_text(encoding="utf-8"))
-    records = exceptions["exceptions"]
-    assert (policy["minimum_versions"], len(records)) == ({"mcp": "1.28.1", "semgrep": "1.175.0"}, 3)
-    expected_records = [
-        {
-            "package": "mcp",
-            "version": "1.29.0",
-            "vulnerability_ids": ["CVE-2026-59951", "GHSA-84m7-p3x7-pcfv"],
-            "reviewed_on": "2026-10-21",
-            "expires_on": "2026-11-04",
-        },
-        {
-            "package": "mcp",
-            "version": "1.29.0",
-            "vulnerability_ids": [
-                "CVE-2026-116684",
-                "CVE-2026-116685",
-                "CVE-2026-116686",
-                "GHSA-5h93-6whr-6q8j",
-                "GHSA-rwrf-2pqf-9j8j",
-                "GHSA-w4fh-qvv9-3v23",
-            ],
-            "reviewed_on": "2026-10-29",
-            "expires_on": "2026-11-04",
-        },
-        {
-            "package": "opentelemetry-api",
-            "version": "1.37.0",
-            "vulnerability_ids": ["CVE-2026-114603", "GHSA-xcq7-p3pf-p88h"],
-            "reviewed_on": "2026-10-22",
-            "expires_on": "2026-11-04",
-        },
+    def observe_verification(destination: Path, members: tuple[Any, ...]) -> None:
+        observed.append((destination, members))
+        verify_installation(destination, members)
+
+    monkeypatch.setattr(provider, "_verify_installation", observe_verification)
+    for platform, artifact in release["platforms"].items():
+        monkeypatch.setattr(provider, "_platform_key", lambda platform=platform: platform)
+        observed.clear()
+        with pytest.raises(ValueError, match=r"^Native installation file set differs from selection$"):
+            provider.provision_semgrep(tmp_path)
+        assert len(observed) == 1
+        destination, members = observed[0]
+        assert destination == tmp_path
+        replacements = artifact.get("curl_fix", artifact.get("pcre2_fix", {})).get("members", [])
+        replaced = {member["installed_path"] for member in replacements}
+        removed = set(artifact.get("curl_fix", {}).get("remove", []))
+        expected = [
+            *[member for member in artifact["members"] if member["installed_path"] not in replaced | removed],
+            *release["notices"],
+            *artifact.get("notices", []),
+            *replacements,
+        ]
+        assert [(member.destination, member.size, member.digest) for member in members] == [
+            (member["installed_path"], member["size"], member["sha256"]) for member in expected
+        ]
+
+    action = _workflow(".github/actions/setup-frozen-python/action.yml")
+    provision = _named_step(action["runs"], "Provision frozen native Semgrep")
+    assert (
+        '"$project_python" .github/actions/setup-frozen-python/provision_semgrep.py '
+        '"$RUNNER_TEMP/specfact-native-semgrep" >> "$GITHUB_PATH"'
+    ) in provision["run"]
+
+
+_EXPECTED_NATIVE_ARTIFACTS = {
+    "macos-arm64": (
+        51257278,
+        "0ce3064175a44236dd9fd35603627e3f56139ac61e13ca967bae2b76b2cec9bf",
+        "1a5cb45e24673f3f5a6276943efc917ffd427db53e0e0537d1c880d3b9d10bb3",
+    ),
+    "linux-x86_64": (
+        72254465,
+        "d847abb8fb6fdde77d9e30a6bc869dbfcb68eff4142dcd77897c52635a7600d9",
+        "440018d25dc528a902a1174f6d6b74676a5e9fa79e7d2cdd7404158a5c94aa55",
+    ),
+    "windows-x86_64": (
+        59524393,
+        "3c86b2961b4663d1338fb965de038c7869571661971b78e18e9346ab57e1e20a",
+        "d630d1f1f3178f17680cd438704d2d6dd8669248225c1a904aed1cd746970da2",
+    ),
+}
+
+
+def test_frozen_python_graph_excludes_expired_scanner_dependencies() -> None:
+    project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    dependencies = [
+        *project["project"]["dependencies"],
+        *(item for group in project["project"]["optional-dependencies"].values() for item in group),
+        *project["tool"]["hatch"]["envs"]["default"]["dependencies"],
     ]
-    for record, expected_record in zip(
-        sorted(records, key=lambda entry: (entry["package"], entry["reviewed_on"])), expected_records, strict=True
-    ):
-        actual_record = {
-            "package": record["package"],
-            "version": record["version"],
-            "vulnerability_ids": sorted(record["vulnerability_ids"]),
-            "reviewed_on": record["reviewed_on"],
-            "expires_on": record["expires_on"],
-        }
-        assert (actual_record, bool(record["rationale"].strip()), bool(record["mitigation"].strip())) == (
-            expected_record,
-            True,
-            True,
-        )
+    assert not any(re.match(r"^(?:semgrep|mcp|specfact-semgrep)(?:\b|[<>=!~;\[])", item) for item in dependencies)
+    locked = (REPO_ROOT / "requirements/ci/locked.txt").read_text(encoding="utf-8")
+    assert not re.search(r"^(?:semgrep|mcp|specfact-semgrep)==", locked, re.MULTILINE)
+    assert re.search(r"^opentelemetry-api==1\.45\.1[ \t]", locked, re.MULTILINE)
     lock = tomllib.loads((REPO_ROOT / "uv.lock").read_text(encoding="utf-8"))
     packages = [
         (package["name"], package["version"], package["source"])
         for package in lock["package"]
         if package["name"] in {"semgrep", "mcp", "opentelemetry-api", "specfact-semgrep"}
     ]
-    assert sorted(packages) == [
-        ("mcp", "1.29.0", {"registry": "https://pypi.org/simple"}),
-        ("opentelemetry-api", "1.37.0", {"registry": "https://pypi.org/simple"}),
-        ("semgrep", "1.182.1", {"registry": "https://pypi.org/simple"}),
+    assert sorted(packages) == [("opentelemetry-api", "1.45.1", {"registry": "https://pypi.org/simple"})]
+
+
+def test_native_policy_retains_security_floor_and_empty_registers() -> None:
+    policy = json.loads((REPO_ROOT / "ci/security-tool-minimum-versions.json").read_text(encoding="utf-8"))
+    assert policy["minimum_versions"] == {"mcp": "1.28.1", "semgrep": "1.175.0"}
+    for register in ("dependency-trust-exceptions.json", "vulnerability-audit-exceptions.json"):
+        assert json.loads((REPO_ROOT / "ci" / register).read_text(encoding="utf-8"))["exceptions"] == []
+    release = policy["native_semgrep"]
+    assert release["version"] == "1.184.0"
+    assert set(release["platforms"]) == set(_EXPECTED_NATIVE_ARTIFACTS)
+
+
+@pytest.mark.parametrize("platform", _EXPECTED_NATIVE_ARTIFACTS)
+def test_native_platform_artifact_retains_original_bytes(platform: str) -> None:
+    release = json.loads((REPO_ROOT / "ci/security-tool-minimum-versions.json").read_text())["native_semgrep"]
+    size, digest, engine_digest = _EXPECTED_NATIVE_ARTIFACTS[platform]
+    artifact = release["platforms"][platform]
+    origin = urlsplit(cast(str, artifact["url"]))
+    assert (origin.scheme, origin.netloc, origin.query, origin.fragment) == (
+        "https",
+        "files.pythonhosted.org",
+        "",
+        "",
+    )
+    assert origin.path.rsplit("/", 1)[-1].startswith("semgrep-1.184.0-")
+    assert origin.path.endswith(".whl")
+    assert (artifact["size"], artifact["sha256"]) == (size, digest)
+    engine = "osemgrep.exe" if platform == "windows-x86_64" else "osemgrep"
+    assert [member["sha256"] for member in artifact["members"] if member["installed_path"] == engine] == [engine_digest]
+
+
+def test_linux_curl_correction_is_exact() -> None:
+    release = json.loads((REPO_ROOT / "ci/security-tool-minimum-versions.json").read_text())["native_semgrep"]
+    curl = release["platforms"]["linux-x86_64"]["curl_fix"]
+    assert (curl["package"], curl["version"], curl["url"], curl["size"], curl["sha256"]) == (
+        "libcurl-minimal",
+        "7.76.1-40.el9_8.9",
+        "https://repo.almalinux.org/almalinux/9/BaseOS/x86_64/os/Packages/libcurl-minimal-7.76.1-40.el9_8.9.x86_64.rpm",
+        231361,
+        "d971ebea1a637cfaf7afac8416c2f0e4afc64f0d8b89314279e55b061f080921",
+    )
+    assert [(member["installed_path"], member["size"], member["sha256"]) for member in curl["members"]] == [
+        ("libs/libcurl.so.4", 517040, "6a0d187667a03530e0a67766fa28d62ebbfb5632b923b2a8af07be8071890cbe"),
+        ("LICENSE.libcurl", 1088, "6fd1a1c008b5ef4c4741dd188c3f8af6944c14c25afa881eb064f98fb98358e7"),
     ]
+
+
+def test_macos_pcre2_correction_is_exact() -> None:
+    release = json.loads((REPO_ROOT / "ci/security-tool-minimum-versions.json").read_text())["native_semgrep"]
+    pcre2 = release["platforms"]["macos-arm64"]["pcre2_fix"]
+    assert release["platforms"]["macos-arm64"]["observed_macos_minimum"] == "15.0"
+    assert (pcre2["package"], pcre2["version"], pcre2["url"], pcre2["size"], pcre2["sha256"]) == (
+        "pcre2",
+        "10.49",
+        "https://ghcr.io/v2/homebrew/core/pcre2/blobs/sha256:0ec47d18c50f5770db2b3f07b5b85644284cc6ee8e07e23b11d2727e95932b77",
+        2465167,
+        "0ec47d18c50f5770db2b3f07b5b85644284cc6ee8e07e23b11d2727e95932b77",
+    )
+    assert [(member["installed_path"], member["size"], member["sha256"]) for member in pcre2["members"]] == [
+        ("libs/libpcre2-8.0.dylib", 573984, "56bc0ef73d8b270e074b163795abeb02b3809d83b68c50ee8d29b148d0b2e5d4"),
+        ("LICENSE.pcre2", 4011, "197d8a73ffee0d6b09adba2f9c677b5f5aede24edf89258a68e48248d010d811"),
+    ]
+
+
+def test_current_native_provider_binding(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    release = json.loads((REPO_ROOT / "ci/security-tool-minimum-versions.json").read_text())["native_semgrep"]
+    _assert_native_provider_binding(release, tmp_path, monkeypatch)
 
 
 def test_code_review_lock_is_bound_before_installation(tmp_path: Path) -> None:

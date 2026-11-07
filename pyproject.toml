@@ -67,7 +67,7 @@ dependencies = [
     "cryptography>=50.0.0",
     # Transitive through CFFI. The lock supplies reproducibility; this range
     # keeps the known blocked 3.0 release out of every resolver result.
-    "pycparser>=3.12,!=3.0.*",
+    "pycparser==3.11",
     "packaging>=24.0",
     # PEP 440 / markers for module installer and registry (do not rely on transitive pins only)
 
@@ -113,8 +113,8 @@ contracts = [
 ]
 
 telemetry = [
-    "opentelemetry-sdk>=1.27.0",
-    "opentelemetry-exporter-otlp-proto-http>=1.27.0",
+    "opentelemetry-sdk==1.45.1",
+    "opentelemetry-exporter-otlp-proto-http==1.45.1",
 ]
 
 dev = [
@@ -140,7 +140,6 @@ dev = [
     "pre-commit>=4.0.1",
     "mutmut>=3.3.1",  # Scheduled mutation baseline; frozen with the contributor toolchain.
     "yamllint>=1.37.1",  # GPL-3.0-or-later — dev-only exception; replace with a non-GPL YAML lint path in Phase 2.
-    "semgrep>=1.175.0",  # LGPL-2.1 — reviewed security floor; requirements/ci/locked.txt freezes the exact Semgrep/MCP pair.
 
     # Same contract exploration stack as [contracts] (extras cannot self-reference)
     "crosshair-tool>=0.0.97",
@@ -161,7 +160,6 @@ dev = [
 ]
 
 scanning = [
-    "semgrep>=1.175.0",  # Optional: Only needed for code scanning features
 ]
 
 enhanced-analysis = [
@@ -210,7 +208,6 @@ dependencies = [
     "ruff>=0.14.2",
     "radon>=6.0.1",
     "yamllint>=1.37.1",  # GPL-3.0-or-later — dev/test-only exception. Phase 2: replace with non-GPL YAML lint path.
-    "semgrep>=1.175.0",  # LGPL-2.1 — reviewed security floor; requirements/ci/locked.txt freezes the exact Semgrep/MCP pair.
     # Contract-First Development Dependencies
     "icontract>=2.7.1",
     "beartype>=0.22.4",
@@ -245,14 +242,31 @@ format = "ruff check . --fix && ruff format ."
 
 # Code scanning (Semgrep)
 # Semgrep 1.38+ deprecated implicit .semgrep.yml discovery; always pass --config explicitly.
-# Script must not be named `semgrep` (Hatch treats that as circular expansion with the semgrep CLI).
-semgrep-sast = "semgrep scan --config tools/semgrep/sast.yml {args}"
+semgrep-sast = [
+    "python -c \"import certifi,hashlib,pathlib,sys; p=pathlib.Path(sys.argv[1]); f=p.open('rb'); a=f.read(262145); f.close(); f=pathlib.Path(certifi.where()).open('rb'); b=f.read(262145); f.close(); sys.exit(0 if len(a)<=262144 and len(b)<=262144 and hashlib.sha256(a).hexdigest()==p.stem.removeprefix('cacert-') and a==b else 'Selected certifi CA data mismatch; no native scan started')\" tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem",
+    "SSL_CERT_FILE=tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem osemgrep scan --experimental --metrics=off --disable-version-check --config tools/semgrep/sast.yml {args}",
+]
 semgrep-sast-gate = "python scripts/semgrep_sast_gate.py {args}"
-semgrep-full = "semgrep --config tools/semgrep {args}"
-scan = "semgrep --config tools/semgrep/async.yml {args}"
-scan-all = "semgrep --config tools/semgrep/async.yml ."
-scan-json = "semgrep --config tools/semgrep/async.yml --json . > logs/semgrep-results.json"
-scan-fix = "semgrep --config tools/semgrep/async.yml --autofix ."
+semgrep-full = [
+    "python -c \"import certifi,hashlib,pathlib,sys; p=pathlib.Path(sys.argv[1]); f=p.open('rb'); a=f.read(262145); f.close(); f=pathlib.Path(certifi.where()).open('rb'); b=f.read(262145); f.close(); sys.exit(0 if len(a)<=262144 and len(b)<=262144 and hashlib.sha256(a).hexdigest()==p.stem.removeprefix('cacert-') and a==b else 'Selected certifi CA data mismatch; no native scan started')\" tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem",
+    "SSL_CERT_FILE=tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem osemgrep scan --experimental --metrics=off --disable-version-check --config tools/semgrep {args}",
+]
+scan = [
+    "python -c \"import certifi,hashlib,pathlib,sys; p=pathlib.Path(sys.argv[1]); f=p.open('rb'); a=f.read(262145); f.close(); f=pathlib.Path(certifi.where()).open('rb'); b=f.read(262145); f.close(); sys.exit(0 if len(a)<=262144 and len(b)<=262144 and hashlib.sha256(a).hexdigest()==p.stem.removeprefix('cacert-') and a==b else 'Selected certifi CA data mismatch; no native scan started')\" tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem",
+    "SSL_CERT_FILE=tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem osemgrep scan --experimental --metrics=off --disable-version-check --config tools/semgrep/async.yml {args}",
+]
+scan-all = [
+    "python -c \"import certifi,hashlib,pathlib,sys; p=pathlib.Path(sys.argv[1]); f=p.open('rb'); a=f.read(262145); f.close(); f=pathlib.Path(certifi.where()).open('rb'); b=f.read(262145); f.close(); sys.exit(0 if len(a)<=262144 and len(b)<=262144 and hashlib.sha256(a).hexdigest()==p.stem.removeprefix('cacert-') and a==b else 'Selected certifi CA data mismatch; no native scan started')\" tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem",
+    "SSL_CERT_FILE=tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem osemgrep scan --experimental --metrics=off --disable-version-check --config tools/semgrep/async.yml .",
+]
+scan-json = [
+    "python -c \"import certifi,hashlib,pathlib,sys; p=pathlib.Path(sys.argv[1]); f=p.open('rb'); a=f.read(262145); f.close(); f=pathlib.Path(certifi.where()).open('rb'); b=f.read(262145); f.close(); sys.exit(0 if len(a)<=262144 and len(b)<=262144 and hashlib.sha256(a).hexdigest()==p.stem.removeprefix('cacert-') and a==b else 'Selected certifi CA data mismatch; no native scan started')\" tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem",
+    "SSL_CERT_FILE=tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem osemgrep scan --experimental --metrics=off --disable-version-check --config tools/semgrep/async.yml --json . > logs/semgrep-results.json",
+]
+scan-fix = [
+    "python -c \"import certifi,hashlib,pathlib,sys; p=pathlib.Path(sys.argv[1]); f=p.open('rb'); a=f.read(262145); f.close(); f=pathlib.Path(certifi.where()).open('rb'); b=f.read(262145); f.close(); sys.exit(0 if len(a)<=262144 and len(b)<=262144 and hashlib.sha256(a).hexdigest()==p.stem.removeprefix('cacert-') and a==b else 'Selected certifi CA data mismatch; no native scan started')\" tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem",
+    "SSL_CERT_FILE=tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem osemgrep scan --experimental --metrics=off --disable-version-check --config tools/semgrep/async.yml --autofix .",
+]
 
 # YAML and Workflow linting
 yaml-fmt = "bash scripts/yaml-tools.sh fmt {args}"
@@ -330,6 +344,41 @@ contract-prune = "python tools/migrate_tests_to_contracts.py --prune --dry-run"
 pre-commit-install = "bash scripts/setup-git-hooks.sh"
 pre-commit-checks = "bash scripts/pre-commit-smart-checks.sh"
 
+[tool.hatch.envs.default.overrides.platform.linux]
+scripts = [
+    "semgrep-sast=python -c \"import certifi,hashlib,pathlib,sys; p=pathlib.Path(sys.argv[1]); f=p.open('rb'); a=f.read(262145); f.close(); f=pathlib.Path(certifi.where()).open('rb'); b=f.read(262145); f.close(); sys.exit(0 if len(a)<=262144 and len(b)<=262144 and hashlib.sha256(a).hexdigest()==p.stem.removeprefix('cacert-') and a==b else 'Selected certifi CA data mismatch; no native scan started')\" tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem && LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH-\\$ORIGIN/libs}\" SSL_CERT_FILE=tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem osemgrep scan --experimental --metrics=off --disable-version-check --config tools/semgrep/sast.yml {args}",
+    "semgrep-full=python -c \"import certifi,hashlib,pathlib,sys; p=pathlib.Path(sys.argv[1]); f=p.open('rb'); a=f.read(262145); f.close(); f=pathlib.Path(certifi.where()).open('rb'); b=f.read(262145); f.close(); sys.exit(0 if len(a)<=262144 and len(b)<=262144 and hashlib.sha256(a).hexdigest()==p.stem.removeprefix('cacert-') and a==b else 'Selected certifi CA data mismatch; no native scan started')\" tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem && LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH-\\$ORIGIN/libs}\" SSL_CERT_FILE=tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem osemgrep scan --experimental --metrics=off --disable-version-check --config tools/semgrep {args}",
+    "scan=python -c \"import certifi,hashlib,pathlib,sys; p=pathlib.Path(sys.argv[1]); f=p.open('rb'); a=f.read(262145); f.close(); f=pathlib.Path(certifi.where()).open('rb'); b=f.read(262145); f.close(); sys.exit(0 if len(a)<=262144 and len(b)<=262144 and hashlib.sha256(a).hexdigest()==p.stem.removeprefix('cacert-') and a==b else 'Selected certifi CA data mismatch; no native scan started')\" tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem && LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH-\\$ORIGIN/libs}\" SSL_CERT_FILE=tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem osemgrep scan --experimental --metrics=off --disable-version-check --config tools/semgrep/async.yml {args}",
+    "scan-all=python -c \"import certifi,hashlib,pathlib,sys; p=pathlib.Path(sys.argv[1]); f=p.open('rb'); a=f.read(262145); f.close(); f=pathlib.Path(certifi.where()).open('rb'); b=f.read(262145); f.close(); sys.exit(0 if len(a)<=262144 and len(b)<=262144 and hashlib.sha256(a).hexdigest()==p.stem.removeprefix('cacert-') and a==b else 'Selected certifi CA data mismatch; no native scan started')\" tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem && LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH-\\$ORIGIN/libs}\" SSL_CERT_FILE=tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem osemgrep scan --experimental --metrics=off --disable-version-check --config tools/semgrep/async.yml .",
+    "scan-json=python -c \"import certifi,hashlib,pathlib,sys; p=pathlib.Path(sys.argv[1]); f=p.open('rb'); a=f.read(262145); f.close(); f=pathlib.Path(certifi.where()).open('rb'); b=f.read(262145); f.close(); sys.exit(0 if len(a)<=262144 and len(b)<=262144 and hashlib.sha256(a).hexdigest()==p.stem.removeprefix('cacert-') and a==b else 'Selected certifi CA data mismatch; no native scan started')\" tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem && LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH-\\$ORIGIN/libs}\" SSL_CERT_FILE=tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem osemgrep scan --experimental --metrics=off --disable-version-check --config tools/semgrep/async.yml --json . > logs/semgrep-results.json",
+    "scan-fix=python -c \"import certifi,hashlib,pathlib,sys; p=pathlib.Path(sys.argv[1]); f=p.open('rb'); a=f.read(262145); f.close(); f=pathlib.Path(certifi.where()).open('rb'); b=f.read(262145); f.close(); sys.exit(0 if len(a)<=262144 and len(b)<=262144 and hashlib.sha256(a).hexdigest()==p.stem.removeprefix('cacert-') and a==b else 'Selected certifi CA data mismatch; no native scan started')\" tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem && LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH-\\$ORIGIN/libs}\" SSL_CERT_FILE=tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem osemgrep scan --experimental --metrics=off --disable-version-check --config tools/semgrep/async.yml --autofix .",
+]
+
+[tool.hatch.envs.default.overrides.platform.windows]
+scripts = [
+    "semgrep-sast=python -c \"import certifi,hashlib,pathlib,sys; p=pathlib.Path(sys.argv[1]); f=p.open('rb'); a=f.read(262145); f.close(); f=pathlib.Path(certifi.where()).open('rb'); b=f.read(262145); f.close(); sys.exit(0 if len(a)<=262144 and len(b)<=262144 and hashlib.sha256(a).hexdigest()==p.stem.removeprefix('cacert-') and a==b else 'Selected certifi CA data mismatch; no native scan started')\" tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem && set \"SSL_CERT_FILE=tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem\" && osemgrep scan --experimental --metrics=off --disable-version-check --config tools/semgrep/sast.yml {args}",
+    "semgrep-full=python -c \"import certifi,hashlib,pathlib,sys; p=pathlib.Path(sys.argv[1]); f=p.open('rb'); a=f.read(262145); f.close(); f=pathlib.Path(certifi.where()).open('rb'); b=f.read(262145); f.close(); sys.exit(0 if len(a)<=262144 and len(b)<=262144 and hashlib.sha256(a).hexdigest()==p.stem.removeprefix('cacert-') and a==b else 'Selected certifi CA data mismatch; no native scan started')\" tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem && set \"SSL_CERT_FILE=tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem\" && osemgrep scan --experimental --metrics=off --disable-version-check --config tools/semgrep {args}",
+    "scan=python -c \"import certifi,hashlib,pathlib,sys; p=pathlib.Path(sys.argv[1]); f=p.open('rb'); a=f.read(262145); f.close(); f=pathlib.Path(certifi.where()).open('rb'); b=f.read(262145); f.close(); sys.exit(0 if len(a)<=262144 and len(b)<=262144 and hashlib.sha256(a).hexdigest()==p.stem.removeprefix('cacert-') and a==b else 'Selected certifi CA data mismatch; no native scan started')\" tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem && set \"SSL_CERT_FILE=tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem\" && osemgrep scan --experimental --metrics=off --disable-version-check --config tools/semgrep/async.yml {args}",
+    "scan-all=python -c \"import certifi,hashlib,pathlib,sys; p=pathlib.Path(sys.argv[1]); f=p.open('rb'); a=f.read(262145); f.close(); f=pathlib.Path(certifi.where()).open('rb'); b=f.read(262145); f.close(); sys.exit(0 if len(a)<=262144 and len(b)<=262144 and hashlib.sha256(a).hexdigest()==p.stem.removeprefix('cacert-') and a==b else 'Selected certifi CA data mismatch; no native scan started')\" tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem && set \"SSL_CERT_FILE=tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem\" && osemgrep scan --experimental --metrics=off --disable-version-check --config tools/semgrep/async.yml .",
+    "scan-json=python -c \"import certifi,hashlib,pathlib,sys; p=pathlib.Path(sys.argv[1]); f=p.open('rb'); a=f.read(262145); f.close(); f=pathlib.Path(certifi.where()).open('rb'); b=f.read(262145); f.close(); sys.exit(0 if len(a)<=262144 and len(b)<=262144 and hashlib.sha256(a).hexdigest()==p.stem.removeprefix('cacert-') and a==b else 'Selected certifi CA data mismatch; no native scan started')\" tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem && set \"SSL_CERT_FILE=tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem\" && osemgrep scan --experimental --metrics=off --disable-version-check --config tools/semgrep/async.yml --json . > logs/semgrep-results.json",
+    "scan-fix=python -c \"import certifi,hashlib,pathlib,sys; p=pathlib.Path(sys.argv[1]); f=p.open('rb'); a=f.read(262145); f.close(); f=pathlib.Path(certifi.where()).open('rb'); b=f.read(262145); f.close(); sys.exit(0 if len(a)<=262144 and len(b)<=262144 and hashlib.sha256(a).hexdigest()==p.stem.removeprefix('cacert-') and a==b else 'Selected certifi CA data mismatch; no native scan started')\" tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem && set \"SSL_CERT_FILE=tools/certifi/cacert-50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785.pem\" && osemgrep scan --experimental --metrics=off --disable-version-check --config tools/semgrep/async.yml --autofix .",
+]
+
+[tool.hatch.envs.default.overrides.env.SSL_CERT_FILE]
+scripts = [
+    "semgrep-sast=osemgrep scan --experimental --metrics=off --disable-version-check --config tools/semgrep/sast.yml {args}",
+    "semgrep-full=osemgrep scan --experimental --metrics=off --disable-version-check --config tools/semgrep {args}",
+    "scan=osemgrep scan --experimental --metrics=off --disable-version-check --config tools/semgrep/async.yml {args}",
+    "scan-all=osemgrep scan --experimental --metrics=off --disable-version-check --config tools/semgrep/async.yml .",
+    "scan-json=osemgrep scan --experimental --metrics=off --disable-version-check --config tools/semgrep/async.yml --json . > logs/semgrep-results.json",
+    "scan-fix=osemgrep scan --experimental --metrics=off --disable-version-check --config tools/semgrep/async.yml --autofix .",
+    { key = "semgrep-sast", value = "LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH-\\$ORIGIN/libs}\" osemgrep scan --experimental --metrics=off --disable-version-check --config tools/semgrep/sast.yml {args}", platform = ["linux"] },
+    { key = "semgrep-full", value = "LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH-\\$ORIGIN/libs}\" osemgrep scan --experimental --metrics=off --disable-version-check --config tools/semgrep {args}", platform = ["linux"] },
+    { key = "scan", value = "LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH-\\$ORIGIN/libs}\" osemgrep scan --experimental --metrics=off --disable-version-check --config tools/semgrep/async.yml {args}", platform = ["linux"] },
+    { key = "scan-all", value = "LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH-\\$ORIGIN/libs}\" osemgrep scan --experimental --metrics=off --disable-version-check --config tools/semgrep/async.yml .", platform = ["linux"] },
+    { key = "scan-json", value = "LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH-\\$ORIGIN/libs}\" osemgrep scan --experimental --metrics=off --disable-version-check --config tools/semgrep/async.yml --json . > logs/semgrep-results.json", platform = ["linux"] },
+    { key = "scan-fix", value = "LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH-\\$ORIGIN/libs}\" osemgrep scan --experimental --metrics=off --disable-version-check --config tools/semgrep/async.yml --autofix .", platform = ["linux"] },
+]
 [tool.hatch.envs.py311]
 python = "3.11"
 

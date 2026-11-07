@@ -23,10 +23,14 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
         ("filelock", "4.2.1"),
         ("msgpack", "1.2.3"),
         ("setuptools", "84.1.0"),
-        ("semgrep", "1.182.1"),
+        ("opentelemetry-api", "1.45.1"),
+        ("opentelemetry-exporter-otlp-proto-common", "1.45.1"),
+        ("opentelemetry-exporter-otlp-proto-http", "1.45.1"),
+        ("opentelemetry-proto", "1.45.1"),
+        ("opentelemetry-sdk", "1.45.1"),
         ("python-discovery", "1.6.1"),
         ("packaging", "26.3"),
-        ("pycparser", "3.12"),
+        ("pycparser", "3.11"),
     ],
 )
 def test_reviewed_tooling_versions_match_frozen_export(name: str, version: str) -> None:
@@ -67,7 +71,7 @@ def test_documentation_json_has_reviewed_floor_and_major_bound() -> None:
     "requirement",
     [
         pytest.param("gitpython>=3.2.1", id="gitpython-floor"),
-        pytest.param("pycparser>=3.12,!=3.0.*", id="pycparser-floor"),
+        pytest.param("pycparser==3.11", id="pycparser-floor"),
     ],
 )
 def test_public_declarations_require_reviewed_security_floor(requirement: str) -> None:

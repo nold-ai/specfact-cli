@@ -1,0 +1,10 @@
+{
+  "schema_version": "1",
+  "decision": "accepted",
+  "reviewer_id": "codex:/root/native_requirements_mapping_review",
+  "reviewer_role": "independent-preparation-reviewer",
+  "recorded_at": "2026-11-07T02:36:59.823804+00:00",
+  "reference": "codex:/root/native_requirements_mapping_review",
+  "mapping_digest": "sha256:434437f0de0ea92c80c17e071f3cb4696cd3d73e4fbf25aee8dfa66858c56825",
+  "acceptance_scope": "Planning only. No RED, verified implementation, native origin, platform execution, signature, adoption, current-head CI or merge authority."
+}

@@ -62,6 +62,7 @@ jobs:
               - 'scripts/check_dependency_trust_exceptions.py'
               - 'scripts/license_allowlist.yaml'
               - 'ci/dependency-trust-exceptions.json'
+              - 'ci/module-fixture.lock.json'
               - 'scripts/module_pip_dependencies_licenses.yaml'
             version_sources:
               - 'pyproject.toml'
@@ -762,7 +763,7 @@ jobs:
           SEMGREP_ENABLE_VERSION_CHECK: "0"
         run: |
           mkdir -p logs/static-analysis
-          semgrep scan --config tools/semgrep/sast.yml --json --output logs/static-analysis/semgrep.json
+          LD_LIBRARY_PATH="${LD_LIBRARY_PATH-\$ORIGIN/libs}" SSL_CERT_FILE="${SSL_CERT_FILE-$(python -c 'import certifi; print(certifi.where())')}" osemgrep scan --experimental --metrics=off --disable-version-check --config tools/semgrep/sast.yml --json > logs/static-analysis/semgrep.json
           python scripts/semgrep_sast_gate.py \
             --results logs/static-analysis/semgrep.json \
             --baseline tools/semgrep/sast-baseline.json
@@ -1164,6 +1165,34 @@ jobs:
       - name: Set up frozen license-check dependencies
         uses: ./.github/actions/setup-frozen-python
 
+      - name: Read immutable module fixture
+        id: modules-fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture_ref="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          echo "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout module bundles repo
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+          repository: nold-ai/specfact-cli-modules
+          path: specfact-cli-modules
+          ref: ${{ steps.modules-fixture.outputs.ref }}
+      - name: Export module bundles path
+        run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
+      - name: Verify immutable module fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          actual="$(git -C specfact-cli-modules rev-parse HEAD)"
+          test "$actual" = "$expected"
+          expected_tree="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["tree"])')"
+          actual_tree="$(git -C specfact-cli-modules rev-parse 'HEAD^{tree}')"
+          test "$actual_tree" = "$expected_tree"
+
       - name: Install frozen Code Review license scope
         shell: bash
         run: |
@@ -1189,6 +1218,21 @@ jobs:
             --require-hashes --no-deps --only-binary :all: \
             -r requirements/runtime-smoke/locked.txt
           echo "SMOKE_TOOLS_PYTHON=${smoke_tools}/bin/python" >> "$GITHUB_ENV"
+
+      - name: Run frozen companion manifest license gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          from scripts.check_license_compliance import scan_module_manifests
+
+          packages = Path(os.environ["SPECFACT_MODULES_REPO"]) / "packages"
+          if not any(packages.glob("*/module-package.yaml")):
+              raise SystemExit("Frozen companion manifests are missing")
+          raise SystemExit(scan_module_manifests(packages_dir=packages))
+          PY
 
       - name: Run license compliance gate
         run: |
@@ -1402,7 +1446,7 @@ jobs:
             --deselect=tests/unit/scripts/test_dependency_trust_review.py
             --deselect=tests/unit/scripts/test_reproducible_delivery.py
             --deselect=tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export
-            --deselect=tests/unit/security/test_release_promotion_security_gates.py::test_frozen_graph_uses_official_semgrep_with_bounded_mcp_exception
+            --deselect=tests/unit/security/test_release_promotion_security_gates.py::test_frozen_python_graph_excludes_expired_scanner_dependencies
             --deselect=tests/unit/security/test_frozen_dependency_artifacts.py::test_frozen_certifi_bundle_excludes_compromised_root
             --deselect=tests/unit/security/test_frozen_dependency_artifacts.py::test_artifact_download_rejects_wrong_sha256
             --deselect=tests/unit/security/test_frozen_jwt_compatibility.py::test_inspection_preserves_options_and_expiry_on_reuse

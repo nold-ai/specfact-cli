@@ -23,3 +23,13 @@ runs:
           venv_bin="${GITHUB_WORKSPACE}/.venv/bin"
         fi
         echo "$venv_bin" >> "$GITHUB_PATH"
+    - name: Provision frozen native Semgrep
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          project_python="${GITHUB_WORKSPACE}/.venv/Scripts/python.exe"
+        else
+          project_python="${GITHUB_WORKSPACE}/.venv/bin/python"
+        fi
+        "$project_python" .github/actions/setup-frozen-python/provision_semgrep.py "$RUNNER_TEMP/specfact-native-semgrep" >> "$GITHUB_PATH"

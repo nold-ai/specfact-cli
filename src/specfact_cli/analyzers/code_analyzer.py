@@ -8,12 +8,14 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, cast
 
+import certifi
 import networkx as nx
 from beartype import beartype
 from icontract import ensure, require
@@ -42,6 +44,9 @@ def _ensure_semgrep_runtime_dir(repo_path: Path, relative: str) -> str:
 def _build_semgrep_env(repo_path: Path) -> dict[str, str]:
     """Build a repo-local Semgrep runtime env so CLI startup stays deterministic."""
     env = dict(os.environ)
+    env.setdefault("SSL_CERT_FILE", certifi.where())
+    if sys.platform == "linux":
+        env.setdefault("LD_LIBRARY_PATH", "$ORIGIN/libs")
     env["XDG_CONFIG_HOME"] = _ensure_semgrep_runtime_dir(repo_path, ".specfact/config")
     env["XDG_CACHE_HOME"] = _ensure_semgrep_runtime_dir(repo_path, ".specfact/cache")
     env["SEMGREP_VERSION_CACHE_PATH"] = _ensure_semgrep_runtime_dir(repo_path, ".specfact/cache/semgrep")
@@ -467,12 +472,12 @@ class CodeAnalyzer:
             return False
 
         # Fast check: use shutil.which first to avoid subprocess overhead
-        if shutil.which("semgrep") is None:
+        if shutil.which("osemgrep") is None:
             return False
 
         try:
             result = subprocess.run(
-                ["semgrep", "--version"],
+                ["osemgrep", "scan", "--experimental", "--metrics=off", "--disable-version-check", "--version"],
                 capture_output=True,
                 text=True,
                 timeout=5,  # Increased timeout to 5s (Semgrep may need time to initialize)
@@ -510,7 +515,7 @@ class CodeAnalyzer:
         semgrep_used = semgrep_enabled and self.semgrep_config is not None
 
         if not semgrep_available:
-            reason = "Semgrep CLI not installed (install: pip install semgrep)"
+            reason = "Native Semgrep executable osemgrep is not installed"
         elif self.semgrep_config is None:
             reason = "Semgrep config not found"
         else:
@@ -569,7 +574,7 @@ class CodeAnalyzer:
 
         try:
             # Check if semgrep is available quickly
-            if not shutil.which("semgrep"):
+            if not shutil.which("osemgrep"):
                 return []
 
             # Run feature detection
@@ -577,12 +582,22 @@ class CodeAnalyzer:
             # Also include code-quality config if available (for anti-patterns)
             if self.semgrep_quality_config is not None:
                 configs.append(str(self.semgrep_quality_config))
+            config_args = [arg for config in configs for arg in ("--config", config)]
 
             # Use shorter timeout in test environments (though we already skip in TEST_MODE)
             timeout = 10
 
             result = subprocess.run(
-                ["semgrep", "--config", *configs, "--json", str(file_path)],
+                [
+                    "osemgrep",
+                    "scan",
+                    "--experimental",
+                    "--metrics=off",
+                    "--disable-version-check",
+                    *config_args,
+                    "--json",
+                    str(file_path),
+                ],
                 capture_output=True,
                 text=True,
                 timeout=timeout,

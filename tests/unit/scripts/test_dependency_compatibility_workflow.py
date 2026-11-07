@@ -15,7 +15,7 @@ SECURITY_TESTS = "tests/unit/security/"
 FROZEN_RELEASE_SELECTORS = (
     SECURITY_TESTS + "test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export",
     SECURITY_TESTS
-    + "test_release_promotion_security_gates.py::test_frozen_graph_uses_official_semgrep_with_bounded_mcp_exception",
+    + "test_release_promotion_security_gates.py::test_frozen_python_graph_excludes_expired_scanner_dependencies",
     SECURITY_TESTS + "test_frozen_dependency_artifacts.py::test_frozen_certifi_bundle_excludes_compromised_root",
     SECURITY_TESTS + "test_frozen_dependency_artifacts.py::test_artifact_download_rejects_wrong_sha256",
     SECURITY_TESTS + "test_frozen_jwt_compatibility.py::test_inspection_preserves_options_and_expiry_on_reuse",

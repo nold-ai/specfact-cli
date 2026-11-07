@@ -5,11 +5,15 @@
 from __future__ import annotations
 
 import json
+import os
 import re
+import subprocess
+import sys
 import tomllib
 from pathlib import Path
 from typing import Any, cast
 
+import pytest
 import yaml
 
 
@@ -331,6 +335,8 @@ def test_semgrep_sast_hatch_script_uses_dedicated_checked_in_sast_config() -> No
     pyproject = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
     scripts = pyproject["tool"]["hatch"]["envs"]["default"]["scripts"]
     command = scripts["semgrep-sast"]
+    if isinstance(command, list):
+        command = "\n".join(command)
     assert isinstance(command, str)
     assert "--config auto" not in command.lower()
     assert "--config tools/semgrep/sast.yml" in command.lower()
@@ -586,6 +592,10 @@ def test_license_gate_runs_for_every_frozen_dependency_graph_change() -> None:
     assert "license_inputs:" in raw
     assert "uv.lock" in raw
     assert "requirements/ci/locked.txt" in raw
+    job = _load_jobs()["changes"]
+    step = next(step for step in job["steps"] if step.get("id") == "filter")
+    filters = yaml.safe_load(step["with"]["filters"])
+    assert "ci/module-fixture.lock.json" in filters["license_inputs"]
 
 
 def test_pr_orchestrator_uses_frozen_resolution_for_blocking_jobs() -> None:
@@ -1086,3 +1096,35 @@ def test_legacy_actionlint_runner_does_not_mask_docker_failures() -> None:
     assert "go install github.com/rhysd/actionlint/cmd/actionlint@" in raw, "Expected global install guidance"
     # Both execution paths (local binary and docker) must propagate exit codes
     assert raw.count("exit $?") >= 2, "Expected exit code propagation for both local and docker paths"
+
+
+@pytest.mark.parametrize(
+    ("dependency", "expected"),
+    [("certifi==2026.10.19", 0), ("unreviewed-native-preparation-package==1.0", 1), (None, 1)],
+)
+def test_companion_license_producer_checks_actual_manifests(
+    tmp_path: Path, dependency: str | None, expected: int
+) -> None:
+    job = _load_jobs()["license-check"]
+    step = next(
+        (step for step in job["steps"] if step.get("name") == "Run frozen companion manifest license gate"),
+        None,
+    )
+    assert step is not None, "CI must scan the selected companion manifests with the canonical license gate"
+    script = str(step["run"]).split("python - <<'PY'\n", 1)[1].rsplit("\nPY", 1)[0]
+    fixture = tmp_path / "companion"
+    packages = fixture / "packages"
+    packages.mkdir(parents=True)
+    if dependency is not None:
+        bundle = packages / "specfact-example"
+        bundle.mkdir()
+        (bundle / "module-package.yaml").write_text(
+            yaml.safe_dump({"name": "nold-ai/specfact-example", "pip_dependencies": [dependency]}),
+            encoding="utf-8",
+        )
+    environment = dict(os.environ)
+    environment["SPECFACT_MODULES_REPO"] = str(fixture)
+    result = subprocess.run(
+        [sys.executable, "-c", script], cwd=REPO_ROOT, env=environment, capture_output=True, text=True, check=False
+    )
+    assert result.returncode == expected, result.stdout + result.stderr

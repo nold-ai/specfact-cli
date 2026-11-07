@@ -13,6 +13,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -20,6 +21,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+import certifi
 from beartype import beartype
 from icontract import ensure, require
 from rich.console import Console
@@ -1011,17 +1013,29 @@ def _repro_checks_append_semgrep(
 
     if not semgrep_config.exists():
         return
-    semgrep_available, _ = check_tool_in_env(repo_path, "semgrep", env_info)
+    semgrep_available, _ = check_tool_in_env(repo_path, "osemgrep", env_info)
     if semgrep_available:
         semgrep_log_path = repo_path / ".specfact" / "logs" / "semgrep.log"
         semgrep_cache_path = repo_path / ".specfact" / "cache" / "semgrep_version"
         semgrep_log_path.parent.mkdir(parents=True, exist_ok=True)
         semgrep_cache_path.parent.mkdir(parents=True, exist_ok=True)
         semgrep_env = os.environ.copy()
+        semgrep_env.setdefault("SSL_CERT_FILE", certifi.where())
+        if sys.platform == "linux":
+            semgrep_env.setdefault("LD_LIBRARY_PATH", "$ORIGIN/libs")
         semgrep_env["SEMGREP_LOG_FILE"] = str(semgrep_log_path)
         semgrep_env["SEMGREP_VERSION_CACHE_PATH"] = str(semgrep_cache_path)
         semgrep_env["XDG_CACHE_HOME"] = str((repo_path / ".specfact" / "cache").resolve())
-        semgrep_command = ["semgrep", "--config", str(semgrep_config.relative_to(repo_path)), "."]
+        semgrep_command = [
+            "osemgrep",
+            "scan",
+            "--experimental",
+            "--metrics=off",
+            "--disable-version-check",
+            "--config",
+            str(semgrep_config.relative_to(repo_path)),
+            ".",
+        ]
         if checker.fix:
             semgrep_command.append("--autofix")
         semgrep_command = build_tool_command(env_info, semgrep_command)
@@ -1175,7 +1189,8 @@ def _repro_run_checks_loop(
 
         name, tool, command, _timeout, _skip_if_missing, _env = check_args
         if not command:
-            _, tool_message = check_tool_in_env(checker.repo_path, tool, env_info)
+            executable = "osemgrep" if tool == "semgrep" else tool
+            _, tool_message = check_tool_in_env(checker.repo_path, executable, env_info)
             checker.report.add_check(_repro_result_for_missing_tool(checker, name, tool, tool_message))
             continue
 

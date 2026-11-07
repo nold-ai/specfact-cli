@@ -7,7 +7,6 @@ import hashlib
 import importlib.util
 import json
 import subprocess
-import sys
 import tomllib
 from pathlib import Path
 from typing import Any
@@ -288,14 +287,12 @@ def _render_example_sbom(renderer: Path, tmp_path: Path) -> dict[str, Any]:
     )
     output = tmp_path / "locked.spdx.json"
 
-    completed = subprocess.run(
-        [sys.executable, str(renderer), "--inspect", str(inspect_report), "--output", str(output)],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-
-    assert completed.returncode == 0, completed.stderr
+    spec = importlib.util.spec_from_file_location("python_sbom_renderer_test", renderer)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    payload = module.render_sbom(json.loads(inspect_report.read_text(encoding="utf-8")))
+    output.write_text(json.dumps(payload), encoding="utf-8")
     return json.loads(output.read_text(encoding="utf-8"))
 
 
@@ -336,3 +333,123 @@ def test_smoke_lock_rejects_unreviewed_input_change(monkeypatch: pytest.MonkeyPa
     monkeypatch.setattr(module, "RUNTIME_SMOKE_REQUIREMENTS_INPUT", altered, raising=False)
     with pytest.raises(ValueError, match="input SHA-256 binding does not match"):
         module.verify_runtime_smoke_lock()
+
+
+@pytest.fixture
+def native_sbom_example() -> tuple[Any, dict[str, Any], dict[str, Any]]:
+    renderer = REPO_ROOT / "scripts/render_locked_sbom.py"
+    spec = importlib.util.spec_from_file_location("native_sbom_renderer_test", renderer)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    inventory = {
+        "name": "semgrep-native",
+        "version": "1.184.0",
+        "platform": "linux-x86_64",
+        "policy_sha256": "a" * 64,
+        "artifact_url": "https://files.pythonhosted.org/selected.whl",
+        "artifact_sha256": "b" * 64,
+        "files": [
+            {"path": "osemgrep", "sha256": "c" * 64, "sha1": "c" * 40, "size": 12},
+            {"path": "libs/libcurl.so.4", "sha256": "d" * 64, "sha1": "d" * 40, "size": 20},
+            {"path": "THIRD_PARTY_NOTICES.html", "sha256": "e" * 64, "sha1": "e" * 40, "size": 30},
+        ],
+    }
+    first = module.render_sbom({"installed": []})
+    module._append_native_inventory(first, inventory)
+    return module, inventory, first
+
+
+def test_native_sbom_preserves_sdk_package_claims(
+    native_sbom_example: tuple[Any, dict[str, Any], dict[str, Any]],
+) -> None:
+    _module, _inventory, first = native_sbom_example
+    assert [(p["name"], p["versionInfo"], p["filesAnalyzed"]) for p in first["packages"]] == [
+        ("semgrep-native", "1.184.0", True)
+    ]
+    assert "supplier attribution" in first["packages"][0]["comment"]
+    assert "linux-x86_64" in first["packages"][0]["comment"]
+    assert first["documentDescribes"] == ["SPDXRef-Package-semgrep-native"]
+    assert first["packages"][0]["downloadLocation"] == "NOASSERTION"
+    assert first["packages"][0]["supplier"] == "NOASSERTION"
+    assert first["packages"][0]["licenseDeclared"] == "NOASSERTION"
+    assert first["packages"][0]["licenseInfoFromFiles"] == ["NOASSERTION"]
+    assert (
+        first["packages"][0]["packageVerificationCode"]["packageVerificationCodeValue"]
+        == hashlib.sha1(("c" * 40 + "d" * 40 + "e" * 40).encode("ascii"), usedforsecurity=False).hexdigest()
+    )
+
+
+def test_native_sbom_retains_source_identity(native_sbom_example: tuple[Any, dict[str, Any], dict[str, Any]]) -> None:
+    _module, _inventory, first = native_sbom_example
+    assert (
+        "upstream Semgrep wheel https://files.pythonhosted.org/selected.whl SHA256 " + "b" * 64
+        in first["packages"][0]["sourceInfo"]
+    )
+
+
+def test_native_sbom_records_verified_files(native_sbom_example: tuple[Any, dict[str, Any], dict[str, Any]]) -> None:
+    _module, inventory, first = native_sbom_example
+    assert [(f["fileName"], f["checksums"]) for f in first["files"]] == [
+        (
+            "./native/" + f["path"],
+            [
+                {"algorithm": "SHA256", "checksumValue": f["sha256"]},
+                {"algorithm": "SHA1", "checksumValue": f["sha1"]},
+            ],
+        )
+        for f in inventory["files"]
+    ]
+    assert all(f["licenseConcluded"] == "NOASSERTION" for f in first["files"])
+    assert len(first["relationships"]) == 3
+
+
+def test_native_sbom_namespace_binds_final_bytes(
+    native_sbom_example: tuple[Any, dict[str, Any], dict[str, Any]],
+) -> None:
+    module, inventory, first = native_sbom_example
+    assert first["documentNamespace"] != module.render_sbom({"installed": []})["documentNamespace"]
+    inventory["files"][1]["sha256"] = "f" * 64
+    second = module.render_sbom({"installed": []})
+    module._append_native_inventory(second, inventory)
+    assert first["documentNamespace"] != second["documentNamespace"]
+
+
+@pytest.mark.parametrize(
+    "name,version", [("pcre2", "10.49"), ("libcurl-minimal", "7.76.1-40.el9_8.9"), ("curl", "8.23.0")]
+)
+def test_native_sbom_exposes_corrected_component_version(name: str, version: str) -> None:
+    spec = importlib.util.spec_from_file_location("component_sbom_test", REPO_ROOT / "scripts/render_locked_sbom.py")
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    inventory = {
+        "name": "semgrep-native",
+        "version": "1.184.0",
+        "platform": "test",
+        "policy_sha256": "a" * 64,
+        "artifact_url": "https://example.invalid/upstream.whl",
+        "artifact_sha256": "b" * 64,
+        "files": [{"path": "library", "sha256": "c" * 64, "sha1": "d" * 40, "size": 10}],
+        "components": [
+            {
+                "name": name,
+                "version": version,
+                "files": ["library"],
+                "source_info": "frozen correction source",
+                "notice_paths": [],
+            }
+        ],
+    }
+    document = module.render_sbom({"installed": []})
+    module._append_native_inventory(document, inventory)
+    component = next(item for item in document["packages"] if item["name"] == name)
+    assert component["versionInfo"] == version
+    assert component["licenseDeclared"] == "NOASSERTION"
+    assert component["licenseConcluded"] == "NOASSERTION"
+    assert component["sourceInfo"] == "frozen correction source"
+    assert {
+        "spdxElementId": component["SPDXID"],
+        "relationshipType": "CONTAINS",
+        "relatedSpdxElement": document["files"][0]["SPDXID"],
+    } in document["relationships"]

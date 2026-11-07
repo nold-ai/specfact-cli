@@ -2,5 +2,907 @@
   "minimum_versions": {
     "mcp": "1.28.1",
     "semgrep": "1.175.0"
+  },
+  "native_semgrep": {
+    "version": "1.184.0",
+    "platforms": {
+      "macos-arm64": {
+        "url": "https://files.pythonhosted.org/packages/59/f9/fb7fd6b74cf7bdf087b4c3ef7cfcc1627df99e46c2a6805baacb8245812a/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-macosx_11_0_arm64.whl",
+        "size": 51257278,
+        "sha256": "0ce3064175a44236dd9fd35603627e3f56139ac61e13ca967bae2b76b2cec9bf",
+        "members": [
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/semgrep-core",
+            "installed_path": "osemgrep",
+            "size": 219351808,
+            "sha256": "1a5cb45e24673f3f5a6276943efc917ffd427db53e0e0537d1c880d3b9d10bb3"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libs/libdwarf.2.dylib",
+            "installed_path": "libs/libdwarf.2.dylib",
+            "size": 487728,
+            "sha256": "343f2a479048e8d41cd5c3e52310a5c3a2de4f1133c74579c5c06c5939b3a355"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libs/libev.4.dylib",
+            "installed_path": "libs/libev.4.dylib",
+            "size": 76224,
+            "sha256": "862bcbbb7c273170fe4864990efbb074f429eca11794b701a2f1b9a8a5d960d7"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libs/libgmp.10.dylib",
+            "installed_path": "libs/libgmp.10.dylib",
+            "size": 452832,
+            "sha256": "bc6145edbeca608b4fecd4440dbbd7b27cacd55cbfd2b552b8bc333febe43b35"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libs/libpcre2-8.0.dylib",
+            "installed_path": "libs/libpcre2-8.0.dylib",
+            "size": 591424,
+            "sha256": "b473d326a1dc8863e527c5fbeb155b8ea1183d0eb92d9d68fbc45568cb14fc81"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libs/libtree-sitter.0.26.dylib",
+            "installed_path": "libs/libtree-sitter.0.26.dylib",
+            "size": 212456,
+            "sha256": "573cc70ecaed2dfe7504ae729561ff556b0b7a2e8163d40ffdf4a130029169ff"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libs/libtree-sitter.dylib",
+            "installed_path": "libs/libtree-sitter.dylib",
+            "size": 212456,
+            "sha256": "573cc70ecaed2dfe7504ae729561ff556b0b7a2e8163d40ffdf4a130029169ff"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libs/libzstd.1.dylib",
+            "installed_path": "libs/libzstd.1.dylib",
+            "size": 635328,
+            "sha256": "40cde10ac8415f73144109a6e4f80a403ca0a3259e5fd227158277bab146e6d8"
+          }
+        ],
+        "observed_macos_minimum": "15.0",
+        "pcre2_fix": {
+          "package": "pcre2",
+          "version": "10.49",
+          "publisher": "Homebrew/core",
+          "url": "https://ghcr.io/v2/homebrew/core/pcre2/blobs/sha256:0ec47d18c50f5770db2b3f07b5b85644284cc6ee8e07e23b11d2727e95932b77",
+          "size": 2465167,
+          "sha256": "0ec47d18c50f5770db2b3f07b5b85644284cc6ee8e07e23b11d2727e95932b77",
+          "source_url": "https://github.com/PCRE2Project/pcre2/releases/download/pcre2-10.49/pcre2-10.49.tar.bz2",
+          "source_sha256": "53c156e1ba416a20da8e65395daa132da0d80e76910424caca3fcdae7831d384",
+          "members": [
+            {
+              "archive_path": "pcre2/10.49/lib/libpcre2-8.0.dylib",
+              "installed_path": "libs/libpcre2-8.0.dylib",
+              "size": 573984,
+              "sha256": "56bc0ef73d8b270e074b163795abeb02b3809d83b68c50ee8d29b148d0b2e5d4"
+            },
+            {
+              "archive_path": "pcre2/10.49/LICENCE.md",
+              "installed_path": "LICENSE.pcre2",
+              "size": 4011,
+              "sha256": "197d8a73ffee0d6b09adba2f9c677b5f5aede24edf89258a68e48248d010d811"
+            }
+          ]
+        },
+        "components": [
+          {
+            "name": "semgrep-engine",
+            "files": [
+              "osemgrep"
+            ],
+            "source_info": "Unmodified engine from the exact upstream Semgrep 1.184.0 wheel; aggregate supplier notices do not establish the identity of every embedded component.",
+            "notice_paths": [
+              "LICENSE.semgrep",
+              "THIRD_PARTY_NOTICES.html"
+            ],
+            "version": "1.184.0"
+          },
+          {
+            "name": "libdwarf.2.dylib",
+            "files": [
+              "libs/libdwarf.2.dylib"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/59/f9/fb7fd6b74cf7bdf087b4c3ef7cfcc1627df99e46c2a6805baacb8245812a/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-macosx_11_0_arm64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libev.4.dylib",
+            "files": [
+              "libs/libev.4.dylib"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/59/f9/fb7fd6b74cf7bdf087b4c3ef7cfcc1627df99e46c2a6805baacb8245812a/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-macosx_11_0_arm64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libgmp.10.dylib",
+            "files": [
+              "libs/libgmp.10.dylib"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/59/f9/fb7fd6b74cf7bdf087b4c3ef7cfcc1627df99e46c2a6805baacb8245812a/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-macosx_11_0_arm64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "pcre2",
+            "files": [
+              "libs/libpcre2-8.0.dylib"
+            ],
+            "source_info": "Frozen corrected library from https://ghcr.io/v2/homebrew/core/pcre2/blobs/sha256:0ec47d18c50f5770db2b3f07b5b85644284cc6ee8e07e23b11d2727e95932b77 SHA256 0ec47d18c50f5770db2b3f07b5b85644284cc6ee8e07e23b11d2727e95932b77. Exact file identity verified; vendor package metadata does not clear host libraries or all advisories.",
+            "notice_paths": [
+              "LICENSE.pcre2"
+            ],
+            "version": "10.49"
+          },
+          {
+            "name": "libtree-sitter.0.26.dylib",
+            "files": [
+              "libs/libtree-sitter.0.26.dylib"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/59/f9/fb7fd6b74cf7bdf087b4c3ef7cfcc1627df99e46c2a6805baacb8245812a/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-macosx_11_0_arm64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libtree-sitter.dylib",
+            "files": [
+              "libs/libtree-sitter.dylib"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/59/f9/fb7fd6b74cf7bdf087b4c3ef7cfcc1627df99e46c2a6805baacb8245812a/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-macosx_11_0_arm64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libzstd.1.dylib",
+            "files": [
+              "libs/libzstd.1.dylib"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/59/f9/fb7fd6b74cf7bdf087b4c3ef7cfcc1627df99e46c2a6805baacb8245812a/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-macosx_11_0_arm64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          }
+        ]
+      },
+      "linux-x86_64": {
+        "url": "https://files.pythonhosted.org/packages/3f/32/d5f5f37bbfa8fee1527c749a7bfc5a1ab57f4316f98e91783721b340a35d/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_x86_64.whl",
+        "size": 72254465,
+        "sha256": "d847abb8fb6fdde77d9e30a6bc869dbfcb68eff4142dcd77897c52635a7600d9",
+        "members": [
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/semgrep-core",
+            "installed_path": "osemgrep",
+            "size": 266895504,
+            "sha256": "440018d25dc528a902a1174f6d6b74676a5e9fa79e7d2cdd7404158a5c94aa55"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libs/libbz2.so.1",
+            "installed_path": "libs/libbz2.so.1",
+            "size": 79568,
+            "sha256": "bfbfcdf5306531d7b2a0167ce92a31d9aeac2c433376df9036e97e82852cbf70"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libs/libcom_err.so.2",
+            "installed_path": "libs/libcom_err.so.2",
+            "size": 26088,
+            "sha256": "380eaefae7b198294c6b0873476036e1834cb9abd3a56cea9648b36f06f53258"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libs/libcrypto.so.3",
+            "installed_path": "libs/libcrypto.so.3",
+            "size": 6338824,
+            "sha256": "07a130186693461dc4e485c08548f180d4199aebba53fdef4323f4585fdbfa62"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libs/libcurl.so.4",
+            "installed_path": "libs/libcurl.so.4",
+            "size": 529104,
+            "sha256": "363caca072e148c6de2a55a8ffd127765e76232fc852571c5d61da4a05d15bac"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libs/libdw.so.1",
+            "installed_path": "libs/libdw.so.1",
+            "size": 706680,
+            "sha256": "0235527783235a19574bd039da593b70db4c04ae5abf29b2b810b8c64444f4d4"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libs/libelf.so.1",
+            "installed_path": "libs/libelf.so.1",
+            "size": 118720,
+            "sha256": "524b8218e0ea837fa429c623aa46b88144cb2b3e9e3da17806ddd5fb05e55a9b"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libs/libev.so.4",
+            "installed_path": "libs/libev.so.4",
+            "size": 77504,
+            "sha256": "45d8ade6463eb2cf75810e01f86df23745dea47398d202c3e2d16e1948ef85cd"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libs/libgcc_s.so.1",
+            "installed_path": "libs/libgcc_s.so.1",
+            "size": 122984,
+            "sha256": "54e2e322fa795060d8c5a1c4d56382a96bf123b8787a16b640eda9e948137788"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libs/libgmp.so.10",
+            "installed_path": "libs/libgmp.so.10",
+            "size": 704584,
+            "sha256": "a7154a5e29bc3ac9c1799996635cbb86fb75ba4f02cb08ce01457bc6c3957937"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libs/libgssapi_krb5.so.2",
+            "installed_path": "libs/libgssapi_krb5.so.2",
+            "size": 372368,
+            "sha256": "9274e5961d72284cd39377fc9f2007a33bda4ca890b1c2dc7d268efea6c96b29"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libs/libk5crypto.so.3",
+            "installed_path": "libs/libk5crypto.so.3",
+            "size": 107672,
+            "sha256": "74db02ce6b688fb3a9528ccfa0fdc6002735bd105db93d3ab6b11f48c7ab113e"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libs/libkeyutils.so.1",
+            "installed_path": "libs/libkeyutils.so.1",
+            "size": 26968,
+            "sha256": "338049f8e2686318fdeb35ed5eaa6f4609d3712bb6e25b4bd4af72ab3fcc9f89"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libs/libkrb5.so.3",
+            "installed_path": "libs/libkrb5.so.3",
+            "size": 934528,
+            "sha256": "9774b400ae75ac1fb5da3fe39c7f18621ab70596c31b1e6a76b93bdc58ecc048"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libs/libkrb5support.so.0",
+            "installed_path": "libs/libkrb5support.so.0",
+            "size": 74400,
+            "sha256": "97a35fb97535bbaafeaed4265326244a1ff2ec72d1429b5c642e9e29201075f8"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libs/liblzma.so.5",
+            "installed_path": "libs/liblzma.so.5",
+            "size": 184520,
+            "sha256": "4bce30342620957de1932459787ae44f6c774c933e3735a1eae7dc007af0dbf9"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libs/libm.so.6",
+            "installed_path": "libs/libm.so.6",
+            "size": 932688,
+            "sha256": "236c35ff145c93cbabf0c7bc6a58a84c487734f56499ad999285d7ea403545e7"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libs/libnghttp2.so.14",
+            "installed_path": "libs/libnghttp2.so.14",
+            "size": 179632,
+            "sha256": "97845cf43088276e2a902c0faa361abc7d67ae3c287a31a3d28c8f986ed478a8"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libs/libpcre2-8.so.0",
+            "installed_path": "libs/libpcre2-8.so.0",
+            "size": 642536,
+            "sha256": "52c60cabd23b6fcbb96666c101445938cbb372ff14a8338f635df81d97857ba1"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libs/libresolv.so.2",
+            "installed_path": "libs/libresolv.so.2",
+            "size": 77000,
+            "sha256": "b11bd873dba48894db8a9fa01d4038f614f8253f6866437ea1c0ba1e99342300"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libs/libselinux.so.1",
+            "installed_path": "libs/libselinux.so.1",
+            "size": 185704,
+            "sha256": "1da7979dddc35e8408577e9349c046b1d6f696b877528a2ca8f033d433fdfd8c"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libs/libssl.so.3",
+            "installed_path": "libs/libssl.so.3",
+            "size": 1071280,
+            "sha256": "553c2bdb423bb772f5c74c905aec5646d8f72af58af4d2a8e1d5901baa737170"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libs/libstdc++.so.6",
+            "installed_path": "libs/libstdc++.so.6",
+            "size": 2656680,
+            "sha256": "f500e57dde683cc1ca31c6b2fb6d8959bfdbbac77f36efc84501ee3fcac8427b"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libs/libtree-sitter.so.0.26",
+            "installed_path": "libs/libtree-sitter.so.0.26",
+            "size": 247472,
+            "sha256": "9eae85a7bb175a174048370c29e085a7d9b38c928b8ea56785761b9465198544"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libs/libunwind.so.8",
+            "installed_path": "libs/libunwind.so.8",
+            "size": 67912,
+            "sha256": "5c82cb252136b475bcb68f78ff61575538a36a43161b276df8a774f1899c4596"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libs/libz.so.1",
+            "installed_path": "libs/libz.so.1",
+            "size": 109472,
+            "sha256": "18fed02c1fd62a46482150b38fb2ca93cd36d17c7a660dd79c8012251a5d941c"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libs/libzstd.so.1",
+            "installed_path": "libs/libzstd.so.1",
+            "size": 764680,
+            "sha256": "75b4f41a07135b9ab5e94ee660f8efddd8037f7350e7c952a04c06d26f2a29dc"
+          }
+        ],
+        "curl_fix": {
+          "package": "libcurl-minimal",
+          "version": "7.76.1-40.el9_8.9",
+          "url": "https://repo.almalinux.org/almalinux/9/BaseOS/x86_64/os/Packages/libcurl-minimal-7.76.1-40.el9_8.9.x86_64.rpm",
+          "size": 231361,
+          "sha256": "d971ebea1a637cfaf7afac8416c2f0e4afc64f0d8b89314279e55b061f080921",
+          "payload_offset": 11369,
+          "cpio_size": 519336,
+          "cpio_sha256": "c0887b006e842e27e7c5473dce105cf686bdf8545077711a4286e54baef37674",
+          "members": [
+            {
+              "archive_path": "usr/lib64/libcurl.so.4.7.0",
+              "installed_path": "libs/libcurl.so.4",
+              "size": 517040,
+              "sha256": "6a0d187667a03530e0a67766fa28d62ebbfb5632b923b2a8af07be8071890cbe"
+            },
+            {
+              "archive_path": "usr/share/licenses/libcurl-minimal/COPYING",
+              "installed_path": "LICENSE.libcurl",
+              "size": 1088,
+              "sha256": "6fd1a1c008b5ef4c4741dd188c3f8af6944c14c25afa881eb064f98fb98358e7"
+            }
+          ],
+          "advisory_source": "https://errata.almalinux.org/9/ALSA-2026-92907.html",
+          "source_package": "https://vault.almalinux.org/9/BaseOS/Source/Packages/curl-7.76.1-40.el9_8.9.src.rpm",
+          "composition": "Unmodified official native engine and vendor-fixed library. Original wheel libcurl is replaced only in the private installation; archive remains unchanged."
+        },
+        "components": [
+          {
+            "name": "semgrep-engine",
+            "files": [
+              "osemgrep"
+            ],
+            "source_info": "Unmodified engine from the exact upstream Semgrep 1.184.0 wheel; aggregate supplier notices do not establish the identity of every embedded component.",
+            "notice_paths": [
+              "LICENSE.semgrep",
+              "THIRD_PARTY_NOTICES.html"
+            ],
+            "version": "1.184.0"
+          },
+          {
+            "name": "libbz2.so.1",
+            "files": [
+              "libs/libbz2.so.1"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/3f/32/d5f5f37bbfa8fee1527c749a7bfc5a1ab57f4316f98e91783721b340a35d/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_x86_64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libcom_err.so.2",
+            "files": [
+              "libs/libcom_err.so.2"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/3f/32/d5f5f37bbfa8fee1527c749a7bfc5a1ab57f4316f98e91783721b340a35d/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_x86_64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libcrypto.so.3",
+            "files": [
+              "libs/libcrypto.so.3"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/3f/32/d5f5f37bbfa8fee1527c749a7bfc5a1ab57f4316f98e91783721b340a35d/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_x86_64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libcurl-minimal",
+            "files": [
+              "libs/libcurl.so.4"
+            ],
+            "source_info": "Frozen corrected library from https://repo.almalinux.org/almalinux/9/BaseOS/x86_64/os/Packages/libcurl-minimal-7.76.1-40.el9_8.9.x86_64.rpm SHA256 d971ebea1a637cfaf7afac8416c2f0e4afc64f0d8b89314279e55b061f080921. Exact file identity verified; vendor package metadata does not clear host libraries or all advisories.",
+            "notice_paths": [
+              "LICENSE.libcurl"
+            ],
+            "version": "7.76.1-40.el9_8.9"
+          },
+          {
+            "name": "libdw.so.1",
+            "files": [
+              "libs/libdw.so.1"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/3f/32/d5f5f37bbfa8fee1527c749a7bfc5a1ab57f4316f98e91783721b340a35d/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_x86_64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libelf.so.1",
+            "files": [
+              "libs/libelf.so.1"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/3f/32/d5f5f37bbfa8fee1527c749a7bfc5a1ab57f4316f98e91783721b340a35d/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_x86_64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libev.so.4",
+            "files": [
+              "libs/libev.so.4"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/3f/32/d5f5f37bbfa8fee1527c749a7bfc5a1ab57f4316f98e91783721b340a35d/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_x86_64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libgcc_s.so.1",
+            "files": [
+              "libs/libgcc_s.so.1"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/3f/32/d5f5f37bbfa8fee1527c749a7bfc5a1ab57f4316f98e91783721b340a35d/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_x86_64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libgmp.so.10",
+            "files": [
+              "libs/libgmp.so.10"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/3f/32/d5f5f37bbfa8fee1527c749a7bfc5a1ab57f4316f98e91783721b340a35d/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_x86_64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libgssapi_krb5.so.2",
+            "files": [
+              "libs/libgssapi_krb5.so.2"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/3f/32/d5f5f37bbfa8fee1527c749a7bfc5a1ab57f4316f98e91783721b340a35d/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_x86_64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libk5crypto.so.3",
+            "files": [
+              "libs/libk5crypto.so.3"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/3f/32/d5f5f37bbfa8fee1527c749a7bfc5a1ab57f4316f98e91783721b340a35d/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_x86_64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libkeyutils.so.1",
+            "files": [
+              "libs/libkeyutils.so.1"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/3f/32/d5f5f37bbfa8fee1527c749a7bfc5a1ab57f4316f98e91783721b340a35d/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_x86_64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libkrb5.so.3",
+            "files": [
+              "libs/libkrb5.so.3"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/3f/32/d5f5f37bbfa8fee1527c749a7bfc5a1ab57f4316f98e91783721b340a35d/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_x86_64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libkrb5support.so.0",
+            "files": [
+              "libs/libkrb5support.so.0"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/3f/32/d5f5f37bbfa8fee1527c749a7bfc5a1ab57f4316f98e91783721b340a35d/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_x86_64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "liblzma.so.5",
+            "files": [
+              "libs/liblzma.so.5"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/3f/32/d5f5f37bbfa8fee1527c749a7bfc5a1ab57f4316f98e91783721b340a35d/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_x86_64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libm.so.6",
+            "files": [
+              "libs/libm.so.6"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/3f/32/d5f5f37bbfa8fee1527c749a7bfc5a1ab57f4316f98e91783721b340a35d/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_x86_64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libnghttp2.so.14",
+            "files": [
+              "libs/libnghttp2.so.14"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/3f/32/d5f5f37bbfa8fee1527c749a7bfc5a1ab57f4316f98e91783721b340a35d/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_x86_64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libpcre2-8.so.0",
+            "files": [
+              "libs/libpcre2-8.so.0"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/3f/32/d5f5f37bbfa8fee1527c749a7bfc5a1ab57f4316f98e91783721b340a35d/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_x86_64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libresolv.so.2",
+            "files": [
+              "libs/libresolv.so.2"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/3f/32/d5f5f37bbfa8fee1527c749a7bfc5a1ab57f4316f98e91783721b340a35d/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_x86_64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libselinux.so.1",
+            "files": [
+              "libs/libselinux.so.1"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/3f/32/d5f5f37bbfa8fee1527c749a7bfc5a1ab57f4316f98e91783721b340a35d/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_x86_64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libssl.so.3",
+            "files": [
+              "libs/libssl.so.3"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/3f/32/d5f5f37bbfa8fee1527c749a7bfc5a1ab57f4316f98e91783721b340a35d/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_x86_64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libstdc++.so.6",
+            "files": [
+              "libs/libstdc++.so.6"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/3f/32/d5f5f37bbfa8fee1527c749a7bfc5a1ab57f4316f98e91783721b340a35d/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_x86_64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libtree-sitter.so.0.26",
+            "files": [
+              "libs/libtree-sitter.so.0.26"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/3f/32/d5f5f37bbfa8fee1527c749a7bfc5a1ab57f4316f98e91783721b340a35d/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_x86_64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libunwind.so.8",
+            "files": [
+              "libs/libunwind.so.8"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/3f/32/d5f5f37bbfa8fee1527c749a7bfc5a1ab57f4316f98e91783721b340a35d/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_x86_64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libz.so.1",
+            "files": [
+              "libs/libz.so.1"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/3f/32/d5f5f37bbfa8fee1527c749a7bfc5a1ab57f4316f98e91783721b340a35d/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_x86_64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libzstd.so.1",
+            "files": [
+              "libs/libzstd.so.1"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/3f/32/d5f5f37bbfa8fee1527c749a7bfc5a1ab57f4316f98e91783721b340a35d/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_x86_64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          }
+        ]
+      },
+      "windows-x86_64": {
+        "url": "https://files.pythonhosted.org/packages/9b/9b/71a620f72bc6203286a4a6c031d53186863acf7d1af4f27c697ef176cbdf/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-win_amd64.whl",
+        "size": 59524393,
+        "sha256": "3c86b2961b4663d1338fb965de038c7869571661971b78e18e9346ab57e1e20a",
+        "members": [
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/iconv.dll",
+            "installed_path": "iconv.dll",
+            "size": 32787,
+            "sha256": "d46b3b3a367df4099794fa14f9cba27d84ddc9cf83efaa55678bee2d73943fef"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libcrypto-3.dll",
+            "installed_path": "libcrypto-3.dll",
+            "size": 5115411,
+            "sha256": "cd25a97c618df8331169a62b0383537e43422944b1ebc789fff48ca3ab583481"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libcurl-4.dll",
+            "installed_path": "libcurl-4.dll",
+            "size": 918035,
+            "sha256": "ce77400e47461678bf5aecbd0a7dbcacd3d91b48c9e8b9766dec3e552d359495"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libgcc_s_seh-1.dll",
+            "installed_path": "libgcc_s_seh-1.dll",
+            "size": 146944,
+            "sha256": "1bdc38d482c7cbfa803110032b0fad88e6ecd3b1679a957f703fdbc26c371d39"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libgmp-10.dll",
+            "installed_path": "libgmp-10.dll",
+            "size": 654867,
+            "sha256": "c188e570157c109181e6788c2837fcead79747a7b10209cd82ebf5365787f508"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libidn2-0.dll",
+            "installed_path": "libidn2-0.dll",
+            "size": 393747,
+            "sha256": "ed5cdfc8fc176b79016d28e16d9cac22dca193673d08fbd48d9793effe863e6c"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libintl-8.dll",
+            "installed_path": "libintl-8.dll",
+            "size": 187411,
+            "sha256": "e1aae1773d95347fa185b138b8793b076cbb4438193914e0ab8dbdfcc5e10232"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libnghttp2-14.dll",
+            "installed_path": "libnghttp2-14.dll",
+            "size": 184851,
+            "sha256": "1d813f209a3185c7ab9edc22c85559245029f46decdeac17662642bbf4455067"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libpcre2-8-0.dll",
+            "installed_path": "libpcre2-8-0.dll",
+            "size": 713747,
+            "sha256": "563cb7436d6eba69b18080557bacaa5f620789a3b7a528a6eb2f8fad485e3dea"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libssh2-1.dll",
+            "installed_path": "libssh2-1.dll",
+            "size": 246291,
+            "sha256": "240b1644c8ffbc4cd7e95847dfdc7271c3e781e68c423e20a572f8a9fd036c39"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libssl-3.dll",
+            "installed_path": "libssl-3.dll",
+            "size": 648211,
+            "sha256": "d9936dd4b3b69569dd3fd4338ebbaf47189d6beef7662a33c14f33de6066239f"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libstdc++-6.dll",
+            "installed_path": "libstdc++-6.dll",
+            "size": 2249216,
+            "sha256": "2907e11bf542040e53192cbf09e7b3bc4557f2ea779989c02afd0aaa170a8945"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libtree-sitter.dll",
+            "installed_path": "libtree-sitter.dll",
+            "size": 236544,
+            "sha256": "6ef73ccab21abd859da33e524e6d932a7033536cb0a1af6e7e817873071f63e2"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libwinpthread-1.dll",
+            "installed_path": "libwinpthread-1.dll",
+            "size": 57875,
+            "sha256": "fe0259c7c8bf875cce79dc63f7af2c350138e77e60c51cb44d35aaee4d45e3ee"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/libzstd-1.dll",
+            "installed_path": "libzstd-1.dll",
+            "size": 710675,
+            "sha256": "bbf5c934a2a80cf28b944e2e493aef3b4886fa6f9b4b026f42531f3f53c62907"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/semgrep-core.exe",
+            "installed_path": "osemgrep.exe",
+            "size": 256911769,
+            "sha256": "d630d1f1f3178f17680cd438704d2d6dd8669248225c1a904aed1cd746970da2"
+          },
+          {
+            "archive_path": "semgrep-1.184.0.data/purelib/semgrep/bin/zlib1.dll",
+            "installed_path": "zlib1.dll",
+            "size": 117779,
+            "sha256": "1b998ab51f16a8e3549c00c69d9ebad34d5dcf41d198e1d665df0ac2c8d737fd"
+          }
+        ],
+        "curl_fix": {
+          "kind": "source-build",
+          "package": "curl",
+          "version": "8.23.0",
+          "url": "https://curl.se/download/curl-8.23.0.tar.xz",
+          "size": 2990916,
+          "sha256": "8dadd7d2536a314f982ad05a651b713f426bf7d02cc2c76cffb9796f2218e6c5",
+          "recipe": {
+            "source": ".github/actions/setup-frozen-python/windows_curl.py",
+            "size": 6943,
+            "sha256": "16652eaed801fc2ee7f242ac53fbf9b815c44f76838e747beb714d2f46b58b2a"
+          },
+          "tools": {
+            "zig": {
+              "url": "https://ziglang.org/download/0.11.0/zig-windows-x86_64-0.11.0.zip",
+              "size": 77216743,
+              "sha256": "142caa3b804d86b4752556c9b6b039b7517a08afa3af842645c7e2dcd125f652",
+              "package": "zig",
+              "version": "0.11.0"
+            },
+            "cmake": {
+              "url": "https://files.pythonhosted.org/packages/87/9c/a7918eeeed09b34aa5dc1b767367fb1a2dcbb56171be00be0fd1280fe752/cmake-4.4.4-py3-none-win_amd64.whl",
+              "size": 42321211,
+              "sha256": "ad8e0a38b5707e27882701146bdfffecacd80e7703fa0fc36c77528518d545af",
+              "package": "cmake",
+              "version": "4.4.4"
+            },
+            "ninja": {
+              "url": "https://github.com/ninja-build/ninja/releases/download/v1.13.2/ninja-win.zip",
+              "size": 291570,
+              "sha256": "07fc8261b42b20e71d1720b39068c2e14ffcee6396b76fb7a795fb460b78dc65",
+              "package": "ninja",
+              "version": "1.13.2"
+            }
+          },
+          "members": [
+            {
+              "build_path": "libcurl-4.dll",
+              "installed_path": "libcurl-4.dll",
+              "size": 638976,
+              "sha256": "bec7e6f9198d1cf7ca76482bcd2f32878191076d99325c12c92e8cbfa0fabe37"
+            }
+          ],
+          "remove": [
+            "libssh2-1.dll"
+          ]
+        },
+        "notices": [
+          {
+            "source": "tools/semgrep/LICENSE.curl-8.23.0",
+            "installed_path": "LICENSE.libcurl",
+            "size": 1088,
+            "sha256": "82f2f4427d6545ee5aaac4f0b80428da6cc8ba41c2cf5da3a03680ec327b9681"
+          },
+          {
+            "source": "tools/semgrep/NOTICE.windows-curl-8.23.0.txt",
+            "installed_path": "THIRD_PARTY_NOTICES.windows-curl.txt",
+            "size": 537624,
+            "sha256": "88b3b4efcc8a6c1329b5f08073f0a42d448c53a9ce59176c59c1e8f3d43b4e2b"
+          }
+        ],
+        "components": [
+          {
+            "name": "iconv.dll",
+            "files": [
+              "iconv.dll"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/9b/9b/71a620f72bc6203286a4a6c031d53186863acf7d1af4f27c697ef176cbdf/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-win_amd64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libcrypto-3.dll",
+            "files": [
+              "libcrypto-3.dll"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/9b/9b/71a620f72bc6203286a4a6c031d53186863acf7d1af4f27c697ef176cbdf/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-win_amd64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "curl",
+            "files": [
+              "libcurl-4.dll"
+            ],
+            "source_info": "Frozen corrected library from https://curl.se/download/curl-8.23.0.tar.xz SHA256 8dadd7d2536a314f982ad05a651b713f426bf7d02cc2c76cffb9796f2218e6c5. Exact file identity verified; vendor package metadata does not clear host libraries or all advisories.",
+            "notice_paths": [
+              "LICENSE.libcurl",
+              "THIRD_PARTY_NOTICES.windows-curl.txt"
+            ],
+            "version": "8.23.0"
+          },
+          {
+            "name": "libgcc_s_seh-1.dll",
+            "files": [
+              "libgcc_s_seh-1.dll"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/9b/9b/71a620f72bc6203286a4a6c031d53186863acf7d1af4f27c697ef176cbdf/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-win_amd64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libgmp-10.dll",
+            "files": [
+              "libgmp-10.dll"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/9b/9b/71a620f72bc6203286a4a6c031d53186863acf7d1af4f27c697ef176cbdf/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-win_amd64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libidn2-0.dll",
+            "files": [
+              "libidn2-0.dll"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/9b/9b/71a620f72bc6203286a4a6c031d53186863acf7d1af4f27c697ef176cbdf/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-win_amd64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libintl-8.dll",
+            "files": [
+              "libintl-8.dll"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/9b/9b/71a620f72bc6203286a4a6c031d53186863acf7d1af4f27c697ef176cbdf/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-win_amd64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libnghttp2-14.dll",
+            "files": [
+              "libnghttp2-14.dll"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/9b/9b/71a620f72bc6203286a4a6c031d53186863acf7d1af4f27c697ef176cbdf/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-win_amd64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libpcre2-8-0.dll",
+            "files": [
+              "libpcre2-8-0.dll"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/9b/9b/71a620f72bc6203286a4a6c031d53186863acf7d1af4f27c697ef176cbdf/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-win_amd64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libssl-3.dll",
+            "files": [
+              "libssl-3.dll"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/9b/9b/71a620f72bc6203286a4a6c031d53186863acf7d1af4f27c697ef176cbdf/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-win_amd64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libstdc++-6.dll",
+            "files": [
+              "libstdc++-6.dll"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/9b/9b/71a620f72bc6203286a4a6c031d53186863acf7d1af4f27c697ef176cbdf/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-win_amd64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libtree-sitter.dll",
+            "files": [
+              "libtree-sitter.dll"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/9b/9b/71a620f72bc6203286a4a6c031d53186863acf7d1af4f27c697ef176cbdf/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-win_amd64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libwinpthread-1.dll",
+            "files": [
+              "libwinpthread-1.dll"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/9b/9b/71a620f72bc6203286a4a6c031d53186863acf7d1af4f27c697ef176cbdf/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-win_amd64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "libzstd-1.dll",
+            "files": [
+              "libzstd-1.dll"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/9b/9b/71a620f72bc6203286a4a6c031d53186863acf7d1af4f27c697ef176cbdf/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-win_amd64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          },
+          {
+            "name": "semgrep-engine",
+            "files": [
+              "osemgrep.exe"
+            ],
+            "source_info": "Unmodified engine from the exact upstream Semgrep 1.184.0 wheel; aggregate supplier notices do not establish the identity of every embedded component.",
+            "notice_paths": [
+              "LICENSE.semgrep",
+              "THIRD_PARTY_NOTICES.html"
+            ],
+            "version": "1.184.0"
+          },
+          {
+            "name": "zlib1.dll",
+            "files": [
+              "zlib1.dll"
+            ],
+            "source_info": "Identity limited to shipped filename in upstream wheel https://files.pythonhosted.org/packages/9b/9b/71a620f72bc6203286a4a6c031d53186863acf7d1af4f27c697ef176cbdf/semgrep-1.184.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-win_amd64.whl. Component version and corresponding C-library notice coverage are unestablished; aggregate upstream credits are supplier attribution only.",
+            "notice_paths": []
+          }
+        ]
+      }
+    },
+    "notices": [
+      {
+        "source": "tools/semgrep/LICENSE.semgrep-1.184.0",
+        "installed_path": "LICENSE.semgrep",
+        "size": 26526,
+        "sha256": "20c17d8b8c48a600800dfd14f95d5cb9ff47066a9641ddeab48dc54aec96e331"
+      },
+      {
+        "source": "tools/semgrep/THIRD_PARTY_NOTICES.semgrep-1.184.0.html",
+        "installed_path": "THIRD_PARTY_NOTICES.html",
+        "size": 1120774,
+        "sha256": "5b5863ea53577ee3348b38b8dbd3f80ad760d623e99fc7e747a60cf0591c96be"
+      }
+    ],
+    "provenance_scope": "Exact upstream release artifact and member integrity; supplier publication/source declarations do not constitute per-library build attestation. Native audit and license assessment remain separate required gates."
   }
 }

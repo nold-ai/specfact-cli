@@ -22,7 +22,7 @@ if __name__ == "__main__":
             "certifi>=2026.10.19",
             "azure-identity>=1.17.1",
             "cryptography>=50.0.0",
-            "pycparser>=3.12,!=3.0.*",
+            "pycparser==3.11",
             "packaging>=24.0",
             "click>=8.3.3,<9",
             "typer>=0.24.0,<1",

@@ -168,6 +168,30 @@ For SpecFact CLI itself, CI pairs the self-review evidence with an independent s
 
 Use the self-review report for SpecFact-specific quality signals, and use Semgrep/Bandit as orthogonal evidence from external rulesets.
 
+## Native scanner prerequisite
+
+Semgrep checks use the upstream native `osemgrep` executable. The Python `semgrep`
+command does not satisfy this prerequisite. Repository CI provisions the exact SDK
+selected in `ci/security-tool-minimum-versions.json` through its frozen Python setup.
+
+For repository development, the same private provisioner accepts an absolute owned
+destination. Run it from the SpecFact CLI checkout, then expose the returned SDK on
+`PATH` before using the existing scan commands:
+
+```bash
+hatch run python .github/actions/setup-frozen-python/provision_semgrep.py "$PWD/.specfact/native-semgrep"
+export PATH="$PWD/.specfact/native-semgrep:$PATH"
+hatch run semgrep-sast
+```
+
+An existing SDK must match the selected bytes; the provisioner does not repair it.
+The selected macOS arm64 scanner requires macOS 15 despite its upstream wheel's
+macOS 11 filename. This scanner constraint does not change the core CLI's Python
+support. Native scans retain explicit `SSL_CERT_FILE` overrides; without one, the
+existing Hatch scanner commands use the selected certifi bundle. Missing native
+Semgrep remains optional in repro checks and is reported as skipped. Required
+CodeReview scans report a missing-tool error.
+
 ## Pre-Commit Review Gate
 
 This repository wires delivery checks into **Block 2** of the modular pre-commit pipeline
