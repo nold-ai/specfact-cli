@@ -239,9 +239,20 @@ def test_selected_ca_matches_certifi_and_notice() -> None:
     assert notice.read_bytes() == Path(str(distribution.locate_file(license_file))).read_bytes()
 
 
-@pytest.mark.parametrize("relative", [CA_REL, NOTICE_REL])
-def test_git_crlf_checkout_preserves_selected_bytes(tmp_path: Path, relative: Path) -> None:
-    source = ROOT / relative
+@pytest.mark.parametrize(
+    ("relative", "source_relative"),
+    [
+        (CA_REL, CA_REL),
+        (NOTICE_REL, NOTICE_REL),
+        (Path(".github/workflows/specfact.yml"), Path(".github/workflows/specfact.yml")),
+        (
+            Path("openspec/changes/native-semgrep-cli-remediation/requirements-proof/native-platform-operation.json"),
+            Path(".github/workflows/specfact.yml"),
+        ),
+    ],
+)
+def test_git_crlf_checkout_preserves_selected_bytes(tmp_path: Path, relative: Path, source_relative: Path) -> None:
+    source = ROOT / source_relative
     assert source.is_file(), "Reviewed data must exist before checkout verification"
     payload = source.read_bytes()
     environment = os.environ.copy()

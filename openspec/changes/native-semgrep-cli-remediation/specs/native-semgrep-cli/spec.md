@@ -58,6 +58,12 @@ Existing CI SHALL capture native JSON stdout into its existing result file. It S
 
 The migration SHALL NOT introduce a compatibility launcher, framework, index, fork, forced resolver or expired exception transfer. Existing resource, cleanup, clock, signature and authority bounds SHALL remain enforced.
 
+#### Scenario: Git checks out byte-authenticated validation metadata on Windows
+
+- **GIVEN** Git enables automatic CRLF conversion and the validation workflow hashes its checked-out workflow bytes
+- **WHEN** Git checks out the exact workflow and operation-descriptor paths
+- **THEN** both paths retain their committed bytes through finite literal attributes, without normalizing the checksum input, changing caller Git configuration or weakening the signature and authority guards.
+
 #### Scenario: A preparation gate is incomplete
 
 - **GIVEN** licensing, platform execution or any required delivery proof is missing
