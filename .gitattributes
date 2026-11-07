@@ -8,3 +8,5 @@
 /ci/security-tool-minimum-versions.json -text
 /.github/workflows/specfact.yml -text
 /openspec/changes/native-semgrep-cli-remediation/requirements-proof/native-platform-operation.json -text
+/requirements/code-review/requirements.in -text
+/requirements/runtime-smoke/requirements.in -text
