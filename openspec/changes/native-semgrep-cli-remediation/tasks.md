@@ -70,3 +70,11 @@
 - [x] Capture genuine failing-before conversion with the two existing certifi controls.
 - [x] Correct only finite literal attributes and verify byte preservation without weakening the checksum guard.
 - [ ] Complete normal source commits and independent review before any fresh exact CI operation decision.
+
+## Bare Windows trust bootstrap
+
+- [x] Preserve failed consumed run42416290645 and confirm its actual metadata-byte guard passed.
+- [x] Specify empty-register bootstrap without site/timezone data while preserving nonempty/malformed rejection and all frozen-graph checks.
+- [x] Capture genuine isolated failing-before evidence with two fail-closed controls.
+- [ ] Apply the smallest empty-register correction and verify isolated Python3.11/3.12/3.13 plus retained expiry and graph cases.
+- [ ] Complete normal commits and independent exact review before any necessary fresh CI decision.

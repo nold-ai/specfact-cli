@@ -218,6 +218,12 @@ The existing frozen action SHALL select one declared native artifact from the ex
 
 The frozen Python graph SHALL omit Python Semgrep, MCP and specfact-semgrep, select official OpenTelemetry1.45.1 and parser3.11, and retain exact official exports and other reviewed pins. Public parser declarations SHALL match3.11. Active exception registers SHALL be empty. Historical MCP/OTel/3.12 records SHALL NOT confer current eligibility. Parser3.11 SHALL pass fresh supply-chain and compatibility gates.
 
+#### Scenario: Empty trust registers bootstrap without timezone data
+
+- **GIVEN** a bare interpreter without site packages or IANA timezone data and a valid empty exception register
+- **WHEN** the pre-synchronization dependency-trust check validates the frozen graphs
+- **THEN** the empty register requires no date calculation, while every graph and pin check still executes; malformed registers remain rejected and any nonempty register still requires its unchanged Berlin-date validation without a timezone fallback or approval renewal.
+
 #### Scenario: Current release tests cover the actual candidate
 
 - **GIVEN** the exact five-file source-preparation approval call_e159e584bfc44c0292d9a980c14efc4e

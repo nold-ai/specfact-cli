@@ -63,6 +63,45 @@ def test_checker_runs_before_site_packages_are_available() -> None:
     assert "Dependency trust register is valid" in result.stdout
 
 
+@pytest.mark.parametrize(
+    ("payload", "expected_status", "expected_output"),
+    [
+        pytest.param({"exceptions": []}, 0, "Dependency trust register is valid", id="empty"),
+        pytest.param(
+            _synthetic_historical_pycparser_register(), 1, "ZoneInfoNotFoundError", id="nonempty-fails-closed"
+        ),
+        pytest.param({"exceptions": {}}, 1, "must contain an exceptions list", id="malformed-fails-closed"),
+    ],
+)
+def test_frozen_trust_bootstrap_without_timezone_data(
+    tmp_path: Path, payload: dict[str, object], expected_status: int, expected_output: str
+) -> None:
+    register = tmp_path / "exceptions.json"
+    register.write_text(json.dumps(payload), encoding="utf-8")
+    probe = """import importlib.util, runpy, sys, zoneinfo
+from pathlib import Path
+assert sys.flags.isolated and sys.flags.no_site
+assert importlib.util.find_spec("tzdata") is None
+zoneinfo.ZoneInfo.clear_cache()
+zoneinfo.reset_tzpath(())
+assert not zoneinfo.TZPATH
+checker = runpy.run_path(sys.argv[1])
+errors = checker["validate_frozen_dependency_policy"](register_path=Path(sys.argv[2]))
+print("\\n".join(errors) if errors else "Dependency trust register is valid")
+raise SystemExit(bool(errors))
+"""
+    result = subprocess.run(
+        [sys.executable, "-I", "-S", "-c", probe, str(CHECKER), str(register)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=20,
+    )
+    assert result.returncode == expected_status, result.stdout + result.stderr
+    assert expected_output in result.stdout + result.stderr
+
+
 def test_pycparser_frozen_artifact_has_no_transferred_review_record() -> None:
     assert TRUST_RECORD.is_file()
     payload = json.loads(TRUST_RECORD.read_text(encoding="utf-8"))
