@@ -22,6 +22,24 @@ Existing scanner owners SHALL discover `osemgrep` and invoke native scanning wit
 - **WHEN** native scanner availability is checked
 - **THEN** the native scanner remains unavailable and no Python fallback executes.
 
+#### Scenario: Native text is independent of the platform code page
+
+- **GIVEN** native stdout contains UTF-8 JSON and stderr contains UTF-8 diagnostics under a different platform code page
+- **WHEN** any existing native caller captures text, including managed availability and repro execution
+- **THEN** it decodes both streams explicitly as strict UTF-8, preserving findings and complete diagnostics without replacement or ignored bytes, while shared executors retain other tools' decoding behavior.
+
+#### Scenario: Availability and actual HTTPS trust are distinct
+
+- **GIVEN** an explicit SSL_CERT_FILE value is supplied to a native version query
+- **WHEN** the existing availability owner invokes the real child
+- **THEN** it preserves that exact value and reports the child's status without treating a version query as proof of TLS validation.
+
+#### Scenario: Native HTTPS uses the caller's trust
+
+- **GIVEN** an ephemeral loopback HTTPS rule endpoint with a private certificate authority
+- **WHEN** the native engine uses the existing environment owner with the valid private CA or a malformed or empty explicit CA value
+- **THEN** the valid CA permits rule retrieval and expected scanning, while malformed and empty values fail TLS without rule retrieval or findings; no alternate trust, disabling verification or fallback is permitted.
+
 ### Requirement: Remove the vulnerable Python dependency through reviewed delivery
 
 Native migration SHALL NOT claim dependency remediation until every selected input, including the reviewed official module manifest, omits pip Semgrep and normal resolution establishes the complete replacement graph. Per-platform artifacts, rule parity, licenses, signatures and required current-head checks SHALL pass before adoption.

@@ -1,6 +1,9 @@
+import json
 import os
 import subprocess
+import sys
 from pathlib import Path
+from typing import Any, cast
 from unittest.mock import patch
 
 import pytest
@@ -9,6 +12,74 @@ from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
 from specfact_cli.generators.test_to_openapi import OpenAPITestConverter
 from specfact_cli.utils.env_manager import EnvManager, EnvManagerInfo, check_tool_in_env
 from specfact_cli.validators.repro_checker import CheckStatus, ReproChecker, _repro_checks_append_semgrep
+
+
+@pytest.fixture
+def native_utf8_child(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
+    finding = {"check_id": "utf8-marker", "extra": {"message": "雪 ← café"}}
+    original_run = subprocess.run
+    monkeypatch.setattr(subprocess, "_text_encoding", lambda: "cp1252")
+
+    def emit(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        native = "osemgrep" in command
+        stdout = json.dumps({"results": [finding]}, ensure_ascii=False).encode() if native else b"tool \x80"
+        stderr = "native ← stderr".encode() if native else b"tool \x80"
+        program = f"import os;os.write(1,{stdout!r});os.write(2,{stderr!r})"
+        result = cast(
+            subprocess.CompletedProcess[str], original_run([sys.executable, "-I", "-S", "-c", program], **kwargs)
+        )
+        assert result.stderr == ("native ← stderr" if native else "tool €")
+        return result
+
+    monkeypatch.setattr(subprocess, "run", emit)
+    return finding
+
+
+@pytest.mark.parametrize("owner", ["availability", "analyzer", "converter"])
+def test_native_capture_preserves_utf8_json_and_diagnostics(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, native_utf8_child: dict[str, Any], owner: str
+) -> None:
+    monkeypatch.delenv("TEST_MODE", raising=False)
+    monkeypatch.setattr("shutil.which", lambda _tool: "/native/osemgrep")
+    config = tmp_path / "rules.yml"
+    config.write_text("rules: []\n", encoding="utf-8")
+    analyzer = object.__new__(CodeAnalyzer)
+    analyzer.repo_path = tmp_path
+    analyzer.semgrep_enabled = True
+    analyzer.semgrep_config = config
+    analyzer.semgrep_quality_config = None
+    match owner:
+        case "availability":
+            assert analyzer._check_semgrep_available()
+        case "analyzer":
+            assert analyzer._run_semgrep_patterns(config) == [native_utf8_child]
+        case _:
+            converter = OpenAPITestConverter(tmp_path, semgrep_config=config)
+            assert converter._run_semgrep(config) == [native_utf8_child]
+
+
+@pytest.mark.parametrize("tool", ["osemgrep", "ruff"])
+def test_managed_probe_decodes_native_utf8_and_retains_other_tool_locale(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, native_utf8_child: dict[str, Any], tool: str
+) -> None:
+    _ = native_utf8_child
+    monkeypatch.setattr("shutil.which", lambda _tool: None)
+    environment = EnvManagerInfo(manager=EnvManager.UV, available=True, command_prefix=["uv", "run"])
+    assert check_tool_in_env(tmp_path, tool, environment) == (True, None)
+
+
+@pytest.mark.parametrize("tool", ["semgrep", "ruff"])
+def test_repro_execution_decodes_native_utf8_and_retains_other_tool_locale(
+    tmp_path: Path, native_utf8_child: dict[str, Any], tool: str
+) -> None:
+    checker = ReproChecker(repo_path=tmp_path)
+    executable = "osemgrep" if tool == "semgrep" else tool
+    result = checker.run_check("Encoding probe", tool, [executable, "--version"], timeout=5, skip_if_missing=False)
+    assert result.status is CheckStatus.PASSED, result.error
+    if tool == "semgrep":
+        assert json.loads(result.output)["results"] == [native_utf8_child]
+    else:
+        assert result.output == "tool €"
 
 
 def test_managed_native_scanner_probe_avoids_python_fallback(tmp_path: Path) -> None:

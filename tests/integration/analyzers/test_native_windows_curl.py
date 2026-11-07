@@ -7,6 +7,7 @@ import json
 import os
 import shutil
 import ssl
+import subprocess
 import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -21,6 +22,8 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 
+from specfact_cli.analyzers.code_analyzer import _build_semgrep_env
+
 
 pytestmark = pytest.mark.skipif(os.name != "nt", reason="Actual Windows native curl execution is required")
 ROOT = Path(__file__).resolve().parents[3]
@@ -32,6 +35,7 @@ _CURLOPT_POSTFIELDSIZE = 60
 _CURLOPT_CAINFO = 10065
 _CURLOPT_TIMEOUT_MS = 155
 _CURLE_PEER_FAILED_VERIFICATION = 60
+_CURLE_SSL_CACERT_BADFILE = 77
 
 
 class _Version(ctypes.Structure):
@@ -233,7 +237,7 @@ def _tls_material(
             san: list[x509.GeneralName] = (
                 [x509.DNSName("wrong.invalid")]
                 if name == "hostname"
-                else [x509.IPAddress(ipaddress.IPv4Address("127.0.0.1"))]
+                else [x509.IPAddress(ipaddress.IPv4Address("127.0.0.1")), x509.DNSName("localhost")]
             )
             certificate = (
                 x509.CertificateBuilder()
@@ -320,14 +324,93 @@ def test_windows_curl_http_post_callback(curl: _Curl) -> None:
         assert curl.post(url, b"native curl POST") == (0, b"native curl POST")
 
 
-@pytest.mark.parametrize("case", ["valid", "unrelated-ca", "hostname", "revoked", "expired"])
+@pytest.mark.parametrize(
+    "case", ["valid", "unrelated-ca", "hostname", "revoked", "expired", "malformed-ca", "empty-ca"]
+)
 def test_windows_curl_explicit_ca_and_tls_rejections(curl: _Curl, tmp_path: Path, case: str) -> None:
     with _tls_material(tmp_path) as (ca, unrelated, contexts, handler):
-        context = contexts["valid" if case == "unrelated-ca" else case]
+        context = contexts[case if case in {"hostname", "revoked", "expired"} else "valid"]
+        selected = unrelated if case == "unrelated-ca" else ca
+        if case in {"malformed-ca", "empty-ca"}:
+            selected = tmp_path / "invalid-ca.pem"
+            selected.write_bytes(b"invalid certificate" if case == "malformed-ca" else b"")
         with _server(handler, context) as url:
-            code, body = curl.post(url, b"verified TLS POST", unrelated if case == "unrelated-ca" else ca)
+            code, body = curl.post(url, b"verified TLS POST", selected)
     if case == "valid":
         assert (code, body) == (0, b"verified TLS POST")
+    elif case in {"malformed-ca", "empty-ca"}:
+        assert code in {_CURLE_PEER_FAILED_VERIFICATION, _CURLE_SSL_CACERT_BADFILE}
+        assert body == b""
     else:
         assert code == _CURLE_PEER_FAILED_VERIFICATION
         assert body == b""
+
+
+@pytest.fixture
+def native_https_rules(tmp_path: Path) -> Iterator[tuple[str, Path, list[str]]]:
+    requested: list[str] = []
+    with _tls_material(tmp_path) as (ca, _unrelated, contexts, _base):
+
+        class _RemoteRules(BaseHTTPRequestHandler):
+            def do_GET(self) -> None:
+                requested.append(self.path)
+                payload = (
+                    b"rules:\n  - id: loopback-marker\n    languages: [python]\n"
+                    b"    pattern: print(...)\n    message: marker\n    severity: INFO\n"
+                )
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
+
+        with _server(_RemoteRules, contexts["valid"]) as url:
+            yield url.replace("127.0.0.1", "localhost"), ca, requested
+
+
+@pytest.mark.parametrize("case", ["valid", "malformed", "empty"])
+def test_windows_native_https_config_uses_explicit_ca(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, native_https_rules: tuple[str, Path, list[str]], case: str
+) -> None:
+    url, ca, requested = native_https_rules
+    source = tmp_path / "example.py"
+    source.write_text("print('marker')\n", encoding="utf-8")
+    invalid = tmp_path / "invalid-ca.pem"
+    invalid.write_text("not a certificate", encoding="utf-8")
+    value = {"valid": str(ca), "malformed": str(invalid), "empty": ""}[case]
+    monkeypatch.setenv("SSL_CERT_FILE", value)
+    environment = _build_semgrep_env(tmp_path)
+    for name in [
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "ALL_PROXY",
+        "NO_PROXY",
+        "http_proxy",
+        "https_proxy",
+        "all_proxy",
+        "no_proxy",
+    ]:
+        environment.pop(name, None)
+    command = [
+        "osemgrep",
+        "scan",
+        "--experimental",
+        "--metrics=off",
+        "--disable-version-check",
+        "--config",
+        f"{url}/{case}.yml",
+        "--json",
+        str(source),
+    ]
+    result = subprocess.run(command, env=environment, capture_output=True, encoding="utf-8", timeout=10, check=False)
+    if case == "valid":
+        assert result.returncode == 0, result.stderr
+        assert requested == ["/valid.yml"]
+        findings = json.loads(result.stdout)["results"]
+        assert len(findings) == 1 and findings[0]["check_id"].endswith("loopback-marker")
+        assert findings[0]["start"]["line"] == 1
+    else:
+        assert result.returncode != 0
+        assert requested == []
+        assert any(term in (result.stdout + result.stderr).lower() for term in ("certificate", "ssl", "tls", "trust"))
+        if result.stdout.strip():
+            assert json.loads(result.stdout).get("results", []) == []

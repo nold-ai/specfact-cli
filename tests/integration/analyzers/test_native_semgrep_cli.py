@@ -4,6 +4,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any, cast
 
 import certifi
 import pytest
@@ -44,13 +45,28 @@ def test_native_executable_is_available_without_python_cli(native_analyzer: Code
     assert native_analyzer._check_semgrep_available()
 
 
+@pytest.mark.parametrize("override", ["malformed", "empty"])
 def test_native_scanner_preserves_explicit_ca_override(
-    native_analyzer: CodeAnalyzer, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    native_analyzer: CodeAnalyzer, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, override: str
 ) -> None:
     certificate = tmp_path / "invalid-ca.pem"
     certificate.write_text("not a certificate", encoding="utf-8")
-    monkeypatch.setenv("SSL_CERT_FILE", str(certificate))
-    assert not native_analyzer._check_semgrep_available()
+    value = str(certificate) if override == "malformed" else ""
+    monkeypatch.setenv("SSL_CERT_FILE", value)
+    original_run = subprocess.run
+    statuses: list[int] = []
+
+    def observe(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        assert kwargs["env"]["SSL_CERT_FILE"] == value
+        result = cast(subprocess.CompletedProcess[str], original_run(command, **kwargs))
+        statuses.append(result.returncode)
+        return result
+
+    monkeypatch.setattr(subprocess, "run", observe)
+    available = native_analyzer._check_semgrep_available()
+    assert len(statuses) == 1
+    assert available is (statuses[0] == 0)
+    assert os.environ["SSL_CERT_FILE"] == value
 
 
 @pytest.fixture
