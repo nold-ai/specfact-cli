@@ -64,6 +64,12 @@ The migration SHALL NOT introduce a compatibility launcher, framework, index, fo
 - **WHEN** Git checks out the exact workflow and operation-descriptor paths
 - **THEN** both paths retain their committed bytes through finite literal attributes, without normalizing the checksum input, changing caller Git configuration or weakening the signature and authority guards.
 
+#### Scenario: Git checks out byte-authenticated isolated graph inputs
+
+- **GIVEN** Git enables automatic CRLF conversion and the existing trust and reproducibility gates authenticate the two isolated dependency inputs
+- **WHEN** Git checks out requirements/code-review/requirements.in and requirements/runtime-smoke/requirements.in
+- **THEN** both exact paths retain committed bytes and their existing lock bindings through finite literal attributes, without changing the requirement text, lock digests, Git configuration or checksum validation.
+
 #### Scenario: A preparation gate is incomplete
 
 - **GIVEN** licensing, platform execution or any required delivery proof is missing

@@ -78,3 +78,11 @@
 - [x] Capture genuine isolated failing-before evidence with two fail-closed controls.
 - [x] Apply the smallest empty-register correction and verify isolated Python3.11/3.12/3.13 plus retained expiry and graph cases.
 - [ ] Complete normal commits and independent exact review before any necessary fresh CI decision.
+
+## Isolated graph input checkout bytes
+
+- [x] Preserve failed consumed run42418270197 and distinguish passed byte guard from unexecuted native gates.
+- [x] Specify exact delivery of both byte-authenticated isolated requirements inputs and retain all previous Git-filter controls.
+- [x] Capture genuine failing-before evidence for both actual inputs and the full existing trust policy.
+- [ ] Apply only the evidence-supported finite byte-preservation correction and verify the unchanged lock bindings and policy.
+- [ ] Complete normal commits and independent exact review before any necessary fresh validation decision.

@@ -249,6 +249,8 @@ def test_selected_ca_matches_certifi_and_notice() -> None:
             Path("openspec/changes/native-semgrep-cli-remediation/requirements-proof/native-platform-operation.json"),
             Path(".github/workflows/specfact.yml"),
         ),
+        (Path("requirements/code-review/requirements.in"), Path("requirements/code-review/requirements.in")),
+        (Path("requirements/runtime-smoke/requirements.in"), Path("requirements/runtime-smoke/requirements.in")),
     ],
 )
 def test_git_crlf_checkout_preserves_selected_bytes(tmp_path: Path, relative: Path, source_relative: Path) -> None:
