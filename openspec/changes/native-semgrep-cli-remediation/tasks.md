@@ -101,5 +101,5 @@
 - [x] Preserve authentic failed run42461409733 and distinguish35passing cases from three unlocalized HTTPS timeouts.
 - [x] Specify lossless collected timeout diagnostics under the unchanged command, environment, trust assertions and10sbound.
 - [x] Capture two failing-before reporting cases, including absent-output/log control, before changing the HTTPS test.
-- [ ] Prepare the minimal diagnostic-only test change and verify reporting plus unchanged positive/negative behavior.
+- [x] Prepare the minimal diagnostic-only test change and verify reporting plus unchanged positive/negative behavior.
 - [ ] Obtain fresh independent exact review and a real separate grant before any new diagnostic CI operation; full Windows trust/wheel/current-head gates remain open.

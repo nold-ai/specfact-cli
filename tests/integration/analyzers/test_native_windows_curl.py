@@ -389,25 +389,38 @@ def test_windows_native_https_config_uses_explicit_ca(
     source.write_text("print('marker')\n", encoding="utf-8")
     invalid = tmp_path / "invalid-ca.pem"
     invalid.write_text("not a certificate", encoding="utf-8")
-    value = {"valid": str(ca), "malformed": str(invalid), "empty": ""}[case]
-    monkeypatch.setenv("SSL_CERT_FILE", value)
+    monkeypatch.setenv("SSL_CERT_FILE", {"valid": str(ca), "malformed": str(invalid), "empty": ""}[case])
     environment = {
         name: value
         for name, value in _build_semgrep_env(tmp_path).items()
         if name.upper() not in {"HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY"}
     }
-    command = [
-        "osemgrep",
-        "scan",
-        "--experimental",
-        "--metrics=off",
-        "--disable-version-check",
-        "--config",
-        f"{url}/{case}.yml",
-        "--json",
-        str(source),
-    ]
-    result = subprocess.run(command, env=environment, capture_output=True, encoding="utf-8", timeout=10, check=False)
+    try:
+        result = subprocess.run(
+            [
+                "osemgrep",
+                "scan",
+                "--experimental",
+                "--metrics=off",
+                "--disable-version-check",
+                "--config",
+                f"{url}/{case}.yml",
+                "--json",
+                str(source),
+            ],
+            env=environment,
+            capture_output=True,
+            encoding="utf-8",
+            timeout=10,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as error:
+        log_file = Path(environment["SEMGREP_LOG_FILE"])
+        pytest.fail(
+            f"native HTTPS {case} timed out after {error.timeout}s; "
+            f"stdout={error.stdout!r}; stderr={error.stderr!r}; requests={requested!r}; "
+            f"semgrep.log={log_file.read_bytes() if log_file.exists() else None!r}"
+        )
     assert (result.returncode == 0) is success, result.stderr
     assert requested == expected_requests
     findings = json.loads(result.stdout or "{}").get("results", [])
