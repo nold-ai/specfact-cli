@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "kind": "native-platform-preparation-proof",
+  "repository": "nold-ai/specfact-cli",
+  "source_commit": "68281c89f9823a717e1d76a18155b9f749ddbead",
+  "source_tree": "e286e50a43dcef9b10cb7b46f883170b3fced56b",
+  "workflow_id": 204352514,
+  "executor_ref": "refs/heads/codex/dev786-native-windows-vendor-log-proof-20261108",
+  "workflow_sha256": "d55f7b4d8c850b89dbd391024c21548bb14dd4b45b7af3f8e2fc55196d72de30",
+  "attempt": 1,
+  "platforms": [
+    "windows-2022"
+  ],
+  "maximum_parallel_jobs": 1,
+  "job_timeout_minutes": 10,
+  "permissions": {
+    "contents": "read"
+  },
+  "artifact_names": [
+    "pr786-native-platform-proof-windows-2022"
+  ],
+  "authorization_requirement": "New owner continuation authority is recorded externally and bound to this exact reviewed experiment before execution; this descriptor supplies no authority.",
+  "excluded": [
+    "PR advancement",
+    "signing",
+    "protected native origin/adoption",
+    "module adoption",
+    "dependency exception renewal",
+    "release",
+    "merge",
+    "old run/ref retry or overwrite"
+  ],
+  "expected_test_cases": 1,
+  "reader_thread_warnings_are_errors": true,
+  "diagnostic_only": true,
+  "complete_Windows_trust_gate_credit": false,
+  "requires_fresh_exact_grant": true,
+  "diagnostic_cases": [
+    "debug-https"
+  ],
+  "normal_invocation_credit": false,
+  "diagnostic_environment": {
+    "CONDUIT_DEBUG": "1",
+    "SEMGREP_LOG_SRCS": "^networking[.]http$,^ca-certs$,^handshake$,^tls[.]tracing$"
+  },
+  "backend_or_trust_selection": false
+}
