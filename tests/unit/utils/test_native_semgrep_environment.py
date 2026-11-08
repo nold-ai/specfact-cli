@@ -12,6 +12,39 @@ from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
 from specfact_cli.generators.test_to_openapi import OpenAPITestConverter
 from specfact_cli.utils.env_manager import EnvManager, EnvManagerInfo, check_tool_in_env
 from specfact_cli.validators.repro_checker import CheckStatus, ReproChecker, _repro_checks_append_semgrep
+from tests.integration.analyzers.test_native_windows_curl import (
+    test_windows_native_https_config_uses_explicit_ca as native_https_check,
+)
+
+
+@pytest.mark.parametrize("collected", [True, False], ids=["captured-bytes-and-log", "absent-output-and-log"])
+def test_native_https_timeout_retains_collected_diagnostics(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, collected: bool
+) -> None:
+    monkeypatch.setattr(os, "environ", {"PATH": os.defpath})
+    authority = tmp_path / "ca.pem"
+    authority.write_text("private test CA", encoding="utf-8")
+    if collected:
+        log = tmp_path / ".specfact/logs/semgrep.log"
+        log.parent.mkdir(parents=True)
+        log.write_bytes(b"native remote GET started\n")
+    stdout = b"partial stdout \x90" if collected else None
+    stderr = b"partial TLS stderr \xff" if collected else None
+    timeout = subprocess.TimeoutExpired(["osemgrep", "scan"], 10, output=stdout, stderr=stderr)
+    with patch("subprocess.run", side_effect=timeout), pytest.raises(pytest.fail.Exception) as failure:
+        native_https_check(
+            tmp_path,
+            monkeypatch,
+            ("https://localhost:443", authority, ["/valid.yml"]),
+            ("valid", True, ["/valid.yml"], [(True, 1)], ""),
+        )
+    message = str(failure.value)
+    assert "10s" in message
+    assert f"stdout={stdout!r}" in message
+    assert f"stderr={stderr!r}" in message
+    assert "requests=['/valid.yml']" in message
+    expected_log = b"native remote GET started\n" if collected else None
+    assert f"semgrep.log={expected_log!r}" in message
 
 
 @pytest.fixture

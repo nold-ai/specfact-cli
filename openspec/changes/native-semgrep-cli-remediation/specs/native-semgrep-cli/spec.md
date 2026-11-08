@@ -40,6 +40,12 @@ Existing scanner owners SHALL discover `osemgrep` and invoke native scanning wit
 - **WHEN** the native engine uses the existing environment owner with the valid private CA or a malformed or empty explicit CA value
 - **THEN** the valid CA permits rule retrieval and expected scanning, while malformed and empty values fail TLS without rule retrieval or findings; no alternate trust, disabling verification or fallback is permitted.
 
+#### Scenario: Bounded HTTPS timeouts preserve collected diagnostics
+
+- **GIVEN** the native HTTPS control exceeds its existing ten-second subprocess bound
+- **WHEN** the existing test reports that failure
+- **THEN** the failure retains the collected stdout and stderr bytes, observed rule requests and existing Semgrep log or its absence before temporary-file cleanup, without changing the command, trust expectations or deadline; a timeout remains failed and provides no TLS outcome or readiness credit.
+
 ### Requirement: Remove the vulnerable Python dependency through reviewed delivery
 
 Native migration SHALL NOT claim dependency remediation until every selected input, including the reviewed official module manifest, omits pip Semgrep and normal resolution establishes the complete replacement graph. Per-platform artifacts, rule parity, licenses, signatures and required current-head checks SHALL pass before adoption.
