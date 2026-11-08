@@ -103,3 +103,5 @@
 - [x] Capture two failing-before reporting cases, including absent-output/log control, before changing the HTTPS test.
 - [x] Prepare the minimal diagnostic-only test change and verify reporting plus unchanged positive/negative behavior.
 - [ ] Obtain fresh independent exact review and a real separate grant before any new diagnostic CI operation; full Windows trust/wheel/current-head gates remain open.
+
+- [ ] Observe the existing native HTTPS case with native debug output under the unchanged ten-second bound; authenticate the actual Windows result before selecting a runtime fix.

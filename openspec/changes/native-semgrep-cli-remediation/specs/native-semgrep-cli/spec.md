@@ -44,7 +44,19 @@ Existing scanner owners SHALL discover `osemgrep` and invoke native scanning wit
 
 - **GIVEN** the native HTTPS control exceeds its existing ten-second subprocess bound
 - **WHEN** the existing test reports that failure
-- **THEN** the failure retains the collected stdout and stderr bytes, observed rule requests and existing Semgrep log or its absence before temporary-file cleanup, without changing the command, trust expectations or deadline; a timeout remains failed and provides no TLS outcome or readiness credit.
+- **THEN** the failure retains the collected stdout and stderr bytes, observed rule requests and existing Semgrep log or its absence before temporary-file cleanup, without relaxing the command's scan behavior, trust expectations or deadline; a timeout remains failed and provides no TLS outcome or readiness credit.
+
+#### Scenario: Existing native debug output localizes an unresolved fetch timeout
+
+- **GIVEN** the preserved timeout output identifies rule loading but no completed GET or native log
+- **WHEN** a separately recorded bounded diagnostic repeats the existing native HTTPS case
+- **THEN** it enables the native engine's existing `--debug` option only in separate diagnostic cases while retaining the scan target, explicit CA, environment, strict UTF-8 decoding, ten-second deadline and finding assertions; all three normal HTTPS validation cases keep their exact original command. Debug can change top-level exception handling and therefore supplies no normal-invocation or complete trust-gate credit; a timeout remains failed.
+
+#### Scenario: Same-host plaintext control distinguishes native fetch from TLS
+
+- **GIVEN** an unresolved native HTTPS rule-fetch timeout
+- **WHEN** the existing loopback server owner supplies the same valid rules over plaintext HTTP using the same localhost name and native scan behavior
+- **THEN** the diagnostic records that native fetch and finding outcome under the same ten-second subprocess bound, without treating it as HTTPS trust evidence or replacing any malformed or empty-CA control; no resolver, proxy or trust fallback is introduced.
 
 ### Requirement: Remove the vulnerable Python dependency through reviewed delivery
 

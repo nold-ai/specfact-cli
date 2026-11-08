@@ -348,7 +348,7 @@ def test_windows_curl_explicit_ca_and_tls_rejections(curl: _Curl, tmp_path: Path
 
 
 @pytest.fixture
-def native_https_rules(tmp_path: Path) -> Iterator[tuple[str, Path, list[str]]]:
+def native_https_rules(tmp_path: Path, request: pytest.FixtureRequest) -> Iterator[tuple[str, Path, list[str]]]:
     requested: list[str] = []
     with _tls_material(tmp_path) as (ca, _unrelated, contexts, _base):
 
@@ -364,18 +364,21 @@ def native_https_rules(tmp_path: Path) -> Iterator[tuple[str, Path, list[str]]]:
                 self.end_headers()
                 self.wfile.write(payload)
 
-        with _server(_RemoteRules, contexts["valid"]) as url:
+        with _server(_RemoteRules, contexts["valid"] if request.param == "https" else None) as url:
             yield url.replace("127.0.0.1", "localhost"), ca, requested
 
 
 @pytest.mark.parametrize(
-    "expectation",
+    ("native_https_rules", "expectation"),
     [
-        ("valid", True, ["/valid.yml"], [(True, 1)], ""),
-        ("malformed", False, [], [], "certificate|ssl|tls|trust"),
-        ("empty", False, [], [], "certificate|ssl|tls|trust"),
+        ("https", ("valid", True, ["/valid.yml"], [(True, 1)], "")),
+        ("https", ("malformed", False, [], [], "certificate|ssl|tls|trust")),
+        ("https", ("empty", False, [], [], "certificate|ssl|tls|trust")),
+        ("https", ("debug-https", True, ["/debug-https.yml"], [(True, 1)], "")),
+        ("http", ("debug-http", True, ["/debug-http.yml"], [(True, 1)], "")),
     ],
-    ids=["valid", "malformed", "empty"],
+    ids=["valid", "malformed", "empty", "debug-https", "debug-http"],
+    indirect=["native_https_rules"],
 )
 def test_windows_native_https_config_uses_explicit_ca(
     tmp_path: Path,
@@ -389,7 +392,10 @@ def test_windows_native_https_config_uses_explicit_ca(
     source.write_text("print('marker')\n", encoding="utf-8")
     invalid = tmp_path / "invalid-ca.pem"
     invalid.write_text("not a certificate", encoding="utf-8")
-    monkeypatch.setenv("SSL_CERT_FILE", {"valid": str(ca), "malformed": str(invalid), "empty": ""}[case])
+    monkeypatch.setenv(
+        "SSL_CERT_FILE",
+        {"valid": str(ca), "malformed": str(invalid), "empty": "", "debug-https": str(ca), "debug-http": str(ca)}[case],
+    )
     environment = {
         name: value
         for name, value in _build_semgrep_env(tmp_path).items()
@@ -401,6 +407,9 @@ def test_windows_native_https_config_uses_explicit_ca(
                 "osemgrep",
                 "scan",
                 "--experimental",
+                *{"valid": [], "malformed": [], "empty": [], "debug-https": ["--debug"], "debug-http": ["--debug"]}[
+                    case
+                ],
                 "--metrics=off",
                 "--disable-version-check",
                 "--config",
@@ -417,7 +426,7 @@ def test_windows_native_https_config_uses_explicit_ca(
     except subprocess.TimeoutExpired as error:
         log_file = Path(environment["SEMGREP_LOG_FILE"])
         pytest.fail(
-            f"native HTTPS {case} timed out after {error.timeout}s; "
+            f"native config {url} {case} timed out after {error.timeout}s; "
             f"stdout={error.stdout!r}; stderr={error.stderr!r}; requests={requested!r}; "
             f"semgrep.log={log_file.read_bytes() if log_file.exists() else None!r}"
         )
