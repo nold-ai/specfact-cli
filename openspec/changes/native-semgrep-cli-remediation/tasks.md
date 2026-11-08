@@ -105,3 +105,5 @@
 - [ ] Obtain fresh independent exact review and a real separate grant before any new diagnostic CI operation; full Windows trust/wheel/current-head gates remain open.
 
 - [ ] Observe the existing native HTTPS case with native debug output under the unchanged ten-second bound; authenticate the actual Windows result before selecting a runtime fix.
+
+- [ ] Observe the remaining HTTPS boundary using only existing vendor stderr log controls; authenticate the actual result without selecting a backend or expanding trust.

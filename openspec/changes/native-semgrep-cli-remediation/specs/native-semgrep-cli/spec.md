@@ -58,6 +58,12 @@ Existing scanner owners SHALL discover `osemgrep` and invoke native scanning wit
 - **WHEN** the existing loopback server owner supplies the same valid rules over plaintext HTTP using the same localhost name and native scan behavior
 - **THEN** the diagnostic records that native fetch and finding outcome under the same ten-second subprocess bound, without treating it as HTTPS trust evidence or replacing any malformed or empty-CA control; no resolver, proxy or trust fallback is introduced.
 
+#### Scenario: Existing vendor log controls expose the unresolved HTTPS boundary
+
+- **GIVEN** the same-host native HTTP diagnostic passes while native HTTPS times out
+- **WHEN** the next isolated HTTPS diagnostic enables existing `CONDUIT_DEBUG` and exact comma-separated `SEMGREP_LOG_SRCS` regular expressions on its existing workflow step
+- **THEN** it records actual backend, resolution and TLS messages when emitted, checks that no inherited pytest-specific source filter overrides the requested logs, and preserves every trust, proxy, loader, native command and time/resource bound; these verbosity settings do not select a TLS backend or add trust, and absent or incomplete messages provide no inferred handshake or readiness result.
+
 ### Requirement: Remove the vulnerable Python dependency through reviewed delivery
 
 Native migration SHALL NOT claim dependency remediation until every selected input, including the reviewed official module manifest, omits pip Semgrep and normal resolution establishes the complete replacement graph. Per-platform artifacts, rule parity, licenses, signatures and required current-head checks SHALL pass before adoption.
