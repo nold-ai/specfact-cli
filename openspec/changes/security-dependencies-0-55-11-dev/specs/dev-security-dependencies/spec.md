@@ -128,3 +128,15 @@ at 5 November 2026 00:00 Europe/Berlin without an environment-variable override.
 - **GIVEN** a Git object identifier computed with explicit usedforsecurity=False
 - **WHEN** the existing SAST rule scans that SHA-1 call
 - **THEN** it accepts that explicit non-security use while still reporting default, security-enabled and dynamically selected SHA-1 uses and every existing MD5 finding.
+
+### Requirement: Exact follow-up CI provenance for Berlin expiry correction
+
+The delivery verifier SHALL authenticate a separately pinned create-only CI signer for the Berlin expiry correction while preserving the original CI-tail signer origin. Each origin SHALL bind its own exact executor files, auxiliary and destination refs, and normal-source root. Neither origin SHALL accept a mixture of these bindings. Existing service signatures, bot attribution, source deltas, retained fixture bytes, unique successful attempt-one workflow, authority and expiry checks remain required.
+
+#### Scenario: Follow-up correction retains exact CI origin
+- **WHEN** the executor, intent and source chain match the separately pinned Berlin correction origin
+- **THEN** the verifier accepts that origin without changing the original signer profile or accepting ordinary owner-authored signed commits.
+
+#### Scenario: Mixed or modified signer origin is rejected
+- **WHEN** an executor byte, ref, destination, root or completed-run binding belongs to another origin or is modified
+- **THEN** the verifier rejects the evidence without fallback or retry.
