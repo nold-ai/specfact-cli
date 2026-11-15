@@ -159,6 +159,17 @@ jobs:
           pins = ast.literal_eval(nodes[0].value)
           if type(pins) is not tuple or len(pins) != 3 or {entry[0] for entry in pins} != {'scripts/dev_security_ci_signer.py', '.github/workflows/specfact.yml', 'ci/recovery/dev-security-signer-runtime.txt'} or any(type(entry) is not tuple or len(entry) != 2 or not re.fullmatch('[0-9a-f]{64}', entry[1]) for entry in pins):
               raise ValueError('fixed786 signer pins')
+          clock_nodes = [node for node in owner.body if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name) and target.id == '_FIXED_PR786_CLOCK_SIGNER_FILES' for target in node.targets)]
+          origin_nodes = [node for node in owner.body if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name) and target.id == '_FIXED_PR786_CLOCK_ORIGIN' for target in node.targets)]
+          if len(clock_nodes) != 1 or len(origin_nodes) != 1:
+              raise ValueError('fixed786 clock pin contract')
+          clock_pins = ast.literal_eval(clock_nodes[0].value)
+          clock_origin = ast.literal_eval(origin_nodes[0].value)
+          if type(clock_pins) is not tuple or len(clock_pins) != 3 or {entry[0] for entry in clock_pins} != {entry[0] for entry in pins} or any(type(entry) is not tuple or len(entry) != 2 or not re.fullmatch('[0-9a-f]{64}', entry[1]) for entry in clock_pins):
+              raise ValueError('fixed786 clock signer pins')
+          if clock_origin != ('refs/heads/codex/dev786-berlin-clock-signer-20261115', 'refs/heads/codex/security-dev-berlin-clock-candidate-20261115', 'e753ac1a3e4bb3bf739bd7203c728a652db6cb90'):
+              raise ValueError('fixed786 clock origin')
+          expected_origin = ('refs/heads/codex/dev786-ci-tail-signer-20261104', 'refs/heads/codex/security-dev-ci-tail-candidate-20261104', 'b0184ae8c3de2c107d888dc23b0e7402a31d520e')
           match = re.search(r'\n\nSource-Commit: ([0-9a-f]{40})\nIntent: ([0-9a-f]{64})\nExecutor: ([0-9a-f]{40})\nRun: ([1-9][0-9]*)\nAttempt: 1\Z', final['message'])
           if match is None:
               raise ValueError('fixed786 signed suffix')
@@ -180,6 +191,9 @@ jobs:
                   raise ValueError('fixed786 service attribution')
           executor_record = get('/repos/nold-ai/specfact-cli/git/commits/' + executor)
           executor_tree = tree(executor_record['tree']['sha'])
+          if digest(file_at(executor_tree, 'scripts/dev_security_ci_signer.py')) == 'sha256:' + clock_pins[0][1]:
+              pins = clock_pins
+              expected_origin = clock_origin
           for name, expected in pins:
               if digest(file_at(executor_tree, name)) != 'sha256:' + expected:
                   raise ValueError('fixed786 executor bytes')
@@ -187,12 +201,18 @@ jobs:
           if digest(intent_raw) != 'sha256:' + intent_hash:
               raise ValueError('fixed786 intent')
           intent = json.loads(intent_raw, object_pairs_hook=pairs)
+          if (intent['repository_full_name'], intent['dev'], intent['auxiliary_ref'], intent['destination']) != ('nold-ai/specfact-cli', '9b5ad1e78430cc0b061cb16de42f73de96f4f312', expected_origin[0], expected_origin[1]):
+              raise ValueError('fixed786 signer origin')
           checkpoints = intent['checkpoints']
+          if not checkpoints or checkpoints[0]['source_parent'] != expected_origin[2]:
+              raise ValueError('fixed786 signer source root')
           if not 1 <= len(checkpoints) <= 32 or checkpoints[-1]['source_commit'] != source or checkpoints[-1]['source_tree'] != final['tree']['sha']:
               raise ValueError('fixed786 final checkpoint')
           run_id = int(run_text)
           run = get(f'/repos/nold-ai/specfact-cli/actions/runs/{run_id}')
           expected_run = {'id': run_id, 'run_attempt': 1, 'head_sha': executor, 'head_branch': 'codex/dev786-ci-tail-signer-20261104', 'event': 'workflow_dispatch', 'path': '.github/workflows/specfact.yml', 'workflow_id': 204352514, 'status': 'completed', 'conclusion': 'success'}
+          if intent.get('auxiliary_ref') == 'refs/heads/codex/dev786-berlin-clock-signer-20261115':
+              expected_run['head_branch'] = 'codex/dev786-berlin-clock-signer-20261115'
           if any(type(run.get(key)) is not type(value) or run.get(key) != value for key, value in expected_run.items()) or run['repository']['full_name'] != 'nold-ai/specfact-cli' or run['repository']['id'] != intent['repository_id']:
               raise ValueError('fixed786 completed signer')
           for role in ('actor', 'triggering_actor'):
