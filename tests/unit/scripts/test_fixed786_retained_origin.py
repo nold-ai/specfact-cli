@@ -35,9 +35,7 @@ def test_requirements_jobs_install_uv_before_trusted_graph_check(job: str) -> No
         and step.get("with", {}).get("enable-cache") is False
     ]
     graph_checks = [
-        index
-        for index, step in enumerate(steps)
-        if "check_reproducible_delivery.py" in step.get("run", "")
+        index for index, step in enumerate(steps) if "check_reproducible_delivery.py" in step.get("run", "")
     ]
     assert setup and graph_checks, f"{job} must install uv for its fixed route"
     assert min(setup) < min(graph_checks)
@@ -169,11 +167,15 @@ def test_inline_original_provenance_matches_owner() -> None:
 
 @pytest.mark.parametrize(
     ("profile", "source_root"),
-    [("retained-origin", "8fa13e4c69b40bcf6852eb95600d52316e723300"),
-     ("producer-uv", "df71b03511057f7e76e559d2e1736c54eaec8a91")],
+    [
+        ("retained-origin", "8fa13e4c69b40bcf6852eb95600d52316e723300"),
+        ("producer-uv", "df71b03511057f7e76e559d2e1736c54eaec8a91"),
+    ],
 )
 @pytest.mark.parametrize("destination_matches", [True, False])
-def test_retention_signer_keeps_its_exact_origin(evidence: Evidence, destination_matches: bool, profile: str, source_root: str) -> None:
+def test_retention_signer_keeps_its_exact_origin(
+    evidence: Evidence, destination_matches: bool, profile: str, source_root: str
+) -> None:
     owner = evidence[0]
     intent = {
         "repository_full_name": "nold-ai/specfact-cli",
@@ -194,8 +196,10 @@ def test_retention_signer_keeps_its_exact_origin(evidence: Evidence, destination
 
 @pytest.mark.parametrize(
     ("profile", "source_root"),
-    [("retained-origin", "8fa13e4c69b40bcf6852eb95600d52316e723300"),
-     ("producer-uv", "df71b03511057f7e76e559d2e1736c54eaec8a91")],
+    [
+        ("retained-origin", "8fa13e4c69b40bcf6852eb95600d52316e723300"),
+        ("producer-uv", "df71b03511057f7e76e559d2e1736c54eaec8a91"),
+    ],
 )
 @pytest.mark.parametrize("root_matches", [True, False])
 def test_retention_signed_chain_stops_at_its_root(
@@ -254,8 +258,10 @@ def test_historical_origin_requires_complete_empty_live_inventory(
 
 @pytest.mark.parametrize(
     ("profile", "source_root"),
-    [("retained-origin", "8fa13e4c69b40bcf6852eb95600d52316e723300"),
-     ("producer-uv", "df71b03511057f7e76e559d2e1736c54eaec8a91")],
+    [
+        ("retained-origin", "8fa13e4c69b40bcf6852eb95600d52316e723300"),
+        ("producer-uv", "df71b03511057f7e76e559d2e1736c54eaec8a91"),
+    ],
 )
 @pytest.mark.parametrize("case", ["valid", "wrong-branch", "attempt-two", "duplicate"])
 def test_inline_retention_run_requires_its_own_completed_origin(case: str, profile: str, source_root: str) -> None:
@@ -311,4 +317,3 @@ def test_inline_retention_run_requires_its_own_completed_origin(case: str, profi
     else:
         with pytest.raises(ValueError):
             exec(code, namespace)
-

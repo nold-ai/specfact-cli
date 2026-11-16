@@ -891,6 +891,16 @@ _FIXED_PR786_RETENTION_ORIGIN = (
     "refs/heads/codex/security-dev-retained-origin-candidate-20261116",
     "8fa13e4c69b40bcf6852eb95600d52316e723300",
 )
+_FIXED_PR786_PRODUCER_SIGNER_FILES = (
+    ("scripts/dev_security_ci_signer.py", "a20639343bd5bd7a37a191587c99b31d7b1981b8b4b06ac3e9eaf6cb26aa4302"),
+    (".github/workflows/specfact.yml", "9b328490b7af3338c423da894c90a5dc964a18bf70c554daf7866a2b29ba195f"),
+    ("ci/recovery/dev-security-signer-runtime.txt", "bc64c498cf74b3a959a1522c04614e199061dea2e35ab0110d58b9411db38712"),
+)
+_FIXED_PR786_PRODUCER_ORIGIN = (
+    "refs/heads/codex/dev786-producer-uv-signer-20261116",
+    "refs/heads/codex/security-dev-producer-uv-candidate-20261116",
+    "df71b03511057f7e76e559d2e1736c54eaec8a91",
+)
 _FIXED_PR786_AUTHORITY_SHA256 = "5441e26e7c3c8f18973c781e7d43c72076b3283c915d98ca5188bb174bf17c45"
 _FIXED_PR786_MANIFEST_SHA256 = "f08743305cbd774e1d097c9911383a113943071adc8c256528866adb4c1f098a"
 
@@ -1139,6 +1149,8 @@ def _fixed_pr786_executor_tree(helper: ModuleType, executor: str) -> tuple[dict[
         pins = _FIXED_PR786_CLOCK_SIGNER_FILES
     if hashlib.sha256(program).hexdigest() == _FIXED_PR786_RETENTION_SIGNER_FILES[0][1]:
         pins = _FIXED_PR786_RETENTION_SIGNER_FILES
+    if hashlib.sha256(program).hexdigest() == _FIXED_PR786_PRODUCER_SIGNER_FILES[0][1]:
+        pins = _FIXED_PR786_PRODUCER_SIGNER_FILES
     for path, expected in pins:
         raw = _fixed_pr786_blob(helper, executor_tree, path)
         if hashlib.sha256(raw).hexdigest() != expected:
@@ -1158,6 +1170,8 @@ def _fixed_pr786_origin(intent: dict[str, object]) -> tuple[str, str, str]:
         origin = _FIXED_PR786_CLOCK_ORIGIN
     if intent["auxiliary_ref"] == _FIXED_PR786_RETENTION_ORIGIN[0]:
         origin = _FIXED_PR786_RETENTION_ORIGIN
+    if intent["auxiliary_ref"] == _FIXED_PR786_PRODUCER_ORIGIN[0]:
+        origin = _FIXED_PR786_PRODUCER_ORIGIN
     if (intent["repository_full_name"], intent["dev"], intent["auxiliary_ref"], intent["destination"]) != (
         REPOSITORY,
         "9b5ad1e78430cc0b061cb16de42f73de96f4f312",
@@ -1191,6 +1205,8 @@ def _fixed_pr786_intent(
     pins = _FIXED_PR786_CLOCK_SIGNER_FILES if origin == _FIXED_PR786_CLOCK_ORIGIN else _FIXED_PR786_SIGNER_FILES
     if origin == _FIXED_PR786_RETENTION_ORIGIN:
         pins = _FIXED_PR786_RETENTION_SIGNER_FILES
+    if origin == _FIXED_PR786_PRODUCER_ORIGIN:
+        pins = _FIXED_PR786_PRODUCER_SIGNER_FILES
     program = _fixed_pr786_blob(helper, executor_tree, "scripts/dev_security_ci_signer.py")
     if hashlib.sha256(program).hexdigest() != pins[0][1]:
         raise ValueError
@@ -1313,6 +1329,7 @@ def _fixed_pr786_outputs(
         "b0184ae8c3de2c107d888dc23b0e7402a31d520e",
         _FIXED_PR786_CLOCK_ORIGIN[2],
         _FIXED_PR786_RETENTION_ORIGIN[2],
+        _FIXED_PR786_PRODUCER_ORIGIN[2],
     ):
         raise ValueError
     intent_digest, executor, run_id = signing

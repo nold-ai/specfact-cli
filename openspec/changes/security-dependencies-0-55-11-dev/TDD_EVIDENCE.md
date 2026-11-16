@@ -625,3 +625,35 @@ changed job/run/attempt/head/status/steps/clock/log/receipt/archive/member input
 must refuse. This does not renew an expired selection or create new native
 execution credit. The separately approved producer renewal failed before native
 materialization on its unchanged expired clock and remains consumed.
+# 16 November 2026 producer uv setup correction
+
+Actual public head df71b035 passed Trusted Requirements Authority and retained
+origin authentication. Requirements run43963897143/job133638331056 then failed
+with `reproducible delivery check failed: [Errno 2] No such file or directory: 'uv'`.
+The fixed route skips the ordinary setup composite, which normally installs uv.
+Both downstream jobs already install it separately. The producer now uses that
+same pinned setup action with caching disabled before the trusted graph check.
+Dependency inputs, isolated verifier, graph enforcement and permissions are unchanged.
+
+The setup regression first had one incorrect downstream job identifier. That
+failed attempt is retained. Correcting only the test identifier produced genuine
+RED1 with two passing downstream controls. Normal unsigned TEST13a0aa38 records
+that regression before the production edit. The finite new signing origin tests
+then produced RED4 with four rejection controls passing before implementation.
+They cover the exact new root/ref pair, wrong destination/root and actual inline
+valid/wrong-branch/second-attempt/duplicate histories. They were consolidated with
+the historical profile cases and recorded in normal unsigned TEST0eefdd39.
+
+After correction, all37 focused cases pass with no failures, errors or skips.
+The expanded six-file scope has193 unique cases. The first sandboxed run passed191
+and failed two temporary Git commit fixtures. Rerunning their three-case file with
+the required filesystem permission passed all3 without source/config changes.
+All193 unique cases therefore have passing evidence. The initial failures remain.
+PR-pinned BasedPyright1.39.9 covers both changed Python files with zero diagnostics;
+Ruff, actionlint and strict OpenSpec validation pass.
+The actual reproducibility command also passes locally with uv present. A fresh
+exact signer profile binds this source to a new operation rooted atdf71, preserving
+all historical profiles and consumed refs. This is preparation only. Normal hooks
+are NOT_RUN; current-head CI and actual output authentication remain mandatory.
+No new native execution, risk extension, permission or timeout change follows.
+
