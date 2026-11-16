@@ -589,6 +589,10 @@ it before publication. No normal hook, signing or new-head CI credit is
 claimed by this local preparation.
 # Retained original-provider upload provenance, 16 November 2026
 
+The fresh exact signer-origin controls separately produced two positive-case
+failures and two passing rejection controls before adding its finite profile.
+Earlier signer profiles remain unchanged; cross-origin combinations still fail.
+
 The current-head origin check fails because original artifact 13269307808 is
 unavailable after its recorded retention expiry. Its original successful run,
 job and raw provider upload log remain live. The log records the exact original
