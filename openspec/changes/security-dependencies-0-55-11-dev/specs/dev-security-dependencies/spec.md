@@ -104,6 +104,13 @@ All three strict frozen audits SHALL enforce exact reviewed package, version, ad
 - **THEN** both default audit and dependency-trust checks reject the exception
 - **AND** the immediately preceding instant remains within its original window.
 
+#### Scenario: Windows has timezone data before the trust check
+
+- **GIVEN** a Windows Python without system IANA timezone data
+- **WHEN** the existing frozen-environment action prepares its pre-sync trust check
+- **THEN** it installs only the exact hash-pinned official timezone-data wheel before running the check
+- **AND** the check retains its Europe/Berlin calendar and unchanged exception identities and deadlines.
+
 #### Scenario: Unreviewed or expired findings remain blocking
 
 - **GIVEN** the three strict audit reports and the exact three review records
