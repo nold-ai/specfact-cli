@@ -694,6 +694,14 @@ record_property warnings remain disclosed; original whole test inputs stay exact
 The necessary fresh finite signing origin has genuine RED4 failures with four
 passing rejection controls before implementation. All historical origins remain
 required. Normal unsigned checkpoints carry no signatures or normal-hook credit.
+Final local origin/regression scope passes75 cases with zero failures, errors or
+skips. PR-pinned BasedPyright1.39.9 covers both changed Python files with zero
+diagnostics; Ruff and actionlint pass. Strict OpenSpec initially warned that
+the combined audit requirement introduction exceeded500 characters. The exact
+fresh-risk bounds now sit in an explicit scenario within that same requirement;
+all three complete original obligation/scenario bodies remain verbatim, and
+strict validation passes. No requirement, refusal or date bound was removed.
+
 Exact source/operation acceptance, actual signed output, new-head authority and
 every required current-head check remain mandatory. No merge or waiver follows.
 

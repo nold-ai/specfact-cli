@@ -87,6 +87,12 @@ complete frozen test selection.
 
 All three strict frozen audits SHALL enforce exact reviewed package, version, advisory and date bounds. Standalone audit and dependency-trust entrypoints SHALL evaluate dates in Europe/Berlin independently of the host timezone, without an environment-variable override. The original exception dates and CLI-only mitigations remain unchanged.
 
+#### Scenario: Active review records remain separately authorized
+
+- **GIVEN** the owner's exact 16 November 2026 acceptance
+- **WHEN** the active registers are evaluated
+- **THEN** the following mandatory bounds apply.
+
 The active registers SHALL admit only the four existing risk records and separately accepted CVE-2026-126360 / GHSA-mf5v-w3w3-f6cg record approved by the owner on 16 November 2026, through 21 November 2026 inclusive in Europe/Berlin. Original expired records remain historical. Versions, advisory identities, parser artifact identity, mitigations and every other check SHALL remain unchanged. New findings or later dates require separate owner acceptance.
 
 #### Scenario: Fresh acceptance does not transfer old authority
