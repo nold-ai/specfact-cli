@@ -36,5 +36,13 @@
 ## Berlin expiry correction
 
 - [x] Reproduce the two default-clock boundary failures with two passing controls in a separate unselected test file.
-- [ ] Fix the two existing policy clocks without changing selected native proof inputs or exception records.
+- [x] Fix the two existing policy clocks without changing selected native proof inputs or exception records.
 - [ ] Run focused checks, normal hooks and independent review; refresh current-head identities and required evidence honestly.
+
+## Focused follow-up delivery
+
+- [x] Reuse the reviewed Berlin expiry-clock fix and add exact separate signer-origin validation.
+- [x] Preserve the historical signer origin and frozen native tests.
+- [ ] Complete independent exact acceptance before any new signing publication.
+- [ ] Resolve current expiry/authority failures without renewing or bypassing original approvals.
+- [ ] Confirm actual current-head CI, review resolution and forge READY without merging.

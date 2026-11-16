@@ -85,23 +85,17 @@ complete frozen test selection.
 
 ### Requirement: Preserve strict audits with exact bounded residual risk
 
-All three strict frozen audits SHALL remain enforced, including setuptools
-84.1.0 in the affected graphs and Pylint 4.0.9 in the isolated Code Review
-input and hash-bound lock. Only the exact reviewed package, version and
-advisory identities MAY be admitted within their existing dates. The original
-MCP 1.29.0 record and the separate OpenTelemetry 1.37.0 record SHALL remain
-separate from the MCP 1.29.0 record reviewed on 29 October 2026 for
-CVE-2026-116685 / GHSA-5h93-6whr-6q8j, CVE-2026-116686 /
-GHSA-rwrf-2pqf-9j8j and CVE-2026-116684 / GHSA-w4fh-qvv9-3v23.
-All records SHALL expire on 4 November 2026 inclusive. This is accepted
-residual risk while the official Semgrep 1.182.1 pin remains incompatible
-with patched MCP, not remediation or a general waiver. The documented CLI-only
-mitigations SHALL remain in force.
+All three strict frozen audits SHALL enforce exact reviewed package, version, advisory and date bounds. Standalone audit and dependency-trust entrypoints SHALL evaluate dates in Europe/Berlin independently of the host timezone, without an environment-variable override. The original exception dates and CLI-only mitigations remain unchanged.
 
-Every standalone audit and dependency-trust entrypoint SHALL evaluate review
-dates in Europe/Berlin independently of the host timezone. The existing
-4 November 2026 inclusive expiry SHALL remain unchanged; acceptance SHALL end
-at 5 November 2026 00:00 Europe/Berlin without an environment-variable override.
+#### Scenario: The original bounded residual-risk records stay exact
+
+- **GIVEN** setuptools 84.1.0 in the affected graphs and Pylint 4.0.9 in the isolated Code Review input and hash-bound lock
+- **AND** separate original MCP 1.29.0 and OpenTelemetry 1.37.0 records
+- **AND** the separate MCP 1.29.0 record reviewed on 29 October 2026 covers only CVE-2026-116685 / GHSA-5h93-6whr-6q8j, CVE-2026-116686 / GHSA-rwrf-2pqf-9j8j and CVE-2026-116684 / GHSA-w4fh-qvv9-3v23
+- **WHEN** the original 4 November 2026 inclusive expiry reaches 5 November 2026 00:00 Europe/Berlin
+- **THEN** acceptance ends without extending or generalizing any original record
+- **AND** the official Semgrep 1.182.1 pin's incompatible patched-MCP graph remains accepted residual risk, not remediation or a general waiver
+- **AND** the documented CLI-only mitigations remain enforced.
 
 #### Scenario: The Berlin cutoff precedes the host calendar change
 
@@ -131,11 +125,12 @@ at 5 November 2026 00:00 Europe/Berlin without an environment-variable override.
 
 ### Requirement: Exact follow-up CI provenance for Berlin expiry correction
 
-The delivery verifier SHALL authenticate a separately pinned create-only CI signer for the Berlin expiry correction while preserving the original CI-tail signer origin. Each origin SHALL bind its own exact executor files, auxiliary and destination refs, and normal-source root. Neither origin SHALL accept a mixture of these bindings. Existing service signatures, bot attribution, source deltas, retained fixture bytes, unique successful attempt-one workflow, authority and expiry checks remain required.
+The delivery verifier SHALL authenticate a separately pinned create-only CI signer for the Berlin expiry correction while preserving the original CI-tail signer origin. Each origin SHALL bind its own exact executor files, auxiliary and destination refs, and normal-source root. Neither origin SHALL accept a mixture of these bindings.
 
 #### Scenario: Follow-up correction retains exact CI origin
 - **WHEN** the executor, intent and source chain match the separately pinned Berlin correction origin
 - **THEN** the verifier accepts that origin without changing the original signer profile or accepting ordinary owner-authored signed commits.
+- **AND** service signatures, bot attribution, source deltas, retained fixture bytes, unique successful attempt-one workflow, authority and expiry checks remain required.
 
 #### Scenario: Mixed or modified signer origin is rejected
 - **WHEN** an executor byte, ref, destination, root or completed-run binding belongs to another origin or is modified

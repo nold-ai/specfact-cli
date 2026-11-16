@@ -531,3 +531,17 @@ The complete correction passes273 affected core cases, plus243 auxiliary signer 
 ## Berlin expiry boundary, 4 November 2026 Europe/Berlin
 
 The host-local default clock was reproduced from signed F e753ac1a3e4bb3bf739bd7203c728a652db6cb90: the separate unselected `test_dependency_expiry_clock.py` has two intended failures at Berlin midnight and two passing controls immediately before it. Production is unchanged in this TEST checkpoint. Synthetic records are clock fixtures, not exception approvals or native RED. Existing eight native whole-file proof inputs and every original advisory/version/expiry remain unchanged. The exact original cutoff remains 5 November 2026 00:00 Europe/Berlin.
+
+The two finite production clocks now evaluate Europe/Berlin internally. The audit retains its replaceable date-compatible seam; the trust checker retains its explicit `today` parameter. All 49 affected cases pass independently under UTC, America/Los_Angeles and Europe/Berlin; focused type checking reports zero errors and warnings. No native execution or current-head CI credit is claimed. All eight original native whole-file blobs remain byte-exact. New head signing/evidence and review acceptance remain outstanding.
+
+Scoped review exception: the pre-existing standard-library bootstrap functions `validate_exception_register`, `validate_frozen_dependency_policy` and `main` in `scripts/check_dependency_trust_exceptions.py` retain their existing missing-icontract warnings. Importing third-party contracts before `uv sync` would violate this checker's mandatory isolated `python -I -S` boundary. Signatures and explicit-date semantics remain unchanged; malformed records continue to fail closed. No check is disabled. The new audit clock method uses the already imported contract library. The two informational None-guard findings are unchanged boundary-validation code.
+
+## Delivery-only clock signer follow-up (2026-11-15)
+
+Reuse TEST `17de7785` and the two reviewed clock implementations from CODE `49e5c261`. A separately pinned finite signer origin is needed because the original CI-tail run and refs are consumed. Original signer constants, service signatures, bot identities, attempt-one and complete-history checks are preserved. Executor workflow and runtime lock bytes are unchanged; only signer refs, source root and four necessary allowed paths differ.
+
+Before changing production, the four-case new origin test ran with 3 failures and 1 pass. The new clock origin was absent and the output verifier required the historical root. After implementation, 57 focused cases passed. Extended verification added both workflow origins and negative run/branch/history controls; the 114-case affected run yielded 106 passes and 8 failures. Those eight failures reach existing expired risk approvals (not renewed here), so the complete affected suite is NOT passing and readiness is blocked. Initial workflow-fragment compatibility failures are retained separately and corrected without editing the frozen test.
+
+Ruff passes. BasedPyright 1.39.9, matching this PR's locked runner, analyzes the five touched Python files with zero errors, warnings and information after correcting six test-only diagnostics. This is scoped local preparation, not a current-head CI, signature, authority or readiness result. No native Windows validation or historical evidence is transferred. Normal hooks and new signing execution have not run.
+
+Internal wiki mirror follow-up remains open because the required sibling mirror has not been updated.

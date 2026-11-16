@@ -871,6 +871,16 @@ _FIXED_PR786_SIGNER_FILES = (
     (".github/workflows/specfact.yml", "8896864306ea9a1bb385e68348b0a74f029227292e461abb080f937833f8fea6"),
     ("ci/recovery/dev-security-signer-runtime.txt", "bc64c498cf74b3a959a1522c04614e199061dea2e35ab0110d58b9411db38712"),
 )
+_FIXED_PR786_CLOCK_SIGNER_FILES = (
+    ("scripts/dev_security_ci_signer.py", "2da7f7dc9afa70dcfb0c986f7723263528caa17c6cf56e45adca1704d1bc777d"),
+    (".github/workflows/specfact.yml", "8896864306ea9a1bb385e68348b0a74f029227292e461abb080f937833f8fea6"),
+    ("ci/recovery/dev-security-signer-runtime.txt", "bc64c498cf74b3a959a1522c04614e199061dea2e35ab0110d58b9411db38712"),
+)
+_FIXED_PR786_CLOCK_ORIGIN = (
+    "refs/heads/codex/dev786-berlin-clock-signer-20261115",
+    "refs/heads/codex/security-dev-berlin-clock-candidate-20261115",
+    "e753ac1a3e4bb3bf739bd7203c728a652db6cb90",
+)
 _FIXED_PR786_AUTHORITY_SHA256 = "5441e26e7c3c8f18973c781e7d43c72076b3283c915d98ca5188bb174bf17c45"
 _FIXED_PR786_MANIFEST_SHA256 = "f08743305cbd774e1d097c9911383a113943071adc8c256528866adb4c1f098a"
 
@@ -1113,13 +1123,35 @@ def _fixed_pr786_executor_tree(helper: ModuleType, executor: str) -> tuple[dict[
         raise ValueError
     executor_tree = _fixed_pr786_tree(helper, _string(_object(executor_commit.get("tree")).get("sha"), OBJECT_PATTERN))
     pinned_program = b""
-    for path, expected in _FIXED_PR786_SIGNER_FILES:
+    program = _fixed_pr786_blob(helper, executor_tree, "scripts/dev_security_ci_signer.py")
+    pins = _FIXED_PR786_SIGNER_FILES
+    if hashlib.sha256(program).hexdigest() == _FIXED_PR786_CLOCK_SIGNER_FILES[0][1]:
+        pins = _FIXED_PR786_CLOCK_SIGNER_FILES
+    for path, expected in pins:
         raw = _fixed_pr786_blob(helper, executor_tree, path)
         if hashlib.sha256(raw).hexdigest() != expected:
             raise ValueError
         if path == "scripts/dev_security_ci_signer.py":
             pinned_program = raw
     return executor_tree, _fixed_pr786_allowed_paths(pinned_program)
+
+
+def _fixed_pr786_origin(intent: dict[str, object]) -> tuple[str, str, str]:
+    origin = (
+        "refs/heads/codex/dev786-ci-tail-signer-20261104",
+        "refs/heads/codex/security-dev-ci-tail-candidate-20261104",
+        "b0184ae8c3de2c107d888dc23b0e7402a31d520e",
+    )
+    if intent["auxiliary_ref"] == _FIXED_PR786_CLOCK_ORIGIN[0]:
+        origin = _FIXED_PR786_CLOCK_ORIGIN
+    if (intent["repository_full_name"], intent["dev"], intent["auxiliary_ref"], intent["destination"]) != (
+        REPOSITORY,
+        "9b5ad1e78430cc0b061cb16de42f73de96f4f312",
+        origin[0],
+        origin[1],
+    ):
+        raise ValueError
+    return origin
 
 
 def _fixed_pr786_intent(
@@ -1141,12 +1173,10 @@ def _fixed_pr786_intent(
         "destination",
     }:
         raise ValueError
-    if (intent["repository_full_name"], intent["dev"], intent["auxiliary_ref"], intent["destination"]) != (
-        REPOSITORY,
-        "9b5ad1e78430cc0b061cb16de42f73de96f4f312",
-        "refs/heads/codex/dev786-ci-tail-signer-20261104",
-        "refs/heads/codex/security-dev-ci-tail-candidate-20261104",
-    ):
+    origin = _fixed_pr786_origin(intent)
+    pins = _FIXED_PR786_CLOCK_SIGNER_FILES if origin == _FIXED_PR786_CLOCK_ORIGIN else _FIXED_PR786_SIGNER_FILES
+    program = _fixed_pr786_blob(helper, executor_tree, "scripts/dev_security_ci_signer.py")
+    if hashlib.sha256(program).hexdigest() != pins[0][1]:
         raise ValueError
     _string(intent["main"], OBJECT_PATTERN)
     repository_id = _integer(intent["repository_id"])
@@ -1244,7 +1274,7 @@ def _fixed_pr786_sources(
     if not isinstance(values, list) or not 1 <= len(values) <= 32:
         raise ValueError
     before = _fixed_pr786_tree(helper, "24112d8c9983333f9059283965230348f718b74c")
-    source_parent = "b0184ae8c3de2c107d888dc23b0e7402a31d520e"
+    source_parent = _fixed_pr786_origin(intent)[2]
     seen = {source_parent}
     checkpoints = [_object(value) for value in values]
     for checkpoint in checkpoints:
@@ -1262,6 +1292,9 @@ def _fixed_pr786_outputs(
     checkpoints: list[dict[str, object]],
     signing: tuple[str, str, int],
 ) -> None:
+    source_root = _string(checkpoints[0]["source_parent"], OBJECT_PATTERN)
+    if source_root not in ("b0184ae8c3de2c107d888dc23b0e7402a31d520e", _FIXED_PR786_CLOCK_ORIGIN[2]):
+        raise ValueError
     intent_digest, executor, run_id = signing
     token = os.environ["GITHUB_TOKEN"]
     output = final
@@ -1275,7 +1308,7 @@ def _fixed_pr786_outputs(
             helper, output, _string(checkpoint["source_tree"], OBJECT_PATTERN), parent, expected_message
         )
         output = _object(helper._api_json(f"/repos/{REPOSITORY}/git/commits/{parent}", token)[0])
-    if output.get("sha") != "b0184ae8c3de2c107d888dc23b0e7402a31d520e":
+    if output.get("sha") != source_root:
         raise ValueError
 
 
