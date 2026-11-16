@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import copy
 import hashlib
 import importlib.util
@@ -12,6 +13,7 @@ from types import ModuleType
 from typing import Any
 
 import pytest
+import yaml
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -98,7 +100,9 @@ def test_live_original_upload_authenticates_retained_archive_members(evidence: E
         "member",
     ],
 )
-def test_retained_bytes_refuse_changed_or_missing_live_origin(evidence: Evidence, mutation: str) -> None:
+def test_retained_bytes_refuse_changed_or_missing_live_origin(
+    evidence: Evidence, mutation: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
     owner, recorded, log, archive, manifest, packet = evidence
     job = copy.deepcopy(recorded)
     if mutation in {"job", "run", "attempt", "head", "status"}:
@@ -114,8 +118,8 @@ def test_retained_bytes_refuse_changed_or_missing_live_origin(evidence: Evidence
         log += b"changed"
     elif mutation == "receipt":
         log = log.replace(b"Artifact ID 13269307808", b"Artifact ID 1")
-        owner._FIXED_PR786_UPLOAD_LOG_SHA256 = hashlib.sha256(log).hexdigest()
-        owner._FIXED_PR786_UPLOAD_LOG_BYTES = len(log)
+        monkeypatch.setattr(owner, "_FIXED_PR786_UPLOAD_LOG_SHA256", hashlib.sha256(log).hexdigest())
+        monkeypatch.setattr(owner, "_FIXED_PR786_UPLOAD_LOG_BYTES", len(log))
     elif mutation == "archive":
         archive = archive[:-1]
     elif mutation == "member":
@@ -125,9 +129,6 @@ def test_retained_bytes_refuse_changed_or_missing_live_origin(evidence: Evidence
 
 
 def test_inline_original_provenance_matches_owner() -> None:
-    import ast
-    import yaml
-
     source = (ROOT / "scripts/requirements_late_red_proof.py").read_text()
     document = yaml.safe_load((ROOT / ".github/workflows/requirements-evidence.yml").read_text())
     steps = document["jobs"]["requirements-fixed786-origin"]["steps"]
@@ -188,3 +189,88 @@ def test_retention_signed_chain_stops_at_its_root(
     else:
         with pytest.raises(ValueError):
             owner._fixed_pr786_outputs(helper, final, [checkpoint], ("d" * 64, "e" * 40, 91))
+
+
+@pytest.mark.parametrize(
+    "available",
+    [
+        {"total_count": False, "artifacts": []},
+        {"total_count": 1, "artifacts": []},
+        {"total_count": 0, "artifacts": [{}]},
+        {"total_count": 0},
+    ],
+)
+def test_historical_origin_requires_complete_empty_live_inventory(
+    evidence: Evidence, available: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from argparse import Namespace
+
+    owner, _, _, _, manifest, packet = evidence
+    helper = ModuleType("synthetic_api")
+    monkeypatch.setenv("GITHUB_TOKEN", "synthetic-no-network")
+    monkeypatch.setattr(
+        helper,
+        "_api_json",
+        lambda path, token: (available if "artifacts?" in path else {}, {}),
+        raising=False,
+    )
+    with pytest.raises(ValueError, match="original artifact availability"):
+        owner._fixed_pr786_original_metadata(
+            helper, Namespace(repo_root=ROOT, red_artifact_root=packet), manifest, {"tree": {"sha": "f" * 40}}
+        )
+
+
+@pytest.mark.parametrize("case", ["valid", "wrong-branch", "attempt-two", "duplicate"])
+def test_inline_retention_run_requires_its_own_completed_origin(case: str) -> None:
+    document = yaml.safe_load((ROOT / ".github/workflows/requirements-evidence.yml").read_text())
+    steps = document["jobs"]["requirements-fixed786-origin"]["steps"]
+    shell = next(step["run"] for step in steps if "expected_run = {" in step.get("run", ""))
+    source = shell.split("<<'PYTHON'\n", 1)[1].rsplit("\nPYTHON", 1)[0]
+    nodes = ast.parse(source).body
+    assignments = {
+        target.id: index
+        for index, node in enumerate(nodes)
+        if isinstance(node, ast.Assign)
+        for target in node.targets
+        if isinstance(target, ast.Name)
+    }
+    selected = ast.Module(body=nodes[assignments["run_id"] : assignments["artifacts"]], type_ignores=[])
+    actor = {"id": 7, "login": "synthetic"}
+    run = {
+        "id": 91,
+        "run_attempt": 1,
+        "head_sha": "a" * 40,
+        "head_branch": "codex/dev786-retained-origin-signer-20261116",
+        "event": "workflow_dispatch",
+        "path": ".github/workflows/specfact.yml",
+        "workflow_id": 204352514,
+        "status": "completed",
+        "conclusion": "success",
+        "repository": {"full_name": "nold-ai/specfact-cli", "id": 7},
+        "actor": actor,
+        "triggering_actor": actor,
+    }
+    if case == "wrong-branch":
+        run["head_branch"] = "codex/dev786-ci-tail-signer-20261104"
+    if case == "attempt-two":
+        run["run_attempt"] = 2
+    history = {"total_count": 1, "workflow_runs": [dict(run)]}
+    if case == "duplicate":
+        history = {"total_count": 2, "workflow_runs": [dict(run), {**run, "id": 92}]}
+    namespace = {
+        "get": lambda path: history if "per_page" in path else run,
+        "run_text": "91",
+        "executor": "a" * 40,
+        "intent": {
+            "repository_id": 7,
+            "actor": actor,
+            "triggering_actor": actor,
+            "auxiliary_ref": "refs/heads/codex/dev786-retained-origin-signer-20261116",
+        },
+    }
+    code = compile(ast.fix_missing_locations(selected), "actual-inline-retention-run", "exec")
+    if case == "valid":
+        exec(code, namespace)
+    else:
+        with pytest.raises(ValueError):
+            exec(code, namespace)

@@ -589,9 +589,28 @@ it before publication. No normal hook, signing or new-head CI credit is
 claimed by this local preparation.
 # Retained original-provider upload provenance, 16 November 2026
 
+The implemented paired verifier passes all 205 affected cases. Both production
+observers contain AST-identical origin helpers. BasedPyright 1.39.9 reports zero
+errors, warnings or information over the owner and new test file. Ruff, actionlint
+and strict OpenSpec checks pass. An initial typing run reported four warnings;
+explicit timestamp typing and ordinary pytest monkeypatching corrected them.
+
+The root exercised the actual download helper against the live original GitHub
+job/log using the owner credential and verified the unchanged full ZIP and all
+four existing report members. This establishes that path for the owner account,
+not for CI's narrower credential. The proposed signer workflow therefore adds
+one read-only exact-log check before any signing writes, with unchanged job
+permissions and resource bounds. A failed check must stop without publishing
+signed outputs. Normal local hooks remain NOT_RUN; actual new-head CI is required.
+
 The fresh exact signer-origin controls separately produced two positive-case
 failures and two passing rejection controls before adding its finite profile.
 Earlier signer profiles remain unchanged; cross-origin combinations still fail.
+
+Independent review then found that the inline completed-run check still selected
+the legacy branch for the new origin. Its focused regression reproduced two
+failures, valid-origin rejection and wrong-origin acceptance, with two passing
+attempt/history rejection controls before the two-line branch correction.
 
 The current-head origin check fails because original artifact 13269307808 is
 unavailable after its recorded retention expiry. Its original successful run,
