@@ -62,6 +62,8 @@ jobs:
               - 'scripts/check_dependency_trust_exceptions.py'
               - 'scripts/license_allowlist.yaml'
               - 'ci/dependency-trust-exceptions.json'
+              - 'ci/dependency-trust-exceptions-20261116.json'
+              - 'ci/vulnerability-audit-exceptions-20261116.json'
               - 'scripts/module_pip_dependencies_licenses.yaml'
             version_sources:
               - 'pyproject.toml'

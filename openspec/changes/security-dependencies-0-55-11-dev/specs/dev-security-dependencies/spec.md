@@ -135,3 +135,19 @@ The delivery verifier SHALL authenticate a separately pinned create-only CI sign
 #### Scenario: Mixed or modified signer origin is rejected
 - **WHEN** an executor byte, ref, destination, root or completed-run binding belongs to another origin or is modified
 - **THEN** the verifier rejects the evidence without fallback or retry.
+
+### Requirement: Fresh owner-approved delivery risk window
+
+The active registers SHALL admit only the four existing risk records and separately accepted CVE-2026-126360 / GHSA-mf5v-w3w3-f6cg record approved by the owner on 16 November 2026, through 21 November 2026 inclusive in Europe/Berlin. Original expired records remain historical. Versions, advisory identities, parser artifact identity, mitigations and every other check SHALL remain unchanged. New findings or later dates require separate owner acceptance.
+
+#### Scenario: Fresh acceptance does not transfer old authority
+
+- **GIVEN** the owner explicitly accepts the existing MCP 1.29.0 and OpenTelemetry API 1.37.0 advisory records and exact reviewed pycparser 3.12 artifact
+- **WHEN** the fresh register is validated before 22 November 2026 00:00 Europe/Berlin
+- **THEN** only those existing exact identities are accepted within the new window
+- **AND** original approvals, consumed operation grants and their historical expiry dates are not reused or altered.
+
+#### Scenario: Fresh acceptance expires and remains exact
+
+- **WHEN** the new Berlin expiry is reached or an unreviewed package, version, advisory or artifact is encountered
+- **THEN** the unchanged mandatory checks fail closed without a general waiver.

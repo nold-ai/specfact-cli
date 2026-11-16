@@ -46,3 +46,8 @@
 - [ ] Complete independent exact acceptance before any new signing publication.
 - [ ] Resolve current expiry/authority failures without renewing or bypassing original approvals.
 - [ ] Confirm actual current-head CI, review resolution and forge READY without merging.
+
+- [x] Record actual owner acceptance of the exact four fresh temporary risk records.
+- [x] Preserve original registers and protected tests; validate fresh default-register acceptance and expiry.
+- [x] Verify118affected cases, typing, strictOpenSpec, cold bootstrap and frozen-delivery inputs.
+- [x] Resolve the additional live CI advisory's exact owner decision, without extending the four-record acceptance.
