@@ -557,3 +557,33 @@ Actual strict audits pass for Code Review and runtime smoke. CI remains FAIL on 
 The later actual owner answer was `Approve this exact additional exception`, resolving the separate CVE-2026-126360/GHSA-mf5v-w3w3-f6cg proposal. Only that exact OTelAPI1.37.0 record was added, with the same21November inclusive expiry and the presented CLI-only/no exposedHTTP-MCP/no untrustedtrace-context restrictions. The previously failing actual frozen CI audit now exits0. The two other frozen graphs already exited0 and their graph/code inputs are unchanged; they were not repeated. This is approved residual-risk audit acceptance, not remediation. No owner question remains pending. Final signing operation and exact-head authority must still be authenticated before readiness.
 
 The normal local commit hook passed its no-module-change signature check, then Hatch began creating a new unfrozen editable environment for the always-run version check. Root stopped only that verified process tree rather than adopt that environment. The commit did not occur, and no local hook success is claimed. Normal unsigned Git objects remain source inputs only. Existing frozen verification and actual required current-head CI remain mandatory; no hook or check is skipped or credited as passing by this preparation.
+# Windows timezone-data bootstrap, 16 November 2026
+
+The actual PR review thread `PRRT_kwDOQLaPE864HAKI` identified missing IANA
+data before the Windows pre-sync trust check. A fresh Python 3.12.13 venv,
+without `tzdata` and with `PYTHONTZPATH=''`, reproduced the current checker
+failure before the action change. It exited 1 with
+`ZoneInfoNotFoundError: 'No time zone found with key Europe/Berlin'`.
+
+The action now installs only the official `tzdata==2026.6` wheel before the
+Windows check. Its SHA-256 is
+`0a10eec6e13ef16b627fabed9a5f2ba61a62b1c67f327305f4e7e412a70b4aec`.
+Binary-only, no-dependency and required-hash flags prevent resolver drift.
+Reinstallation prevents an already installed unverified copy from satisfying
+the bootstrap. Official PyPI metadata identifies Apache-2.0 and no package
+dependencies. The current advisory check reports no known vulnerabilities.
+
+Installing that authenticated wheel into the same fresh venv makes the actual
+default trust command pass with the system timezone path still empty. The
+four existing before/at-midnight cases also pass using only this wheel's
+timezone data. These are local missing-data and calendar checks, not native
+Windows or TLS validation. The active risk records, historical registers,
+source graph, expiry rules and protected native inputs remain unchanged.
+
+Strict OpenSpec validation and reproducible-delivery validation pass.
+The first reproducibility attempt failed on sandbox cache permissions; the
+next failed on sandbox DNS. Validation passed using the existing owned cache
+and authorized registry access. An initial plain YAML command scalar failed
+parsing because a pip argument contained a colon. A block scalar corrected
+it before publication. No normal hook, signing or new-head CI credit is
+claimed by this local preparation.
