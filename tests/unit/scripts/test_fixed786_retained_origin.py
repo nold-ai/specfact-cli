@@ -170,6 +170,7 @@ def test_inline_original_provenance_matches_owner() -> None:
     [
         ("retained-origin", "8fa13e4c69b40bcf6852eb95600d52316e723300"),
         ("producer-uv", "df71b03511057f7e76e559d2e1736c54eaec8a91"),
+        ("requirements-map", "68407340e4acb3ed95ef859c0fb5d01282d1ab08"),
     ],
 )
 @pytest.mark.parametrize("destination_matches", [True, False])
@@ -199,6 +200,7 @@ def test_retention_signer_keeps_its_exact_origin(
     [
         ("retained-origin", "8fa13e4c69b40bcf6852eb95600d52316e723300"),
         ("producer-uv", "df71b03511057f7e76e559d2e1736c54eaec8a91"),
+        ("requirements-map", "68407340e4acb3ed95ef859c0fb5d01282d1ab08"),
     ],
 )
 @pytest.mark.parametrize("root_matches", [True, False])
@@ -261,6 +263,7 @@ def test_historical_origin_requires_complete_empty_live_inventory(
     [
         ("retained-origin", "8fa13e4c69b40bcf6852eb95600d52316e723300"),
         ("producer-uv", "df71b03511057f7e76e559d2e1736c54eaec8a91"),
+        ("requirements-map", "68407340e4acb3ed95ef859c0fb5d01282d1ab08"),
     ],
 )
 @pytest.mark.parametrize("case", ["valid", "wrong-branch", "attempt-two", "duplicate"])
