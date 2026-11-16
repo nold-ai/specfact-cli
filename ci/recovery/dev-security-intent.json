@@ -1,0 +1,1314 @@
+{
+  "actor": {
+    "id": 39115308,
+    "login": "djm81"
+  },
+  "auxiliary_ref": "refs/heads/codex/dev786-requirements-map-signer-20261116",
+  "checkpoints": [
+    {
+      "delta": [
+        {
+          "after": [
+            "100644",
+            "ff75b1f3d81651077caf5da6f4bf7e3cbb8203e8"
+          ],
+          "before": [
+            "100644",
+            "d44f7607c8806e09e3644229a3794e5dc740e59b"
+          ],
+          "path": ".github/actions/setup-frozen-python/action.yml"
+        },
+        {
+          "after": [
+            "100644",
+            "366f7286e22d6752b4be239e7977c5b96bdcf296"
+          ],
+          "before": [
+            "100644",
+            "50af9e7b8c8a51227ef4256c6756bbd37d45cfad"
+          ],
+          "path": ".github/workflows/pr-orchestrator.yml"
+        },
+        {
+          "after": [
+            "100644",
+            "04588c0773d932748801ce8719877bd963e3383a"
+          ],
+          "before": [
+            "100644",
+            "b6cbaae9bc71aac8d1b4f54c669c4224f14c5324"
+          ],
+          "path": ".github/workflows/requirements-evidence.yml"
+        },
+        {
+          "after": [
+            "100644",
+            "5cb0d495799bba394ed258d5d6e786d26eab89c9"
+          ],
+          "before": [
+            "100644",
+            "aaccd7b6f16281dd3c38021597bc826eb0748c7b"
+          ],
+          "path": "CHANGELOG.md"
+        },
+        {
+          "after": [
+            "100644",
+            "b6e92775ce035b7394cb524057d18f3adf44838a"
+          ],
+          "before": null,
+          "path": "ci/dependency-trust-exceptions-20261116.json"
+        },
+        {
+          "after": [
+            "100644",
+            "7b1e4880e92ac5dc975329f765a369adc63b4156"
+          ],
+          "before": [
+            "100644",
+            "7f6c397f1e5f2eab051f66b946fdfe4b09d02c44"
+          ],
+          "path": "ci/dependency-trust-exceptions.json"
+        },
+        {
+          "after": [
+            "100644",
+            "8cf92b9f2aae610d1ff38d37d414e8cb61593403"
+          ],
+          "before": null,
+          "path": "ci/vulnerability-audit-exceptions-20261116.json"
+        },
+        {
+          "after": [
+            "100644",
+            "f51d25958f1bc84f2b348114eded101f7d6bc3b1"
+          ],
+          "before": [
+            "100644",
+            "e852ce09d81ef585ac432b31b7dfc5e1b1230d10"
+          ],
+          "path": "ci/vulnerability-audit-exceptions.json"
+        },
+        {
+          "after": [
+            "100644",
+            "5e62f346cac925dea34fbd63eb906e99c44d927b"
+          ],
+          "before": [
+            "100644",
+            "e69b71c83755504d62cca8f1f8e055b653c8c58c"
+          ],
+          "path": "openspec/CHANGE_ORDER.md"
+        },
+        {
+          "after": [
+            "100644",
+            "7ccf7c369511c5b08e33676571f5f1b1d310f7f9"
+          ],
+          "before": null,
+          "path": "openspec/changes/security-dependencies-0-55-11-dev/.openspec.yaml"
+        },
+        {
+          "after": [
+            "100644",
+            "58dd459869fa34fabb0190f74ed2680ed0bfe7f2"
+          ],
+          "before": null,
+          "path": "openspec/changes/security-dependencies-0-55-11-dev/CHANGE_VALIDATION.md"
+        },
+        {
+          "after": [
+            "100644",
+            "b884e3d9fd6b8630845399388d0b94ab31446e93"
+          ],
+          "before": null,
+          "path": "openspec/changes/security-dependencies-0-55-11-dev/TDD_EVIDENCE.md"
+        },
+        {
+          "after": [
+            "100644",
+            "cc5249b1db9fd31bfb88391d216efdbf8bc870a4"
+          ],
+          "before": null,
+          "path": "openspec/changes/security-dependencies-0-55-11-dev/design.md"
+        },
+        {
+          "after": [
+            "100644",
+            "fe41af7ecc18324a409c39f6d8f55cdd51330148"
+          ],
+          "before": null,
+          "path": "openspec/changes/security-dependencies-0-55-11-dev/proposal.md"
+        },
+        {
+          "after": [
+            "100644",
+            "0d25511a5c717c436897c6748a4804d0c556edd8"
+          ],
+          "before": null,
+          "path": "openspec/changes/security-dependencies-0-55-11-dev/requirements-evidence.yaml"
+        },
+        {
+          "after": [
+            "100644",
+            "368c95f6731b8600d8b8ec2156ed399dfc66eff7"
+          ],
+          "before": null,
+          "path": "openspec/changes/security-dependencies-0-55-11-dev/requirements-proof/late-red-evidence.json"
+        },
+        {
+          "after": [
+            "100644",
+            "62f8319d4c9d270c3e4091a4bb849478faff5fd3"
+          ],
+          "before": null,
+          "path": "openspec/changes/security-dependencies-0-55-11-dev/requirements-proof/local-red-behavior-20261026-receipt.json"
+        },
+        {
+          "after": [
+            "100644",
+            "0385155197f7e797f7936fcaa7dcf311fea5d9d1"
+          ],
+          "before": null,
+          "path": "openspec/changes/security-dependencies-0-55-11-dev/requirements-proof/local-red-behavior-20261026.xml.gz"
+        },
+        {
+          "after": [
+            "100644",
+            "67c863ce72496cba9d7418499720281ca5e73639"
+          ],
+          "before": null,
+          "path": "openspec/changes/security-dependencies-0-55-11-dev/requirements-proof/review-evidence.json"
+        },
+        {
+          "after": [
+            "100644",
+            "aea7a79a81f172a438d97891f5f42d719e42f75f"
+          ],
+          "before": null,
+          "path": "openspec/changes/security-dependencies-0-55-11-dev/specs/dev-security-dependencies/spec.md"
+        },
+        {
+          "after": [
+            "100644",
+            "21c80f9782377d25335272c44d4cbd81c52fd558"
+          ],
+          "before": null,
+          "path": "openspec/changes/security-dependencies-0-55-11-dev/tasks.md"
+        },
+        {
+          "after": [
+            "100644",
+            "c015f1fda807380fa86ac7ef51021183a7f952cd"
+          ],
+          "before": [
+            "100644",
+            "28407a94aa5e18fbb2e4da0c82e7fd270316df96"
+          ],
+          "path": "pyproject.toml"
+        },
+        {
+          "after": [
+            "100644",
+            "a763ece58e1b9b4b9259e36f73560b3f616c5fcd"
+          ],
+          "before": null,
+          "path": "requirements/bootstrap/tzdata.txt"
+        },
+        {
+          "after": [
+            "100644",
+            "86b6bef4df8424b099f80d7cf21ca93fd52d146e"
+          ],
+          "before": [
+            "100644",
+            "507487f83051a64d5e2df44ab19745e1c3ec9b31"
+          ],
+          "path": "requirements/ci/locked.txt"
+        },
+        {
+          "after": [
+            "100644",
+            "75223c39fc213a51cd62dd5e8e431201f417348c"
+          ],
+          "before": [
+            "100644",
+            "bf0033c19cada1b656beb818e43366828ce6fabb"
+          ],
+          "path": "requirements/code-review/locked.txt"
+        },
+        {
+          "after": [
+            "100644",
+            "a5d578ec8cd844198d617ccefb0e30cd24dcb7fa"
+          ],
+          "before": [
+            "100644",
+            "6f0f16ba49e10d6b4f4132c112e3b4c5855e850f"
+          ],
+          "path": "requirements/code-review/requirements.in"
+        },
+        {
+          "after": [
+            "100644",
+            "815bd31c3c936acafa1c810c79f88bd791b29456"
+          ],
+          "before": [
+            "100644",
+            "7be8eaebeb5238e29dced2ec5ef066ba86405a5b"
+          ],
+          "path": "scripts/check_dependency_trust_exceptions.py"
+        },
+        {
+          "after": [
+            "100644",
+            "a7d58873eab51097c00ac912b470011bc71656a2"
+          ],
+          "before": [
+            "100644",
+            "0f28aba4bfc3c2224a69f4c91f884c673c6541bd"
+          ],
+          "path": "scripts/license_allowlist.yaml"
+        },
+        {
+          "after": [
+            "100644",
+            "1401186074d9b6d5a425ef4fe1b57c8c548a79ff"
+          ],
+          "before": [
+            "100644",
+            "da724fe06adfb9731d5c8324d1b3352a12fb9b8a"
+          ],
+          "path": "scripts/requirements_late_red_proof.py"
+        },
+        {
+          "after": [
+            "100644",
+            "255d07c40f0b9397d688b948b07d900a59eea264"
+          ],
+          "before": [
+            "100644",
+            "7f9c44c77d36ba20523659e4c92d327fda796961"
+          ],
+          "path": "scripts/security_audit_gate.py"
+        },
+        {
+          "after": [
+            "100644",
+            "96de05c8a3c807ee4470731c57e73831a90df781"
+          ],
+          "before": [
+            "100644",
+            "63676adedfe7b549d590aabb6c16819ca7eb6da5"
+          ],
+          "path": "setup.py"
+        },
+        {
+          "after": [
+            "100644",
+            "782672bb4be78b632b044551e8f64eccb90f5d4f"
+          ],
+          "before": [
+            "100644",
+            "8209aa7049eb0bcafedbf1cb96b5485791384abf"
+          ],
+          "path": "src/__init__.py"
+        },
+        {
+          "after": [
+            "100644",
+            "84cde239d67928eb9e56ebce227a0ff5c4d2b872"
+          ],
+          "before": [
+            "100644",
+            "6f5fbda97e48744a5e55a13efdf88f3aa0965a78"
+          ],
+          "path": "src/specfact_cli/__init__.py"
+        },
+        {
+          "after": [
+            "100644",
+            "fa6967882d170dea5cad63b08b89a31fc0707c20"
+          ],
+          "before": null,
+          "path": "tests/fixtures/requirements-proof/pr786-native34-run.json"
+        },
+        {
+          "after": [
+            "100644",
+            "6c4bf5dd9c51ec37f81aef19870693880c588dd4"
+          ],
+          "before": null,
+          "path": "tests/fixtures/requirements-proof/pr786-original-native36.zip"
+        },
+        {
+          "after": [
+            "100644",
+            "ffb2a6d3a28641078f1ae1d0244eee830d15cac0"
+          ],
+          "before": null,
+          "path": "tests/proof/test_fixed786_canonical_copy.py"
+        },
+        {
+          "after": [
+            "100644",
+            "e7d204d87b919804e4f9bdbc5754ce9f6b63a206"
+          ],
+          "before": [
+            "100644",
+            "242e3cb5644c5b637f656abf0c86929946fe930a"
+          ],
+          "path": "tests/unit/packaging/test_core_package_includes.py"
+        },
+        {
+          "after": [
+            "100644",
+            "aad3c012350c072dd9e8aa83eee9e5844bcf1f34"
+          ],
+          "before": null,
+          "path": "tests/unit/scripts/fixtures/fixed786-native-packet/fixture-metadata.json"
+        },
+        {
+          "after": [
+            "100644",
+            "db50209e41c18db13ee18af95b6b243ddea02ee3"
+          ],
+          "before": null,
+          "path": "tests/unit/scripts/fixtures/fixed786-native-packet/local-red-report.json"
+        },
+        {
+          "after": [
+            "100644",
+            "725bab201b6b7eea044f48bc852d3cdd5dee02b0"
+          ],
+          "before": null,
+          "path": "tests/unit/scripts/fixtures/fixed786-native-packet/plan.json"
+        },
+        {
+          "after": [
+            "100644",
+            "855d6e055a3c1bf3709fd8a55392df1c99bf5cfa"
+          ],
+          "before": null,
+          "path": "tests/unit/scripts/fixtures/fixed786-native-packet/planning-report.json"
+        },
+        {
+          "after": [
+            "100644",
+            "b2a415adcfd2755720973b0a5f8b038a809da5df"
+          ],
+          "before": null,
+          "path": "tests/unit/scripts/fixtures/fixed786-native-packet/requirements-proof.xml"
+        },
+        {
+          "after": [
+            "100644",
+            "d0c1faafbfaab6c8c40a534ad2861295d309698e"
+          ],
+          "before": null,
+          "path": "tests/unit/scripts/fixtures/fixed786_artifact_source/artifact-live-api.json"
+        },
+        {
+          "after": [
+            "100644",
+            "368c95f6731b8600d8b8ec2156ed399dfc66eff7"
+          ],
+          "before": null,
+          "path": "tests/unit/scripts/fixtures/fixed786_artifact_source/manifest.json"
+        },
+        {
+          "after": [
+            "100644",
+            "fdc806ebb722c07d3c23319d700ad8cfabc78fc2"
+          ],
+          "before": null,
+          "path": "tests/unit/scripts/fixtures/fixed786_artifact_source/source-R2-filtered-api.json"
+        },
+        {
+          "after": [
+            "100644",
+            "51c0f2f99cc8372ebfca66c168cce081638b499a"
+          ],
+          "before": [
+            "100644",
+            "bb819b16260be254461d809f8d344f52584ac8f9"
+          ],
+          "path": "tests/unit/scripts/test_check_license_compliance.py"
+        },
+        {
+          "after": [
+            "100644",
+            "09875b3dd14a19bca7ec3bf1ddeaa10818a53e10"
+          ],
+          "before": null,
+          "path": "tests/unit/scripts/test_dependency_compatibility_workflow.py"
+        },
+        {
+          "after": [
+            "100644",
+            "860ffa138ccd558358cdc336cd53125123139b04"
+          ],
+          "before": null,
+          "path": "tests/unit/scripts/test_dependency_expiry_clock.py"
+        },
+        {
+          "after": [
+            "100644",
+            "76e77e783b89e8e4d36b5e87b1fa5e5d3a6adecc"
+          ],
+          "before": [
+            "100644",
+            "959879755e81673498c498a3cf4c8fcdc655e86f"
+          ],
+          "path": "tests/unit/scripts/test_dependency_trust_review.py"
+        },
+        {
+          "after": [
+            "100644",
+            "643caefaba8e0d10371f1039bd59ffb90ae01350"
+          ],
+          "before": null,
+          "path": "tests/unit/scripts/test_fixed786_artifact_source.py"
+        },
+        {
+          "after": [
+            "100644",
+            "ec53c9510eba0317f1902db90d3fa1d71793fafd"
+          ],
+          "before": null,
+          "path": "tests/unit/scripts/test_fixed786_clock_signer.py"
+        },
+        {
+          "after": [
+            "100644",
+            "5e7db74077092c7b77e46429601f4ac4da134dae"
+          ],
+          "before": null,
+          "path": "tests/unit/scripts/test_fixed786_native_packet.py"
+        },
+        {
+          "after": [
+            "100644",
+            "4dfc0a64064d4ff734a5324cbf5800be5a93ae7c"
+          ],
+          "before": null,
+          "path": "tests/unit/scripts/test_fixed786_native_run.py"
+        },
+        {
+          "after": [
+            "100644",
+            "77eaa99fe6e09606ea9a52d77ee8f3be76fd6213"
+          ],
+          "before": null,
+          "path": "tests/unit/scripts/test_fixed786_retained_origin.py"
+        },
+        {
+          "after": [
+            "100644",
+            "ba43ad08453d5ad75e6c80e178edeef9e800deb9"
+          ],
+          "before": null,
+          "path": "tests/unit/scripts/test_fixed786_workflow_integration.py"
+        },
+        {
+          "after": [
+            "100644",
+            "318868c8b9dad2a8205a5c450fccf2b351912727"
+          ],
+          "before": [
+            "100644",
+            "64c55261502d56e20df6318a468affbf9ecefff6"
+          ],
+          "path": "tests/unit/scripts/test_reproducible_delivery.py"
+        },
+        {
+          "after": [
+            "100644",
+            "fdddda9f3dfb6dfd55df3746ae06e5f75eb1a5b2"
+          ],
+          "before": [
+            "100644",
+            "e256fb05c9f92c24bcfd4028f21e8c903dfdc07e"
+          ],
+          "path": "tests/unit/scripts/test_requirements_late_cycle_workflow.py"
+        },
+        {
+          "after": [
+            "100644",
+            "a12cb08c91452e536cb9bd4b83bc810acd4c1363"
+          ],
+          "before": [
+            "100644",
+            "19c08cdb435354d415d1b0ee28623c442d658426"
+          ],
+          "path": "tests/unit/scripts/test_security_audit_gate.py"
+        },
+        {
+          "after": [
+            "100644",
+            "749a250b97ed719a51b8f999ad18f520a6af6b87"
+          ],
+          "before": [
+            "100644",
+            "b163cf030670dca8470ec5e10f97d00508ae574d"
+          ],
+          "path": "tests/unit/scripts/test_semgrep_sast_gate.py"
+        },
+        {
+          "after": [
+            "100644",
+            "8c69efcd3fe12a7d0a2f3efde61ed1f1aa81251a"
+          ],
+          "before": null,
+          "path": "tests/unit/security/test_code_review_dependency_security.py"
+        },
+        {
+          "after": [
+            "100644",
+            "8be7f32bb5d976ddfb5440b10726e3184cd414ce"
+          ],
+          "before": [
+            "100644",
+            "19635578a96cdcc5cbd1c0d6f4e709b22ca185c7"
+          ],
+          "path": "tests/unit/security/test_frozen_gitpython_compatibility.py"
+        },
+        {
+          "after": [
+            "100644",
+            "ce0f9264d88836b030fe0cbee19e7d5ab53ee8b0"
+          ],
+          "before": null,
+          "path": "tests/unit/security/test_release_dependency_selection.py"
+        },
+        {
+          "after": [
+            "100644",
+            "6d2fb8c2a2d899b46cf8fd61a1f681b07bb9cda7"
+          ],
+          "before": [
+            "100644",
+            "e1f0aac258513353799e055a7725c216a7d43656"
+          ],
+          "path": "tests/unit/security/test_release_promotion_security_gates.py"
+        },
+        {
+          "after": [
+            "100644",
+            "c1bd201beb5423d41aa53914bcbcb72d81b3a0da"
+          ],
+          "before": [
+            "100644",
+            "c291e96983772bf5f0fe2e30cb9d2632d8bc9537"
+          ],
+          "path": "tests/unit/workflows/test_requirements_evidence_delivery_workflow.py"
+        },
+        {
+          "after": [
+            "100644",
+            "53514e77449846332ad2bbb75e24f1ef12298f7a"
+          ],
+          "before": [
+            "100644",
+            "24542a84a6d760f2d12d2ab9743ae5e19f5e6b8a"
+          ],
+          "path": "tests/unit/workflows/test_requirements_planning_scope.py"
+        },
+        {
+          "after": [
+            "100644",
+            "fd895f1e574451411bfa564f7db38b88103b3133"
+          ],
+          "before": [
+            "100644",
+            "d9926ed357e13fe3522e4af52202cc98c4263801"
+          ],
+          "path": "tests/unit/workflows/test_requirements_verifier_boundary.py"
+        },
+        {
+          "after": [
+            "100644",
+            "823c42d0f1c00efc940ae747d46bcab03a4e7438"
+          ],
+          "before": [
+            "100644",
+            "4288423f5eb84dc2faef1eb8031cf173e316654e"
+          ],
+          "path": "tools/semgrep/sast.yml"
+        },
+        {
+          "after": [
+            "100644",
+            "61b544073cea305469c465d30a60334530614bd2"
+          ],
+          "before": [
+            "100644",
+            "7a66298adf4c5e6594c93cb666137b0160c282e3"
+          ],
+          "path": "uv.lock"
+        }
+      ],
+      "source_commit": "cd4153c27b8bf15b9849624216fc74b29df8782d",
+      "source_message": "test(ci): preserve delivery scope and require exact follow-up origin",
+      "source_parent": "68407340e4acb3ed95ef859c0fb5d01282d1ab08",
+      "source_tree": "dcaa4dd11ab13a0c2a4ed9a88030bd7f2ce8f67b"
+    },
+    {
+      "delta": [
+        {
+          "after": [
+            "100644",
+            "ff75b1f3d81651077caf5da6f4bf7e3cbb8203e8"
+          ],
+          "before": [
+            "100644",
+            "d44f7607c8806e09e3644229a3794e5dc740e59b"
+          ],
+          "path": ".github/actions/setup-frozen-python/action.yml"
+        },
+        {
+          "after": [
+            "100644",
+            "366f7286e22d6752b4be239e7977c5b96bdcf296"
+          ],
+          "before": [
+            "100644",
+            "50af9e7b8c8a51227ef4256c6756bbd37d45cfad"
+          ],
+          "path": ".github/workflows/pr-orchestrator.yml"
+        },
+        {
+          "after": [
+            "100644",
+            "5b4aa0eabf3bf3b82d3493c4d80f5ad6a9ac21b4"
+          ],
+          "before": [
+            "100644",
+            "b6cbaae9bc71aac8d1b4f54c669c4224f14c5324"
+          ],
+          "path": ".github/workflows/requirements-evidence.yml"
+        },
+        {
+          "after": [
+            "100644",
+            "5cb0d495799bba394ed258d5d6e786d26eab89c9"
+          ],
+          "before": [
+            "100644",
+            "aaccd7b6f16281dd3c38021597bc826eb0748c7b"
+          ],
+          "path": "CHANGELOG.md"
+        },
+        {
+          "after": [
+            "100644",
+            "b6e92775ce035b7394cb524057d18f3adf44838a"
+          ],
+          "before": null,
+          "path": "ci/dependency-trust-exceptions-20261116.json"
+        },
+        {
+          "after": [
+            "100644",
+            "7b1e4880e92ac5dc975329f765a369adc63b4156"
+          ],
+          "before": [
+            "100644",
+            "7f6c397f1e5f2eab051f66b946fdfe4b09d02c44"
+          ],
+          "path": "ci/dependency-trust-exceptions.json"
+        },
+        {
+          "after": [
+            "100644",
+            "8cf92b9f2aae610d1ff38d37d414e8cb61593403"
+          ],
+          "before": null,
+          "path": "ci/vulnerability-audit-exceptions-20261116.json"
+        },
+        {
+          "after": [
+            "100644",
+            "f51d25958f1bc84f2b348114eded101f7d6bc3b1"
+          ],
+          "before": [
+            "100644",
+            "e852ce09d81ef585ac432b31b7dfc5e1b1230d10"
+          ],
+          "path": "ci/vulnerability-audit-exceptions.json"
+        },
+        {
+          "after": [
+            "100644",
+            "5e62f346cac925dea34fbd63eb906e99c44d927b"
+          ],
+          "before": [
+            "100644",
+            "e69b71c83755504d62cca8f1f8e055b653c8c58c"
+          ],
+          "path": "openspec/CHANGE_ORDER.md"
+        },
+        {
+          "after": [
+            "100644",
+            "7ccf7c369511c5b08e33676571f5f1b1d310f7f9"
+          ],
+          "before": null,
+          "path": "openspec/changes/security-dependencies-0-55-11-dev/.openspec.yaml"
+        },
+        {
+          "after": [
+            "100644",
+            "58dd459869fa34fabb0190f74ed2680ed0bfe7f2"
+          ],
+          "before": null,
+          "path": "openspec/changes/security-dependencies-0-55-11-dev/CHANGE_VALIDATION.md"
+        },
+        {
+          "after": [
+            "100644",
+            "340e40f720c52813ba30337ccc17d3ad41ae9a28"
+          ],
+          "before": null,
+          "path": "openspec/changes/security-dependencies-0-55-11-dev/TDD_EVIDENCE.md"
+        },
+        {
+          "after": [
+            "100644",
+            "cc5249b1db9fd31bfb88391d216efdbf8bc870a4"
+          ],
+          "before": null,
+          "path": "openspec/changes/security-dependencies-0-55-11-dev/design.md"
+        },
+        {
+          "after": [
+            "100644",
+            "fe41af7ecc18324a409c39f6d8f55cdd51330148"
+          ],
+          "before": null,
+          "path": "openspec/changes/security-dependencies-0-55-11-dev/proposal.md"
+        },
+        {
+          "after": [
+            "100644",
+            "0d25511a5c717c436897c6748a4804d0c556edd8"
+          ],
+          "before": null,
+          "path": "openspec/changes/security-dependencies-0-55-11-dev/requirements-evidence.yaml"
+        },
+        {
+          "after": [
+            "100644",
+            "368c95f6731b8600d8b8ec2156ed399dfc66eff7"
+          ],
+          "before": null,
+          "path": "openspec/changes/security-dependencies-0-55-11-dev/requirements-proof/late-red-evidence.json"
+        },
+        {
+          "after": [
+            "100644",
+            "62f8319d4c9d270c3e4091a4bb849478faff5fd3"
+          ],
+          "before": null,
+          "path": "openspec/changes/security-dependencies-0-55-11-dev/requirements-proof/local-red-behavior-20261026-receipt.json"
+        },
+        {
+          "after": [
+            "100644",
+            "0385155197f7e797f7936fcaa7dcf311fea5d9d1"
+          ],
+          "before": null,
+          "path": "openspec/changes/security-dependencies-0-55-11-dev/requirements-proof/local-red-behavior-20261026.xml.gz"
+        },
+        {
+          "after": [
+            "100644",
+            "67c863ce72496cba9d7418499720281ca5e73639"
+          ],
+          "before": null,
+          "path": "openspec/changes/security-dependencies-0-55-11-dev/requirements-proof/review-evidence.json"
+        },
+        {
+          "after": [
+            "100644",
+            "d379506566a2c263f1cf4b9eee94f369909dc328"
+          ],
+          "before": null,
+          "path": "openspec/changes/security-dependencies-0-55-11-dev/specs/dev-security-dependencies/spec.md"
+        },
+        {
+          "after": [
+            "100644",
+            "21c80f9782377d25335272c44d4cbd81c52fd558"
+          ],
+          "before": null,
+          "path": "openspec/changes/security-dependencies-0-55-11-dev/tasks.md"
+        },
+        {
+          "after": [
+            "100644",
+            "c015f1fda807380fa86ac7ef51021183a7f952cd"
+          ],
+          "before": [
+            "100644",
+            "28407a94aa5e18fbb2e4da0c82e7fd270316df96"
+          ],
+          "path": "pyproject.toml"
+        },
+        {
+          "after": [
+            "100644",
+            "a763ece58e1b9b4b9259e36f73560b3f616c5fcd"
+          ],
+          "before": null,
+          "path": "requirements/bootstrap/tzdata.txt"
+        },
+        {
+          "after": [
+            "100644",
+            "86b6bef4df8424b099f80d7cf21ca93fd52d146e"
+          ],
+          "before": [
+            "100644",
+            "507487f83051a64d5e2df44ab19745e1c3ec9b31"
+          ],
+          "path": "requirements/ci/locked.txt"
+        },
+        {
+          "after": [
+            "100644",
+            "75223c39fc213a51cd62dd5e8e431201f417348c"
+          ],
+          "before": [
+            "100644",
+            "bf0033c19cada1b656beb818e43366828ce6fabb"
+          ],
+          "path": "requirements/code-review/locked.txt"
+        },
+        {
+          "after": [
+            "100644",
+            "a5d578ec8cd844198d617ccefb0e30cd24dcb7fa"
+          ],
+          "before": [
+            "100644",
+            "6f0f16ba49e10d6b4f4132c112e3b4c5855e850f"
+          ],
+          "path": "requirements/code-review/requirements.in"
+        },
+        {
+          "after": [
+            "100644",
+            "815bd31c3c936acafa1c810c79f88bd791b29456"
+          ],
+          "before": [
+            "100644",
+            "7be8eaebeb5238e29dced2ec5ef066ba86405a5b"
+          ],
+          "path": "scripts/check_dependency_trust_exceptions.py"
+        },
+        {
+          "after": [
+            "100644",
+            "a7d58873eab51097c00ac912b470011bc71656a2"
+          ],
+          "before": [
+            "100644",
+            "0f28aba4bfc3c2224a69f4c91f884c673c6541bd"
+          ],
+          "path": "scripts/license_allowlist.yaml"
+        },
+        {
+          "after": [
+            "100644",
+            "265eb05b5c72c32d09f209e7454928634050d7ac"
+          ],
+          "before": [
+            "100644",
+            "da724fe06adfb9731d5c8324d1b3352a12fb9b8a"
+          ],
+          "path": "scripts/requirements_late_red_proof.py"
+        },
+        {
+          "after": [
+            "100644",
+            "255d07c40f0b9397d688b948b07d900a59eea264"
+          ],
+          "before": [
+            "100644",
+            "7f9c44c77d36ba20523659e4c92d327fda796961"
+          ],
+          "path": "scripts/security_audit_gate.py"
+        },
+        {
+          "after": [
+            "100644",
+            "96de05c8a3c807ee4470731c57e73831a90df781"
+          ],
+          "before": [
+            "100644",
+            "63676adedfe7b549d590aabb6c16819ca7eb6da5"
+          ],
+          "path": "setup.py"
+        },
+        {
+          "after": [
+            "100644",
+            "782672bb4be78b632b044551e8f64eccb90f5d4f"
+          ],
+          "before": [
+            "100644",
+            "8209aa7049eb0bcafedbf1cb96b5485791384abf"
+          ],
+          "path": "src/__init__.py"
+        },
+        {
+          "after": [
+            "100644",
+            "84cde239d67928eb9e56ebce227a0ff5c4d2b872"
+          ],
+          "before": [
+            "100644",
+            "6f5fbda97e48744a5e55a13efdf88f3aa0965a78"
+          ],
+          "path": "src/specfact_cli/__init__.py"
+        },
+        {
+          "after": [
+            "100644",
+            "fa6967882d170dea5cad63b08b89a31fc0707c20"
+          ],
+          "before": null,
+          "path": "tests/fixtures/requirements-proof/pr786-native34-run.json"
+        },
+        {
+          "after": [
+            "100644",
+            "6c4bf5dd9c51ec37f81aef19870693880c588dd4"
+          ],
+          "before": null,
+          "path": "tests/fixtures/requirements-proof/pr786-original-native36.zip"
+        },
+        {
+          "after": [
+            "100644",
+            "ffb2a6d3a28641078f1ae1d0244eee830d15cac0"
+          ],
+          "before": null,
+          "path": "tests/proof/test_fixed786_canonical_copy.py"
+        },
+        {
+          "after": [
+            "100644",
+            "e7d204d87b919804e4f9bdbc5754ce9f6b63a206"
+          ],
+          "before": [
+            "100644",
+            "242e3cb5644c5b637f656abf0c86929946fe930a"
+          ],
+          "path": "tests/unit/packaging/test_core_package_includes.py"
+        },
+        {
+          "after": [
+            "100644",
+            "aad3c012350c072dd9e8aa83eee9e5844bcf1f34"
+          ],
+          "before": null,
+          "path": "tests/unit/scripts/fixtures/fixed786-native-packet/fixture-metadata.json"
+        },
+        {
+          "after": [
+            "100644",
+            "db50209e41c18db13ee18af95b6b243ddea02ee3"
+          ],
+          "before": null,
+          "path": "tests/unit/scripts/fixtures/fixed786-native-packet/local-red-report.json"
+        },
+        {
+          "after": [
+            "100644",
+            "725bab201b6b7eea044f48bc852d3cdd5dee02b0"
+          ],
+          "before": null,
+          "path": "tests/unit/scripts/fixtures/fixed786-native-packet/plan.json"
+        },
+        {
+          "after": [
+            "100644",
+            "855d6e055a3c1bf3709fd8a55392df1c99bf5cfa"
+          ],
+          "before": null,
+          "path": "tests/unit/scripts/fixtures/fixed786-native-packet/planning-report.json"
+        },
+        {
+          "after": [
+            "100644",
+            "b2a415adcfd2755720973b0a5f8b038a809da5df"
+          ],
+          "before": null,
+          "path": "tests/unit/scripts/fixtures/fixed786-native-packet/requirements-proof.xml"
+        },
+        {
+          "after": [
+            "100644",
+            "d0c1faafbfaab6c8c40a534ad2861295d309698e"
+          ],
+          "before": null,
+          "path": "tests/unit/scripts/fixtures/fixed786_artifact_source/artifact-live-api.json"
+        },
+        {
+          "after": [
+            "100644",
+            "368c95f6731b8600d8b8ec2156ed399dfc66eff7"
+          ],
+          "before": null,
+          "path": "tests/unit/scripts/fixtures/fixed786_artifact_source/manifest.json"
+        },
+        {
+          "after": [
+            "100644",
+            "fdc806ebb722c07d3c23319d700ad8cfabc78fc2"
+          ],
+          "before": null,
+          "path": "tests/unit/scripts/fixtures/fixed786_artifact_source/source-R2-filtered-api.json"
+        },
+        {
+          "after": [
+            "100644",
+            "51c0f2f99cc8372ebfca66c168cce081638b499a"
+          ],
+          "before": [
+            "100644",
+            "bb819b16260be254461d809f8d344f52584ac8f9"
+          ],
+          "path": "tests/unit/scripts/test_check_license_compliance.py"
+        },
+        {
+          "after": [
+            "100644",
+            "09875b3dd14a19bca7ec3bf1ddeaa10818a53e10"
+          ],
+          "before": null,
+          "path": "tests/unit/scripts/test_dependency_compatibility_workflow.py"
+        },
+        {
+          "after": [
+            "100644",
+            "860ffa138ccd558358cdc336cd53125123139b04"
+          ],
+          "before": null,
+          "path": "tests/unit/scripts/test_dependency_expiry_clock.py"
+        },
+        {
+          "after": [
+            "100644",
+            "76e77e783b89e8e4d36b5e87b1fa5e5d3a6adecc"
+          ],
+          "before": [
+            "100644",
+            "959879755e81673498c498a3cf4c8fcdc655e86f"
+          ],
+          "path": "tests/unit/scripts/test_dependency_trust_review.py"
+        },
+        {
+          "after": [
+            "100644",
+            "643caefaba8e0d10371f1039bd59ffb90ae01350"
+          ],
+          "before": null,
+          "path": "tests/unit/scripts/test_fixed786_artifact_source.py"
+        },
+        {
+          "after": [
+            "100644",
+            "ec53c9510eba0317f1902db90d3fa1d71793fafd"
+          ],
+          "before": null,
+          "path": "tests/unit/scripts/test_fixed786_clock_signer.py"
+        },
+        {
+          "after": [
+            "100644",
+            "5e7db74077092c7b77e46429601f4ac4da134dae"
+          ],
+          "before": null,
+          "path": "tests/unit/scripts/test_fixed786_native_packet.py"
+        },
+        {
+          "after": [
+            "100644",
+            "4dfc0a64064d4ff734a5324cbf5800be5a93ae7c"
+          ],
+          "before": null,
+          "path": "tests/unit/scripts/test_fixed786_native_run.py"
+        },
+        {
+          "after": [
+            "100644",
+            "77eaa99fe6e09606ea9a52d77ee8f3be76fd6213"
+          ],
+          "before": null,
+          "path": "tests/unit/scripts/test_fixed786_retained_origin.py"
+        },
+        {
+          "after": [
+            "100644",
+            "ba43ad08453d5ad75e6c80e178edeef9e800deb9"
+          ],
+          "before": null,
+          "path": "tests/unit/scripts/test_fixed786_workflow_integration.py"
+        },
+        {
+          "after": [
+            "100644",
+            "318868c8b9dad2a8205a5c450fccf2b351912727"
+          ],
+          "before": [
+            "100644",
+            "64c55261502d56e20df6318a468affbf9ecefff6"
+          ],
+          "path": "tests/unit/scripts/test_reproducible_delivery.py"
+        },
+        {
+          "after": [
+            "100644",
+            "fdddda9f3dfb6dfd55df3746ae06e5f75eb1a5b2"
+          ],
+          "before": [
+            "100644",
+            "e256fb05c9f92c24bcfd4028f21e8c903dfdc07e"
+          ],
+          "path": "tests/unit/scripts/test_requirements_late_cycle_workflow.py"
+        },
+        {
+          "after": [
+            "100644",
+            "a12cb08c91452e536cb9bd4b83bc810acd4c1363"
+          ],
+          "before": [
+            "100644",
+            "19c08cdb435354d415d1b0ee28623c442d658426"
+          ],
+          "path": "tests/unit/scripts/test_security_audit_gate.py"
+        },
+        {
+          "after": [
+            "100644",
+            "749a250b97ed719a51b8f999ad18f520a6af6b87"
+          ],
+          "before": [
+            "100644",
+            "b163cf030670dca8470ec5e10f97d00508ae574d"
+          ],
+          "path": "tests/unit/scripts/test_semgrep_sast_gate.py"
+        },
+        {
+          "after": [
+            "100644",
+            "8c69efcd3fe12a7d0a2f3efde61ed1f1aa81251a"
+          ],
+          "before": null,
+          "path": "tests/unit/security/test_code_review_dependency_security.py"
+        },
+        {
+          "after": [
+            "100644",
+            "8be7f32bb5d976ddfb5440b10726e3184cd414ce"
+          ],
+          "before": [
+            "100644",
+            "19635578a96cdcc5cbd1c0d6f4e709b22ca185c7"
+          ],
+          "path": "tests/unit/security/test_frozen_gitpython_compatibility.py"
+        },
+        {
+          "after": [
+            "100644",
+            "ce0f9264d88836b030fe0cbee19e7d5ab53ee8b0"
+          ],
+          "before": null,
+          "path": "tests/unit/security/test_release_dependency_selection.py"
+        },
+        {
+          "after": [
+            "100644",
+            "6d2fb8c2a2d899b46cf8fd61a1f681b07bb9cda7"
+          ],
+          "before": [
+            "100644",
+            "e1f0aac258513353799e055a7725c216a7d43656"
+          ],
+          "path": "tests/unit/security/test_release_promotion_security_gates.py"
+        },
+        {
+          "after": [
+            "100644",
+            "c1bd201beb5423d41aa53914bcbcb72d81b3a0da"
+          ],
+          "before": [
+            "100644",
+            "c291e96983772bf5f0fe2e30cb9d2632d8bc9537"
+          ],
+          "path": "tests/unit/workflows/test_requirements_evidence_delivery_workflow.py"
+        },
+        {
+          "after": [
+            "100644",
+            "53514e77449846332ad2bbb75e24f1ef12298f7a"
+          ],
+          "before": [
+            "100644",
+            "24542a84a6d760f2d12d2ab9743ae5e19f5e6b8a"
+          ],
+          "path": "tests/unit/workflows/test_requirements_planning_scope.py"
+        },
+        {
+          "after": [
+            "100644",
+            "fd895f1e574451411bfa564f7db38b88103b3133"
+          ],
+          "before": [
+            "100644",
+            "d9926ed357e13fe3522e4af52202cc98c4263801"
+          ],
+          "path": "tests/unit/workflows/test_requirements_verifier_boundary.py"
+        },
+        {
+          "after": [
+            "100644",
+            "823c42d0f1c00efc940ae747d46bcab03a4e7438"
+          ],
+          "before": [
+            "100644",
+            "4288423f5eb84dc2faef1eb8031cf173e316654e"
+          ],
+          "path": "tools/semgrep/sast.yml"
+        },
+        {
+          "after": [
+            "100644",
+            "61b544073cea305469c465d30a60334530614bd2"
+          ],
+          "before": [
+            "100644",
+            "7a66298adf4c5e6594c93cb666137b0160c282e3"
+          ],
+          "path": "uv.lock"
+        }
+      ],
+      "source_commit": "deee0557ee1e048a63a8d48d40106ba90066b90d",
+      "source_message": "fix(ci): preserve Requirements delivery scope and original proof plan",
+      "source_parent": "cd4153c27b8bf15b9849624216fc74b29df8782d",
+      "source_tree": "c99d606a445cb2debeb9b37300d3d5a44a6d22b6"
+    }
+  ],
+  "destination": "refs/heads/codex/security-dev-requirements-map-candidate-20261116",
+  "dev": "9b5ad1e78430cc0b061cb16de42f73de96f4f312",
+  "main": "5262efb0881e4fac7697d629b0530250342bc656",
+  "repository_full_name": "nold-ai/specfact-cli",
+  "repository_id": 1085706003,
+  "triggering_actor": {
+    "id": 39115308,
+    "login": "djm81"
+  }
+}
