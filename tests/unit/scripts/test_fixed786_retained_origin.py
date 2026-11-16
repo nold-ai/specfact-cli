@@ -21,6 +21,28 @@ ARCHIVE = ROOT / "tests/fixtures/requirements-proof/pr786-original-native36.zip"
 Evidence = tuple[ModuleType, dict[str, Any], bytes, bytes, dict[str, Any], Path]
 
 
+@pytest.mark.parametrize(
+    "job", ["requirements-evidence-producer", "requirements-evidence", "requirements-evidence-final"]
+)
+def test_requirements_jobs_install_uv_before_trusted_graph_check(job: str) -> None:
+    workflow = yaml.safe_load((ROOT / ".github/workflows/requirements-evidence.yml").read_text())
+    steps = workflow["jobs"][job]["steps"]
+    setup = [
+        index
+        for index, step in enumerate(steps)
+        if step.get("uses") == "astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e"
+        and "if" not in step
+        and step.get("with", {}).get("enable-cache") is False
+    ]
+    graph_checks = [
+        index
+        for index, step in enumerate(steps)
+        if "check_reproducible_delivery.py" in step.get("run", "")
+    ]
+    assert setup and graph_checks, f"{job} must install uv for its fixed route"
+    assert min(setup) < min(graph_checks)
+
+
 @pytest.fixture
 def evidence(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Evidence:
     spec = importlib.util.spec_from_file_location(

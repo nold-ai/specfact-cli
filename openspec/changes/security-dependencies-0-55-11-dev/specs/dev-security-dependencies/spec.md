@@ -166,3 +166,15 @@ The active registers SHALL admit only the four existing risk records and separat
 
 - **WHEN** the new Berlin expiry is reached or an unreviewed package, version, advisory or artifact is encountered
 - **THEN** the unchanged mandatory checks fail closed without a general waiver.
+### Requirement: Requirements jobs install the reproducibility tool before use
+
+Every Requirements job that checks the frozen delivery graph SHALL install uv
+using the existing pinned setup action before invoking the trusted verifier.
+The fixed PR786 route SHALL retain its isolated verifier and dependency inputs.
+
+#### Scenario: Fixed producer bypasses ordinary project synchronization
+
+- **WHEN** the PR786 producer uses its isolated frozen verifier
+- **THEN** the existing pinned uv setup runs before the graph check
+- **AND** the graph check remains enforced without project synchronization
+
