@@ -589,7 +589,7 @@ it before publication. No normal hook, signing or new-head CI credit is
 claimed by this local preparation.
 # Retained original-provider upload provenance, 16 November 2026
 
-The implemented paired verifier passes all 205 affected cases. Both production
+The implemented paired verifier passes all 209 affected cases. Both production
 observers contain AST-identical origin helpers. BasedPyright 1.39.9 reports zero
 errors, warnings or information over the owner and new test file. Ruff, actionlint
 and strict OpenSpec checks pass. An initial typing run reported four warnings;

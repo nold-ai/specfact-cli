@@ -51,3 +51,4 @@
 - [x] Preserve original registers and protected tests; validate fresh default-register acceptance and expiry.
 - [x] Verify118affected cases, typing, strictOpenSpec, cold bootstrap and frozen-delivery inputs.
 - [x] Resolve the additional live CI advisory's exact owner decision, without extending the four-record acceptance.
+- [ ] Deliver the prepared Windows timezone-data bootstrap and retention-safe original-upload provenance correction; require actual CI credential access to the original provider log before signing, then exact final-head authority and all required checks. Preserve every original snapshot, deadline and consumed operation.

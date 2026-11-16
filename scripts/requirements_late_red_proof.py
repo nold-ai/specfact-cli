@@ -881,6 +881,16 @@ _FIXED_PR786_CLOCK_ORIGIN = (
     "refs/heads/codex/security-dev-berlin-clock-candidate-20261115",
     "e753ac1a3e4bb3bf739bd7203c728a652db6cb90",
 )
+_FIXED_PR786_RETENTION_SIGNER_FILES = (
+    ("scripts/dev_security_ci_signer.py", "f164af0369a12f2804069661a6915951d539a95f209c0be3aee4fe69de935a4a"),
+    (".github/workflows/specfact.yml", "9b328490b7af3338c423da894c90a5dc964a18bf70c554daf7866a2b29ba195f"),
+    ("ci/recovery/dev-security-signer-runtime.txt", "bc64c498cf74b3a959a1522c04614e199061dea2e35ab0110d58b9411db38712"),
+)
+_FIXED_PR786_RETENTION_ORIGIN = (
+    "refs/heads/codex/dev786-retained-origin-signer-20261116",
+    "refs/heads/codex/security-dev-retained-origin-candidate-20261116",
+    "8fa13e4c69b40bcf6852eb95600d52316e723300",
+)
 _FIXED_PR786_AUTHORITY_SHA256 = "5441e26e7c3c8f18973c781e7d43c72076b3283c915d98ca5188bb174bf17c45"
 _FIXED_PR786_MANIFEST_SHA256 = "f08743305cbd774e1d097c9911383a113943071adc8c256528866adb4c1f098a"
 
@@ -1127,6 +1137,8 @@ def _fixed_pr786_executor_tree(helper: ModuleType, executor: str) -> tuple[dict[
     pins = _FIXED_PR786_SIGNER_FILES
     if hashlib.sha256(program).hexdigest() == _FIXED_PR786_CLOCK_SIGNER_FILES[0][1]:
         pins = _FIXED_PR786_CLOCK_SIGNER_FILES
+    if hashlib.sha256(program).hexdigest() == _FIXED_PR786_RETENTION_SIGNER_FILES[0][1]:
+        pins = _FIXED_PR786_RETENTION_SIGNER_FILES
     for path, expected in pins:
         raw = _fixed_pr786_blob(helper, executor_tree, path)
         if hashlib.sha256(raw).hexdigest() != expected:
@@ -1144,6 +1156,8 @@ def _fixed_pr786_origin(intent: dict[str, object]) -> tuple[str, str, str]:
     )
     if intent["auxiliary_ref"] == _FIXED_PR786_CLOCK_ORIGIN[0]:
         origin = _FIXED_PR786_CLOCK_ORIGIN
+    if intent["auxiliary_ref"] == _FIXED_PR786_RETENTION_ORIGIN[0]:
+        origin = _FIXED_PR786_RETENTION_ORIGIN
     if (intent["repository_full_name"], intent["dev"], intent["auxiliary_ref"], intent["destination"]) != (
         REPOSITORY,
         "9b5ad1e78430cc0b061cb16de42f73de96f4f312",
@@ -1175,6 +1189,8 @@ def _fixed_pr786_intent(
         raise ValueError
     origin = _fixed_pr786_origin(intent)
     pins = _FIXED_PR786_CLOCK_SIGNER_FILES if origin == _FIXED_PR786_CLOCK_ORIGIN else _FIXED_PR786_SIGNER_FILES
+    if origin == _FIXED_PR786_RETENTION_ORIGIN:
+        pins = _FIXED_PR786_RETENTION_SIGNER_FILES
     program = _fixed_pr786_blob(helper, executor_tree, "scripts/dev_security_ci_signer.py")
     if hashlib.sha256(program).hexdigest() != pins[0][1]:
         raise ValueError
@@ -1293,7 +1309,11 @@ def _fixed_pr786_outputs(
     signing: tuple[str, str, int],
 ) -> None:
     source_root = _string(checkpoints[0]["source_parent"], OBJECT_PATTERN)
-    if source_root not in ("b0184ae8c3de2c107d888dc23b0e7402a31d520e", _FIXED_PR786_CLOCK_ORIGIN[2]):
+    if source_root not in (
+        "b0184ae8c3de2c107d888dc23b0e7402a31d520e",
+        _FIXED_PR786_CLOCK_ORIGIN[2],
+        _FIXED_PR786_RETENTION_ORIGIN[2],
+    ):
         raise ValueError
     intent_digest, executor, run_id = signing
     token = os.environ["GITHUB_TOKEN"]
@@ -1609,12 +1629,174 @@ def _fixed_pr786_verified_origin(arguments: argparse.Namespace) -> tuple[bytes, 
     return origin_raw, workflow_sha
 
 
+_FIXED_PR786_UPLOAD_LOG_SHA256 = "4790c54b9ecf650c9f3a92d591a9ffbc292c39497fba7cdfe7211dd5a3ae4048"
+_FIXED_PR786_UPLOAD_LOG_BYTES = 30543
+_FIXED_PR786_ORIGINAL_ZIP = "tests/fixtures/requirements-proof/pr786-original-native36.zip"
+
+
+def _fixed_pr786_upload_receipt(
+    job: dict[str, object], log: bytes, archive: bytes, manifest: dict[str, object], packet: Path
+) -> dict[str, object]:
+    expected_job: dict[str, object] = {
+        "id": 126195535776,
+        "run_id": 41715861806,
+        "run_attempt": 1,
+        "head_sha": "8ad0a9434ceeac4a910df3c374536d7c909badec",
+        "name": "materialize",
+        "status": "completed",
+        "conclusion": "success",
+    }
+    if any(type(job.get(key)) is not type(value) or job.get(key) != value for key, value in expected_job.items()):
+        raise ValueError("fixed786 original upload job")
+    steps = job.get("steps")
+    if not isinstance(steps, list):
+        raise ValueError("fixed786 original upload steps")
+    by_number: dict[object, dict[str, object]] = {}
+    for item in cast(list[object], steps):
+        if not isinstance(item, dict):
+            raise ValueError("fixed786 original upload step")
+        step = cast(dict[str, object], item)
+        number = step.get("number")
+        if type(number) is not int or number in by_number or step.get("conclusion") != "success":
+            raise ValueError("fixed786 unsuccessful original step")
+        by_number[number] = step
+    for number, name in ((7, "Observe one original native materialization"), (9, "Retain original execution packet")):
+        if by_number.get(number, {}).get("name") != name:
+            raise ValueError("fixed786 original command or upload missing")
+    times: list[datetime] = []
+    for key in ("started_at", "completed_at"):
+        value = job.get(key)
+        if not isinstance(value, str):
+            raise ValueError("fixed786 original job time")
+        times.append(datetime.fromisoformat(value.replace("Z", "+00:00")))
+    if any(value.tzinfo is None for value in times) or not (
+        datetime(2026, 11, 3, tzinfo=UTC) <= times[0] <= times[1] < datetime(2026, 11, 4, 23, tzinfo=UTC)
+    ):
+        raise ValueError("fixed786 original execution outside its window")
+    log_digest = hashlib.sha256(log).hexdigest()
+    if len(log) != _FIXED_PR786_UPLOAD_LOG_BYTES or log_digest != _FIXED_PR786_UPLOAD_LOG_SHA256:
+        raise ValueError("fixed786 original provider log")
+    marker = "##[group]Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+    _, separator, upload = log.decode("utf-8").rpartition(marker)
+    expected_lines = (
+        "  name: original-execution-packet-41715861806-1",
+        "SHA256 digest of uploaded artifact is 0567a53963df112f2ac3f2e2024c1b93c6f9fafc00052ce137c4d5495c07f433",
+        "Artifact original-execution-packet-41715861806-1 successfully finalized. Artifact ID 13269307808",
+        "Artifact original-execution-packet-41715861806-1 has been successfully uploaded! Final size is 1885415 bytes. Artifact ID is 13269307808",
+        "Artifact download URL: https://github.com/nold-ai/.github/actions/runs/41715861806/artifacts/13269307808",
+    )
+    if not separator or any(line not in upload for line in expected_lines):
+        raise ValueError("fixed786 original provider receipt")
+    archive_digest = "sha256:" + hashlib.sha256(archive).hexdigest()
+    if len(archive) != 1885415 or archive_digest != manifest["artifact_digest"]:
+        raise ValueError("fixed786 retained original archive")
+    selected = (
+        ("local-red-report.json", "requirements-evidence.json", "report_digest", 64255),
+        ("planning-report.json", "requirements-evidence-plan.json", "plan_report_digest", 31641),
+        ("requirements-proof.xml", "requirements-proof.xml", "junit_digest", 62923),
+        ("plan.json", "plan.json", "plan_output_digest", 30303),
+    )
+    members: dict[str, object] = {}
+    with zipfile.ZipFile(io.BytesIO(archive)) as zipped:
+        infos = zipped.infolist()
+        if len(infos) != 17 or len({info.filename for info in infos}) != 17:
+            raise ValueError("fixed786 original archive inventory")
+        for original, normalized, digest_key, length in selected:
+            name = str(manifest["artifact_member_prefix"]) + "/" + original
+            info = zipped.getinfo(name)
+            if (
+                info.is_dir()
+                or info.flag_bits & 1
+                or info.compress_type not in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED)
+                or info.file_size != length
+                or info.compress_size > len(archive)
+                or stat.S_IFMT(info.external_attr >> 16) not in (0, stat.S_IFREG)
+            ):
+                raise ValueError("fixed786 original member mode or size")
+            with zipped.open(info) as stream:
+                raw = stream.read(length + 1)
+            target = packet / normalized
+            if target.is_symlink() or not target.is_file():
+                raise ValueError("fixed786 retained member kind")
+            with target.open("rb") as stream:
+                retained = stream.read(length + 1)
+            member_digest = "sha256:" + hashlib.sha256(raw).hexdigest()
+            if len(raw) != length or member_digest != manifest[digest_key] or retained != raw:
+                raise ValueError("fixed786 original member mismatch")
+            members[normalized] = {"bytes": length, "digest": member_digest}
+    return {
+        "source": "live-provider-upload-log",
+        "artifact_metadata_role": "historical",
+        "artifacts_present": 0,
+        "job": job,
+        "log_digest": "sha256:" + log_digest,
+        "upload": {
+            "id": 13269307808,
+            "run_id": 41715861806,
+            "name": "original-execution-packet-41715861806-1",
+            "bytes": 1885415,
+            "digest": archive_digest,
+        },
+        "archive": {"path": _FIXED_PR786_ORIGINAL_ZIP, "bytes": len(archive), "digest": archive_digest},
+        "members": members,
+    }
+
+
+def _fixed_pr786_original_log() -> bytes:
+    connection = http.client.HTTPSConnection("api.github.com", timeout=20)
+    try:
+        connection.request(
+            "GET",
+            "/repos/nold-ai/.github/actions/jobs/126195535776/logs",
+            headers={
+                "Authorization": "Bearer " + os.environ["GITHUB_TOKEN"],
+                "Accept": "application/vnd.github+json",
+                "User-Agent": "specfact-fixed786",
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+        )
+        response = connection.getresponse()
+        if response.status != 302:
+            raise ValueError("fixed786 original log redirect")
+        target = response.getheader("Location")
+        if not isinstance(target, str):
+            raise ValueError("fixed786 original log location")
+        location = urllib.parse.urlsplit(target)
+    finally:
+        connection.close()
+    return _fixed_pr786_copy_archive(
+        location, _FIXED_PR786_UPLOAD_LOG_BYTES, "sha256:" + _FIXED_PR786_UPLOAD_LOG_SHA256
+    )
+
+
 def _fixed_pr786_original_metadata(
-    helper: ModuleType, arguments: argparse.Namespace, manifest: dict[str, object]
+    helper: ModuleType, arguments: argparse.Namespace, manifest: dict[str, object], final: dict[str, object]
 ) -> dict[str, object]:
     token = os.environ["GITHUB_TOKEN"]
+    _validate_fixed_pr786_manifest(manifest)
     original_run = _object(helper._api_json("/repos/nold-ai/.github/actions/runs/41715861806", token)[0])
-    original_artifact = _object(helper._api_json("/repos/nold-ai/.github/actions/artifacts/13269307808", token)[0])
+    available = _object(
+        helper._api_json("/repos/nold-ai/.github/actions/runs/41715861806/artifacts?per_page=100", token)[0]
+    )
+    if (
+        type(available.get("total_count")) is not int
+        or available.get("total_count") != 0
+        or available.get("artifacts") != []
+    ):
+        raise ValueError("fixed786 original artifact availability changed")
+    inventory = _fixed_pr786_tree(helper, _string(_object(final.get("tree")).get("sha"), OBJECT_PATTERN))
+    snapshot_path = "tests/unit/scripts/fixtures/fixed786_artifact_source/artifact-live-api.json"
+    snapshot = _fixed_pr786_blob(helper, inventory, snapshot_path)
+    if hashlib.sha256(snapshot).hexdigest() != "299dfcf649d2e226718478d65872309a418d8829f51e8ddb805b046c27d84391":
+        raise ValueError("fixed786 historical artifact snapshot")
+    archive = _fixed_pr786_blob(helper, inventory, _FIXED_PR786_ORIGINAL_ZIP)
+    if _regular_payload(arguments.repo_root / _FIXED_PR786_ORIGINAL_ZIP) != archive:
+        raise ValueError("fixed786 original archive checkout mismatch")
+    original_artifact = _object(json.loads(snapshot, object_pairs_hook=_pairs))
+    job = _object(helper._api_json("/repos/nold-ai/.github/actions/jobs/126195535776", token)[0])
+    upload_receipt = _fixed_pr786_upload_receipt(
+        job, _fixed_pr786_original_log(), archive, manifest, arguments.red_artifact_root
+    )
     source = _object(
         helper._api_json(f"/repos/{REPOSITORY}/commits/d77209f4b13c386e29391f93e1f1c58d7fd8622f", token)[0]
     )
@@ -1626,7 +1808,12 @@ def _fixed_pr786_original_metadata(
     _validate_fixed_pr786_artifact(supplied_metadata, manifest)
     if _read_json(arguments.red_run) != original_run or supplied_metadata != metadata:
         raise ValueError
-    return {"original_run": original_run, "original_artifact": original_artifact, "source_commit": source}
+    return {
+        "original_run": original_run,
+        "original_artifact": original_artifact,
+        "source_commit": source,
+        "original_upload_receipt": upload_receipt,
+    }
 
 
 def _fixed_pr786_origin_authority(origin: dict[str, object], authority: dict[str, object]) -> dict[str, object]:
@@ -1670,7 +1857,7 @@ def _authenticate_fixed_pr786(arguments: argparse.Namespace) -> None:
     helper, final, authority = _fixed_pr786_authority(arguments)
     run, signer = _fixed_pr786_checkpoints(helper, final)
     copy = _fixed_pr786_copy(helper, run, manifest, arguments.red_artifact_root)
-    metadata = _fixed_pr786_original_metadata(helper, arguments, manifest)
+    metadata = _fixed_pr786_original_metadata(helper, arguments, manifest, final)
     origin = _object(json.loads(origin_raw, object_pairs_hook=_pairs))
     origin_authority = _fixed_pr786_origin_authority(origin, authority)
     expected = {
