@@ -167,32 +167,42 @@ def test_inline_original_provenance_matches_owner() -> None:
         assert ast.dump(expected[name]) == ast.dump(actual[name])
 
 
+@pytest.mark.parametrize(
+    ("profile", "source_root"),
+    [("retained-origin", "8fa13e4c69b40bcf6852eb95600d52316e723300"),
+     ("producer-uv", "df71b03511057f7e76e559d2e1736c54eaec8a91")],
+)
 @pytest.mark.parametrize("destination_matches", [True, False])
-def test_retention_signer_keeps_its_exact_origin(evidence: Evidence, destination_matches: bool) -> None:
+def test_retention_signer_keeps_its_exact_origin(evidence: Evidence, destination_matches: bool, profile: str, source_root: str) -> None:
     owner = evidence[0]
     intent = {
         "repository_full_name": "nold-ai/specfact-cli",
         "dev": "9b5ad1e78430cc0b061cb16de42f73de96f4f312",
-        "auxiliary_ref": "refs/heads/codex/dev786-retained-origin-signer-20261116",
+        "auxiliary_ref": f"refs/heads/codex/dev786-{profile}-signer-20261116",
         "destination": (
-            "refs/heads/codex/security-dev-retained-origin-candidate-20261116"
+            f"refs/heads/codex/security-dev-{profile}-candidate-20261116"
             if destination_matches
             else "refs/heads/codex/security-dev-berlin-clock-candidate-20261115"
         ),
     }
     if destination_matches:
-        assert owner._fixed_pr786_origin(intent)[2] == "8fa13e4c69b40bcf6852eb95600d52316e723300"
+        assert owner._fixed_pr786_origin(intent)[2] == source_root
     else:
         with pytest.raises(ValueError):
             owner._fixed_pr786_origin(intent)
 
 
+@pytest.mark.parametrize(
+    ("profile", "source_root"),
+    [("retained-origin", "8fa13e4c69b40bcf6852eb95600d52316e723300"),
+     ("producer-uv", "df71b03511057f7e76e559d2e1736c54eaec8a91")],
+)
 @pytest.mark.parametrize("root_matches", [True, False])
 def test_retention_signed_chain_stops_at_its_root(
-    evidence: Evidence, monkeypatch: pytest.MonkeyPatch, root_matches: bool
+    evidence: Evidence, monkeypatch: pytest.MonkeyPatch, root_matches: bool, profile: str, source_root: str
 ) -> None:
     owner = evidence[0]
-    root = "8fa13e4c69b40bcf6852eb95600d52316e723300"
+    root = source_root
     checkpoint = {
         "source_parent": root,
         "source_commit": "a" * 40,
@@ -242,8 +252,13 @@ def test_historical_origin_requires_complete_empty_live_inventory(
         )
 
 
+@pytest.mark.parametrize(
+    ("profile", "source_root"),
+    [("retained-origin", "8fa13e4c69b40bcf6852eb95600d52316e723300"),
+     ("producer-uv", "df71b03511057f7e76e559d2e1736c54eaec8a91")],
+)
 @pytest.mark.parametrize("case", ["valid", "wrong-branch", "attempt-two", "duplicate"])
-def test_inline_retention_run_requires_its_own_completed_origin(case: str) -> None:
+def test_inline_retention_run_requires_its_own_completed_origin(case: str, profile: str, source_root: str) -> None:
     document = yaml.safe_load((ROOT / ".github/workflows/requirements-evidence.yml").read_text())
     steps = document["jobs"]["requirements-fixed786-origin"]["steps"]
     shell = next(step["run"] for step in steps if "expected_run = {" in step.get("run", ""))
@@ -262,7 +277,7 @@ def test_inline_retention_run_requires_its_own_completed_origin(case: str) -> No
         "id": 91,
         "run_attempt": 1,
         "head_sha": "a" * 40,
-        "head_branch": "codex/dev786-retained-origin-signer-20261116",
+        "head_branch": f"codex/dev786-{profile}-signer-20261116",
         "event": "workflow_dispatch",
         "path": ".github/workflows/specfact.yml",
         "workflow_id": 204352514,
@@ -287,7 +302,7 @@ def test_inline_retention_run_requires_its_own_completed_origin(case: str) -> No
             "repository_id": 7,
             "actor": actor,
             "triggering_actor": actor,
-            "auxiliary_ref": "refs/heads/codex/dev786-retained-origin-signer-20261116",
+            "auxiliary_ref": f"refs/heads/codex/dev786-{profile}-signer-20261116",
         },
     }
     code = compile(ast.fix_missing_locations(selected), "actual-inline-retention-run", "exec")
@@ -296,3 +311,4 @@ def test_inline_retention_run_requires_its_own_completed_origin(case: str) -> No
     else:
         with pytest.raises(ValueError):
             exec(code, namespace)
+
