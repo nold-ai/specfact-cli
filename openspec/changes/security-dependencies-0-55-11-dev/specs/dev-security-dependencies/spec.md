@@ -143,6 +143,14 @@ The delivery verifier SHALL authenticate a separately pinned create-only CI sign
 - **WHEN** an executor byte, ref, destination, root or completed-run binding belongs to another origin or is modified
 - **THEN** the verifier rejects the evidence without fallback or retry.
 
+#### Scenario: Original upload provenance survives archive retention
+
+- **GIVEN** the exact successful original run and job remain available after its artifact expires
+- **WHEN** both observers fetch the original provider job log live
+- **THEN** they require the exact pinned job, successful native and upload steps, complete empty artifact listing and exact upload receipt
+- **AND** they verify the retained original ZIP from the authenticated final tree against that receipt before matching its four report members with COPY
+- **AND** the metadata snapshot remains explicitly historical; unavailable or altered live evidence fails without new native credit, clock extension or origin waiver.
+
 ### Requirement: Fresh owner-approved delivery risk window
 
 The active registers SHALL admit only the four existing risk records and separately accepted CVE-2026-126360 / GHSA-mf5v-w3w3-f6cg record approved by the owner on 16 November 2026, through 21 November 2026 inclusive in Europe/Berlin. Original expired records remain historical. Versions, advisory identities, parser artifact identity, mitigations and every other check SHALL remain unchanged. New findings or later dates require separate owner acceptance.

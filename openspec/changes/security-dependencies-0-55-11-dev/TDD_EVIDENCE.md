@@ -587,3 +587,18 @@ and authorized registry access. An initial plain YAML command scalar failed
 parsing because a pip argument contained a colon. A block scalar corrected
 it before publication. No normal hook, signing or new-head CI credit is
 claimed by this local preparation.
+# Retained original-provider upload provenance, 16 November 2026
+
+The current-head origin check fails because original artifact 13269307808 is
+unavailable after its recorded retention expiry. Its original successful run,
+job and raw provider upload log remain live. The log records the exact original
+archive digest, ID, name and byte count. The complete original ZIP is retained
+unchanged so the verifier can prove its four report members match COPY.
+
+The spec scenario preceded 13 focused regression cases. Before implementation,
+all 13 fail because the required upload-receipt verifier is absent. Acceptance
+requires live original provider evidence and unchanged archive membership;
+changed job/run/attempt/head/status/steps/clock/log/receipt/archive/member inputs
+must refuse. This does not renew an expired selection or create new native
+execution credit. The separately approved producer renewal failed before native
+materialization on its unchanged expired clock and remains consumed.
