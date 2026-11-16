@@ -189,6 +189,16 @@ jobs:
               raise ValueError('fixed786 producer signer pins')
           if producer_origin != ('refs/heads/codex/dev786-producer-uv-signer-20261116', 'refs/heads/codex/security-dev-producer-uv-candidate-20261116', 'df71b03511057f7e76e559d2e1736c54eaec8a91'):
               raise ValueError('fixed786 producer origin')
+          mapping_nodes = [node for node in owner.body if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name) and target.id == '_FIXED_PR786_MAPPING_SIGNER_FILES' for target in node.targets)]
+          mapping_origin_nodes = [node for node in owner.body if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name) and target.id == '_FIXED_PR786_MAPPING_ORIGIN' for target in node.targets)]
+          if len(mapping_nodes) != 1 or len(mapping_origin_nodes) != 1:
+              raise ValueError('fixed786 mapping pin contract')
+          mapping_pins = ast.literal_eval(mapping_nodes[0].value)
+          mapping_origin = ast.literal_eval(mapping_origin_nodes[0].value)
+          if type(mapping_pins) is not tuple or len(mapping_pins) != 3 or {entry[0] for entry in mapping_pins} != {entry[0] for entry in pins} or any(type(entry) is not tuple or len(entry) != 2 or not re.fullmatch('[0-9a-f]{64}', entry[1]) for entry in mapping_pins):
+              raise ValueError('fixed786 mapping signer pins')
+          if mapping_origin != ('refs/heads/codex/dev786-requirements-map-signer-20261116', 'refs/heads/codex/security-dev-requirements-map-candidate-20261116', '68407340e4acb3ed95ef859c0fb5d01282d1ab08'):
+              raise ValueError('fixed786 mapping origin')
           expected_origin = ('refs/heads/codex/dev786-ci-tail-signer-20261104', 'refs/heads/codex/security-dev-ci-tail-candidate-20261104', 'b0184ae8c3de2c107d888dc23b0e7402a31d520e')
           match = re.search(r'\n\nSource-Commit: ([0-9a-f]{40})\nIntent: ([0-9a-f]{64})\nExecutor: ([0-9a-f]{40})\nRun: ([1-9][0-9]*)\nAttempt: 1\Z', final['message'])
           if match is None:
@@ -220,6 +230,9 @@ jobs:
           if digest(file_at(executor_tree, 'scripts/dev_security_ci_signer.py')) == 'sha256:' + producer_pins[0][1]:
               pins = producer_pins
               expected_origin = producer_origin
+          if digest(file_at(executor_tree, 'scripts/dev_security_ci_signer.py')) == 'sha256:' + mapping_pins[0][1]:
+              pins = mapping_pins
+              expected_origin = mapping_origin
           for name, expected in pins:
               if digest(file_at(executor_tree, name)) != 'sha256:' + expected:
                   raise ValueError('fixed786 executor bytes')
@@ -243,6 +256,8 @@ jobs:
               expected_run['head_branch'] = 'codex/dev786-retained-origin-signer-20261116'
           if intent.get('auxiliary_ref') == 'refs/heads/codex/dev786-producer-uv-signer-20261116':
               expected_run['head_branch'] = 'codex/dev786-producer-uv-signer-20261116'
+          if intent.get('auxiliary_ref') == 'refs/heads/codex/dev786-requirements-map-signer-20261116':
+              expected_run['head_branch'] = 'codex/dev786-requirements-map-signer-20261116'
           if any(type(run.get(key)) is not type(value) or run.get(key) != value for key, value in expected_run.items()) or run['repository']['full_name'] != 'nold-ai/specfact-cli' or run['repository']['id'] != intent['repository_id']:
               raise ValueError('fixed786 completed signer')
           for role in ('actor', 'triggering_actor'):
