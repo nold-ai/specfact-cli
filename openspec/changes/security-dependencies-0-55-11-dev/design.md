@@ -155,3 +155,65 @@ The first complete signed head b0184ae8 preserves the successful16commit source 
 Normal TEST/CODE descendants start at this exact accepted F. The existing signer keeps complete C-relative deltas, the unchanged dev fence and all caps. Its private root and the consumer source/output anchors bind exactF, with fresh exact refs and pins. Four additional literal correction paths are required in the finite reviewed source scope: tools/semgrep/sast.yml, scripts/license_allowlist.yaml and their two existing unit-test files. All original48paths remain; no wildcard, permission or resource limit expands. The TEST inventory adds only changed test files; CODE adds the rule/data files. All native selected whole inputs remain exactR3. A fresh exact operation decision must disclose this finite52path scope before execution. Protected adoption and fresh final-head authority remain separate, after the final corrected signed head exists.
 
 The completed F test runs also expose six stale test files for retained package floors, the Pylint stale-lock double, and historical workflow routing. Their exact additional paths are `tests/unit/packaging/test_core_package_includes.py`, `tests/unit/scripts/test_reproducible_delivery.py`, `tests/unit/scripts/test_requirements_late_cycle_workflow.py`, `tests/unit/workflows/test_requirements_evidence_delivery_workflow.py`, `tests/unit/workflows/test_requirements_planning_scope.py`, and `tests/unit/workflows/test_requirements_verifier_boundary.py`. This supersedes the initial four-path-only estimate above: the complete finite allowlist is 58 paths, retaining every original 48 path. No production dependency graph changes. The existing canonical-copy test resolves only a two-parent CI presentation merge with first parent C and a tree identical to its second parent; all original ancestry, immutable validator and byte-equality assertions remain. Unexpected merge shapes or trees refuse.
+
+## Mandatory delivery constraints and evidence boundaries
+
+These constraints implement the existing security patch and its delivery. They
+do not introduce independent customer capabilities or extend the original
+21-case native RED plan. They remain mandatory. Current-head CI, exact owner
+authority, all refusal conditions, original immutable evidence and every trust,
+signature, expiry and resource gate remain enforced.
+
+### Exact follow-up CI provenance for Berlin expiry correction
+
+The delivery verifier SHALL authenticate a separately pinned create-only CI signer for the Berlin expiry correction while preserving the original CI-tail signer origin. Each origin SHALL bind its own exact executor files, auxiliary and destination refs, and normal-source root. Neither origin SHALL accept a mixture of these bindings.
+
+#### Scenario: Follow-up correction retains exact CI origin
+- **WHEN** the executor, intent and source chain match the separately pinned Berlin correction origin
+- **THEN** the verifier accepts that origin without changing the original signer profile or accepting ordinary owner-authored signed commits.
+- **AND** service signatures, bot attribution, source deltas, retained fixture bytes, unique successful attempt-one workflow, authority and expiry checks remain required.
+
+#### Scenario: Mixed or modified signer origin is rejected
+- **WHEN** an executor byte, ref, destination, root or completed-run binding belongs to another origin or is modified
+- **THEN** the verifier rejects the evidence without fallback or retry.
+
+#### Scenario: Original upload provenance survives archive retention
+
+- **GIVEN** the exact successful original run and job remain available after its artifact expires
+- **WHEN** both observers fetch the original provider job log live
+- **THEN** they require the exact pinned job, successful native and upload steps, complete empty artifact listing and exact upload receipt
+- **AND** they verify the retained original ZIP from the authenticated final tree against that receipt before matching its four report members with COPY
+- **AND** the metadata snapshot remains explicitly historical; unavailable or altered live evidence fails without new native credit, clock extension or origin waiver.
+
+
+### Reproducibility tool prerequisite
+
+Every Requirements job that checks the frozen delivery graph SHALL install uv
+using the existing pinned setup action before invoking the trusted verifier.
+The fixed PR786 route SHALL retain its isolated verifier and dependency inputs.
+
+#### Scenario: Fixed producer bypasses ordinary project synchronization
+
+- **WHEN** the PR786 producer uses its isolated frozen verifier
+- **THEN** the existing pinned uv setup runs before the graph check
+- **AND** the graph check remains enforced without project synchronization
+
+
+### Obligation and evidence crosswalk
+
+| Former separate heading | Current obligation | Independent verification |
+| --- | --- | --- |
+| Exact follow-up CI provenance for Berlin expiry correction | The exact unchanged SHALL paragraph and all three refusal/provenance scenarios are preserved above as mandatory delivery constraints. | Both legacy/Berlin origin cases in test_fixed786_clock_signer.py exercise matching acceptance and mixed-destination rejection. Later profile regressions and actual signed-output checks remain separately recorded. |
+| Fresh owner-approved delivery risk window | The exact unchanged active-register SHALL paragraph and both fresh-acceptance scenarios are consolidated into Preserve strict audits with exact bounded residual risk. Five active records, exact identities/mitigations and 22 November 2026 00:00 Europe/Berlin expiry remain enforced; original expired records stay historical. | Four test_fresh_owner_risk_register_keeps_its_own_expiry cases exercise both actual default owners before and at their own cutoff. Actual current-head audit/trust checks remain mandatory. |
+| Requirements jobs install the reproducibility tool before use | The exact unchanged SHALL paragraph and fixed-producer scenario are preserved above as a mandatory graph-check prerequisite. This is not an advisory-lane test-selection rule. | Three test_requirements_jobs_install_uv_before_trusted_graph_check cases cover producer, consumer and final jobs. The actual current-head producer now passes the pinned uv setup and frozen graph checks. |
+
+The original seven customer requirement identities, their 21 mapped cases and
+original mapping-bound acceptance remain unchanged. The original native RED
+packet is evidence for that original plan only. None of the nine later delivery
+checks is relabelled as part of that packet. Their genuine regressions, passing
+controls and current-head results are separate evidence. All nine checks remain
+in the repository and ordinary current-head CI. No test, negative control,
+expiry condition or authority check is removed. The expanded 30-selector
+mapping candidate is retained locally but is not adopted because its different
+plan cannot inherit the original RED proof.
+

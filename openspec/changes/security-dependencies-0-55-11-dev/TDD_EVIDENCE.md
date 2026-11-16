@@ -657,3 +657,43 @@ all historical profiles and consumed refs. This is preparation only. Normal hook
 are NOT_RUN; current-head CI and actual output authentication remain mandatory.
 No new native execution, risk extension, permission or timeout change follows.
 
+# 16 November 2026 delivery scope and proof-plan correction
+
+Actual signed head68407340 passed authority, original-upload authentication,
+pinned uv setup and frozen graph verification. Requirements producer133663669782
+then failed because three later agent-added operational requirement headings
+had no native mapping. The exact failure reproduced using the unchanged baseC
+core and clean official M69 fixture. No unchanged CI run was retried.
+
+An expanded mapping candidate added nine existing delivery selectors. A real
+independent static review accepted its mapping digest9169e8; all30 selected
+cases passed locally with no failures, errors or skips and30 existing pytest
+record_property warnings. That candidate was NOT adopted. The complete final
+proof check rejected its different aggregate mapping30712/plan4e299 against the
+original native RED mappingcaeca/planbefd. It cannot inherit the old proof.
+Both the candidate patch and failed identity probe remain in local evidence.
+
+A bounded independent architectural review accepted consolidating the delivery
+scope, conditional on a complete obligation/evidence crosswalk. The original
+seven customer requirement identities,21-case native mapping and mapping-bound
+acceptance are restored exactly. The fresh risk window is consolidated under
+the existing strict-audit requirement. Exact signer/retention constraints and
+the pinned uv prerequisite move verbatim into mandatory design constraints.
+All three SHALL paragraphs and every scenario/refusal condition remain.
+The design contains the explicit before/after crosswalk and evidence limits.
+All nine newer delivery checks stay in current-head CI with their own genuine
+regression evidence. None is relabelled as an original native RED case.
+
+Using the unchanged released planner, executor and reconciler, the corrected
+21-case plan has the original exact mappingcaeca and planbefd. Its local tests
+pass, and final reconciliation reports `verified` and
+`passing-after-red-proven` with the unchanged original RED report. This is local
+verification, not new provider/native/current-head credit. The existing pytest
+record_property warnings remain disclosed; original whole test inputs stay exact.
+
+The necessary fresh finite signing origin has genuine RED4 failures with four
+passing rejection controls before implementation. All historical origins remain
+required. Normal unsigned checkpoints carry no signatures or normal-hook credit.
+Exact source/operation acceptance, actual signed output, new-head authority and
+every required current-head check remain mandatory. No merge or waiver follows.
+

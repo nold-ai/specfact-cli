@@ -87,6 +87,20 @@ complete frozen test selection.
 
 All three strict frozen audits SHALL enforce exact reviewed package, version, advisory and date bounds. Standalone audit and dependency-trust entrypoints SHALL evaluate dates in Europe/Berlin independently of the host timezone, without an environment-variable override. The original exception dates and CLI-only mitigations remain unchanged.
 
+The active registers SHALL admit only the four existing risk records and separately accepted CVE-2026-126360 / GHSA-mf5v-w3w3-f6cg record approved by the owner on 16 November 2026, through 21 November 2026 inclusive in Europe/Berlin. Original expired records remain historical. Versions, advisory identities, parser artifact identity, mitigations and every other check SHALL remain unchanged. New findings or later dates require separate owner acceptance.
+
+#### Scenario: Fresh acceptance does not transfer old authority
+
+- **GIVEN** the owner explicitly accepts the existing MCP 1.29.0 and OpenTelemetry API 1.37.0 advisory records and exact reviewed pycparser 3.12 artifact
+- **WHEN** the fresh register is validated before 22 November 2026 00:00 Europe/Berlin
+- **THEN** only those existing exact identities are accepted within the new window
+- **AND** original approvals, consumed operation grants and their historical expiry dates are not reused or altered.
+
+#### Scenario: Fresh acceptance expires and remains exact
+
+- **WHEN** the new Berlin expiry is reached or an unreviewed package, version, advisory or artifact is encountered
+- **THEN** the unchanged mandatory checks fail closed without a general waiver.
+
 #### Scenario: The original bounded residual-risk records stay exact
 
 - **GIVEN** setuptools 84.1.0 in the affected graphs and Pylint 4.0.9 in the isolated Code Review input and hash-bound lock
@@ -129,52 +143,3 @@ All three strict frozen audits SHALL enforce exact reviewed package, version, ad
 - **GIVEN** a Git object identifier computed with explicit usedforsecurity=False
 - **WHEN** the existing SAST rule scans that SHA-1 call
 - **THEN** it accepts that explicit non-security use while still reporting default, security-enabled and dynamically selected SHA-1 uses and every existing MD5 finding.
-
-### Requirement: Exact follow-up CI provenance for Berlin expiry correction
-
-The delivery verifier SHALL authenticate a separately pinned create-only CI signer for the Berlin expiry correction while preserving the original CI-tail signer origin. Each origin SHALL bind its own exact executor files, auxiliary and destination refs, and normal-source root. Neither origin SHALL accept a mixture of these bindings.
-
-#### Scenario: Follow-up correction retains exact CI origin
-- **WHEN** the executor, intent and source chain match the separately pinned Berlin correction origin
-- **THEN** the verifier accepts that origin without changing the original signer profile or accepting ordinary owner-authored signed commits.
-- **AND** service signatures, bot attribution, source deltas, retained fixture bytes, unique successful attempt-one workflow, authority and expiry checks remain required.
-
-#### Scenario: Mixed or modified signer origin is rejected
-- **WHEN** an executor byte, ref, destination, root or completed-run binding belongs to another origin or is modified
-- **THEN** the verifier rejects the evidence without fallback or retry.
-
-#### Scenario: Original upload provenance survives archive retention
-
-- **GIVEN** the exact successful original run and job remain available after its artifact expires
-- **WHEN** both observers fetch the original provider job log live
-- **THEN** they require the exact pinned job, successful native and upload steps, complete empty artifact listing and exact upload receipt
-- **AND** they verify the retained original ZIP from the authenticated final tree against that receipt before matching its four report members with COPY
-- **AND** the metadata snapshot remains explicitly historical; unavailable or altered live evidence fails without new native credit, clock extension or origin waiver.
-
-### Requirement: Fresh owner-approved delivery risk window
-
-The active registers SHALL admit only the four existing risk records and separately accepted CVE-2026-126360 / GHSA-mf5v-w3w3-f6cg record approved by the owner on 16 November 2026, through 21 November 2026 inclusive in Europe/Berlin. Original expired records remain historical. Versions, advisory identities, parser artifact identity, mitigations and every other check SHALL remain unchanged. New findings or later dates require separate owner acceptance.
-
-#### Scenario: Fresh acceptance does not transfer old authority
-
-- **GIVEN** the owner explicitly accepts the existing MCP 1.29.0 and OpenTelemetry API 1.37.0 advisory records and exact reviewed pycparser 3.12 artifact
-- **WHEN** the fresh register is validated before 22 November 2026 00:00 Europe/Berlin
-- **THEN** only those existing exact identities are accepted within the new window
-- **AND** original approvals, consumed operation grants and their historical expiry dates are not reused or altered.
-
-#### Scenario: Fresh acceptance expires and remains exact
-
-- **WHEN** the new Berlin expiry is reached or an unreviewed package, version, advisory or artifact is encountered
-- **THEN** the unchanged mandatory checks fail closed without a general waiver.
-### Requirement: Requirements jobs install the reproducibility tool before use
-
-Every Requirements job that checks the frozen delivery graph SHALL install uv
-using the existing pinned setup action before invoking the trusted verifier.
-The fixed PR786 route SHALL retain its isolated verifier and dependency inputs.
-
-#### Scenario: Fixed producer bypasses ordinary project synchronization
-
-- **WHEN** the PR786 producer uses its isolated frozen verifier
-- **THEN** the existing pinned uv setup runs before the graph check
-- **AND** the graph check remains enforced without project synchronization
-
