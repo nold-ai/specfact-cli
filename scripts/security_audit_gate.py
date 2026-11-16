@@ -52,7 +52,7 @@ date = _BerlinDate
 
 
 DEFAULT_REQUIREMENTS_FILE = "requirements/ci/locked.txt"
-DEFAULT_EXCEPTIONS_FILE = "ci/vulnerability-audit-exceptions.json"
+DEFAULT_EXCEPTIONS_FILE = "ci/vulnerability-audit-exceptions-20261116.json"
 
 _CVSS_KEY_HINTS = frozenset(
     {"cvss", "cvssv3", "cvssv2", "score", "basescore", "base_score"},

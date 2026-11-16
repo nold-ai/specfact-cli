@@ -210,3 +210,33 @@ def test_inline_workflow_authenticates_each_exact_completed_origin(origin: tuple
     else:
         with pytest.raises(ValueError):
             exec(code, namespace)
+
+
+@pytest.mark.parametrize("policy", ["security_audit_gate", "check_dependency_trust_exceptions"])
+@pytest.mark.parametrize("expired", [False, True])
+def test_fresh_owner_risk_register_keeps_its_own_expiry(
+    policy: str, expired: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from datetime import date
+
+    spec = importlib.util.spec_from_file_location("_fresh_risk_" + policy, ROOT / "scripts" / (policy + ".py"))
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    if policy == "check_dependency_trust_exceptions":
+        register = module.DEFAULT_REGISTER
+        errors = module.validate_exception_register(
+            register, today=date(2026, 11, 22) if expired else date(2026, 11, 16)
+        )
+    else:
+
+        class CurrentDate(date):
+            @classmethod
+            def today(cls) -> date:
+                return date(2026, 11, 22) if expired else date(2026, 11, 16)
+
+        monkeypatch.setattr(module, "date", CurrentDate)
+        register = ROOT / module.DEFAULT_EXCEPTIONS_FILE
+        _, errors = module._load_reviewed_exceptions(register)
+    assert bool(errors) is expired

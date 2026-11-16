@@ -872,7 +872,7 @@ _FIXED_PR786_SIGNER_FILES = (
     ("ci/recovery/dev-security-signer-runtime.txt", "bc64c498cf74b3a959a1522c04614e199061dea2e35ab0110d58b9411db38712"),
 )
 _FIXED_PR786_CLOCK_SIGNER_FILES = (
-    ("scripts/dev_security_ci_signer.py", "2da7f7dc9afa70dcfb0c986f7723263528caa17c6cf56e45adca1704d1bc777d"),
+    ("scripts/dev_security_ci_signer.py", "1752fa6e9fd74431cee2c73bc2717c498cb9d8f581b184f2ca45c300ceaf7a7e"),
     (".github/workflows/specfact.yml", "8896864306ea9a1bb385e68348b0a74f029227292e461abb080f937833f8fea6"),
     ("ci/recovery/dev-security-signer-runtime.txt", "bc64c498cf74b3a959a1522c04614e199061dea2e35ab0110d58b9411db38712"),
 )
