@@ -1,0 +1,62 @@
+schema_version: "2"
+requirements:
+  openspec:fix-analyzer-repository-relative-exclusions:code-analysis:repository-relative-source-exclusions:
+    rationale: "Repository location and partial name matches must not suppress production source."
+    stakeholder_refs:
+      - "https://github.com/nold-ai/specfact-cli/actions/runs/44136806295"
+    touchpoints:
+      - id: analyzer-filter
+        kind: source_file
+        locator: "src/specfact_cli/analyzers/code_analyzer.py"
+      - id: analyzer-regressions
+        kind: test_file
+        locator: "tests/unit/analyzers/test_code_analyzer.py"
+    verification_cases:
+      - case_id: ANALYZER-ROOT-ENV
+        scenario_id: repository-relative-source-exclusions
+        method: test
+        intent: "Keep valid production source eligible independently of exclusion substrings."
+        observable: "The analyzer does not skip the production source path."
+        selector:
+          runner: pytest
+          node_id: "tests/unit/analyzers/test_code_analyzer.py::TestCodeAnalyzer::test_should_keep_source_under_named_repository[env-root]"
+      - case_id: ANALYZER-ROOT-BUILD
+        scenario_id: repository-relative-source-exclusions
+        method: test
+        intent: "Keep valid production source eligible independently of exclusion substrings."
+        observable: "The analyzer does not skip the production source path."
+        selector:
+          runner: pytest
+          node_id: "tests/unit/analyzers/test_code_analyzer.py::TestCodeAnalyzer::test_should_keep_source_under_named_repository[build-root]"
+      - case_id: ANALYZER-ROOT-DIST
+        scenario_id: repository-relative-source-exclusions
+        method: test
+        intent: "Keep valid production source eligible independently of exclusion substrings."
+        observable: "The analyzer does not skip the production source path."
+        selector:
+          runner: pytest
+          node_id: "tests/unit/analyzers/test_code_analyzer.py::TestCodeAnalyzer::test_should_keep_source_under_named_repository[dist-root]"
+      - case_id: ANALYZER-SOURCE-ENV
+        scenario_id: repository-relative-source-exclusions
+        method: test
+        intent: "Keep valid production source eligible independently of exclusion substrings."
+        observable: "The analyzer does not skip the production source path."
+        selector:
+          runner: pytest
+          node_id: "tests/unit/analyzers/test_code_analyzer.py::TestCodeAnalyzer::test_should_keep_source_with_exclusion_substrings[env-name]"
+      - case_id: ANALYZER-SOURCE-BUILD
+        scenario_id: repository-relative-source-exclusions
+        method: test
+        intent: "Keep valid production source eligible independently of exclusion substrings."
+        observable: "The analyzer does not skip the production source path."
+        selector:
+          runner: pytest
+          node_id: "tests/unit/analyzers/test_code_analyzer.py::TestCodeAnalyzer::test_should_keep_source_with_exclusion_substrings[build-name]"
+      - case_id: ANALYZER-SOURCE-DIST
+        scenario_id: repository-relative-source-exclusions
+        method: test
+        intent: "Keep valid production source eligible independently of exclusion substrings."
+        observable: "The analyzer does not skip the production source path."
+        selector:
+          runner: pytest
+          node_id: "tests/unit/analyzers/test_code_analyzer.py::TestCodeAnalyzer::test_should_keep_source_with_exclusion_substrings[dist-name]"

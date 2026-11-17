@@ -705,33 +705,3 @@ strict validation passes. No requirement, refusal or date bound was removed.
 Exact source/operation acceptance, actual signed output, new-head authority and
 every required current-head check remain mandatory. No merge or waiver follows.
 
-
-
-## Post-merge canonical COPY fixture correction — 17 November 2026
-
-The Tests job in PR771 run44136817990 failed on synthetic merge
-`37e6c577cac220b6371c95545fa85c60327e6857` because the shared formatter
-fixture assumed every merge had historical cycle C as its first parent.
-The actual first parent is main5262; the second is merged dev89d0.
-Reproducing the unchanged file at that exact commit yielded12 passed and4 setup
-errors. Removing only the merge-shape check was insufficient: the immutable
-validator correctly returned `stale-red-proof` for the later merge.
-
-The fixture now binds historical final F e753 and checks RED→F→checkout ancestry.
-All existing packet, validator, output-boundary and tamper checks remain intact.
-No production owner, historical packet, signature, dependency or authority
-changes. No historical proof is promoted to later-head readiness.
-
-Verification: `python -m pytest tests/proof/test_fixed786_canonical_copy.py
--q -o addopts=''` passes16 cases on the exact failing synthetic merge. Running
-that file together with `tests/unit/scripts/test_requirements_late_red_proof.py`
-passes19 cases on merged dev89d0. Ruff check and format pass; the
-BasedPyright1.39.9 project check reports0 errors, warnings or informational findings
-for the changed Python file. These are local regression results, not a passing
-replacement CI run.
-
-The broader local test initially encountered the workstation GitGuardian hook
-without a token when creating temporary synthetic Git commits. An isolated
-subprocess Git configuration disables hooks and signing only for those test
-fixtures. No repository configuration, credential or source hook was changed.
-The original failures and diagnostic remain retained locally.

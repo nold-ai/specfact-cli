@@ -474,10 +474,11 @@ class TestCodeAnalyzerIntegration:
             assert len(analyzer.features) >= 1
             assert any("valid" in f.key.lower() or "valid" in f.title.lower() for f in analyzer.features)
 
-    def test_analyze_codebase_with_nested_structure(self):
+    @pytest.mark.parametrize("repository_name", ["project", "tmpenvabc"])
+    def test_analyze_codebase_with_nested_structure(self, repository_name: str) -> None:
         """Test analyzing a codebase with nested package structure."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            repo_path = Path(tmpdir)
+            repo_path = Path(tmpdir) / repository_name
             src_path = repo_path / "src" / "package"
             src_path.mkdir(parents=True)
 
