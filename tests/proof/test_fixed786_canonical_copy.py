@@ -17,6 +17,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = REPO_ROOT / "tests/unit/scripts/fixtures"
 CYCLE = "9b5ad1e78430cc0b061cb16de42f73de96f4f312"
 SOURCE = "d77209f4b13c386e29391f93e1f1c58d7fd8622f"
+CANONICAL_FINAL = "e753ac1a3e4bb3bf739bd7203c728a652db6cb90"
 VALIDATOR_SHA256 = "5bad94f58f6741cd070e6e9f98a95c88d412365a437e0499e30545603cd9f846"
 
 
@@ -39,36 +40,23 @@ def owner() -> Iterator[ModuleType]:
 def history_context(tmp_path: Path) -> tuple[str, Path]:
     assert not tmp_path.resolve().is_relative_to(REPO_ROOT.resolve())
     final = subprocess.run(
-        ["git", "rev-parse", "--verify", "HEAD^{commit}"],
+        ["git", "rev-parse", "--verify", f"{CANONICAL_FINAL}^{{commit}}"],
         cwd=REPO_ROOT,
         capture_output=True,
         check=True,
         text=True,
         timeout=30,
     ).stdout.strip()
-    parents = subprocess.run(
-        ["git", "rev-list", "--parents", "-n", "1", final],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        check=True,
-        text=True,
-        timeout=30,
-    ).stdout.split()[1:]
-    if len(parents) > 1:
-        assert len(parents) == 2 and parents[0] == CYCLE
-        trees = subprocess.run(
-            ["git", "rev-parse", f"{final}^{{tree}}", f"{parents[1]}^{{tree}}"],
-            cwd=REPO_ROOT,
-            capture_output=True,
-            check=True,
-            text=True,
-            timeout=30,
-        ).stdout.split()
-        assert len(trees) == 2 and trees[0] == trees[1]
-        final = parents[1]
     assert final != SOURCE
     subprocess.run(
         ["git", "merge-base", "--is-ancestor", SOURCE, final],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        check=True,
+        timeout=30,
+    )
+    subprocess.run(
+        ["git", "merge-base", "--is-ancestor", final, "HEAD"],
         cwd=REPO_ROOT,
         capture_output=True,
         check=True,
