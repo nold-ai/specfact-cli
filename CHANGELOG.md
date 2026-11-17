@@ -10,6 +10,17 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.55.13] - 2026-11-17
+
+### Fixed
+
+- Keep production source eligible when repository or parent-directory names contain
+  `env`, `build` or `dist`. Match excluded directories within the selected repository.
+- Keep the canonical formatter regression fixture bound to its historical delivery
+  commit when testing later promotion merges.
+
+---
+
 ## [0.55.12] - 2026-11-03
 
 ### Security
