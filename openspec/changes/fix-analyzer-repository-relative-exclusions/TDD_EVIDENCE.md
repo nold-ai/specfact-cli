@@ -30,3 +30,20 @@ The paired internal wiki checkout is absent beside this worktree. The separate
 canonical internal wiki was read as context; its new source mirror is not
 written or claimed updated. Mirror this change there and rebuild its graph
 from that checkout as a follow-up.
+
+## After the minimal correction
+
+The only production change replaces absolute-path substring matching with
+whole directory components relative to the selected repository. Relative
+private-method inputs remain supported. Existing test-file exclusions and
+the excluded-directory list are unchanged.
+
+The Python3.11 unit and integration analyzer suites pass52 cases. Both
+parameterized nested-service cases also pass under the forced env-named
+temporary parent. Ruff check and format pass for all3 Python files.
+These are local results; actual CI and its proof/authority gates remain open.
+
+The core repository locks BasedPyright1.39.9. Its matching project-scoped
+check over the3 touched Python files reports0 errors, warnings or information
+after annotating the new pytest parameter. The modules repository’s different
+tool pin is not used as core verification authority.
