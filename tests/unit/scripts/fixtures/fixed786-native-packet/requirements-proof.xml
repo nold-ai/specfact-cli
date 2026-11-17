@@ -1,0 +1,817 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="21" skipped="0" tests="21" time="1.768" timestamp="2026-11-03T20:49:53.696737+00:00" hostname="runnervm7aw5e"><testcase classname="tests.unit.scripts.test_security_audit_gate" name="test_committed_otel_exception_is_exact_and_time_bounded[exact-cve]" time="0.067"><properties><property name="specfact.selector" value="tests/unit/scripts/test_security_audit_gate.py::test_committed_otel_exception_is_exact_and_time_bounded[exact-cve]" /><property name="specfact.runner" value="pytest" /><property name="specfact.python" value="3.12.15" /><property name="specfact.pytest" value="9.1.1" /></properties><failure message="AssertionError: assert 1 == 0&#10; +  where 1 = &lt;function main at 0x7fad5373ee80&gt;(['--exceptions', '/home/runner/work/_temp/native-materialization-preflight/original15-a2103119d418a02310d994a6/tmp/pytest-of-runner/pytest-0/test_committed_otel_exception_0/exceptions.json'])&#10; +    where &lt;function main at 0x7fad5373ee80&gt; = &lt;module '_security_audit_gate' from '/home/runner/work/_temp/native-materialization-preflight/original15-a2103119d418a02310d994a6/original-r/scripts/security_audit_gate.py'&gt;.main&#10; +  and   0 = OtelExceptionScenario(version='1.37.0', advisory_ids=['CVE-2026-114603'], today='2026-10-22', expected=0, message='WAIVED', package='opentelemetry-api', skip_reason=None, omit_entry=False).expected">gate_mod = &lt;module '_security_audit_gate' from '/home/runner/work/_temp/native-materialization-preflight/original15-a2103119d418a02310d994a6/original-r/scripts/security_audit_gate.py'&gt;
+capsys = &lt;_pytest.capture.CaptureFixture object at 0x7fad5358ac30&gt;
+tmp_path = PosixPath('/home/runner/work/_temp/native-materialization-preflight/original15-a2103119d418a02310d994a6/tmp/pytest-of-runner/pytest-0/test_committed_otel_exception_0')
+scenario = OtelExceptionScenario(version='1.37.0', advisory_ids=['CVE-2026-114603'], today='2026-10-22', expected=0, message='WAIVED', package='opentelemetry-api', skip_reason=None, omit_entry=False)
+
+    @pytest.mark.parametrize(
+        "scenario",
+        [
+            pytest.param(OtelExceptionScenario("1.37.0", ["CVE-2026-114603"], "2026-10-22", 0, "WAIVED"), id="exact-cve"),
+            pytest.param(
+                OtelExceptionScenario("1.37.0", ["GHSA-xcq7-p3pf-p88h"], "2026-10-22", 0, "WAIVED"), id="exact-ghsa"
+            ),
+            pytest.param(OtelExceptionScenario("1.37.0", ["CVE-2026-114603"], "2026-11-04", 0, "WAIVED"), id="expiry-day"),
+            pytest.param(
+                OtelExceptionScenario("1.38.0", ["CVE-2026-114603"], "2026-10-22", 1, "FAIL:"), id="other-version"
+            ),
+            pytest.param(
+                OtelExceptionScenario("1.37.0", ["CVE-2026-114603"], "2026-10-22", 1, "FAIL:", package="other-package"),
+                id="other-package",
+            ),
+            pytest.param(
+                OtelExceptionScenario("1.37.0", ["UNRELATED-1"], "2026-10-22", 1, "FAIL:"), id="unrelated-advisory"
+            ),
+            pytest.param(
+                OtelExceptionScenario("1.37.0", ["CVE-2026-114603", "UNRELATED-1"], "2026-10-22", 1, "FAIL:"),
+                id="mixed-advisories",
+            ),
+            pytest.param(
+                OtelExceptionScenario(
+                    "1.37.0", ["CVE-2026-114603"], "2026-10-22", 1, "skipped dependency", skip_reason="could not audit"
+                ),
+                id="skipped",
+            ),
+            pytest.param(
+                OtelExceptionScenario("1.37.0", ["CVE-2026-114603"], "2026-11-05", 1, "not currently valid"), id="expired"
+            ),
+            pytest.param(
+                OtelExceptionScenario("1.37.0", ["CVE-2026-114603"], "2026-10-21", 1, "not currently valid"),
+                id="future-review",
+            ),
+            pytest.param(
+                OtelExceptionScenario("1.37.0", ["CVE-2026-114603"], "2026-10-22", 1, "FAIL:", omit_entry=True),
+                id="missing-entry",
+            ),
+        ],
+    )
+    def test_committed_otel_exception_is_exact_and_time_bounded(
+        gate_mod: ModuleType,
+        capsys: pytest.CaptureFixture[str],
+        tmp_path: Path,
+        scenario: OtelExceptionScenario,
+    ) -&gt; None:
+        class AuditDate(date):
+            @classmethod
+            def today(cls) -&gt; date:
+                return date.fromisoformat(scenario.today)
+    
+        dependency: dict[str, object] = {
+            "name": scenario.package,
+            "version": scenario.version,
+            "vulns": [{"id": value} for value in scenario.advisory_ids],
+        }
+        if scenario.skip_reason is not None:
+            dependency["skip_reason"] = scenario.skip_reason
+        proc = MagicMock(stdout=json.dumps({"dependencies": [dependency]}), stderr="", returncode=1)
+        committed = Path(__file__).resolve().parents[3] / "ci/vulnerability-audit-exceptions.json"
+        register = json.loads(committed.read_text(encoding="utf-8"))
+        register["exceptions"] = [
+            entry for entry in register["exceptions"] if entry["package"] == "opentelemetry-api" and not scenario.omit_entry
+        ]
+        exceptions = tmp_path / "exceptions.json"
+        exceptions.write_text(json.dumps(register), encoding="utf-8")
+        with patch.object(gate_mod, "date", AuditDate), patch.object(gate_mod.subprocess, "run", return_value=proc):
+&gt;           assert gate_mod.main(["--exceptions", str(exceptions)]) == scenario.expected
+E           AssertionError: assert 1 == 0
+E            +  where 1 = &lt;function main at 0x7fad5373ee80&gt;(['--exceptions', '/home/runner/work/_temp/native-materialization-preflight/original15-a2103119d418a02310d994a6/tmp/pytest-of-runner/pytest-0/test_committed_otel_exception_0/exceptions.json'])
+E            +    where &lt;function main at 0x7fad5373ee80&gt; = &lt;module '_security_audit_gate' from '/home/runner/work/_temp/native-materialization-preflight/original15-a2103119d418a02310d994a6/original-r/scripts/security_audit_gate.py'&gt;.main
+E            +  and   0 = OtelExceptionScenario(version='1.37.0', advisory_ids=['CVE-2026-114603'], today='2026-10-22', expected=0, message='WAIVED', package='opentelemetry-api', skip_reason=None, omit_entry=False).expected
+
+tests/unit/scripts/test_security_audit_gate.py:272: AssertionError</failure></testcase><testcase classname="tests.unit.scripts.test_security_audit_gate" name="test_committed_otel_exception_is_exact_and_time_bounded[exact-ghsa]" time="0.003"><properties><property name="specfact.selector" value="tests/unit/scripts/test_security_audit_gate.py::test_committed_otel_exception_is_exact_and_time_bounded[exact-ghsa]" /><property name="specfact.runner" value="pytest" /><property name="specfact.python" value="3.12.15" /><property name="specfact.pytest" value="9.1.1" /></properties><failure message="AssertionError: assert 1 == 0&#10; +  where 1 = &lt;function main at 0x7fad536af4c0&gt;(['--exceptions', '/home/runner/work/_temp/native-materialization-preflight/original15-a2103119d418a02310d994a6/tmp/pytest-of-runner/pytest-0/test_committed_otel_exception_1/exceptions.json'])&#10; +    where &lt;function main at 0x7fad536af4c0&gt; = &lt;module '_security_audit_gate' from '/home/runner/work/_temp/native-materialization-preflight/original15-a2103119d418a02310d994a6/original-r/scripts/security_audit_gate.py'&gt;.main&#10; +  and   0 = OtelExceptionScenario(version='1.37.0', advisory_ids=['GHSA-xcq7-p3pf-p88h'], today='2026-10-22', expected=0, message='WAIVED', package='opentelemetry-api', skip_reason=None, omit_entry=False).expected">gate_mod = &lt;module '_security_audit_gate' from '/home/runner/work/_temp/native-materialization-preflight/original15-a2103119d418a02310d994a6/original-r/scripts/security_audit_gate.py'&gt;
+capsys = &lt;_pytest.capture.CaptureFixture object at 0x7fad53722db0&gt;
+tmp_path = PosixPath('/home/runner/work/_temp/native-materialization-preflight/original15-a2103119d418a02310d994a6/tmp/pytest-of-runner/pytest-0/test_committed_otel_exception_1')
+scenario = OtelExceptionScenario(version='1.37.0', advisory_ids=['GHSA-xcq7-p3pf-p88h'], today='2026-10-22', expected=0, message='WAIVED', package='opentelemetry-api', skip_reason=None, omit_entry=False)
+
+    @pytest.mark.parametrize(
+        "scenario",
+        [
+            pytest.param(OtelExceptionScenario("1.37.0", ["CVE-2026-114603"], "2026-10-22", 0, "WAIVED"), id="exact-cve"),
+            pytest.param(
+                OtelExceptionScenario("1.37.0", ["GHSA-xcq7-p3pf-p88h"], "2026-10-22", 0, "WAIVED"), id="exact-ghsa"
+            ),
+            pytest.param(OtelExceptionScenario("1.37.0", ["CVE-2026-114603"], "2026-11-04", 0, "WAIVED"), id="expiry-day"),
+            pytest.param(
+                OtelExceptionScenario("1.38.0", ["CVE-2026-114603"], "2026-10-22", 1, "FAIL:"), id="other-version"
+            ),
+            pytest.param(
+                OtelExceptionScenario("1.37.0", ["CVE-2026-114603"], "2026-10-22", 1, "FAIL:", package="other-package"),
+                id="other-package",
+            ),
+            pytest.param(
+                OtelExceptionScenario("1.37.0", ["UNRELATED-1"], "2026-10-22", 1, "FAIL:"), id="unrelated-advisory"
+            ),
+            pytest.param(
+                OtelExceptionScenario("1.37.0", ["CVE-2026-114603", "UNRELATED-1"], "2026-10-22", 1, "FAIL:"),
+                id="mixed-advisories",
+            ),
+            pytest.param(
+                OtelExceptionScenario(
+                    "1.37.0", ["CVE-2026-114603"], "2026-10-22", 1, "skipped dependency", skip_reason="could not audit"
+                ),
+                id="skipped",
+            ),
+            pytest.param(
+                OtelExceptionScenario("1.37.0", ["CVE-2026-114603"], "2026-11-05", 1, "not currently valid"), id="expired"
+            ),
+            pytest.param(
+                OtelExceptionScenario("1.37.0", ["CVE-2026-114603"], "2026-10-21", 1, "not currently valid"),
+                id="future-review",
+            ),
+            pytest.param(
+                OtelExceptionScenario("1.37.0", ["CVE-2026-114603"], "2026-10-22", 1, "FAIL:", omit_entry=True),
+                id="missing-entry",
+            ),
+        ],
+    )
+    def test_committed_otel_exception_is_exact_and_time_bounded(
+        gate_mod: ModuleType,
+        capsys: pytest.CaptureFixture[str],
+        tmp_path: Path,
+        scenario: OtelExceptionScenario,
+    ) -&gt; None:
+        class AuditDate(date):
+            @classmethod
+            def today(cls) -&gt; date:
+                return date.fromisoformat(scenario.today)
+    
+        dependency: dict[str, object] = {
+            "name": scenario.package,
+            "version": scenario.version,
+            "vulns": [{"id": value} for value in scenario.advisory_ids],
+        }
+        if scenario.skip_reason is not None:
+            dependency["skip_reason"] = scenario.skip_reason
+        proc = MagicMock(stdout=json.dumps({"dependencies": [dependency]}), stderr="", returncode=1)
+        committed = Path(__file__).resolve().parents[3] / "ci/vulnerability-audit-exceptions.json"
+        register = json.loads(committed.read_text(encoding="utf-8"))
+        register["exceptions"] = [
+            entry for entry in register["exceptions"] if entry["package"] == "opentelemetry-api" and not scenario.omit_entry
+        ]
+        exceptions = tmp_path / "exceptions.json"
+        exceptions.write_text(json.dumps(register), encoding="utf-8")
+        with patch.object(gate_mod, "date", AuditDate), patch.object(gate_mod.subprocess, "run", return_value=proc):
+&gt;           assert gate_mod.main(["--exceptions", str(exceptions)]) == scenario.expected
+E           AssertionError: assert 1 == 0
+E            +  where 1 = &lt;function main at 0x7fad536af4c0&gt;(['--exceptions', '/home/runner/work/_temp/native-materialization-preflight/original15-a2103119d418a02310d994a6/tmp/pytest-of-runner/pytest-0/test_committed_otel_exception_1/exceptions.json'])
+E            +    where &lt;function main at 0x7fad536af4c0&gt; = &lt;module '_security_audit_gate' from '/home/runner/work/_temp/native-materialization-preflight/original15-a2103119d418a02310d994a6/original-r/scripts/security_audit_gate.py'&gt;.main
+E            +  and   0 = OtelExceptionScenario(version='1.37.0', advisory_ids=['GHSA-xcq7-p3pf-p88h'], today='2026-10-22', expected=0, message='WAIVED', package='opentelemetry-api', skip_reason=None, omit_entry=False).expected
+
+tests/unit/scripts/test_security_audit_gate.py:272: AssertionError</failure></testcase><testcase classname="tests.unit.scripts.test_security_audit_gate" name="test_committed_otel_exception_is_exact_and_time_bounded[expiry-day]" time="0.003"><properties><property name="specfact.selector" value="tests/unit/scripts/test_security_audit_gate.py::test_committed_otel_exception_is_exact_and_time_bounded[expiry-day]" /><property name="specfact.runner" value="pytest" /><property name="specfact.python" value="3.12.15" /><property name="specfact.pytest" value="9.1.1" /></properties><failure message="AssertionError: assert 1 == 0&#10; +  where 1 = &lt;function main at 0x7fad536ecae0&gt;(['--exceptions', '/home/runner/work/_temp/native-materialization-preflight/original15-a2103119d418a02310d994a6/tmp/pytest-of-runner/pytest-0/test_committed_otel_exception_2/exceptions.json'])&#10; +    where &lt;function main at 0x7fad536ecae0&gt; = &lt;module '_security_audit_gate' from '/home/runner/work/_temp/native-materialization-preflight/original15-a2103119d418a02310d994a6/original-r/scripts/security_audit_gate.py'&gt;.main&#10; +  and   0 = OtelExceptionScenario(version='1.37.0', advisory_ids=['CVE-2026-114603'], today='2026-11-04', expected=0, message='WAIVED', package='opentelemetry-api', skip_reason=None, omit_entry=False).expected">gate_mod = &lt;module '_security_audit_gate' from '/home/runner/work/_temp/native-materialization-preflight/original15-a2103119d418a02310d994a6/original-r/scripts/security_audit_gate.py'&gt;
+capsys = &lt;_pytest.capture.CaptureFixture object at 0x7fad536b52e0&gt;
+tmp_path = PosixPath('/home/runner/work/_temp/native-materialization-preflight/original15-a2103119d418a02310d994a6/tmp/pytest-of-runner/pytest-0/test_committed_otel_exception_2')
+scenario = OtelExceptionScenario(version='1.37.0', advisory_ids=['CVE-2026-114603'], today='2026-11-04', expected=0, message='WAIVED', package='opentelemetry-api', skip_reason=None, omit_entry=False)
+
+    @pytest.mark.parametrize(
+        "scenario",
+        [
+            pytest.param(OtelExceptionScenario("1.37.0", ["CVE-2026-114603"], "2026-10-22", 0, "WAIVED"), id="exact-cve"),
+            pytest.param(
+                OtelExceptionScenario("1.37.0", ["GHSA-xcq7-p3pf-p88h"], "2026-10-22", 0, "WAIVED"), id="exact-ghsa"
+            ),
+            pytest.param(OtelExceptionScenario("1.37.0", ["CVE-2026-114603"], "2026-11-04", 0, "WAIVED"), id="expiry-day"),
+            pytest.param(
+                OtelExceptionScenario("1.38.0", ["CVE-2026-114603"], "2026-10-22", 1, "FAIL:"), id="other-version"
+            ),
+            pytest.param(
+                OtelExceptionScenario("1.37.0", ["CVE-2026-114603"], "2026-10-22", 1, "FAIL:", package="other-package"),
+                id="other-package",
+            ),
+            pytest.param(
+                OtelExceptionScenario("1.37.0", ["UNRELATED-1"], "2026-10-22", 1, "FAIL:"), id="unrelated-advisory"
+            ),
+            pytest.param(
+                OtelExceptionScenario("1.37.0", ["CVE-2026-114603", "UNRELATED-1"], "2026-10-22", 1, "FAIL:"),
+                id="mixed-advisories",
+            ),
+            pytest.param(
+                OtelExceptionScenario(
+                    "1.37.0", ["CVE-2026-114603"], "2026-10-22", 1, "skipped dependency", skip_reason="could not audit"
+                ),
+                id="skipped",
+            ),
+            pytest.param(
+                OtelExceptionScenario("1.37.0", ["CVE-2026-114603"], "2026-11-05", 1, "not currently valid"), id="expired"
+            ),
+            pytest.param(
+                OtelExceptionScenario("1.37.0", ["CVE-2026-114603"], "2026-10-21", 1, "not currently valid"),
+                id="future-review",
+            ),
+            pytest.param(
+                OtelExceptionScenario("1.37.0", ["CVE-2026-114603"], "2026-10-22", 1, "FAIL:", omit_entry=True),
+                id="missing-entry",
+            ),
+        ],
+    )
+    def test_committed_otel_exception_is_exact_and_time_bounded(
+        gate_mod: ModuleType,
+        capsys: pytest.CaptureFixture[str],
+        tmp_path: Path,
+        scenario: OtelExceptionScenario,
+    ) -&gt; None:
+        class AuditDate(date):
+            @classmethod
+            def today(cls) -&gt; date:
+                return date.fromisoformat(scenario.today)
+    
+        dependency: dict[str, object] = {
+            "name": scenario.package,
+            "version": scenario.version,
+            "vulns": [{"id": value} for value in scenario.advisory_ids],
+        }
+        if scenario.skip_reason is not None:
+            dependency["skip_reason"] = scenario.skip_reason
+        proc = MagicMock(stdout=json.dumps({"dependencies": [dependency]}), stderr="", returncode=1)
+        committed = Path(__file__).resolve().parents[3] / "ci/vulnerability-audit-exceptions.json"
+        register = json.loads(committed.read_text(encoding="utf-8"))
+        register["exceptions"] = [
+            entry for entry in register["exceptions"] if entry["package"] == "opentelemetry-api" and not scenario.omit_entry
+        ]
+        exceptions = tmp_path / "exceptions.json"
+        exceptions.write_text(json.dumps(register), encoding="utf-8")
+        with patch.object(gate_mod, "date", AuditDate), patch.object(gate_mod.subprocess, "run", return_value=proc):
+&gt;           assert gate_mod.main(["--exceptions", str(exceptions)]) == scenario.expected
+E           AssertionError: assert 1 == 0
+E            +  where 1 = &lt;function main at 0x7fad536ecae0&gt;(['--exceptions', '/home/runner/work/_temp/native-materialization-preflight/original15-a2103119d418a02310d994a6/tmp/pytest-of-runner/pytest-0/test_committed_otel_exception_2/exceptions.json'])
+E            +    where &lt;function main at 0x7fad536ecae0&gt; = &lt;module '_security_audit_gate' from '/home/runner/work/_temp/native-materialization-preflight/original15-a2103119d418a02310d994a6/original-r/scripts/security_audit_gate.py'&gt;.main
+E            +  and   0 = OtelExceptionScenario(version='1.37.0', advisory_ids=['CVE-2026-114603'], today='2026-11-04', expected=0, message='WAIVED', package='opentelemetry-api', skip_reason=None, omit_entry=False).expected
+
+tests/unit/scripts/test_security_audit_gate.py:272: AssertionError</failure></testcase><testcase classname="tests.unit.security.test_release_dependency_selection" name="test_public_declarations_require_reviewed_security_floor[gitpython-floor]" time="0.004"><properties><property name="specfact.selector" value="tests/unit/security/test_release_dependency_selection.py::test_public_declarations_require_reviewed_security_floor[gitpython-floor]" /><property name="specfact.runner" value="pytest" /><property name="specfact.python" value="3.12.15" /><property name="specfact.pytest" value="9.1.1" /></properties><failure message="AssertionError: assert 'gitpython&gt;=3.2.1' in ['pydantic&gt;=2.12.3', 'typing-extensions&gt;=4.15.0', 'PyYAML&gt;=6.0.3', 'requests&gt;=2.32.3', 'certifi&gt;=2026.10.19', 'azure-identity&gt;=1.17.1', ...]">requirement = 'gitpython&gt;=3.2.1'
+
+    @pytest.mark.parametrize(
+        "requirement",
+        [
+            pytest.param("gitpython&gt;=3.2.1", id="gitpython-floor"),
+            pytest.param("pycparser&gt;=3.12,!=3.0.*", id="pycparser-floor"),
+        ],
+    )
+    def test_public_declarations_require_reviewed_security_floor(requirement: str) -&gt; None:
+        project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+&gt;       assert requirement in project["project"]["dependencies"]
+E       AssertionError: assert 'gitpython&gt;=3.2.1' in ['pydantic&gt;=2.12.3', 'typing-extensions&gt;=4.15.0', 'PyYAML&gt;=6.0.3', 'requests&gt;=2.32.3', 'certifi&gt;=2026.10.19', 'azure-identity&gt;=1.17.1', ...]
+
+tests/unit/security/test_release_dependency_selection.py:75: AssertionError</failure></testcase><testcase classname="tests.unit.security.test_release_dependency_selection" name="test_public_declarations_require_reviewed_security_floor[pycparser-floor]" time="0.003"><properties><property name="specfact.selector" value="tests/unit/security/test_release_dependency_selection.py::test_public_declarations_require_reviewed_security_floor[pycparser-floor]" /><property name="specfact.runner" value="pytest" /><property name="specfact.python" value="3.12.15" /><property name="specfact.pytest" value="9.1.1" /></properties><failure message="AssertionError: assert 'pycparser&gt;=3.12,!=3.0.*' in ['pydantic&gt;=2.12.3', 'typing-extensions&gt;=4.15.0', 'PyYAML&gt;=6.0.3', 'requests&gt;=2.32.3', 'certifi&gt;=2026.10.19', 'azure-identity&gt;=1.17.1', ...]">requirement = 'pycparser&gt;=3.12,!=3.0.*'
+
+    @pytest.mark.parametrize(
+        "requirement",
+        [
+            pytest.param("gitpython&gt;=3.2.1", id="gitpython-floor"),
+            pytest.param("pycparser&gt;=3.12,!=3.0.*", id="pycparser-floor"),
+        ],
+    )
+    def test_public_declarations_require_reviewed_security_floor(requirement: str) -&gt; None:
+        project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+&gt;       assert requirement in project["project"]["dependencies"]
+E       AssertionError: assert 'pycparser&gt;=3.12,!=3.0.*' in ['pydantic&gt;=2.12.3', 'typing-extensions&gt;=4.15.0', 'PyYAML&gt;=6.0.3', 'requests&gt;=2.32.3', 'certifi&gt;=2026.10.19', 'azure-identity&gt;=1.17.1', ...]
+
+tests/unit/security/test_release_dependency_selection.py:75: AssertionError</failure></testcase><testcase classname="tests.unit.scripts.test_dependency_compatibility_workflow" name="test_resolver_selection_excludes_only_frozen_release_cases" time="0.063"><properties><property name="specfact.selector" value="tests/unit/scripts/test_dependency_compatibility_workflow.py::test_resolver_selection_excludes_only_frozen_release_cases" /><property name="specfact.runner" value="pytest" /><property name="specfact.python" value="3.12.15" /><property name="specfact.pytest" value="9.1.1" /></properties><failure message="AssertionError: assert 2 == (7 + 2)&#10; +  where 2 = len(['--deselect=tests/unit/scripts/test_dependency_trust_review.py', '--deselect=tests/unit/scripts/test_reproducible_delivery.py'])&#10; +  and   7 = len(('tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export', 'tests/unit/security/test_release_promotion_security_gates.py::test_frozen_graph_uses_official_semgrep_with_bounded_mcp_exception', 'tests/unit/security/test_frozen_dependency_artifacts.py::test_frozen_certifi_bundle_excludes_compromised_root', 'tests/unit/security/test_frozen_dependency_artifacts.py::test_artifact_download_rejects_wrong_sha256', 'tests/unit/security/test_frozen_jwt_compatibility.py::test_inspection_preserves_options_and_expiry_on_reuse', 'tests/unit/security/test_frozen_gitpython_compatibility.py::test_submodule_update_rejects_outside_checkout_before_clone', ...))">def test_resolver_selection_excludes_only_frozen_release_cases() -&gt; None:
+        match = re.search(r"compatibility_deselections=\((.*?)\)", _resolver_command(), re.DOTALL)
+        assert match is not None
+        deselections = shlex.split(match.group(1))
+&gt;       assert len(deselections) == len(FROZEN_RELEASE_SELECTORS) + 2
+E       AssertionError: assert 2 == (7 + 2)
+E        +  where 2 = len(['--deselect=tests/unit/scripts/test_dependency_trust_review.py', '--deselect=tests/unit/scripts/test_reproducible_delivery.py'])
+E        +  and   7 = len(('tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export', 'tests/unit/security/test_release_promotion_security_gates.py::test_frozen_graph_uses_official_semgrep_with_bounded_mcp_exception', 'tests/unit/security/test_frozen_dependency_artifacts.py::test_frozen_certifi_bundle_excludes_compromised_root', 'tests/unit/security/test_frozen_dependency_artifacts.py::test_artifact_download_rejects_wrong_sha256', 'tests/unit/security/test_frozen_jwt_compatibility.py::test_inspection_preserves_options_and_expiry_on_reuse', 'tests/unit/security/test_frozen_gitpython_compatibility.py::test_submodule_update_rejects_outside_checkout_before_clone', ...))
+
+tests/unit/scripts/test_dependency_compatibility_workflow.py:97: AssertionError</failure></testcase><testcase classname="tests.unit.security.test_release_promotion_security_gates" name="test_frozen_graph_uses_official_semgrep_with_bounded_mcp_exception" time="0.005"><properties><property name="specfact.selector" value="tests/unit/security/test_release_promotion_security_gates.py::test_frozen_graph_uses_official_semgrep_with_bounded_mcp_exception" /><property name="specfact.runner" value="pytest" /><property name="specfact.python" value="3.12.15" /><property name="specfact.pytest" value="9.1.1" /></properties><failure message="AssertionError: assert {'mcp==1.29.0...rep==1.179.0'} == {'mcp==1.29.0...rep==1.182.1'}&#10;  &#10;  Extra items in the left set:&#10;  'semgrep==1.179.0'&#10;  Extra items in the right set:&#10;  'semgrep==1.182.1'&#10;  &#10;  Full diff:...&#10;  &#10;  ...Full output truncated (7 lines hidden), use '-vv' to show">def test_frozen_graph_uses_official_semgrep_with_bounded_mcp_exception() -&gt; None:
+        project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+        dev = cast(list[str], project["project"]["optional-dependencies"]["dev"])
+        scanning = cast(list[str], project["project"]["optional-dependencies"]["scanning"])
+        assert {"semgrep&gt;=1.175.0"} &lt;= set(dev) &amp; set(scanning)
+    
+        locked = (REPO_ROOT / "requirements" / "ci" / "locked.txt").read_text(encoding="utf-8")
+&gt;       assert set(re.findall(r"^(?:semgrep|mcp)==[^\s]+", locked, re.MULTILINE)) == {"semgrep==1.182.1", "mcp==1.29.0"}
+E       AssertionError: assert {'mcp==1.29.0...rep==1.179.0'} == {'mcp==1.29.0...rep==1.182.1'}
+E         
+E         Extra items in the left set:
+E         'semgrep==1.179.0'
+E         Extra items in the right set:
+E         'semgrep==1.182.1'
+E         
+E         Full diff:...
+E         
+E         ...Full output truncated (7 lines hidden), use '-vv' to show
+
+tests/unit/security/test_release_promotion_security_gates.py:400: AssertionError</failure></testcase><testcase classname="tests.unit.security.test_code_review_dependency_security" name="test_code_review_pins_fixed_pylint_with_bound_artifact_hashes" time="0.001"><properties><property name="specfact.selector" value="tests/unit/security/test_code_review_dependency_security.py::test_code_review_pins_fixed_pylint_with_bound_artifact_hashes" /><property name="specfact.runner" value="pytest" /><property name="specfact.python" value="3.12.15" /><property name="specfact.pytest" value="9.1.1" /></properties><failure message="AssertionError: assert 'pylint==4.0.9' in 'pylint==4.0.7  # GPL-2.0-or-later, isolated dev/CI exception; Phase 2 replacement is tracked in the license allowlist.\n'&#10; +  where 'pylint==4.0.7  # GPL-2.0-or-later, isolated dev/CI exception; Phase 2 replacement is tracked in the license allowlist.\n' = &lt;built-in method decode of bytes object at 0x7fad536efb90&gt;('utf-8')&#10; +    where &lt;built-in method decode of bytes object at 0x7fad536efb90&gt; = b'pylint==4.0.7  # GPL-2.0-or-later, isolated dev/CI exception; Phase 2 replacement is tracked in the license allowlist.\n'.decode">def test_code_review_pins_fixed_pylint_with_bound_artifact_hashes() -&gt; None:
+        """GHSA-22qq-2fwx-7p67 must be fixed in the actual installer inputs."""
+        repository_root = Path(__file__).resolve().parents[3]
+        requirements = repository_root / "requirements" / "code-review"
+        input_bytes = (requirements / "requirements.in").read_bytes()
+&gt;       assert "pylint==4.0.9" in input_bytes.decode("utf-8")
+E       AssertionError: assert 'pylint==4.0.9' in 'pylint==4.0.7  # GPL-2.0-or-later, isolated dev/CI exception; Phase 2 replacement is tracked in the license allowlist.\n'
+E        +  where 'pylint==4.0.7  # GPL-2.0-or-later, isolated dev/CI exception; Phase 2 replacement is tracked in the license allowlist.\n' = &lt;built-in method decode of bytes object at 0x7fad536efb90&gt;('utf-8')
+E        +    where &lt;built-in method decode of bytes object at 0x7fad536efb90&gt; = b'pylint==4.0.7  # GPL-2.0-or-later, isolated dev/CI exception; Phase 2 replacement is tracked in the license allowlist.\n'.decode
+
+tests/unit/security/test_code_review_dependency_security.py:12: AssertionError</failure></testcase><testcase classname="tests.unit.security.test_frozen_gitpython_compatibility" name="test_submodule_creation_validates_checkout_before_clone[absolute-metadata]" time="0.355"><properties><property name="specfact.selector" value="tests/unit/security/test_frozen_gitpython_compatibility.py::test_submodule_creation_validates_checkout_before_clone[absolute-metadata]" /><property name="specfact.runner" value="pytest" /><property name="specfact.python" value="3.12.15" /><property name="specfact.pytest" value="9.1.1" /></properties><failure message="AssertionError: assert {'version': '...alls': 1, ...} == {'version': '...alls': 0, ...}&#10;  &#10;  Omitting 4 identical items, use -vv to show&#10;  Differing items:&#10;  {'boundary_reached': True} != {'boundary_reached': False}&#10;  {'clone_calls': 1} != {'clone_calls': 0}&#10;  {'rejected': False} != {'rejected': True}&#10;  ...&#10;  &#10;  ...Full output truncated (19 lines hidden), use '-vv' to show">tmp_path = PosixPath('/home/runner/work/_temp/native-materialization-preflight/original15-a2103119d418a02310d994a6/tmp/pytest-of-runner/pytest-0/test_submodule_creation_valida0')
+checkout_path = 'absolute-metadata', expected_rejection = True
+
+    @pytest.mark.parametrize(
+        ("checkout_path", "expected_rejection"),
+        [
+            pytest.param(".git/hooks", True, id="git-metadata"),
+            pytest.param("GIT~1/hooks", True, id="git-short-name"),
+            pytest.param("absolute-metadata", True, id="absolute-metadata"),
+            pytest.param("vendor/module", False, id="ordinary-checkout"),
+            pytest.param(".github/module", False, id="github-checkout"),
+        ],
+    )
+    def test_submodule_creation_validates_checkout_before_clone(
+        tmp_path: Path, checkout_path: str, expected_rejection: bool
+    ) -&gt; None:
+        requirement, version = _frozen_gitpython_requirement(tmp_path)
+        uv = shutil.which("uv")
+        assert uv is not None, "The frozen delivery probe requires uv"
+        target = tmp_path / "delivery-package"
+        subprocess.run(
+            [uv, *FROZEN_WHEEL_INSTALL_FLAGS, "--target", str(target), "-r", str(requirement)],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        observed = subprocess.run(
+            [sys.executable, "-I", "-S", "-c", SUBMODULE_ADD_PROBE, str(target), str(tmp_path), checkout_path],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        assert observed.returncode == 0, observed.stderr
+        result = json.loads(observed.stdout)
+&gt;       assert result == {
+            "version": version,
+            "rejected": expected_rejection,
+            "boundary_reached": not expected_rejection,
+            "clone_calls": 0 if expected_rejection else 1,
+            "hooks_unchanged": True,
+            "gitmodules_exists": False,
+            "module_metadata_exists": False,
+        }
+E       AssertionError: assert {'version': '...alls': 1, ...} == {'version': '...alls': 0, ...}
+E         
+E         Omitting 4 identical items, use -vv to show
+E         Differing items:
+E         {'boundary_reached': True} != {'boundary_reached': False}
+E         {'clone_calls': 1} != {'clone_calls': 0}
+E         {'rejected': False} != {'rejected': True}
+E         ...
+E         
+E         ...Full output truncated (19 lines hidden), use '-vv' to show
+
+tests/unit/security/test_frozen_gitpython_compatibility.py:166: AssertionError</failure></testcase><testcase classname="tests.unit.security.test_frozen_gitpython_compatibility" name="test_submodule_creation_validates_checkout_before_clone[git-metadata]" time="0.237"><properties><property name="specfact.selector" value="tests/unit/security/test_frozen_gitpython_compatibility.py::test_submodule_creation_validates_checkout_before_clone[git-metadata]" /><property name="specfact.runner" value="pytest" /><property name="specfact.python" value="3.12.15" /><property name="specfact.pytest" value="9.1.1" /></properties><failure message="AssertionError: assert {'version': '...alls': 1, ...} == {'version': '...alls': 0, ...}&#10;  &#10;  Omitting 4 identical items, use -vv to show&#10;  Differing items:&#10;  {'boundary_reached': True} != {'boundary_reached': False}&#10;  {'clone_calls': 1} != {'clone_calls': 0}&#10;  {'rejected': False} != {'rejected': True}&#10;  ...&#10;  &#10;  ...Full output truncated (19 lines hidden), use '-vv' to show">tmp_path = PosixPath('/home/runner/work/_temp/native-materialization-preflight/original15-a2103119d418a02310d994a6/tmp/pytest-of-runner/pytest-0/test_submodule_creation_valida1')
+checkout_path = '.git/hooks', expected_rejection = True
+
+    @pytest.mark.parametrize(
+        ("checkout_path", "expected_rejection"),
+        [
+            pytest.param(".git/hooks", True, id="git-metadata"),
+            pytest.param("GIT~1/hooks", True, id="git-short-name"),
+            pytest.param("absolute-metadata", True, id="absolute-metadata"),
+            pytest.param("vendor/module", False, id="ordinary-checkout"),
+            pytest.param(".github/module", False, id="github-checkout"),
+        ],
+    )
+    def test_submodule_creation_validates_checkout_before_clone(
+        tmp_path: Path, checkout_path: str, expected_rejection: bool
+    ) -&gt; None:
+        requirement, version = _frozen_gitpython_requirement(tmp_path)
+        uv = shutil.which("uv")
+        assert uv is not None, "The frozen delivery probe requires uv"
+        target = tmp_path / "delivery-package"
+        subprocess.run(
+            [uv, *FROZEN_WHEEL_INSTALL_FLAGS, "--target", str(target), "-r", str(requirement)],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        observed = subprocess.run(
+            [sys.executable, "-I", "-S", "-c", SUBMODULE_ADD_PROBE, str(target), str(tmp_path), checkout_path],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        assert observed.returncode == 0, observed.stderr
+        result = json.loads(observed.stdout)
+&gt;       assert result == {
+            "version": version,
+            "rejected": expected_rejection,
+            "boundary_reached": not expected_rejection,
+            "clone_calls": 0 if expected_rejection else 1,
+            "hooks_unchanged": True,
+            "gitmodules_exists": False,
+            "module_metadata_exists": False,
+        }
+E       AssertionError: assert {'version': '...alls': 1, ...} == {'version': '...alls': 0, ...}
+E         
+E         Omitting 4 identical items, use -vv to show
+E         Differing items:
+E         {'boundary_reached': True} != {'boundary_reached': False}
+E         {'clone_calls': 1} != {'clone_calls': 0}
+E         {'rejected': False} != {'rejected': True}
+E         ...
+E         
+E         ...Full output truncated (19 lines hidden), use '-vv' to show
+
+tests/unit/security/test_frozen_gitpython_compatibility.py:166: AssertionError</failure></testcase><testcase classname="tests.unit.security.test_frozen_gitpython_compatibility" name="test_submodule_creation_validates_checkout_before_clone[git-short-name]" time="0.243"><properties><property name="specfact.selector" value="tests/unit/security/test_frozen_gitpython_compatibility.py::test_submodule_creation_validates_checkout_before_clone[git-short-name]" /><property name="specfact.runner" value="pytest" /><property name="specfact.python" value="3.12.15" /><property name="specfact.pytest" value="9.1.1" /></properties><failure message="AssertionError: assert {'version': '...alls': 1, ...} == {'version': '...alls': 0, ...}&#10;  &#10;  Omitting 4 identical items, use -vv to show&#10;  Differing items:&#10;  {'boundary_reached': True} != {'boundary_reached': False}&#10;  {'clone_calls': 1} != {'clone_calls': 0}&#10;  {'rejected': False} != {'rejected': True}&#10;  ...&#10;  &#10;  ...Full output truncated (19 lines hidden), use '-vv' to show">tmp_path = PosixPath('/home/runner/work/_temp/native-materialization-preflight/original15-a2103119d418a02310d994a6/tmp/pytest-of-runner/pytest-0/test_submodule_creation_valida2')
+checkout_path = 'GIT~1/hooks', expected_rejection = True
+
+    @pytest.mark.parametrize(
+        ("checkout_path", "expected_rejection"),
+        [
+            pytest.param(".git/hooks", True, id="git-metadata"),
+            pytest.param("GIT~1/hooks", True, id="git-short-name"),
+            pytest.param("absolute-metadata", True, id="absolute-metadata"),
+            pytest.param("vendor/module", False, id="ordinary-checkout"),
+            pytest.param(".github/module", False, id="github-checkout"),
+        ],
+    )
+    def test_submodule_creation_validates_checkout_before_clone(
+        tmp_path: Path, checkout_path: str, expected_rejection: bool
+    ) -&gt; None:
+        requirement, version = _frozen_gitpython_requirement(tmp_path)
+        uv = shutil.which("uv")
+        assert uv is not None, "The frozen delivery probe requires uv"
+        target = tmp_path / "delivery-package"
+        subprocess.run(
+            [uv, *FROZEN_WHEEL_INSTALL_FLAGS, "--target", str(target), "-r", str(requirement)],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        observed = subprocess.run(
+            [sys.executable, "-I", "-S", "-c", SUBMODULE_ADD_PROBE, str(target), str(tmp_path), checkout_path],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        assert observed.returncode == 0, observed.stderr
+        result = json.loads(observed.stdout)
+&gt;       assert result == {
+            "version": version,
+            "rejected": expected_rejection,
+            "boundary_reached": not expected_rejection,
+            "clone_calls": 0 if expected_rejection else 1,
+            "hooks_unchanged": True,
+            "gitmodules_exists": False,
+            "module_metadata_exists": False,
+        }
+E       AssertionError: assert {'version': '...alls': 1, ...} == {'version': '...alls': 0, ...}
+E         
+E         Omitting 4 identical items, use -vv to show
+E         Differing items:
+E         {'boundary_reached': True} != {'boundary_reached': False}
+E         {'clone_calls': 1} != {'clone_calls': 0}
+E         {'rejected': False} != {'rejected': True}
+E         ...
+E         
+E         ...Full output truncated (19 lines hidden), use '-vv' to show
+
+tests/unit/security/test_frozen_gitpython_compatibility.py:166: AssertionError</failure></testcase><testcase classname="tests.unit.scripts.test_dependency_trust_review" name="test_pycparser_has_current_exact_version_review_record" time="0.001"><properties><property name="specfact.selector" value="tests/unit/scripts/test_dependency_trust_review.py::test_pycparser_has_current_exact_version_review_record" /><property name="specfact.runner" value="pytest" /><property name="specfact.python" value="3.12.15" /><property name="specfact.pytest" value="9.1.1" /></properties><failure message="AssertionError: assert '2.22' == '3.12'&#10;  &#10;  - 3.12&#10;  + 2.22">def test_pycparser_has_current_exact_version_review_record() -&gt; None:
+        """The required C parser remains only with scoped, expiring review evidence."""
+        assert TRUST_RECORD.is_file(), "Flagged frozen dependencies require a checked-in review record"
+        payload = json.loads(TRUST_RECORD.read_text(encoding="utf-8"))
+        records = payload["exceptions"]
+        pycparser = next(record for record in records if record["package"] == "pycparser")
+&gt;       assert pycparser["version"] == "3.12"
+E       AssertionError: assert '2.22' == '3.12'
+E         
+E         - 3.12
+E         + 2.22
+
+tests/unit/scripts/test_dependency_trust_review.py:49: AssertionError</failure></testcase><testcase classname="tests.unit.security.test_release_dependency_selection" name="test_reviewed_tooling_versions_match_frozen_export[filelock-4.2.1]" time="0.053"><properties><property name="specfact.selector" value="tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[filelock-4.2.1]" /><property name="specfact.runner" value="pytest" /><property name="specfact.python" value="3.12.15" /><property name="specfact.pytest" value="9.1.1" /></properties><failure message="AssertionError: assert [('3.32.0', {...org/simple'})] == [('4.2.1', {'...org/simple'})]&#10;  &#10;  At index 0 diff: ('3.32.0', {'registry': 'https://pypi.org/simple'}) != ('4.2.1', {'registry': 'https://pypi.org/simple'})&#10;  &#10;  Full diff:&#10;    [&#10;        (&#10;  -         '4.2.1',...&#10;  &#10;  ...Full output truncated (8 lines hidden), use '-vv' to show">name = 'filelock', version = '4.2.1'
+
+    @pytest.mark.parametrize(
+        ("name", "version"),
+        [
+            ("certifi", "2026.10.19"),
+            ("gitpython", "3.2.1"),
+            ("pyjwt", "2.15.1"),
+            ("hatchling", "1.32.4"),
+            ("urllib3", "2.8.0"),
+            ("virtualenv", "21.14.13"),
+            ("filelock", "4.2.1"),
+            ("msgpack", "1.2.3"),
+            ("setuptools", "84.1.0"),
+            ("semgrep", "1.182.1"),
+            ("python-discovery", "1.6.1"),
+            ("packaging", "26.3"),
+            ("pycparser", "3.12"),
+        ],
+    )
+    def test_reviewed_tooling_versions_match_frozen_export(name: str, version: str) -&gt; None:
+        lock = tomllib.loads((REPO_ROOT / "uv.lock").read_text(encoding="utf-8"))
+        packages = [package for package in lock["package"] if package["name"] == name]
+&gt;       assert [(package["version"], package["source"]) for package in packages] == [
+            (version, {"registry": "https://pypi.org/simple"})
+        ]
+E       AssertionError: assert [('3.32.0', {...org/simple'})] == [('4.2.1', {'...org/simple'})]
+E         
+E         At index 0 diff: ('3.32.0', {'registry': 'https://pypi.org/simple'}) != ('4.2.1', {'registry': 'https://pypi.org/simple'})
+E         
+E         Full diff:
+E           [
+E               (
+E         -         '4.2.1',...
+E         
+E         ...Full output truncated (8 lines hidden), use '-vv' to show
+
+tests/unit/security/test_release_dependency_selection.py:35: AssertionError</failure></testcase><testcase classname="tests.unit.security.test_release_dependency_selection" name="test_reviewed_tooling_versions_match_frozen_export[gitpython-3.2.1]" time="0.054"><properties><property name="specfact.selector" value="tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[gitpython-3.2.1]" /><property name="specfact.runner" value="pytest" /><property name="specfact.python" value="3.12.15" /><property name="specfact.pytest" value="9.1.1" /></properties><failure message="AssertionError: assert [('3.2.0', {'...org/simple'})] == [('3.2.1', {'...org/simple'})]&#10;  &#10;  At index 0 diff: ('3.2.0', {'registry': 'https://pypi.org/simple'}) != ('3.2.1', {'registry': 'https://pypi.org/simple'})&#10;  &#10;  Full diff:&#10;    [&#10;        (&#10;  -         '3.2.1',...&#10;  &#10;  ...Full output truncated (8 lines hidden), use '-vv' to show">name = 'gitpython', version = '3.2.1'
+
+    @pytest.mark.parametrize(
+        ("name", "version"),
+        [
+            ("certifi", "2026.10.19"),
+            ("gitpython", "3.2.1"),
+            ("pyjwt", "2.15.1"),
+            ("hatchling", "1.32.4"),
+            ("urllib3", "2.8.0"),
+            ("virtualenv", "21.14.13"),
+            ("filelock", "4.2.1"),
+            ("msgpack", "1.2.3"),
+            ("setuptools", "84.1.0"),
+            ("semgrep", "1.182.1"),
+            ("python-discovery", "1.6.1"),
+            ("packaging", "26.3"),
+            ("pycparser", "3.12"),
+        ],
+    )
+    def test_reviewed_tooling_versions_match_frozen_export(name: str, version: str) -&gt; None:
+        lock = tomllib.loads((REPO_ROOT / "uv.lock").read_text(encoding="utf-8"))
+        packages = [package for package in lock["package"] if package["name"] == name]
+&gt;       assert [(package["version"], package["source"]) for package in packages] == [
+            (version, {"registry": "https://pypi.org/simple"})
+        ]
+E       AssertionError: assert [('3.2.0', {'...org/simple'})] == [('3.2.1', {'...org/simple'})]
+E         
+E         At index 0 diff: ('3.2.0', {'registry': 'https://pypi.org/simple'}) != ('3.2.1', {'registry': 'https://pypi.org/simple'})
+E         
+E         Full diff:
+E           [
+E               (
+E         -         '3.2.1',...
+E         
+E         ...Full output truncated (8 lines hidden), use '-vv' to show
+
+tests/unit/security/test_release_dependency_selection.py:35: AssertionError</failure></testcase><testcase classname="tests.unit.security.test_release_dependency_selection" name="test_reviewed_tooling_versions_match_frozen_export[msgpack-1.2.3]" time="0.055"><properties><property name="specfact.selector" value="tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[msgpack-1.2.3]" /><property name="specfact.runner" value="pytest" /><property name="specfact.python" value="3.12.15" /><property name="specfact.pytest" value="9.1.1" /></properties><failure message="AssertionError: assert [('1.2.1', {'...org/simple'})] == [('1.2.3', {'...org/simple'})]&#10;  &#10;  At index 0 diff: ('1.2.1', {'registry': 'https://pypi.org/simple'}) != ('1.2.3', {'registry': 'https://pypi.org/simple'})&#10;  &#10;  Full diff:&#10;    [&#10;        (&#10;  -         '1.2.3',...&#10;  &#10;  ...Full output truncated (8 lines hidden), use '-vv' to show">name = 'msgpack', version = '1.2.3'
+
+    @pytest.mark.parametrize(
+        ("name", "version"),
+        [
+            ("certifi", "2026.10.19"),
+            ("gitpython", "3.2.1"),
+            ("pyjwt", "2.15.1"),
+            ("hatchling", "1.32.4"),
+            ("urllib3", "2.8.0"),
+            ("virtualenv", "21.14.13"),
+            ("filelock", "4.2.1"),
+            ("msgpack", "1.2.3"),
+            ("setuptools", "84.1.0"),
+            ("semgrep", "1.182.1"),
+            ("python-discovery", "1.6.1"),
+            ("packaging", "26.3"),
+            ("pycparser", "3.12"),
+        ],
+    )
+    def test_reviewed_tooling_versions_match_frozen_export(name: str, version: str) -&gt; None:
+        lock = tomllib.loads((REPO_ROOT / "uv.lock").read_text(encoding="utf-8"))
+        packages = [package for package in lock["package"] if package["name"] == name]
+&gt;       assert [(package["version"], package["source"]) for package in packages] == [
+            (version, {"registry": "https://pypi.org/simple"})
+        ]
+E       AssertionError: assert [('1.2.1', {'...org/simple'})] == [('1.2.3', {'...org/simple'})]
+E         
+E         At index 0 diff: ('1.2.1', {'registry': 'https://pypi.org/simple'}) != ('1.2.3', {'registry': 'https://pypi.org/simple'})
+E         
+E         Full diff:
+E           [
+E               (
+E         -         '1.2.3',...
+E         
+E         ...Full output truncated (8 lines hidden), use '-vv' to show
+
+tests/unit/security/test_release_dependency_selection.py:35: AssertionError</failure></testcase><testcase classname="tests.unit.security.test_release_dependency_selection" name="test_reviewed_tooling_versions_match_frozen_export[packaging-26.3]" time="0.053"><properties><property name="specfact.selector" value="tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[packaging-26.3]" /><property name="specfact.runner" value="pytest" /><property name="specfact.python" value="3.12.15" /><property name="specfact.pytest" value="9.1.1" /></properties><failure message="AssertionError: assert [('26.2', {'r...org/simple'})] == [('26.3', {'r...org/simple'})]&#10;  &#10;  At index 0 diff: ('26.2', {'registry': 'https://pypi.org/simple'}) != ('26.3', {'registry': 'https://pypi.org/simple'})&#10;  &#10;  Full diff:&#10;    [&#10;        (&#10;  -         '26.3',...&#10;  &#10;  ...Full output truncated (8 lines hidden), use '-vv' to show">name = 'packaging', version = '26.3'
+
+    @pytest.mark.parametrize(
+        ("name", "version"),
+        [
+            ("certifi", "2026.10.19"),
+            ("gitpython", "3.2.1"),
+            ("pyjwt", "2.15.1"),
+            ("hatchling", "1.32.4"),
+            ("urllib3", "2.8.0"),
+            ("virtualenv", "21.14.13"),
+            ("filelock", "4.2.1"),
+            ("msgpack", "1.2.3"),
+            ("setuptools", "84.1.0"),
+            ("semgrep", "1.182.1"),
+            ("python-discovery", "1.6.1"),
+            ("packaging", "26.3"),
+            ("pycparser", "3.12"),
+        ],
+    )
+    def test_reviewed_tooling_versions_match_frozen_export(name: str, version: str) -&gt; None:
+        lock = tomllib.loads((REPO_ROOT / "uv.lock").read_text(encoding="utf-8"))
+        packages = [package for package in lock["package"] if package["name"] == name]
+&gt;       assert [(package["version"], package["source"]) for package in packages] == [
+            (version, {"registry": "https://pypi.org/simple"})
+        ]
+E       AssertionError: assert [('26.2', {'r...org/simple'})] == [('26.3', {'r...org/simple'})]
+E         
+E         At index 0 diff: ('26.2', {'registry': 'https://pypi.org/simple'}) != ('26.3', {'registry': 'https://pypi.org/simple'})
+E         
+E         Full diff:
+E           [
+E               (
+E         -         '26.3',...
+E         
+E         ...Full output truncated (8 lines hidden), use '-vv' to show
+
+tests/unit/security/test_release_dependency_selection.py:35: AssertionError</failure></testcase><testcase classname="tests.unit.security.test_release_dependency_selection" name="test_reviewed_tooling_versions_match_frozen_export[pycparser-3.12]" time="0.052"><properties><property name="specfact.selector" value="tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[pycparser-3.12]" /><property name="specfact.runner" value="pytest" /><property name="specfact.python" value="3.12.15" /><property name="specfact.pytest" value="9.1.1" /></properties><failure message="AssertionError: assert [('2.22', {'r...org/simple'})] == [('3.12', {'r...org/simple'})]&#10;  &#10;  At index 0 diff: ('2.22', {'registry': 'https://pypi.org/simple'}) != ('3.12', {'registry': 'https://pypi.org/simple'})&#10;  &#10;  Full diff:&#10;    [&#10;        (&#10;  -         '3.12',...&#10;  &#10;  ...Full output truncated (8 lines hidden), use '-vv' to show">name = 'pycparser', version = '3.12'
+
+    @pytest.mark.parametrize(
+        ("name", "version"),
+        [
+            ("certifi", "2026.10.19"),
+            ("gitpython", "3.2.1"),
+            ("pyjwt", "2.15.1"),
+            ("hatchling", "1.32.4"),
+            ("urllib3", "2.8.0"),
+            ("virtualenv", "21.14.13"),
+            ("filelock", "4.2.1"),
+            ("msgpack", "1.2.3"),
+            ("setuptools", "84.1.0"),
+            ("semgrep", "1.182.1"),
+            ("python-discovery", "1.6.1"),
+            ("packaging", "26.3"),
+            ("pycparser", "3.12"),
+        ],
+    )
+    def test_reviewed_tooling_versions_match_frozen_export(name: str, version: str) -&gt; None:
+        lock = tomllib.loads((REPO_ROOT / "uv.lock").read_text(encoding="utf-8"))
+        packages = [package for package in lock["package"] if package["name"] == name]
+&gt;       assert [(package["version"], package["source"]) for package in packages] == [
+            (version, {"registry": "https://pypi.org/simple"})
+        ]
+E       AssertionError: assert [('2.22', {'r...org/simple'})] == [('3.12', {'r...org/simple'})]
+E         
+E         At index 0 diff: ('2.22', {'registry': 'https://pypi.org/simple'}) != ('3.12', {'registry': 'https://pypi.org/simple'})
+E         
+E         Full diff:
+E           [
+E               (
+E         -         '3.12',...
+E         
+E         ...Full output truncated (8 lines hidden), use '-vv' to show
+
+tests/unit/security/test_release_dependency_selection.py:35: AssertionError</failure></testcase><testcase classname="tests.unit.security.test_release_dependency_selection" name="test_reviewed_tooling_versions_match_frozen_export[python-discovery-1.6.1]" time="0.054"><properties><property name="specfact.selector" value="tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[python-discovery-1.6.1]" /><property name="specfact.runner" value="pytest" /><property name="specfact.python" value="3.12.15" /><property name="specfact.pytest" value="9.1.1" /></properties><failure message="AssertionError: assert [('1.6.0', {'...org/simple'})] == [('1.6.1', {'...org/simple'})]&#10;  &#10;  At index 0 diff: ('1.6.0', {'registry': 'https://pypi.org/simple'}) != ('1.6.1', {'registry': 'https://pypi.org/simple'})&#10;  &#10;  Full diff:&#10;    [&#10;        (&#10;  -         '1.6.1',...&#10;  &#10;  ...Full output truncated (8 lines hidden), use '-vv' to show">name = 'python-discovery', version = '1.6.1'
+
+    @pytest.mark.parametrize(
+        ("name", "version"),
+        [
+            ("certifi", "2026.10.19"),
+            ("gitpython", "3.2.1"),
+            ("pyjwt", "2.15.1"),
+            ("hatchling", "1.32.4"),
+            ("urllib3", "2.8.0"),
+            ("virtualenv", "21.14.13"),
+            ("filelock", "4.2.1"),
+            ("msgpack", "1.2.3"),
+            ("setuptools", "84.1.0"),
+            ("semgrep", "1.182.1"),
+            ("python-discovery", "1.6.1"),
+            ("packaging", "26.3"),
+            ("pycparser", "3.12"),
+        ],
+    )
+    def test_reviewed_tooling_versions_match_frozen_export(name: str, version: str) -&gt; None:
+        lock = tomllib.loads((REPO_ROOT / "uv.lock").read_text(encoding="utf-8"))
+        packages = [package for package in lock["package"] if package["name"] == name]
+&gt;       assert [(package["version"], package["source"]) for package in packages] == [
+            (version, {"registry": "https://pypi.org/simple"})
+        ]
+E       AssertionError: assert [('1.6.0', {'...org/simple'})] == [('1.6.1', {'...org/simple'})]
+E         
+E         At index 0 diff: ('1.6.0', {'registry': 'https://pypi.org/simple'}) != ('1.6.1', {'registry': 'https://pypi.org/simple'})
+E         
+E         Full diff:
+E           [
+E               (
+E         -         '1.6.1',...
+E         
+E         ...Full output truncated (8 lines hidden), use '-vv' to show
+
+tests/unit/security/test_release_dependency_selection.py:35: AssertionError</failure></testcase><testcase classname="tests.unit.security.test_release_dependency_selection" name="test_reviewed_tooling_versions_match_frozen_export[semgrep-1.182.1]" time="0.053"><properties><property name="specfact.selector" value="tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[semgrep-1.182.1]" /><property name="specfact.runner" value="pytest" /><property name="specfact.python" value="3.12.15" /><property name="specfact.pytest" value="9.1.1" /></properties><failure message="AssertionError: assert [('1.179.0', ...org/simple'})] == [('1.182.1', ...org/simple'})]&#10;  &#10;  At index 0 diff: ('1.179.0', {'registry': 'https://pypi.org/simple'}) != ('1.182.1', {'registry': 'https://pypi.org/simple'})&#10;  &#10;  Full diff:&#10;    [&#10;        (&#10;  -         '1.182.1',...&#10;  &#10;  ...Full output truncated (8 lines hidden), use '-vv' to show">name = 'semgrep', version = '1.182.1'
+
+    @pytest.mark.parametrize(
+        ("name", "version"),
+        [
+            ("certifi", "2026.10.19"),
+            ("gitpython", "3.2.1"),
+            ("pyjwt", "2.15.1"),
+            ("hatchling", "1.32.4"),
+            ("urllib3", "2.8.0"),
+            ("virtualenv", "21.14.13"),
+            ("filelock", "4.2.1"),
+            ("msgpack", "1.2.3"),
+            ("setuptools", "84.1.0"),
+            ("semgrep", "1.182.1"),
+            ("python-discovery", "1.6.1"),
+            ("packaging", "26.3"),
+            ("pycparser", "3.12"),
+        ],
+    )
+    def test_reviewed_tooling_versions_match_frozen_export(name: str, version: str) -&gt; None:
+        lock = tomllib.loads((REPO_ROOT / "uv.lock").read_text(encoding="utf-8"))
+        packages = [package for package in lock["package"] if package["name"] == name]
+&gt;       assert [(package["version"], package["source"]) for package in packages] == [
+            (version, {"registry": "https://pypi.org/simple"})
+        ]
+E       AssertionError: assert [('1.179.0', ...org/simple'})] == [('1.182.1', ...org/simple'})]
+E         
+E         At index 0 diff: ('1.179.0', {'registry': 'https://pypi.org/simple'}) != ('1.182.1', {'registry': 'https://pypi.org/simple'})
+E         
+E         Full diff:
+E           [
+E               (
+E         -         '1.182.1',...
+E         
+E         ...Full output truncated (8 lines hidden), use '-vv' to show
+
+tests/unit/security/test_release_dependency_selection.py:35: AssertionError</failure></testcase><testcase classname="tests.unit.security.test_release_dependency_selection" name="test_reviewed_tooling_versions_match_frozen_export[setuptools-84.1.0]" time="0.053"><properties><property name="specfact.selector" value="tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[setuptools-84.1.0]" /><property name="specfact.runner" value="pytest" /><property name="specfact.python" value="3.12.15" /><property name="specfact.pytest" value="9.1.1" /></properties><failure message="AssertionError: assert [('84.0.0', {...org/simple'})] == [('84.1.0', {...org/simple'})]&#10;  &#10;  At index 0 diff: ('84.0.0', {'registry': 'https://pypi.org/simple'}) != ('84.1.0', {'registry': 'https://pypi.org/simple'})&#10;  &#10;  Full diff:&#10;    [&#10;        (&#10;  -         '84.1.0',...&#10;  &#10;  ...Full output truncated (8 lines hidden), use '-vv' to show">name = 'setuptools', version = '84.1.0'
+
+    @pytest.mark.parametrize(
+        ("name", "version"),
+        [
+            ("certifi", "2026.10.19"),
+            ("gitpython", "3.2.1"),
+            ("pyjwt", "2.15.1"),
+            ("hatchling", "1.32.4"),
+            ("urllib3", "2.8.0"),
+            ("virtualenv", "21.14.13"),
+            ("filelock", "4.2.1"),
+            ("msgpack", "1.2.3"),
+            ("setuptools", "84.1.0"),
+            ("semgrep", "1.182.1"),
+            ("python-discovery", "1.6.1"),
+            ("packaging", "26.3"),
+            ("pycparser", "3.12"),
+        ],
+    )
+    def test_reviewed_tooling_versions_match_frozen_export(name: str, version: str) -&gt; None:
+        lock = tomllib.loads((REPO_ROOT / "uv.lock").read_text(encoding="utf-8"))
+        packages = [package for package in lock["package"] if package["name"] == name]
+&gt;       assert [(package["version"], package["source"]) for package in packages] == [
+            (version, {"registry": "https://pypi.org/simple"})
+        ]
+E       AssertionError: assert [('84.0.0', {...org/simple'})] == [('84.1.0', {...org/simple'})]
+E         
+E         At index 0 diff: ('84.0.0', {'registry': 'https://pypi.org/simple'}) != ('84.1.0', {'registry': 'https://pypi.org/simple'})
+E         
+E         Full diff:
+E           [
+E               (
+E         -         '84.1.0',...
+E         
+E         ...Full output truncated (8 lines hidden), use '-vv' to show
+
+tests/unit/security/test_release_dependency_selection.py:35: AssertionError</failure></testcase><testcase classname="tests.unit.security.test_release_dependency_selection" name="test_reviewed_tooling_versions_match_frozen_export[virtualenv-21.14.13]" time="0.054"><properties><property name="specfact.selector" value="tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[virtualenv-21.14.13]" /><property name="specfact.runner" value="pytest" /><property name="specfact.python" value="3.12.15" /><property name="specfact.pytest" value="9.1.1" /></properties><failure message="AssertionError: assert [('21.11.0', ...org/simple'})] == [('21.14.13',...org/simple'})]&#10;  &#10;  At index 0 diff: ('21.11.0', {'registry': 'https://pypi.org/simple'}) != ('21.14.13', {'registry': 'https://pypi.org/simple'})&#10;  &#10;  Full diff:&#10;    [&#10;        (&#10;  -         '21.14.13',...&#10;  &#10;  ...Full output truncated (8 lines hidden), use '-vv' to show">name = 'virtualenv', version = '21.14.13'
+
+    @pytest.mark.parametrize(
+        ("name", "version"),
+        [
+            ("certifi", "2026.10.19"),
+            ("gitpython", "3.2.1"),
+            ("pyjwt", "2.15.1"),
+            ("hatchling", "1.32.4"),
+            ("urllib3", "2.8.0"),
+            ("virtualenv", "21.14.13"),
+            ("filelock", "4.2.1"),
+            ("msgpack", "1.2.3"),
+            ("setuptools", "84.1.0"),
+            ("semgrep", "1.182.1"),
+            ("python-discovery", "1.6.1"),
+            ("packaging", "26.3"),
+            ("pycparser", "3.12"),
+        ],
+    )
+    def test_reviewed_tooling_versions_match_frozen_export(name: str, version: str) -&gt; None:
+        lock = tomllib.loads((REPO_ROOT / "uv.lock").read_text(encoding="utf-8"))
+        packages = [package for package in lock["package"] if package["name"] == name]
+&gt;       assert [(package["version"], package["source"]) for package in packages] == [
+            (version, {"registry": "https://pypi.org/simple"})
+        ]
+E       AssertionError: assert [('21.11.0', ...org/simple'})] == [('21.14.13',...org/simple'})]
+E         
+E         At index 0 diff: ('21.11.0', {'registry': 'https://pypi.org/simple'}) != ('21.14.13', {'registry': 'https://pypi.org/simple'})
+E         
+E         Full diff:
+E           [
+E               (
+E         -         '21.14.13',...
+E         
+E         ...Full output truncated (8 lines hidden), use '-vv' to show
+
+tests/unit/security/test_release_dependency_selection.py:35: AssertionError</failure></testcase></testsuite></testsuites>

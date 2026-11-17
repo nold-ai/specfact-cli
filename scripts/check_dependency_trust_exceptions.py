@@ -11,13 +11,14 @@ import json
 import re
 import sys
 import tomllib
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import cast
+from zoneinfo import ZoneInfo
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_REGISTER = REPO_ROOT / "ci" / "dependency-trust-exceptions.json"
+DEFAULT_REGISTER = REPO_ROOT / "ci" / "dependency-trust-exceptions-20261116.json"
 DEFAULT_UV_LOCK = REPO_ROOT / "uv.lock"
 DEFAULT_SECURITY_TOOL_FLOORS = REPO_ROOT / "ci" / "security-tool-minimum-versions.json"
 DEFAULT_CODE_REVIEW_INPUT = REPO_ROOT / "requirements" / "code-review" / "requirements.in"
@@ -176,7 +177,7 @@ def validate_exception_register(register_path: Path, *, today: date | None = Non
     if errors:
         return errors
 
-    current_date = today or date.today()
+    current_date = today if today is not None else datetime.now(ZoneInfo("Europe/Berlin")).date()
     return [
         error
         for index, record in enumerate(records)

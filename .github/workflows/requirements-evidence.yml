@@ -12,11 +12,577 @@ permissions:
   issues: read
 
 env:
+  FIXED786_ACTIVE: ${{ github.event.pull_request.number == 786 && github.head_ref == 'codex/security-dependencies-0-55-11-dev' }}
   LATE_CYCLE_POLICY_REVISION: 5cd61c45303bc5da174a39ff79945fafad77ea3b
 
 jobs:
+  requirements-fixed786-origin:
+    name: Authenticate retained PR786 member origin
+    if: >-
+      github.event_name == 'pull_request' && github.event.pull_request.number == 786 && github.base_ref == 'dev' && github.head_ref == 'codex/security-dependencies-0-55-11-dev' && github.event.pull_request.head.repo.full_name == 'nold-ai/specfact-cli' && github.event.pull_request.base.repo.full_name == 'nold-ai/specfact-cli'
+    permissions:
+      actions: read
+      contents: read
+      issues: read
+      pull-requests: read
+      id-token: write
+      attestations: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Independently capture fixed PR786 origin association
+        id: fixed786-capture
+        env: &fixed786-api
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_API_URL: https://api.github.com
+          GITHUB_WORKFLOW_SHA: ${{ github.workflow_sha }}
+        shell: bash
+        run: &fixed786-capture |
+          set -euo pipefail
+          umask 077
+          python3 -I -S - <<'PYTHON'
+          import ast
+          import base64
+          import hashlib
+          import http.client
+          import io
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import stat
+          import subprocess
+          import types
+          import urllib.parse
+          import zipfile
+          from datetime import UTC, datetime
+
+          root = Path(os.environ['RUNNER_TEMP']) / 'fixed786-inputs'
+          root.mkdir(exist_ok=False)
+          token = os.environ['GITHUB_TOKEN']
+          if os.environ['GITHUB_API_URL'] != 'https://api.github.com':
+              raise ValueError('fixed786 API host')
+
+          def pairs(items):
+              result = dict(items)
+              if len(result) != len(items):
+                  raise ValueError('duplicate JSON key')
+              return result
+
+          def digest(raw):
+              return 'sha256:' + hashlib.sha256(raw).hexdigest()
+
+          def get(path):
+              connection = http.client.HTTPSConnection('api.github.com', timeout=20)
+              try:
+                  connection.request('GET', path, headers={'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'specfact-fixed786'})
+                  response = connection.getresponse()
+                  if response.status != 200:
+                      raise ValueError('fixed786 API refused')
+                  raw = response.read(10 * 1024 * 1024 + 1)
+                  if len(raw) > 10 * 1024 * 1024:
+                      raise ValueError('fixed786 API size')
+                  return json.loads(raw, object_pairs_hook=pairs)
+              finally:
+                  connection.close()
+
+          def blob(repository, oid):
+              record = get(f'/repos/{repository}/git/blobs/{oid}')
+              if record['sha'] != oid or record['encoding'] != 'base64':
+                  raise ValueError('fixed786 blob identity')
+              raw = base64.b64decode(record['content'].replace('\r', '').replace('\n', ''), validate=True)
+              if type(record['size']) is not int or record['size'] != len(raw) or hashlib.sha1(b'blob ' + str(len(raw)).encode() + b'\0' + raw, usedforsecurity=False).hexdigest() != oid:
+                  raise ValueError('fixed786 blob bytes')
+              return raw
+
+          def tree(oid):
+              record = get(f'/repos/nold-ai/specfact-cli/git/trees/{oid}?recursive=1')
+              if record['sha'] != oid or record['truncated'] is not False:
+                  raise ValueError('fixed786 tree')
+              result = {}
+              for entry in record['tree']:
+                  name = entry['path']
+                  if name in result or '\\' in name or any(p in ('', '.', '..') for p in name.split('/')):
+                      raise ValueError('fixed786 path')
+                  result[name] = entry
+              return result
+
+          def file_at(inventory, name):
+              entry = inventory[name]
+              if entry['mode'] != '100644' or entry['type'] != 'blob':
+                  raise ValueError('fixed786 file mode')
+              return blob('nold-ai/specfact-cli', entry['sha'])
+
+          raw_helper = blob('nold-ai/.github', '8c7b30020033c6b6081d6e743d77aa76043724ea')
+          if digest(raw_helper) != 'sha256:5441e26e7c3c8f18973c781e7d43c72076b3283c915d98ca5188bb174bf17c45':
+              raise ValueError('fixed786 helper')
+          (root / 'authority.py').write_bytes(raw_helper)
+          f7 = types.ModuleType('fixed786_f7')
+          exec(compile(raw_helper, 'trusted_requirements_authority.f7.py', 'exec'), f7.__dict__)
+          event_raw = Path(os.environ['GITHUB_EVENT_PATH']).read_bytes()
+          event = json.loads(event_raw, object_pairs_hook=pairs)
+          (root / 'event.json').write_bytes(event_raw)
+          boundary = f7._event_boundary(event)
+          if boundary['repository'] != 'nold-ai/specfact-cli' or boundary['pull_request'] != 786 or boundary['base_ref'] != 'dev' or boundary['head_branch'] != 'codex/security-dependencies-0-55-11-dev':
+              raise ValueError('fixed786 event')
+          head = boundary['head_commit']
+          current = get('/repos/nold-ai/specfact-cli/pulls/786')
+          if current['number'] != 786 or current['state'] != 'open' or current['draft'] is not False or current['auto_merge'] is not None:
+              raise ValueError('fixed786 live PR')
+          for side in ('head', 'base'):
+              if any(current[side][key] != event['pull_request'][side][key] for key in ('sha', 'ref')) or current[side]['repo']['full_name'] != 'nold-ai/specfact-cli':
+                  raise ValueError('fixed786 current PR drift')
+          if current['base']['sha'] != '9b5ad1e78430cc0b061cb16de42f73de96f4f312':
+              raise ValueError('fixed786 base')
+          final = get('/repos/nold-ai/specfact-cli/git/commits/' + head)
+          comments = f7._comments(token, 'nold-ai/specfact-cli', 786)
+          _, provisional = f7._matching_authority(event, comments, final, datetime.now(UTC))
+          permission = get('/repos/nold-ai/specfact-cli/collaborators/' + urllib.parse.quote(provisional['signer_login'], safe='') + '/permission')
+          now = datetime.now(UTC)
+          receipt = f7.validate_authority(event, comments, final, permission, now)
+          selected, _ = f7._matching_authority(event, comments, final, now)
+          comment = {key: selected[key] for key in ('id', 'body', 'user', 'author_association', 'created_at', 'updated_at')}
+          comment['body_digest'] = digest(comment['body'].encode())
+          inventory = tree(final['tree']['sha'])
+          manifest_raw = file_at(inventory, 'openspec/changes/security-dependencies-0-55-11-dev/requirements-proof/late-red-evidence.json')
+          if digest(manifest_raw) != 'sha256:f08743305cbd774e1d097c9911383a113943071adc8c256528866adb4c1f098a':
+              raise ValueError('fixed786 manifest')
+          manifest = json.loads(manifest_raw, object_pairs_hook=pairs)
+          (root / 'manifest.json').write_bytes(manifest_raw)
+          owner_raw = file_at(inventory, 'scripts/requirements_late_red_proof.py')
+          (root / 'owner.py').write_bytes(owner_raw)
+          owner = ast.parse(owner_raw)
+          nodes = [node for node in owner.body if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name) and target.id == '_FIXED_PR786_SIGNER_FILES' for target in node.targets)]
+          if len(nodes) != 1:
+              raise ValueError('fixed786 pin contract')
+          pins = ast.literal_eval(nodes[0].value)
+          if type(pins) is not tuple or len(pins) != 3 or {entry[0] for entry in pins} != {'scripts/dev_security_ci_signer.py', '.github/workflows/specfact.yml', 'ci/recovery/dev-security-signer-runtime.txt'} or any(type(entry) is not tuple or len(entry) != 2 or not re.fullmatch('[0-9a-f]{64}', entry[1]) for entry in pins):
+              raise ValueError('fixed786 signer pins')
+          clock_nodes = [node for node in owner.body if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name) and target.id == '_FIXED_PR786_CLOCK_SIGNER_FILES' for target in node.targets)]
+          origin_nodes = [node for node in owner.body if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name) and target.id == '_FIXED_PR786_CLOCK_ORIGIN' for target in node.targets)]
+          if len(clock_nodes) != 1 or len(origin_nodes) != 1:
+              raise ValueError('fixed786 clock pin contract')
+          clock_pins = ast.literal_eval(clock_nodes[0].value)
+          clock_origin = ast.literal_eval(origin_nodes[0].value)
+          if type(clock_pins) is not tuple or len(clock_pins) != 3 or {entry[0] for entry in clock_pins} != {entry[0] for entry in pins} or any(type(entry) is not tuple or len(entry) != 2 or not re.fullmatch('[0-9a-f]{64}', entry[1]) for entry in clock_pins):
+              raise ValueError('fixed786 clock signer pins')
+          if clock_origin != ('refs/heads/codex/dev786-berlin-clock-signer-20261115', 'refs/heads/codex/security-dev-berlin-clock-candidate-20261115', 'e753ac1a3e4bb3bf739bd7203c728a652db6cb90'):
+              raise ValueError('fixed786 clock origin')
+          retention_nodes = [node for node in owner.body if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name) and target.id == '_FIXED_PR786_RETENTION_SIGNER_FILES' for target in node.targets)]
+          retention_origin_nodes = [node for node in owner.body if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name) and target.id == '_FIXED_PR786_RETENTION_ORIGIN' for target in node.targets)]
+          if len(retention_nodes) != 1 or len(retention_origin_nodes) != 1:
+              raise ValueError('fixed786 retention pin contract')
+          retention_pins = ast.literal_eval(retention_nodes[0].value)
+          retention_origin = ast.literal_eval(retention_origin_nodes[0].value)
+          if type(retention_pins) is not tuple or len(retention_pins) != 3 or {entry[0] for entry in retention_pins} != {entry[0] for entry in pins} or any(type(entry) is not tuple or len(entry) != 2 or not re.fullmatch('[0-9a-f]{64}', entry[1]) for entry in retention_pins):
+              raise ValueError('fixed786 retention signer pins')
+          if retention_origin != ('refs/heads/codex/dev786-retained-origin-signer-20261116', 'refs/heads/codex/security-dev-retained-origin-candidate-20261116', '8fa13e4c69b40bcf6852eb95600d52316e723300'):
+              raise ValueError('fixed786 retention origin')
+          producer_nodes = [node for node in owner.body if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name) and target.id == '_FIXED_PR786_PRODUCER_SIGNER_FILES' for target in node.targets)]
+          producer_origin_nodes = [node for node in owner.body if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name) and target.id == '_FIXED_PR786_PRODUCER_ORIGIN' for target in node.targets)]
+          if len(producer_nodes) != 1 or len(producer_origin_nodes) != 1:
+              raise ValueError('fixed786 producer pin contract')
+          producer_pins = ast.literal_eval(producer_nodes[0].value)
+          producer_origin = ast.literal_eval(producer_origin_nodes[0].value)
+          if type(producer_pins) is not tuple or len(producer_pins) != 3 or {entry[0] for entry in producer_pins} != {entry[0] for entry in pins} or any(type(entry) is not tuple or len(entry) != 2 or not re.fullmatch('[0-9a-f]{64}', entry[1]) for entry in producer_pins):
+              raise ValueError('fixed786 producer signer pins')
+          if producer_origin != ('refs/heads/codex/dev786-producer-uv-signer-20261116', 'refs/heads/codex/security-dev-producer-uv-candidate-20261116', 'df71b03511057f7e76e559d2e1736c54eaec8a91'):
+              raise ValueError('fixed786 producer origin')
+          mapping_nodes = [node for node in owner.body if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name) and target.id == '_FIXED_PR786_MAPPING_SIGNER_FILES' for target in node.targets)]
+          mapping_origin_nodes = [node for node in owner.body if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name) and target.id == '_FIXED_PR786_MAPPING_ORIGIN' for target in node.targets)]
+          if len(mapping_nodes) != 1 or len(mapping_origin_nodes) != 1:
+              raise ValueError('fixed786 mapping pin contract')
+          mapping_pins = ast.literal_eval(mapping_nodes[0].value)
+          mapping_origin = ast.literal_eval(mapping_origin_nodes[0].value)
+          if type(mapping_pins) is not tuple or len(mapping_pins) != 3 or {entry[0] for entry in mapping_pins} != {entry[0] for entry in pins} or any(type(entry) is not tuple or len(entry) != 2 or not re.fullmatch('[0-9a-f]{64}', entry[1]) for entry in mapping_pins):
+              raise ValueError('fixed786 mapping signer pins')
+          if mapping_origin != ('refs/heads/codex/dev786-requirements-map-signer-20261116', 'refs/heads/codex/security-dev-requirements-map-candidate-20261116', '68407340e4acb3ed95ef859c0fb5d01282d1ab08'):
+              raise ValueError('fixed786 mapping origin')
+          expected_origin = ('refs/heads/codex/dev786-ci-tail-signer-20261104', 'refs/heads/codex/security-dev-ci-tail-candidate-20261104', 'b0184ae8c3de2c107d888dc23b0e7402a31d520e')
+          match = re.search(r'\n\nSource-Commit: ([0-9a-f]{40})\nIntent: ([0-9a-f]{64})\nExecutor: ([0-9a-f]{40})\nRun: ([1-9][0-9]*)\nAttempt: 1\Z', final['message'])
+          if match is None:
+              raise ValueError('fixed786 signed suffix')
+          source, intent_hash, executor, run_text = match.groups()
+          verification = final['verification']
+          if verification['verified'] is not True or verification['reason'] != 'valid' or not verification['signature'].startswith('-----BEGIN PGP SIGNATURE-----'):
+              raise ValueError('fixed786 service verification')
+          headers, separator, message = verification['payload'].partition('\n\n')
+          lines = headers.split('\n')
+          if separator != '\n\n' or message != final['message'] or len(final['parents']) != 1 or len(lines) != 4 or lines[:2] != ['tree ' + final['tree']['sha'], 'parent ' + final['parents'][0]['sha']]:
+              raise ValueError('fixed786 signed payload')
+          roles = (('author', 'github-actions[bot]', '41898282+github-actions[bot]@users.noreply.github.com'), ('committer', 'GitHub', 'noreply@github.com'))
+          for index, (role, name, email) in enumerate(roles, 2):
+              if final[role]['name'] != name or final[role]['email'] != email or re.fullmatch(re.escape(f'{role} {name} <{email}> ') + r'[0-9]+ [+-][0-9]{4}', lines[index]) is None:
+                  raise ValueError('fixed786 signed identity')
+          api_final = get('/repos/nold-ai/specfact-cli/commits/' + head)
+          for role, identity in (('author', {'id': 41898282, 'login': 'github-actions[bot]', 'type': 'Bot'}), ('committer', {'id': 19864447, 'login': 'web-flow', 'type': 'User'})):
+              if any(api_final[role].get(key) != value for key, value in identity.items()):
+                  raise ValueError('fixed786 service attribution')
+          executor_record = get('/repos/nold-ai/specfact-cli/git/commits/' + executor)
+          executor_tree = tree(executor_record['tree']['sha'])
+          if digest(file_at(executor_tree, 'scripts/dev_security_ci_signer.py')) == 'sha256:' + clock_pins[0][1]:
+              pins = clock_pins
+              expected_origin = clock_origin
+          if digest(file_at(executor_tree, 'scripts/dev_security_ci_signer.py')) == 'sha256:' + retention_pins[0][1]:
+              pins = retention_pins
+              expected_origin = retention_origin
+          if digest(file_at(executor_tree, 'scripts/dev_security_ci_signer.py')) == 'sha256:' + producer_pins[0][1]:
+              pins = producer_pins
+              expected_origin = producer_origin
+          if digest(file_at(executor_tree, 'scripts/dev_security_ci_signer.py')) == 'sha256:' + mapping_pins[0][1]:
+              pins = mapping_pins
+              expected_origin = mapping_origin
+          for name, expected in pins:
+              if digest(file_at(executor_tree, name)) != 'sha256:' + expected:
+                  raise ValueError('fixed786 executor bytes')
+          intent_raw = file_at(executor_tree, 'ci/recovery/dev-security-intent.json')
+          if digest(intent_raw) != 'sha256:' + intent_hash:
+              raise ValueError('fixed786 intent')
+          intent = json.loads(intent_raw, object_pairs_hook=pairs)
+          if (intent['repository_full_name'], intent['dev'], intent['auxiliary_ref'], intent['destination']) != ('nold-ai/specfact-cli', '9b5ad1e78430cc0b061cb16de42f73de96f4f312', expected_origin[0], expected_origin[1]):
+              raise ValueError('fixed786 signer origin')
+          checkpoints = intent['checkpoints']
+          if not checkpoints or checkpoints[0]['source_parent'] != expected_origin[2]:
+              raise ValueError('fixed786 signer source root')
+          if not 1 <= len(checkpoints) <= 32 or checkpoints[-1]['source_commit'] != source or checkpoints[-1]['source_tree'] != final['tree']['sha']:
+              raise ValueError('fixed786 final checkpoint')
+          run_id = int(run_text)
+          run = get(f'/repos/nold-ai/specfact-cli/actions/runs/{run_id}')
+          expected_run = {'id': run_id, 'run_attempt': 1, 'head_sha': executor, 'head_branch': 'codex/dev786-ci-tail-signer-20261104', 'event': 'workflow_dispatch', 'path': '.github/workflows/specfact.yml', 'workflow_id': 204352514, 'status': 'completed', 'conclusion': 'success'}
+          if intent.get('auxiliary_ref') == 'refs/heads/codex/dev786-berlin-clock-signer-20261115':
+              expected_run['head_branch'] = 'codex/dev786-berlin-clock-signer-20261115'
+          if intent.get('auxiliary_ref') == 'refs/heads/codex/dev786-retained-origin-signer-20261116':
+              expected_run['head_branch'] = 'codex/dev786-retained-origin-signer-20261116'
+          if intent.get('auxiliary_ref') == 'refs/heads/codex/dev786-producer-uv-signer-20261116':
+              expected_run['head_branch'] = 'codex/dev786-producer-uv-signer-20261116'
+          if intent.get('auxiliary_ref') == 'refs/heads/codex/dev786-requirements-map-signer-20261116':
+              expected_run['head_branch'] = 'codex/dev786-requirements-map-signer-20261116'
+          if any(type(run.get(key)) is not type(value) or run.get(key) != value for key, value in expected_run.items()) or run['repository']['full_name'] != 'nold-ai/specfact-cli' or run['repository']['id'] != intent['repository_id']:
+              raise ValueError('fixed786 completed signer')
+          for role in ('actor', 'triggering_actor'):
+              if any(run[role].get(key) != value for key, value in intent[role].items()):
+                  raise ValueError('fixed786 run actor')
+          history = get('/repos/nold-ai/specfact-cli/actions/workflows/204352514/runs?event=workflow_dispatch&per_page=100')
+          runs = history.get('workflow_runs')
+          if not isinstance(runs, list) or type(history.get('total_count')) is not int or history['total_count'] != len(runs) or len(runs) > 100:
+              raise ValueError('fixed786 incomplete dispatch history')
+          same_executor = [value for value in runs if isinstance(value, dict) and value.get('head_sha') == executor]
+          if len(same_executor) != 1 or any(type(same_executor[0].get(key)) is not type(value) or same_executor[0].get(key) != value for key, value in expected_run.items()):
+              raise ValueError('fixed786 unique completed dispatch')
+          artifacts = get(f'/repos/nold-ai/specfact-cli/actions/runs/{run_id}/artifacts?per_page=100')
+          if type(artifacts['total_count']) is not int or artifacts['total_count'] != len(artifacts['artifacts']) or len(artifacts['artifacts']) > 100:
+              raise ValueError('fixed786 artifact enumeration')
+          copy_name = f'fixed786-native36-copy-{run_id}-1-{executor}'
+          matches = [entry for entry in artifacts['artifacts'] if entry['name'] == copy_name]
+          if len(matches) != 1:
+              raise ValueError('fixed786 unique COPY')
+          copy = matches[0]
+          if type(copy['id']) is not int or copy['id'] <= 0 or copy['id'] == 13269307808 or copy['expired'] is not False or type(copy['size_in_bytes']) is not int or not 0 < copy['size_in_bytes'] <= 10 * 1024 * 1024:
+              raise ValueError('fixed786 COPY metadata')
+          expected_association = {'id': run_id, 'repository_id': run['repository']['id'], 'head_repository_id': run['repository']['id'], 'head_sha': executor, 'head_branch': run['head_branch']}
+          if any(copy['workflow_run'].get(key) != value for key, value in expected_association.items()):
+              raise ValueError('fixed786 COPY association')
+          connection = http.client.HTTPSConnection('api.github.com', timeout=20)
+          try:
+              connection.request('GET', f"/repos/nold-ai/specfact-cli/actions/artifacts/{copy['id']}/zip", headers={'Authorization': 'Bearer ' + token, 'User-Agent': 'specfact-fixed786', 'X-GitHub-Api-Version': '2022-11-28'})
+              response = connection.getresponse()
+              if response.status != 302:
+                  raise ValueError('fixed786 COPY download refused')
+              location = urllib.parse.urlsplit(response.getheader('Location'))
+          finally:
+              connection.close()
+          if location.scheme != 'https' or location.username or location.password or location.port not in (None, 443) or location.fragment or not location.hostname or not (location.hostname.endswith('.blob.core.windows.net') or location.hostname.endswith('.actions.githubusercontent.com')):
+              raise ValueError('fixed786 COPY storage host')
+          connection = http.client.HTTPSConnection(location.hostname, timeout=20)
+          try:
+              connection.request('GET', urllib.parse.urlunsplit(('', '', location.path, location.query, '')))
+              response = connection.getresponse()
+              if response.status != 200:
+                  raise ValueError('fixed786 COPY storage response')
+              archive = response.read(10 * 1024 * 1024 + 1)
+          finally:
+              connection.close()
+          if len(archive) != copy['size_in_bytes'] or digest(archive) != copy['digest']:
+              raise ValueError('fixed786 COPY archive')
+          expected_members = {'requirements-evidence.json': (64255, manifest['report_digest']), 'requirements-evidence-plan.json': (31641, manifest['plan_report_digest']), 'requirements-proof.xml': (62923, manifest['junit_digest']), 'plan.json': (30303, manifest['plan_output_digest'])}
+          packet = root / 'packet'
+          packet.mkdir()
+          members = {}
+          with zipfile.ZipFile(io.BytesIO(archive)) as zipped:
+              infos = zipped.infolist()
+              if len(infos) != 4 or {info.filename for info in infos} != set(expected_members):
+                  raise ValueError('fixed786 exact COPY members')
+              for info in infos:
+                  length, expected = expected_members[info.filename]
+                  if info.is_dir() or info.flag_bits & 1 or info.compress_type not in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED) or info.file_size != length or info.compress_size > len(archive) or stat.S_IFMT(info.external_attr >> 16) not in (0, stat.S_IFREG):
+                      raise ValueError('fixed786 COPY member mode/size')
+                  with zipped.open(info) as stream:
+                      raw = stream.read(length + 1)
+                  if len(raw) != length or digest(raw) != expected:
+                      raise ValueError('fixed786 retained member identity')
+                  (packet / info.filename).write_bytes(raw)
+                  members[info.filename] = {'bytes': length, 'digest': expected}
+          from typing import cast
+          MAX_INPUT_BYTES = 10 * 1024 * 1024
+          _FIXED_PR786_UPLOAD_LOG_SHA256 = "4790c54b9ecf650c9f3a92d591a9ffbc292c39497fba7cdfe7211dd5a3ae4048"
+          _FIXED_PR786_UPLOAD_LOG_BYTES = 30543
+          _FIXED_PR786_ORIGINAL_ZIP = "tests/fixtures/requirements-proof/pr786-original-native36.zip"
+          _digest = digest
+
+          def _fixed_pr786_copy_storage(location: urllib.parse.SplitResult) -> str:
+              if (
+                  location.scheme != "https"
+                  or location.username
+                  or location.password
+                  or location.port not in (None, 443)
+                  or location.fragment
+                  or not location.hostname
+                  or not (
+                      location.hostname.endswith(".blob.core.windows.net")
+                      or location.hostname.endswith(".actions.githubusercontent.com")
+                  )
+              ):
+                  raise ValueError
+              return location.hostname
+
+          def _fixed_pr786_copy_archive(location: urllib.parse.SplitResult, size: int, digest: str) -> bytes:
+              connection = http.client.HTTPSConnection(_fixed_pr786_copy_storage(location), timeout=20)
+              try:
+                  connection.request(
+                      "GET",
+                      urllib.parse.urlunsplit(("", "", location.path, location.query, "")),
+                      headers={"User-Agent": "specfact-fixed786"},
+                  )
+                  response = connection.getresponse()
+                  if response.status != 200:
+                      raise ValueError
+                  archive = response.read(MAX_INPUT_BYTES + 1)
+              finally:
+                  connection.close()
+              if len(archive) != size or _digest(archive) != digest:
+                  raise ValueError
+              return archive
+
+          def _fixed_pr786_upload_receipt(
+              job: dict[str, object], log: bytes, archive: bytes, manifest: dict[str, object], packet: Path
+          ) -> dict[str, object]:
+              expected_job: dict[str, object] = {
+                  "id": 126195535776,
+                  "run_id": 41715861806,
+                  "run_attempt": 1,
+                  "head_sha": "8ad0a9434ceeac4a910df3c374536d7c909badec",
+                  "name": "materialize",
+                  "status": "completed",
+                  "conclusion": "success",
+              }
+              if any(type(job.get(key)) is not type(value) or job.get(key) != value for key, value in expected_job.items()):
+                  raise ValueError("fixed786 original upload job")
+              steps = job.get("steps")
+              if not isinstance(steps, list):
+                  raise ValueError("fixed786 original upload steps")
+              by_number: dict[object, dict[str, object]] = {}
+              for item in cast(list[object], steps):
+                  if not isinstance(item, dict):
+                      raise ValueError("fixed786 original upload step")
+                  step = cast(dict[str, object], item)
+                  number = step.get("number")
+                  if type(number) is not int or number in by_number or step.get("conclusion") != "success":
+                      raise ValueError("fixed786 unsuccessful original step")
+                  by_number[number] = step
+              for number, name in ((7, "Observe one original native materialization"), (9, "Retain original execution packet")):
+                  if by_number.get(number, {}).get("name") != name:
+                      raise ValueError("fixed786 original command or upload missing")
+              times: list[datetime] = []
+              for key in ("started_at", "completed_at"):
+                  value = job.get(key)
+                  if not isinstance(value, str):
+                      raise ValueError("fixed786 original job time")
+                  times.append(datetime.fromisoformat(value.replace("Z", "+00:00")))
+              if any(value.tzinfo is None for value in times) or not (
+                  datetime(2026, 11, 3, tzinfo=UTC) <= times[0] <= times[1] < datetime(2026, 11, 4, 23, tzinfo=UTC)
+              ):
+                  raise ValueError("fixed786 original execution outside its window")
+              log_digest = hashlib.sha256(log).hexdigest()
+              if len(log) != _FIXED_PR786_UPLOAD_LOG_BYTES or log_digest != _FIXED_PR786_UPLOAD_LOG_SHA256:
+                  raise ValueError("fixed786 original provider log")
+              marker = "##[group]Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+              _, separator, upload = log.decode("utf-8").rpartition(marker)
+              expected_lines = (
+                  "  name: original-execution-packet-41715861806-1",
+                  "SHA256 digest of uploaded artifact is 0567a53963df112f2ac3f2e2024c1b93c6f9fafc00052ce137c4d5495c07f433",
+                  "Artifact original-execution-packet-41715861806-1 successfully finalized. Artifact ID 13269307808",
+                  "Artifact original-execution-packet-41715861806-1 has been successfully uploaded! Final size is 1885415 bytes. Artifact ID is 13269307808",
+                  "Artifact download URL: https://github.com/nold-ai/.github/actions/runs/41715861806/artifacts/13269307808",
+              )
+              if not separator or any(line not in upload for line in expected_lines):
+                  raise ValueError("fixed786 original provider receipt")
+              archive_digest = "sha256:" + hashlib.sha256(archive).hexdigest()
+              if len(archive) != 1885415 or archive_digest != manifest["artifact_digest"]:
+                  raise ValueError("fixed786 retained original archive")
+              selected = (
+                  ("local-red-report.json", "requirements-evidence.json", "report_digest", 64255),
+                  ("planning-report.json", "requirements-evidence-plan.json", "plan_report_digest", 31641),
+                  ("requirements-proof.xml", "requirements-proof.xml", "junit_digest", 62923),
+                  ("plan.json", "plan.json", "plan_output_digest", 30303),
+              )
+              members: dict[str, object] = {}
+              with zipfile.ZipFile(io.BytesIO(archive)) as zipped:
+                  infos = zipped.infolist()
+                  if len(infos) != 17 or len({info.filename for info in infos}) != 17:
+                      raise ValueError("fixed786 original archive inventory")
+                  for original, normalized, digest_key, length in selected:
+                      name = str(manifest["artifact_member_prefix"]) + "/" + original
+                      info = zipped.getinfo(name)
+                      if (
+                          info.is_dir()
+                          or info.flag_bits & 1
+                          or info.compress_type not in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED)
+                          or info.file_size != length
+                          or info.compress_size > len(archive)
+                          or stat.S_IFMT(info.external_attr >> 16) not in (0, stat.S_IFREG)
+                      ):
+                          raise ValueError("fixed786 original member mode or size")
+                      with zipped.open(info) as stream:
+                          raw = stream.read(length + 1)
+                      target = packet / normalized
+                      if target.is_symlink() or not target.is_file():
+                          raise ValueError("fixed786 retained member kind")
+                      with target.open("rb") as stream:
+                          retained = stream.read(length + 1)
+                      member_digest = "sha256:" + hashlib.sha256(raw).hexdigest()
+                      if len(raw) != length or member_digest != manifest[digest_key] or retained != raw:
+                          raise ValueError("fixed786 original member mismatch")
+                      members[normalized] = {"bytes": length, "digest": member_digest}
+              return {
+                  "source": "live-provider-upload-log",
+                  "artifact_metadata_role": "historical",
+                  "artifacts_present": 0,
+                  "job": job,
+                  "log_digest": "sha256:" + log_digest,
+                  "upload": {
+                      "id": 13269307808,
+                      "run_id": 41715861806,
+                      "name": "original-execution-packet-41715861806-1",
+                      "bytes": 1885415,
+                      "digest": archive_digest,
+                  },
+                  "archive": {"path": _FIXED_PR786_ORIGINAL_ZIP, "bytes": len(archive), "digest": archive_digest},
+                  "members": members,
+              }
+
+          def _fixed_pr786_original_log() -> bytes:
+              connection = http.client.HTTPSConnection("api.github.com", timeout=20)
+              try:
+                  connection.request(
+                      "GET",
+                      "/repos/nold-ai/.github/actions/jobs/126195535776/logs",
+                      headers={
+                          "Authorization": "Bearer " + os.environ["GITHUB_TOKEN"],
+                          "Accept": "application/vnd.github+json",
+                          "User-Agent": "specfact-fixed786",
+                          "X-GitHub-Api-Version": "2022-11-28",
+                      },
+                  )
+                  response = connection.getresponse()
+                  if response.status != 302:
+                      raise ValueError("fixed786 original log redirect")
+                  target = response.getheader("Location")
+                  if not isinstance(target, str):
+                      raise ValueError("fixed786 original log location")
+                  location = urllib.parse.urlsplit(target)
+              finally:
+                  connection.close()
+              return _fixed_pr786_copy_archive(
+                  location, _FIXED_PR786_UPLOAD_LOG_BYTES, "sha256:" + _FIXED_PR786_UPLOAD_LOG_SHA256
+              )
+
+          original_run = get('/repos/nold-ai/.github/actions/runs/41715861806')
+          available = get('/repos/nold-ai/.github/actions/runs/41715861806/artifacts?per_page=100')
+          if type(available.get('total_count')) is not int or available.get('total_count') != 0 or available.get('artifacts') != []:
+              raise ValueError('fixed786 original artifact availability changed')
+          snapshot_raw = file_at(inventory, 'tests/unit/scripts/fixtures/fixed786_artifact_source/artifact-live-api.json')
+          if digest(snapshot_raw) != 'sha256:299dfcf649d2e226718478d65872309a418d8829f51e8ddb805b046c27d84391':
+              raise ValueError('fixed786 historical artifact snapshot')
+          original_artifact = json.loads(snapshot_raw, object_pairs_hook=pairs)
+          original_archive = file_at(inventory, _FIXED_PR786_ORIGINAL_ZIP)
+          original_job = get('/repos/nold-ai/.github/actions/jobs/126195535776')
+          original_upload_receipt = _fixed_pr786_upload_receipt(
+              original_job, _fixed_pr786_original_log(), original_archive, manifest, packet)
+          source_commit = get('/repos/nold-ai/specfact-cli/commits/d77209f4b13c386e29391f93e1f1c58d7fd8622f')
+          expected_original = {'id': manifest['run_id'], 'run_attempt': 1, 'workflow_id': 396761484, 'head_sha': manifest['executor_commit'], 'head_branch': manifest['executor_head_branch'], 'event': 'create', 'status': 'completed', 'conclusion': 'success', 'name': manifest['executor_workflow_name'], 'path': manifest['executor_workflow_path']}
+          if any(type(original_run.get(key)) is not type(value) or original_run.get(key) != value for key, value in expected_original.items()):
+              raise ValueError('fixed786 original run identity')
+          for key in ('repository', 'head_repository'):
+              expected_repository = {'id': 1110267669, 'full_name': 'nold-ai/.github', 'private': False, 'fork': False}
+              if any(original_run[key].get(field) != value for field, value in expected_repository.items()):
+                  raise ValueError('fixed786 original repository identity')
+          for key in ('actor', 'triggering_actor'):
+              if any(original_run[key].get(field) != value for field, value in {'id': 39115308, 'login': 'djm81', 'type': 'User'}.items()):
+                  raise ValueError('fixed786 original actor')
+          expected_artifact = {'id': manifest['artifact_id'], 'name': manifest['artifact_name'], 'size_in_bytes': 1885415, 'expired': False, 'digest': manifest['artifact_digest']}
+          if any(type(original_artifact.get(key)) is not type(value) or original_artifact.get(key) != value for key, value in expected_artifact.items()):
+              raise ValueError('fixed786 original artifact identity')
+          expected_association = {'id': manifest['run_id'], 'repository_id': 1110267669, 'head_repository_id': 1110267669, 'head_branch': manifest['executor_head_branch'], 'head_sha': manifest['executor_commit']}
+          if any(original_artifact['workflow_run'].get(key) != value for key, value in expected_association.items()):
+              raise ValueError('fixed786 original artifact association')
+          if source_commit['sha'] != manifest['red_commit'] or source_commit['commit']['tree']['sha'] != manifest['red_tree'] or len(source_commit['parents']) != 1 or source_commit['parents'][0]['sha'] != '22b2fa7bd763b18ada1bfd1a9ea482a624f34cca':
+              raise ValueError('fixed786 R2 identity')
+          verification = source_commit['commit']['verification']
+          if verification['verified'] is not True or verification['reason'] != 'valid' or digest(verification['signature'].encode()) != 'sha256:93fd3eda71f08a5916ce7c21de05d9f956ab35f3f4e3fbc82b245b0983300c5f' or digest(verification['payload'].encode()) != 'sha256:5deb53f08b63c5f9810efd34d28445f521e1fa828384961d0a916d370286c1ce':
+              raise ValueError('fixed786 R2 signature identity')
+          for key, expected in (('author', {'id': 41898282, 'login': 'github-actions[bot]', 'type': 'Bot'}), ('committer', {'id': 19864447, 'login': 'web-flow', 'type': 'User'})):
+              if any(source_commit[key].get(field) != value for field, value in expected.items()):
+                  raise ValueError('fixed786 R2 service attribution')
+          origin = {'schema_version': 1, 'kind': 'fixed-pr786-retained-member-origin', 'repository': 'nold-ai/specfact-cli', 'head_commit': head, 'head_tree': final['tree']['sha'], 'workflow_sha': os.environ['GITHUB_WORKFLOW_SHA'], 'run_id': int(os.environ['GITHUB_RUN_ID']), 'run_attempt': int(os.environ['GITHUB_RUN_ATTEMPT']), 'manifest_digest': digest(manifest_raw), 'signer': {'executor': executor, 'intent_digest': 'sha256:' + intent_hash, 'source_commit': source, 'checkpoint_count': len(checkpoints)}, 'copy': {'id': copy['id'], 'name': copy_name, 'digest': copy['digest'], 'size_in_bytes': copy['size_in_bytes'], 'workflow_run': copy['workflow_run'], 'members': members}, 'original_run': original_run, 'original_artifact': original_artifact, 'original_upload_receipt': original_upload_receipt, 'source_commit': source_commit, 'authority': {'receipt': receipt, 'comment': comment}}
+          for name, value in (('observed-origin.json', origin), ('run.json', original_run), ('artifacts.json', {'artifacts': [original_artifact], 'source_commit': source_commit})):
+              (root / name).write_text(json.dumps(value, sort_keys=True, separators=(',', ':')) + '\n')
+          if get('/repos/nold-ai/specfact-cli/pulls/786')['head']['sha'] != head:
+              raise ValueError('fixed786 head moved')
+          permission = get('/repos/nold-ai/specfact-cli/collaborators/' + urllib.parse.quote(receipt['signer_login'], safe='') + '/permission')
+          f7.validate_authority(event, f7._comments(token, 'nold-ai/specfact-cli', 786), get('/repos/nold-ai/specfact-cli/git/commits/' + head), permission, datetime.now(UTC))
+          origin_root = Path(os.environ['RUNNER_TEMP']) / 'fixed786-origin'
+          if origin_root.exists():
+              if {path.name for path in origin_root.iterdir()} != {'origin.json', 'origin.bundle.jsonl'}:
+                  raise ValueError('fixed786 origin member set')
+              for name in ('origin.json', 'origin.bundle.jsonl'):
+                  path = origin_root / name
+                  if path.is_symlink() or not path.is_file() or path.stat().st_size > 10 * 1024 * 1024:
+                      raise ValueError('fixed786 origin member type')
+                  (root / name).write_bytes(path.read_bytes())
+          freeze = {str(path.relative_to(root)): digest(path.read_bytes()) for path in root.rglob('*') if path.is_file()}
+          (root / 'frozen.json').write_text(json.dumps(freeze, sort_keys=True) + '\n')
+          with Path(os.environ['GITHUB_OUTPUT']).open('a') as output:
+              output.write('frozen-digest=' + digest((root / 'frozen.json').read_bytes()) + '\n')
+          PYTHON
+
+      - name: Stage exact retained-member origin
+        run: cp "${RUNNER_TEMP}/fixed786-inputs/observed-origin.json" "${RUNNER_TEMP}/fixed786-inputs/origin.json"
+
+      - name: Attest retained-member origin
+        id: fixed786-attestation
+        uses: actions/attest@7a37fbbab9669658a566371acd1cf2f8c7a40d32
+        with:
+          subject-path: ${{ runner.temp }}/fixed786-inputs/origin.json
+
+      - name: Retain fixed origin bundle
+        env:
+          BUNDLE: ${{ steps.fixed786-attestation.outputs.bundle-path }}
+        run: cp "$BUNDLE" "${RUNNER_TEMP}/fixed786-inputs/origin.bundle.jsonl"
+
+      - name: Upload fixed origin
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: requirements-fixed786-origin-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/fixed786-inputs/origin.json
+            ${{ runner.temp }}/fixed786-inputs/origin.bundle.jsonl
+          if-no-files-found: error
+
   requirements-evidence-producer:
     name: Requirements evidence producer
+    needs: [requirements-fixed786-origin]
+    if: always() && (needs.requirements-fixed786-origin.result == 'success' || (needs.requirements-fixed786-origin.result == 'skipped' && !(github.event.pull_request.number == 786 && github.head_ref == 'codex/security-dependencies-0-55-11-dev')))
     permissions:
       actions: read
       checks: read
@@ -86,6 +652,11 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Set up uv for trusted Requirements producer
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
+        with:
+          enable-cache: false
+
       - name: Authenticate live native stack proof boundary
         id: stack-context
         env:
@@ -138,6 +709,120 @@ jobs:
             fi
             printf 'PROOF_HEAD_BRANCH=%s\n' "$(jq -er '.proof_head_branch' "$context")"
             printf 'PROOF_PULL_REQUEST=%s\n' "$(jq -er '.proof_pull_request' "$context")"
+          } >> "$GITHUB_ENV"
+
+      - name: Download attested fixed PR786 origin
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 786 && github.base_ref == 'dev' && github.head_ref == 'codex/security-dependencies-0-55-11-dev' && github.event.pull_request.head.repo.full_name == 'nold-ai/specfact-cli' && github.event.pull_request.base.repo.full_name == 'nold-ai/specfact-cli'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: requirements-fixed786-origin-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/fixed786-origin
+          github-token: ${{ github.token }}
+          run-id: ${{ github.run_id }}
+
+      - name: Independently capture fixed PR786 lane inputs
+        id: fixed786-capture
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 786 && github.base_ref == 'dev' && github.head_ref == 'codex/security-dependencies-0-55-11-dev' && github.event.pull_request.head.repo.full_name == 'nold-ai/specfact-cli' && github.event.pull_request.base.repo.full_name == 'nold-ai/specfact-cli'
+        env: *fixed786-api
+        shell: bash
+        run: *fixed786-capture
+
+      - name: Bootstrap fixed PR786 protected tools
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 786 && github.base_ref == 'dev' && github.head_ref == 'codex/security-dependencies-0-55-11-dev' && github.event.pull_request.head.repo.full_name == 'nold-ai/specfact-cli' && github.event.pull_request.base.repo.full_name == 'nold-ai/specfact-cli'
+        env: *fixed786-api
+        shell: bash
+        run: &fixed786-bootstrap |
+          set -euo pipefail
+          python3 -I -S - <<'PYTHON'
+          import base64
+          import hashlib
+          import http.client
+          import json
+          import os
+          from pathlib import Path
+          import sys
+          import types
+
+          root = Path(os.environ['RUNNER_TEMP']) / 'fixed786-tools'
+          root.mkdir()
+          verification = root / 'verification'
+          verification.mkdir()
+          files = (
+              ('build-locked.txt', '7f74130217a3cefa84bda3670468633eafca5dab'),
+              ('build-requirements.in', '765706bbc6c85d739d9a028d6b4a0f2274200df2'),
+              ('locked.txt', '0a6cdfc22aec2f5d3b1385c6a1660de00b12b77d'),
+              ('requirements.in', 'ed11fc524bce5a75ceb6ed7984fddc5fa86a3df9'),
+              ('tool-files.json', '56058140e4a83e5109e57ba03c90d1c729bff88b'),
+              ('../runtime.json', '7861273cd028fdbb14f6d5f17f989f269865a2a3'),
+              ('../bootstrap.py', '463bd3b6cc0f4001e436cf687716d172581af297'),
+          )
+          for name, oid in files:
+              connection = http.client.HTTPSConnection('api.github.com', timeout=20)
+              try:
+                  connection.request('GET', '/repos/nold-ai/.github/git/blobs/' + oid, headers={'Authorization': 'Bearer ' + os.environ['GITHUB_TOKEN'], 'User-Agent': 'specfact-fixed786', 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28'})
+                  response = connection.getresponse()
+                  if response.status != 200:
+                      raise ValueError('P46 tool read refused')
+                  encoded = response.read(4 * 1024 * 1024 + 1)
+                  if len(encoded) > 4 * 1024 * 1024:
+                      raise ValueError('P46 tool response too large')
+              finally:
+                  connection.close()
+              record = json.loads(encoded)
+              raw = base64.b64decode(record['content'].replace('\r', '').replace('\n', ''), validate=True)
+              if record['sha'] != oid or record['encoding'] != 'base64' or record['size'] != len(raw) or hashlib.sha1(b'blob ' + str(len(raw)).encode() + b'\0' + raw, usedforsecurity=False).hexdigest() != oid:
+                  raise ValueError('P46 tool blob mismatch')
+              (verification / name).write_bytes(raw)
+          source = (root / 'bootstrap.py').read_bytes()
+          if hashlib.sha256(source).hexdigest() != '41b6c601923c676e01c64dc6e34dbec0ab6b9586036b180d855a4aba8210b1c4' or hashlib.sha256((root / 'runtime.json').read_bytes()).hexdigest() != '7d8c44bbac4faeca5fdfb34bca673d12691022c17bfc42912ed8c8785525882f':
+              raise ValueError('P46 protected source mismatch')
+          module = types.ModuleType('fixed786_bootstrap')
+          sys.modules[module.__name__] = module
+          exec(compile(source, str(root / 'bootstrap.py'), 'exec'), module.__dict__)
+          module.verify_tool_files(verification, '969cabb52fc6db85de46967f62ffe4f0f9b0ca50a80b5a3e46255a89b51f78ad')
+          PYTHON
+          python3 -I -S scripts/check_dependency_trust_exceptions.py
+          verifier_root="${RUNNER_TEMP}/fixed786-verifier"
+          python3 -m venv "$verifier_root"
+          "$verifier_root/bin/python" -I -m pip install --require-hashes --no-deps -r "${RUNNER_TEMP}/fixed786-tools/verification/build-locked.txt"
+          "$verifier_root/bin/python" -I -m pip install --require-hashes --no-deps --no-build-isolation -r "${RUNNER_TEMP}/fixed786-tools/verification/locked.txt"
+          {
+            echo "REQUIREMENTS_VALIDATOR_ROOT=$verifier_root"
+            echo "REQUIREMENTS_VERIFIER_ROOT=$verifier_root"
+            echo "FINAL_VERIFIER_ROOT=$verifier_root"
+          } >> "$GITHUB_ENV"
+
+      - name: Authenticate and normalize fixed PR786 retained proof
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 786 && github.base_ref == 'dev' && github.head_ref == 'codex/security-dependencies-0-55-11-dev' && github.event.pull_request.head.repo.full_name == 'nold-ai/specfact-cli' && github.event.pull_request.base.repo.full_name == 'nold-ai/specfact-cli'
+        env: *fixed786-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixed_root="${RUNNER_TEMP}/fixed786-inputs"
+          manifest="openspec/changes/security-dependencies-0-55-11-dev/requirements-proof/late-red-evidence.json"
+          cmp "$manifest" "$fixed_root/manifest.json"
+          trusted_provenance_root="${RUNNER_TEMP}/late-red-trusted-provenance"
+          mkdir -p "$trusted_provenance_root/scripts"
+          git show '9b5ad1e78430cc0b061cb16de42f73de96f4f312:scripts/requirements_proof_provenance.py' > "$trusted_provenance_root/scripts/requirements_proof_provenance.py"
+          trusted_provenance="$trusted_provenance_root/scripts/requirements_proof_provenance.py"
+          "${RUNNER_TEMP}/fixed786-verifier/bin/python" -I -S -c 'import runpy, sys; sys.path.append(sys.argv.pop(1)); runpy.run_path(sys.argv.pop(1), run_name="__main__")' \
+            "${RUNNER_TEMP}/fixed786-verifier/lib/python3.12/site-packages" "$fixed_root/owner.py" \
+            --manifest "$GITHUB_WORKSPACE/$manifest" --event "$fixed_root/event.json" \
+            --red-run "$fixed_root/run.json" --red-artifacts "$fixed_root/artifacts.json" \
+            --red-artifact-root "$fixed_root/packet" --repo-root "$GITHUB_WORKSPACE" \
+            --cycle-base-ref 9b5ad1e78430cc0b061cb16de42f73de96f4f312 --final-ref "$(git rev-parse HEAD)" \
+            --trusted-provenance "$trusted_provenance" --origin "$fixed_root/origin.json" \
+            --origin-bundle "$fixed_root/origin.bundle.jsonl" \
+            --workflow-sha "$GITHUB_WORKFLOW_SHA" --trusted-authority "$fixed_root/authority.py" \
+            --output "${RUNNER_TEMP}/prior-red-proof/red.json"
+          {
+            printf 'LATE_RED_PROVENANCE=%s\n' "$trusted_provenance"
+            printf 'FINAL_LATE_RED_PROVENANCE=%s\n' "$trusted_provenance"
+            printf 'LATE_RED_CYCLE_BASE=%s\n' 9b5ad1e78430cc0b061cb16de42f73de96f4f312
+            printf 'LATE_RED_MANIFEST_DIGEST=%s\n' "$(sha256sum < "$manifest" | cut -d ' ' -f 1)"
+            printf 'LATE_RED_REPORT_DIGEST=%s\n' "$(sha256sum < "${RUNNER_TEMP}/prior-red-proof/red.json" | cut -d ' ' -f 1)"
+            printf 'LATE_RED_JUNIT_DIGEST=%s\n' "$(sha256sum < "${RUNNER_TEMP}/prior-red-proof/red.xml" | cut -d ' ' -f 1)"
+            printf 'LATE_RED_PROVENANCE_DIGEST=%s\n' "$(sha256sum < "$trusted_provenance" | cut -d ' ' -f 1)"
           } >> "$GITHUB_ENV"
 
       - name: Checkout trusted Requirements authority policy
@@ -215,6 +900,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Set up frozen delivery dependencies
+        if: github.event.pull_request.number != 786 || github.head_ref != 'codex/security-dependencies-0-55-11-dev'
         uses: ./.github/actions/setup-frozen-python
 
       - name: Materialize trusted delivery verifier
@@ -226,6 +912,12 @@ jobs:
           trusted_root="${RUNNER_TEMP}/trusted-requirements"
           mkdir -p "$trusted_root"
           git archive "$base_commit" -- scripts/check_reproducible_delivery.py | tar -x -C "$trusted_root"
+          if [[ "${FIXED786_ACTIVE}" == "true" ]]; then
+            test "$base_commit" = "9b5ad1e78430cc0b061cb16de42f73de96f4f312"
+            git archive "$base_commit" -- src/specfact_cli scripts/requirements_proof_executor.py scripts/requirements_proof_pytest_plugin.py | tar -x -C "$trusted_root"
+            printf 'FIXED786_CORE=%s\n' "$trusted_root/src" >> "$GITHUB_ENV"
+            printf 'FIXED786_EXECUTOR=%s\n' "$trusted_root/scripts/requirements_proof_executor.py" >> "$GITHUB_ENV"
+          fi
           test -f "$trusted_root/scripts/check_reproducible_delivery.py"
           echo "TRUSTED_DELIVERY_VERIFIER=$trusted_root/scripts/check_reproducible_delivery.py" >> "$GITHUB_ENV"
 
@@ -233,14 +925,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          frozen_site="${GITHUB_WORKSPACE}/.venv/lib/python3.12/site-packages"
-          "${GITHUB_WORKSPACE}/.venv/bin/python" -I -S -c \
+          frozen_root="${GITHUB_WORKSPACE}/.venv"
+          if [[ "${FIXED786_ACTIVE}" == "true" ]]; then frozen_root="${RUNNER_TEMP}/fixed786-verifier"; fi
+          frozen_site="$frozen_root/lib/python3.12/site-packages"
+          "$frozen_root/bin/python" -I -S -c \
             'import sys; site_packages, trusted_script, logical_script = sys.argv[1:4]; del sys.argv[1:4]; sys.path.append(site_packages); source = open(trusted_script, "rb").read(); scope = {"__name__": "__main__", "__file__": logical_script}; exec(compile(source, logical_script, "exec"), scope)' \
             "$frozen_site" \
             "$TRUSTED_DELIVERY_VERIFIER" \
             "${GITHUB_WORKSPACE}/scripts/check_reproducible_delivery.py"
 
       - name: Create isolated Requirements validator environment
+        if: github.event.pull_request.number != 786 || github.head_ref != 'codex/security-dependencies-0-55-11-dev'
         shell: bash
         run: |
           set -euo pipefail
@@ -424,7 +1119,7 @@ jobs:
 
       - name: Locate retained red proof run
         id: prior-red-run
-        if: github.event_name == 'pull_request' && (github.event.pull_request.number != 717 || github.head_ref != 'bugfix/692-promotion-final-context' || hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') == '')
+        if: github.event.pull_request.number != 786 && github.event_name == 'pull_request' && (github.event.pull_request.number != 717 || github.head_ref != 'bugfix/692-promotion-final-context' || hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') == '')
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -533,12 +1228,18 @@ jobs:
           EVIDENCE_HEAD_BRANCH: ${{ github.head_ref }}
           EVIDENCE_PULL_REQUEST: ${{ github.event.pull_request.number }}
           EVIDENCE_PROMOTION_REUSE: ${{ steps.producer-promotion.outputs.active }}
-          LATE_RED_ACTIVE: ${{ github.event.pull_request.number == 717 && github.head_ref == 'bugfix/692-promotion-final-context' && hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') != '' }}
+          LATE_RED_ACTIVE: ${{ (github.event.pull_request.number == 786 && github.head_ref == 'codex/security-dependencies-0-55-11-dev') || (github.event.pull_request.number == 717 && github.head_ref == 'bugfix/692-promotion-final-context' && hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') != '') }}
         run: |
           set -e
           validator_site="${REQUIREMENTS_VALIDATOR_ROOT}/lib/python3.12/site-packages"
           isolated_python=("${REQUIREMENTS_VALIDATOR_ROOT}/bin/python" -I -S -c 'import runpy, sys; sys.path.append(sys.argv.pop(1)); script = sys.argv.pop(1); runpy.run_path(script, run_name="__main__")' "$validator_site")
-          isolated_specfact=("${REQUIREMENTS_VALIDATOR_ROOT}/bin/python" -I -S -c 'import sys; sys.path.append(sys.argv.pop(1)); sys.path.append(sys.argv.pop(1)); from specfact_cli.cli import cli_main; cli_main()' "$validator_site" "${GITHUB_WORKSPACE}/src")
+          producer_core="${GITHUB_WORKSPACE}/src"
+          producer_executor="scripts/requirements_proof_executor.py"
+          if [[ "${FIXED786_ACTIVE}" == "true" ]]; then
+            producer_core="$FIXED786_CORE"
+            producer_executor="$FIXED786_EXECUTOR"
+          fi
+          isolated_specfact=("${REQUIREMENTS_VALIDATOR_ROOT}/bin/python" -I -S -c 'import sys; sys.path.append(sys.argv.pop(1)); sys.path.append(sys.argv.pop(1)); from specfact_cli.cli import cli_main; cli_main()' "$validator_site" "$producer_core")
           file_sha256() {
             local output
             output="$(sha256sum < "$1")" || return 1
@@ -734,6 +1435,7 @@ jobs:
           prior_red_junit_digest=""
           prior_red_provenance_digest=""
           late_red_manifest="openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json"
+          if [[ "${FIXED786_ACTIVE}" == "true" ]]; then late_red_manifest="openspec/changes/security-dependencies-0-55-11-dev/requirements-proof/late-red-evidence.json"; fi
           late_red_manifest_digest=""
           if [[ "$LATE_RED_ACTIVE" == "true" ]]; then
             prior_red_base_ref="$(jq -er '.cycle_base_commit | select(type == "string" and test("^[0-9a-f]{40}$"))' "$late_red_manifest")"
@@ -781,7 +1483,7 @@ jobs:
               run_stage=final
             fi
             set +e
-            "${isolated_python[@]}" scripts/requirements_proof_executor.py \
+            "${isolated_python[@]}" "$producer_executor" \
               --plan artifacts/requirements-evidence/requirements-evidence-plan.json \
               --repo-root "$GITHUB_WORKSPACE" \
               --junit artifacts/requirements-evidence/requirements-proof.xml
@@ -1032,6 +1734,56 @@ jobs:
         run: |
           [[ "$NATIVE_OUTCOME" == "success" || "$ADMISSION_OUTCOME" == "success" ]]
 
+      - name: Revalidate frozen fixed PR786 inputs after native work
+        if: always() && (github.event_name == 'pull_request' && github.event.pull_request.number == 786 && github.base_ref == 'dev' && github.head_ref == 'codex/security-dependencies-0-55-11-dev' && github.event.pull_request.head.repo.full_name == 'nold-ai/specfact-cli' && github.event.pull_request.base.repo.full_name == 'nold-ai/specfact-cli')
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_API_URL: https://api.github.com
+          GITHUB_WORKFLOW_SHA: ${{ github.workflow_sha }}
+          EXPECTED_FROZEN: ${{ steps.fixed786-capture.outputs.frozen-digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -I -S - <<'PYTHON'
+          import hashlib, json, os, stat
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP']) / 'fixed786-inputs'
+          raw = (root / 'frozen.json').read_bytes()
+          if 'sha256:' + hashlib.sha256(raw).hexdigest() != os.environ['EXPECTED_FROZEN']:
+              raise ValueError('fixed786 freeze manifest changed')
+          expected = json.loads(raw)
+          actual = {}
+          for path in root.rglob('*'):
+              if path.name == 'frozen.json':
+                  continue
+              if path.is_symlink():
+                  raise ValueError('fixed786 frozen symlink')
+              if path.is_file():
+                  actual[str(path.relative_to(root))] = 'sha256:' + hashlib.sha256(path.read_bytes()).hexdigest()
+          if actual != expected:
+              raise ValueError('fixed786 frozen inputs changed')
+          PYTHON
+          set -euo pipefail
+          fixed_root="${RUNNER_TEMP}/fixed786-inputs"
+          manifest="openspec/changes/security-dependencies-0-55-11-dev/requirements-proof/late-red-evidence.json"
+          cmp "$manifest" "$fixed_root/manifest.json"
+          trusted_provenance_root="${RUNNER_TEMP}/late-red-trusted-provenance"
+          mkdir -p "$trusted_provenance_root/scripts"
+          git show '9b5ad1e78430cc0b061cb16de42f73de96f4f312:scripts/requirements_proof_provenance.py' > "$trusted_provenance_root/scripts/requirements_proof_provenance.py"
+          trusted_provenance="$trusted_provenance_root/scripts/requirements_proof_provenance.py"
+          "${RUNNER_TEMP}/fixed786-verifier/bin/python" -I -S -c 'import runpy, sys; sys.path.append(sys.argv.pop(1)); runpy.run_path(sys.argv.pop(1), run_name="__main__")' \
+            "${RUNNER_TEMP}/fixed786-verifier/lib/python3.12/site-packages" "$fixed_root/owner.py" \
+            --manifest "$GITHUB_WORKSPACE/$manifest" --event "$fixed_root/event.json" \
+            --red-run "$fixed_root/run.json" --red-artifacts "$fixed_root/artifacts.json" \
+            --red-artifact-root "$fixed_root/packet" --repo-root "$GITHUB_WORKSPACE" \
+            --cycle-base-ref 9b5ad1e78430cc0b061cb16de42f73de96f4f312 --final-ref "$(git rev-parse HEAD)" \
+            --trusted-provenance "$trusted_provenance" --origin "$fixed_root/origin.json" \
+            --origin-bundle "$fixed_root/origin.bundle.jsonl" \
+            --workflow-sha "$GITHUB_WORKFLOW_SHA" --trusted-authority "$fixed_root/authority.py" \
+            --output "${RUNNER_TEMP}/prior-red-proof/red.json"
+
+
   requirements-native-origin:
     name: Native Requirements Origin
     needs: [requirements-evidence-producer]
@@ -1260,6 +2012,61 @@ jobs:
             printf 'PROOF_PULL_REQUEST=%s\n' "$(jq -er '.proof_pull_request' "$context")"
           } >> "$GITHUB_ENV"
 
+      - name: Download attested fixed PR786 origin
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 786 && github.base_ref == 'dev' && github.head_ref == 'codex/security-dependencies-0-55-11-dev' && github.event.pull_request.head.repo.full_name == 'nold-ai/specfact-cli' && github.event.pull_request.base.repo.full_name == 'nold-ai/specfact-cli'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: requirements-fixed786-origin-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/fixed786-origin
+          github-token: ${{ github.token }}
+          run-id: ${{ github.run_id }}
+
+      - name: Independently capture fixed PR786 lane inputs
+        id: fixed786-capture
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 786 && github.base_ref == 'dev' && github.head_ref == 'codex/security-dependencies-0-55-11-dev' && github.event.pull_request.head.repo.full_name == 'nold-ai/specfact-cli' && github.event.pull_request.base.repo.full_name == 'nold-ai/specfact-cli'
+        env: *fixed786-api
+        shell: bash
+        run: *fixed786-capture
+
+      - name: Bootstrap fixed PR786 protected tools
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 786 && github.base_ref == 'dev' && github.head_ref == 'codex/security-dependencies-0-55-11-dev' && github.event.pull_request.head.repo.full_name == 'nold-ai/specfact-cli' && github.event.pull_request.base.repo.full_name == 'nold-ai/specfact-cli'
+        env: *fixed786-api
+        shell: bash
+        run: *fixed786-bootstrap
+
+      - name: Authenticate and normalize fixed PR786 retained proof
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 786 && github.base_ref == 'dev' && github.head_ref == 'codex/security-dependencies-0-55-11-dev' && github.event.pull_request.head.repo.full_name == 'nold-ai/specfact-cli' && github.event.pull_request.base.repo.full_name == 'nold-ai/specfact-cli'
+        env: *fixed786-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixed_root="${RUNNER_TEMP}/fixed786-inputs"
+          manifest="openspec/changes/security-dependencies-0-55-11-dev/requirements-proof/late-red-evidence.json"
+          cmp "$manifest" "$fixed_root/manifest.json"
+          trusted_provenance_root="${RUNNER_TEMP}/late-red-trusted-provenance"
+          mkdir -p "$trusted_provenance_root/scripts"
+          git show '9b5ad1e78430cc0b061cb16de42f73de96f4f312:scripts/requirements_proof_provenance.py' > "$trusted_provenance_root/scripts/requirements_proof_provenance.py"
+          trusted_provenance="$trusted_provenance_root/scripts/requirements_proof_provenance.py"
+          "${RUNNER_TEMP}/fixed786-verifier/bin/python" -I -S -c 'import runpy, sys; sys.path.append(sys.argv.pop(1)); runpy.run_path(sys.argv.pop(1), run_name="__main__")' \
+            "${RUNNER_TEMP}/fixed786-verifier/lib/python3.12/site-packages" "$fixed_root/owner.py" \
+            --manifest "$GITHUB_WORKSPACE/$manifest" --event "$fixed_root/event.json" \
+            --red-run "$fixed_root/run.json" --red-artifacts "$fixed_root/artifacts.json" \
+            --red-artifact-root "$fixed_root/packet" --repo-root "$GITHUB_WORKSPACE" \
+            --cycle-base-ref 9b5ad1e78430cc0b061cb16de42f73de96f4f312 --final-ref "$(git rev-parse HEAD)" \
+            --trusted-provenance "$trusted_provenance" --origin "$fixed_root/origin.json" \
+            --origin-bundle "$fixed_root/origin.bundle.jsonl" \
+            --workflow-sha "$GITHUB_WORKFLOW_SHA" --trusted-authority "$fixed_root/authority.py" \
+            --output "${RUNNER_TEMP}/consumer-prior-red/red.json"
+          {
+            printf 'LATE_RED_PROVENANCE=%s\n' "$trusted_provenance"
+            printf 'FINAL_LATE_RED_PROVENANCE=%s\n' "$trusted_provenance"
+            printf 'LATE_RED_CYCLE_BASE=%s\n' 9b5ad1e78430cc0b061cb16de42f73de96f4f312
+            printf 'LATE_RED_MANIFEST_DIGEST=%s\n' "$(sha256sum < "$manifest" | cut -d ' ' -f 1)"
+            printf 'LATE_RED_REPORT_DIGEST=%s\n' "$(sha256sum < "${RUNNER_TEMP}/consumer-prior-red/red.json" | cut -d ' ' -f 1)"
+            printf 'LATE_RED_JUNIT_DIGEST=%s\n' "$(sha256sum < "${RUNNER_TEMP}/consumer-prior-red/red.xml" | cut -d ' ' -f 1)"
+            printf 'LATE_RED_PROVENANCE_DIGEST=%s\n' "$(sha256sum < "$trusted_provenance" | cut -d ' ' -f 1)"
+          } >> "$GITHUB_ENV"
+
       - name: Materialize trusted Requirements core
         shell: bash
         run: |
@@ -1303,6 +2110,12 @@ jobs:
               exit 1
               ;;
           esac
+          if [[ "${FIXED786_ACTIVE}" == "true" ]]; then
+            review_source="$(jq -er .head_commit "${RUNNER_TEMP}/fixed786-inputs/observed-origin.json")"
+            test "$review_source" = "$(git rev-parse HEAD)"
+            git show "${review_source}:requirements/code-review/requirements.in" | grep -Eq '^pylint==4[.]0[.]9([[:space:]]|$)'
+            git show "${review_source}:requirements/code-review/locked.txt" | grep -Eq '^pylint==4[.]0[.]9([[:space:]]|$)'
+          fi
           trusted_core_root="${RUNNER_TEMP}/trusted-requirements"
           mkdir -p "$trusted_core_root"
           git archive "$base_commit" -- \
@@ -1347,6 +2160,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Create trusted Requirements verifier environment
+        if: github.event.pull_request.number != 786 || github.head_ref != 'codex/security-dependencies-0-55-11-dev'
         shell: bash
         run: |
           set -euo pipefail
@@ -2030,8 +2844,8 @@ jobs:
           EVIDENCE_PULL_REQUEST: ${{ github.event.pull_request.number }}
           EVIDENCE_HEAD_BRANCH: ${{ github.head_ref }}
           EVIDENCE_PROMOTION_REUSE: ${{ steps.execution-promotion.outputs.active }}
-          LATE_RED_ACTIVE: ${{ github.event.pull_request.number == 717 && github.head_ref == 'bugfix/692-promotion-final-context' && hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') != '' }}
-          LATE_RED_CYCLE_BASE: ${{ steps.late-red.outputs.cycle-base-ref }}
+          LATE_RED_ACTIVE: ${{ (github.event.pull_request.number == 786 && github.head_ref == 'codex/security-dependencies-0-55-11-dev') || (github.event.pull_request.number == 717 && github.head_ref == 'bugfix/692-promotion-final-context' && hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') != '') }}
+          LATE_RED_CYCLE_BASE: ${{ github.event.pull_request.number == 786 && '9b5ad1e78430cc0b061cb16de42f73de96f4f312' || steps.late-red.outputs.cycle-base-ref }}
           PRIOR_RED_ARTIFACT_DIGEST: ${{ steps.consumer-red.outputs.artifact-digest }}
           PRIOR_RED_HEAD_SHA: ${{ steps.consumer-red.outputs.head-sha }}
           REVIEW_BASE_BRANCH: ${{ github.base_ref }}
@@ -2284,6 +3098,7 @@ jobs:
             prior_red_root="${RUNNER_TEMP}/consumer-prior-red"
             prior_red_proof="${prior_red_root}/red.json"
           late_red_manifest="openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json"
+          if [[ "${FIXED786_ACTIVE}" == "true" ]]; then late_red_manifest="openspec/changes/security-dependencies-0-55-11-dev/requirements-proof/late-red-evidence.json"; fi
             legacy_tdd_evidence="artifacts/requirements-evidence/legacy-tdd-evidence.json"
             legacy_tdd_ledger="artifacts/requirements-evidence/approved-legacy-tdd-ledger.md"
             if [[ "$LATE_RED_ACTIVE" == "true" ]]; then
@@ -2512,6 +3327,56 @@ jobs:
         if: steps.run-code-review.outcome == 'failure'
         run: exit 1
 
+      - name: Revalidate frozen fixed PR786 inputs after native work
+        if: always() && (github.event_name == 'pull_request' && github.event.pull_request.number == 786 && github.base_ref == 'dev' && github.head_ref == 'codex/security-dependencies-0-55-11-dev' && github.event.pull_request.head.repo.full_name == 'nold-ai/specfact-cli' && github.event.pull_request.base.repo.full_name == 'nold-ai/specfact-cli')
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_API_URL: https://api.github.com
+          GITHUB_WORKFLOW_SHA: ${{ github.workflow_sha }}
+          EXPECTED_FROZEN: ${{ steps.fixed786-capture.outputs.frozen-digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -I -S - <<'PYTHON'
+          import hashlib, json, os, stat
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP']) / 'fixed786-inputs'
+          raw = (root / 'frozen.json').read_bytes()
+          if 'sha256:' + hashlib.sha256(raw).hexdigest() != os.environ['EXPECTED_FROZEN']:
+              raise ValueError('fixed786 freeze manifest changed')
+          expected = json.loads(raw)
+          actual = {}
+          for path in root.rglob('*'):
+              if path.name == 'frozen.json':
+                  continue
+              if path.is_symlink():
+                  raise ValueError('fixed786 frozen symlink')
+              if path.is_file():
+                  actual[str(path.relative_to(root))] = 'sha256:' + hashlib.sha256(path.read_bytes()).hexdigest()
+          if actual != expected:
+              raise ValueError('fixed786 frozen inputs changed')
+          PYTHON
+          set -euo pipefail
+          fixed_root="${RUNNER_TEMP}/fixed786-inputs"
+          manifest="openspec/changes/security-dependencies-0-55-11-dev/requirements-proof/late-red-evidence.json"
+          cmp "$manifest" "$fixed_root/manifest.json"
+          trusted_provenance_root="${RUNNER_TEMP}/late-red-trusted-provenance"
+          mkdir -p "$trusted_provenance_root/scripts"
+          git show '9b5ad1e78430cc0b061cb16de42f73de96f4f312:scripts/requirements_proof_provenance.py' > "$trusted_provenance_root/scripts/requirements_proof_provenance.py"
+          trusted_provenance="$trusted_provenance_root/scripts/requirements_proof_provenance.py"
+          "${RUNNER_TEMP}/fixed786-verifier/bin/python" -I -S -c 'import runpy, sys; sys.path.append(sys.argv.pop(1)); runpy.run_path(sys.argv.pop(1), run_name="__main__")' \
+            "${RUNNER_TEMP}/fixed786-verifier/lib/python3.12/site-packages" "$fixed_root/owner.py" \
+            --manifest "$GITHUB_WORKSPACE/$manifest" --event "$fixed_root/event.json" \
+            --red-run "$fixed_root/run.json" --red-artifacts "$fixed_root/artifacts.json" \
+            --red-artifact-root "$fixed_root/packet" --repo-root "$GITHUB_WORKSPACE" \
+            --cycle-base-ref 9b5ad1e78430cc0b061cb16de42f73de96f4f312 --final-ref "$(git rev-parse HEAD)" \
+            --trusted-provenance "$trusted_provenance" --origin "$fixed_root/origin.json" \
+            --origin-bundle "$fixed_root/origin.bundle.jsonl" \
+            --workflow-sha "$GITHUB_WORKFLOW_SHA" --trusted-authority "$fixed_root/authority.py" \
+            --output "${RUNNER_TEMP}/consumer-prior-red/red.json"
+
+
   requirements-evidence-final:
     name: Requirements evidence
     needs: requirements-evidence
@@ -2629,6 +3494,61 @@ jobs:
             printf 'PROOF_PULL_REQUEST=%s\n' "$(jq -er '.proof_pull_request' "$context")"
           } >> "$GITHUB_ENV"
 
+      - name: Download attested fixed PR786 origin
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 786 && github.base_ref == 'dev' && github.head_ref == 'codex/security-dependencies-0-55-11-dev' && github.event.pull_request.head.repo.full_name == 'nold-ai/specfact-cli' && github.event.pull_request.base.repo.full_name == 'nold-ai/specfact-cli'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: requirements-fixed786-origin-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/fixed786-origin
+          github-token: ${{ github.token }}
+          run-id: ${{ github.run_id }}
+
+      - name: Independently capture fixed PR786 lane inputs
+        id: fixed786-capture
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 786 && github.base_ref == 'dev' && github.head_ref == 'codex/security-dependencies-0-55-11-dev' && github.event.pull_request.head.repo.full_name == 'nold-ai/specfact-cli' && github.event.pull_request.base.repo.full_name == 'nold-ai/specfact-cli'
+        env: *fixed786-api
+        shell: bash
+        run: *fixed786-capture
+
+      - name: Bootstrap fixed PR786 protected tools
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 786 && github.base_ref == 'dev' && github.head_ref == 'codex/security-dependencies-0-55-11-dev' && github.event.pull_request.head.repo.full_name == 'nold-ai/specfact-cli' && github.event.pull_request.base.repo.full_name == 'nold-ai/specfact-cli'
+        env: *fixed786-api
+        shell: bash
+        run: *fixed786-bootstrap
+
+      - name: Authenticate and normalize fixed PR786 retained proof
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 786 && github.base_ref == 'dev' && github.head_ref == 'codex/security-dependencies-0-55-11-dev' && github.event.pull_request.head.repo.full_name == 'nold-ai/specfact-cli' && github.event.pull_request.base.repo.full_name == 'nold-ai/specfact-cli'
+        env: *fixed786-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixed_root="${RUNNER_TEMP}/fixed786-inputs"
+          manifest="openspec/changes/security-dependencies-0-55-11-dev/requirements-proof/late-red-evidence.json"
+          cmp "$manifest" "$fixed_root/manifest.json"
+          trusted_provenance_root="${RUNNER_TEMP}/final-late-red-provenance"
+          mkdir -p "$trusted_provenance_root/scripts"
+          git show '9b5ad1e78430cc0b061cb16de42f73de96f4f312:scripts/requirements_proof_provenance.py' > "$trusted_provenance_root/scripts/requirements_proof_provenance.py"
+          trusted_provenance="$trusted_provenance_root/scripts/requirements_proof_provenance.py"
+          "${RUNNER_TEMP}/fixed786-verifier/bin/python" -I -S -c 'import runpy, sys; sys.path.append(sys.argv.pop(1)); runpy.run_path(sys.argv.pop(1), run_name="__main__")' \
+            "${RUNNER_TEMP}/fixed786-verifier/lib/python3.12/site-packages" "$fixed_root/owner.py" \
+            --manifest "$GITHUB_WORKSPACE/$manifest" --event "$fixed_root/event.json" \
+            --red-run "$fixed_root/run.json" --red-artifacts "$fixed_root/artifacts.json" \
+            --red-artifact-root "$fixed_root/packet" --repo-root "$GITHUB_WORKSPACE" \
+            --cycle-base-ref 9b5ad1e78430cc0b061cb16de42f73de96f4f312 --final-ref "$(git rev-parse HEAD)" \
+            --trusted-provenance "$trusted_provenance" --origin "$fixed_root/origin.json" \
+            --origin-bundle "$fixed_root/origin.bundle.jsonl" \
+            --workflow-sha "$GITHUB_WORKFLOW_SHA" --trusted-authority "$fixed_root/authority.py" \
+            --output "${RUNNER_TEMP}/final-prior-red/red.json"
+          {
+            printf 'LATE_RED_PROVENANCE=%s\n' "$trusted_provenance"
+            printf 'FINAL_LATE_RED_PROVENANCE=%s\n' "$trusted_provenance"
+            printf 'LATE_RED_CYCLE_BASE=%s\n' 9b5ad1e78430cc0b061cb16de42f73de96f4f312
+            printf 'LATE_RED_MANIFEST_DIGEST=%s\n' "$(sha256sum < "$manifest" | cut -d ' ' -f 1)"
+            printf 'LATE_RED_REPORT_DIGEST=%s\n' "$(sha256sum < "${RUNNER_TEMP}/final-prior-red/red.json" | cut -d ' ' -f 1)"
+            printf 'LATE_RED_JUNIT_DIGEST=%s\n' "$(sha256sum < "${RUNNER_TEMP}/final-prior-red/red.xml" | cut -d ' ' -f 1)"
+            printf 'LATE_RED_PROVENANCE_DIGEST=%s\n' "$(sha256sum < "$trusted_provenance" | cut -d ' ' -f 1)"
+          } >> "$GITHUB_ENV"
+
       - name: Materialize trusted final Requirements core
         shell: bash
         run: |
@@ -2672,6 +3592,12 @@ jobs:
               exit 1
               ;;
           esac
+          if [[ "${FIXED786_ACTIVE}" == "true" ]]; then
+            review_source="$(jq -er .head_commit "${RUNNER_TEMP}/fixed786-inputs/observed-origin.json")"
+            test "$review_source" = "$(git rev-parse HEAD)"
+            git show "${review_source}:requirements/code-review/requirements.in" | grep -Eq '^pylint==4[.]0[.]9([[:space:]]|$)'
+            git show "${review_source}:requirements/code-review/locked.txt" | grep -Eq '^pylint==4[.]0[.]9([[:space:]]|$)'
+          fi
           trusted_root="${RUNNER_TEMP}/final-trusted-requirements"
           mkdir -p "$trusted_root"
           git archive "$base_commit" -- \
@@ -2712,12 +3638,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          verifier_root="${RUNNER_TEMP}/final-requirements-verifier"
-          uv venv --python "${pythonLocation}/bin/python" "$verifier_root"
-          uv pip install \
-            --python "$verifier_root/bin/python" \
-            --require-hashes \
-            -r "$FINAL_TRUSTED_LOCK"
+          if [[ "${FIXED786_ACTIVE}" == "true" ]]; then
+            verifier_root="${RUNNER_TEMP}/fixed786-verifier"
+          else
+            verifier_root="${RUNNER_TEMP}/final-requirements-verifier"
+            uv venv --python "${pythonLocation}/bin/python" "$verifier_root"
+            uv pip install \
+              --python "$verifier_root/bin/python" \
+              --require-hashes \
+              -r "$FINAL_TRUSTED_LOCK"
+          fi
           verifier_site="${verifier_root}/lib/python3.12/site-packages"
           "$verifier_root/bin/python" -I -S -c \
             'import sys; site_packages, trusted_script, logical_script = sys.argv[1:4]; del sys.argv[1:4]; sys.path.append(site_packages); source = open(trusted_script, "rb").read(); scope = {"__name__": "__main__", "__file__": logical_script}; exec(compile(source, logical_script, "exec"), scope)' \
@@ -3006,7 +3936,7 @@ jobs:
 
       - name: Authenticate retained red proof for final verdict
         id: final-retained-red
-        if: needs.requirements-evidence.outputs.prior-red-run-id != '' && (github.event.pull_request.number != 717 || github.head_ref != 'bugfix/692-promotion-final-context' || hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') == '')
+        if: github.event.pull_request.number != 786 && needs.requirements-evidence.outputs.prior-red-run-id != '' && (github.event.pull_request.number != 717 || github.head_ref != 'bugfix/692-promotion-final-context' || hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') == '')
         env:
           GITHUB_TOKEN: ${{ github.token }}
           PRIOR_RED_RUN_ID: ${{ needs.requirements-evidence.outputs.prior-red-run-id }}
@@ -3073,7 +4003,7 @@ jobs:
           EVIDENCE_PULL_REQUEST: ${{ github.event.pull_request.number }}
           EVIDENCE_HEAD_BRANCH: ${{ github.head_ref }}
           EVIDENCE_PROMOTION_REUSE: ${{ steps.final-promotion.outputs.active }}
-          LATE_RED_ACTIVE: ${{ github.event.pull_request.number == 717 && github.head_ref == 'bugfix/692-promotion-final-context' && hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') != '' }}
+          LATE_RED_ACTIVE: ${{ (github.event.pull_request.number == 786 && github.head_ref == 'codex/security-dependencies-0-55-11-dev') || (github.event.pull_request.number == 717 && github.head_ref == 'bugfix/692-promotion-final-context' && hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') != '') }}
           PRIOR_RED_HEAD_SHA: ${{ steps.final-retained-red.outputs.head-sha }}
         shell: bash
         run: |
@@ -3224,6 +4154,7 @@ jobs:
           prior_red_root="${RUNNER_TEMP}/final-prior-red"
           prior_red_proof="${prior_red_root}/red.json"
           late_red_manifest="openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json"
+          if [[ "${FIXED786_ACTIVE}" == "true" ]]; then late_red_manifest="openspec/changes/security-dependencies-0-55-11-dev/requirements-proof/late-red-evidence.json"; fi
           producer_root="${RUNNER_TEMP}/requirements-producer"
           legacy_tdd_evidence="${producer_root}/legacy-tdd-evidence.json"
           legacy_tdd_ledger="${producer_root}/approved-legacy-tdd-ledger.md"
@@ -3344,6 +4275,57 @@ jobs:
         with:
           node-version: "24.16.0"
 
+      - name: Revalidate fixed PR786 before final Code Review
+        if: (github.event_name == 'pull_request' && github.event.pull_request.number == 786 && github.base_ref == 'dev' && github.head_ref == 'codex/security-dependencies-0-55-11-dev' && github.event.pull_request.head.repo.full_name == 'nold-ai/specfact-cli' && github.event.pull_request.base.repo.full_name == 'nold-ai/specfact-cli')
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_API_URL: https://api.github.com
+          GITHUB_WORKFLOW_SHA: ${{ github.workflow_sha }}
+          EXPECTED_FROZEN: ${{ steps.fixed786-capture.outputs.frozen-digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -I -S - <<'PYTHON'
+          import hashlib, json, os, stat
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP']) / 'fixed786-inputs'
+          raw = (root / 'frozen.json').read_bytes()
+          if 'sha256:' + hashlib.sha256(raw).hexdigest() != os.environ['EXPECTED_FROZEN']:
+              raise ValueError('fixed786 freeze manifest changed')
+          expected = json.loads(raw)
+          actual = {}
+          for path in root.rglob('*'):
+              if path.name == 'frozen.json':
+                  continue
+              if path.is_symlink():
+                  raise ValueError('fixed786 frozen symlink')
+              if path.is_file():
+                  actual[str(path.relative_to(root))] = 'sha256:' + hashlib.sha256(path.read_bytes()).hexdigest()
+          if actual != expected:
+              raise ValueError('fixed786 frozen inputs changed')
+          PYTHON
+          set -euo pipefail
+          fixed_root="${RUNNER_TEMP}/fixed786-inputs"
+          manifest="openspec/changes/security-dependencies-0-55-11-dev/requirements-proof/late-red-evidence.json"
+          cmp "$manifest" "$fixed_root/manifest.json"
+          trusted_provenance_root="${RUNNER_TEMP}/final-late-red-provenance"
+          mkdir -p "$trusted_provenance_root/scripts"
+          git show '9b5ad1e78430cc0b061cb16de42f73de96f4f312:scripts/requirements_proof_provenance.py' > "$trusted_provenance_root/scripts/requirements_proof_provenance.py"
+          trusted_provenance="$trusted_provenance_root/scripts/requirements_proof_provenance.py"
+          "${RUNNER_TEMP}/fixed786-verifier/bin/python" -I -S -c 'import runpy, sys; sys.path.append(sys.argv.pop(1)); runpy.run_path(sys.argv.pop(1), run_name="__main__")' \
+            "${RUNNER_TEMP}/fixed786-verifier/lib/python3.12/site-packages" "$fixed_root/owner.py" \
+            --manifest "$GITHUB_WORKSPACE/$manifest" --event "$fixed_root/event.json" \
+            --red-run "$fixed_root/run.json" --red-artifacts "$fixed_root/artifacts.json" \
+            --red-artifact-root "$fixed_root/packet" --repo-root "$GITHUB_WORKSPACE" \
+            --cycle-base-ref 9b5ad1e78430cc0b061cb16de42f73de96f4f312 --final-ref "$(git rev-parse HEAD)" \
+            --trusted-provenance "$trusted_provenance" --origin "$fixed_root/origin.json" \
+            --origin-bundle "$fixed_root/origin.bundle.jsonl" \
+            --workflow-sha "$GITHUB_WORKFLOW_SHA" --trusted-authority "$fixed_root/authority.py" \
+            --output "${RUNNER_TEMP}/final-prior-red/red.json"
+
+
+
       - name: Install frozen Code Review tools for final verdict
         shell: bash
         run: |
@@ -3450,3 +4432,52 @@ jobs:
       - name: Enforce final Code Review verdict
         if: steps.run-final-code-review.outcome == 'failure'
         run: exit 1
+
+      - name: Revalidate frozen fixed PR786 inputs after native work
+        if: always() && (github.event_name == 'pull_request' && github.event.pull_request.number == 786 && github.base_ref == 'dev' && github.head_ref == 'codex/security-dependencies-0-55-11-dev' && github.event.pull_request.head.repo.full_name == 'nold-ai/specfact-cli' && github.event.pull_request.base.repo.full_name == 'nold-ai/specfact-cli')
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_API_URL: https://api.github.com
+          GITHUB_WORKFLOW_SHA: ${{ github.workflow_sha }}
+          EXPECTED_FROZEN: ${{ steps.fixed786-capture.outputs.frozen-digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -I -S - <<'PYTHON'
+          import hashlib, json, os, stat
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP']) / 'fixed786-inputs'
+          raw = (root / 'frozen.json').read_bytes()
+          if 'sha256:' + hashlib.sha256(raw).hexdigest() != os.environ['EXPECTED_FROZEN']:
+              raise ValueError('fixed786 freeze manifest changed')
+          expected = json.loads(raw)
+          actual = {}
+          for path in root.rglob('*'):
+              if path.name == 'frozen.json':
+                  continue
+              if path.is_symlink():
+                  raise ValueError('fixed786 frozen symlink')
+              if path.is_file():
+                  actual[str(path.relative_to(root))] = 'sha256:' + hashlib.sha256(path.read_bytes()).hexdigest()
+          if actual != expected:
+              raise ValueError('fixed786 frozen inputs changed')
+          PYTHON
+          set -euo pipefail
+          fixed_root="${RUNNER_TEMP}/fixed786-inputs"
+          manifest="openspec/changes/security-dependencies-0-55-11-dev/requirements-proof/late-red-evidence.json"
+          cmp "$manifest" "$fixed_root/manifest.json"
+          trusted_provenance_root="${RUNNER_TEMP}/final-late-red-provenance"
+          mkdir -p "$trusted_provenance_root/scripts"
+          git show '9b5ad1e78430cc0b061cb16de42f73de96f4f312:scripts/requirements_proof_provenance.py' > "$trusted_provenance_root/scripts/requirements_proof_provenance.py"
+          trusted_provenance="$trusted_provenance_root/scripts/requirements_proof_provenance.py"
+          "${RUNNER_TEMP}/fixed786-verifier/bin/python" -I -S -c 'import runpy, sys; sys.path.append(sys.argv.pop(1)); runpy.run_path(sys.argv.pop(1), run_name="__main__")' \
+            "${RUNNER_TEMP}/fixed786-verifier/lib/python3.12/site-packages" "$fixed_root/owner.py" \
+            --manifest "$GITHUB_WORKSPACE/$manifest" --event "$fixed_root/event.json" \
+            --red-run "$fixed_root/run.json" --red-artifacts "$fixed_root/artifacts.json" \
+            --red-artifact-root "$fixed_root/packet" --repo-root "$GITHUB_WORKSPACE" \
+            --cycle-base-ref 9b5ad1e78430cc0b061cb16de42f73de96f4f312 --final-ref "$(git rev-parse HEAD)" \
+            --trusted-provenance "$trusted_provenance" --origin "$fixed_root/origin.json" \
+            --origin-bundle "$fixed_root/origin.bundle.jsonl" \
+            --workflow-sha "$GITHUB_WORKFLOW_SHA" --trusted-authority "$fixed_root/authority.py" \
+            --output "${RUNNER_TEMP}/final-prior-red/red.json"

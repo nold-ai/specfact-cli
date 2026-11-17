@@ -22,6 +22,17 @@ Independent security modules #511 and core #719/#718 and existing signing gates 
 
 ## Authorized #747 dependency stack (2026-10-10)
 
+### Dev-first 0.55.11 security completion (2026-10-25)
+
+The owner requires the missing reviewed security updates to enter a PR to
+`dev` before the main release. The additive
+[`security-dependencies-0-55-11-dev`](changes/security-dependencies-0-55-11-dev/proposal.md)
+change tracks this follow-up under issue #780. Preserve the delivered #784
+change, original evidence and current dev runtime/three-audit protections.
+PR #785 remains an incomplete draft release prefix. Native bootstrap and
+CI-only signatures must be resolved through their legitimate gates. No merge
+or publication is authorized.
+
 ### Official dependency hotfix and temporary MCP exception (2026-10-21)
 
 [PR #782 / issue #780](changes/isolate-semgrep-security-runtime/proposal.md) retains

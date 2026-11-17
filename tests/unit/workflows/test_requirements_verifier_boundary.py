@@ -95,6 +95,7 @@ def test_stacked_parent_bytes_cannot_be_archived_as_trusted_verifier(tmp_path: P
             "GITHUB_BASE_REF": "dependency-root",
             "GITHUB_ENV": str(tmp_path / "github.env"),
             "PROOF_BASE_COMMIT": protected,
+            "FIXED786_ACTIVE": "false",
         },
         capture_output=True,
         text=True,
