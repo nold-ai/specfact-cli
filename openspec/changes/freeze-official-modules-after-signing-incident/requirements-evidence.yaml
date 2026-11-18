@@ -1,0 +1,60 @@
+schema_version: '2'
+requirements:
+  openspec:freeze-official-modules-after-signing-incident:module-installation:official-managed-modules-match-the-incident-cutoff:
+    rationale: Preserve the published 0.55.4 module inventory while retiring the former signer.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#792
+    touchpoints:
+      - id: install
+        kind: code_symbol
+        locator: src/specfact_cli/registry/module_installer.py::install_module
+      - id: filesystem
+        kind: code_symbol
+        locator: src/specfact_cli/registry/module_installer.py::verify_module_artifact
+      - id: inventory
+        kind: config_file
+        locator: src/specfact_cli/registry/official-module-cutoff.json
+      - id: signature
+        kind: code_symbol
+        locator: src/specfact_cli/registry/crypto_validator.py::verify_signature
+    verification_cases:
+      - case_id: CUTOFF-BUNDLED
+        scenario_id: official-managed-modules-match-the-incident-cutoff
+        method: test
+        intent: Verify a copied module shipped in the published wheel.
+        observable: The original installed tree passes and a changed manifest fails.
+        selector:
+          runner: pytest
+          node_id: tests/unit/registry/test_official_module_cutoff.py::test_cutoff_shipped_module_remains_available
+      - case_id: CUTOFF-SMOKE-ARCHIVE
+        scenario_id: official-managed-modules-match-the-incident-cutoff
+        method: test
+        intent: Verify the smoke registry preserves the approved archive.
+        observable: The served artifact bytes equal the original cutoff artifact bytes.
+        selector:
+          runner: pytest
+          node_id: tests/integration/scripts/test_runtime_discovery_smoke.py::test_local_runtime_registry_preserves_exact_published_archive
+      - case_id: CUTOFF-PRE-EXTRACTION
+        scenario_id: official-managed-modules-match-the-incident-cutoff
+        method: test
+        intent: Verify archive admission checks the cutoff before extraction.
+        observable: Archive verification fails without starting extraction.
+        selector:
+          runner: pytest
+          node_id: tests/unit/registry/test_official_module_cutoff.py::test_official_archive_is_checked_before_extraction
+      - case_id: CUTOFF-NO-NEW-RELEASE
+        scenario_id: official-managed-modules-match-the-incident-cutoff
+        method: test
+        intent: Verify a version outside the inventory is rejected before download.
+        observable: No download begins for an unapproved version.
+        selector:
+          runner: pytest
+          node_id: tests/unit/registry/test_official_module_cutoff.py::test_post_cutoff_release_is_rejected_before_download
+      - case_id: CUTOFF-RETIRED-SIGNER
+        scenario_id: official-managed-modules-match-the-incident-cutoff
+        method: test
+        intent: Verify the former public key is revoked by the signature validator.
+        observable: The validator rejects the retired key.
+        selector:
+          runner: pytest
+          node_id: tests/unit/registry/test_official_module_cutoff.py::test_retired_public_key_cannot_authorize_a_signature
