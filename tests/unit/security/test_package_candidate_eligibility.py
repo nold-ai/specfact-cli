@@ -14,7 +14,8 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from typer.testing import CliRunner
 
-from specfact_cli.registry import CommandRegistry, module_installer, module_packages as packages
+from specfact_cli.registry import CommandRegistry, module_installer, module_packages as packages, official_module_cutoff
+from specfact_cli.registry.official_module_cutoff import FrozenArchive
 from tests.unit.security.test_module_command_squatting import _reset_registration
 from tests.unit.security.test_project_bundle_authority import _isolate_discovery_roots
 
@@ -58,6 +59,31 @@ def _signed_copy(parent: Path, key: Ed25519PrivateKey, failure: str | None, **ch
     return package
 
 
+def _pin_fixture_trees(monkeypatch: pytest.MonkeyPatch, *packages_to_pin: Path) -> None:
+    inventory = official_module_cutoff._inventory()
+    archives = {module_id: dict(releases) for module_id, releases in inventory["archives"].items()}
+    for root in packages_to_pin:
+        manifest = yaml.safe_load((root / "module-package.yaml").read_bytes())
+        files = [
+            f"{path.relative_to(root).as_posix()}:{hashlib.sha256(path.read_bytes()).hexdigest()}"
+            for path in sorted(root.rglob("*"))
+            if path.is_file()
+        ]
+        artifact: FrozenArchive = {"archive": "", "tree": hashlib.sha256("\n".join(files).encode()).hexdigest()}
+        versions = archives.setdefault(manifest["name"], {})
+        assert versions.setdefault(manifest["version"], artifact) == artifact
+    monkeypatch.setattr(official_module_cutoff, "_inventory", lambda: {**inventory, "archives": archives})
+
+
+def _assert_fixture_signature(path: Path, public_key: str) -> None:
+    raw = yaml.safe_load((path / "module-package.yaml").read_bytes())
+    metadata = packages.ModulePackageMetadata.model_validate(raw)
+    assert metadata.integrity is not None and metadata.integrity.signature
+    payload = module_installer._module_artifact_payload_signed(path)
+    assert module_installer.verify_checksum(payload, metadata.integrity.checksum)
+    assert module_installer.verify_signature(payload, metadata.integrity.signature, public_key)
+
+
 @pytest.mark.parametrize("grouped", [True, False], ids=["grouped", "legacy"])
 @pytest.mark.parametrize("failure", ["core", "schema", "dependency"])
 def test_signed_ineligible_project_preserves_eligible_installed_copy(
@@ -72,14 +98,14 @@ def test_signed_ineligible_project_preserves_eligible_installed_copy(
     key_file = tmp_path / "fixture-public.pem"
     key_file.write_bytes(public_key)
     monkeypatch.setattr(module_installer, "_bundled_public_key_path", lambda: key_file)
-    project = _signed_copy(tmp_path / "workspace/.specfact/modules", key, failure)
+    project = _signed_copy(tmp_path / "workspace/.specfact/modules", key, failure, version="2.0.0")
     installed = _signed_copy(tmp_path / "user", key, None)
+    _pin_fixture_trees(monkeypatch, project, installed)
     _isolate_discovery_roots(monkeypatch, tmp_path / "workspace", installed.parent)
     for path, source in ((project, "project"), (installed, "user")):
         metadata = packages.discover_package_metadata(path.parent, source=source)[0][1]
-        assert module_installer.verify_module_artifact(
-            path, metadata, public_key_pem=public_key.decode(), allow_unsigned=False, require_signature=True
-        )
+        _assert_fixture_signature(path, public_key.decode())
+        assert module_installer.verify_module_artifact(path, metadata)
     _reset_registration()
     try:
         packages.register_module_package_commands(allow_unsigned=False, category_grouping_enabled=grouped)
@@ -152,6 +178,7 @@ def test_integrity_rejected_user_copy_keeps_signed_fallback(
     """Ordinary integrity failure must not consume a name before the next signed copy is tested."""
     invalid = _signed_copy(tmp_path / "invalid", selection_key, None)
     valid = _signed_copy(tmp_path / "valid", selection_key, None)
+    _pin_fixture_trees(monkeypatch, valid)
     (invalid / "src/app.py").write_text("TAMPERED = True\n", encoding="utf-8")
     _register_candidates(monkeypatch, [invalid, valid])
     _assert_active([valid], [invalid])
@@ -166,6 +193,7 @@ def test_dependency_selection_reconsiders_higher_priority_consumer(
     fallback = _signed_copy(tmp_path / "a2", selection_key, None, version="2.0.0")
     old = _provider(tmp_path / "b1", selection_key, "1.0.0", "dependency")
     current = _provider(tmp_path / "b2", selection_key, "2.0.0")
+    _pin_fixture_trees(monkeypatch, consumer, fallback, old, current)
     _register_candidates(monkeypatch, [consumer, fallback, old, current])
     _assert_active([consumer, current], [fallback, old])
 
@@ -176,6 +204,7 @@ def test_rejected_provider_cannot_satisfy_consumer_dependencies(
     """A provider that cannot load contributes neither existence nor versions or mounts."""
     provider = _provider(tmp_path / "provider", selection_key, "1.0.0", "core")
     consumer = _signed_copy(tmp_path / "consumer", selection_key, None, module_dependencies=["nold-ai/specfact-spec"])
+    _pin_fixture_trees(monkeypatch, consumer, provider)
     _register_candidates(monkeypatch, [consumer, provider])
     _assert_active([], [consumer, provider])
     assert CommandRegistry.get_metadata("spec") is None, "Rejected provider created a category mount"
@@ -187,6 +216,7 @@ def test_consistent_dependency_cycle_keeps_commands(
     """Existing consistent edge-local dependencies remain compatible rather than being erased by ordering."""
     consumer = _signed_copy(tmp_path / "a", selection_key, None, module_dependencies=["nold-ai/specfact-spec"])
     provider = _provider(tmp_path / "b", selection_key, "1.0.0", module_dependencies=["nold-ai/specfact-codebase"])
+    _pin_fixture_trees(monkeypatch, consumer, provider)
     _register_candidates(monkeypatch, [consumer, provider])
     _assert_active([consumer, provider], [])
 
@@ -223,7 +253,10 @@ def test_conflicting_dependency_cycle_refuses_only_unstable_component(
         bundle=None,
         bundle_group_command=None,
         commands=["independent"],
+        tier="community",
+        publisher={"name": "fixture", "email": "fixture@example.invalid"},
     )
+    _pin_fixture_trees(monkeypatch, *consumers, *providers)
     _register_candidates(monkeypatch, [*consumers, *providers, unrelated])
     _assert_active([unrelated], consumers + providers)
     assert CommandRegistry.get_metadata("code") is None
@@ -236,6 +269,7 @@ def test_final_revalidation_rejects_payload_changed_after_initial_check(
     """Observe an actual successful signature check, then deny the changed copy before activation."""
     changed = _signed_copy(tmp_path / "changed", selection_key, None)
     fallback = _signed_copy(tmp_path / "fallback", selection_key, None)
+    _pin_fixture_trees(monkeypatch, changed, fallback)
     actual_verify = packages.verify_module_artifact
     mutated = False
 
@@ -262,5 +296,6 @@ def test_versioned_self_dependency_selects_eligible_fallback(
     valid = _signed_copy(
         tmp_path / "v2", selection_key, None, version="2.0.0", module_dependencies_versioned=dependency
     )
+    _pin_fixture_trees(monkeypatch, invalid, valid)
     _register_candidates(monkeypatch, [invalid, valid])
     _assert_active([valid], [invalid])

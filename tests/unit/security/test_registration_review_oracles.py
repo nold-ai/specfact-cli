@@ -10,6 +10,8 @@ from specfact_cli.registry import CommandRegistry, module_installer, module_pack
 from tests.unit.security.test_module_command_squatting import _reset_registration
 from tests.unit.security.test_package_candidate_eligibility import (
     _assert_active,
+    _assert_fixture_signature,
+    _pin_fixture_trees,
     _provider,
     _register_candidates,
     _signed_copy,
@@ -20,14 +22,17 @@ from tests.unit.security.test_package_candidate_eligibility import (
 from tests.unit.security.test_project_bundle_authority import _isolate_discovery_roots
 
 
-def _verified_project(parent: Path, key: Ed25519PrivateKey, publisher: str) -> Path:
+def _verified_project(parent: Path, key: Ed25519PrivateKey, publisher: str, version: str) -> Path:
     """Authenticate the changed publisher with a valid signature before testing identity admission."""
-    path = _signed_copy(parent / ".specfact/modules", key, None, publisher={"name": publisher})
-    metadata = packages.discover_package_metadata(path.parent, source="project")[0][1]
+    path = _signed_copy(
+        parent / ".specfact/modules",
+        key,
+        None,
+        publisher={"name": publisher, "email": "fixture@example.invalid"},
+        version=version,
+    )
     public = module_installer._bundled_public_key_path().read_text(encoding="utf-8")
-    assert module_installer.verify_module_artifact(
-        path, metadata, public_key_pem=public, allow_unsigned=False, require_signature=True
-    ), "The identity probe must have genuine valid integrity under the bundled test anchor"
+    _assert_fixture_signature(path, public)
     return path
 
 
@@ -36,13 +41,14 @@ def test_validly_signed_noncanonical_publisher_is_denied(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, selection_key: Ed25519PrivateKey, grouped: bool
 ) -> None:
     """Keep a canonical signed root, then deny a noncanonical publisher with equally valid integrity."""
-    canonical = _verified_project(tmp_path / "canonical", selection_key, "nold-ai")
+    canonical = _verified_project(tmp_path / "canonical", selection_key, "nold-ai", "1.0.0")
+    noncanonical = _verified_project(tmp_path / "noncanonical", selection_key, "hostile", "2.0.0")
+    _pin_fixture_trees(monkeypatch, canonical, noncanonical)
     _isolate_discovery_roots(monkeypatch, tmp_path / "canonical", tmp_path / "missing-user")
     packages.register_module_package_commands(allow_unsigned=False, category_grouping_enabled=grouped)
     assert CommandRegistry.get_module_metadata("code") is not None
     _assert_active([canonical], [])
     _reset_registration()
-    noncanonical = _verified_project(tmp_path / "noncanonical", selection_key, "hostile")
     _isolate_discovery_roots(monkeypatch, tmp_path / "noncanonical", tmp_path / "missing-user")
     packages.register_module_package_commands(allow_unsigned=False, category_grouping_enabled=grouped)
     assert CommandRegistry.get_module_metadata("code") is None, (
@@ -57,11 +63,12 @@ def test_consistent_cycle_survives_ineligible_priority_copy(
     """Retain healthy cyclic commands both alone and behind an ineligible same-name copy."""
     _exercise_consistent_cycle(monkeypatch, tmp_path / "healthy", selection_key)
     _reset_registration()
-    rejected = _signed_copy(tmp_path / "rejected", selection_key, "core")
+    rejected = _signed_copy(tmp_path / "rejected", selection_key, "core", version="2.0.0")
     consumer = _signed_copy(tmp_path / "consumer", selection_key, None, module_dependencies=["nold-ai/specfact-spec"])
     provider = _provider(
         tmp_path / "provider", selection_key, "1.0.0", module_dependencies=["nold-ai/specfact-codebase"]
     )
+    _pin_fixture_trees(monkeypatch, rejected, consumer, provider)
     _register_candidates(monkeypatch, [rejected, consumer, provider])
     _assert_active([consumer, provider], [rejected])
     assert CommandRegistry.get_module_metadata("code") is not None

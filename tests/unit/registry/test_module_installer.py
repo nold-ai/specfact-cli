@@ -130,7 +130,7 @@ def test_install_module_logs_satisfied_dependencies_without_warning(monkeypatch,
     tarball = _create_module_tarball(
         tmp_path,
         "backlog",
-        bundle_dependencies=["nold-ai/specfact-project"],
+        bundle_dependencies=["test-org/specfact-project"],
     )
     monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_args, **_kwargs: tarball)
     monkeypatch.setattr("specfact_cli.registry.module_installer.verify_module_artifact", lambda *_args, **_kwargs: True)
@@ -153,10 +153,10 @@ def test_install_module_logs_satisfied_dependencies_without_warning(monkeypatch,
         "name: specfact-project\nversion: '0.40.16'\ncommands: [project]\n",
         encoding="utf-8",
     )
-    (dependency_dir / module_installer.REGISTRY_ID_FILE).write_text("nold-ai/specfact-project", encoding="utf-8")
+    (dependency_dir / module_installer.REGISTRY_ID_FILE).write_text("test-org/specfact-project", encoding="utf-8")
 
     installed = install_module(
-        "nold-ai/specfact-backlog",
+        "test-org/specfact-backlog",
         InstallModuleOptions(install_root=install_root, reinstall=True),
     )
 
@@ -164,7 +164,7 @@ def test_install_module_logs_satisfied_dependencies_without_warning(monkeypatch,
     mock_logger.warning.assert_not_called()
     mock_logger.info.assert_called_once_with(
         "Dependency %s already satisfied (version %s)",
-        "nold-ai/specfact-project",
+        "test-org/specfact-project",
         "0.40.16",
     )
 
@@ -173,16 +173,16 @@ def test_install_module_reinstalls_dependency_when_registry_id_mismatch(monkeypa
     root_tarball = _create_module_tarball(
         tmp_path / "root",
         "backlog",
-        bundle_dependencies=["nold-ai/specfact-project"],
+        bundle_dependencies=["test-org/specfact-project"],
     )
     dependency_tarball = _create_module_tarball(tmp_path / "dep", "project")
     downloaded_modules: list[str] = []
 
     def _download(module_id: str, **_kwargs: object) -> Path:
         downloaded_modules.append(module_id)
-        if module_id == "nold-ai/specfact-backlog":
+        if module_id == "test-org/specfact-backlog":
             return root_tarball
-        if module_id == "nold-ai/specfact-project":
+        if module_id == "test-org/specfact-project":
             return dependency_tarball
         raise AssertionError(f"Unexpected module download request: {module_id}")
 
@@ -208,11 +208,11 @@ def test_install_module_reinstalls_dependency_when_registry_id_mismatch(monkeypa
 
     with pytest.raises(ValueError, match="Module namespace collision"):
         install_module(
-            "nold-ai/specfact-backlog",
+            "test-org/specfact-backlog",
             InstallModuleOptions(install_root=install_root, reinstall=True),
         )
 
-    assert downloaded_modules == ["nold-ai/specfact-backlog"]
+    assert downloaded_modules == ["test-org/specfact-backlog"]
 
 
 def test_install_module_rejects_existing_bundle_dependency_version_mismatch(monkeypatch, tmp_path: Path) -> None:
@@ -224,7 +224,7 @@ def test_install_module_rejects_existing_bundle_dependency_version_mismatch(monk
         "commands: [code]\n"
         'core_compatibility: ">=0.1.0,<1.0.0"\n'
         "bundle_dependencies:\n"
-        "  - id: nold-ai/specfact-codebase\n"
+        "  - id: test-org/specfact-codebase\n"
         "    version: '>=0.41.0'\n",
         encoding="utf-8",
     )
@@ -246,11 +246,11 @@ def test_install_module_rejects_existing_bundle_dependency_version_mismatch(monk
         "name: specfact-codebase\nversion: '0.40.9'\ncommands: [code]\n",
         encoding="utf-8",
     )
-    (dependency_dir / module_installer.REGISTRY_ID_FILE).write_text("nold-ai/specfact-codebase", encoding="utf-8")
+    (dependency_dir / module_installer.REGISTRY_ID_FILE).write_text("test-org/specfact-codebase", encoding="utf-8")
 
-    with pytest.raises(ValueError, match=r"nold-ai/specfact-codebase.*>=0.41.0.*0.40.9"):
+    with pytest.raises(ValueError, match=r"test-org/specfact-codebase.*>=0.41.0.*0.40.9"):
         install_module(
-            "nold-ai/specfact-code-review",
+            "test-org/specfact-code-review",
             InstallModuleOptions(install_root=install_root, reinstall=True),
         )
 

@@ -63,25 +63,25 @@ def test_installing_spec_bundle_installs_project_dependency_first(
     tar_spec = _create_module_tarball(
         tmp_path,
         "specfact-spec",
-        bundle_dependencies=["nold-ai/specfact-project"],
+        bundle_dependencies=["fixture-labs/specfact-project"],
     )
     calls: list[str] = []
 
     def _download(module_id: str, version: str | None = None) -> Path:
         _ = version
         calls.append(module_id)
-        if module_id == "nold-ai/specfact-project":
+        if module_id == "fixture-labs/specfact-project":
             return tar_project
-        if module_id == "nold-ai/specfact-spec":
+        if module_id == "fixture-labs/specfact-spec":
             return tar_spec
         raise ValueError(f"unexpected module id: {module_id}")
 
     monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", _download)
     install_root = tmp_path / "modules"
 
-    install_module("nold-ai/specfact-spec", InstallModuleOptions(install_root=install_root))
+    install_module("fixture-labs/specfact-spec", InstallModuleOptions(install_root=install_root))
 
-    assert calls[:2] == ["nold-ai/specfact-spec", "nold-ai/specfact-project"]
+    assert calls[:2] == ["fixture-labs/specfact-spec", "fixture-labs/specfact-project"]
     assert (install_root / "specfact-project" / "module-package.yaml").exists()
     assert (install_root / "specfact-spec" / "module-package.yaml").exists()
 
@@ -94,25 +94,25 @@ def test_installing_govern_bundle_installs_project_dependency_first(
     tar_govern = _create_module_tarball(
         tmp_path,
         "specfact-govern",
-        bundle_dependencies=["nold-ai/specfact-project"],
+        bundle_dependencies=["fixture-labs/specfact-project"],
     )
     calls: list[str] = []
 
     def _download(module_id: str, version: str | None = None) -> Path:
         _ = version
         calls.append(module_id)
-        if module_id == "nold-ai/specfact-project":
+        if module_id == "fixture-labs/specfact-project":
             return tar_project
-        if module_id == "nold-ai/specfact-govern":
+        if module_id == "fixture-labs/specfact-govern":
             return tar_govern
         raise ValueError(f"unexpected module id: {module_id}")
 
     monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", _download)
     install_root = tmp_path / "modules"
 
-    install_module("nold-ai/specfact-govern", InstallModuleOptions(install_root=install_root))
+    install_module("fixture-labs/specfact-govern", InstallModuleOptions(install_root=install_root))
 
-    assert calls[:2] == ["nold-ai/specfact-govern", "nold-ai/specfact-project"]
+    assert calls[:2] == ["fixture-labs/specfact-govern", "fixture-labs/specfact-project"]
     assert (install_root / "specfact-project" / "module-package.yaml").exists()
     assert (install_root / "specfact-govern" / "module-package.yaml").exists()
 
@@ -122,14 +122,14 @@ def test_dependency_install_is_skipped_when_already_installed(monkeypatch: pytes
     tar_spec = _create_module_tarball(
         tmp_path,
         "specfact-spec",
-        bundle_dependencies=["nold-ai/specfact-project"],
+        bundle_dependencies=["fixture-labs/specfact-project"],
     )
     calls: list[str] = []
 
     def _download(module_id: str, version: str | None = None) -> Path:
         _ = version
         calls.append(module_id)
-        if module_id == "nold-ai/specfact-spec":
+        if module_id == "fixture-labs/specfact-spec":
             return tar_spec
         raise ValueError(f"unexpected module id: {module_id}")
 
@@ -143,11 +143,11 @@ def test_dependency_install_is_skipped_when_already_installed(monkeypatch: pytes
         "name: specfact-project\nversion: '0.39.0'\ncommands: [project]\n",
         encoding="utf-8",
     )
-    (dep_dir / REGISTRY_ID_FILE).write_text("nold-ai/specfact-project", encoding="utf-8")
+    (dep_dir / REGISTRY_ID_FILE).write_text("fixture-labs/specfact-project", encoding="utf-8")
 
-    install_module("nold-ai/specfact-spec", InstallModuleOptions(install_root=install_root))
+    install_module("fixture-labs/specfact-spec", InstallModuleOptions(install_root=install_root))
 
-    assert calls == ["nold-ai/specfact-spec"]
+    assert calls == ["fixture-labs/specfact-spec"]
     info_messages = " ".join(str(call.args[0]) for call in mock_logger.info.call_args_list)
     warning_messages = " ".join(str(call.args[0]) for call in mock_logger.warning.call_args_list)
     assert "already satisfied" in info_messages
@@ -161,14 +161,14 @@ def test_requested_bundle_install_aborts_when_dependency_install_fails(
     tar_spec = _create_module_tarball(
         tmp_path,
         "specfact-spec",
-        bundle_dependencies=["nold-ai/specfact-project"],
+        bundle_dependencies=["fixture-labs/specfact-project"],
     )
 
     def _download(module_id: str, version: str | None = None) -> Path:
         _ = version
-        if module_id == "nold-ai/specfact-spec":
+        if module_id == "fixture-labs/specfact-spec":
             return tar_spec
-        if module_id == "nold-ai/specfact-project":
+        if module_id == "fixture-labs/specfact-project":
             raise ValueError("dependency unavailable")
         raise ValueError(f"unexpected module id: {module_id}")
 
@@ -176,7 +176,7 @@ def test_requested_bundle_install_aborts_when_dependency_install_fails(
     install_root = tmp_path / "modules"
 
     with pytest.raises(ValueError, match="Dependency install failed"):
-        install_module("nold-ai/specfact-spec", InstallModuleOptions(install_root=install_root))
+        install_module("fixture-labs/specfact-spec", InstallModuleOptions(install_root=install_root))
 
     assert not (install_root / "specfact-spec").exists()
 
@@ -189,12 +189,12 @@ def test_offline_install_uses_cached_tarball_when_registry_is_unavailable(
     tar_spec = _create_module_tarball(
         tmp_path,
         "specfact-spec",
-        bundle_dependencies=["nold-ai/specfact-project"],
+        bundle_dependencies=["fixture-labs/specfact-project"],
     )
     cache_root = tmp_path / "module-cache"
     cache_root.mkdir(parents=True, exist_ok=True)
-    cached_project = cache_root / "nold-ai--specfact-project--latest.tar.gz"
-    cached_spec = cache_root / "nold-ai--specfact-spec--latest.tar.gz"
+    cached_project = cache_root / "fixture-labs--specfact-project--latest.tar.gz"
+    cached_spec = cache_root / "fixture-labs--specfact-spec--latest.tar.gz"
     cached_project.write_bytes(tar_project.read_bytes())
     cached_spec.write_bytes(tar_spec.read_bytes())
 
@@ -205,7 +205,7 @@ def test_offline_install_uses_cached_tarball_when_registry_is_unavailable(
     )
     install_root = tmp_path / "modules"
 
-    install_module("nold-ai/specfact-spec", InstallModuleOptions(install_root=install_root))
+    install_module("fixture-labs/specfact-spec", InstallModuleOptions(install_root=install_root))
 
     assert (install_root / "specfact-project" / "module-package.yaml").exists()
     assert (install_root / "specfact-spec" / "module-package.yaml").exists()

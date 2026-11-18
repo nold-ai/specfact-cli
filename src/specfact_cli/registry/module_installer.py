@@ -41,6 +41,12 @@ from specfact_cli.registry.module_discovery import (
     discover_all_modules,
 )
 from specfact_cli.registry.module_security import assert_module_allowed, ensure_publisher_trusted
+from specfact_cli.registry.official_module_cutoff import (
+    frozen_archive,
+    frozen_tree_matches,
+    is_frozen_bundled_module,
+    is_official_module,
+)
 from specfact_cli.runtime import is_debug_mode
 
 
@@ -296,21 +302,8 @@ def _integrity_debug_details_enabled() -> bool:
 
 @beartype
 def _bundled_public_key_path() -> Path:
-    """Resolve default bundled public key path for module signature verification.
-
-    Resolution order:
-    1. Repository source path (`./resources/keys/...`) for local/dev runs.
-    2. Installed package path (`specfact_cli/resources/keys/...`) for wheel installs.
-    """
-    key_name = "module-signing-public.pem"
-    candidates = [
-        Path(__file__).resolve().parents[3] / "resources" / "keys" / key_name,
-        Path(__file__).resolve().parents[1] / "resources" / "keys" / key_name,
-    ]
-    for path in candidates:
-        if path.exists():
-            return path
-    return candidates[0]
+    """Return the replacement module signing key bundled with the runtime."""
+    return Path(__file__).with_name("module-signing-public-next.pem")
 
 
 @beartype
@@ -779,6 +772,8 @@ def verify_module_artifact(
     public_key_pem: str | None = None,
 ) -> bool:
     """Run integrity verification for a module artifact."""
+    if _managed_module_requires_cutoff(meta):
+        return _verify_frozen_module_tree(package_dir, meta)
     logger = get_bridge_logger(__name__)
     manifest_path = package_dir / "module-package.yaml"
     if not manifest_path.exists():
@@ -819,6 +814,52 @@ class _FilesystemPayloadSnapshot:
     sources: dict[Path, bytes]
     canonical_manifests: dict[str, bytes]
     file_digests: dict[Path, str]
+
+
+def _managed_module_requires_cutoff(meta: ModulePackageMetadata) -> bool:
+    publisher = meta.publisher.name if meta.publisher is not None else None
+    return is_official_module(meta.name, publisher, meta.tier) or is_frozen_bundled_module(meta.name)
+
+
+def _verify_frozen_module_tree(package_dir: Path, meta: ModulePackageMetadata) -> bool:
+    """Match exact published files, allowing verified interpreter caches and install receipts."""
+    entries: list[str] = []
+    caches: list[Path] = []
+    sources: dict[Path, bytes] = {}
+    try:
+        if package_dir.is_symlink() or not package_dir.is_dir():
+            return False
+        for path in sorted(package_dir.rglob("*"), key=lambda entry: entry.relative_to(package_dir).as_posix()):
+            relative = path.relative_to(package_dir)
+            if path.is_symlink():
+                return False
+            if path.is_dir():
+                continue
+            if not path.is_file():
+                return False
+            if relative.as_posix() in _IGNORED_MODULE_FILE_NAMES:
+                continue
+            if path.parent.name == "__pycache__" and path.suffix == ".pyc":
+                caches.append(path)
+                continue
+            data = path.read_bytes()
+            if path.suffix in {".py", ".pyw"}:
+                sources[path] = data
+            entries.append(f"{relative.as_posix()}:{hashlib.sha256(data).hexdigest()}")
+        digest = hashlib.sha256("\n".join(entries).encode()).hexdigest()
+        if not frozen_tree_matches(meta.name, meta.version, digest):
+            return False
+        return all(_release_cache_matches(path, package_dir, sources) for path in caches)
+    except (
+        OSError,
+        ValueError,
+        EOFError,
+        TypeError,
+        SyntaxError,
+        py_compile.PyCompileError,
+        subprocess.SubprocessError,
+    ):
+        return False
 
 
 def _filesystem_payload_snapshot(package_dir: Path, module_dir_resolved: Path) -> _FilesystemPayloadSnapshot:
@@ -863,16 +904,160 @@ def _metadata_matches_authenticated_manifest(meta: ModulePackageMetadata, manife
         return False
 
 
-def _compiled_authenticated_source_body(source: Path, data: bytes) -> bytes:
+def _compiled_authenticated_source_body(source: Path, data: bytes, *, isolated: bool = False) -> bytes:
     """Derive a standard cache from captured authenticated bytes without executing module code."""
     with tempfile.TemporaryDirectory(prefix="specfact-source-cache-") as temporary:
         input_file = Path(temporary) / "source.py"
         output_file = Path(temporary) / "cache.pyc"
         input_file.write_bytes(data)
-        py_compile.compile(
-            str(input_file), cfile=str(output_file), dfile=str(source), doraise=True, optimize=sys.flags.optimize
-        )
+        if isolated:
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-I",
+                    "-S",
+                    "-c",
+                    "import py_compile, sys; py_compile.compile(*sys.argv[1:4], "
+                    "doraise=True, optimize=int(sys.argv[4]))",
+                    str(input_file),
+                    str(output_file),
+                    str(source),
+                    str(sys.flags.optimize),
+                ],
+                capture_output=True,
+                check=True,
+                timeout=10,
+            )
+        else:
+            py_compile.compile(
+                str(input_file), cfile=str(output_file), dfile=str(source), doraise=True, optimize=sys.flags.optimize
+            )
         return output_file.read_bytes()[16:]
+
+
+def _relocated_cache_filename(cache: bytes, expected: bytes, source: Path, relative: Path) -> str | None:
+    """Read a filename field at the offset established by trusted compiler output."""
+    filename = str(source).encode()
+    if expected.count(filename) != 1:
+        return None
+    offset = expected.index(filename) - (2 if filename.isascii() and len(filename) < 256 else 5)
+    if offset < 0 or len(cache) <= offset + 5:
+        return None
+    # CPython marshal uses one length byte for short ASCII strings and four otherwise.
+    tag = cache[offset] & 0x7F
+    if tag in b"zZ":
+        width = 1
+    elif tag in b"aAu":
+        width = 4
+    else:
+        return None
+    start = offset + 1 + width
+    length = int.from_bytes(cache[offset + 1 : start], "little")
+    if not 0 < length <= min(4096, len(cache) - start):
+        return None
+    name = cache[start : start + length].decode()
+    if not name.replace("\\", "/").endswith("/" + relative.as_posix()):
+        return None
+    return name
+
+
+def _compiler_short_ascii_tags(reference: bytes) -> set[int]:
+    """Locate short ASCII type tags in the CPython 3.11 compiler output."""
+    position = 0
+    offsets: set[int] = set()
+
+    def take(size: int) -> bytes:
+        nonlocal position
+        if not 0 <= size <= len(reference) - position:
+            raise ValueError("Invalid compiler reference length")
+        start = position
+        position += size
+        return reference[start:position]
+
+    def count() -> int:
+        return int.from_bytes(take(4), "little", signed=True)
+
+    def visit() -> None:
+        offset = position
+        tag = chr(take(1)[0] & 0x7F)
+        if tag == "c":
+            take(20)
+            for _ in range(8):
+                visit()
+            take(4)
+            visit()
+            visit()
+        elif tag in ")(<>":
+            children = take(1)[0] if tag == ")" else count()
+            if not 0 <= children <= len(reference) - position:
+                raise ValueError("Invalid compiler reference count")
+            for _ in range(children):
+                visit()
+        elif tag in "zZ":
+            offsets.add(offset)
+            take(take(1)[0])
+        elif tag in "satAu":
+            take(count())
+        elif tag == "l":
+            take(abs(count()) * 2)
+        else:
+            widths = {"i": 4, "r": 4, "g": 8, "y": 16, "N": 0, "F": 0, "T": 0, "S": 0, ".": 0}
+            if tag not in widths:
+                raise ValueError("Unsupported compiler reference tag")
+            take(widths[tag])
+
+    visit()
+    if position != len(reference):
+        raise ValueError("Trailing compiler reference bytes")
+    return offsets
+
+
+def _authenticated_cache_body_matches(body: bytes, reference: bytes) -> bool:
+    if body == reference:
+        return True
+    if sys.implementation.name != "cpython" or sys.version_info[:2] != (3, 11) or len(body) != len(reference):
+        return False
+
+    differences: set[int] = set()
+    for offset, (actual, expected) in enumerate(zip(body, reference, strict=True)):
+        if actual == expected:
+            continue
+        # Z/z records share the same string bytes and reference index layout.
+        if {actual, expected} != {0xDA, 0xFA}:
+            return False
+        differences.add(offset)
+    try:
+        return differences.issubset(_compiler_short_ascii_tags(reference))
+    except (ValueError, RecursionError):
+        return False
+
+
+def _release_cache_matches(path: Path, root: Path, sources: dict[Path, bytes]) -> bool:
+    """Match compiled source bytes, allowing CPython 3.11 short ASCII interning tags to differ."""
+    source = Path(importlib.util.source_from_cache(str(path)))
+    if source not in sources or Path(importlib.util.cache_from_source(str(source))) != path:
+        return False
+    data = path.read_bytes()
+    if (
+        len(data) < 16
+        or data[:4] != importlib.util.MAGIC_NUMBER
+        or int.from_bytes(data[4:8], "little") not in (0, 1, 3)
+    ):
+        return False
+    expected = _compiled_authenticated_source_body(source, sources[source])
+    body = data[16:]
+    if _authenticated_cache_body_matches(body, expected):
+        return True
+    # pip can compile in a staging directory before moving the installed source.
+    name = _relocated_cache_filename(body, expected, source, source.relative_to(root))
+    if name is None:
+        return False
+    # A fresh interpreter avoids cache serialization differences from imported modules.
+    return _authenticated_cache_body_matches(
+        body, _compiled_authenticated_source_body(Path(name), sources[source])
+    ) or _authenticated_cache_body_matches(
+        body, _compiled_authenticated_source_body(Path(name), sources[source], isolated=True)
+    )
 
 
 def _authenticated_source_cache_body(path: Path, authenticated_sources: dict[Path, bytes]) -> bytes | None:
@@ -966,6 +1151,10 @@ def _filesystem_executable_payload_is_covered(
 @ensure(lambda result: isinstance(result, bool), "Must return a bool")
 def verify_module_artifact_from_filesystem(package_dir: Path, meta: ModulePackageMetadata, public_key_pem: str) -> bool:
     """Verify every filesystem payload file with no unsigned, key-override or receipt fallback."""
+    if _managed_module_requires_cutoff(meta):
+        return _verify_frozen_module_tree(package_dir, meta) and _metadata_matches_authenticated_manifest(
+            meta, _filesystem_payload_snapshot(package_dir, package_dir.resolve()).canonical_manifests
+        )
     if meta.integrity is None or not meta.integrity.signature or not public_key_pem.strip():
         return False
     try:
@@ -1067,6 +1256,15 @@ def _install_bundle_dependencies_for_module(module_id: str, ctx: _BundleDepsInst
             installed_registry_id = dependency_id_file.read_text(encoding="utf-8").strip()
             if installed_registry_id == dependency_module_id:
                 dependency_version = _installed_dependency_version(dependency_manifest)
+                if dependency_module_id.startswith("nold-ai/"):
+                    installed = yaml.safe_load(dependency_manifest.read_text(encoding="utf-8"))
+                    if not isinstance(installed, dict):
+                        raise ValueError(f"Invalid installed dependency manifest: {dependency_module_id}")
+                    meta = _metadata_obj_from_install_dict(installed, dependency_module_id)
+                    if meta.name != dependency_module_id or not _verify_frozen_module_tree(
+                        dependency_manifest.parent, meta
+                    ):
+                        raise ValueError(f"Dependency '{dependency_module_id}' is outside the approved release cutoff")
                 _raise_if_dependency_version_mismatch(
                     dependency_module_id,
                     dependency_version,
@@ -1097,7 +1295,12 @@ def _install_bundle_dependencies_for_module(module_id: str, ctx: _BundleDepsInst
             dependency.version_specifier,
         )
     try:
-        all_metas = [e.metadata for e in discover_all_modules()]
+        all_metas = [
+            entry.metadata
+            for entry in discover_all_modules()
+            if not _managed_module_requires_cutoff(entry.metadata)
+            or _verify_frozen_module_tree(entry.package_dir, entry.metadata)
+        ]
         all_metas.append(ctx.metadata_obj)
         resolved = resolve_dependencies(all_metas, allow_unvalidated=True)
     except DependencyConflictError as dep_err:
@@ -1172,20 +1375,41 @@ def install_module(
     manifest_path = final_path / "module-package.yaml"
 
     _check_namespace_collision(module_id, final_path, o.reinstall)
+    official = module_id.startswith("nold-ai/")
+    approved = frozen_archive(module_id, o.version) if official else None
     if manifest_path.exists() and not o.reinstall:
+        if approved is not None:
+            installed = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+            if not isinstance(installed, dict):
+                raise ValueError("Installed module has an invalid manifest")
+            meta = _metadata_obj_from_install_dict(installed, module_id)
+            if (
+                meta.name != module_id
+                or (o.version is not None and meta.version != approved[0])
+                or not _verify_frozen_module_tree(final_path, meta)
+            ):
+                raise ValueError(f"Installed module '{module_id}' is outside the approved release cutoff; reinstall it")
         logger.debug("Module already installed (%s)", module_name)
         return final_path
 
     if o.reinstall:
         _clear_reinstall_download_cache(module_id, logger)
 
-    archive_path = _download_archive_with_cache(module_id, version=o.version)
+    archive_path = _download_archive_with_cache(module_id, version=approved[0] if approved else o.version)
 
     with tempfile.TemporaryDirectory(prefix="specfact-module-install-") as tmp_dir:
         tmp_dir_path = Path(tmp_dir)
         extract_root = tmp_dir_path / "extract"
         extract_root.mkdir(parents=True, exist_ok=True)
 
+        if approved is not None:
+            frozen_path = tmp_dir_path / "verified-module.tar.gz"
+            shutil.copyfile(archive_path, frozen_path)
+            with frozen_path.open("rb") as stream:
+                digest = hashlib.file_digest(stream, "sha256").hexdigest()
+            if digest != approved[1]["archive"]:
+                raise ValueError(f"Module '{module_id}' archive does not match the approved release cutoff")
+            archive_path = frozen_path
         _extract_marketplace_archive(archive_path, extract_root)
 
         extracted_module_dir, metadata = _load_first_extracted_module_manifest(extract_root)
@@ -1193,6 +1417,13 @@ def install_module(
             metadata, module_name, o.trust_non_official, o.non_interactive
         )
         metadata_obj = _metadata_obj_from_install_dict(metadata, manifest_module_name)
+
+        if approved is not None and (metadata_obj.name != module_id or metadata_obj.version != approved[0]):
+            raise ValueError("Module archive identity does not match the approved release cutoff")
+        if (_managed_module_requires_cutoff(metadata_obj) or approved is not None) and not _verify_frozen_module_tree(
+            extracted_module_dir, metadata_obj
+        ):
+            raise ValueError("Module files do not match the approved release cutoff")
 
         if not o.skip_deps:
             _install_bundle_dependencies_for_module(

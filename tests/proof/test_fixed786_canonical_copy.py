@@ -17,6 +17,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = REPO_ROOT / "tests/unit/scripts/fixtures"
 CYCLE = "9b5ad1e78430cc0b061cb16de42f73de96f4f312"
 SOURCE = "d77209f4b13c386e29391f93e1f1c58d7fd8622f"
+MERGED_PR786 = "89d016587584fdc94556851bcda11ea0109448da"
 VALIDATOR_SHA256 = "5bad94f58f6741cd070e6e9f98a95c88d412365a437e0499e30545603cd9f846"
 
 
@@ -39,7 +40,7 @@ def owner() -> Iterator[ModuleType]:
 def history_context(tmp_path: Path) -> tuple[str, Path]:
     assert not tmp_path.resolve().is_relative_to(REPO_ROOT.resolve())
     final = subprocess.run(
-        ["git", "rev-parse", "--verify", "HEAD^{commit}"],
+        ["git", "rev-parse", "--verify", f"{MERGED_PR786}^{{commit}}"],
         cwd=REPO_ROOT,
         capture_output=True,
         check=True,

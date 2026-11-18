@@ -9,7 +9,6 @@ from pathlib import Path
 import pytest
 
 from specfact_cli.registry.marketplace_client import (
-    REGISTRY_BASE_URL,
     SecurityError,
     download_module,
     fetch_registry_index,
@@ -78,19 +77,9 @@ def test_get_modules_branch_env_dev(monkeypatch: pytest.MonkeyPatch) -> None:
         get_modules_branch.cache_clear()
 
 
-def test_get_registry_index_url_uses_branch(monkeypatch: pytest.MonkeyPatch) -> None:
-    """get_registry_index_url returns dev or main URL per branch."""
-    get_modules_branch.cache_clear()
-    try:
-        monkeypatch.setenv("SPECFACT_MODULES_BRANCH", "dev")
-        url = get_registry_index_url()
-        assert "/dev/registry/index.json" in url
-        monkeypatch.setenv("SPECFACT_MODULES_BRANCH", "main")
-        get_modules_branch.cache_clear()
-        url = get_registry_index_url()
-        assert "/main/registry/index.json" in url
-    finally:
-        get_modules_branch.cache_clear()
+def test_get_registry_index_url_uses_release_cutoff(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SPECFACT_MODULES_BRANCH", "dev")
+    assert get_registry_index_url().endswith("/4aab95e2c6b0c7f5ede00b0643a532433fd4d4fc/registry/index.json")
 
 
 def test_resolve_download_url_absolute_unchanged() -> None:
@@ -101,14 +90,14 @@ def test_resolve_download_url_absolute_unchanged() -> None:
 
 
 def test_resolve_download_url_relative_uses_registry_base(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Relative download_url is resolved against branch-aware registry base when index has no base."""
+    """Relative paths without an explicit base use the frozen registry."""
     monkeypatch.setenv("SPECFACT_MODULES_BRANCH", "main")
     get_modules_branch.cache_clear()
     try:
         entry: dict[str, object] = {"download_url": "modules/specfact-backlog-0.1.0.tar.gz"}
         index: dict[str, object] = {}
         got = resolve_download_url(entry, index)
-        assert got == f"{REGISTRY_BASE_URL}/modules/specfact-backlog-0.1.0.tar.gz"
+        assert got == f"{get_registry_index_url().rsplit('/', 1)[0]}/modules/specfact-backlog-0.1.0.tar.gz"
     finally:
         get_modules_branch.cache_clear()
 

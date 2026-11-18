@@ -16,6 +16,7 @@ from beartype import beartype
 from icontract import ensure, require
 
 from specfact_cli.common import get_bridge_logger
+from specfact_cli.registry.official_module_cutoff import frozen_archive, frozen_archive_url, frozen_index_url
 
 
 # Official registry URL template: {branch} is main or dev so specfact-cli and specfact-cli-modules stay in sync.
@@ -112,7 +113,7 @@ def get_registry_index_url() -> str:
     configured = os.environ.get("SPECFACT_REGISTRY_INDEX_URL", "").strip()
     if configured:
         return configured
-    return OFFICIAL_REGISTRY_INDEX_TEMPLATE.format(branch=get_modules_branch())
+    return frozen_index_url()
 
 
 @beartype
@@ -311,15 +312,26 @@ def download_module(
 ) -> Path:
     """Download module tarball and verify SHA-256 checksum from registry metadata."""
     logger = get_bridge_logger(__name__)
-    registry_index = index if index is not None else _find_registry_index_for_module(module_id, version, timeout)
-    if not registry_index:
-        raise ValueError("Cannot install from marketplace (offline)")
-
-    entry = _select_module_entry_from_index(registry_index, module_id, version)
-    full_download_url = resolve_download_url(
-        entry, registry_index, cast(dict[str, Any], registry_index).get("_registry_index_url")
-    )
-    expected_checksum = str(entry.get("checksum_sha256", "")).strip().lower()
+    if module_id.startswith("nold-ai/"):
+        selected_version, release = frozen_archive(module_id, version)
+        full_download_url = frozen_archive_url(module_id, selected_version)
+        expected_checksum = release["archive"]
+        mirror_url = os.environ.get("SPECFACT_REGISTRY_INDEX_URL", "").strip()
+        if mirror_url and (mirror_url.startswith("file://") or os.path.isfile(mirror_url)):
+            mirror = fetch_registry_index(index_url=mirror_url, timeout=timeout)
+            if mirror is None:
+                raise ValueError("Cannot install from marketplace (offline mirror unavailable)")
+            entry = _select_module_entry_from_index(mirror, module_id, selected_version)
+            full_download_url = resolve_download_url(entry, mirror, mirror_url)
+    else:
+        registry_index = index if index is not None else _find_registry_index_for_module(module_id, version, timeout)
+        if not registry_index:
+            raise ValueError("Cannot install from marketplace (offline)")
+        entry = _select_module_entry_from_index(registry_index, module_id, version)
+        full_download_url = resolve_download_url(
+            entry, registry_index, cast(dict[str, Any], registry_index).get("_registry_index_url")
+        )
+        expected_checksum = str(entry.get("checksum_sha256", "")).strip().lower()
     if not full_download_url or not expected_checksum:
         raise ValueError("Invalid registry index format")
 

@@ -94,6 +94,31 @@ class TestCodeAnalyzer:
 
         assert resolved == entry_path.resolve()
 
+    @pytest.mark.parametrize(
+        "repository_name",
+        ["tmpenvabc", "builder-project", "distribution-project"],
+        ids=["env-root", "build-root", "dist-root"],
+    )
+    def test_should_keep_source_under_named_repository(self, tmp_path: Path, repository_name: str) -> None:
+        repo_path = tmp_path / repository_name
+        repo_path.mkdir()
+        analyzer = CodeAnalyzer(repo_path)
+        assert not analyzer._should_skip_file(repo_path / "src" / "package" / "service.py")
+
+    @pytest.mark.parametrize(
+        "source",
+        ["src/environment.py", "src/builders/service.py", "src/distribution/service.py"],
+        ids=["env-name", "build-name", "dist-name"],
+    )
+    def test_should_keep_source_with_exclusion_substrings(self, tmp_path: Path, source: str) -> None:
+        analyzer = CodeAnalyzer(tmp_path)
+        assert not analyzer._should_skip_file(tmp_path / source)
+
+    @pytest.mark.parametrize("directory", ["env", "build", "dist"])
+    def test_should_skip_excluded_child_directory(self, tmp_path: Path, directory: str) -> None:
+        analyzer = CodeAnalyzer(tmp_path)
+        assert analyzer._should_skip_file(tmp_path / "src" / directory / "service.py")
+
     def test_should_skip_test_files(self):
         """Test that test files are skipped."""
         analyzer = CodeAnalyzer(Path("."))

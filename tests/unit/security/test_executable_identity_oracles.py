@@ -3,15 +3,15 @@
 from pathlib import Path
 
 import pytest
-import yaml
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from specfact_cli.models.module_package import ModulePackageMetadata
 from specfact_cli.registry import CommandRegistry, module_installer, module_packages as packages
 from specfact_cli.registry.module_grouping import ModuleManifestError
 from tests.unit.security.test_module_command_squatting import _reset_registration
 from tests.unit.security.test_package_candidate_eligibility import (
     _assert_active,
+    _assert_fixture_signature,
+    _pin_fixture_trees,
     _signed_copy,
     selection_key as selection_key,
 )
@@ -29,12 +29,8 @@ EXECUTABLE_PROBES = {
 
 
 def _assert_genuine_signature(path: Path) -> None:
-    raw = yaml.safe_load((path / "module-package.yaml").read_text(encoding="utf-8"))
-    metadata = ModulePackageMetadata.model_validate(raw)
     public = module_installer._bundled_public_key_path().read_text(encoding="utf-8")
-    assert module_installer.verify_module_artifact(
-        path, metadata, public_key_pem=public, allow_unsigned=False, require_signature=True
-    ), "The real signature must remain valid before public admission is tested"
+    _assert_fixture_signature(path, public)
 
 
 def _register(monkeypatch: pytest.MonkeyPatch, workspace: Path, grouped: bool) -> None:
@@ -45,10 +41,11 @@ def _register(monkeypatch: pytest.MonkeyPatch, workspace: Path, grouped: bool) -
 def _canonical_compatibility(
     monkeypatch: pytest.MonkeyPatch, workspace: Path, key: Ed25519PrivateKey, grouped: bool
 ) -> None:
-    path = _signed_copy(workspace, key, None)
+    path = _signed_copy(workspace, key, None, version="0.9.0")
     (path / "logs").mkdir()
     (path / "logs/note").write_text("ordinary excluded diagnostic", encoding="utf-8")
     _assert_genuine_signature(path)
+    _pin_fixture_trees(monkeypatch, path)
     _register(monkeypatch, workspace, grouped)
     assert CommandRegistry.get_module_metadata("code") is not None
     _assert_active([path], [])
@@ -64,6 +61,7 @@ def test_excluded_extensionless_executable_is_denied(
     _canonical_compatibility(monkeypatch, tmp_path / "canonical", selection_key, grouped)
     workspace = tmp_path / "candidate"
     path = _signed_copy(workspace, selection_key, None)
+    _pin_fixture_trees(monkeypatch, path)
     (path / "logs").mkdir()
     target = path / "logs/helper"
     target.write_bytes(EXECUTABLE_PROBES[probe])
@@ -85,8 +83,9 @@ def _deny_noncanonical_identity(
     field, value = identity
     _canonical_compatibility(monkeypatch, tmp_path / "canonical", key, grouped)
     workspace = tmp_path / "candidate"
-    path = _signed_copy(workspace, key, None, **{field: value})
+    path = _signed_copy(workspace, key, None, version="2.0.0", **{field: value})
     _assert_genuine_signature(path)
+    _pin_fixture_trees(monkeypatch, path)
     try:
         _register(monkeypatch, workspace, grouped)
     except ModuleManifestError as error:
@@ -122,5 +121,6 @@ def test_all_signed_identity_fields_retain_canonical_authority(
 ) -> None:
     """Keep existing signed category/group rejection before exercising the genuine tier regression."""
     for identity in [("category", "spec"), ("bundle_group_command", "plan"), ("tier", "community")]:
-        _deny_noncanonical_identity(monkeypatch, tmp_path / identity[0], selection_key, grouped, identity)
+        with monkeypatch.context() as probe:
+            _deny_noncanonical_identity(probe, tmp_path / identity[0], selection_key, grouped, identity)
         _reset_registration()
