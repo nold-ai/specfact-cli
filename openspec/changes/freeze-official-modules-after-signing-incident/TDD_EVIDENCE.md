@@ -35,3 +35,5 @@ The Python 3.11 compatibility run passed the cutoff cache regressions and failed
 The three review regressions failed on `df240c7` before the fix. Registration compared a second manifest read, and a supported cache with another interpreter or optimization caused the approved module to be rejected.
 
 After the fix, 79 installer, cutoff and registration tests passed on each of Python 3.11 and 3.12. The shared installation passed when verified in sequence with Python 3.11, 3.12 and 3.11 again. Both interpreter cache files were present. The tests still reject a changed cache for the active interpreter. The original Requirements mapping and its selected test inputs are unchanged.
+
+The first hosted Python 3.11 run passed both cache cases and exposed six existing registration path checks that depended on the removed snapshot read. The verifier now checks the resolved package path and rejects a linked package root while comparing the same authenticated manifest bytes. The expanded installer and authority selection passed 129 cases on Python 3.11 and 129 on Python 3.12, including all six existing path checks.

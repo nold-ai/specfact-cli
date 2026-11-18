@@ -1189,6 +1189,21 @@ def _filesystem_executable_payload_is_covered(
     return covered == set(snapshot.file_digests)
 
 
+def _verify_frozen_registration(package_dir: Path, meta: ModulePackageMetadata) -> bool:
+    """Check the same registration root before and after comparing verified metadata."""
+    try:
+        resolved = package_dir.resolve(strict=True)
+        manifests = _verified_frozen_manifests(package_dir, meta)
+        return (
+            manifests is not None
+            and _metadata_matches_authenticated_manifest(meta, manifests)
+            and not package_dir.is_symlink()
+            and package_dir.resolve(strict=True) == resolved
+        )
+    except (OSError, RuntimeError):
+        return False
+
+
 @beartype
 @require(lambda package_dir: isinstance(package_dir, Path), "package_dir must be a Path")
 @require(lambda meta: isinstance(meta, ModulePackageMetadata), "meta must be a ModulePackageMetadata instance")
@@ -1196,8 +1211,7 @@ def _filesystem_executable_payload_is_covered(
 def verify_module_artifact_from_filesystem(package_dir: Path, meta: ModulePackageMetadata, public_key_pem: str) -> bool:
     """Verify every filesystem payload file with no unsigned, key-override or receipt fallback."""
     if _managed_module_requires_cutoff(meta):
-        manifests = _verified_frozen_manifests(package_dir, meta)
-        return manifests is not None and _metadata_matches_authenticated_manifest(meta, manifests)
+        return _verify_frozen_registration(package_dir, meta)
     if meta.integrity is None or not meta.integrity.signature or not public_key_pem.strip():
         return False
     try:
