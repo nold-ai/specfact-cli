@@ -23,6 +23,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from specfact_cli.registry import CommandRegistry, module_installer, module_packages as packages
 from specfact_cli.registry.bridge_registry import BridgeRegistry
 from specfact_cli.registry.extension_registry import ExtensionRegistry
+from specfact_cli.registry.official_module_cutoff import frozen_archive
 from tests.unit.security.test_module_command_squatting import (
     _register_package,
     _reset_registration,
@@ -54,16 +55,18 @@ def preserve_fixture_cache_authenticity(monkeypatch: pytest.MonkeyPatch) -> None
     monkeypatch.setattr(sys, "dont_write_bytecode", True)
 
 
-def _official_project_packages(tmp_path: Path) -> list[tuple[Path, packages.ModulePackageMetadata]]:
-    """Copy the immutable reviewed official artifacts into a real project discovery root."""
-    configured_repository = os.environ.get("SPECFACT_MODULES_REPO")
+def _official_project_packages(tmp_path: Path, *bundles: str) -> list[tuple[Path, packages.ModulePackageMetadata]]:
+    """Extract the published cutoff archives into a project discovery root."""
+    configured_repository = os.environ.get("SPECFACT_SMOKE_MODULES_REPO") or os.environ.get("SPECFACT_MODULES_REPO")
     assert configured_repository, "Required signed companion fixture: configure SPECFACT_MODULES_REPO"
-    source = Path(configured_repository) / "packages"
+    source = Path(configured_repository) / "registry" / "modules"
     project_modules = tmp_path / ".specfact" / "modules"
-    for bundle, _command in BUNDLE_ROOTS:
-        shutil.copytree(
-            source / bundle, project_modules / bundle, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo")
-        )
+    project_modules.mkdir(parents=True)
+    for bundle in bundles or tuple(name for name, _ in BUNDLE_ROOTS):
+        version, expected = frozen_archive(f"nold-ai/{bundle}", None)
+        archive = source / f"{bundle}-{version}.tar.gz"
+        assert hashlib.sha256(archive.read_bytes()).hexdigest() == expected["archive"]
+        module_installer._extract_marketplace_archive(archive, project_modules)
     return packages.discover_package_metadata(project_modules, source="project")
 
 
@@ -154,48 +157,28 @@ def _signature_backend_unavailable(*_args: object) -> None:
     raise ValueError("Signature verification backend unavailable")
 
 
-def _assert_key_failures_are_rejected(
+def _assert_cutoff_does_not_depend_on_signatures(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     official: list[tuple[Path, packages.ModulePackageMetadata]],
+    bundle: str,
     command: str,
     grouped: bool,
 ) -> None:
-    """Prove missing, empty, malformed and unavailable core-key verification fails closed."""
-    trusted_key = module_installer._bundled_public_key_path().read_text(encoding="utf-8")
-    key_paths = [tmp_path / "missing-key.pem", tmp_path / "empty-key.pem", tmp_path / "malformed-key.pem"]
-    key_paths[1].write_text("", encoding="utf-8")
-    key_paths[2].write_text("not a public key", encoding="utf-8")
-    for key_path in key_paths:
-        with monkeypatch.context() as context:
-            context.setattr(module_installer, "_bundled_public_key_path", lambda path=key_path: path)
-            context.setenv("SPECFACT_MODULE_PUBLIC_KEY_PEM", trusted_key)
-            context.setattr(packages, "discover_all_package_metadata", lambda **_kwargs: official)
-            packages.register_module_package_commands(allow_unsigned=True, category_grouping_enabled=grouped)
-            assert CommandRegistry.get_module_metadata(command) is None, "Invalid core key must fail closed"
-            assert not packages._ACTIVE_MODULE_SRC_DIRS
-        _reset_registration()
+    """Retain the exact release inventory even when a signing backend is unavailable."""
     with monkeypatch.context() as context:
+        context.setattr(module_installer, "_bundled_public_key_path", lambda: tmp_path / "missing-key.pem")
         context.setattr(module_installer, "verify_signature", _signature_backend_unavailable)
         context.setattr(packages, "discover_all_package_metadata", lambda **_kwargs: official)
-        packages.register_module_package_commands(allow_unsigned=True, category_grouping_enabled=grouped)
-        assert CommandRegistry.get_module_metadata(command) is None, "Unavailable verifier must fail closed"
-        assert not packages._ACTIVE_MODULE_SRC_DIRS
+        packages.register_module_package_commands(allow_unsigned=False, category_grouping_enabled=grouped)
+        _assert_registered_bundle_surface(official, bundle, command)
     _reset_registration()
 
 
 def _assert_official_artifact_provenance(official: list[tuple[Path, packages.ModulePackageMetadata]]) -> None:
-    """Independently verify every compatibility fixture checksum and signature against the core key."""
-    key = module_installer._bundled_public_key_path().read_text(encoding="utf-8")
+    """Verify that each extracted compatibility fixture matches the release inventory."""
     for package_dir, metadata in official:
-        assert module_installer.verify_module_artifact(
-            package_dir,
-            metadata,
-            allow_unsigned=False,
-            require_integrity=True,
-            require_signature=True,
-            public_key_pem=key,
-        ), "The compatibility artifact must genuinely verify against the core-bundled key"
+        assert module_installer.verify_module_artifact(package_dir, metadata, allow_unsigned=False)
 
 
 def _assert_registered_bundle_surface(
@@ -294,7 +277,7 @@ def test_verified_project_bundle_preserves_root_and_rejects_forgery(
             forged = _forged_project_package(tmp_path / forgery, bundle, forgery, context)
             _assert_forged_bundle_has_no_surface(context, forged, grouped, dependency)
         _reset_registration()
-    _assert_key_failures_are_rejected(monkeypatch, tmp_path, official, command, grouped)
+    _assert_cutoff_does_not_depend_on_signatures(monkeypatch, tmp_path, official, bundle, command, grouped)
 
 
 def _prepare_source_snapshot_swap(monkeypatch: pytest.MonkeyPatch, source: Path) -> None:
@@ -401,10 +384,8 @@ def test_rejected_project_preserves_same_name_installed_bundle(
     _assert_registered_bundle_surface(official, "specfact-code-review", "code")
     assert (forged[0] / "src").resolve() not in packages._ACTIVE_MODULE_SRC_DIRS
     _reset_registration()
-    shutil.copyfile(
-        Path(os.environ["SPECFACT_MODULES_REPO"]) / "packages/specfact-codebase/module-package.yaml",
-        forged[0] / "module-package.yaml",
-    )
+    shutil.rmtree(forged[0])
+    shutil.copytree(installed[0], forged[0])
     packages.register_module_package_commands(allow_unsigned=True, category_grouping_enabled=grouped)
     _assert_registered_bundle_surface([forged], "specfact-codebase", "code")
     assert (installed[0] / "src").resolve() not in packages._ACTIVE_MODULE_SRC_DIRS
@@ -415,9 +396,7 @@ def test_disabled_project_roots_skip_payload_verification(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, mode: str
 ) -> None:
     """Skip disabled payload reads, preserve explicit re-enablement, and deny an enabled unsigned replacement."""
-    package_dir, metadata = _forged_project_package(
-        tmp_path / "workspace", "specfact-codebase", "unchanged", monkeypatch
-    )
+    [(package_dir, metadata)] = _official_project_packages(tmp_path / "workspace", "specfact-codebase")
     _isolate_discovery_roots(monkeypatch, tmp_path / "workspace", tmp_path / "missing-user")
     stored_enabled = mode != "state"
     monkeypatch.setattr(packages, "read_modules_state", lambda: {metadata.name: {"enabled": stored_enabled}})
@@ -513,7 +492,7 @@ def _restore_manifest_after_discovery_read(monkeypatch: pytest.MonkeyPatch, mani
 @pytest.mark.parametrize("field", ["schema", "bridge", "commands", "version"])
 def test_discovery_fields_match_signed_manifest(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, field: str) -> None:
     """Reject stale forged metadata while preserving fresh loading of the authentic restored artifact."""
-    package = _forged_project_package(tmp_path / "workspace", "specfact-codebase", "unchanged", monkeypatch)
+    [package] = _official_project_packages(tmp_path / "workspace", "specfact-codebase")
     _assert_official_artifact_provenance([package])
     _isolate_discovery_roots(monkeypatch, tmp_path / "workspace", tmp_path / "missing-user")
     extensions, bridges, constructed = _isolated_manifest_effect_registries(monkeypatch)
@@ -547,21 +526,22 @@ def _observe_package_activation(monkeypatch: pytest.MonkeyPatch) -> list[Path]:
     return activated
 
 
-def _observe_live_artifact_mutation(monkeypatch: pytest.MonkeyPatch, target: Path) -> tuple[list[bool], list[Path]]:
-    """Observe genuine verification and transient activation while changing the live artifact."""
+def _observe_live_artifact_mutation(
+    monkeypatch: pytest.MonkeyPatch, target: Path, module_name: str
+) -> tuple[list[bool], list[Path]]:
+    """Observe release inventory verification and transient activation."""
     verified: list[bool] = []
-    original_verify = module_installer.verify_signature
+    original_verify = module_installer.frozen_tree_matches
     activated = _observe_package_activation(monkeypatch)
 
-    def change_after_real_signature(artifact: bytes | Path, signature: str, key: str) -> bool:
-        """Preserve real cryptographic verification and mutate the artifact only after it succeeds."""
-        result = original_verify(artifact, signature, key)
-        if not verified:
+    def change_after_inventory_match(name: str, version: str, digest: str) -> bool:
+        result = original_verify(name, version, digest)
+        if result and name == module_name and not verified:
             verified.append(result)
             target.write_text(PROBE_APP, encoding="utf-8")
         return result
 
-    monkeypatch.setattr(module_installer, "verify_signature", change_after_real_signature)
+    monkeypatch.setattr(module_installer, "frozen_tree_matches", change_after_inventory_match)
     return verified, activated
 
 
@@ -570,14 +550,14 @@ def test_live_executable_inventory_matches_verified_snapshot(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, mutation: str
 ) -> None:
     """Deny executable changes during real verification instead of treating hashable paths as authenticated."""
-    package = _forged_project_package(tmp_path / "workspace", "specfact-codebase", "unchanged", monkeypatch)
+    [package] = _official_project_packages(tmp_path / "workspace", "specfact-codebase")
     _isolate_discovery_roots(monkeypatch, tmp_path / "workspace", tmp_path / "missing-user")
     _assert_official_artifact_provenance([package])
     source, _locations = packages._resolve_command_loader_path(package[0], package[1].name, "code")
     target = package[0] / "src" / "unsigned_inventory_probe.py" if mutation == "added-source" else source
     original = target.read_bytes() if target.exists() else None
     with monkeypatch.context() as mutation_context:
-        verified, activated = _observe_live_artifact_mutation(mutation_context, target)
+        verified, activated = _observe_live_artifact_mutation(mutation_context, target, package[1].name)
         packages.register_module_package_commands(allow_unsigned=True)
         assert verified == [True], "The original captured artifact must genuinely verify before mutation"
         assert not activated, "Unauthenticated live executables must never activate, even transiently"
@@ -594,13 +574,16 @@ def test_live_executable_inventory_matches_verified_snapshot(
 
 def _assert_equivalent_static_mutation_denied(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, mutation: str) -> None:
     """Pair the compiler interleaving with the same unauthenticated artifact present before admission."""
-    forgery = "standalone-bytecode" if mutation == "added-bytecode" else "unchanged"
-    forged = _forged_project_package(tmp_path, "specfact-codebase", forgery, monkeypatch)
-    if mutation == "changed-source":
-        source, _locations = packages._resolve_command_loader_path(forged[0], forged[1].name, "code")
+    [package] = _official_project_packages(tmp_path, "specfact-codebase")
+    _assert_official_artifact_provenance([package])
+    source, _locations = packages._resolve_command_loader_path(package[0], package[1].name, "code")
+    if mutation == "added-bytecode":
+        target = package[0] / "src" / "unsigned_inventory_probe.pyc"
+        py_compile.compile(str(source), cfile=str(target), doraise=True)
+    else:
         source.write_text(PROBE_APP, encoding="utf-8")
     with monkeypatch.context() as negative:
-        _register_package(negative, forged)
+        _register_package(negative, package)
         assert not packages._ACTIVE_MODULE_SRC_DIRS, "A static unsigned executable must not activate its package"
         assert not CommandRegistry._module_entries
     _reset_registration()
@@ -631,7 +614,7 @@ def test_cache_compilation_finishes_before_admission_inventory(
 ) -> None:
     """Reject mutations during real cache reproduction before any transient package activation."""
     _assert_equivalent_static_mutation_denied(monkeypatch, tmp_path / "static", mutation)
-    package = _forged_project_package(tmp_path / "workspace", "specfact-codebase", "unchanged", monkeypatch)
+    [package] = _official_project_packages(tmp_path / "workspace", "specfact-codebase")
     _isolate_discovery_roots(monkeypatch, tmp_path / "workspace", tmp_path / "missing-user")
     _assert_official_artifact_provenance([package])
     _populate_current_interpreter_caches([package])

@@ -10,6 +10,13 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.55.14] - 2026-11-17
+
+### Security
+
+- Pin official module trust to the published 0.55.4 registry snapshot and revoke the retired signing key.
+- Preserve verified bundled modules when package installers relocate their compiled caches.
+
 ## [0.55.12] - 2026-11-03
 
 ### Security

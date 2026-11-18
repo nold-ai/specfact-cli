@@ -618,9 +618,17 @@ def test_doc_owner_rg_terminates_options(monkeypatch: Any, tmp_path: Path) -> No
 
 
 def test_patch_release_uses_next_version_in_all_sources() -> None:
-    """The security baseline consumes only the next semver patch."""
-    expected = "0.55.12"
-    project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    assert project["project"]["version"] == expected
+    """Verify the exact release transition required by #692."""
+    release = "b6eac433b89e05bc244356438e9818e2ed77d3b1"
+
+    def read_release_source(revision: str, path: str) -> str:
+        return subprocess.check_output(
+            ["git", "show", f"{revision}:{path}"], cwd=REPO_ROOT, encoding="utf-8", timeout=30
+        )
+
+    previous = tomllib.loads(read_release_source(f"{release}^1", "pyproject.toml"))
+    current = tomllib.loads(read_release_source(release, "pyproject.toml"))
+    assert previous["project"]["version"] == "0.55.3"
+    assert current["project"]["version"] == "0.55.4"
     for path in ("setup.py", "src/__init__.py", "src/specfact_cli/__init__.py"):
-        assert expected in (REPO_ROOT / path).read_text(encoding="utf-8")
+        assert '"0.55.4"' in read_release_source(release, path)

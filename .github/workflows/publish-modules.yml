@@ -30,7 +30,9 @@ on:
 jobs:
   publish:
     name: Validate and package module (single)
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
+    if: >-
+      vars.MODULE_PUBLICATION_ENABLED == 'true' &&
+      (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -159,6 +161,11 @@ jobs:
           # shellcheck disable=SC1091
           source scripts/module-verify-policy.sh
           python scripts/verify-modules-signature.py "${VERIFY_MODULES_STRICT[@]}" --version-check-base "HEAD~1"
+
+      - name: Verify selected module with replacement signing key
+        env:
+          MODULE_PATH: ${{ steps.module.outputs.module_path }}
+        run: python scripts/verify-publish-module.py "$MODULE_PATH"
 
       - name: Read module metadata
         id: entry
@@ -338,6 +345,7 @@ jobs:
     # Uses workflow_run so publishing follows the completed signing workflow,
     # independent of which push event originally changed bundled manifests.
     if: >-
+      vars.MODULE_PUBLICATION_ENABLED == 'true' &&
       github.event_name == 'workflow_run' &&
       github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.conclusion == 'success' &&
@@ -448,6 +456,7 @@ jobs:
             RELEASE_TAG="${MODULE_SLUG}-v${MODULE_VERSION}"
             FRAGMENT="dist/${MODULE_SLUG}-registry-entry.yaml"
 
+            python scripts/verify-publish-module.py "${MODULE_DIR}"
             python scripts/publish-module.py "${MODULE_DIR}" -o dist \
               --download-base-url "${BUNDLED_REGISTRY_DOWNLOAD_BASE_URL}/${RELEASE_TAG}" \
               --index-fragment "${FRAGMENT}"

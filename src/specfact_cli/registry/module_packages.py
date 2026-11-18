@@ -1385,13 +1385,14 @@ def _register_service_bridges_safe(meta: Any, bridge_owner_map: dict[str, str], 
 def _module_integrity_allows_load(package_dir: Path, meta: Any, ctx: _ModuleIntegrityContext) -> bool:
     if verify_module_artifact(package_dir, meta, allow_unsigned=ctx.allow_unsigned):
         return True
-    if _is_builtin_module_package(package_dir):
+    needs_cutoff = module_installer._managed_module_requires_cutoff(meta)
+    if not needs_cutoff and _is_builtin_module_package(package_dir):
         ctx.logger.warning(
             "Built-in module '%s' failed integrity verification; loading anyway to keep CLI functional.",
             meta.name,
         )
         return True
-    if ctx.is_test_mode and ctx.allow_unsigned:
+    if not needs_cutoff and ctx.is_test_mode and ctx.allow_unsigned:
         ctx.logger.debug(
             "TEST_MODE: allowing built-in module '%s' despite failed integrity verification.",
             meta.name,
@@ -1561,12 +1562,9 @@ def _verified_project_bundle_root(package_dir: Path, meta: Any) -> bool:
     ):
         return False
     try:
-        public_key = module_installer._bundled_public_key_path().read_text(encoding="utf-8").strip()
-        return (
-            bool(public_key)
-            and module_installer.verify_module_artifact_from_filesystem(package_dir, meta, public_key)
-            and _workspace_module_path_is_unlinked(package_dir)
-        )
+        return module_installer.verify_module_artifact_from_filesystem(
+            package_dir, meta, ""
+        ) and _workspace_module_path_is_unlinked(package_dir)
     except (OSError, ValueError):
         return False
 

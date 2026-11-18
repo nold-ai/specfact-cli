@@ -13,7 +13,11 @@ from tests.unit.security.test_executable_identity_oracles import (
     _register,
 )
 from tests.unit.security.test_module_command_squatting import _reset_registration
-from tests.unit.security.test_package_candidate_eligibility import _signed_copy, selection_key as selection_key
+from tests.unit.security.test_package_candidate_eligibility import (
+    _pin_fixture_trees,
+    _signed_copy,
+    selection_key as selection_key,
+)
 from tests.unit.security.test_project_bundle_authority import _isolate_discovery_roots
 
 
@@ -42,12 +46,13 @@ def _observe_path_link(
         with monkeypatch.context() as probe:
             _canonical_compatibility(probe, root / kind / "canonical", key, grouped)
             workspace, path = _linked_project_copy(root, key, kind)
+            installed = _signed_copy(root / kind / "user", key, None)
+            _pin_fixture_trees(probe, installed)
             _assert_genuine_signature(path)
             _register(probe, workspace, grouped)
             root_denied = CommandRegistry.get_module_metadata("code") is None
             source_denied = (path / "src").resolve() not in packages._ACTIVE_MODULE_SRC_DIRS
             _reset_registration()
-            installed = _signed_copy(root / kind / "user", key, None)
             _isolate_discovery_roots(probe, workspace, installed.parent)
             packages.register_module_package_commands(allow_unsigned=False, category_grouping_enabled=grouped)
             fallback_kept = (installed / "src").resolve() in packages._ACTIVE_MODULE_SRC_DIRS and (
@@ -91,6 +96,7 @@ def test_legacy_native_suffixes_have_no_authority(
                 _canonical_compatibility(probe, root / "canonical", selection_key, False)
                 workspace = root / "workspace"
                 path = _signed_copy(workspace / ".specfact/modules", selection_key, None)
+                _pin_fixture_trees(probe, path)
                 (path / "logs").mkdir()
                 (path / "logs" / f"probe.{suffix}").write_bytes(b"harmless omitted native library probe")
                 _assert_genuine_signature(path)
@@ -118,6 +124,7 @@ def test_workspace_alias_keeps_canonical_signed_authority(
 ) -> None:
     workspace = tmp_path / "workspace"
     path = _signed_copy(workspace / ".specfact/modules", selection_key, None)
+    _pin_fixture_trees(monkeypatch, path)
     alias = tmp_path / "workspace-alias"
     alias.symlink_to(workspace, target_is_directory=True)
     _assert_genuine_signature(path)
@@ -136,6 +143,7 @@ def test_final_selection_revalidates_new_package_link(
     workspace = tmp_path / "workspace"
     project = _signed_copy(workspace, selection_key, None)
     installed = _signed_copy(tmp_path / "user", selection_key, None)
+    _pin_fixture_trees(monkeypatch, project, installed)
     target = tmp_path / "authenticated-relocation" / project.name
     target.parent.mkdir()
     original = packages._verified_project_bundle_root
@@ -197,6 +205,7 @@ def test_final_admission_reobserves_owned_path_links(
     workspace = tmp_path / "workspace"
     project = _signed_copy(workspace, selection_key, None)
     installed = _signed_copy(tmp_path / "user", selection_key, None)
+    _pin_fixture_trees(monkeypatch, project, installed)
     target = tmp_path / "authenticated-relocation"
     _assert_genuine_signature(project)
     _assert_genuine_signature(installed)

@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import io
 import json
 import logging
 import os
@@ -13,7 +12,6 @@ import re
 import shutil
 import subprocess
 import sys
-import tarfile
 import tempfile
 import tomllib
 import venv
@@ -201,12 +199,6 @@ def _verify_smoke_fixture(modules_repo: Path) -> None:
         raise RuntimeError("Smoke fixture identity has unreviewed working-tree bytes")
 
 
-def _module_payload_for_checksum(package_dir: Path) -> bytes:
-    from specfact_cli.registry.module_installer import _module_artifact_payload_signed
-
-    return _module_artifact_payload_signed(package_dir)
-
-
 def _module_dependency_closure(modules_repo: Path) -> tuple[str, ...]:
     """Return smoke roots and their manifest-declared bundle dependencies once each."""
     from specfact_cli.registry.module_installer import _extract_bundle_dependency_specs
@@ -230,21 +222,10 @@ def _module_dependency_closure(modules_repo: Path) -> tuple[str, ...]:
     return tuple(module_ids)
 
 
-@beartype
-@ensure(lambda result: result is None, "tracked module staging must return None")
-def _stage_tracked_module(modules_repo: Path, relative: Path, staged_dir: Path) -> None:
-    """Read archive bytes from the authenticated Git object, excluding ignored files."""
-    identity = json.loads((REPO_ROOT / "ci/runtime-smoke-fixture.lock.json").read_text(encoding="utf-8"))
-    archive_bytes = subprocess.check_output(
-        ["git", "-C", str(modules_repo), "archive", "--format=tar", f"{identity['commit']}:{relative.as_posix()}"],
-        timeout=30,
-    )
-    staged_dir.mkdir()
-    with tarfile.open(fileobj=io.BytesIO(archive_bytes), mode="r:") as archive:
-        archive.extractall(staged_dir, filter="data")
-
-
 def _build_local_registry(workspace: Path, modules_repo: Path) -> Path:
+    from specfact_cli.registry.module_installer import _extract_marketplace_archive
+    from specfact_cli.registry.official_module_cutoff import _inventory, frozen_archive
+
     registry = workspace / "local-registry"
     modules_dir = registry / "modules"
     staging_dir = registry / "staging" / "packages"
@@ -252,38 +233,29 @@ def _build_local_registry(workspace: Path, modules_repo: Path) -> Path:
     staging_dir.mkdir(parents=True)
     entries: list[dict[str, Any]] = []
 
-    for module_id in _module_dependency_closure(modules_repo):
+    for module_id in sorted(_inventory()["latest"]):
+        version, expected = frozen_archive(module_id, None)
+        if MODULE_VERSION_PATTERN.fullmatch(version) is None:
+            raise RuntimeError(f"Invalid module version in cutoff inventory: {module_id} {version!r}")
         bundle_name = module_id.split("/", 1)[1]
-        source_dir = modules_repo / "packages" / bundle_name
-        staged_dir = staging_dir / bundle_name
-        _stage_tracked_module(modules_repo, source_dir.relative_to(modules_repo), staged_dir)
-
-        manifest_path = staged_dir / "module-package.yaml"
-        manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
-        if not isinstance(manifest, dict):
-            raise RuntimeError(f"Invalid module manifest: {manifest_path}")
-        manifest_data = cast(dict[str, Any], manifest)
-        version = manifest_data.get("version")
-        if not isinstance(version, str) or MODULE_VERSION_PATTERN.fullmatch(version) is None:
-            raise RuntimeError(f"Invalid module version in {manifest_path}: {version!r}")
-        manifest_data["integrity"] = {
-            "checksum": f"sha256:{hashlib.sha256(_module_payload_for_checksum(staged_dir)).hexdigest()}"
-        }
-        manifest_path.write_text(yaml.safe_dump(manifest_data, sort_keys=False, allow_unicode=False), encoding="utf-8")
-
-        archive_path = modules_dir / f"{bundle_name}-{manifest_data['version']}.tar.gz"
-        with tarfile.open(archive_path, "w:gz") as archive:
-            archive.add(staged_dir, arcname=bundle_name)
+        archive_path = modules_dir / f"{bundle_name}-{version}.tar.gz"
+        original = modules_repo / "registry" / "modules" / archive_path.name
+        data = original.read_bytes()
+        if hashlib.sha256(data).hexdigest() != expected["archive"]:
+            raise RuntimeError(f"Smoke fixture archive does not match the release cutoff: {module_id} {version}")
+        archive_path.write_bytes(data)
+        _extract_marketplace_archive(archive_path, staging_dir)
+        manifest = yaml.safe_load((staging_dir / bundle_name / "module-package.yaml").read_text(encoding="utf-8"))
         entries.append(
             {
                 "id": module_id,
-                "latest_version": str(manifest_data["version"]),
+                "latest_version": version,
                 "download_url": archive_path.relative_to(registry).as_posix(),
-                "checksum_sha256": hashlib.sha256(archive_path.read_bytes()).hexdigest(),
-                "tier": manifest_data.get("tier", "official"),
-                "publisher": manifest_data.get("publisher", {}),
-                "bundle_dependencies": manifest_data.get("bundle_dependencies", []),
-                "description": manifest_data.get("description", ""),
+                "checksum_sha256": expected["archive"],
+                "tier": manifest.get("tier", "official"),
+                "publisher": manifest.get("publisher", {}),
+                "bundle_dependencies": manifest.get("bundle_dependencies", []),
+                "description": manifest.get("description", ""),
             }
         )
 

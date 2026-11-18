@@ -13,6 +13,7 @@ from tests.unit.security.test_executable_identity_oracles import (
 )
 from tests.unit.security.test_module_command_squatting import _reset_registration
 from tests.unit.security.test_package_candidate_eligibility import (
+    _pin_fixture_trees,
     _signed_copy,
     selection_key as selection_key,
 )
@@ -51,6 +52,7 @@ def _observe_encoding(
             _canonical_compatibility(probe_patch, workspace / "canonical", key, grouped)
             candidate = workspace / "candidate"
             path = _signed_copy(candidate, key, None)
+            _pin_fixture_trees(probe_patch, path)
             (path / "logs").mkdir()
             target = path / "logs/helper"
             data, mode = ENCODINGS[encoding]
