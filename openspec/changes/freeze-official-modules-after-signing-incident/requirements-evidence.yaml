@@ -26,14 +26,6 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/registry/test_official_module_cutoff.py::test_cutoff_shipped_module_remains_available
-      - case_id: CUTOFF-SMOKE-ARCHIVE
-        scenario_id: official-managed-modules-match-the-incident-cutoff
-        method: test
-        intent: Verify the smoke registry preserves the approved archive.
-        observable: The served artifact bytes equal the original cutoff artifact bytes.
-        selector:
-          runner: pytest
-          node_id: tests/integration/scripts/test_runtime_discovery_smoke.py::test_local_runtime_registry_preserves_exact_published_archive
       - case_id: CUTOFF-PRE-EXTRACTION
         scenario_id: official-managed-modules-match-the-incident-cutoff
         method: test

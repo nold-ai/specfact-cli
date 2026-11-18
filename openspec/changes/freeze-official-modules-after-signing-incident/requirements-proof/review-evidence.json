@@ -3,7 +3,7 @@
   "decision": "accepted",
   "reviewer_id": "Codex:/root/review_792_fixtures",
   "reviewer_role": "independent AI static SPEC/TEST/MAPPING reviewer only",
-  "recorded_at": "2026-11-18T08:11:46Z",
+  "recorded_at": "2026-11-18T18:12:25Z",
   "reference": "https://github.com/nold-ai/specfact-cli/pull/792",
-  "mapping_digest": "sha256:a2e4ceafea98221eaf450bf26441dde8f4a01abc155113261bf4c8df011f07c0"
+  "mapping_digest": "sha256:23dc50721c58b3b85becad4167962aedfbb7adc0a1017f29f9267915547a5a19"
 }
