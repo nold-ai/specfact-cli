@@ -987,24 +987,28 @@ def _compiler_short_ascii_tags(reference: bytes) -> set[int]:
             take(4)
             visit()
             visit()
-        elif tag in ")(<>":
+            return
+        if tag in ")(<>":
             children = take(1)[0] if tag == ")" else count()
             if not 0 <= children <= len(reference) - position:
                 raise ValueError("Invalid compiler reference count")
             for _ in range(children):
                 visit()
-        elif tag in "zZ":
+            return
+        if tag in "zZ":
             offsets.add(offset)
             take(take(1)[0])
-        elif tag in "satAu":
+            return
+        if tag in "satAu":
             take(count())
-        elif tag == "l":
+            return
+        if tag == "l":
             take(abs(count()) * 2)
-        else:
-            widths = {"i": 4, "r": 4, "g": 8, "y": 16, "N": 0, "F": 0, "T": 0, "S": 0, ".": 0}
-            if tag not in widths:
-                raise ValueError("Unsupported compiler reference tag")
-            take(widths[tag])
+            return
+        widths = {"i": 4, "r": 4, "g": 8, "y": 16, "N": 0, "F": 0, "T": 0, "S": 0, ".": 0}
+        if tag not in widths:
+            raise ValueError("Unsupported compiler reference tag")
+        take(widths[tag])
 
     visit()
     if position != len(reference):
@@ -1294,6 +1298,10 @@ def _install_bundle_dependencies_for_module(module_id: str, ctx: _BundleDepsInst
             dependency_version,
             dependency.version_specifier,
         )
+    _install_pip_dependencies_for_module(ctx)
+
+
+def _install_pip_dependencies_for_module(ctx: _BundleDepsInstallContext) -> None:
     try:
         all_metas = [
             entry.metadata
@@ -1316,6 +1324,30 @@ def _install_bundle_dependencies_for_module(module_id: str, ctx: _BundleDepsInst
         install_resolved_pip_requirements(resolved)
     except PipDependencyInstallError as pip_err:
         raise ValueError(f"Failed to install resolved pip dependencies: {pip_err}") from pip_err
+
+
+def _verify_existing_official_install(manifest_path: Path, module_id: str, expected_version: str | None) -> None:
+    installed = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    if not isinstance(installed, dict):
+        raise ValueError("Installed module has an invalid manifest")
+    meta = _metadata_obj_from_install_dict(installed, module_id)
+    if (
+        meta.name != module_id
+        or (expected_version is not None and meta.version != expected_version)
+        or not _verify_frozen_module_tree(manifest_path.parent, meta)
+    ):
+        raise ValueError(f"Installed module '{module_id}' is outside the approved release cutoff; reinstall it")
+
+
+def _verify_extracted_install_cutoff(
+    module_dir: Path, metadata: ModulePackageMetadata, module_id: str, approved_version: str | None
+) -> None:
+    if approved_version is not None and (metadata.name != module_id or metadata.version != approved_version):
+        raise ValueError("Module archive identity does not match the approved release cutoff")
+    if (_managed_module_requires_cutoff(metadata) or approved_version is not None) and not _verify_frozen_module_tree(
+        module_dir, metadata
+    ):
+        raise ValueError("Module files do not match the approved release cutoff")
 
 
 def _atomic_place_verified_module(
@@ -1379,16 +1411,7 @@ def install_module(
     approved = frozen_archive(module_id, o.version) if official else None
     if manifest_path.exists() and not o.reinstall:
         if approved is not None:
-            installed = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
-            if not isinstance(installed, dict):
-                raise ValueError("Installed module has an invalid manifest")
-            meta = _metadata_obj_from_install_dict(installed, module_id)
-            if (
-                meta.name != module_id
-                or (o.version is not None and meta.version != approved[0])
-                or not _verify_frozen_module_tree(final_path, meta)
-            ):
-                raise ValueError(f"Installed module '{module_id}' is outside the approved release cutoff; reinstall it")
+            _verify_existing_official_install(manifest_path, module_id, approved[0] if o.version is not None else None)
         logger.debug("Module already installed (%s)", module_name)
         return final_path
 
@@ -1418,12 +1441,9 @@ def install_module(
         )
         metadata_obj = _metadata_obj_from_install_dict(metadata, manifest_module_name)
 
-        if approved is not None and (metadata_obj.name != module_id or metadata_obj.version != approved[0]):
-            raise ValueError("Module archive identity does not match the approved release cutoff")
-        if (_managed_module_requires_cutoff(metadata_obj) or approved is not None) and not _verify_frozen_module_tree(
-            extracted_module_dir, metadata_obj
-        ):
-            raise ValueError("Module files do not match the approved release cutoff")
+        _verify_extracted_install_cutoff(
+            extracted_module_dir, metadata_obj, module_id, approved[0] if approved is not None else None
+        )
 
         if not o.skip_deps:
             _install_bundle_dependencies_for_module(
