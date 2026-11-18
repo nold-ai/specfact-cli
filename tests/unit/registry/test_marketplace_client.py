@@ -57,22 +57,13 @@ def test_get_modules_branch_detached_head_uses_ci_dev_ref(monkeypatch: pytest.Mo
         get_modules_branch.cache_clear()
 
 
-def test_get_modules_branch_env_main(monkeypatch: pytest.MonkeyPatch) -> None:
-    """SPECFACT_MODULES_BRANCH=main forces main branch."""
+@pytest.mark.parametrize("branch", ["main", "dev"])
+def test_get_modules_branch_env(monkeypatch: pytest.MonkeyPatch, branch: str) -> None:
+    """The configured marketplace branch takes precedence."""
     get_modules_branch.cache_clear()
     try:
-        monkeypatch.setenv("SPECFACT_MODULES_BRANCH", "main")
-        assert get_modules_branch() == "main"
-    finally:
-        get_modules_branch.cache_clear()
-
-
-def test_get_modules_branch_env_dev(monkeypatch: pytest.MonkeyPatch) -> None:
-    """SPECFACT_MODULES_BRANCH=dev forces dev branch."""
-    get_modules_branch.cache_clear()
-    try:
-        monkeypatch.setenv("SPECFACT_MODULES_BRANCH", "dev")
-        assert get_modules_branch() == "dev"
+        monkeypatch.setenv("SPECFACT_MODULES_BRANCH", branch)
+        assert get_modules_branch() == branch
     finally:
         get_modules_branch.cache_clear()
 
@@ -123,7 +114,7 @@ class _DummyResponse:
             raise RuntimeError(f"http {self.status_code}")
 
 
-def test_fetch_registry_index_parses_valid_json(monkeypatch) -> None:
+def test_fetch_registry_index_parses_valid_json(monkeypatch: pytest.MonkeyPatch) -> None:
     payload = {"schema_version": "1.0.0", "modules": []}
 
     def fake_get(*_args, **_kwargs):
@@ -136,7 +127,7 @@ def test_fetch_registry_index_parses_valid_json(monkeypatch) -> None:
     assert index["schema_version"] == "1.0.0"
 
 
-def test_fetch_registry_index_network_unavailable_returns_none(monkeypatch) -> None:
+def test_fetch_registry_index_network_unavailable_returns_none(monkeypatch: pytest.MonkeyPatch) -> None:
     def fake_get(*_args, **_kwargs):
         raise OSError("network down")
 
@@ -145,7 +136,7 @@ def test_fetch_registry_index_network_unavailable_returns_none(monkeypatch) -> N
     assert fetch_registry_index() is None
 
 
-def test_fetch_registry_index_invalid_json_raises_value_error(monkeypatch) -> None:
+def test_fetch_registry_index_invalid_json_raises_value_error(monkeypatch: pytest.MonkeyPatch) -> None:
     def fake_get(*_args, **_kwargs):
         return _DummyResponse(status_code=200, text="{invalid")
 
@@ -155,7 +146,9 @@ def test_fetch_registry_index_invalid_json_raises_value_error(monkeypatch) -> No
         fetch_registry_index()
 
 
-def test_download_module_downloads_tarball_and_verifies_checksum(monkeypatch, tmp_path: Path) -> None:
+def test_download_module_downloads_tarball_and_verifies_checksum(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     module_bytes = b"module-tarball-bytes"
     checksum = hashlib.sha256(module_bytes).hexdigest()
     index = {
@@ -188,7 +181,9 @@ def test_download_module_downloads_tarball_and_verifies_checksum(monkeypatch, tm
     assert tarball_path.read_bytes() == module_bytes
 
 
-def test_download_module_checksum_mismatch_raises_security_error(monkeypatch, tmp_path: Path) -> None:
+def test_download_module_checksum_mismatch_raises_security_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     index = {
         "schema_version": "1.0.0",
         "modules": [

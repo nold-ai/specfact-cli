@@ -9,9 +9,11 @@ import sys
 from pathlib import Path
 
 import yaml
+from icontract import ensure
 from packaging.version import Version
 
 
+@ensure(lambda result: result is None, "Verification either succeeds or raises")
 def main(module_dir: Path) -> None:
     repository = Path(__file__).resolve().parents[1]
     registry = repository / "src/specfact_cli/registry"

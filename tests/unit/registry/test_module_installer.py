@@ -15,7 +15,7 @@ from specfact_cli.registry.module_installer import InstallModuleOptions, install
 
 
 @pytest.fixture(autouse=True)
-def _no_op_resolve_dependencies(monkeypatch: pytest.MonkeyPatch) -> None:
+def stub_pip_dependency_resolution(monkeypatch: pytest.MonkeyPatch) -> None:
     """Avoid invoking pip-based resolver in unit tests (Hatch env may lack pip module)."""
     monkeypatch.setattr(
         "specfact_cli.registry.module_installer.resolve_dependencies",
@@ -61,7 +61,7 @@ def _create_module_tarball(
     return tarball
 
 
-def test_install_module_downloads_extracts_and_registers(monkeypatch, tmp_path: Path) -> None:
+def test_install_module_downloads_extracts_and_registers(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     tarball = _create_module_tarball(tmp_path, "backlog")
     monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_args, **_kwargs: tarball)
 
@@ -73,7 +73,7 @@ def test_install_module_downloads_extracts_and_registers(monkeypatch, tmp_path: 
     assert installed.parent == install_root
 
 
-def test_install_module_to_default_marketplace_path(monkeypatch, tmp_path: Path) -> None:
+def test_install_module_to_default_marketplace_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     tarball = _create_module_tarball(tmp_path, "drift")
     monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_args, **_kwargs: tarball)
 
@@ -82,7 +82,9 @@ def test_install_module_to_default_marketplace_path(monkeypatch, tmp_path: Path)
     assert installed == install_root / "drift"
 
 
-def test_install_module_handles_macos_application_support_install_root(monkeypatch, tmp_path: Path) -> None:
+def test_install_module_handles_macos_application_support_install_root(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     """Marketplace install must treat macOS Application Support paths as paths, not shell words."""
     tarball = _create_module_tarball(tmp_path, "drift")
     monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_args, **_kwargs: tarball)
@@ -95,7 +97,7 @@ def test_install_module_handles_macos_application_support_install_root(monkeypat
     assert (install_root / "drift" / module_installer.REGISTRY_ID_FILE).read_text(encoding="utf-8") == "specfact/drift"
 
 
-def test_install_module_already_installed_returns_existing(monkeypatch, tmp_path: Path) -> None:
+def test_install_module_already_installed_returns_existing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     tarball = _create_module_tarball(tmp_path, "sync")
     monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_args, **_kwargs: tarball)
 
@@ -106,7 +108,7 @@ def test_install_module_already_installed_returns_existing(monkeypatch, tmp_path
     assert first_install == second_install
 
 
-def test_install_module_replaces_existing_module_on_reinstall(monkeypatch, tmp_path: Path) -> None:
+def test_install_module_replaces_existing_module_on_reinstall(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     first_tarball = _create_module_tarball(tmp_path, "sync", module_version="0.1.0")
     second_tarball = _create_module_tarball(tmp_path, "sync-v2", module_version="0.2.0")
 
@@ -126,7 +128,9 @@ def test_install_module_replaces_existing_module_on_reinstall(monkeypatch, tmp_p
     assert "version: '0.2.0'" in manifest
 
 
-def test_install_module_logs_satisfied_dependencies_without_warning(monkeypatch, tmp_path: Path) -> None:
+def test_install_module_logs_satisfied_dependencies_without_warning(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     tarball = _create_module_tarball(
         tmp_path,
         "backlog",
@@ -169,7 +173,9 @@ def test_install_module_logs_satisfied_dependencies_without_warning(monkeypatch,
     )
 
 
-def test_install_module_reinstalls_dependency_when_registry_id_mismatch(monkeypatch, tmp_path: Path) -> None:
+def test_install_module_reinstalls_dependency_when_registry_id_mismatch(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     root_tarball = _create_module_tarball(
         tmp_path / "root",
         "backlog",
@@ -215,7 +221,9 @@ def test_install_module_reinstalls_dependency_when_registry_id_mismatch(monkeypa
     assert downloaded_modules == ["test-org/specfact-backlog"]
 
 
-def test_install_module_rejects_existing_bundle_dependency_version_mismatch(monkeypatch, tmp_path: Path) -> None:
+def test_install_module_rejects_existing_bundle_dependency_version_mismatch(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     module_dir = tmp_path / "review-pkg" / "specfact-code-review"
     module_dir.mkdir(parents=True, exist_ok=True)
     (module_dir / "module-package.yaml").write_text(
@@ -318,7 +326,7 @@ def test_bundle_dependency_install_rejects_post_install_registry_identity_mismat
         module_installer._install_bundle_dependencies_for_module("nold-ai/specfact-spec", ctx)
 
 
-def test_install_module_rejects_archive_path_traversal(monkeypatch, tmp_path: Path) -> None:
+def test_install_module_rejects_archive_path_traversal(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     tarball = tmp_path / "unsafe.tar.gz"
     with tarfile.open(tarball, "w:gz") as archive:
         manifest_bytes = b"name: policy\nversion: '0.1.0'\ncommands: [policy]\ncore_compatibility: \">=0.1.0,<1.0.0\"\n"
@@ -340,7 +348,7 @@ def test_install_module_rejects_archive_path_traversal(monkeypatch, tmp_path: Pa
         )
 
 
-def test_install_module_rejects_invalid_namespace_format(monkeypatch, tmp_path: Path) -> None:
+def test_install_module_rejects_invalid_namespace_format(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """install_module raises ValueError for module_id not matching namespace/name (lowercase, alphanumeric + hyphens)."""
     tarball = _create_module_tarball(tmp_path, "backlog")
     monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_args, **_kwargs: tarball)
@@ -350,7 +358,7 @@ def test_install_module_rejects_invalid_namespace_format(monkeypatch, tmp_path: 
             install_module(invalid_id, InstallModuleOptions(install_root=install_root))
 
 
-def test_install_module_accepts_valid_namespace_format(monkeypatch, tmp_path: Path) -> None:
+def test_install_module_accepts_valid_namespace_format(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """install_module accepts module_id matching namespace/name (lowercase, alphanumeric + hyphens)."""
     tarball = _create_module_tarball(tmp_path, "backlog")
     monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_args, **_kwargs: tarball)
@@ -363,7 +371,7 @@ def test_install_module_accepts_valid_namespace_format(monkeypatch, tmp_path: Pa
     assert (install_root / "backlog-pro" / "module-package.yaml").exists()
 
 
-def test_install_module_namespace_collision_raises(monkeypatch, tmp_path: Path) -> None:
+def test_install_module_namespace_collision_raises(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """When same name is already installed from a different module_id, install_module raises namespace collision."""
     tarball = _create_module_tarball(tmp_path, "backlog")
     monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_args, **_kwargs: tarball)
@@ -375,7 +383,7 @@ def test_install_module_namespace_collision_raises(monkeypatch, tmp_path: Path) 
         install_module("acme-corp/backlog", InstallModuleOptions(install_root=install_root))
 
 
-def test_uninstall_user_modules_tree_requires_confirm_or_env(monkeypatch, tmp_path: Path) -> None:
+def test_uninstall_user_modules_tree_requires_confirm_or_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Removing a module under USER_MODULES_ROOT must be explicit (CLI or env), never accidental."""
     user_root = tmp_path / "modules"
     monkeypatch.setattr(module_installer, "USER_MODULES_ROOT", user_root)
@@ -403,7 +411,7 @@ def test_uninstall_user_modules_tree_requires_confirm_or_env(monkeypatch, tmp_pa
     assert not mod_dir.exists()
 
 
-def test_uninstall_user_modules_tree_allows_env_confirmation(monkeypatch, tmp_path: Path) -> None:
+def test_uninstall_user_modules_tree_allows_env_confirmation(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Scripted uninstalls may set SPECFACT_CONFIRM_USER_SCOPE_UNINSTALL=1 instead of passing the flag."""
     user_root = tmp_path / "modules"
     monkeypatch.setattr(module_installer, "USER_MODULES_ROOT", user_root)
@@ -443,7 +451,7 @@ def test_uninstall_builtin_module_raises_error(tmp_path: Path) -> None:
         uninstall_module("init", install_root=install_root, source_map={"init": "builtin"})
 
 
-def test_install_module_validates_core_compatibility(monkeypatch, tmp_path: Path) -> None:
+def test_install_module_validates_core_compatibility(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     tarball = _create_module_tarball(tmp_path, "policy", core_compatibility=">=9.0.0")
     monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_args, **_kwargs: tarball)
 
@@ -454,7 +462,7 @@ def test_install_module_validates_core_compatibility(monkeypatch, tmp_path: Path
         )
 
 
-def test_install_module_defaults_to_user_modules_root(monkeypatch, tmp_path: Path) -> None:
+def test_install_module_defaults_to_user_modules_root(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Installer should default to canonical user modules root when no install_root is provided."""
     tarball = _create_module_tarball(tmp_path, "policy")
     monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_args, **_kwargs: tarball)
@@ -466,7 +474,7 @@ def test_install_module_defaults_to_user_modules_root(monkeypatch, tmp_path: Pat
     assert installed == user_root / "policy"
 
 
-def test_install_module_rejects_denylisted_module(monkeypatch, tmp_path: Path) -> None:
+def test_install_module_rejects_denylisted_module(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     tarball = _create_module_tarball(tmp_path, "blocked")
     monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_args, **_kwargs: tarball)
     monkeypatch.setattr(
@@ -478,7 +486,7 @@ def test_install_module_rejects_denylisted_module(monkeypatch, tmp_path: Path) -
         install_module("specfact/blocked", InstallModuleOptions(install_root=tmp_path / "modules"))
 
 
-def test_sync_bundled_modules_rejects_denylisted_module(monkeypatch, tmp_path: Path) -> None:
+def test_sync_bundled_modules_rejects_denylisted_module(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     bundled = tmp_path / "bundled" / "blocked"
     bundled.mkdir(parents=True)
     (bundled / "module-package.yaml").write_text(
@@ -497,7 +505,9 @@ def test_sync_bundled_modules_rejects_denylisted_module(monkeypatch, tmp_path: P
         module_installer.sync_bundled_modules_to_user_root(target_root=tmp_path / "target")
 
 
-def test_install_bundled_module_enforces_integrity_verification(monkeypatch, tmp_path: Path) -> None:
+def test_install_bundled_module_enforces_integrity_verification(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     bundled = tmp_path / "bundled" / "secure"
     bundled.mkdir(parents=True)
     (bundled / "module-package.yaml").write_text(
@@ -776,7 +786,7 @@ def test_verify_module_artifact_fallback_emits_debug_in_debug_mode(
 
 
 def test_verify_module_artifact_falls_back_when_signature_backend_unavailable(
-    monkeypatch, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     module_dir = tmp_path / "secure"
     (module_dir / "src").mkdir(parents=True)
@@ -807,7 +817,7 @@ def test_verify_module_artifact_falls_back_when_signature_backend_unavailable(
 
 
 def test_verify_module_artifact_fails_if_signature_required_and_backend_unavailable(
-    monkeypatch, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     module_dir = tmp_path / "secure"
     (module_dir / "src").mkdir(parents=True)
@@ -845,7 +855,9 @@ def test_verify_module_artifact_fails_if_signature_required_and_backend_unavaila
     )
 
 
-def test_uninstall_module_falls_back_to_legacy_marketplace_root(tmp_path: Path, monkeypatch) -> None:
+def test_uninstall_module_falls_back_to_legacy_marketplace_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     user_root = tmp_path / "modules"
     legacy_marketplace_root = tmp_path / "marketplace-modules"
     monkeypatch.setattr(module_installer, "USER_MODULES_ROOT", user_root)
@@ -861,7 +873,9 @@ def test_uninstall_module_falls_back_to_legacy_marketplace_root(tmp_path: Path, 
     assert not module_dir.exists()
 
 
-def test_load_public_key_pem_prefers_explicit_then_env_then_bundled(monkeypatch, tmp_path: Path) -> None:
+def test_load_public_key_pem_prefers_explicit_then_env_then_bundled(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     key_file = tmp_path / "module-signing-public.pem"
     key_file.write_text("PUBLIC-KEY-FROM-FILE", encoding="utf-8")
     monkeypatch.setattr(module_installer, "_bundled_public_key_path", lambda: key_file)

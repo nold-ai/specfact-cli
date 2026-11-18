@@ -1248,6 +1248,15 @@ def _metadata_obj_from_install_dict(metadata: dict[str, Any], manifest_module_na
         )
 
 
+def _verify_installed_official_dependency(module_id: str, manifest: Path) -> None:
+    installed = yaml.safe_load(manifest.read_text(encoding="utf-8"))
+    if not isinstance(installed, dict):
+        raise ValueError(f"Invalid installed dependency manifest: {module_id}")
+    meta = _metadata_obj_from_install_dict(installed, module_id)
+    if meta.name != module_id or not _verify_frozen_module_tree(manifest.parent, meta):
+        raise ValueError(f"Dependency '{module_id}' is outside the approved release cutoff")
+
+
 def _install_bundle_dependencies_for_module(module_id: str, ctx: _BundleDepsInstallContext) -> None:
     for dependency in _extract_bundle_dependency_specs(ctx.metadata):
         dependency_module_id = dependency.module_id
@@ -1256,28 +1265,21 @@ def _install_bundle_dependencies_for_module(module_id: str, ctx: _BundleDepsInst
         dependency_name = dependency_module_id.split("/", 1)[1]
         dependency_manifest = ctx.target_root / dependency_name / "module-package.yaml"
         dependency_id_file = dependency_manifest.parent / REGISTRY_ID_FILE
-        if dependency_manifest.exists() and dependency_id_file.exists():
-            installed_registry_id = dependency_id_file.read_text(encoding="utf-8").strip()
-            if installed_registry_id == dependency_module_id:
-                dependency_version = _installed_dependency_version(dependency_manifest)
-                if dependency_module_id.startswith("nold-ai/"):
-                    installed = yaml.safe_load(dependency_manifest.read_text(encoding="utf-8"))
-                    if not isinstance(installed, dict):
-                        raise ValueError(f"Invalid installed dependency manifest: {dependency_module_id}")
-                    meta = _metadata_obj_from_install_dict(installed, dependency_module_id)
-                    if meta.name != dependency_module_id or not _verify_frozen_module_tree(
-                        dependency_manifest.parent, meta
-                    ):
-                        raise ValueError(f"Dependency '{dependency_module_id}' is outside the approved release cutoff")
-                _raise_if_dependency_version_mismatch(
-                    dependency_module_id,
-                    dependency_version,
-                    dependency.version_specifier,
-                )
-                ctx.logger.info(
-                    "Dependency %s already satisfied (version %s)", dependency_module_id, dependency_version
-                )
-                continue
+        if (
+            dependency_manifest.exists()
+            and dependency_id_file.exists()
+            and dependency_id_file.read_text(encoding="utf-8").strip() == dependency_module_id
+        ):
+            dependency_version = _installed_dependency_version(dependency_manifest)
+            if dependency_module_id.startswith("nold-ai/"):
+                _verify_installed_official_dependency(dependency_module_id, dependency_manifest)
+            _raise_if_dependency_version_mismatch(
+                dependency_module_id,
+                dependency_version,
+                dependency.version_specifier,
+            )
+            ctx.logger.info("Dependency %s already satisfied (version %s)", dependency_module_id, dependency_version)
+            continue
         try:
             install_module(
                 dependency_module_id,

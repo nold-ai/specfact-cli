@@ -55,66 +55,34 @@ def _stub_integrity_and_deps(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("specfact_cli.registry.module_installer.assert_module_allowed", lambda *_args, **_kwargs: None)
 
 
-def test_installing_spec_bundle_installs_project_dependency_first(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+@pytest.mark.parametrize("bundle_name", ["specfact-spec", "specfact-govern"])
+def test_installing_bundle_installs_project_dependency_first(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, bundle_name: str
 ) -> None:
     _stub_integrity_and_deps(monkeypatch)
-    tar_project = _create_module_tarball(tmp_path, "specfact-project")
-    tar_spec = _create_module_tarball(
-        tmp_path,
-        "specfact-spec",
-        bundle_dependencies=["fixture-labs/specfact-project"],
-    )
+    project_id = "fixture-labs/specfact-project"
+    bundle_id = f"fixture-labs/{bundle_name}"
+    archives = {
+        project_id: _create_module_tarball(tmp_path, "specfact-project"),
+        bundle_id: _create_module_tarball(tmp_path, bundle_name, bundle_dependencies=[project_id]),
+    }
     calls: list[str] = []
 
     def _download(module_id: str, version: str | None = None) -> Path:
         _ = version
         calls.append(module_id)
-        if module_id == "fixture-labs/specfact-project":
-            return tar_project
-        if module_id == "fixture-labs/specfact-spec":
-            return tar_spec
-        raise ValueError(f"unexpected module id: {module_id}")
+        if module_id not in archives:
+            raise ValueError(f"unexpected module id: {module_id}")
+        return archives[module_id]
 
     monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", _download)
     install_root = tmp_path / "modules"
 
-    install_module("fixture-labs/specfact-spec", InstallModuleOptions(install_root=install_root))
+    install_module(bundle_id, InstallModuleOptions(install_root=install_root))
 
-    assert calls[:2] == ["fixture-labs/specfact-spec", "fixture-labs/specfact-project"]
+    assert calls[:2] == [bundle_id, project_id]
     assert (install_root / "specfact-project" / "module-package.yaml").exists()
-    assert (install_root / "specfact-spec" / "module-package.yaml").exists()
-
-
-def test_installing_govern_bundle_installs_project_dependency_first(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    _stub_integrity_and_deps(monkeypatch)
-    tar_project = _create_module_tarball(tmp_path, "specfact-project")
-    tar_govern = _create_module_tarball(
-        tmp_path,
-        "specfact-govern",
-        bundle_dependencies=["fixture-labs/specfact-project"],
-    )
-    calls: list[str] = []
-
-    def _download(module_id: str, version: str | None = None) -> Path:
-        _ = version
-        calls.append(module_id)
-        if module_id == "fixture-labs/specfact-project":
-            return tar_project
-        if module_id == "fixture-labs/specfact-govern":
-            return tar_govern
-        raise ValueError(f"unexpected module id: {module_id}")
-
-    monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", _download)
-    install_root = tmp_path / "modules"
-
-    install_module("fixture-labs/specfact-govern", InstallModuleOptions(install_root=install_root))
-
-    assert calls[:2] == ["fixture-labs/specfact-govern", "fixture-labs/specfact-project"]
-    assert (install_root / "specfact-project" / "module-package.yaml").exists()
-    assert (install_root / "specfact-govern" / "module-package.yaml").exists()
+    assert (install_root / bundle_name / "module-package.yaml").exists()
 
 
 def test_dependency_install_is_skipped_when_already_installed(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
