@@ -2,16 +2,23 @@
 
 from __future__ import annotations
 
+import importlib.util
 import io
+import os
+import py_compile
+import shutil
+import subprocess
+import sys
 import tarfile
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from specfact_cli.models.module_package import IntegrityInfo, ModulePackageMetadata
 from specfact_cli.registry import module_installer
 from specfact_cli.registry.module_installer import InstallModuleOptions, install_module, uninstall_module
+from specfact_cli.registry.module_packages import discover_package_metadata
 
 
 @pytest.fixture(autouse=True)
@@ -25,6 +32,62 @@ def stub_pip_dependency_resolution(monkeypatch: pytest.MonkeyPatch) -> None:
         "specfact_cli.registry.module_installer.install_resolved_pip_requirements",
         lambda *_a, **_k: None,
     )
+
+
+@pytest.fixture
+def approved_registry_module(tmp_path: Path) -> tuple[Path, ModulePackageMetadata]:
+    shipped = Path(module_installer.__file__).parents[1] / "modules" / "module_registry"
+    installed = tmp_path / "module_registry"
+    shutil.copytree(shipped, installed, ignore=shutil.ignore_patterns("__pycache__"))
+    return installed, discover_package_metadata(tmp_path)[0][1]
+
+
+def test_cutoff_registration_uses_verified_manifest_bytes(
+    approved_registry_module: tuple[Path, ModulePackageMetadata],
+) -> None:
+    installed, metadata = approved_registry_module
+    manifest = (installed / "module-package.yaml").read_bytes()
+    with patch.object(
+        module_installer,
+        "_metadata_matches_authenticated_manifest",
+        wraps=module_installer._metadata_matches_authenticated_manifest,
+    ) as compare:
+        assert module_installer.verify_module_artifact_from_filesystem(installed, metadata, "")
+    compare.assert_called_once_with(metadata, {"module-package.yaml": manifest})
+
+
+@pytest.mark.parametrize("other_runtime", [False, True], ids=["other-optimization", "other-python"])
+def test_frozen_install_shares_standard_caches(
+    approved_registry_module: tuple[Path, ModulePackageMetadata], other_runtime: bool
+) -> None:
+    installed, metadata = approved_registry_module
+    source = installed / "src" / "app.py"
+    if other_runtime:
+        other_python = os.environ.get("SPECFACT_TEST_OTHER_PYTHON")
+        if not other_python:
+            pytest.skip("Set SPECFACT_TEST_OTHER_PYTHON to run the cross-version cache check")
+        subprocess.run(
+            [
+                other_python,
+                "-I",
+                "-S",
+                "-c",
+                "import py_compile, sys; py_compile.compile(sys.argv[1], doraise=True)",
+                str(source),
+            ],
+            check=True,
+            timeout=30,
+        )
+    else:
+        py_compile.compile(str(source), doraise=True, optimize=0 if sys.flags.optimize else 1)
+
+    active_cache = Path(importlib.util.cache_from_source(str(source)))
+    assert not active_cache.exists() and list(active_cache.parent.glob("*.pyc"))
+    assert module_installer.verify_module_artifact_from_filesystem(installed, metadata, "")
+    py_compile.compile(str(source), doraise=True)
+    assert module_installer.verify_module_artifact_from_filesystem(installed, metadata, "")
+    active_cache.write_bytes(active_cache.read_bytes() + b"invalid cache suffix")
+    assert not module_installer.verify_module_artifact_from_filesystem(installed, metadata, "")
 
 
 def _create_module_tarball(

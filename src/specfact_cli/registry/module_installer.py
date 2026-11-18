@@ -9,6 +9,7 @@ import os
 import py_compile
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tarfile
@@ -822,34 +823,41 @@ def _managed_module_requires_cutoff(meta: ModulePackageMetadata) -> bool:
 
 
 def _verify_frozen_module_tree(package_dir: Path, meta: ModulePackageMetadata) -> bool:
-    """Match exact published files, allowing verified interpreter caches and install receipts."""
+    """Match exact published files, with standard caches and install receipts handled separately."""
+    return _verified_frozen_manifests(package_dir, meta) is not None
+
+
+def _verified_frozen_manifests(package_dir: Path, meta: ModulePackageMetadata) -> dict[str, bytes] | None:
+    """Return the manifest bytes covered by the approved tree digest."""
     entries: list[str] = []
     caches: list[Path] = []
     sources: dict[Path, bytes] = {}
+    manifests: dict[str, bytes] = {}
     try:
         if package_dir.is_symlink() or not package_dir.is_dir():
-            return False
+            return None
         for path in sorted(package_dir.rglob("*"), key=lambda entry: entry.relative_to(package_dir).as_posix()):
-            relative = path.relative_to(package_dir)
-            if path.is_symlink():
-                return False
-            if path.is_dir():
+            relative = path.relative_to(package_dir).as_posix()
+            mode = path.lstat().st_mode
+            if stat.S_ISDIR(mode):
                 continue
-            if not path.is_file():
-                return False
-            if relative.as_posix() in _IGNORED_MODULE_FILE_NAMES:
+            if not stat.S_ISREG(mode):
+                return None
+            if relative in _IGNORED_MODULE_FILE_NAMES:
                 continue
             if path.parent.name == "__pycache__" and path.suffix == ".pyc":
                 caches.append(path)
                 continue
             data = path.read_bytes()
-            if path.suffix in {".py", ".pyw"}:
+            if relative in {"module-package.yaml", "metadata.yaml"}:
+                manifests[relative] = data
+            elif path.suffix in {".py", ".pyw"}:
                 sources[path] = data
-            entries.append(f"{relative.as_posix()}:{hashlib.sha256(data).hexdigest()}")
+            entries.append(f"{relative}:{hashlib.sha256(data).hexdigest()}")
         digest = hashlib.sha256("\n".join(entries).encode()).hexdigest()
         if not frozen_tree_matches(meta.name, meta.version, digest):
-            return False
-        return all(_release_cache_matches(path, package_dir, sources) for path in caches)
+            return None
+        return manifests if all(_release_cache_matches(path, package_dir, sources) for path in caches) else None
     except (
         OSError,
         ValueError,
@@ -859,7 +867,7 @@ def _verify_frozen_module_tree(package_dir: Path, meta: ModulePackageMetadata) -
         py_compile.PyCompileError,
         subprocess.SubprocessError,
     ):
-        return False
+        return None
 
 
 def _filesystem_payload_snapshot(package_dir: Path, module_dir_resolved: Path) -> _FilesystemPayloadSnapshot:
@@ -884,19 +892,20 @@ def _filesystem_payload_snapshot(package_dir: Path, module_dir_resolved: Path) -
 
 
 def _metadata_matches_authenticated_manifest(meta: ModulePackageMetadata, manifests: dict[str, bytes]) -> bool:
-    """Bind every registration field to the same manifest bytes authenticated by the payload signature."""
+    """Bind registration fields to authenticated manifest bytes."""
     from specfact_cli.registry.module_grouping import ModuleManifestError
     from specfact_cli.registry.module_packages import normalize_module_manifest
 
-    canonical = manifests.get("module-package.yaml")
-    if canonical is None:
-        canonical = manifests.get("metadata.yaml")
-    if canonical is None:
+    manifest = manifests.get("module-package.yaml")
+    if manifest is None:
+        manifest = manifests.get("metadata.yaml")
+    if manifest is None:
         return False
     try:
-        raw = yaml.safe_load(canonical)
+        raw = yaml.safe_load(manifest.decode("utf-8"))
         if not isinstance(raw, dict) or "name" not in raw or "commands" not in raw:
             return False
+        cast(dict[str, Any], raw).pop("integrity", None)
         expected = normalize_module_manifest(cast(dict[str, Any], raw), meta.source)
         excluded = {"integrity", "source", "protocol_operations"}
         return expected.model_dump(exclude=excluded) == meta.model_dump(exclude=excluded)
@@ -904,8 +913,11 @@ def _metadata_matches_authenticated_manifest(meta: ModulePackageMetadata, manife
         return False
 
 
-def _compiled_authenticated_source_body(source: Path, data: bytes, *, isolated: bool = False) -> bytes:
+def _compiled_authenticated_source_body(
+    source: Path, data: bytes, *, isolated: bool = False, optimization: int | None = None
+) -> bytes:
     """Derive a standard cache from captured authenticated bytes without executing module code."""
+    optimize = sys.flags.optimize if optimization is None else optimization
     with tempfile.TemporaryDirectory(prefix="specfact-source-cache-") as temporary:
         input_file = Path(temporary) / "source.py"
         output_file = Path(temporary) / "cache.pyc"
@@ -922,7 +934,7 @@ def _compiled_authenticated_source_body(source: Path, data: bytes, *, isolated: 
                     str(input_file),
                     str(output_file),
                     str(source),
-                    str(sys.flags.optimize),
+                    str(optimize),
                 ],
                 capture_output=True,
                 check=True,
@@ -930,7 +942,7 @@ def _compiled_authenticated_source_body(source: Path, data: bytes, *, isolated: 
             )
         else:
             py_compile.compile(
-                str(input_file), cfile=str(output_file), dfile=str(source), doraise=True, optimize=sys.flags.optimize
+                str(input_file), cfile=str(output_file), dfile=str(source), doraise=True, optimize=optimize
             )
         return output_file.read_bytes()[16:]
 
@@ -1036,19 +1048,47 @@ def _authenticated_cache_body_matches(body: bytes, reference: bytes) -> bool:
         return False
 
 
+def _cache_header_matches(data: bytes, magic: bytes) -> bool:
+    return len(data) > 16 and data[:4] == magic and int.from_bytes(data[4:8], "little") in (0, 1, 3)
+
+
+def _release_cache_optimization(path: Path, source: Path) -> int | None:
+    for level in (0, 1, 2):
+        if path == Path(importlib.util.cache_from_source(str(source), optimization=level or "")):
+            return level
+    return None
+
+
+def _foreign_release_cache(path: Path, source: Path, data: bytes) -> bool:
+    """Recognize standard caches whose bytecode this interpreter cannot load."""
+    if sys.implementation.name != "cpython" or sys.pycache_prefix is not None:
+        return False
+    if path.parent != source.parent / "__pycache__":
+        return False
+    # Bytecode format identifiers for the CPython versions in the runtime matrix.
+    magics = {"cpython-311": 3495, "cpython-312": 3531, "cpython-313": 3571}
+    for tag, number in magics.items():
+        if tag == sys.implementation.cache_tag:
+            continue
+        if path.name in {f"{source.stem}.{tag}{suffix}.pyc" for suffix in ("", ".opt-1", ".opt-2")}:
+            magic = number.to_bytes(2, "little") + b"\r\n"
+            return magic != importlib.util.MAGIC_NUMBER and _cache_header_matches(data, magic)
+    return False
+
+
 def _release_cache_matches(path: Path, root: Path, sources: dict[Path, bytes]) -> bool:
-    """Match compiled source bytes, allowing CPython 3.11 short ASCII interning tags to differ."""
+    """Authenticate local bytecode or recognize an inactive cache for authenticated source."""
     source = Path(importlib.util.source_from_cache(str(path)))
-    if source not in sources or Path(importlib.util.cache_from_source(str(source))) != path:
+    if source not in sources:
         return False
+    optimization = _release_cache_optimization(path, source)
+    if optimization is None:
+        with path.open("rb") as stream:
+            return _foreign_release_cache(path, source, stream.read(17))
     data = path.read_bytes()
-    if (
-        len(data) < 16
-        or data[:4] != importlib.util.MAGIC_NUMBER
-        or int.from_bytes(data[4:8], "little") not in (0, 1, 3)
-    ):
+    if not _cache_header_matches(data, importlib.util.MAGIC_NUMBER):
         return False
-    expected = _compiled_authenticated_source_body(source, sources[source])
+    expected = _compiled_authenticated_source_body(source, sources[source], optimization=optimization)
     body = data[16:]
     if _authenticated_cache_body_matches(body, expected):
         return True
@@ -1058,9 +1098,9 @@ def _release_cache_matches(path: Path, root: Path, sources: dict[Path, bytes]) -
         return False
     # A fresh interpreter avoids cache serialization differences from imported modules.
     return _authenticated_cache_body_matches(
-        body, _compiled_authenticated_source_body(Path(name), sources[source])
+        body, _compiled_authenticated_source_body(Path(name), sources[source], optimization=optimization)
     ) or _authenticated_cache_body_matches(
-        body, _compiled_authenticated_source_body(Path(name), sources[source], isolated=True)
+        body, _compiled_authenticated_source_body(Path(name), sources[source], isolated=True, optimization=optimization)
     )
 
 
@@ -1156,9 +1196,8 @@ def _filesystem_executable_payload_is_covered(
 def verify_module_artifact_from_filesystem(package_dir: Path, meta: ModulePackageMetadata, public_key_pem: str) -> bool:
     """Verify every filesystem payload file with no unsigned, key-override or receipt fallback."""
     if _managed_module_requires_cutoff(meta):
-        return _verify_frozen_module_tree(package_dir, meta) and _metadata_matches_authenticated_manifest(
-            meta, _filesystem_payload_snapshot(package_dir, package_dir.resolve()).canonical_manifests
-        )
+        manifests = _verified_frozen_manifests(package_dir, meta)
+        return manifests is not None and _metadata_matches_authenticated_manifest(meta, manifests)
     if meta.integrity is None or not meta.integrity.signature or not public_key_pem.strip():
         return False
     try:

@@ -286,6 +286,14 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Locate Python 3.11 for the shared-cache test
+        if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
+        id: shared-cache-python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.11"
+          update-environment: false
+
       - name: Set up frozen test dependencies
         if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
         uses: ./.github/actions/setup-frozen-python
@@ -377,6 +385,7 @@ jobs:
           TEST_MODE: "true"
           SMART_TEST_TIMEOUT_SECONDS: "1800"
           PYTEST_ADDOPTS: "-r fEw"
+          SPECFACT_TEST_OTHER_PYTHON: ${{ steps.shared-cache-python.outputs.python-path }}
         run: |
           echo "🧪 Running full test suite (direct smart-test-full, Python 3.12)..."
           unset GITHUB_BASE_REF
@@ -448,6 +457,12 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.11"
+      - name: Locate Python 3.12 for the shared-cache test
+        id: shared-cache-python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.12"
+          update-environment: false
       - name: Set up frozen compatibility dependencies
         uses: ./.github/actions/setup-frozen-python
       - name: Set up reviewed portable runtime fixture
@@ -455,6 +470,8 @@ jobs:
 
       - name: Run Python 3.11 compatibility tests
         shell: bash
+        env:
+          SPECFACT_TEST_OTHER_PYTHON: ${{ steps.shared-cache-python.outputs.python-path }}
         run: |
           echo "🔁 Python 3.11 compatibility checks"
           mkdir -p logs/compat-py311

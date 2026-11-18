@@ -29,3 +29,9 @@ Hosted Python 3.11.18 matched the bundled registry's release-tree hash and refus
 The full Linux suite exposed another valid cache with the same length and only two short ASCII interning-tag differences against the live compiler reference. Verification now identifies those tag positions in the authenticated compiler output. Content bytes and reference flags must still match. A separate test proves the same byte values in a literal are compared exactly.
 
 The Python 3.11 compatibility run passed the cutoff cache regressions and failed one analyzer integration test because source discovery could exclude every file under a temporary directory containing `env`. The analyzer correction and its tests come from PR #791. With Python 3.11.18 and an `env`-named temporary directory, the integration test reproduced the same empty feature list and all six source-inclusion regressions failed before the fix. After applying it, all 41 analyzer unit and contract integration tests passed, including the three excluded-directory controls.
+
+## Manifest binding and shared interpreter caches
+
+The three review regressions failed on `df240c7` before the fix. Registration compared a second manifest read, and a supported cache with another interpreter or optimization caused the approved module to be rejected.
+
+After the fix, 79 installer, cutoff and registration tests passed on each of Python 3.11 and 3.12. The shared installation passed when verified in sequence with Python 3.11, 3.12 and 3.11 again. Both interpreter cache files were present. The tests still reject a changed cache for the active interpreter. The original Requirements mapping and its selected test inputs are unchanged.
