@@ -94,8 +94,10 @@ def test_bundled_release_accepts_standard_import_cache(tmp_path: Path) -> None:
             sys.executable,
             *options,
             "-c",
-            "import importlib.machinery, sys; "
-            "loader = importlib.machinery.SourceFileLoader('fixture', sys.argv[1]); loader.get_code('fixture')",
+            (
+                "import importlib.machinery, sys; "
+                + "loader = importlib.machinery.SourceFileLoader('fixture', sys.argv[1]); loader.get_code('fixture')"
+            ),
             str(staging / "src/commands.py"),
         ],
         check=True,

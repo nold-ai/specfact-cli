@@ -929,8 +929,10 @@ def _compiled_authenticated_source_body(
                     "-I",
                     "-S",
                     "-c",
-                    "import py_compile, sys; py_compile.compile(*sys.argv[1:4], "
-                    "doraise=True, optimize=int(sys.argv[4]))",
+                    (
+                        "import py_compile, sys; py_compile.compile(*sys.argv[1:4], "
+                        + "doraise=True, optimize=int(sys.argv[4]))"
+                    ),
                     str(input_file),
                     str(output_file),
                     str(source),
