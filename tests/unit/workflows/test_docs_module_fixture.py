@@ -30,10 +30,8 @@ def test_docs_review_uses_independent_verified_module_fixture(filename: str, job
     assert "test_llms_overview_freshness.py" in scripts
     assert "${SPECFACT_DOCS_MODULES_REPO:?" in scripts
     checkout = next(step for step in steps if step.get("name") == "Checkout module command sources")
-    assert checkout["with"]["ref"] in (
-        "${{ steps.modules-fixture.outputs.commit }}",
-        "${{ steps.modules-fixture.outputs.ref }}",
-    )
+    identity = json.loads((REPO_ROOT / "ci/docs-module-fixture.lock.json").read_text(encoding="utf-8"))
+    assert checkout["with"]["ref"] == identity["commit"]
 
 
 def test_requirements_fixture_authority_stays_at_approved_release() -> None:
@@ -94,7 +92,6 @@ def test_docs_fixture_checks_reject_actual_identity_mismatches(
     workflow = yaml.safe_load((REPO_ROOT / ".github/workflows" / filename).read_text())
     steps = {step.get("name"): step for step in workflow["jobs"][job]["steps"]}
     script = steps["Read immutable module fixture"]["run"] + steps["Verify immutable module fixture"]["run"]
-    script = script.replace("${{ steps.modules-fixture.outputs.repository }}", "nold-ai/specfact-cli-modules")
     environment = {
         **os.environ,
         "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],

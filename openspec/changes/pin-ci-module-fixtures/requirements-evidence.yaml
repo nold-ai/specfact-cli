@@ -1,0 +1,41 @@
+schema_version: '2'
+requirements:
+  openspec:pin-ci-module-fixtures:ci-module-fixture-trust:pin-module-fixtures-before-ci-checkout:
+    rationale: Bind default-branch-capable validation checkouts to the reviewed revisions.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#771
+    touchpoints:
+      - id: orchestrator
+        kind: config_file
+        locator: .github/workflows/pr-orchestrator.yml
+      - id: contract
+        kind: config_file
+        locator: .github/workflows/specfact.yml
+      - id: docs
+        kind: config_file
+        locator: .github/workflows/docs-review.yml
+    verification_cases:
+      - case_id: CI-PIN-ORCHESTRATOR
+        scenario_id: pin-module-fixtures-before-ci-checkout
+        method: test
+        intent: Check the scheduled orchestrator fixture selectors.
+        observable: Checked-out repository and literal commit equal the corresponding lock in every affected job.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_ci_module_fixture_pins.py::test_default_branch_jobs_pin_module_checkouts[orchestrator]
+      - case_id: CI-PIN-CONTRACT
+        scenario_id: pin-module-fixtures-before-ci-checkout
+        method: test
+        intent: Check the manually dispatched contract fixture selector.
+        observable: The checkout uses the reviewed Requirements repository and literal commit.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_ci_module_fixture_pins.py::test_default_branch_jobs_pin_module_checkouts[contract]
+      - case_id: CI-PIN-DOCS
+        scenario_id: pin-module-fixtures-before-ci-checkout
+        method: test
+        intent: Check the manually dispatched docs fixture selector.
+        observable: The checkout uses the reviewed documentation repository and literal commit.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_ci_module_fixture_pins.py::test_default_branch_jobs_pin_module_checkouts[docs]

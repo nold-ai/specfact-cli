@@ -249,15 +249,6 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Read immutable module fixture
-        id: modules-fixture
-        if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          fixture_ref="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
-          echo "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"
-
       - name: Checkout module bundles repo
         if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -265,7 +256,7 @@ jobs:
           persist-credentials: false
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
-          ref: ${{ steps.modules-fixture.outputs.ref }}
+          ref: 69f075819be5e1ceca1446b026b0417f19e584ca
 
       - name: Export module bundles path
         if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
@@ -429,21 +420,13 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - name: Read immutable module fixture
-        id: modules-fixture
-        shell: bash
-        run: |
-          set -euo pipefail
-          fixture_ref="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
-          echo "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"
-
       - name: Checkout module bundles repo
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
-          ref: ${{ steps.modules-fixture.outputs.ref }}
+          ref: 69f075819be5e1ceca1446b026b0417f19e584ca
       - name: Export module bundles path
         run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
       - name: Verify immutable module fixture
@@ -501,21 +484,13 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
-      - name: Read immutable module fixture
-        id: modules-fixture
-        shell: bash
-        run: |
-          set -euo pipefail
-          fixture_ref="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
-          echo "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"
-
       - name: Checkout module bundles repo
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
-          ref: ${{ steps.modules-fixture.outputs.ref }}
+          ref: 69f075819be5e1ceca1446b026b0417f19e584ca
       - name: Export module bundles path
         run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
       - name: Verify immutable module fixture
@@ -571,7 +546,6 @@ jobs:
         with:
           persist-credentials: false
       - name: Read immutable module fixture
-        id: modules-fixture
         shell: bash
         run: |
           set -euo pipefail
@@ -581,7 +555,6 @@ jobs:
           test "$repository" = "nold-ai/specfact-cli-modules"
           [[ "$fixture_ref" =~ ^[0-9a-f]{40}$ ]]
           [[ "$tree" =~ ^[0-9a-f]{40}$ ]]
-          echo "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout module command sources
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -589,7 +562,7 @@ jobs:
           persist-credentials: false
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
-          ref: ${{ steps.modules-fixture.outputs.ref }}
+          ref: 046d366c190af7a188d6f48953a96edb65e766db
       - name: Verify immutable module fixture
         shell: bash
         run: |
@@ -949,21 +922,13 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Read immutable module fixture
-        id: modules-fixture
-        shell: bash
-        run: |
-          set -euo pipefail
-          fixture_ref="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
-          echo "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"
-
       - name: Checkout module bundles repo
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
-          ref: ${{ steps.modules-fixture.outputs.ref }}
+          ref: 69f075819be5e1ceca1446b026b0417f19e584ca
 
       - name: Verify immutable module fixture
         shell: bash
@@ -1011,21 +976,13 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Read immutable module fixture
-        id: modules-fixture
-        shell: bash
-        run: |
-          set -euo pipefail
-          fixture_ref="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
-          echo "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"
-
       - name: Checkout module bundles repo
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
-          ref: ${{ steps.modules-fixture.outputs.ref }}
+          ref: 69f075819be5e1ceca1446b026b0417f19e584ca
 
       - name: Verify immutable module fixture
         shell: bash
@@ -1401,23 +1358,13 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Read immutable module fixture
-        id: compatibility-modules-fixture
-        shell: bash
-        run: |
-          set -euo pipefail
-          fixture_ref="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
-          fixture_tree="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["tree"])')"
-          echo "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"
-          echo "tree=${fixture_tree}" >> "$GITHUB_OUTPUT"
-
       - name: Checkout module bundles repo
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
-          ref: ${{ steps.compatibility-modules-fixture.outputs.ref }}
+          ref: 69f075819be5e1ceca1446b026b0417f19e584ca
 
       - name: Verify immutable module fixture
         shell: bash
@@ -1425,7 +1372,7 @@ jobs:
           set -euo pipefail
           expected="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
           actual="$(git -C specfact-cli-modules rev-parse HEAD)"
-          expected_tree="${{ steps.compatibility-modules-fixture.outputs.tree }}"
+          expected_tree="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["tree"])')"
           actual_tree="$(git -C specfact-cli-modules rev-parse 'HEAD^{tree}')"
           test "$actual" = "$expected"
           test "$actual_tree" = "$expected_tree"
