@@ -6,6 +6,7 @@ CodeQL flags fixture revisions passed through step outputs to checkouts in CI jo
 
 - Pin the module repository and revision at each affected checkout while retaining lock verification.
 - Keep the existing Requirements and documentation fixture identities.
+- Keep Semgrep opt-in and audit its own frozen environment before the existing scan.
 
 ## Impact
 

@@ -39,3 +39,37 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/workflows/test_ci_module_fixture_pins.py::test_default_branch_jobs_pin_module_checkouts[docs]
+  openspec:pin-ci-module-fixtures:ci-scanner-isolation:isolate-the-opt-in-semgrep-installation:
+    rationale: Audit the external scanner's dependency graph separately from what SpecFact installs by default.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#796
+    touchpoints:
+      - id: project
+        kind: config_file
+        locator: pyproject.toml
+      - id: core-lock
+        kind: config_file
+        locator: requirements/ci/locked.txt
+      - id: scanner-lock
+        kind: config_file
+        locator: requirements/semgrep/locked.txt
+      - id: audit-job
+        kind: config_file
+        locator: .github/workflows/pr-orchestrator.yml
+    verification_cases:
+      - case_id: CI-SEMGREP-CORE
+        scenario_id: isolate-the-opt-in-semgrep-installation
+        method: test
+        intent: Verify the default package and audit locks omit the scanner graph.
+        observable: The core lock and standard install profiles exclude Semgrep, MCP, and wcmatch.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_ci_semgrep_isolation.py::test_shared_dependency_profiles_exclude_scanner
+      - case_id: CI-SEMGREP-SAST
+        scenario_id: isolate-the-opt-in-semgrep-installation
+        method: test
+        intent: Verify the scanner uses a separate audited environment without weakening SAST.
+        observable: The scan follows the strict audit and hash-checked wheel installation, with the existing SAST baseline and Bandit checks present.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_ci_semgrep_isolation.py::test_semgrep_is_audited_before_its_isolated_install_and_scan
