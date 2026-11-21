@@ -5,8 +5,8 @@ from __future__ import annotations
 import ast
 import importlib.util
 import json
+import os
 import subprocess
-import sys
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -49,6 +49,9 @@ def test_load_results_fails_closed_on_missing_required_fields(tmp_path: Path) ->
 
 
 def test_weak_hash_scan_preserves_security_findings_and_git_object_ids(tmp_path: Path) -> None:
+    scanner = os.environ.get("SPECFACT_SEMGREP_TEST_EXECUTABLE")
+    if not scanner:
+        pytest.skip("Requires the explicitly provisioned Semgrep executable")
     expressions = {
         "git_object": "hashlib.sha1(data, usedforsecurity=False)",
         "sha1_default": "hashlib.sha1(data)",
@@ -66,7 +69,7 @@ def test_weak_hash_scan_preserves_security_findings_and_git_object_ids(tmp_path:
     rule = Path(__file__).resolve().parents[3] / "tools/semgrep/sast.yml"
     result = subprocess.run(
         [
-            str(Path(sys.executable).with_name("semgrep")),
+            scanner,
             "scan",
             "--config",
             str(rule),

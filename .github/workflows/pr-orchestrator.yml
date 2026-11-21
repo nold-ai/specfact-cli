@@ -801,6 +801,8 @@ jobs:
           python scripts/semgrep_sast_gate.py \
             --results logs/static-analysis/semgrep.json \
             --baseline tools/semgrep/sast-baseline.json
+          SPECFACT_SEMGREP_TEST_EXECUTABLE="$scanner_env/bin/semgrep" \
+            python -m pytest -q tests/unit/scripts/test_semgrep_sast_gate.py
 
       - name: Upload independent static-analysis artifacts
         if: always()
