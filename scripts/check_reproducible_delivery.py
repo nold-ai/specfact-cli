@@ -25,6 +25,8 @@ CODE_REVIEW_REQUIREMENTS_INPUT = REPO_ROOT / "requirements" / "code-review" / "r
 CODE_REVIEW_LOCKED_EXPORT = REPO_ROOT / "requirements" / "code-review" / "locked.txt"
 RUNTIME_SMOKE_REQUIREMENTS_INPUT = REPO_ROOT / "requirements/runtime-smoke/requirements.in"
 RUNTIME_SMOKE_LOCKED_EXPORT = REPO_ROOT / "requirements/runtime-smoke/locked.txt"
+SEMGREP_REQUIREMENTS_INPUT = REPO_ROOT / "requirements/semgrep/requirements.in"
+SEMGREP_LOCKED_EXPORT = REPO_ROOT / "requirements/semgrep/locked.txt"
 CODE_REVIEW_INPUT_BINDING_PREFIX = "# input-sha256:"
 COMMIT_SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
@@ -210,6 +212,24 @@ def verify_runtime_smoke_lock() -> None:
 
 
 @beartype
+@ensure(_is_none, "must return None")
+def verify_semgrep_lock() -> None:
+    """Verify the frozen Linux scanner graph against its pinned input."""
+    contents = SEMGREP_LOCKED_EXPORT.read_text(encoding="utf-8")
+    expected = (
+        CODE_REVIEW_INPUT_BINDING_PREFIX + " " + hashlib.sha256(SEMGREP_REQUIREMENTS_INPUT.read_bytes()).hexdigest()
+    )
+    if [line for line in contents.splitlines() if line.startswith(CODE_REVIEW_INPUT_BINDING_PREFIX)] != [expected]:
+        raise ValueError("Semgrep lock input SHA-256 binding does not match requirements.in")
+    _verify_compiled_lock(
+        SEMGREP_REQUIREMENTS_INPUT,
+        SEMGREP_LOCKED_EXPORT,
+        contents,
+        ["--python-platform", "x86_64-manylinux_2_34", "--only-binary", ":all:"],
+    )
+
+
+@beartype
 def _without_generated_header(contents: str) -> str:
     """Strip uv's descriptive header before comparing generated requirement bodies."""
     return "\n".join(line for line in contents.splitlines() if not line.startswith("#")).strip()
@@ -226,6 +246,7 @@ def main(argv: list[str] | None = None) -> int:
         verify_locked_export()
         verify_code_review_lock()
         verify_runtime_smoke_lock()
+        verify_semgrep_lock()
         verify_module_fixture()
     except (OSError, ValueError, json.JSONDecodeError, subprocess.TimeoutExpired) as error:
         sys.stderr.write(f"reproducible delivery check failed: {error}\n")

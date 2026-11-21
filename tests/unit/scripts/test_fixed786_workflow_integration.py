@@ -187,11 +187,17 @@ def test_strict_audit_calendar_is_explicitly_berlin() -> None:
         for line in step["run"].splitlines()
         if line.strip().startswith("python scripts/security_audit_gate.py")
     ]
+    script = "python scripts/security_audit_gate.py"
+    core_policy = " --exceptions ci/core-vulnerability-audit-exceptions.json"
     assert commands == [
-        "python scripts/security_audit_gate.py",
-        "python scripts/security_audit_gate.py --requirement requirements/code-review/locked.txt",
-        "python scripts/security_audit_gate.py --requirement requirements/runtime-smoke/locked.txt",
+        script + core_policy,
+        script + " --requirement requirements/code-review/locked.txt" + core_policy,
+        script + " --requirement requirements/runtime-smoke/locked.txt" + core_policy,
     ]
+    scanner_steps = workflow["jobs"]["independent-static-analysis"]["steps"]
+    scanner_audit = next(item for item in scanner_steps if item.get("name") == "Audit and run isolated Semgrep")
+    assert scanner_audit["env"]["TZ"] == "Europe/Berlin"
+    assert "--exceptions ci/vulnerability-audit-exceptions-20261116.json" in scanner_audit["run"]
 
 
 @pytest.mark.parametrize("omitted", AUTH_FLAGS)

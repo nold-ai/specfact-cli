@@ -23,7 +23,6 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
         ("filelock", "4.2.1"),
         ("msgpack", "1.2.3"),
         ("setuptools", "84.1.0"),
-        ("semgrep", "1.182.1"),
         ("python-discovery", "1.6.1"),
         ("packaging", "26.3"),
         ("pycparser", "3.12"),

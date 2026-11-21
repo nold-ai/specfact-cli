@@ -56,6 +56,7 @@ jobs:
               - 'requirements/code-review/requirements.in'
               - 'requirements/code-review/locked.txt'
               - 'requirements/runtime-smoke/**'
+              - 'requirements/semgrep/**'
               - 'modules/**/module-package.yaml'
               - 'src/specfact_cli/modules/**/module-package.yaml'
               - 'scripts/check_license_compliance.py'
@@ -249,15 +250,6 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Read immutable module fixture
-        id: modules-fixture
-        if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          fixture_ref="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
-          echo "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"
-
       - name: Checkout module bundles repo
         if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -265,7 +257,7 @@ jobs:
           persist-credentials: false
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
-          ref: ${{ steps.modules-fixture.outputs.ref }}
+          ref: 69f075819be5e1ceca1446b026b0417f19e584ca
 
       - name: Export module bundles path
         if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
@@ -429,21 +421,13 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - name: Read immutable module fixture
-        id: modules-fixture
-        shell: bash
-        run: |
-          set -euo pipefail
-          fixture_ref="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
-          echo "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"
-
       - name: Checkout module bundles repo
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
-          ref: ${{ steps.modules-fixture.outputs.ref }}
+          ref: 69f075819be5e1ceca1446b026b0417f19e584ca
       - name: Export module bundles path
         run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
       - name: Verify immutable module fixture
@@ -501,21 +485,13 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
-      - name: Read immutable module fixture
-        id: modules-fixture
-        shell: bash
-        run: |
-          set -euo pipefail
-          fixture_ref="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
-          echo "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"
-
       - name: Checkout module bundles repo
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
-          ref: ${{ steps.modules-fixture.outputs.ref }}
+          ref: 69f075819be5e1ceca1446b026b0417f19e584ca
       - name: Export module bundles path
         run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
       - name: Verify immutable module fixture
@@ -571,7 +547,6 @@ jobs:
         with:
           persist-credentials: false
       - name: Read immutable module fixture
-        id: modules-fixture
         shell: bash
         run: |
           set -euo pipefail
@@ -581,7 +556,6 @@ jobs:
           test "$repository" = "nold-ai/specfact-cli-modules"
           [[ "$fixture_ref" =~ ^[0-9a-f]{40}$ ]]
           [[ "$tree" =~ ^[0-9a-f]{40}$ ]]
-          echo "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout module command sources
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -589,7 +563,7 @@ jobs:
           persist-credentials: false
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
-          ref: ${{ steps.modules-fixture.outputs.ref }}
+          ref: 046d366c190af7a188d6f48953a96edb65e766db
       - name: Verify immutable module fixture
         shell: bash
         run: |
@@ -804,16 +778,29 @@ jobs:
       - name: Set up frozen static-analysis dependencies
         uses: ./.github/actions/setup-frozen-python
 
-      - name: Run independent Semgrep and Bandit gates
-        env:
-          SEMGREP_ENABLE_VERSION_CHECK: "0"
+      - name: Run independent Bandit gate
         run: |
           mkdir -p logs/static-analysis
-          semgrep scan --config tools/semgrep/sast.yml --json --output logs/static-analysis/semgrep.json
+          bandit -r src/ -ll -f json -o logs/static-analysis/bandit.json
+
+      - name: Audit and run isolated Semgrep
+        env:
+          SEMGREP_ENABLE_VERSION_CHECK: "0"
+          TZ: Europe/Berlin
+        run: |
+          set -euo pipefail
+          python scripts/security_audit_gate.py --requirement requirements/semgrep/locked.txt \
+            --exceptions ci/vulnerability-audit-exceptions-20261116.json
+          scanner_env="${RUNNER_TEMP}/specfact-semgrep"
+          uv venv --python "${pythonLocation}/bin/python" "$scanner_env"
+          uv pip install --python "$scanner_env/bin/python" --require-hashes --only-binary :all: \
+            --default-index https://pypi.org/simple -r requirements/semgrep/locked.txt
+          uv pip check --python "$scanner_env/bin/python"
+          python scripts/check_license_compliance.py --additional-python "$scanner_env/bin/python"
+          "$scanner_env/bin/semgrep" scan --config tools/semgrep/sast.yml --json --output logs/static-analysis/semgrep.json
           python scripts/semgrep_sast_gate.py \
             --results logs/static-analysis/semgrep.json \
             --baseline tools/semgrep/sast-baseline.json
-          bandit -r src/ -ll -f json -o logs/static-analysis/bandit.json
 
       - name: Upload independent static-analysis artifacts
         if: always()
@@ -949,21 +936,13 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Read immutable module fixture
-        id: modules-fixture
-        shell: bash
-        run: |
-          set -euo pipefail
-          fixture_ref="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
-          echo "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"
-
       - name: Checkout module bundles repo
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
-          ref: ${{ steps.modules-fixture.outputs.ref }}
+          ref: 69f075819be5e1ceca1446b026b0417f19e584ca
 
       - name: Verify immutable module fixture
         shell: bash
@@ -1011,21 +990,13 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Read immutable module fixture
-        id: modules-fixture
-        shell: bash
-        run: |
-          set -euo pipefail
-          fixture_ref="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
-          echo "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"
-
       - name: Checkout module bundles repo
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
-          ref: ${{ steps.modules-fixture.outputs.ref }}
+          ref: 69f075819be5e1ceca1446b026b0417f19e584ca
 
       - name: Verify immutable module fixture
         shell: bash
@@ -1288,9 +1259,9 @@ jobs:
           TZ: Europe/Berlin
         run: |
           echo "🔍 Running CVE security audit..."
-          python scripts/security_audit_gate.py
-          python scripts/security_audit_gate.py --requirement requirements/code-review/locked.txt
-          python scripts/security_audit_gate.py --requirement requirements/runtime-smoke/locked.txt
+          python scripts/security_audit_gate.py --exceptions ci/core-vulnerability-audit-exceptions.json
+          python scripts/security_audit_gate.py --requirement requirements/code-review/locked.txt --exceptions ci/core-vulnerability-audit-exceptions.json
+          python scripts/security_audit_gate.py --requirement requirements/runtime-smoke/locked.txt --exceptions ci/core-vulnerability-audit-exceptions.json
 
   reproducible-delivery:
     name: Reproducible Delivery Evidence
@@ -1401,23 +1372,13 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Read immutable module fixture
-        id: compatibility-modules-fixture
-        shell: bash
-        run: |
-          set -euo pipefail
-          fixture_ref="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
-          fixture_tree="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["tree"])')"
-          echo "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"
-          echo "tree=${fixture_tree}" >> "$GITHUB_OUTPUT"
-
       - name: Checkout module bundles repo
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
-          ref: ${{ steps.compatibility-modules-fixture.outputs.ref }}
+          ref: 69f075819be5e1ceca1446b026b0417f19e584ca
 
       - name: Verify immutable module fixture
         shell: bash
@@ -1425,7 +1386,7 @@ jobs:
           set -euo pipefail
           expected="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
           actual="$(git -C specfact-cli-modules rev-parse HEAD)"
-          expected_tree="${{ steps.compatibility-modules-fixture.outputs.tree }}"
+          expected_tree="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["tree"])')"
           actual_tree="$(git -C specfact-cli-modules rev-parse 'HEAD^{tree}')"
           test "$actual" = "$expected"
           test "$actual_tree" = "$expected_tree"

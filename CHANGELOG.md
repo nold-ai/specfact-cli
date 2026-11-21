@@ -12,6 +12,11 @@ All notable changes to this project will be documented in this file.
 
 ## [0.55.15] - 2026-11-21
 
+### Security
+
+- Keep Semgrep opt-in as an external tool. CI audits its isolated dependency lock before running the existing static analysis.
+- Update the optional telemetry profile to the patched OpenTelemetry release series.
+
 ### Fixed
 
 - Restore Docs Review and CLI Command Validation for the frozen, reviewed documentation fixture after signing-key rotation.

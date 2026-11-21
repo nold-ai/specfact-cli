@@ -189,13 +189,13 @@ def test_compatibility_fixture_is_schedule_only_and_verified_before_export() -> 
     assert "workflow_dispatch" not in _on_block(workflow)
     job = cast(dict[str, Any], cast(dict[str, Any], workflow["jobs"])["dependency-compatibility"])
     assert job.get("if") == "github.event_name == 'schedule'"
-    read = _named_step(job, "Read immutable module fixture")
-    verify = _named_step(job, "Verify immutable module fixture")
+    verify = str(_named_step(job, "Verify immutable module fixture")["run"])
     steps = cast(list[dict[str, Any]], job["steps"])
     names = [str(step.get("name", "")) for step in steps]
     assert names.index("Verify immutable module fixture") < names.index("Export module bundles path")
-    assert '"tree"' in str(read.get("run", ""))
-    assert "HEAD^{tree}" in str(verify.get("run", ""))
+    assert 'json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["tree"]' in verify
+    assert "HEAD^{tree}" in verify
+    assert 'test "$actual_tree" = "$expected_tree"' in verify
 
 
 def test_post_fixture_node_setup_has_no_persistent_npm_cache() -> None:
@@ -391,12 +391,7 @@ def test_every_code_review_lock_install_has_exact_closure_proof() -> None:
 
 
 def test_frozen_graph_uses_official_semgrep_with_bounded_mcp_exception() -> None:
-    project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    dev = cast(list[str], project["project"]["optional-dependencies"]["dev"])
-    scanning = cast(list[str], project["project"]["optional-dependencies"]["scanning"])
-    assert {"semgrep>=1.175.0"} <= set(dev) & set(scanning)
-
-    locked = (REPO_ROOT / "requirements" / "ci" / "locked.txt").read_text(encoding="utf-8")
+    locked = (REPO_ROOT / "requirements/semgrep/locked.txt").read_text(encoding="utf-8")
     assert set(re.findall(r"^(?:semgrep|mcp)==[^\s]+", locked, re.MULTILINE)) == {"semgrep==1.182.1", "mcp==1.29.0"}
     assert re.search(r"^opentelemetry-api==1\.37\.0[ \t]", locked, re.MULTILINE)
     policy = json.loads((REPO_ROOT / "ci" / "security-tool-minimum-versions.json").read_text(encoding="utf-8"))
@@ -448,17 +443,6 @@ def test_frozen_graph_uses_official_semgrep_with_bounded_mcp_exception() -> None
             True,
             True,
         )
-    lock = tomllib.loads((REPO_ROOT / "uv.lock").read_text(encoding="utf-8"))
-    packages = [
-        (package["name"], package["version"], package["source"])
-        for package in lock["package"]
-        if package["name"] in {"semgrep", "mcp", "opentelemetry-api", "specfact-semgrep"}
-    ]
-    assert sorted(packages) == [
-        ("mcp", "1.29.0", {"registry": "https://pypi.org/simple"}),
-        ("opentelemetry-api", "1.37.0", {"registry": "https://pypi.org/simple"}),
-        ("semgrep", "1.182.1", {"registry": "https://pypi.org/simple"}),
-    ]
 
 
 def test_code_review_lock_is_bound_before_installation(tmp_path: Path) -> None:

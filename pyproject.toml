@@ -113,8 +113,8 @@ contracts = [
 ]
 
 telemetry = [
-    "opentelemetry-sdk>=1.27.0",
-    "opentelemetry-exporter-otlp-proto-http>=1.27.0",
+    "opentelemetry-sdk>=1.45.2",
+    "opentelemetry-exporter-otlp-proto-http>=1.45.2",
 ]
 
 dev = [
@@ -140,7 +140,6 @@ dev = [
     "pre-commit>=4.0.1",
     "mutmut>=3.3.1",  # Scheduled mutation baseline; frozen with the contributor toolchain.
     "yamllint>=1.37.1",  # GPL-3.0-or-later — dev-only exception; replace with a non-GPL YAML lint path in Phase 2.
-    "semgrep>=1.175.0",  # LGPL-2.1 — reviewed security floor; requirements/ci/locked.txt freezes the exact Semgrep/MCP pair.
 
     # Same contract exploration stack as [contracts] (extras cannot self-reference)
     "crosshair-tool>=0.0.97",
@@ -158,10 +157,6 @@ dev = [
     "bandit>=1.7.0",  # SAST scanner (MIT)
     "pip-licenses>=4.0.0",  # License enumeration for compliance gate (MIT)
     "pip-audit>=2.0.0",  # CVE audit via OSV database (Apache-2.0)
-]
-
-scanning = [
-    "semgrep>=1.175.0",  # Optional: Only needed for code scanning features
 ]
 
 enhanced-analysis = [
@@ -210,7 +205,6 @@ dependencies = [
     "ruff>=0.14.2",
     "radon>=6.0.1",
     "yamllint>=1.37.1",  # GPL-3.0-or-later — dev/test-only exception. Phase 2: replace with non-GPL YAML lint path.
-    "semgrep>=1.175.0",  # LGPL-2.1 — reviewed security floor; requirements/ci/locked.txt freezes the exact Semgrep/MCP pair.
     # Contract-First Development Dependencies
     "icontract>=2.7.1",
     "beartype>=0.22.4",
@@ -231,7 +225,9 @@ validate-prompts = "python tools/validate_prompts.py"
 bandit-scan = "bandit -r src/ -ll"
 license-check = "python scripts/check_license_compliance.py"
 # Wrap pip-audit so JSON parsing and CVSS threshold checks fail closed.
-security-audit = "python scripts/security_audit_gate.py && python scripts/security_audit_gate.py --requirement requirements/code-review/locked.txt && python scripts/security_audit_gate.py --requirement requirements/runtime-smoke/locked.txt"
+security-audit = """
+python scripts/security_audit_gate.py --exceptions ci/core-vulnerability-audit-exceptions.json && python scripts/security_audit_gate.py --exceptions ci/core-vulnerability-audit-exceptions.json --requirement requirements/code-review/locked.txt && python scripts/security_audit_gate.py --exceptions ci/core-vulnerability-audit-exceptions.json --requirement requirements/runtime-smoke/locked.txt
+"""
 refresh-frozen-delivery = "python scripts/refresh_reproducible_delivery.py"
 # Development scripts
 test = "pytest {args}"

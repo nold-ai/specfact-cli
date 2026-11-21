@@ -6,5 +6,5 @@
 
 ## 2. Separate the Semgrep dependency graph
 
-- [ ] Verify the core and scanner dependency boundaries.
+- [x] Verify the core and scanner dependency boundaries.
 - [ ] Verify the audited scanner and the existing scan gates in hosted CI.

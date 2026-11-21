@@ -25,6 +25,8 @@ DEFAULT_CODE_REVIEW_INPUT = REPO_ROOT / "requirements" / "code-review" / "requir
 DEFAULT_CODE_REVIEW_LOCK = REPO_ROOT / "requirements" / "code-review" / "locked.txt"
 DEFAULT_RUNTIME_SMOKE_INPUT = REPO_ROOT / "requirements" / "runtime-smoke" / "requirements.in"
 DEFAULT_RUNTIME_SMOKE_LOCK = REPO_ROOT / "requirements" / "runtime-smoke" / "locked.txt"
+DEFAULT_SEMGREP_INPUT = REPO_ROOT / "requirements/semgrep/requirements.in"
+DEFAULT_SEMGREP_LOCK = REPO_ROOT / "requirements/semgrep/locked.txt"
 CODE_REVIEW_INPUT_BINDING_PREFIX = "# input-sha256:"
 REQUIRED_FIELDS = frozenset(
     {
@@ -427,7 +429,7 @@ def validate_frozen_dependency_policy(
     code_review_input_path: Path = DEFAULT_CODE_REVIEW_INPUT,
     code_review_lock_path: Path = DEFAULT_CODE_REVIEW_LOCK,
 ) -> list[str]:
-    """Reject blocked releases and reviews across all three frozen dependency graphs."""
+    """Reject blocked releases and mismatched reviews across frozen dependency graphs."""
     errors = validate_exception_register(register_path, today=today)
     locked_packages, lock_errors = _read_locked_packages(lock_path)
     errors.extend(lock_errors)
@@ -449,6 +451,9 @@ def validate_frozen_dependency_policy(
     )
     errors.extend("Runtime smoke graph: " + error for error in smoke_errors)
     errors.extend(_validate_locked_version_policy(smoke_packages, tool_floors))
+    semgrep_packages, semgrep_errors = _read_code_review_locked_packages(DEFAULT_SEMGREP_INPUT, DEFAULT_SEMGREP_LOCK)
+    errors.extend("Semgrep graph: " + error for error in semgrep_errors)
+    errors.extend(_validate_locked_version_policy(semgrep_packages, tool_floors))
     return errors
 
 
