@@ -10,6 +10,14 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.55.15] - 2026-11-21
+
+### Fixed
+
+- Restore Docs Review and CLI Command Validation for the frozen, reviewed documentation fixture after signing-key rotation.
+
+---
+
 ## [0.55.14] - 2026-11-17
 
 ### Security
