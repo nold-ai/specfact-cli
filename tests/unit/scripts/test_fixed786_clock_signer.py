@@ -234,7 +234,7 @@ def test_fresh_owner_risk_register_keeps_its_own_expiry(
         class CurrentDate(date):
             @classmethod
             def today(cls) -> date:
-                return date(2026, 11, 22) if expired else date(2026, 11, 16)
+                return date(2026, 11, 22) if expired else date(2026, 11, 21)
 
         monkeypatch.setattr(module, "date", CurrentDate)
         register = ROOT / module.DEFAULT_EXCEPTIONS_FILE
