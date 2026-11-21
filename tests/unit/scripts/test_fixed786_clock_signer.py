@@ -4,6 +4,7 @@ import ast
 import hashlib
 import importlib.util
 import json
+import subprocess
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -156,7 +157,9 @@ def test_intent_rejects_the_other_pinned_program(
 
 @pytest.mark.parametrize("origin", [LEGACY, CLOCK])
 @pytest.mark.parametrize("case", ["valid", "wrong-branch", "attempt-two", "duplicate", "incomplete", "wrong-workflow"])
-def test_inline_workflow_authenticates_each_exact_completed_origin(origin: tuple[str, str, str], case: str) -> None:
+def test_inline_workflow_authenticates_each_exact_completed_origin(
+    origin: tuple[str, str, str], case: str, tmp_path: Path
+) -> None:
     workflow = yaml.safe_load((ROOT / ".github/workflows/requirements-evidence.yml").read_text())
     steps = workflow["jobs"]["requirements-fixed786-origin"]["steps"]
     program = next(step["run"] for step in steps if "expected_run = {" in step.get("run", ""))
@@ -198,18 +201,44 @@ def test_inline_workflow_authenticates_each_exact_completed_origin(origin: tuple
         history = {"total_count": 2, "workflow_runs": [dict(run), {**run, "id": 92}]}
     if case == "incomplete":
         history["total_count"] = 2
-    namespace = {
-        "get": lambda path: history if "per_page" in path else run,
+    context = {
+        "history": history,
+        "run": run,
         "run_text": "91",
         "executor": "a" * 40,
         "intent": {"repository_id": 7, "actor": actor, "triggering_actor": actor, "auxiliary_ref": origin[0]},
     }
-    code = compile(ast.fix_missing_locations(selected), "actual-workflow-run-admission", "exec")
+    driver = tmp_path / "validate_origin.py"
+    driver.write_text(
+        """
+import json
+import sys
+
+context = json.load(sys.stdin)
+run_text = context["run_text"]
+executor = context["executor"]
+intent = context["intent"]
+
+def get(path):
+    return context["history"] if "per_page" in path else context["run"]
+
+"""
+        + ast.unparse(selected),
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        [sys.executable, "-I", "-S", str(driver)],
+        input=json.dumps(context),
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=10,
+    )
     if case == "valid":
-        exec(code, namespace)
+        assert result.returncode == 0, result.stderr
     else:
-        with pytest.raises(ValueError):
-            exec(code, namespace)
+        assert result.returncode == 1, result.stderr
+        assert result.stderr.splitlines()[-1].startswith("ValueError:"), result.stderr
 
 
 @pytest.mark.parametrize("policy", ["security_audit_gate", "check_dependency_trust_exceptions"])
