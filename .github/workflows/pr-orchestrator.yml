@@ -619,7 +619,10 @@ jobs:
         run: |
           set -euo pipefail
           python -I - <<'PY'
+          import hashlib
           import importlib.util
+          import json
+          import subprocess
           from pathlib import Path
 
           modules = Path("specfact-cli-modules").resolve(strict=True)
@@ -641,6 +644,30 @@ jobs:
                      if source.is_dir()}
           if missing := required - bundles.keys():
               raise ValueError(f"Missing required documentation bundles: {', '.join(sorted(missing))}")
+          lock_path = (trusted / "ci/docs-module-fixture.lock.json").resolve()
+          if lock_path.is_file():
+              if not lock_path.is_relative_to(trusted) or lock_path.is_relative_to(modules):
+                  raise ValueError("The documentation fixture lock must come from the separate base checkout")
+              lock = json.loads(lock_path.read_text(encoding="utf-8"))
+              if lock.get("repository") == "nold-ai/specfact-cli-modules" and "packages_sha256" in lock:
+                  identity = subprocess.check_output(
+                      ["git", "-C", str(modules), "rev-parse", "HEAD", "HEAD^{tree}"],
+                      text=True, timeout=10,
+                  ).splitlines()
+                  if identity == [lock.get("commit"), lock.get("tree")]:
+                      packages = modules / "packages"
+                      paths = sorted(packages.rglob("*"), key=Path.as_posix)
+                      if packages.is_symlink() or any(path.is_symlink() for path in paths):
+                          raise ValueError("Symbolic links are forbidden in the reviewed documentation packages")
+                      entries = (
+                          f"{path.relative_to(modules).as_posix()}:{hashlib.sha256(path.read_bytes()).hexdigest()}"
+                          for path in paths if path.is_file()
+                      )
+                      digest = hashlib.sha256("\n".join(entries).encode()).hexdigest()
+                      if digest != lock["packages_sha256"]:
+                          raise ValueError("Reviewed documentation package digest mismatch")
+                      print(f"Authenticated {len(bundles)} documentation bundles against the base fixture lock.")
+                      raise SystemExit(0)
           public_key = key_path.read_text(encoding="utf-8")
           for name, bundle in sorted(bundles.items()):
               manifest = bundle / "module-package.yaml"
