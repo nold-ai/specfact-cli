@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import logging
 import os
+import py_compile
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tarfile
@@ -39,6 +42,12 @@ from specfact_cli.registry.module_discovery import (
     discover_all_modules,
 )
 from specfact_cli.registry.module_security import assert_module_allowed, ensure_publisher_trusted
+from specfact_cli.registry.official_module_cutoff import (
+    frozen_archive,
+    frozen_tree_matches,
+    is_frozen_bundled_module,
+    is_official_module,
+)
 from specfact_cli.runtime import is_debug_mode
 
 
@@ -294,21 +303,8 @@ def _integrity_debug_details_enabled() -> bool:
 
 @beartype
 def _bundled_public_key_path() -> Path:
-    """Resolve default bundled public key path for module signature verification.
-
-    Resolution order:
-    1. Repository source path (`./resources/keys/...`) for local/dev runs.
-    2. Installed package path (`specfact_cli/resources/keys/...`) for wheel installs.
-    """
-    key_name = "module-signing-public.pem"
-    candidates = [
-        Path(__file__).resolve().parents[3] / "resources" / "keys" / key_name,
-        Path(__file__).resolve().parents[1] / "resources" / "keys" / key_name,
-    ]
-    for path in candidates:
-        if path.exists():
-            return path
-    return candidates[0]
+    """Return the replacement module signing key bundled with the runtime."""
+    return Path(__file__).with_name("module-signing-public-next.pem")
 
 
 @beartype
@@ -362,7 +358,10 @@ def get_bundled_module_metadata() -> dict[str, ModulePackageMetadata]:
 @beartype
 def _canonical_manifest_payload(manifest_path: Path) -> bytes:
     """Build deterministic manifest payload for checksum/signature verification."""
-    parsed = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    try:
+        parsed = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as error:
+        raise ValueError("Invalid module manifest YAML") from error
     if not isinstance(parsed, dict):
         raise ValueError("Invalid module manifest format")
     cast(dict[str, Any], parsed).pop("integrity", None)
@@ -774,6 +773,8 @@ def verify_module_artifact(
     public_key_pem: str | None = None,
 ) -> bool:
     """Run integrity verification for a module artifact."""
+    if _managed_module_requires_cutoff(meta):
+        return _verify_frozen_module_tree(package_dir, meta)
     logger = get_bridge_logger(__name__)
     manifest_path = package_dir / "module-package.yaml"
     if not manifest_path.exists():
@@ -804,6 +805,431 @@ def verify_module_artifact(
     return _verify_signature_if_present(
         meta, verification_payload, public_key_pem, allow_unsigned, require_signature, logger
     )
+
+
+@dataclass(frozen=True, slots=True)
+class _FilesystemPayloadSnapshot:
+    """Retain the exact authenticated payload inputs for code and metadata binding."""
+
+    payload: bytes
+    sources: dict[Path, bytes]
+    canonical_manifests: dict[str, bytes]
+    file_digests: dict[Path, str]
+
+
+def _managed_module_requires_cutoff(meta: ModulePackageMetadata) -> bool:
+    publisher = meta.publisher.name if meta.publisher is not None else None
+    return is_official_module(meta.name, publisher, meta.tier) or is_frozen_bundled_module(meta.name)
+
+
+def _verify_frozen_module_tree(package_dir: Path, meta: ModulePackageMetadata) -> bool:
+    """Match exact published files, with standard caches and install receipts handled separately."""
+    return _verified_frozen_manifests(package_dir, meta) is not None
+
+
+def _verified_frozen_manifests(package_dir: Path, meta: ModulePackageMetadata) -> dict[str, bytes] | None:
+    """Return the manifest bytes covered by the approved tree digest."""
+    entries: list[str] = []
+    caches: list[Path] = []
+    sources: dict[Path, bytes] = {}
+    manifests: dict[str, bytes] = {}
+    try:
+        if package_dir.is_symlink() or not package_dir.is_dir():
+            return None
+        for path in sorted(package_dir.rglob("*"), key=lambda entry: entry.relative_to(package_dir).as_posix()):
+            relative = path.relative_to(package_dir).as_posix()
+            mode = path.lstat().st_mode
+            if stat.S_ISDIR(mode):
+                continue
+            if not stat.S_ISREG(mode):
+                return None
+            if relative in _IGNORED_MODULE_FILE_NAMES:
+                continue
+            if path.parent.name == "__pycache__" and path.suffix == ".pyc":
+                caches.append(path)
+                continue
+            data = path.read_bytes()
+            if relative in {"module-package.yaml", "metadata.yaml"}:
+                manifests[relative] = data
+            elif path.suffix in {".py", ".pyw"}:
+                sources[path] = data
+            entries.append(f"{relative}:{hashlib.sha256(data).hexdigest()}")
+        digest = hashlib.sha256("\n".join(entries).encode()).hexdigest()
+        if not frozen_tree_matches(meta.name, meta.version, digest):
+            return None
+        return manifests if all(_release_cache_matches(path, package_dir, sources) for path in caches) else None
+    except (
+        OSError,
+        ValueError,
+        EOFError,
+        TypeError,
+        SyntaxError,
+        py_compile.PyCompileError,
+        subprocess.SubprocessError,
+    ):
+        return None
+
+
+def _filesystem_payload_snapshot(package_dir: Path, module_dir_resolved: Path) -> _FilesystemPayloadSnapshot:
+    """Capture code and manifest bytes in the same canonical payload later authenticated by the core key."""
+    entries: list[str] = []
+    sources: dict[Path, bytes] = {}
+    manifests: dict[str, bytes] = {}
+    file_digests: dict[Path, str] = {}
+    for path in _rglob_signed_module_files(package_dir, module_dir_resolved):
+        relative = path.resolve().relative_to(module_dir_resolved).as_posix()
+        if relative in {"module-package.yaml", "metadata.yaml"}:
+            data = _canonical_manifest_payload(path)
+            manifests[relative] = data
+        else:
+            data = path.read_bytes()
+        digest = hashlib.sha256(data).hexdigest()
+        entries.append(f"{relative}:{digest}")
+        file_digests[path.resolve()] = digest
+        if path.suffix.lower() in {".py", ".pyw"}:
+            sources[path.resolve()] = data
+    return _FilesystemPayloadSnapshot("\n".join(entries).encode("utf-8"), sources, manifests, file_digests)
+
+
+def _metadata_matches_authenticated_manifest(meta: ModulePackageMetadata, manifests: dict[str, bytes]) -> bool:
+    """Bind registration fields to authenticated manifest bytes."""
+    from specfact_cli.registry.module_grouping import ModuleManifestError
+    from specfact_cli.registry.module_packages import normalize_module_manifest
+
+    manifest = manifests.get("module-package.yaml")
+    if manifest is None:
+        manifest = manifests.get("metadata.yaml")
+    if manifest is None:
+        return False
+    try:
+        raw = yaml.safe_load(manifest.decode("utf-8"))
+        if not isinstance(raw, dict) or "name" not in raw or "commands" not in raw:
+            return False
+        cast(dict[str, Any], raw).pop("integrity", None)
+        expected = normalize_module_manifest(cast(dict[str, Any], raw), meta.source)
+        excluded = {"integrity", "source", "protocol_operations"}
+        return expected.model_dump(exclude=excluded) == meta.model_dump(exclude=excluded)
+    except (yaml.YAMLError, ModuleManifestError, KeyError, TypeError, ValueError):
+        return False
+
+
+def _compiled_authenticated_source_body(
+    source: Path, data: bytes, *, isolated: bool = False, optimization: int | None = None
+) -> bytes:
+    """Derive a standard cache from captured authenticated bytes without executing module code."""
+    optimize = sys.flags.optimize if optimization is None else optimization
+    with tempfile.TemporaryDirectory(prefix="specfact-source-cache-") as temporary:
+        input_file = Path(temporary) / "source.py"
+        output_file = Path(temporary) / "cache.pyc"
+        input_file.write_bytes(data)
+        if isolated:
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-I",
+                    "-S",
+                    "-c",
+                    (
+                        "import py_compile, sys; py_compile.compile(*sys.argv[1:4], "
+                        + "doraise=True, optimize=int(sys.argv[4]))"
+                    ),
+                    str(input_file),
+                    str(output_file),
+                    str(source),
+                    str(optimize),
+                ],
+                capture_output=True,
+                check=True,
+                timeout=10,
+            )
+        else:
+            py_compile.compile(
+                str(input_file), cfile=str(output_file), dfile=str(source), doraise=True, optimize=optimize
+            )
+        return output_file.read_bytes()[16:]
+
+
+def _relocated_cache_filename(cache: bytes, expected: bytes, source: Path, relative: Path) -> str | None:
+    """Read a filename field at the offset established by trusted compiler output."""
+    filename = str(source).encode()
+    if expected.count(filename) != 1:
+        return None
+    offset = expected.index(filename) - (2 if filename.isascii() and len(filename) < 256 else 5)
+    if offset < 0 or len(cache) <= offset + 5:
+        return None
+    # CPython marshal uses one length byte for short ASCII strings and four otherwise.
+    tag = cache[offset] & 0x7F
+    if tag in b"zZ":
+        width = 1
+    elif tag in b"aAu":
+        width = 4
+    else:
+        return None
+    start = offset + 1 + width
+    length = int.from_bytes(cache[offset + 1 : start], "little")
+    if not 0 < length <= min(4096, len(cache) - start):
+        return None
+    name = cache[start : start + length].decode()
+    if not name.replace("\\", "/").endswith("/" + relative.as_posix()):
+        return None
+    return name
+
+
+def _compiler_short_ascii_tags(reference: bytes) -> set[int]:
+    """Locate short ASCII type tags in the CPython 3.11 compiler output."""
+    position = 0
+    offsets: set[int] = set()
+
+    def take(size: int) -> bytes:
+        nonlocal position
+        if not 0 <= size <= len(reference) - position:
+            raise ValueError("Invalid compiler reference length")
+        start = position
+        position += size
+        return reference[start:position]
+
+    def count() -> int:
+        return int.from_bytes(take(4), "little", signed=True)
+
+    def visit() -> None:
+        offset = position
+        tag = chr(take(1)[0] & 0x7F)
+        if tag == "c":
+            take(20)
+            for _ in range(8):
+                visit()
+            take(4)
+            visit()
+            visit()
+            return
+        if tag in ")(<>":
+            children = take(1)[0] if tag == ")" else count()
+            if not 0 <= children <= len(reference) - position:
+                raise ValueError("Invalid compiler reference count")
+            for _ in range(children):
+                visit()
+            return
+        if tag in "zZ":
+            offsets.add(offset)
+            take(take(1)[0])
+            return
+        if tag in "satAu":
+            take(count())
+            return
+        if tag == "l":
+            take(abs(count()) * 2)
+            return
+        widths = {"i": 4, "r": 4, "g": 8, "y": 16, "N": 0, "F": 0, "T": 0, "S": 0, ".": 0}
+        if tag not in widths:
+            raise ValueError("Unsupported compiler reference tag")
+        take(widths[tag])
+
+    visit()
+    if position != len(reference):
+        raise ValueError("Trailing compiler reference bytes")
+    return offsets
+
+
+def _authenticated_cache_body_matches(body: bytes, reference: bytes) -> bool:
+    if body == reference:
+        return True
+    if sys.implementation.name != "cpython" or sys.version_info[:2] != (3, 11) or len(body) != len(reference):
+        return False
+
+    differences: set[int] = set()
+    for offset, (actual, expected) in enumerate(zip(body, reference, strict=True)):
+        if actual == expected:
+            continue
+        # Z/z records share the same string bytes and reference index layout.
+        if {actual, expected} != {0xDA, 0xFA}:
+            return False
+        differences.add(offset)
+    try:
+        return differences.issubset(_compiler_short_ascii_tags(reference))
+    except (ValueError, RecursionError):
+        return False
+
+
+def _cache_header_matches(data: bytes, magic: bytes) -> bool:
+    return len(data) > 16 and data[:4] == magic and int.from_bytes(data[4:8], "little") in (0, 1, 3)
+
+
+def _release_cache_optimization(path: Path, source: Path) -> int | None:
+    for level in (0, 1, 2):
+        if path == Path(importlib.util.cache_from_source(str(source), optimization=level or "")):
+            return level
+    return None
+
+
+def _foreign_release_cache(path: Path, source: Path, data: bytes) -> bool:
+    """Recognize standard caches whose bytecode this interpreter cannot load."""
+    if sys.implementation.name != "cpython" or sys.pycache_prefix is not None:
+        return False
+    if path.parent != source.parent / "__pycache__":
+        return False
+    # Bytecode format identifiers for the CPython versions in the runtime matrix.
+    magics = {"cpython-311": 3495, "cpython-312": 3531, "cpython-313": 3571}
+    for tag, number in magics.items():
+        if tag == sys.implementation.cache_tag:
+            continue
+        if path.name in {f"{source.stem}.{tag}{suffix}.pyc" for suffix in ("", ".opt-1", ".opt-2")}:
+            magic = number.to_bytes(2, "little") + b"\r\n"
+            return magic != importlib.util.MAGIC_NUMBER and _cache_header_matches(data, magic)
+    return False
+
+
+def _release_cache_matches(path: Path, root: Path, sources: dict[Path, bytes]) -> bool:
+    """Authenticate local bytecode or recognize an inactive cache for authenticated source."""
+    source = Path(importlib.util.source_from_cache(str(path)))
+    if source not in sources:
+        return False
+    optimization = _release_cache_optimization(path, source)
+    if optimization is None:
+        with path.open("rb") as stream:
+            return _foreign_release_cache(path, source, stream.read(17))
+    data = path.read_bytes()
+    if not _cache_header_matches(data, importlib.util.MAGIC_NUMBER):
+        return False
+    expected = _compiled_authenticated_source_body(source, sources[source], optimization=optimization)
+    body = data[16:]
+    if _authenticated_cache_body_matches(body, expected):
+        return True
+    # pip can compile in a staging directory before moving the installed source.
+    name = _relocated_cache_filename(body, expected, source, source.relative_to(root))
+    if name is None:
+        return False
+    # A fresh interpreter avoids cache serialization differences from imported modules.
+    return _authenticated_cache_body_matches(
+        body, _compiled_authenticated_source_body(Path(name), sources[source], optimization=optimization)
+    ) or _authenticated_cache_body_matches(
+        body, _compiled_authenticated_source_body(Path(name), sources[source], isolated=True, optimization=optimization)
+    )
+
+
+def _authenticated_source_cache_body(path: Path, authenticated_sources: dict[Path, bytes]) -> bytes | None:
+    """Reproduce one canonical cache from authenticated bytes before the final inventory traversal."""
+    try:
+        source = Path(importlib.util.source_from_cache(str(path))).resolve()
+    except ValueError:
+        return None
+    return (
+        _compiled_authenticated_source_body(source, authenticated_sources[source])
+        if source in authenticated_sources
+        and Path(importlib.util.cache_from_source(str(source))).resolve() == path.resolve()
+        else None
+    )
+
+
+def _authenticated_source_cache_bodies(package_dir: Path, snapshot: _FilesystemPayloadSnapshot) -> dict[Path, bytes]:
+    """Finish all standard compiler work before making a final live-file authority decision."""
+    bodies: dict[Path, bytes] = {}
+    for path in package_dir.rglob("*"):
+        if path.is_file() and path.suffix.lower() == ".pyc":
+            body = _authenticated_source_cache_body(path, snapshot.sources)
+            if body is not None:
+                bodies[path.resolve()] = body
+    return bodies
+
+
+def _source_cache_matches_authenticated_body(path: Path, bodies: dict[Path, bytes]) -> bool:
+    """Compare live candidate bytes without compilation, execution or deserialization."""
+    expected = bodies.get(path.resolve())
+    if expected is None:
+        return False
+    data = path.read_bytes()
+    return (
+        len(data) >= 16
+        and data[:4] == importlib.util.MAGIC_NUMBER
+        and int.from_bytes(data[4:8], "little") in (0, 1, 3)
+        and data[16:] == expected
+    )
+
+
+def _filesystem_file_is_executable(path: Path) -> bool:
+    """Recognize code suffixes, executable modes and standard headers without running artifacts."""
+    suffixes = {".py", ".pyw", ".pyc", ".pyo", ".so", ".pyd", ".dll", ".dylib", ".bundle"}
+    if path.suffix.lower() in suffixes or path.stat().st_mode & 0o111:
+        return True
+    with path.open("rb") as stream:
+        header = stream.read(4)
+    return header.startswith((b"#!", b"MZ")) or header in {
+        b"\x7fELF",
+        b"\xfe\xed\xfa\xce",
+        b"\xce\xfa\xed\xfe",
+        b"\xfe\xed\xfa\xcf",
+        b"\xcf\xfa\xed\xfe",
+        b"\xca\xfe\xba\xbe",
+        b"\xbe\xba\xfe\xca",
+        b"\xca\xfe\xba\xbf",
+        b"\xbf\xba\xfe\xca",
+        importlib.util.MAGIC_NUMBER,
+    }
+
+
+def _filesystem_executable_payload_is_covered(
+    package_dir: Path, module_dir_resolved: Path, snapshot: _FilesystemPayloadSnapshot
+) -> bool:
+    """Check authenticated membership/content and unsigned executables after cache reproduction."""
+    cache_bodies = _authenticated_source_cache_bodies(package_dir, snapshot)
+    covered: set[Path] = set()
+    for path in package_dir.rglob("*"):
+        if path.is_symlink():
+            return False
+        if not path.is_file():
+            continue
+        if _signed_payload_is_hashable(path, module_dir_resolved):
+            relative = path.resolve().relative_to(module_dir_resolved).as_posix()
+            data = _canonical_manifest_payload(path) if relative in snapshot.canonical_manifests else path.read_bytes()
+            if snapshot.file_digests.get(path.resolve()) != hashlib.sha256(data).hexdigest():
+                return False
+            covered.add(path.resolve())
+            continue
+        if _filesystem_file_is_executable(path) and (
+            path.suffix.lower() != ".pyc" or not _source_cache_matches_authenticated_body(path, cache_bodies)
+        ):
+            return False
+    return covered == set(snapshot.file_digests)
+
+
+def _verify_frozen_registration(package_dir: Path, meta: ModulePackageMetadata) -> bool:
+    """Check the same registration root before and after comparing verified metadata."""
+    try:
+        resolved = package_dir.resolve(strict=True)
+        manifests = _verified_frozen_manifests(package_dir, meta)
+        return (
+            manifests is not None
+            and _metadata_matches_authenticated_manifest(meta, manifests)
+            and not package_dir.is_symlink()
+            and package_dir.resolve(strict=True) == resolved
+        )
+    except (OSError, RuntimeError):
+        return False
+
+
+@beartype
+@require(lambda package_dir: isinstance(package_dir, Path), "package_dir must be a Path")
+@require(lambda meta: isinstance(meta, ModulePackageMetadata), "meta must be a ModulePackageMetadata instance")
+@ensure(lambda result: isinstance(result, bool), "Must return a bool")
+def verify_module_artifact_from_filesystem(package_dir: Path, meta: ModulePackageMetadata, public_key_pem: str) -> bool:
+    """Verify every filesystem payload file with no unsigned, key-override or receipt fallback."""
+    if _managed_module_requires_cutoff(meta):
+        return _verify_frozen_registration(package_dir, meta)
+    if meta.integrity is None or not meta.integrity.signature or not public_key_pem.strip():
+        return False
+    try:
+        if package_dir.is_symlink() or any(path.is_symlink() for path in package_dir.rglob("*")):
+            return False
+        resolved = package_dir.resolve()
+        snapshot = _filesystem_payload_snapshot(package_dir, resolved)
+        verify_checksum(snapshot.payload, meta.integrity.checksum)
+        verify_signature(snapshot.payload, meta.integrity.signature, public_key_pem)
+        if not _metadata_matches_authenticated_manifest(meta, snapshot.canonical_manifests):
+            return False
+        return (
+            _filesystem_executable_payload_is_covered(package_dir, resolved, snapshot) and not package_dir.is_symlink()
+        )
+    except (OSError, ValueError, EOFError, TypeError, SyntaxError, py_compile.PyCompileError):
+        return False
 
 
 def _clear_reinstall_download_cache(module_id: str, logger: Any) -> None:
@@ -877,6 +1303,15 @@ def _metadata_obj_from_install_dict(metadata: dict[str, Any], manifest_module_na
         )
 
 
+def _verify_installed_official_dependency(module_id: str, manifest: Path) -> None:
+    installed = yaml.safe_load(manifest.read_text(encoding="utf-8"))
+    if not isinstance(installed, dict):
+        raise ValueError(f"Invalid installed dependency manifest: {module_id}")
+    meta = _metadata_obj_from_install_dict(installed, module_id)
+    if meta.name != module_id or not _verify_frozen_module_tree(manifest.parent, meta):
+        raise ValueError(f"Dependency '{module_id}' is outside the approved release cutoff")
+
+
 def _install_bundle_dependencies_for_module(module_id: str, ctx: _BundleDepsInstallContext) -> None:
     for dependency in _extract_bundle_dependency_specs(ctx.metadata):
         dependency_module_id = dependency.module_id
@@ -885,19 +1320,21 @@ def _install_bundle_dependencies_for_module(module_id: str, ctx: _BundleDepsInst
         dependency_name = dependency_module_id.split("/", 1)[1]
         dependency_manifest = ctx.target_root / dependency_name / "module-package.yaml"
         dependency_id_file = dependency_manifest.parent / REGISTRY_ID_FILE
-        if dependency_manifest.exists() and dependency_id_file.exists():
-            installed_registry_id = dependency_id_file.read_text(encoding="utf-8").strip()
-            if installed_registry_id == dependency_module_id:
-                dependency_version = _installed_dependency_version(dependency_manifest)
-                _raise_if_dependency_version_mismatch(
-                    dependency_module_id,
-                    dependency_version,
-                    dependency.version_specifier,
-                )
-                ctx.logger.info(
-                    "Dependency %s already satisfied (version %s)", dependency_module_id, dependency_version
-                )
-                continue
+        if (
+            dependency_manifest.exists()
+            and dependency_id_file.exists()
+            and dependency_id_file.read_text(encoding="utf-8").strip() == dependency_module_id
+        ):
+            dependency_version = _installed_dependency_version(dependency_manifest)
+            if dependency_module_id.startswith("nold-ai/"):
+                _verify_installed_official_dependency(dependency_module_id, dependency_manifest)
+            _raise_if_dependency_version_mismatch(
+                dependency_module_id,
+                dependency_version,
+                dependency.version_specifier,
+            )
+            ctx.logger.info("Dependency %s already satisfied (version %s)", dependency_module_id, dependency_version)
+            continue
         try:
             install_module(
                 dependency_module_id,
@@ -918,8 +1355,17 @@ def _install_bundle_dependencies_for_module(module_id: str, ctx: _BundleDepsInst
             dependency_version,
             dependency.version_specifier,
         )
+    _install_pip_dependencies_for_module(ctx)
+
+
+def _install_pip_dependencies_for_module(ctx: _BundleDepsInstallContext) -> None:
     try:
-        all_metas = [e.metadata for e in discover_all_modules()]
+        all_metas = [
+            entry.metadata
+            for entry in discover_all_modules()
+            if not _managed_module_requires_cutoff(entry.metadata)
+            or _verify_frozen_module_tree(entry.package_dir, entry.metadata)
+        ]
         all_metas.append(ctx.metadata_obj)
         resolved = resolve_dependencies(all_metas, allow_unvalidated=True)
     except DependencyConflictError as dep_err:
@@ -935,6 +1381,30 @@ def _install_bundle_dependencies_for_module(module_id: str, ctx: _BundleDepsInst
         install_resolved_pip_requirements(resolved)
     except PipDependencyInstallError as pip_err:
         raise ValueError(f"Failed to install resolved pip dependencies: {pip_err}") from pip_err
+
+
+def _verify_existing_official_install(manifest_path: Path, module_id: str, expected_version: str | None) -> None:
+    installed = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    if not isinstance(installed, dict):
+        raise ValueError("Installed module has an invalid manifest")
+    meta = _metadata_obj_from_install_dict(installed, module_id)
+    if (
+        meta.name != module_id
+        or (expected_version is not None and meta.version != expected_version)
+        or not _verify_frozen_module_tree(manifest_path.parent, meta)
+    ):
+        raise ValueError(f"Installed module '{module_id}' is outside the approved release cutoff; reinstall it")
+
+
+def _verify_extracted_install_cutoff(
+    module_dir: Path, metadata: ModulePackageMetadata, module_id: str, approved_version: str | None
+) -> None:
+    if approved_version is not None and (metadata.name != module_id or metadata.version != approved_version):
+        raise ValueError("Module archive identity does not match the approved release cutoff")
+    if (_managed_module_requires_cutoff(metadata) or approved_version is not None) and not _verify_frozen_module_tree(
+        module_dir, metadata
+    ):
+        raise ValueError("Module files do not match the approved release cutoff")
 
 
 def _atomic_place_verified_module(
@@ -994,20 +1464,32 @@ def install_module(
     manifest_path = final_path / "module-package.yaml"
 
     _check_namespace_collision(module_id, final_path, o.reinstall)
+    official = module_id.startswith("nold-ai/")
+    approved = frozen_archive(module_id, o.version) if official else None
     if manifest_path.exists() and not o.reinstall:
+        if approved is not None:
+            _verify_existing_official_install(manifest_path, module_id, approved[0] if o.version is not None else None)
         logger.debug("Module already installed (%s)", module_name)
         return final_path
 
     if o.reinstall:
         _clear_reinstall_download_cache(module_id, logger)
 
-    archive_path = _download_archive_with_cache(module_id, version=o.version)
+    archive_path = _download_archive_with_cache(module_id, version=approved[0] if approved else o.version)
 
     with tempfile.TemporaryDirectory(prefix="specfact-module-install-") as tmp_dir:
         tmp_dir_path = Path(tmp_dir)
         extract_root = tmp_dir_path / "extract"
         extract_root.mkdir(parents=True, exist_ok=True)
 
+        if approved is not None:
+            frozen_path = tmp_dir_path / "verified-module.tar.gz"
+            shutil.copyfile(archive_path, frozen_path)
+            with frozen_path.open("rb") as stream:
+                digest = hashlib.file_digest(stream, "sha256").hexdigest()
+            if digest != approved[1]["archive"]:
+                raise ValueError(f"Module '{module_id}' archive does not match the approved release cutoff")
+            archive_path = frozen_path
         _extract_marketplace_archive(archive_path, extract_root)
 
         extracted_module_dir, metadata = _load_first_extracted_module_manifest(extract_root)
@@ -1015,6 +1497,10 @@ def install_module(
             metadata, module_name, o.trust_non_official, o.non_interactive
         )
         metadata_obj = _metadata_obj_from_install_dict(metadata, manifest_module_name)
+
+        _verify_extracted_install_cutoff(
+            extracted_module_dir, metadata_obj, module_id, approved[0] if approved is not None else None
+        )
 
         if not o.skip_deps:
             _install_bundle_dependencies_for_module(

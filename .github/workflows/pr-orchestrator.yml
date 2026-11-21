@@ -55,12 +55,15 @@ jobs:
               - 'requirements/ci/locked.txt'
               - 'requirements/code-review/requirements.in'
               - 'requirements/code-review/locked.txt'
+              - 'requirements/runtime-smoke/**'
               - 'modules/**/module-package.yaml'
               - 'src/specfact_cli/modules/**/module-package.yaml'
               - 'scripts/check_license_compliance.py'
               - 'scripts/check_dependency_trust_exceptions.py'
               - 'scripts/license_allowlist.yaml'
               - 'ci/dependency-trust-exceptions.json'
+              - 'ci/dependency-trust-exceptions-20261116.json'
+              - 'ci/vulnerability-audit-exceptions-20261116.json'
               - 'scripts/module_pip_dependencies_licenses.yaml'
             version_sources:
               - 'pyproject.toml'
@@ -283,9 +286,21 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Locate Python 3.11 for the shared-cache test
+        if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
+        id: shared-cache-python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.11"
+          update-environment: false
+
       - name: Set up frozen test dependencies
         if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
         uses: ./.github/actions/setup-frozen-python
+
+      - name: Set up reviewed portable runtime fixture
+        if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
+        uses: ./.github/actions/setup-runtime-smoke-fixture
 
       - name: Verify version strings are synchronized
         if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
@@ -370,6 +385,7 @@ jobs:
           TEST_MODE: "true"
           SMART_TEST_TIMEOUT_SECONDS: "1800"
           PYTEST_ADDOPTS: "-r fEw"
+          SPECFACT_TEST_OTHER_PYTHON: ${{ steps.shared-cache-python.outputs.python-path }}
         run: |
           echo "🧪 Running full test suite (direct smart-test-full, Python 3.12)..."
           unset GITHUB_BASE_REF
@@ -412,6 +428,7 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
+          fetch-depth: 0
       - name: Read immutable module fixture
         id: modules-fixture
         shell: bash
@@ -440,10 +457,21 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.11"
+      - name: Locate Python 3.12 for the shared-cache test
+        id: shared-cache-python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.12"
+          update-environment: false
       - name: Set up frozen compatibility dependencies
         uses: ./.github/actions/setup-frozen-python
+      - name: Set up reviewed portable runtime fixture
+        uses: ./.github/actions/setup-runtime-smoke-fixture
+
       - name: Run Python 3.11 compatibility tests
         shell: bash
+        env:
+          SPECFACT_TEST_OTHER_PYTHON: ${{ steps.shared-cache-python.outputs.python-path }}
         run: |
           echo "🔁 Python 3.11 compatibility checks"
           mkdir -p logs/compat-py311
@@ -591,7 +619,10 @@ jobs:
         run: |
           set -euo pipefail
           python -I - <<'PY'
+          import hashlib
           import importlib.util
+          import json
+          import subprocess
           from pathlib import Path
 
           modules = Path("specfact-cli-modules").resolve(strict=True)
@@ -613,6 +644,30 @@ jobs:
                      if source.is_dir()}
           if missing := required - bundles.keys():
               raise ValueError(f"Missing required documentation bundles: {', '.join(sorted(missing))}")
+          lock_path = (trusted / "ci/docs-module-fixture.lock.json").resolve()
+          if lock_path.is_file():
+              if not lock_path.is_relative_to(trusted) or lock_path.is_relative_to(modules):
+                  raise ValueError("The documentation fixture lock must come from the separate base checkout")
+              lock = json.loads(lock_path.read_text(encoding="utf-8"))
+              if lock.get("repository") == "nold-ai/specfact-cli-modules" and "packages_sha256" in lock:
+                  identity = subprocess.check_output(
+                      ["git", "-C", str(modules), "rev-parse", "HEAD", "HEAD^{tree}"],
+                      text=True, timeout=10,
+                  ).splitlines()
+                  if identity == [lock.get("commit"), lock.get("tree")]:
+                      packages = modules / "packages"
+                      paths = sorted(packages.rglob("*"), key=Path.as_posix)
+                      if packages.is_symlink() or any(path.is_symlink() for path in paths):
+                          raise ValueError("Symbolic links are forbidden in the reviewed documentation packages")
+                      entries = (
+                          f"{path.relative_to(modules).as_posix()}:{hashlib.sha256(path.read_bytes()).hexdigest()}"
+                          for path in paths if path.is_file()
+                      )
+                      digest = hashlib.sha256("\n".join(entries).encode()).hexdigest()
+                      if digest != lock["packages_sha256"]:
+                          raise ValueError("Reviewed documentation package digest mismatch")
+                      print(f"Authenticated {len(bundles)} documentation bundles against the base fixture lock.")
+                      raise SystemExit(0)
           public_key = key_path.read_text(encoding="utf-8")
           for name, bundle in sorted(bundles.items()):
               manifest = bundle / "module-package.yaml"
@@ -921,11 +976,14 @@ jobs:
       - name: Set up frozen smoke dependencies
         uses: ./.github/actions/setup-frozen-python
 
+      - name: Set up reviewed portable runtime fixture
+        uses: ./.github/actions/setup-runtime-smoke-fixture
+
       - name: Run macOS runtime discovery smoke
         shell: bash
         run: |
           mkdir -p logs/runtime-smoke/macos
-          python scripts/runtime_discovery_smoke.py --modules-repo specfact-cli-modules --launcher direct 2>&1 | tee logs/runtime-smoke/macos/runtime-discovery.log
+          python scripts/runtime_discovery_smoke.py --modules-repo "$SPECFACT_SMOKE_MODULES_REPO" --launcher direct 2>&1 | tee logs/runtime-smoke/macos/runtime-discovery.log
 
       - name: Upload macOS runtime-smoke logs
         if: always()
@@ -980,11 +1038,14 @@ jobs:
       - name: Set up frozen smoke dependencies
         uses: ./.github/actions/setup-frozen-python
 
+      - name: Set up reviewed portable runtime fixture
+        uses: ./.github/actions/setup-runtime-smoke-fixture
+
       - name: Run Windows runtime discovery smoke
         shell: bash
         run: |
           mkdir -p logs/runtime-smoke/windows
-          python scripts/runtime_discovery_smoke.py --modules-repo specfact-cli-modules --launcher direct 2>&1 | tee logs/runtime-smoke/windows/runtime-discovery.log
+          python scripts/runtime_discovery_smoke.py --modules-repo "$SPECFACT_SMOKE_MODULES_REPO" --launcher direct 2>&1 | tee logs/runtime-smoke/windows/runtime-discovery.log
 
       - name: Upload Windows runtime-smoke logs
         if: always()
@@ -1163,10 +1224,23 @@ jobs:
             -r requirements/code-review/locked.txt
           echo "REVIEW_TOOLS_PYTHON=${review_tools}/bin/python" >> "$GITHUB_ENV"
 
+      - name: Install frozen runtime smoke license scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/check_reproducible_delivery.py
+          smoke_tools="${RUNNER_TEMP}/specfact-runtime-smoke-license-scope"
+          uv venv --python "${pythonLocation}/bin/python" "$smoke_tools"
+          uv pip install \
+            --python "${smoke_tools}/bin/python" \
+            --require-hashes --no-deps --only-binary :all: \
+            -r requirements/runtime-smoke/locked.txt
+          echo "SMOKE_TOOLS_PYTHON=${smoke_tools}/bin/python" >> "$GITHUB_ENV"
+
       - name: Run license compliance gate
         run: |
           echo "🔍 Running license compliance gate..."
-          python scripts/check_license_compliance.py --code-review-python "$REVIEW_TOOLS_PYTHON"
+          python scripts/check_license_compliance.py --code-review-python "$REVIEW_TOOLS_PYTHON" --additional-python "$SMOKE_TOOLS_PYTHON"
 
   dependency-trust:
     name: Dependency Trust Gate
@@ -1210,10 +1284,13 @@ jobs:
         uses: ./.github/actions/setup-frozen-python
 
       - name: Run CVE security audit
+        env:
+          TZ: Europe/Berlin
         run: |
           echo "🔍 Running CVE security audit..."
           python scripts/security_audit_gate.py
           python scripts/security_audit_gate.py --requirement requirements/code-review/locked.txt
+          python scripts/security_audit_gate.py --requirement requirements/runtime-smoke/locked.txt
 
   reproducible-delivery:
     name: Reproducible Delivery Evidence
@@ -1371,6 +1448,13 @@ jobs:
           compatibility_deselections=(
             --deselect=tests/unit/scripts/test_dependency_trust_review.py
             --deselect=tests/unit/scripts/test_reproducible_delivery.py
+            --deselect=tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export
+            --deselect=tests/unit/security/test_release_promotion_security_gates.py::test_frozen_graph_uses_official_semgrep_with_bounded_mcp_exception
+            --deselect=tests/unit/security/test_frozen_dependency_artifacts.py::test_frozen_certifi_bundle_excludes_compromised_root
+            --deselect=tests/unit/security/test_frozen_dependency_artifacts.py::test_artifact_download_rejects_wrong_sha256
+            --deselect=tests/unit/security/test_frozen_jwt_compatibility.py::test_inspection_preserves_options_and_expiry_on_reuse
+            --deselect=tests/unit/security/test_frozen_gitpython_compatibility.py::test_submodule_update_rejects_outside_checkout_before_clone
+            --deselect=tests/unit/security/test_frozen_gitpython_compatibility.py::test_submodule_creation_validates_checkout_before_clone
           )
           uv lock --upgrade
           uv sync --locked --all-extras

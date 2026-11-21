@@ -158,7 +158,8 @@ def test_reproducible_delivery_checker_rejects_stale_code_review_lock(
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     lock = module.CODE_REVIEW_LOCKED_EXPORT.read_text(encoding="utf-8")
-    stale_result = lock.replace("pylint==4.0.7", "pylint==4.0.8")
+    stale_result = lock.replace("pylint==4.0.9", "pylint==4.0.8")
+    assert stale_result != lock
 
     def compile_stale_result(command: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
         output = command[command.index("--output-file") + 1]
@@ -216,8 +217,8 @@ def test_reproducible_delivery_verifier_bounds_uv_commands_and_fails_closed_on_t
 def test_reproducible_delivery_wheel_build_uses_a_locked_backend() -> None:
     """The no-isolation wheel proof must use the backend pinned in delivery inputs."""
     project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    assert project["build-system"]["requires"] == ["hatchling==1.32.0"]
-    assert "hatchling==1.32.0" in project["project"]["optional-dependencies"]["dev"]
+    assert project["build-system"]["requires"] == ["hatchling==1.32.4"]
+    assert "hatchling==1.32.4" in project["project"]["optional-dependencies"]["dev"]
     assert "twine>=7.0" in project["project"]["optional-dependencies"]["dev"]
     assert "core-metadata-version" not in project["tool"]["hatch"]["build"]["targets"]["wheel"]
 
@@ -321,3 +322,17 @@ def test_locked_sbom_renderer_uses_pip_inspect_without_generator_dependency(tmp_
             "referenceType": "purl",
         }
     ]
+
+
+def test_smoke_lock_rejects_unreviewed_input_change(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """A changed smoke seed cannot reuse the old reviewed lock binding."""
+    checker = REPO_ROOT / "scripts/check_reproducible_delivery.py"
+    spec = importlib.util.spec_from_file_location("check_reproducible_delivery", checker)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    altered = tmp_path / "requirements.in"
+    altered.write_text("lz4==0.0.0\n")
+    monkeypatch.setattr(module, "RUNTIME_SMOKE_REQUIREMENTS_INPUT", altered, raising=False)
+    with pytest.raises(ValueError, match="input SHA-256 binding does not match"):
+        module.verify_runtime_smoke_lock()

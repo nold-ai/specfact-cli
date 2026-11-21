@@ -1,0 +1,673 @@
+{
+  "gate_decision": "pass",
+  "mapping_digest": "sha256:caeca573ba8a7c69fad2c530d67e502f6a3a51c82c8d8e6f1659c4bcfe7b34d0",
+  "observed_maturity": "test-authored",
+  "plan": {
+    "cases": [
+      {
+        "case_id": "DEV-OTEL-EXACT-CVE",
+        "intent": "The exact reviewed advisory is visibly admitted only within the approved window.",
+        "method": "test",
+        "node_id": "tests/unit/scripts/test_security_audit_gate.py::test_committed_otel_exception_is_exact_and_time_bounded[exact-cve]",
+        "observable": "The exact reviewed advisory is visibly admitted only within the approved window.",
+        "requirement_id": "openspec:security-dependencies-0-55-11-dev:dev-security-dependencies:bound-the-separately-approved-opentelemetry-exception",
+        "runner": "pytest",
+        "scenario_id": "bound-the-separately-approved-opentelemetry-exception",
+        "selector": {
+          "node_id": "tests/unit/scripts/test_security_audit_gate.py::test_committed_otel_exception_is_exact_and_time_bounded[exact-cve]",
+          "runner": "pytest"
+        },
+        "source": "openspec/changes/security-dependencies-0-55-11-dev",
+        "touchpoints": [
+          {
+            "id": "input-1",
+            "kind": "config_file",
+            "locator": "ci/vulnerability-audit-exceptions.json"
+          },
+          {
+            "id": "proof-test",
+            "kind": "test",
+            "locator": "tests/unit/scripts/test_security_audit_gate.py"
+          }
+        ]
+      },
+      {
+        "case_id": "DEV-OTEL-EXACT-GHSA",
+        "intent": "The exact reviewed advisory is visibly admitted only within the approved window.",
+        "method": "test",
+        "node_id": "tests/unit/scripts/test_security_audit_gate.py::test_committed_otel_exception_is_exact_and_time_bounded[exact-ghsa]",
+        "observable": "The exact reviewed advisory is visibly admitted only within the approved window.",
+        "requirement_id": "openspec:security-dependencies-0-55-11-dev:dev-security-dependencies:bound-the-separately-approved-opentelemetry-exception",
+        "runner": "pytest",
+        "scenario_id": "bound-the-separately-approved-opentelemetry-exception",
+        "selector": {
+          "node_id": "tests/unit/scripts/test_security_audit_gate.py::test_committed_otel_exception_is_exact_and_time_bounded[exact-ghsa]",
+          "runner": "pytest"
+        },
+        "source": "openspec/changes/security-dependencies-0-55-11-dev",
+        "touchpoints": [
+          {
+            "id": "input-1",
+            "kind": "config_file",
+            "locator": "ci/vulnerability-audit-exceptions.json"
+          },
+          {
+            "id": "proof-test",
+            "kind": "test",
+            "locator": "tests/unit/scripts/test_security_audit_gate.py"
+          }
+        ]
+      },
+      {
+        "case_id": "DEV-OTEL-EXPIRY-DAY",
+        "intent": "The exact reviewed advisory is visibly admitted only within the approved window.",
+        "method": "test",
+        "node_id": "tests/unit/scripts/test_security_audit_gate.py::test_committed_otel_exception_is_exact_and_time_bounded[expiry-day]",
+        "observable": "The exact reviewed advisory is visibly admitted only within the approved window.",
+        "requirement_id": "openspec:security-dependencies-0-55-11-dev:dev-security-dependencies:bound-the-separately-approved-opentelemetry-exception",
+        "runner": "pytest",
+        "scenario_id": "bound-the-separately-approved-opentelemetry-exception",
+        "selector": {
+          "node_id": "tests/unit/scripts/test_security_audit_gate.py::test_committed_otel_exception_is_exact_and_time_bounded[expiry-day]",
+          "runner": "pytest"
+        },
+        "source": "openspec/changes/security-dependencies-0-55-11-dev",
+        "touchpoints": [
+          {
+            "id": "input-1",
+            "kind": "config_file",
+            "locator": "ci/vulnerability-audit-exceptions.json"
+          },
+          {
+            "id": "proof-test",
+            "kind": "test",
+            "locator": "tests/unit/scripts/test_security_audit_gate.py"
+          }
+        ]
+      },
+      {
+        "case_id": "DEV-FLOOR-GITPYTHON",
+        "intent": "Both public declarations require gitpython>=3.2.1.",
+        "method": "test",
+        "node_id": "tests/unit/security/test_release_dependency_selection.py::test_public_declarations_require_reviewed_security_floor[gitpython-floor]",
+        "observable": "Both public declarations require gitpython>=3.2.1.",
+        "requirement_id": "openspec:security-dependencies-0-55-11-dev:dev-security-dependencies:declare-the-corrected-public-dependency-floors",
+        "runner": "pytest",
+        "scenario_id": "declare-the-corrected-public-dependency-floors",
+        "selector": {
+          "node_id": "tests/unit/security/test_release_dependency_selection.py::test_public_declarations_require_reviewed_security_floor[gitpython-floor]",
+          "runner": "pytest"
+        },
+        "source": "openspec/changes/security-dependencies-0-55-11-dev",
+        "touchpoints": [
+          {
+            "id": "input-1",
+            "kind": "config_file",
+            "locator": "pyproject.toml"
+          },
+          {
+            "id": "input-2",
+            "kind": "config_file",
+            "locator": "setup.py"
+          },
+          {
+            "id": "proof-test",
+            "kind": "test",
+            "locator": "tests/unit/security/test_release_dependency_selection.py"
+          }
+        ]
+      },
+      {
+        "case_id": "DEV-FLOOR-PYCPARSER",
+        "intent": "Both public declarations require pycparser>=3.12,!=3.0.*.",
+        "method": "test",
+        "node_id": "tests/unit/security/test_release_dependency_selection.py::test_public_declarations_require_reviewed_security_floor[pycparser-floor]",
+        "observable": "Both public declarations require pycparser>=3.12,!=3.0.*.",
+        "requirement_id": "openspec:security-dependencies-0-55-11-dev:dev-security-dependencies:declare-the-corrected-public-dependency-floors",
+        "runner": "pytest",
+        "scenario_id": "declare-the-corrected-public-dependency-floors",
+        "selector": {
+          "node_id": "tests/unit/security/test_release_dependency_selection.py::test_public_declarations_require_reviewed_security_floor[pycparser-floor]",
+          "runner": "pytest"
+        },
+        "source": "openspec/changes/security-dependencies-0-55-11-dev",
+        "touchpoints": [
+          {
+            "id": "input-1",
+            "kind": "config_file",
+            "locator": "pyproject.toml"
+          },
+          {
+            "id": "input-2",
+            "kind": "config_file",
+            "locator": "setup.py"
+          },
+          {
+            "id": "proof-test",
+            "kind": "test",
+            "locator": "tests/unit/security/test_release_dependency_selection.py"
+          }
+        ]
+      },
+      {
+        "case_id": "DEV-ADVISORY-SELECTION",
+        "intent": "Collection retains all ordinary cases and excludes only the reviewed frozen selectors.",
+        "method": "test",
+        "node_id": "tests/unit/scripts/test_dependency_compatibility_workflow.py::test_resolver_selection_excludes_only_frozen_release_cases",
+        "observable": "Collection retains all ordinary cases and excludes only the reviewed frozen selectors.",
+        "requirement_id": "openspec:security-dependencies-0-55-11-dev:dev-security-dependencies:keep-frozen-assertions-out-of-advisory-resolver-lanes",
+        "runner": "pytest",
+        "scenario_id": "keep-frozen-assertions-out-of-advisory-resolver-lanes",
+        "selector": {
+          "node_id": "tests/unit/scripts/test_dependency_compatibility_workflow.py::test_resolver_selection_excludes_only_frozen_release_cases",
+          "runner": "pytest"
+        },
+        "source": "openspec/changes/security-dependencies-0-55-11-dev",
+        "touchpoints": [
+          {
+            "id": "input-1",
+            "kind": "config_file",
+            "locator": ".github/workflows/pr-orchestrator.yml"
+          },
+          {
+            "id": "proof-test",
+            "kind": "test",
+            "locator": "tests/unit/scripts/test_dependency_compatibility_workflow.py"
+          }
+        ]
+      },
+      {
+        "case_id": "DEV-EXACT-RESIDUAL-RISK",
+        "intent": "Only the three exact reviewed records remain admitted within their dates.",
+        "method": "test",
+        "node_id": "tests/unit/security/test_release_promotion_security_gates.py::test_frozen_graph_uses_official_semgrep_with_bounded_mcp_exception",
+        "observable": "Exact records, versions, IDs, dates and official frozen sources agree.",
+        "requirement_id": "openspec:security-dependencies-0-55-11-dev:dev-security-dependencies:preserve-strict-audits-with-exact-bounded-residual-risk",
+        "runner": "pytest",
+        "scenario_id": "preserve-strict-audits-with-exact-bounded-residual-risk",
+        "selector": {
+          "node_id": "tests/unit/security/test_release_promotion_security_gates.py::test_frozen_graph_uses_official_semgrep_with_bounded_mcp_exception",
+          "runner": "pytest"
+        },
+        "source": "openspec/changes/security-dependencies-0-55-11-dev",
+        "touchpoints": [
+          {
+            "id": "exact-advisories",
+            "kind": "config_file",
+            "locator": "ci/vulnerability-audit-exceptions.json"
+          },
+          {
+            "id": "code-review-input",
+            "kind": "config_file",
+            "locator": "requirements/code-review/requirements.in"
+          },
+          {
+            "id": "code-review-lock",
+            "kind": "config_file",
+            "locator": "requirements/code-review/locked.txt"
+          },
+          {
+            "id": "code-review-test",
+            "kind": "test",
+            "locator": "tests/unit/security/test_code_review_dependency_security.py"
+          },
+          {
+            "id": "exact-advisory-test",
+            "kind": "test",
+            "locator": "tests/unit/security/test_release_promotion_security_gates.py"
+          }
+        ]
+      },
+      {
+        "case_id": "DEV-PYLINT-FIXED",
+        "intent": "Actual Code Review installer inputs select patched Pylint and official hashes.",
+        "method": "test",
+        "node_id": "tests/unit/security/test_code_review_dependency_security.py::test_code_review_pins_fixed_pylint_with_bound_artifact_hashes",
+        "observable": "Exact version, full artifact hashes and input digest agree.",
+        "requirement_id": "openspec:security-dependencies-0-55-11-dev:dev-security-dependencies:preserve-strict-audits-with-exact-bounded-residual-risk",
+        "runner": "pytest",
+        "scenario_id": "preserve-strict-audits-with-exact-bounded-residual-risk",
+        "selector": {
+          "node_id": "tests/unit/security/test_code_review_dependency_security.py::test_code_review_pins_fixed_pylint_with_bound_artifact_hashes",
+          "runner": "pytest"
+        },
+        "source": "openspec/changes/security-dependencies-0-55-11-dev",
+        "touchpoints": [
+          {
+            "id": "exact-advisories",
+            "kind": "config_file",
+            "locator": "ci/vulnerability-audit-exceptions.json"
+          },
+          {
+            "id": "code-review-input",
+            "kind": "config_file",
+            "locator": "requirements/code-review/requirements.in"
+          },
+          {
+            "id": "code-review-lock",
+            "kind": "config_file",
+            "locator": "requirements/code-review/locked.txt"
+          },
+          {
+            "id": "code-review-test",
+            "kind": "test",
+            "locator": "tests/unit/security/test_code_review_dependency_security.py"
+          },
+          {
+            "id": "exact-advisory-test",
+            "kind": "test",
+            "locator": "tests/unit/security/test_release_promotion_security_gates.py"
+          }
+        ]
+      },
+      {
+        "case_id": "DEV-GIT-CREATE-ABSOLUTE-METADATA",
+        "intent": "Metadata checkout is rejected with no clone, hook change or submodule metadata.",
+        "method": "test",
+        "node_id": "tests/unit/security/test_frozen_gitpython_compatibility.py::test_submodule_creation_validates_checkout_before_clone[absolute-metadata]",
+        "observable": "Metadata checkout is rejected with no clone, hook change or submodule metadata.",
+        "requirement_id": "openspec:security-dependencies-0-55-11-dev:dev-security-dependencies:reject-submodule-creation-inside-git-metadata",
+        "runner": "pytest",
+        "scenario_id": "reject-submodule-creation-inside-git-metadata",
+        "selector": {
+          "node_id": "tests/unit/security/test_frozen_gitpython_compatibility.py::test_submodule_creation_validates_checkout_before_clone[absolute-metadata]",
+          "runner": "pytest"
+        },
+        "source": "openspec/changes/security-dependencies-0-55-11-dev",
+        "touchpoints": [
+          {
+            "id": "input-1",
+            "kind": "config_file",
+            "locator": "requirements/ci/locked.txt"
+          },
+          {
+            "id": "proof-test",
+            "kind": "test",
+            "locator": "tests/unit/security/test_frozen_gitpython_compatibility.py"
+          }
+        ]
+      },
+      {
+        "case_id": "DEV-GIT-CREATE-GIT-METADATA",
+        "intent": "Metadata checkout is rejected with no clone, hook change or submodule metadata.",
+        "method": "test",
+        "node_id": "tests/unit/security/test_frozen_gitpython_compatibility.py::test_submodule_creation_validates_checkout_before_clone[git-metadata]",
+        "observable": "Metadata checkout is rejected with no clone, hook change or submodule metadata.",
+        "requirement_id": "openspec:security-dependencies-0-55-11-dev:dev-security-dependencies:reject-submodule-creation-inside-git-metadata",
+        "runner": "pytest",
+        "scenario_id": "reject-submodule-creation-inside-git-metadata",
+        "selector": {
+          "node_id": "tests/unit/security/test_frozen_gitpython_compatibility.py::test_submodule_creation_validates_checkout_before_clone[git-metadata]",
+          "runner": "pytest"
+        },
+        "source": "openspec/changes/security-dependencies-0-55-11-dev",
+        "touchpoints": [
+          {
+            "id": "input-1",
+            "kind": "config_file",
+            "locator": "requirements/ci/locked.txt"
+          },
+          {
+            "id": "proof-test",
+            "kind": "test",
+            "locator": "tests/unit/security/test_frozen_gitpython_compatibility.py"
+          }
+        ]
+      },
+      {
+        "case_id": "DEV-GIT-CREATE-GIT-SHORT-NAME",
+        "intent": "Metadata checkout is rejected with no clone, hook change or submodule metadata.",
+        "method": "test",
+        "node_id": "tests/unit/security/test_frozen_gitpython_compatibility.py::test_submodule_creation_validates_checkout_before_clone[git-short-name]",
+        "observable": "Metadata checkout is rejected with no clone, hook change or submodule metadata.",
+        "requirement_id": "openspec:security-dependencies-0-55-11-dev:dev-security-dependencies:reject-submodule-creation-inside-git-metadata",
+        "runner": "pytest",
+        "scenario_id": "reject-submodule-creation-inside-git-metadata",
+        "selector": {
+          "node_id": "tests/unit/security/test_frozen_gitpython_compatibility.py::test_submodule_creation_validates_checkout_before_clone[git-short-name]",
+          "runner": "pytest"
+        },
+        "source": "openspec/changes/security-dependencies-0-55-11-dev",
+        "touchpoints": [
+          {
+            "id": "input-1",
+            "kind": "config_file",
+            "locator": "requirements/ci/locked.txt"
+          },
+          {
+            "id": "proof-test",
+            "kind": "test",
+            "locator": "tests/unit/security/test_frozen_gitpython_compatibility.py"
+          }
+        ]
+      },
+      {
+        "case_id": "DEV-PARSER-EXACT-REVIEW",
+        "intent": "The record binds only the reviewed official 3.12 artifact and exact original review/expiry window.",
+        "method": "test",
+        "node_id": "tests/unit/scripts/test_dependency_trust_review.py::test_pycparser_has_current_exact_version_review_record",
+        "observable": "The record binds only the reviewed official 3.12 artifact and exact original review/expiry window.",
+        "requirement_id": "openspec:security-dependencies-0-55-11-dev:dev-security-dependencies:replace-expired-parser-provenance-with-exact-reviewed-bytes",
+        "runner": "pytest",
+        "scenario_id": "replace-expired-parser-provenance-with-exact-reviewed-bytes",
+        "selector": {
+          "node_id": "tests/unit/scripts/test_dependency_trust_review.py::test_pycparser_has_current_exact_version_review_record",
+          "runner": "pytest"
+        },
+        "source": "openspec/changes/security-dependencies-0-55-11-dev",
+        "touchpoints": [
+          {
+            "id": "input-1",
+            "kind": "config_file",
+            "locator": "ci/dependency-trust-exceptions.json"
+          },
+          {
+            "id": "proof-test",
+            "kind": "test",
+            "locator": "tests/unit/scripts/test_dependency_trust_review.py"
+          }
+        ]
+      },
+      {
+        "case_id": "DEV-PIN-FILELOCK",
+        "intent": "Frozen lock and hash export select official filelock 4.2.1.",
+        "method": "test",
+        "node_id": "tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[filelock-4.2.1]",
+        "observable": "Frozen lock and hash export select official filelock 4.2.1.",
+        "requirement_id": "openspec:security-dependencies-0-55-11-dev:dev-security-dependencies:select-reviewed-official-patch-versions",
+        "runner": "pytest",
+        "scenario_id": "select-reviewed-official-patch-versions",
+        "selector": {
+          "node_id": "tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[filelock-4.2.1]",
+          "runner": "pytest"
+        },
+        "source": "openspec/changes/security-dependencies-0-55-11-dev",
+        "touchpoints": [
+          {
+            "id": "input-1",
+            "kind": "config_file",
+            "locator": "uv.lock"
+          },
+          {
+            "id": "input-2",
+            "kind": "config_file",
+            "locator": "requirements/ci/locked.txt"
+          },
+          {
+            "id": "proof-test",
+            "kind": "test",
+            "locator": "tests/unit/security/test_release_dependency_selection.py"
+          }
+        ]
+      },
+      {
+        "case_id": "DEV-PIN-GITPYTHON",
+        "intent": "Frozen lock and hash export select official gitpython 3.2.1.",
+        "method": "test",
+        "node_id": "tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[gitpython-3.2.1]",
+        "observable": "Frozen lock and hash export select official gitpython 3.2.1.",
+        "requirement_id": "openspec:security-dependencies-0-55-11-dev:dev-security-dependencies:select-reviewed-official-patch-versions",
+        "runner": "pytest",
+        "scenario_id": "select-reviewed-official-patch-versions",
+        "selector": {
+          "node_id": "tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[gitpython-3.2.1]",
+          "runner": "pytest"
+        },
+        "source": "openspec/changes/security-dependencies-0-55-11-dev",
+        "touchpoints": [
+          {
+            "id": "input-1",
+            "kind": "config_file",
+            "locator": "uv.lock"
+          },
+          {
+            "id": "input-2",
+            "kind": "config_file",
+            "locator": "requirements/ci/locked.txt"
+          },
+          {
+            "id": "proof-test",
+            "kind": "test",
+            "locator": "tests/unit/security/test_release_dependency_selection.py"
+          }
+        ]
+      },
+      {
+        "case_id": "DEV-PIN-MSGPACK",
+        "intent": "Frozen lock and hash export select official msgpack 1.2.3.",
+        "method": "test",
+        "node_id": "tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[msgpack-1.2.3]",
+        "observable": "Frozen lock and hash export select official msgpack 1.2.3.",
+        "requirement_id": "openspec:security-dependencies-0-55-11-dev:dev-security-dependencies:select-reviewed-official-patch-versions",
+        "runner": "pytest",
+        "scenario_id": "select-reviewed-official-patch-versions",
+        "selector": {
+          "node_id": "tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[msgpack-1.2.3]",
+          "runner": "pytest"
+        },
+        "source": "openspec/changes/security-dependencies-0-55-11-dev",
+        "touchpoints": [
+          {
+            "id": "input-1",
+            "kind": "config_file",
+            "locator": "uv.lock"
+          },
+          {
+            "id": "input-2",
+            "kind": "config_file",
+            "locator": "requirements/ci/locked.txt"
+          },
+          {
+            "id": "proof-test",
+            "kind": "test",
+            "locator": "tests/unit/security/test_release_dependency_selection.py"
+          }
+        ]
+      },
+      {
+        "case_id": "DEV-PIN-PACKAGING",
+        "intent": "Frozen lock and hash export select official packaging 26.3.",
+        "method": "test",
+        "node_id": "tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[packaging-26.3]",
+        "observable": "Frozen lock and hash export select official packaging 26.3.",
+        "requirement_id": "openspec:security-dependencies-0-55-11-dev:dev-security-dependencies:select-reviewed-official-patch-versions",
+        "runner": "pytest",
+        "scenario_id": "select-reviewed-official-patch-versions",
+        "selector": {
+          "node_id": "tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[packaging-26.3]",
+          "runner": "pytest"
+        },
+        "source": "openspec/changes/security-dependencies-0-55-11-dev",
+        "touchpoints": [
+          {
+            "id": "input-1",
+            "kind": "config_file",
+            "locator": "uv.lock"
+          },
+          {
+            "id": "input-2",
+            "kind": "config_file",
+            "locator": "requirements/ci/locked.txt"
+          },
+          {
+            "id": "proof-test",
+            "kind": "test",
+            "locator": "tests/unit/security/test_release_dependency_selection.py"
+          }
+        ]
+      },
+      {
+        "case_id": "DEV-PIN-PYCPARSER",
+        "intent": "Frozen lock and hash export select official pycparser 3.12.",
+        "method": "test",
+        "node_id": "tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[pycparser-3.12]",
+        "observable": "Frozen lock and hash export select official pycparser 3.12.",
+        "requirement_id": "openspec:security-dependencies-0-55-11-dev:dev-security-dependencies:select-reviewed-official-patch-versions",
+        "runner": "pytest",
+        "scenario_id": "select-reviewed-official-patch-versions",
+        "selector": {
+          "node_id": "tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[pycparser-3.12]",
+          "runner": "pytest"
+        },
+        "source": "openspec/changes/security-dependencies-0-55-11-dev",
+        "touchpoints": [
+          {
+            "id": "input-1",
+            "kind": "config_file",
+            "locator": "uv.lock"
+          },
+          {
+            "id": "input-2",
+            "kind": "config_file",
+            "locator": "requirements/ci/locked.txt"
+          },
+          {
+            "id": "proof-test",
+            "kind": "test",
+            "locator": "tests/unit/security/test_release_dependency_selection.py"
+          }
+        ]
+      },
+      {
+        "case_id": "DEV-PIN-PYTHON-DISCOVERY",
+        "intent": "Frozen lock and hash export select official python-discovery 1.6.1.",
+        "method": "test",
+        "node_id": "tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[python-discovery-1.6.1]",
+        "observable": "Frozen lock and hash export select official python-discovery 1.6.1.",
+        "requirement_id": "openspec:security-dependencies-0-55-11-dev:dev-security-dependencies:select-reviewed-official-patch-versions",
+        "runner": "pytest",
+        "scenario_id": "select-reviewed-official-patch-versions",
+        "selector": {
+          "node_id": "tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[python-discovery-1.6.1]",
+          "runner": "pytest"
+        },
+        "source": "openspec/changes/security-dependencies-0-55-11-dev",
+        "touchpoints": [
+          {
+            "id": "input-1",
+            "kind": "config_file",
+            "locator": "uv.lock"
+          },
+          {
+            "id": "input-2",
+            "kind": "config_file",
+            "locator": "requirements/ci/locked.txt"
+          },
+          {
+            "id": "proof-test",
+            "kind": "test",
+            "locator": "tests/unit/security/test_release_dependency_selection.py"
+          }
+        ]
+      },
+      {
+        "case_id": "DEV-PIN-SEMGREP",
+        "intent": "Frozen lock and hash export select official semgrep 1.182.1.",
+        "method": "test",
+        "node_id": "tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[semgrep-1.182.1]",
+        "observable": "Frozen lock and hash export select official semgrep 1.182.1.",
+        "requirement_id": "openspec:security-dependencies-0-55-11-dev:dev-security-dependencies:select-reviewed-official-patch-versions",
+        "runner": "pytest",
+        "scenario_id": "select-reviewed-official-patch-versions",
+        "selector": {
+          "node_id": "tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[semgrep-1.182.1]",
+          "runner": "pytest"
+        },
+        "source": "openspec/changes/security-dependencies-0-55-11-dev",
+        "touchpoints": [
+          {
+            "id": "input-1",
+            "kind": "config_file",
+            "locator": "uv.lock"
+          },
+          {
+            "id": "input-2",
+            "kind": "config_file",
+            "locator": "requirements/ci/locked.txt"
+          },
+          {
+            "id": "proof-test",
+            "kind": "test",
+            "locator": "tests/unit/security/test_release_dependency_selection.py"
+          }
+        ]
+      },
+      {
+        "case_id": "DEV-PIN-SETUPTOOLS",
+        "intent": "Frozen lock and hash export select official setuptools 84.1.0.",
+        "method": "test",
+        "node_id": "tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[setuptools-84.1.0]",
+        "observable": "Frozen lock and hash export select official setuptools 84.1.0.",
+        "requirement_id": "openspec:security-dependencies-0-55-11-dev:dev-security-dependencies:select-reviewed-official-patch-versions",
+        "runner": "pytest",
+        "scenario_id": "select-reviewed-official-patch-versions",
+        "selector": {
+          "node_id": "tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[setuptools-84.1.0]",
+          "runner": "pytest"
+        },
+        "source": "openspec/changes/security-dependencies-0-55-11-dev",
+        "touchpoints": [
+          {
+            "id": "input-1",
+            "kind": "config_file",
+            "locator": "uv.lock"
+          },
+          {
+            "id": "input-2",
+            "kind": "config_file",
+            "locator": "requirements/ci/locked.txt"
+          },
+          {
+            "id": "proof-test",
+            "kind": "test",
+            "locator": "tests/unit/security/test_release_dependency_selection.py"
+          }
+        ]
+      },
+      {
+        "case_id": "DEV-PIN-VIRTUALENV",
+        "intent": "Frozen lock and hash export select official virtualenv 21.14.13.",
+        "method": "test",
+        "node_id": "tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[virtualenv-21.14.13]",
+        "observable": "Frozen lock and hash export select official virtualenv 21.14.13.",
+        "requirement_id": "openspec:security-dependencies-0-55-11-dev:dev-security-dependencies:select-reviewed-official-patch-versions",
+        "runner": "pytest",
+        "scenario_id": "select-reviewed-official-patch-versions",
+        "selector": {
+          "node_id": "tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export[virtualenv-21.14.13]",
+          "runner": "pytest"
+        },
+        "source": "openspec/changes/security-dependencies-0-55-11-dev",
+        "touchpoints": [
+          {
+            "id": "input-1",
+            "kind": "config_file",
+            "locator": "uv.lock"
+          },
+          {
+            "id": "input-2",
+            "kind": "config_file",
+            "locator": "requirements/ci/locked.txt"
+          },
+          {
+            "id": "proof-test",
+            "kind": "test",
+            "locator": "tests/unit/security/test_release_dependency_selection.py"
+          }
+        ]
+      }
+    ],
+    "mapping_digest": "sha256:caeca573ba8a7c69fad2c530d67e502f6a3a51c82c8d8e6f1659c4bcfe7b34d0",
+    "plan_digest": "sha256:befd8204588ac5de083e48e62c480b23cbdecbf3b4a2006fdf0e2901a213ae0f"
+  },
+  "plan_identity_digest": "sha256:2d554203671a28e5544886105da160784e8fb947fe42154ff6eba4e2e4d378ae",
+  "required_maturity": "test-authored",
+  "schema_version": "2",
+  "sources": [
+    {
+      "mapping_digest": "sha256:61afa8becd7fed3cbe92a273c955c2e8ba389583f62f0e519c97cafafa7d4307",
+      "source": "openspec/changes/security-dependencies-0-55-11-dev"
+    }
+  ],
+  "verdict": "passed"
+}

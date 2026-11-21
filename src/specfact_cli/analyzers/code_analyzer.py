@@ -610,7 +610,8 @@ class CodeAnalyzer:
         - Tests validate code, they don't define what code should do
         - Test files should only be used for linking to production features and extracting examples
         """
-        file_str = str(file_path)
+        relative_path = file_path.relative_to(self.repo_path) if file_path.is_absolute() else file_path
+        directory_parts = relative_path.parts[:-1]
         file_name = file_path.name
 
         # Skip common non-source directories
@@ -627,13 +628,12 @@ class CodeAnalyzer:
             ".eggs",
         ]
 
-        if any(pattern in file_str for pattern in skip_patterns):
+        if any(part in skip_patterns for part in directory_parts):
             return True
 
         # Skip test directories (both "test/" and "tests/")
         # Check if any path component is a test directory
-        path_parts = file_path.parts
-        if any(part in ("test", "tests") for part in path_parts):
+        if any(part in ("test", "tests") for part in directory_parts):
             return True
 
         # Skip test files by naming pattern (test_*.py, *_test.py)

@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import base64
 import hashlib
+import json
 import logging
 import os
 import subprocess
@@ -133,6 +134,9 @@ def _verify_signature(payload: bytes, signature_b64: str, public_key_pem: str) -
         ) from exc
 
     public_key = serialization.load_pem_public_key(public_key_pem.encode("utf-8"))
+    public_der = public_key.public_bytes(serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
+    if hashlib.sha256(public_der).hexdigest() == "98295305a48a4ab7801d537f1caa65ce8014ef75fab67d7473a59e5f2964d35a":
+        raise ValueError("The previous SpecFact module signing key is revoked")
     signature = base64.b64decode(signature_b64, validate=True)
 
     try:
@@ -154,8 +158,7 @@ def _resolve_public_key(args: argparse.Namespace) -> str:
     if env_key:
         return env_key
     default_paths = [
-        Path("resources/keys/module-signing-public.pem"),
-        Path("src/specfact_cli/resources/keys/module-signing-public.pem"),
+        Path(__file__).resolve().parents[1] / "src/specfact_cli/registry/module-signing-public-next.pem",
     ]
     for default_path in default_paths:
         if default_path.exists():
@@ -282,6 +285,30 @@ def _verify_version_bumps(base_ref: str) -> list[str]:
     return failures
 
 
+def _matches_bundled_cutoff(manifest_path: Path, manifest: dict[str, Any]) -> bool:
+    inventory_path = Path(__file__).resolve().parents[1] / "src/specfact_cli/registry/official-module-cutoff.json"
+    if not inventory_path.is_file():
+        return False
+    inventory = json.loads(inventory_path.read_text(encoding="utf-8"))
+    versions = inventory["bundled"].get(str(manifest.get("name")), {})
+    expected = versions.get(str(manifest.get("version")))
+    if expected is None:
+        return False
+    root = manifest_path.parent
+    entries: dict[str, str] = {}
+    if root.is_symlink():
+        raise ValueError("Release module root must not be a symlink")
+    for path in root.rglob("*"):
+        if path.is_symlink():
+            raise ValueError("Release module tree must not contain symlinks")
+        if path.is_file() and not (path.suffix == ".pyc" and path.parent.name == "__pycache__"):
+            entries[path.relative_to(root).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
+    digest = hashlib.sha256("\n".join(f"{name}:{entries[name]}" for name in sorted(entries)).encode()).hexdigest()
+    if digest != expected:
+        raise ValueError("Bundled module files do not match the approved release cutoff")
+    return True
+
+
 @beartype
 @require(lambda manifest_path: cast(Path, manifest_path).exists(), "manifest_path must exist")
 @ensure(lambda result: result is None, "verification raises or returns None")
@@ -297,6 +324,8 @@ def verify_manifest(
     if not isinstance(raw, dict):
         raise ValueError("manifest YAML must be object")
     data = cast(dict[str, Any], raw)
+    if verify_checksum and _matches_bundled_cutoff(manifest_path, data):
+        return
     if not verify_checksum:
         if require_signature:
             raise ValueError("require_signature is incompatible with verify_checksum=False")

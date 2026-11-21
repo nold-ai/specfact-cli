@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import subprocess
 import sys
 import tomllib
@@ -163,7 +164,7 @@ def _assert_review_tool_and_artifact_order(review: dict[str, Any]) -> None:
         "Restore Requirements evidence for Code Review"
     )
     restore = _named_step(review, "Restore Requirements evidence for Code Review")
-    assert restore["with"]["artifact-ids"] == "${{ needs.requirements-evidence-producer.outputs.artifact-id }}"  # type: ignore[index]
+    assert restore["env"]["ARTIFACT_ID"] == "${{ needs.requirements-evidence-producer.outputs.artifact-id }}"
 
 
 def _assert_review_diff_is_fail_closed(review: dict[str, Any]) -> None:
@@ -358,7 +359,7 @@ def test_requirements_archive_uses_one_immutable_merge_base() -> None:
     workflow = _workflow(".github/workflows/requirements-evidence.yml")
     job = cast(dict[str, Any], cast(dict[str, Any], workflow["jobs"])["requirements-evidence-producer"])
     command = str(_named_step(job, "Run Requirements evidence gate").get("run", ""))
-    assert 'evidence_base_commit="$(git merge-base "origin/${EVIDENCE_BASE_BRANCH}" HEAD)"' in command
+    assert 'evidence_base_commit="${PLANNING_BASE_COMMIT:-${PROOF_BASE_COMMIT:-}}"' in command
     assert '"${evidence_base_commit}..HEAD"' in command
     assert 'git ls-tree -r -z --name-only "$evidence_base_commit"' in command
     assert 'git ls-tree "$evidence_base_commit"' in command
@@ -389,21 +390,75 @@ def test_every_code_review_lock_install_has_exact_closure_proof() -> None:
         assert install.index(closure_proof) < install.index("uv pip install")
 
 
-def test_frozen_graph_uses_fixed_semgrep_mcp_pair_without_waiver() -> None:
-    """All authoritative dependency surfaces select the reviewed fixed line."""
+def test_frozen_graph_uses_official_semgrep_with_bounded_mcp_exception() -> None:
     project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     dev = cast(list[str], project["project"]["optional-dependencies"]["dev"])
     scanning = cast(list[str], project["project"]["optional-dependencies"]["scanning"])
-    assert "semgrep>=1.175.0" in dev
-    assert "semgrep>=1.175.0" in scanning
+    assert {"semgrep>=1.175.0"} <= set(dev) & set(scanning)
 
     locked = (REPO_ROOT / "requirements" / "ci" / "locked.txt").read_text(encoding="utf-8")
-    assert "semgrep==1.175.0" in locked
-    assert "mcp==1.29.0" in locked
+    assert set(re.findall(r"^(?:semgrep|mcp)==[^\s]+", locked, re.MULTILINE)) == {"semgrep==1.182.1", "mcp==1.29.0"}
+    assert re.search(r"^opentelemetry-api==1\.37\.0[ \t]", locked, re.MULTILINE)
     policy = json.loads((REPO_ROOT / "ci" / "security-tool-minimum-versions.json").read_text(encoding="utf-8"))
-    assert policy["minimum_versions"] == {"mcp": "1.28.1", "semgrep": "1.175.0"}
     exceptions = json.loads((REPO_ROOT / "ci" / "vulnerability-audit-exceptions.json").read_text(encoding="utf-8"))
-    assert all(record.get("package") != "mcp" for record in exceptions["exceptions"])
+    records = exceptions["exceptions"]
+    assert (policy["minimum_versions"], len(records)) == ({"mcp": "1.28.1", "semgrep": "1.175.0"}, 3)
+    expected_records = [
+        {
+            "package": "mcp",
+            "version": "1.29.0",
+            "vulnerability_ids": ["CVE-2026-59951", "GHSA-84m7-p3x7-pcfv"],
+            "reviewed_on": "2026-10-21",
+            "expires_on": "2026-11-04",
+        },
+        {
+            "package": "mcp",
+            "version": "1.29.0",
+            "vulnerability_ids": [
+                "CVE-2026-116684",
+                "CVE-2026-116685",
+                "CVE-2026-116686",
+                "GHSA-5h93-6whr-6q8j",
+                "GHSA-rwrf-2pqf-9j8j",
+                "GHSA-w4fh-qvv9-3v23",
+            ],
+            "reviewed_on": "2026-10-29",
+            "expires_on": "2026-11-04",
+        },
+        {
+            "package": "opentelemetry-api",
+            "version": "1.37.0",
+            "vulnerability_ids": ["CVE-2026-114603", "GHSA-xcq7-p3pf-p88h"],
+            "reviewed_on": "2026-10-22",
+            "expires_on": "2026-11-04",
+        },
+    ]
+    for record, expected_record in zip(
+        sorted(records, key=lambda entry: (entry["package"], entry["reviewed_on"])), expected_records, strict=True
+    ):
+        actual_record = {
+            "package": record["package"],
+            "version": record["version"],
+            "vulnerability_ids": sorted(record["vulnerability_ids"]),
+            "reviewed_on": record["reviewed_on"],
+            "expires_on": record["expires_on"],
+        }
+        assert (actual_record, bool(record["rationale"].strip()), bool(record["mitigation"].strip())) == (
+            expected_record,
+            True,
+            True,
+        )
+    lock = tomllib.loads((REPO_ROOT / "uv.lock").read_text(encoding="utf-8"))
+    packages = [
+        (package["name"], package["version"], package["source"])
+        for package in lock["package"]
+        if package["name"] in {"semgrep", "mcp", "opentelemetry-api", "specfact-semgrep"}
+    ]
+    assert sorted(packages) == [
+        ("mcp", "1.29.0", {"registry": "https://pypi.org/simple"}),
+        ("opentelemetry-api", "1.37.0", {"registry": "https://pypi.org/simple"}),
+        ("semgrep", "1.182.1", {"registry": "https://pypi.org/simple"}),
+    ]
 
 
 def test_code_review_lock_is_bound_before_installation(tmp_path: Path) -> None:
@@ -503,7 +558,7 @@ def test_proof_executor_imports_installed_pytest_before_repository_root(tmp_path
     assert bootstrap.index("import pytest") < bootstrap.index("sys.path.append(repo_root)")
 
 
-def test_invalid_utf8_authority_is_stable_metadata_failure(tmp_path: Path) -> None:
+def test_invalid_utf8_authority_refuses_with_stable_error(tmp_path: Path) -> None:
     """Malformed external bytes fail closed without exposing parser details."""
     comment = tmp_path / "comment.json"
     comment.write_bytes(b"\xff")
@@ -563,9 +618,17 @@ def test_doc_owner_rg_terminates_options(monkeypatch: Any, tmp_path: Path) -> No
 
 
 def test_patch_release_uses_next_version_in_all_sources() -> None:
-    """The security baseline consumes only the next semver patch."""
-    expected = "0.55.4"
-    project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    assert project["project"]["version"] == expected
+    """Verify the exact release transition required by #692."""
+    release = "b6eac433b89e05bc244356438e9818e2ed77d3b1"
+
+    def read_release_source(revision: str, path: str) -> str:
+        return subprocess.check_output(
+            ["git", "show", f"{revision}:{path}"], cwd=REPO_ROOT, encoding="utf-8", timeout=30
+        )
+
+    previous = tomllib.loads(read_release_source(f"{release}^1", "pyproject.toml"))
+    current = tomllib.loads(read_release_source(release, "pyproject.toml"))
+    assert previous["project"]["version"] == "0.55.3"
+    assert current["project"]["version"] == "0.55.4"
     for path in ("setup.py", "src/__init__.py", "src/specfact_cli/__init__.py"):
-        assert expected in (REPO_ROOT / path).read_text(encoding="utf-8")
+        assert '"0.55.4"' in read_release_source(release, path)

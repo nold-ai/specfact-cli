@@ -36,8 +36,15 @@ from specfact_cli.registry.module_packages import (
 from specfact_cli.registry.module_state import read_modules_state, write_modules_state
 
 
+def _source_operations_by_package(package_dir: Path, _package_name: str, **_kwargs: object) -> list[str]:
+    """Supply the actual protocol operation shape for the three reporting fixture packages."""
+    if package_dir.name == "full":
+        return ["import", "export", "sync", "validate"]
+    return ["import"] if package_dir.name == "partial" else []
+
+
 @pytest.fixture(autouse=True)
-def _reset_registry() -> Generator[None, None, None]:
+def reset_registry() -> Generator[None, None, None]:
     CommandRegistry._clear_for_testing()
     module_packages_impl._ACTIVE_MODULE_SRC_DIRS.clear()
     clear_module_load_failures()
@@ -236,7 +243,7 @@ def test_register_module_package_commands_removes_stale_active_src_from_sys_path
     stale_src = Path("/tmp/specfact-stale-module-src").resolve()
     module_packages_impl._ACTIVE_MODULE_SRC_DIRS.append(stale_src)
     monkeypatch.setattr(sys, "path", [str(stale_src), str(stale_src), *sys.path])
-    monkeypatch.setattr(module_packages_impl, "discover_all_package_metadata", list)
+    monkeypatch.setattr(module_packages_impl, "discover_all_package_metadata", lambda **_kwargs: [])
 
     module_packages_impl.register_module_package_commands()
 
@@ -311,7 +318,7 @@ for command_name in ('import', 'analyze', 'drift', 'validate', 'repro'):
     monkeypatch.setattr(
         module_packages_impl,
         "discover_all_package_metadata",
-        lambda: [
+        lambda **_kwargs: [
             (project_dir, metadata_by_name["nold-ai/specfact-project"]),
             (codebase_dir, metadata_by_name["nold-ai/specfact-codebase"]),
         ],
@@ -351,7 +358,7 @@ bundle_group_command: code
     meta = discover_package_metadata(tmp_path)[0][1]
 
     monkeypatch.setattr(sys, "path", [entry for entry in sys.path if str(tmp_path) not in entry])
-    monkeypatch.setattr(module_packages_impl, "discover_all_package_metadata", lambda: [(codebase_dir, meta)])
+    monkeypatch.setattr(module_packages_impl, "discover_all_package_metadata", lambda **_kwargs: [(codebase_dir, meta)])
     monkeypatch.setattr(module_packages_impl, "verify_module_artifact", lambda *_args, **_kwargs: True)
     monkeypatch.setattr(module_packages_impl, "read_modules_state", dict)
     monkeypatch.setattr(module_packages_impl, "_check_protocol_compliance_from_source", lambda *_args, **_kwargs: [])
@@ -546,7 +553,7 @@ def test_manifest_legacy_without_publisher_integrity_loads_successfully(tmp_path
 # --- Arch-06: installer and lifecycle trust enforcement (TDD) ---
 
 
-def test_trust_check_rejects_on_checksum_mismatch(monkeypatch, tmp_path: Path):
+def test_trust_check_rejects_on_checksum_mismatch(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     """When artifact checksum does not match expected, module SHALL be skipped at registration."""
     from specfact_cli.registry import module_installer
 
@@ -570,7 +577,7 @@ def test_trust_check_rejects_on_checksum_mismatch(monkeypatch, tmp_path: Path):
     assert result is False
 
 
-def test_allow_unsigned_allows_module_without_integrity(monkeypatch):
+def test_allow_unsigned_allows_module_without_integrity(monkeypatch: pytest.MonkeyPatch):
     """When allow_unsigned is True, module without integrity metadata MAY be allowed."""
     from specfact_cli.registry import module_installer
 
@@ -580,7 +587,7 @@ def test_allow_unsigned_allows_module_without_integrity(monkeypatch):
     assert result is True
 
 
-def test_unaffected_modules_register_when_one_fails_trust(monkeypatch, tmp_path: Path):
+def test_unaffected_modules_register_when_one_fails_trust(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     """When one module fails integrity verification, other valid modules SHALL continue registration."""
     from specfact_cli.registry import module_packages as mp
 
@@ -592,7 +599,7 @@ def test_unaffected_modules_register_when_one_fails_trust(monkeypatch, tmp_path:
         (tmp_path / name / "src").mkdir(parents=True)
         (tmp_path / name / "src" / "app.py").write_text("app = None", encoding="utf-8")
 
-    def verify_may_fail(_package_dir: Path, meta, allow_unsigned: bool = False):
+    def verify_may_fail(_package_dir: Path, meta: ModulePackageMetadata, allow_unsigned: bool = False):
         return meta.name != "bad_trust"
 
     monkeypatch.setattr(mp, "verify_module_artifact", verify_may_fail)
@@ -620,7 +627,7 @@ def test_grouped_registration_merges_duplicate_command_extensions(
             ModulePackageMetadata(name="ext_backlog", version="0.1.0", commands=["backlog"], category="backlog"),
         ),
     ]
-    monkeypatch.setattr(mp, "discover_all_package_metadata", lambda: packages)
+    monkeypatch.setattr(mp, "discover_all_package_metadata", lambda **_kwargs: packages)
     monkeypatch.setattr(mp, "verify_module_artifact", lambda _dir, _meta, allow_unsigned=False: True)
     monkeypatch.setattr(mp, "read_modules_state", dict)
     monkeypatch.setattr(mp, "_check_protocol_compliance_from_source", lambda *_args, **_kwargs: [])
@@ -677,7 +684,7 @@ def test_registration_skips_package_with_unsatisfied_versioned_module_dependency
         ),
     ]
 
-    monkeypatch.setattr(module_packages_impl, "discover_all_package_metadata", lambda: packages)
+    monkeypatch.setattr(module_packages_impl, "discover_all_package_metadata", lambda **_kwargs: packages)
     monkeypatch.setattr(module_packages_impl, "verify_module_artifact", lambda _dir, _meta, allow_unsigned=False: True)
     monkeypatch.setattr(module_packages_impl, "read_modules_state", dict)
     monkeypatch.setattr(module_packages_impl, "_check_protocol_compliance_from_source", lambda *_args, **_kwargs: [])
@@ -714,7 +721,7 @@ def test_mount_installed_groups_preserves_bundle_native_group_command(
         )
     ]
 
-    monkeypatch.setattr(mp, "discover_all_package_metadata", lambda: packages)
+    monkeypatch.setattr(mp, "discover_all_package_metadata", lambda **_kwargs: packages)
     monkeypatch.setattr(mp, "verify_module_artifact", lambda _dir, _meta, allow_unsigned=False: True)
     monkeypatch.setattr(mp, "read_modules_state", dict)
     monkeypatch.setattr(mp, "_check_protocol_compliance_from_source", lambda *_args, **_kwargs: [])
@@ -765,7 +772,7 @@ def test_requirements_bundle_mounts_native_requirements_root_group(
         )
     ]
 
-    monkeypatch.setattr(mp, "discover_all_package_metadata", lambda: packages)
+    monkeypatch.setattr(mp, "discover_all_package_metadata", lambda **_kwargs: packages)
     monkeypatch.setattr(mp, "verify_module_artifact", lambda _dir, _meta, allow_unsigned=False: True)
     monkeypatch.setattr(mp, "read_modules_state", dict)
     monkeypatch.setattr(mp, "_check_protocol_compliance_from_source", lambda *_args, **_kwargs: [])
@@ -809,7 +816,7 @@ def test_grouped_registration_does_not_register_flat_shim_commands(
         )
     ]
 
-    monkeypatch.setattr(mp, "discover_all_package_metadata", lambda: packages)
+    monkeypatch.setattr(mp, "discover_all_package_metadata", lambda **_kwargs: packages)
     monkeypatch.setattr(mp, "verify_module_artifact", lambda _dir, _meta, allow_unsigned=False: True)
     monkeypatch.setattr(mp, "read_modules_state", dict)
     monkeypatch.setattr(mp, "_check_protocol_compliance_from_source", lambda *_args, **_kwargs: [])
@@ -827,13 +834,13 @@ def test_grouped_registration_does_not_register_flat_shim_commands(
     assert "validate" not in names
 
 
-def test_integrity_failure_shows_user_friendly_risk_warning(monkeypatch, tmp_path: Path) -> None:
+def test_integrity_failure_shows_user_friendly_risk_warning(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Integrity failure should emit concise risk guidance instead of raw checksum diagnostics."""
     from specfact_cli.registry import module_packages as mp
 
     shown_messages: list[str] = []
     metadata = [(tmp_path / "bad", ModulePackageMetadata(name="bad", version="0.1.0", commands=["bad_cmd"]))]
-    monkeypatch.setattr(mp, "discover_all_package_metadata", lambda: metadata)
+    monkeypatch.setattr(mp, "discover_all_package_metadata", lambda **_kwargs: metadata)
     monkeypatch.setattr(mp, "verify_module_artifact", lambda _dir, _meta, allow_unsigned=False: False)
     monkeypatch.setattr(mp, "read_modules_state", dict)
     monkeypatch.setattr(mp, "print_warning", shown_messages.append)
@@ -890,7 +897,7 @@ def test_registry_receives_example_command_when_registered():
 
 
 def test_protocol_reporting_classifies_full_partial_legacy_from_static_source(
-    monkeypatch, caplog, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, tmp_path: Path
 ) -> None:
     """Protocol summary should classify full/partial/legacy modules accurately."""
     from specfact_cli.registry import module_packages as module_packages_impl
@@ -907,17 +914,13 @@ def test_protocol_reporting_classifies_full_partial_legacy_from_static_source(
         (tmp_path / "partial", ModulePackageMetadata(name="partial", commands=[])),
         (tmp_path / "legacy", ModulePackageMetadata(name="legacy", commands=[])),
     ]
-    monkeypatch.setattr(module_packages_impl, "discover_all_package_metadata", lambda: metadata)
+    monkeypatch.setattr(module_packages_impl, "discover_all_package_metadata", lambda **_kwargs: metadata)
     monkeypatch.setattr(module_packages_impl, "verify_module_artifact", lambda _dir, _meta, allow_unsigned=False: True)
     monkeypatch.setattr(module_packages_impl, "read_modules_state", dict)
     monkeypatch.setattr(
         module_packages_impl,
         "_check_protocol_compliance_from_source",
-        lambda package_dir, _package_name, **_kwargs: (
-            ["import", "export", "sync", "validate"]
-            if package_dir.name == "full"
-            else (["import"] if package_dir.name == "partial" else [])
-        ),
+        _source_operations_by_package,
     )
 
     module_packages_impl.register_module_package_commands()
@@ -925,7 +928,9 @@ def test_protocol_reporting_classifies_full_partial_legacy_from_static_source(
     assert "full=1, partial=1, legacy=1" in caplog.text
 
 
-def test_protocol_legacy_warning_emitted_once_per_module(monkeypatch, caplog, tmp_path: Path) -> None:
+def test_protocol_legacy_warning_emitted_once_per_module(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, tmp_path: Path
+) -> None:
     """Legacy warning should not be emitted more than once for a module condition."""
     from specfact_cli.registry import module_packages as module_packages_impl
 
@@ -936,7 +941,7 @@ def test_protocol_legacy_warning_emitted_once_per_module(monkeypatch, caplog, tm
     monkeypatch.setattr(module_packages_impl, "is_debug_mode", lambda: True)
     monkeypatch.setattr(module_packages_impl, "get_bridge_logger", lambda _name: test_logger)
     packages = [(tmp_path / "legacy", ModulePackageMetadata(name="legacy", commands=[]))]
-    monkeypatch.setattr(module_packages_impl, "discover_all_package_metadata", lambda: packages)
+    monkeypatch.setattr(module_packages_impl, "discover_all_package_metadata", lambda **_kwargs: packages)
     monkeypatch.setattr(module_packages_impl, "verify_module_artifact", lambda _dir, _meta, allow_unsigned=False: True)
     monkeypatch.setattr(module_packages_impl, "read_modules_state", dict)
     monkeypatch.setattr(module_packages_impl, "_check_protocol_compliance_from_source", lambda *_args, **_kwargs: [])
@@ -947,7 +952,9 @@ def test_protocol_legacy_warning_emitted_once_per_module(monkeypatch, caplog, tm
     assert len(lines) == 1
 
 
-def test_protocol_reporting_uses_static_source_operations(monkeypatch, caplog, tmp_path: Path) -> None:
+def test_protocol_reporting_uses_static_source_operations(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, tmp_path: Path
+) -> None:
     """Protocol reporting should use static source inspection operations."""
     from specfact_cli.registry import module_packages as module_packages_impl
 
@@ -958,7 +965,7 @@ def test_protocol_reporting_uses_static_source_operations(monkeypatch, caplog, t
     monkeypatch.setattr(module_packages_impl, "is_debug_mode", lambda: True)
     monkeypatch.setattr(module_packages_impl, "get_bridge_logger", lambda _name: test_logger)
     packages = [(tmp_path / "backlog", ModulePackageMetadata(name="backlog", commands=[]))]
-    monkeypatch.setattr(module_packages_impl, "discover_all_package_metadata", lambda: packages)
+    monkeypatch.setattr(module_packages_impl, "discover_all_package_metadata", lambda **_kwargs: packages)
     monkeypatch.setattr(module_packages_impl, "verify_module_artifact", lambda _dir, _meta, allow_unsigned=False: True)
     monkeypatch.setattr(module_packages_impl, "read_modules_state", dict)
     monkeypatch.setattr(
@@ -987,7 +994,9 @@ def test_all_builtin_modules_expose_module_io_contract_operations() -> None:
     assert not legacy_modules, f"Modules still legacy: {', '.join(sorted(legacy_modules))}"
 
 
-def test_protocol_reporting_is_quiet_when_all_modules_are_fully_compliant(monkeypatch, caplog, tmp_path: Path) -> None:
+def test_protocol_reporting_is_quiet_when_all_modules_are_fully_compliant(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, tmp_path: Path
+) -> None:
     """No protocol warnings/summary should be emitted when all modules are fully compliant."""
     from specfact_cli.registry import module_packages as module_packages_impl
 
@@ -1001,7 +1010,7 @@ def test_protocol_reporting_is_quiet_when_all_modules_are_fully_compliant(monkey
         (tmp_path / "full-a", ModulePackageMetadata(name="full-a", commands=[])),
         (tmp_path / "full-b", ModulePackageMetadata(name="full-b", commands=[])),
     ]
-    monkeypatch.setattr(module_packages_impl, "discover_all_package_metadata", lambda: packages)
+    monkeypatch.setattr(module_packages_impl, "discover_all_package_metadata", lambda **_kwargs: packages)
     monkeypatch.setattr(module_packages_impl, "verify_module_artifact", lambda _dir, _meta, allow_unsigned=False: True)
     monkeypatch.setattr(module_packages_impl, "read_modules_state", dict)
     monkeypatch.setattr(
@@ -1016,7 +1025,9 @@ def test_protocol_reporting_is_quiet_when_all_modules_are_fully_compliant(monkey
     assert "Protocol-compliant:" not in caplog.text
 
 
-def test_protocol_reporting_is_silent_for_non_compliant_modules_when_debug_off(monkeypatch, tmp_path: Path) -> None:
+def test_protocol_reporting_is_silent_for_non_compliant_modules_when_debug_off(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     """Non-compliant protocol details should stay hidden unless debug mode is enabled."""
     from specfact_cli.registry import module_packages as module_packages_impl
 
@@ -1025,7 +1036,7 @@ def test_protocol_reporting_is_silent_for_non_compliant_modules_when_debug_off(m
     monkeypatch.setattr(module_packages_impl, "is_debug_mode", lambda: False)
     monkeypatch.setattr(module_packages_impl, "print_warning", shown_messages.append)
     packages = [(tmp_path / "partial-a", ModulePackageMetadata(name="partial-a", commands=[]))]
-    monkeypatch.setattr(module_packages_impl, "discover_all_package_metadata", lambda: packages)
+    monkeypatch.setattr(module_packages_impl, "discover_all_package_metadata", lambda **_kwargs: packages)
     monkeypatch.setattr(module_packages_impl, "verify_module_artifact", lambda _dir, _meta, allow_unsigned=False: True)
     monkeypatch.setattr(module_packages_impl, "read_modules_state", dict)
     monkeypatch.setattr(

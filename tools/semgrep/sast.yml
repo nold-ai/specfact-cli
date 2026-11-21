@@ -52,6 +52,7 @@ rules:
       - pattern-either:
           - pattern: hashlib.md5(...)
           - pattern: hashlib.sha1(...)
+      - pattern-not: hashlib.sha1(..., usedforsecurity=False)
     message: "Weak cryptographic hash function detected"
     languages: [python]
     severity: WARNING

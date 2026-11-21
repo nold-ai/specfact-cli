@@ -170,7 +170,7 @@ def test_installed_requirements_module_makes_root_cli_help_callable(
         from specfact_cli.registry import module_packages as mp
 
         CommandRegistry._clear_for_testing()
-        scoped_monkeypatch.setattr(mp, "discover_all_package_metadata", lambda: packages)
+        scoped_monkeypatch.setattr(mp, "discover_all_package_metadata", lambda **_kwargs: packages)
         scoped_monkeypatch.setattr(mp, "verify_module_artifact", lambda _dir, _meta, allow_unsigned=False: True)
         scoped_monkeypatch.setattr(mp, "read_modules_state", dict)
         scoped_monkeypatch.setattr(mp, "_check_protocol_compliance_from_source", lambda *_args, **_kwargs: [])
