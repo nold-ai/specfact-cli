@@ -683,11 +683,12 @@ def test_blocking_lint_has_no_pylint_or_dill_dependency() -> None:
 
 def _assert_immutable_modules_fixture(raw: str, fixture: str = "ci/module-fixture.lock.json") -> None:
     """Assert the shared immutable module-fixture safeguards for workflow text."""
+    identity = json.loads((REPO_ROOT / fixture).read_text(encoding="utf-8"))
     assert fixture in raw
     assert 'repository="$(python -c' in raw
     assert 'test "$repository" = "nold-ai/specfact-cli-modules"' in raw
-    assert "steps.modules-fixture.outputs.repository" in raw
-    assert "ref: ${{ steps.modules-fixture.outputs.commit }}" in raw
+    assert f"repository: {identity['repository']}" in raw
+    assert f"ref: {identity['commit']}" in raw
     assert "git -C specfact-cli-modules rev-parse HEAD" in raw
     assert "./.github/actions/setup-frozen-python" in raw
     assert "pip install" not in raw
