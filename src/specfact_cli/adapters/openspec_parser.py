@@ -311,9 +311,8 @@ class OpenSpecParser:
                 item = line.strip().lstrip("-*").strip()
                 if item:
                     current_items.append(item)
-            elif current_section:
-                if current_section == "overview" or (current_section in ("requirements", "scenarios") and line.strip()):
-                    current_text.append(line)
+            elif current_section == "overview" or (current_section in ("requirements", "scenarios") and line.strip()):
+                current_text.append(line)
 
         overview, requirements, scenarios = self._flush_spec_section(
             current_section, current_text, current_items, overview, requirements, scenarios
