@@ -62,14 +62,17 @@ def test_async_controls_do_not_report_blocking_or_task_lifetime_errors() -> None
 def test_async_cli_records_unavailable_source_and_leaves_requested_fix_unchanged(tmp_path: Path) -> None:
     source = tmp_path / "example.py"
     source.write_text("async def run():\n    time.sleep(1)\n", encoding="utf-8")
+    source_root = Path(__file__).resolve().parents[3] / "src"
     command = [sys.executable, "-m", "specfact_cli.analyzers.async_checks", "--root", str(tmp_path)]
     incomplete = subprocess.run(
-        [*command, "example.py", "missing.py"], capture_output=True, text=True, check=False, timeout=10
+        [*command, "example.py", "missing.py"], cwd=source_root, capture_output=True, text=True, check=False, timeout=10
     )
     assert incomplete.returncode == 2
     assert json.loads(incomplete.stdout)["diagnostics"][0]["file"] == "missing.py"
 
-    fix = subprocess.run([*command, "--fix", "example.py"], capture_output=True, text=True, check=False, timeout=10)
+    fix = subprocess.run(
+        [*command, "--fix", "example.py"], cwd=source_root, capture_output=True, text=True, check=False, timeout=10
+    )
     assert fix.returncode == 2
     assert "manual fixes" in json.loads(fix.stdout)["diagnostics"][0]["message"]
     assert source.read_text(encoding="utf-8") == "async def run():\n    time.sleep(1)\n"
