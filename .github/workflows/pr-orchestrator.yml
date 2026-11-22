@@ -801,19 +801,21 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Run independent Python SAST
+        id: python-sast
+        shell: bash
+        run: |
+          mkdir -p logs/static-analysis
+          python scripts/core_sast_gate.py \
+            --root . \
+            --baseline ci/core-sast-baseline.json \
+            --output logs/static-analysis/python-sast.json
+
       - name: Set up frozen static-analysis dependencies
         uses: ./.github/actions/setup-frozen-python
 
-      - name: Run independent Semgrep and Bandit gates
-        env:
-          SEMGREP_ENABLE_VERSION_CHECK: "0"
-        run: |
-          mkdir -p logs/static-analysis
-          semgrep scan --config tools/semgrep/sast.yml --json --output logs/static-analysis/semgrep.json
-          python scripts/semgrep_sast_gate.py \
-            --results logs/static-analysis/semgrep.json \
-            --baseline tools/semgrep/sast-baseline.json
-          bandit -r src/ -ll -f json -o logs/static-analysis/bandit.json
+      - name: Run independent Bandit gate
+        run: bandit -r src/ -ll -f json -o logs/static-analysis/bandit.json
 
       - name: Upload independent static-analysis artifacts
         if: always()
@@ -1449,7 +1451,7 @@ jobs:
             --deselect=tests/unit/scripts/test_dependency_trust_review.py
             --deselect=tests/unit/scripts/test_reproducible_delivery.py
             --deselect=tests/unit/security/test_release_dependency_selection.py::test_reviewed_tooling_versions_match_frozen_export
-            --deselect=tests/unit/security/test_release_promotion_security_gates.py::test_frozen_graph_uses_official_semgrep_with_bounded_mcp_exception
+            --deselect=tests/unit/security/test_release_promotion_security_gates.py::test_frozen_graph_excludes_the_retired_scanner_and_its_advisories
             --deselect=tests/unit/security/test_frozen_dependency_artifacts.py::test_frozen_certifi_bundle_excludes_compromised_root
             --deselect=tests/unit/security/test_frozen_dependency_artifacts.py::test_artifact_download_rejects_wrong_sha256
             --deselect=tests/unit/security/test_frozen_jwt_compatibility.py::test_inspection_preserves_options_and_expiry_on_reuse

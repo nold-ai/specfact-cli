@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import TypedDict, cast
 
 from beartype import beartype
+from check_dependency_trust_exceptions import render_frozen_pip_export
 from icontract import ensure
 
 
@@ -109,7 +110,7 @@ def verify_locked_export() -> None:
     if completed.returncode != 0:
         detail = (completed.stderr or completed.stdout).strip()
         raise ValueError(f"Could not render locked CI export: {detail}")
-    rendered = _without_generated_header(completed.stdout)
+    rendered = _without_generated_header(render_frozen_pip_export(completed.stdout))
     committed = _without_generated_header(contents)
     if rendered != committed:
         raise ValueError("Locked CI export differs from uv.lock; run refresh-frozen-delivery")

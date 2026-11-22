@@ -262,61 +262,33 @@ class TestReproChecker:
         assert report.crosshair_requirement_violated is True
         assert report.get_exit_code() == 1
 
-    def test_repro_checker_fix_flag(self, tmp_path: Path):
-        """Test ReproChecker with fix=True includes --fix in Semgrep command."""
-        # Create semgrep config to enable Semgrep check
-        semgrep_config = tmp_path / "tools" / "semgrep" / "async.yml"
-        semgrep_config.parent.mkdir(parents=True, exist_ok=True)
-        semgrep_config.write_text("rules:\n  - id: test-rule\n    patterns:\n      - pattern: test\n")
+    def test_repro_reports_async_findings_from_the_builtin_scanner(self, tmp_path: Path) -> None:
+        source = tmp_path / "worker.py"
+        source.write_text("async def run():\n    time.sleep(1)\n", encoding="utf-8")
+        checker = ReproChecker(repo_path=tmp_path, budget=30)
 
-        # Create src directory for source detection
-        src_dir = tmp_path / "src"
-        src_dir.mkdir()
-        (src_dir / "__init__.py").write_text("")
+        with patch("specfact_cli.utils.env_manager.check_tool_in_env", return_value=(False, "Test only")):
+            report = checker.run_all_checks(run_async_checks=True)
 
-        checker = ReproChecker(repo_path=tmp_path, budget=30, fix=True)
-        assert checker.fix is True
+        result = next(check for check in report.checks if check.tool == "async-checks")
+        assert result.status == CheckStatus.FAILED
+        findings = result.to_dict()["findings"]
+        assert findings["targets_scanned"] == 1
+        assert any(row["rule_id"] == "blocking-sleep-in-async" for row in findings["findings"])
 
-        # Mock environment detection
-        env_info = EnvManagerInfo(
-            manager=EnvManager.UNKNOWN,
-            available=True,
-            command_prefix=[],
-            message="Test",
-        )
+    def test_repro_unrecognized_legacy_async_config_requires_migration(self, tmp_path: Path) -> None:
+        legacy = tmp_path / "tools" / "semgrep" / "async.yml"
+        legacy.parent.mkdir(parents=True)
+        legacy.write_text("rules: []\n", encoding="utf-8")
+        checker = ReproChecker(repo_path=tmp_path, budget=30)
 
-        with patch("subprocess.run") as mock_run:
-            mock_proc = MagicMock()
-            mock_proc.returncode = 0
-            mock_proc.stdout = ""
-            mock_proc.stderr = ""
-            mock_run.return_value = mock_proc
+        with patch("specfact_cli.utils.env_manager.check_tool_in_env", return_value=(False, "Test only")):
+            report = checker.run_all_checks()
 
-            # Mock environment detection and tool availability
-            with (
-                patch("specfact_cli.utils.env_manager.detect_env_manager", return_value=env_info),
-                patch("specfact_cli.utils.env_manager.check_tool_in_env", return_value=(True, None)),
-                patch("shutil.which", return_value="/usr/bin/semgrep"),
-            ):
-                checker.run_all_checks()
-
-            # Verify Semgrep was called with --autofix flag
-            semgrep_calls = [call for call in mock_run.call_args_list if "semgrep" in str(call)]
-            if semgrep_calls:
-                # Check that --autofix is in the command
-                semgrep_call = semgrep_calls[0]
-                command = semgrep_call[0][0] if isinstance(semgrep_call[0], tuple) else semgrep_call[0]
-                assert "--autofix" in command or any("--autofix" in str(arg) for arg in command)
-
-    def test_repro_checker_fix_flag_disabled(self, tmp_path: Path):
-        """Test ReproChecker with fix=False does not include --fix in Semgrep command."""
-        # Create semgrep config to enable Semgrep check
-        semgrep_config = tmp_path / "tools" / "semgrep" / "async.yml"
-        semgrep_config.parent.mkdir(parents=True, exist_ok=True)
-        semgrep_config.write_text("rules:\n  - id: test-rule\n    patterns:\n      - pattern: test\n")
-
-        checker = ReproChecker(repo_path=tmp_path, budget=30, fix=False)
-        assert checker.fix is False
+        result = next(check for check in report.checks if check.tool == "async-checks")
+        assert result.status == CheckStatus.FAILED
+        messages = result.to_dict()["findings"]["diagnostics"]
+        assert any("require migration" in entry["message"] for entry in messages)
 
     def test_repro_checker_crosshair_per_path_timeout_passed_to_command(self, tmp_path: Path):
         """Test ReproChecker with crosshair_per_path_timeout passes --per_path_timeout to CrossHair."""

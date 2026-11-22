@@ -9,16 +9,18 @@ CrossHair: skip (known signature synthesis limitation on complex pathlib/type si
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
 import subprocess
+import sys
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from beartype import beartype
 from icontract import ensure, require
@@ -521,6 +523,11 @@ def _extract_findings(tool: str, output: str, error: str) -> dict[str, Any]:
         return _extract_ruff_findings(output)
     if tool_lower == "semgrep":
         return _extract_semgrep_findings(output, error)
+    if tool_lower == "async-checks":
+        report: object = json.loads(output)
+        if not isinstance(report, dict) or report.get("engine") != "python-ast":
+            raise ValueError("Invalid built-in async check report")
+        return cast(dict[str, Any], report)
     if tool_lower == "basedpyright":
         return _extract_basedpyright_findings(output)
     if tool_lower == "crosshair":
@@ -809,7 +816,7 @@ class ReproChecker:
     """
     Runs validation checks with time budgets and result aggregation.
 
-    Executes various tools (ruff, semgrep, basedpyright, crosshair, pytest)
+    Executes Ruff, optional async checks, BasedPyright, CrossHair, and pytest.
     and aggregates their results into a comprehensive report.
     """
 
@@ -841,7 +848,7 @@ class ReproChecker:
             repo_path: Path to repository (default: current directory)
             budget: Total time budget in seconds (must be > 0)
             fail_fast: Stop on first failure
-            fix: Apply auto-fixes where available (Semgrep auto-fixes)
+            fix: Request fixes where the selected checks support them
             crosshair_per_path_timeout: If set, pass --per_path_timeout N to CrossHair (deep validation).
         """
         self.repo_path = Path(repo_path) if repo_path else Path(".")
@@ -952,12 +959,15 @@ class ReproChecker:
     @ensure(lambda result: isinstance(result, ReproReport), "Must return ReproReport")
     @ensure(_repro_report_total_checks_nonnegative, "Total checks must be non-negative")
     @ensure(_repro_report_totals_consistent, "Total checks must equal sum of all status types")
-    def run_all_checks(self) -> ReproReport:
+    def run_all_checks(self, *, run_async_checks: bool = False) -> ReproReport:
         """
         Run all validation checks.
 
         Detects the target repository's environment manager and builds appropriate
         commands. Makes all tools optional with clear messaging when unavailable.
+
+        Args:
+            run_async_checks: Explicitly enable built-in async analysis.
 
         Returns:
             ReproReport with aggregated results
@@ -966,7 +976,7 @@ class ReproChecker:
 
         env_info = detect_env_manager(self.repo_path)
         source_dirs = _repro_resolve_source_dirs(self.repo_path)
-        checks = _repro_build_checks_list(self, env_info, source_dirs)
+        checks = _repro_build_checks_list(self, env_info, source_dirs, run_async_checks=run_async_checks)
         _repro_run_checks_loop(self, checks, env_info)
 
         self.report.total_duration = time.time() - self.start_time
@@ -1000,34 +1010,23 @@ def _repro_checks_append_ruff(
         checks.append(("Linting (ruff)", "ruff", [], None, True, None))
 
 
-def _repro_checks_append_semgrep(
+def _repro_checks_append_async(
     checks: list[tuple[str, str, list[str], int | None, bool, dict[str, str] | None]],
     checker: ReproChecker,
-    env_info: Any,
-    repo_path: Path,
-    semgrep_config: Path,
+    *,
+    run_async_checks: bool,
 ) -> None:
-    from specfact_cli.utils.env_manager import build_tool_command, check_tool_in_env
-
-    if not semgrep_config.exists():
+    legacy = Path("tools/semgrep/async.yml")
+    has_legacy_policy = (checker.repo_path / legacy).exists()
+    if not run_async_checks and not has_legacy_policy:
         return
-    semgrep_available, _ = check_tool_in_env(repo_path, "semgrep", env_info)
-    if semgrep_available:
-        semgrep_log_path = repo_path / ".specfact" / "logs" / "semgrep.log"
-        semgrep_cache_path = repo_path / ".specfact" / "cache" / "semgrep_version"
-        semgrep_log_path.parent.mkdir(parents=True, exist_ok=True)
-        semgrep_cache_path.parent.mkdir(parents=True, exist_ok=True)
-        semgrep_env = os.environ.copy()
-        semgrep_env["SEMGREP_LOG_FILE"] = str(semgrep_log_path)
-        semgrep_env["SEMGREP_VERSION_CACHE_PATH"] = str(semgrep_cache_path)
-        semgrep_env["XDG_CACHE_HOME"] = str((repo_path / ".specfact" / "cache").resolve())
-        semgrep_command = ["semgrep", "--config", str(semgrep_config.relative_to(repo_path)), "."]
-        if checker.fix:
-            semgrep_command.append("--autofix")
-        semgrep_command = build_tool_command(env_info, semgrep_command)
-        checks.append(("Async patterns (semgrep)", "semgrep", semgrep_command, 30, True, semgrep_env))
-    else:
-        checks.append(("Async patterns (semgrep)", "semgrep", [], 30, True, None))
+    scanner = Path(__file__).resolve().parents[1] / "analyzers/async_checks.py"
+    command = [sys.executable, "-I", str(scanner)]
+    if has_legacy_policy:
+        command.extend(("--legacy-config", str(legacy)))
+    if checker.fix:
+        command.append("--fix")
+    checks.append(("Async patterns", "async-checks", command, 30, False, None))
 
 
 def _repro_checks_append_basedpyright(
@@ -1111,14 +1110,15 @@ def _repro_build_checks_list(
     checker: ReproChecker,
     env_info: Any,
     source_dirs: list[str],
+    *,
+    run_async_checks: bool,
 ) -> list[tuple[str, str, list[str], int | None, bool, dict[str, str] | None]]:
     repo_path = checker.repo_path
-    semgrep_config = repo_path / "tools" / "semgrep" / "async.yml"
     tests_dir = repo_path / "tests"
     checks: list[tuple[str, str, list[str], int | None, bool, dict[str, str] | None]] = []
 
     _repro_checks_append_ruff(checks, repo_path, env_info, source_dirs, tests_dir)
-    _repro_checks_append_semgrep(checks, checker, env_info, repo_path, semgrep_config)
+    _repro_checks_append_async(checks, checker, run_async_checks=run_async_checks)
     _repro_checks_append_basedpyright(checks, repo_path, env_info, source_dirs, tests_dir)
     _repro_checks_append_crosshair(checks, checker, env_info, repo_path, source_dirs)
     _repro_checks_append_pytest_dir(checks, repo_path, env_info, "contracts", "Property tests (pytest contracts)")

@@ -1,6 +1,0 @@
-{
-  "version": 1,
-  "generated_on": "2026-06-13",
-  "command": "semgrep scan --config tools/semgrep/sast.yml --json",
-  "accepted_findings": []
-}

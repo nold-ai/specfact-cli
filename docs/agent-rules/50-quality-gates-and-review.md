@@ -93,10 +93,10 @@ Do not treat `specfact code review run` as sufficient security evidence for this
 
 PR validation therefore requires an independent static-analysis check alongside the self-review gate:
 
-- `Independent Static Analysis` runs Semgrep OSS SAST through `hatch run semgrep-sast` and validates results with `hatch run semgrep-sast-gate`.
-- Existing Semgrep findings are tracked in `tools/semgrep/sast-baseline.json`; new findings outside that baseline fail CI.
+- `Independent Static Analysis` runs the Python AST scanner. Run the same scanner locally with `hatch run core-sast --output python-sast.json`.
+- The scanner checks every eligible tracked path and fails on incomplete analysis or new findings outside `ci/core-sast-baseline.json`.
 - Bandit runs through `hatch run bandit-scan` and is expected to remain clean for blocking medium/high findings.
-- The Semgrep and Bandit artifacts are external evidence and must not be replaced by `.specfact/code-review.json`.
+- Keep the Python SAST and Bandit artifacts as independent evidence alongside `.specfact/code-review.json`.
 
 ## Clean-code review gate
 

@@ -55,6 +55,12 @@ def _setup_runtime_dependency_names() -> set[str]:
     raise AssertionError("setup.py must call setup")
 
 
+@pytest.fixture(autouse=True)
+def _standalone_script_imports(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Load CLI scripts with the sibling imports available to their normal entry point."""
+    monkeypatch.setattr(sys, "path", [str(REPO_ROOT / "scripts"), *sys.path])
+
+
 def test_reproducible_delivery_checker_is_versioned() -> None:
     """The lock/export/fixture verifier must be available to local and CI callers."""
     checker = REPO_ROOT / "scripts" / "check_reproducible_delivery.py"

@@ -175,10 +175,12 @@ def test_pycparser_requirement_excludes_the_alerted_release_family() -> None:
 def test_telemetry_dependencies_are_opt_in_extra() -> None:
     """OpenTelemetry should stay out of core but remain available for explicit telemetry installs."""
     data = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
-    telemetry = set(data["project"]["optional-dependencies"]["telemetry"])
+    project = data["project"]
+    telemetry = set(project["optional-dependencies"]["telemetry"])
 
-    assert "opentelemetry-sdk>=1.27.0" in telemetry
-    assert "opentelemetry-exporter-otlp-proto-http>=1.27.0" in telemetry
+    assert "opentelemetry-sdk>=1.45.2" in telemetry
+    assert "opentelemetry-exporter-otlp-proto-http>=1.45.2" in telemetry
+    assert all(not requirement.startswith("opentelemetry-") for requirement in project["dependencies"])
 
 
 def test_hatch_gate_scripts_quote_pythonpath_interpreter_substitution() -> None:

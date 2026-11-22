@@ -23,7 +23,9 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
         ("filelock", "4.2.1"),
         ("msgpack", "1.2.3"),
         ("setuptools", "84.1.0"),
-        ("semgrep", "1.182.1"),
+        ("opentelemetry-api", "1.45.2"),
+        ("opentelemetry-sdk", "1.45.2"),
+        ("opentelemetry-exporter-otlp-proto-http", "1.45.2"),
         ("python-discovery", "1.6.1"),
         ("packaging", "26.3"),
         ("pycparser", "3.12"),
@@ -32,9 +34,12 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 def test_reviewed_tooling_versions_match_frozen_export(name: str, version: str) -> None:
     lock = tomllib.loads((REPO_ROOT / "uv.lock").read_text(encoding="utf-8"))
     packages = [package for package in lock["package"] if package["name"] == name]
-    assert [(package["version"], package["source"]) for package in packages] == [
-        (version, {"registry": "https://pypi.org/simple"})
-    ]
+    source = {"registry": "https://pypi.org/simple"}
+    if name == "pycparser":
+        project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+        source = project["tool"]["uv"]["sources"][name]
+        assert "sdist" not in packages[0]
+    assert [(package["version"], package["source"]) for package in packages] == [(version, source)]
     export = (REPO_ROOT / "requirements/ci/locked.txt").read_text(encoding="utf-8")
     requirements = re.findall(
         rf"^{re.escape(name)}=={re.escape(version)}(?:[ \t][^\n]*|$)",
@@ -42,11 +47,17 @@ def test_reviewed_tooling_versions_match_frozen_export(name: str, version: str) 
         re.MULTILINE,
     )
     assert len(requirements) == 1
-    artifacts = [packages[0]["sdist"], *packages[0]["wheels"]]
+    artifacts = packages[0]["wheels"] + ([packages[0]["sdist"]] if "sdist" in packages[0] else [])
     expected_hashes = {artifact["hash"] for artifact in artifacts}
     assert expected_hashes
     assert all(re.fullmatch(r"sha256:[0-9a-f]{64}", digest) for digest in expected_hashes)
     assert set(re.findall(r"--hash=(\S+)", requirements[0])) == expected_hashes
+
+
+def test_retired_scanner_graph_is_absent_from_frozen_delivery() -> None:
+    lock = tomllib.loads((REPO_ROOT / "uv.lock").read_text(encoding="utf-8"))
+    names = {package["name"] for package in lock["package"]}
+    assert names.isdisjoint({"semgrep", "mcp", "wcmatch"})
 
 
 @pytest.mark.parametrize(

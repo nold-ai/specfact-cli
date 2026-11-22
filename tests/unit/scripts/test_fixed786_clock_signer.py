@@ -257,8 +257,9 @@ def test_fresh_owner_risk_register_keeps_its_own_expiry(
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
+    historical = Path(__file__).with_name("fixtures") / "fixed786-risk-registries"
     if policy == "check_dependency_trust_exceptions":
-        register = module.DEFAULT_REGISTER
+        register = historical / "dependency-trust-exceptions-20261116.json"
         errors = module.validate_exception_register(
             register, today=date(2026, 11, 22) if expired else date(2026, 11, 16)
         )
@@ -270,6 +271,6 @@ def test_fresh_owner_risk_register_keeps_its_own_expiry(
                 return date(2026, 11, 22) if expired else date(2026, 11, 21)
 
         monkeypatch.setattr(module, "date", CurrentDate)
-        register = ROOT / module.DEFAULT_EXCEPTIONS_FILE
+        register = historical / "vulnerability-audit-exceptions-20261116.json"
         _, errors = module._load_reviewed_exceptions(register)
     assert bool(errors) is expired

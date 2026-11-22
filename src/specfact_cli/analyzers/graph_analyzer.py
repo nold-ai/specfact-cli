@@ -1,7 +1,7 @@
 """
 Graph-based dependency and call graph analysis.
 
-Enhances AST and Semgrep analysis with graph-based dependency tracking,
+Enhances Python source analysis with graph-based dependency tracking,
 call graph extraction, and architecture visualization.
 
 Call graph extraction uses pycg (MIT) via subprocess. pyan3 (GPL-2.0) removed.
@@ -31,7 +31,7 @@ class GraphAnalyzer:
     Graph-based dependency and call graph analysis.
 
     Uses pycg for call graphs, NetworkX for dependency graphs,
-    and provides graph-based insights to complement AST and Semgrep.
+    and provides graph-based insights to complement Python source analysis.
     """
 
     @beartype
