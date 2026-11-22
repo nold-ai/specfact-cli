@@ -11,7 +11,7 @@ import stat
 import subprocess
 import sys
 import tokenize
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from pathlib import Path, PurePosixPath
 from typing import NamedTuple, cast
 
@@ -129,21 +129,41 @@ def _has_secret(node: ast.Assign | ast.AnnAssign) -> bool:
     )
 
 
-def _findings(tree: ast.AST, path: str) -> set[Finding]:
-    nodes = list(ast.walk(tree))
-    aliases = _import_aliases(nodes)
-    findings: set[Finding] = set()
+def _scope_nodes(body: list[ast.stmt]) -> Iterator[ast.AST]:
+    """Visit definition headers in the current scope and leave their bodies to the child scan."""
+    pending: list[ast.AST] = list(reversed(body))
+    while pending:
+        node = pending.pop()
+        yield node
+        children = list(ast.iter_child_nodes(node))
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            child_body = set(node.body)
+            children = [child for child in children if child not in child_body]
+        pending.extend(reversed(children))
+
+
+def _scope_findings(
+    body: list[ast.stmt], inherited: dict[str, str], path: str, *, class_body: bool = False
+) -> Iterator[Finding]:
+    nodes = list(_scope_nodes(body))
+    aliases = inherited | _import_aliases(nodes)
+    # A class body has a local namespace that its methods do not close over.
+    nested_inherited = inherited if class_body else aliases
     for node in nodes:
-        if isinstance(node, ast.Call):
-            rule = _call_rule(node, _call_name(node.func, aliases))
-            if rule:
-                findings.add(Finding(rule, path, node.lineno))
-        elif isinstance(node, (ast.Assign, ast.AnnAssign)) and _has_secret(node):
-            findings.add(Finding("hardcoded-secret", path, node.lineno))
-    return findings
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            yield from _scope_findings(node.body, nested_inherited, path, class_body=isinstance(node, ast.ClassDef))
+            continue
+        if isinstance(node, (ast.Assign, ast.AnnAssign)) and _has_secret(node):
+            yield Finding("hardcoded-secret", path, node.lineno)
+            continue
+        if not isinstance(node, ast.Call):
+            continue
+        rule = _call_rule(node, _call_name(node.func, aliases))
+        if rule:
+            yield Finding(rule, path, node.lineno)
 
 
-def _read_source(root: Path, path: str) -> ast.AST:
+def _read_source(root: Path, path: str) -> ast.Module:
     source = root / path
     if not _valid_path(path) or source.resolve(strict=True) != source or not stat.S_ISREG(source.lstat().st_mode):
         raise OSError("expected a regular file inside the Git worktree")
@@ -182,7 +202,7 @@ def _run(root: Path, baseline_path: Path, output: Path) -> int:
             diagnostics.append({"path": path, "message": "invalid Python"})
         else:
             scanned_paths.append(path)
-            findings.update(_findings(tree, path))
+            findings.update(_scope_findings(tree.body, {}, path))
 
     new_findings = findings - baseline
     status = "incomplete" if diagnostics else "findings" if new_findings else "pass"

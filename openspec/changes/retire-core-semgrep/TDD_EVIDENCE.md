@@ -40,3 +40,21 @@ disables source builds for pycparser, and excludes its unapproved source archive
 during the frozen refresh. The same protected base verifier and bootstrap trust
 check passed against the regenerated lock and unmodified pip export. All 60
 focused dependency, trust, and reproducibility tests passed.
+
+### Protected before-fix proof
+
+The signed tests-only commit `01f4685b` retained the implementation on `dev` and
+all owner-approved test bytes. Its original hosted Requirements run stopped
+before pytest on the expired base dependency trust record. The replacement
+proof job uses the exact signed tests-only source and installs an independently
+pinned, audited hash graph. It derives the existing native plan, runs the 14
+mapped pytest selectors and binds their results with the existing provenance
+verifier. All 14 failed locally on the exact pre-fix tree and its protected base
+verifier accepted the bound report. The existing producer, fresh execution and
+final verdict verify current-run evidence by artifact ID. Ordinary gates remain
+active. See [organization policy PR #7](https://github.com/nold-ai/.github/pull/7).
+
+A focused scanner case also showed that an unrelated function or class import
+could replace a module alias in the original scan. Lexical import scope now
+preserves the expected findings. The new regression lives separately from all
+mapped test files, leaving the approved plan and source bindings intact.
