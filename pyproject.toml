@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.55.15"
+version = "0.55.16"
 description = "AI-bloat defense CLI for Python teams. Run deterministic code review, cleanup forecasts, and spec/contract evidence for AI-assisted and brownfield delivery."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -191,10 +191,9 @@ specfact-cli = "specfact_cli.cli:cli_main"  # Alias for uvx compatibility
 # [project.entry-points."pytest11"] # Add if you have pytest plugins
 # specfact_test_plugin = "specfact_cli.pytest_plugin"
 
-[tool.uv.sources]
-# The frozen graph is restricted to the exact Socket-reviewed wheel.
-# The published PEP 508 dependency remains an ordinary registry requirement.
-pycparser = { url = "https://files.pythonhosted.org/packages/b6/ae/315bbeee126a769cbde43cf4908acb4b40408d8bf8bbf334dd7368d8dadf/pycparser-3.12-py3-none-any.whl" }
+[tool.uv]
+# Only the reviewed pycparser wheel may populate the frozen environments.
+no-build-package = ["pycparser"]
 
 [tool.hatch.envs.default]
 python = "3.12"

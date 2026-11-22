@@ -370,20 +370,34 @@ def _validate_locked_package_policy(
 
 def _approved_parser_wheel(package: dict[str, object]) -> bool:
     """Accept only the reviewed file, with no alternate source or distribution."""
+    wheels = package.get("wheels")
+    if not isinstance(wheels, list):
+        return False
+    entries = cast(list[object], wheels)
+    if len(entries) != 1 or not isinstance(entries[0], dict):
+        return False
+    wheel = cast(dict[str, object], entries[0])
     return (
         package.get("version") == PARSER_WHEEL_VERSION
-        and package.get("source") == {"url": PARSER_WHEEL_URL}
+        and package.get("source") == {"registry": "https://pypi.org/simple"}
         and "sdist" not in package
-        and package.get("wheels") == [{"url": PARSER_WHEEL_URL, "hash": PARSER_WHEEL_HASH}]
+        and wheel.get("url") == PARSER_WHEEL_URL
+        and wheel.get("hash") == PARSER_WHEEL_HASH
     )
 
 
-def render_frozen_pip_export(uv_export: str) -> str:
-    """Preserve the audited wheel hash in the version-pinned pip export."""
-    wheel_entry = f"pycparser @ {PARSER_WHEEL_URL}{PARSER_EXPORT_HASH_LINE}\n"
-    if uv_export.count(wheel_entry) != 1:
-        raise ValueError("uv export must contain the sole approved pycparser wheel and hash")
-    return uv_export.replace(wheel_entry, PARSER_EXPORT_ENTRY + "\n", 1)
+def restrict_frozen_parser_wheel(lock_text: str) -> str:
+    """Remove the unapproved source archive from uv's generated parser record."""
+    marker = '[[package]]\nname = "pycparser"\n'
+    if lock_text.count(marker) != 1:
+        raise ValueError("uv lock must contain one pycparser record")
+    before, _, remainder = lock_text.partition(marker)
+    parser, next_package, after = remainder.partition("[[package]]\n")
+    restricted = marker + "".join(line for line in parser.splitlines(keepends=True) if not line.startswith("sdist = "))
+    records = cast(list[dict[str, object]], tomllib.loads(restricted)["package"])
+    if not _approved_parser_wheel(records[0]):
+        raise ValueError("uv lock must contain only the approved pycparser wheel URL and hash")
+    return before + restricted + next_package + after
 
 
 def _validate_parser_export(export_path: Path) -> list[str]:

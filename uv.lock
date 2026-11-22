@@ -1714,9 +1714,9 @@ wheels = [
 [[package]]
 name = "pycparser"
 version = "3.12"
-source = { url = "https://files.pythonhosted.org/packages/b6/ae/315bbeee126a769cbde43cf4908acb4b40408d8bf8bbf334dd7368d8dadf/pycparser-3.12-py3-none-any.whl" }
+source = { registry = "https://pypi.org/simple" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b6/ae/315bbeee126a769cbde43cf4908acb4b40408d8bf8bbf334dd7368d8dadf/pycparser-3.12-py3-none-any.whl", hash = "sha256:a076f3f489b39b43ed13563a1dafe42447445bec2e294154ec5c57fcdda4c85e" },
+    { url = "https://files.pythonhosted.org/packages/b6/ae/315bbeee126a769cbde43cf4908acb4b40408d8bf8bbf334dd7368d8dadf/pycparser-3.12-py3-none-any.whl", hash = "sha256:a076f3f489b39b43ed13563a1dafe42447445bec2e294154ec5c57fcdda4c85e", size = 62600, upload-time = "2026-10-22T13:40:02.021Z" },
 ]
 
 [[package]]
@@ -2461,7 +2461,7 @@ wheels = [
 
 [[package]]
 name = "specfact-cli"
-version = "0.55.15"
+version = "0.55.16"
 source = { editable = "." }
 dependencies = [
     { name = "azure-identity" },
@@ -2575,7 +2575,7 @@ requires-dist = [
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.0.1" },
     { name = "pycg", marker = "extra == 'dev'", specifier = "==0.0.8" },
     { name = "pycg", marker = "extra == 'enhanced-analysis'", specifier = "==0.0.8" },
-    { name = "pycparser", url = "https://files.pythonhosted.org/packages/b6/ae/315bbeee126a769cbde43cf4908acb4b40408d8bf8bbf334dd7368d8dadf/pycparser-3.12-py3-none-any.whl" },
+    { name = "pycparser", specifier = "!=3.0.*,>=3.12" },
     { name = "pydantic", specifier = ">=2.12.3" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4.2" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=1.2.0" },

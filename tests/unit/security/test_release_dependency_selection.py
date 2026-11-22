@@ -37,7 +37,7 @@ def test_reviewed_tooling_versions_match_frozen_export(name: str, version: str) 
     source = {"registry": "https://pypi.org/simple"}
     if name == "pycparser":
         project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-        source = project["tool"]["uv"]["sources"][name]
+        assert name in project["tool"]["uv"]["no-build-package"]
         assert "sdist" not in packages[0]
     assert [(package["version"], package["source"]) for package in packages] == [(version, source)]
     export = (REPO_ROOT / "requirements/ci/locked.txt").read_text(encoding="utf-8")

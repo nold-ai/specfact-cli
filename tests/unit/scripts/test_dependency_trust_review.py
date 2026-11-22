@@ -47,6 +47,20 @@ def test_only_reviewed_parser_wheel_is_admitted_after_exception_expires() -> Non
     assert checker.validate_frozen_dependency_policy(today=date(2026, 11, 22)) == []
 
 
+def test_frozen_lock_refresh_removes_only_the_parser_source_archive() -> None:
+    lock = (REPO_ROOT / "uv.lock").read_text(encoding="utf-8")
+    parser, marker, remaining = lock.partition('\nname = "pycparser"\n')
+    generated = (
+        parser
+        + marker
+        + remaining.replace("wheels = [", 'sdist = { url = "https://example.invalid/parser.tar.gz" }\nwheels = [', 1)
+    )
+    checker = _load_checker()
+    assert checker.restrict_frozen_parser_wheel(generated) == lock
+    with pytest.raises(ValueError, match="only the approved pycparser wheel"):
+        checker.restrict_frozen_parser_wheel(generated.replace(PARSER_WHEEL_SHA256, "0" * 64))
+
+
 @pytest.mark.parametrize(
     ("original_artifact", "replacement"),
     [

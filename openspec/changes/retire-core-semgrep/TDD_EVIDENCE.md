@@ -29,3 +29,14 @@ Local evidence collected on 22 November 2026 (Europe/Berlin) from core `dev` at 
 - The built Python 3.12 wheel and its frozen environment contained no Semgrep resources or runtime dependency. Installed smoke covered feature analysis, async findings and OpenAPI examples. The unchanged Bandit command, dependency trust, reproducible delivery, Ruff, actionlint and strict OpenSpec validation passed locally.
 
 Hosted verification and the jointly signed module acceptance remain pending.
+
+### Frozen wheel parity with the protected base verifier
+
+The first signed candidate passed the local projected export. The hosted
+[Requirements producer](https://github.com/nold-ai/specfact-cli/actions/runs/45078670999/job/137381550650)
+rejected it because the protected base verifier compares the committed export to
+stock uv output. The fixed graph uses the official PyPI registry record,
+disables source builds for pycparser, and excludes its unapproved source archive
+during the frozen refresh. The same protected base verifier and bootstrap trust
+check passed against the regenerated lock and unmodified pip export. All 60
+focused dependency, trust, and reproducibility tests passed.
