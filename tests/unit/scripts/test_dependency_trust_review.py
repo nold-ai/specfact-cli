@@ -16,6 +16,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[3]
 TRUST_RECORD = REPO_ROOT / "ci" / "dependency-trust-exceptions.json"
 CHECKER = REPO_ROOT / "scripts" / "check_dependency_trust_exceptions.py"
+PARSER_WHEEL_SHA256 = "a076f3f489b39b43ed13563a1dafe42447445bec2e294154ec5c57fcdda4c85e"
 
 
 def _load_checker() -> ModuleType:
@@ -38,6 +39,68 @@ def test_checker_runs_before_site_packages_are_available() -> None:
 
     assert result.returncode == 0, result.stderr
     assert "Dependency trust register is valid" in result.stdout
+
+
+def test_only_reviewed_parser_wheel_is_admitted_after_exception_expires() -> None:
+    """Permanent admission covers one artifact and leaves the old review historical."""
+    checker = _load_checker()
+    assert checker.validate_frozen_dependency_policy(today=date(2026, 11, 22)) == []
+
+
+def test_frozen_lock_refresh_removes_only_the_parser_source_archive() -> None:
+    lock = (REPO_ROOT / "uv.lock").read_text(encoding="utf-8")
+    parser, marker, remaining = lock.partition('\nname = "pycparser"\n')
+    generated = (
+        parser
+        + marker
+        + remaining.replace("wheels = [", 'sdist = { url = "https://example.invalid/parser.tar.gz" }\nwheels = [', 1)
+    )
+    checker = _load_checker()
+    assert checker.restrict_frozen_parser_wheel(generated) == lock
+    with pytest.raises(ValueError, match="only the approved pycparser wheel"):
+        checker.restrict_frozen_parser_wheel(generated.replace(PARSER_WHEEL_SHA256, "0" * 64))
+
+
+def test_parser_wheel_admission_rejects_lock_drift(tmp_path: Path) -> None:
+    """Run every fixture under the one Requirements proof selector."""
+    cases = [
+        (PARSER_WHEEL_SHA256, "0" * 64),
+        ("files.pythonhosted.org", "example.invalid"),
+        ("wheels =", 'sdist = { url = "https://example.invalid/parser.tar.gz" }\nwheels ='),
+        ('version = "3.12"', 'version = "3.12.post1"'),
+        ("wheels = [", 'wheels = [\n    { url = "https://example.invalid/extra.whl" },'),
+    ]
+    for index, (original_artifact, replacement) in enumerate(cases):
+        case_root = tmp_path / str(index)
+        case_root.mkdir()
+        _check_parser_wheel_admission_rejects_lock_drift(case_root, original_artifact, replacement)
+
+
+def _check_parser_wheel_admission_rejects_lock_drift(tmp_path: Path, original_artifact: str, replacement: str) -> None:
+    """One approval cannot authorize different parser bytes, sources or builds."""
+    original = (REPO_ROOT / "uv.lock").read_text(encoding="utf-8")
+    name = '\nname = "pycparser"\n'
+    first, rest = original.split(name, 1)
+    package, last = rest.split("[[package]]", 1)
+    lock = tmp_path / "uv.lock"
+    assert original_artifact in package
+    changed_lock = first + name + package.replace(original_artifact, replacement) + "[[package]]" + last
+    lock.write_text(changed_lock, encoding="utf-8")
+    errors = _load_checker().validate_frozen_dependency_policy(lock_path=lock, today=date(2026, 11, 22))
+    assert any("requires the sole approved wheel" in error for error in errors), errors
+
+
+def test_parser_wheel_admission_rejects_extra_pip_hash(tmp_path: Path) -> None:
+    """A pip export may not admit the PyPI source archive alongside the wheel."""
+    export = (REPO_ROOT / "requirements/ci/locked.txt").read_text(encoding="utf-8")
+    sdist_hash = "f03387877eab82ce01bbdfd0ba7252ee55a90b1c708d5129e2ce915475cf1db6"
+    modified = tmp_path / "locked.txt"
+    extra_hash = f"{PARSER_WHEEL_SHA256} \\\n    --hash=sha256:{sdist_hash}"
+    modified.write_text(export.replace(PARSER_WHEEL_SHA256, extra_hash), encoding="utf-8")
+
+    errors = _load_checker().validate_frozen_dependency_policy(ci_export_path=modified, today=date(2026, 11, 22))
+
+    assert errors == ["frozen CI export requires only the approved pycparser wheel hash"]
 
 
 def test_pycparser_has_current_exact_version_review_record() -> None:
@@ -214,6 +277,7 @@ def test_review_evidence_must_bind_to_the_matching_lock_package(tmp_path: Path) 
     assert errors == [
         f"pycparser=={reviewed['version']} source artifact is absent from its frozen lock record",
         f"pycparser=={reviewed['version']} artifact digest is absent from its frozen lock record",
+        "pycparser requires the sole approved wheel URL and SHA-256 in the frozen lock",
     ]
 
 
