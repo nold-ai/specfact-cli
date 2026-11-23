@@ -10,6 +10,17 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.55.16] - 2026-11-22
+
+### Security
+
+- Replace the core Semgrep runtime and independent SAST integration while retaining Bandit.
+- Remove the retired MCP and scanner dependencies from the frozen graph, update optional
+  OpenTelemetry to the patched 1.45.2 line, and retain all strict dependency audits.
+- Admit only the exact reviewed pycparser 3.12 wheel to frozen delivery.
+
+---
+
 ## [0.55.15] - 2026-11-21
 
 ### Fixed

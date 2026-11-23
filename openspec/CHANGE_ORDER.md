@@ -4,6 +4,10 @@ This document is the **single source of truth for active work** in this
 repository. It lists what is in flight, what is paused, and the order in which
 active changes should be implemented.
 
+## Permanent Semgrep retirement (2026-11-21)
+
+[Core #797](https://github.com/nold-ai/specfact-cli/issues/797) and [retire-core-semgrep](changes/retire-core-semgrep/proposal.md) own core scan and independent CI migration. Core #769 remains ordinary local report adoption. Temporary recovery in #780 and #796 remains separate. Coordinate the trusted-local module cutover and installation matrix through modules #514, #515, #516 and #523.
+
 ## High-priority trusted local Code Review reset (2026-10-16)
 
 Planned only. The approved ordinary local sequence is

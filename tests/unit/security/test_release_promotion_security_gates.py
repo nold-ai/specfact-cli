@@ -390,75 +390,34 @@ def test_every_code_review_lock_install_has_exact_closure_proof() -> None:
         assert install.index(closure_proof) < install.index("uv pip install")
 
 
-def test_frozen_graph_uses_official_semgrep_with_bounded_mcp_exception() -> None:
+def test_frozen_graph_excludes_the_retired_scanner_and_its_advisories() -> None:
     project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    dev = cast(list[str], project["project"]["optional-dependencies"]["dev"])
-    scanning = cast(list[str], project["project"]["optional-dependencies"]["scanning"])
-    assert {"semgrep>=1.175.0"} <= set(dev) & set(scanning)
+    optional = project["project"]["optional-dependencies"]
+    default_hatch = project["tool"]["hatch"]["envs"]["default"]["dependencies"]
+    requirements = [
+        *project["project"]["dependencies"],
+        *default_hatch,
+        *(dep for group in optional.values() for dep in group),
+    ]
+    assert all(not re.match(r"^(?:semgrep|specfact-semgrep)\b", requirement) for requirement in requirements)
+    assert "scanning" in optional
 
-    locked = (REPO_ROOT / "requirements" / "ci" / "locked.txt").read_text(encoding="utf-8")
-    assert set(re.findall(r"^(?:semgrep|mcp)==[^\s]+", locked, re.MULTILINE)) == {"semgrep==1.182.1", "mcp==1.29.0"}
-    assert re.search(r"^opentelemetry-api==1\.37\.0[ \t]", locked, re.MULTILINE)
-    policy = json.loads((REPO_ROOT / "ci" / "security-tool-minimum-versions.json").read_text(encoding="utf-8"))
-    exceptions = json.loads((REPO_ROOT / "ci" / "vulnerability-audit-exceptions.json").read_text(encoding="utf-8"))
-    records = exceptions["exceptions"]
-    assert (policy["minimum_versions"], len(records)) == ({"mcp": "1.28.1", "semgrep": "1.175.0"}, 3)
-    expected_records = [
-        {
-            "package": "mcp",
-            "version": "1.29.0",
-            "vulnerability_ids": ["CVE-2026-59951", "GHSA-84m7-p3x7-pcfv"],
-            "reviewed_on": "2026-10-21",
-            "expires_on": "2026-11-04",
-        },
-        {
-            "package": "mcp",
-            "version": "1.29.0",
-            "vulnerability_ids": [
-                "CVE-2026-116684",
-                "CVE-2026-116685",
-                "CVE-2026-116686",
-                "GHSA-5h93-6whr-6q8j",
-                "GHSA-rwrf-2pqf-9j8j",
-                "GHSA-w4fh-qvv9-3v23",
-            ],
-            "reviewed_on": "2026-10-29",
-            "expires_on": "2026-11-04",
-        },
-        {
-            "package": "opentelemetry-api",
-            "version": "1.37.0",
-            "vulnerability_ids": ["CVE-2026-114603", "GHSA-xcq7-p3pf-p88h"],
-            "reviewed_on": "2026-10-22",
-            "expires_on": "2026-11-04",
-        },
-    ]
-    for record, expected_record in zip(
-        sorted(records, key=lambda entry: (entry["package"], entry["reviewed_on"])), expected_records, strict=True
-    ):
-        actual_record = {
-            "package": record["package"],
-            "version": record["version"],
-            "vulnerability_ids": sorted(record["vulnerability_ids"]),
-            "reviewed_on": record["reviewed_on"],
-            "expires_on": record["expires_on"],
-        }
-        assert (actual_record, bool(record["rationale"].strip()), bool(record["mitigation"].strip())) == (
-            expected_record,
-            True,
-            True,
-        )
+    retired_packages = {"semgrep", "specfact-semgrep", "mcp", "wcmatch"}
     lock = tomllib.loads((REPO_ROOT / "uv.lock").read_text(encoding="utf-8"))
-    packages = [
-        (package["name"], package["version"], package["source"])
-        for package in lock["package"]
-        if package["name"] in {"semgrep", "mcp", "opentelemetry-api", "specfact-semgrep"}
-    ]
-    assert sorted(packages) == [
-        ("mcp", "1.29.0", {"registry": "https://pypi.org/simple"}),
-        ("opentelemetry-api", "1.37.0", {"registry": "https://pypi.org/simple"}),
-        ("semgrep", "1.182.1", {"registry": "https://pypi.org/simple"}),
-    ]
+    packages = {package["name"]: package for package in lock["package"]}
+    assert retired_packages.isdisjoint(packages)
+    telemetry = {"opentelemetry-api", "opentelemetry-sdk", "opentelemetry-exporter-otlp-proto-http"}
+    assert {packages[name]["version"] for name in telemetry} == {"1.45.2"}
+    assert all(packages[name]["source"] == {"registry": "https://pypi.org/simple"} for name in telemetry)
+
+    for relative in ("ci", "code-review", "runtime-smoke"):
+        locked = (REPO_ROOT / "requirements" / relative / "locked.txt").read_text(encoding="utf-8")
+        names = set(re.findall(r"^([a-z0-9_.-]+)==", locked, re.MULTILINE))
+        assert retired_packages.isdisjoint(names)
+
+    active_register = REPO_ROOT / "ci" / "vulnerability-audit-exceptions-20261116.json"
+    records = json.loads(active_register.read_text(encoding="utf-8"))["exceptions"]
+    assert all(record["package"] not in retired_packages | telemetry for record in records)
 
 
 def test_code_review_lock_is_bound_before_installation(tmp_path: Path) -> None:

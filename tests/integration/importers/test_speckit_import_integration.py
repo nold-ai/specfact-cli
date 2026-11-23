@@ -3,6 +3,7 @@
 import tempfile
 from pathlib import Path
 from textwrap import dedent
+from typing import cast
 
 from typer.testing import CliRunner
 
@@ -17,27 +18,8 @@ from specfact_cli.utils.yaml_utils import load_yaml
 runner = CliRunner()
 
 
-class TestSpecKitImportIntegration:
-    """Integration tests for Spec-Kit import with realistic repositories."""
-
-    def test_import_realistic_speckit_repo(self):
-        """Test importing a realistic Spec-Kit repository structure."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            repo_path = Path(tmpdir)
-
-            # Create Spec-Kit structure (markdown-based format)
-            specify_path = repo_path / ".specify"
-            specify_path.mkdir()
-
-            specs_path = repo_path / "specs"
-            specs_path.mkdir()
-
-            # Create feature 1: UserService
-            feature1_path = specs_path / "user-service"
-            feature1_path.mkdir()
-
-            spec1_md = dedent(
-                """# Feature Specification: User Service
+USER_SERVICE_SPEC = dedent(
+    """# Feature Specification: User Service
 
 ## User Scenarios & Testing
 
@@ -71,11 +53,10 @@ As an administrator, I want to delete user accounts so that I can manage the sys
 - SC-002: Users can update their profiles successfully
 - SC-003: Administrators can delete user accounts
 """
-            )
-            (feature1_path / "spec.md").write_text(spec1_md)
+)
 
-            plan1_md = dedent(
-                """# Implementation Plan: User Service
+USER_SERVICE_PLAN = dedent(
+    """# Implementation Plan: User Service
 
 ## Summary
 User management service for account creation, updates, and deletion.
@@ -91,15 +72,10 @@ User management service for account creation, updates, and deletion.
 - Phase 2: Profile updates
 - Phase 3: Admin deletion
 """
-            )
-            (feature1_path / "plan.md").write_text(plan1_md)
+)
 
-            # Create feature 2: PaymentProcessor
-            feature2_path = specs_path / "payment-processor"
-            feature2_path.mkdir()
-
-            spec2_md = dedent(
-                """# Feature Specification: Payment Processor
+PAYMENT_PROCESSOR_SPEC = dedent(
+    """# Feature Specification: Payment Processor
 
 ## User Scenarios & Testing
 
@@ -125,11 +101,10 @@ As a merchant, I want to refund payments so that I can handle customer returns.
 - SC-001: Payments process within 5 seconds
 - SC-002: Refunds complete successfully
 """
-            )
-            (feature2_path / "spec.md").write_text(spec2_md)
+)
 
-            plan2_md = dedent(
-                """# Implementation Plan: Payment Processor
+PAYMENT_PROCESSOR_PLAN = dedent(
+    """# Implementation Plan: Payment Processor
 
 ## Summary
 Payment processing service for transactions and refunds.
@@ -144,15 +119,23 @@ Payment processing service for transactions and refunds.
 - Phase 1: Payment processing
 - Phase 2: Refund handling
 """
-            )
-            (feature2_path / "plan.md").write_text(plan2_md)
+)
 
-            # Create memory directory with constitution
-            memory_path = specify_path / "memory"
-            memory_path.mkdir()
 
-            constitution_md = dedent(
-                """# Project Constitution
+def _write_feature(specs_path: Path, name: str, spec_text: str, plan_text: str) -> None:
+    feature_path = specs_path / name
+    feature_path.mkdir()
+    (feature_path / "spec.md").write_text(spec_text)
+    (feature_path / "plan.md").write_text(plan_text)
+
+
+def _write_constitution(specify_path: Path) -> None:
+    # Create memory directory with constitution
+    memory_path = specify_path / "memory"
+    memory_path.mkdir()
+
+    constitution_md = dedent(
+        """# Project Constitution
 
 ## Core Principles
 
@@ -168,8 +151,173 @@ All public APIs must have contracts defined before implementation.
 - Python 3.11+ required
 - No breaking API changes without versioning
 """
-            )
-            (memory_path / "constitution.md").write_text(constitution_md)
+    )
+    (memory_path / "constitution.md").write_text(constitution_md)
+
+
+def _write_full_workflow_project(repo_path: Path) -> None:
+    specify_path = repo_path / ".specify"
+    specify_path.mkdir()
+
+    specs_path = repo_path / "specs"
+    specs_path.mkdir()
+
+    feature_path = specs_path / "full-service"
+    feature_path.mkdir()
+
+    spec_md = dedent(
+        """# Feature Specification: Full Service
+
+## User Scenarios & Testing
+
+### User Story 1 - Start Service (Priority: P1)
+As a user, I want to start the service so that it becomes available.
+
+**Acceptance Scenarios**:
+1. Given the service is stopped, When I start it, Then it transitions to RUNNING
+
+### User Story 2 - Stop Service (Priority: P2)
+As a user, I want to stop the service so that it shuts down gracefully.
+
+**Acceptance Scenarios**:
+1. Given the service is running, When I stop it, Then it transitions to STOPPED
+
+### User Story 3 - Handle Error (Priority: P3)
+As a system, I want to handle errors so that the service can recover.
+
+**Acceptance Scenarios**:
+1. Given an error occurs, When it is handled, Then the service transitions to ERROR state
+"""
+    )
+    (feature_path / "spec.md").write_text(spec_md)
+
+    plan_md = dedent(
+        """# Implementation Plan: Full Service
+
+## Summary
+Full service with all features including state management.
+
+## Architecture
+- Python 3.11+
+- State machine
+- Error handling
+- Logging
+
+## Phases
+- Phase 1: Service lifecycle
+- Phase 2: Error handling
+- Phase 3: State management
+"""
+    )
+    (feature_path / "plan.md").write_text(plan_md)
+
+    memory_path = specify_path / "memory"
+    memory_path.mkdir()
+    (memory_path / "constitution.md").write_text(
+        "# Project Constitution\n\n## Core Principles\n\nContract-First Development"
+    )
+
+
+def _imported_feature_key(bundle_dir: Path) -> str:
+    features = load_yaml(bundle_dir / "bundle.manifest.yaml").get("features")
+    if isinstance(features, list) and features:
+        first = features[0]
+        key = cast(dict[str, object], first).get("key") if isinstance(first, dict) else first
+    elif isinstance(features, dict) and features:
+        key = next(iter(features))
+    else:
+        feature_files = sorted((bundle_dir / "features").glob("*.yaml"))
+        assert feature_files
+        key = feature_files[0].stem
+    assert isinstance(key, str), f"Expected feature key to be a string, got {key!r}"
+    return key
+
+
+def _assert_full_import_artifacts(repo_path: Path) -> None:
+    protocol_path = repo_path / ".specfact" / "protocols" / "workflow.protocol.yaml"
+    bundle_dir = repo_path / ".specfact" / "projects" / "main"
+    required_artifacts = (
+        protocol_path,
+        bundle_dir / "bundle.manifest.yaml",
+        repo_path / ".github" / "workflows" / "specfact-gate.yml",
+    )
+    for artifact in required_artifacts:
+        assert artifact.is_file(), f"Missing generated artifact {artifact}"
+
+    states = load_yaml(protocol_path)["states"]
+    assert len(states) >= 3
+    assert {"INIT", "COMPLETE"} <= set(states)
+
+    feature_path = bundle_dir / "features" / f"{_imported_feature_key(bundle_dir)}.yaml"
+    if feature_path.exists():
+        feature_data = load_yaml(feature_path)
+        assert feature_data["stories"]
+
+
+def _assert_realistic_plan(plan_bundle: PlanBundle) -> None:
+    assert isinstance(plan_bundle, PlanBundle)
+    assert len(plan_bundle.features) >= 2
+    keys = [feature.key.lower() for feature in plan_bundle.features]
+    assert any("user" in key for key in keys)
+    assert any("payment" in key for key in keys)
+    assert all(feature.stories for feature in plan_bundle.features)
+
+
+def _assert_cli_import_files(repo_path: Path) -> None:
+    # Verify generated files (modular bundle structure)
+    # Note: Import now creates modular project bundles, not monolithic plans
+    projects_dir = repo_path / ".specfact" / "projects"
+    assert projects_dir.exists()
+
+    # Find the created bundle (usually auto-named or first bundle)
+    bundle_dirs = list(projects_dir.iterdir())
+    assert len(bundle_dirs) > 0, "No project bundle created"
+    bundle_dir = bundle_dirs[0]
+
+    manifest_path = bundle_dir / "bundle.manifest.yaml"
+    assert manifest_path.exists()
+
+    # Protocol is in separate location (not in bundle)
+    protocol_path = repo_path / ".specfact" / "protocols" / "workflow.protocol.yaml"
+    assert protocol_path.exists(), f"Protocol not found at {protocol_path}"
+
+    # Verify protocol content
+    protocol_data = load_yaml(protocol_path)
+    assert "states" in protocol_data
+    assert "transitions" in protocol_data
+
+    # Verify bundle manifest content (modular structure)
+    manifest_data = load_yaml(manifest_path)
+    assert "versions" in manifest_data
+    # Features are now in separate files, check manifest index
+    if "features" in manifest_data:
+        assert len(manifest_data["features"]) >= 1
+    else:
+        # Features may be in features/ directory
+        features_dir = bundle_dir / "features"
+        if features_dir.exists():
+            feature_files = list(features_dir.glob("*.yaml"))
+            assert len(feature_files) >= 1
+
+
+class TestSpecKitImportIntegration:
+    """Integration tests for Spec-Kit import with realistic repositories."""
+
+    def test_import_realistic_speckit_repo(self):
+        """Test importing a realistic Spec-Kit repository structure."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_path = Path(tmpdir)
+
+            # Create Spec-Kit structure (markdown-based format)
+            specify_path = repo_path / ".specify"
+            specify_path.mkdir()
+
+            specs_path = repo_path / "specs"
+            specs_path.mkdir()
+
+            _write_feature(specs_path, "user-service", USER_SERVICE_SPEC, USER_SERVICE_PLAN)
+            _write_feature(specs_path, "payment-processor", PAYMENT_PROCESSOR_SPEC, PAYMENT_PROCESSOR_PLAN)
+            _write_constitution(specify_path)
 
             # Test scanner
             scanner = SpecKitScanner(repo_path)
@@ -177,8 +325,7 @@ All public APIs must have contracts defined before implementation.
 
             structure = scanner.scan_structure()
             assert structure["is_speckit"] is True
-            assert structure["specs_dir"] is not None
-            assert structure["specify_memory_dir"] is not None
+            assert all(structure[field] is not None for field in ("specs_dir", "specify_memory_dir"))
 
             # Test converter
             converter = SpecKitConverter(repo_path)
@@ -187,22 +334,9 @@ All public APIs must have contracts defined before implementation.
             protocol = converter.convert_protocol()
             assert isinstance(protocol, Protocol)
             assert len(protocol.states) >= 3  # INIT, at least 2 features, COMPLETE
-            assert "INIT" in protocol.states
-            assert "COMPLETE" in protocol.states
+            assert {"INIT", "COMPLETE"} <= set(protocol.states)
 
-            # Convert plan
-            plan_bundle = converter.convert_plan()
-            assert isinstance(plan_bundle, PlanBundle)
-            assert len(plan_bundle.features) >= 2  # UserService and PaymentProcessor
-
-            # Verify feature extraction
-            feature_keys = [f.key for f in plan_bundle.features]
-            assert any("user" in key.lower() for key in feature_keys)
-            assert any("payment" in key.lower() for key in feature_keys)
-
-            # Verify stories were extracted
-            for feature in plan_bundle.features:
-                assert len(feature.stories) > 0
+            _assert_realistic_plan(converter.convert_plan())
 
     def test_import_speckit_via_cli_command(self):
         """Test importing Spec-Kit repository via CLI command."""
@@ -281,80 +415,7 @@ Order management service for creating and fulfilling orders.
             assert result.exit_code == 0
             assert "Import complete" in result.stdout or "complete" in result.stdout.lower()
 
-            # Verify generated files (modular bundle structure)
-            # Note: Import now creates modular project bundles, not monolithic plans
-            projects_dir = repo_path / ".specfact" / "projects"
-            assert projects_dir.exists()
-
-            # Find the created bundle (usually auto-named or first bundle)
-            bundle_dirs = list(projects_dir.iterdir())
-            assert len(bundle_dirs) > 0, "No project bundle created"
-            bundle_dir = bundle_dirs[0]
-
-            manifest_path = bundle_dir / "bundle.manifest.yaml"
-            assert manifest_path.exists()
-
-            # Protocol is in separate location (not in bundle)
-            protocol_path = repo_path / ".specfact" / "protocols" / "workflow.protocol.yaml"
-            assert protocol_path.exists(), f"Protocol not found at {protocol_path}"
-
-            # Verify protocol content
-            protocol_data = load_yaml(protocol_path)
-            assert "states" in protocol_data
-            assert "transitions" in protocol_data
-
-            # Verify bundle manifest content (modular structure)
-            manifest_data = load_yaml(manifest_path)
-            assert "versions" in manifest_data
-            # Features are now in separate files, check manifest index
-            if "features" in manifest_data:
-                assert len(manifest_data["features"]) >= 1
-            else:
-                # Features may be in features/ directory
-                features_dir = bundle_dir / "features"
-                if features_dir.exists():
-                    feature_files = list(features_dir.glob("*.yaml"))
-                    assert len(feature_files) >= 1
-
-    def test_import_speckit_generates_semgrep_rules(self):
-        """Test that Semgrep rules are generated during import."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            repo_path = Path(tmpdir)
-
-            # Create Spec-Kit structure
-            specify_path = repo_path / ".specify"
-            specify_path.mkdir()
-
-            specs_path = repo_path / "specs"
-            specs_path.mkdir()
-
-            feature_path = specs_path / "test-service"
-            feature_path.mkdir()
-
-            (feature_path / "spec.md").write_text(
-                "# Feature Specification: Test Service\n\n## User Scenarios\n\n### User Story 1\nAs a user, I want to test the service."
-            )
-
-            (feature_path / "plan.md").write_text("# Implementation Plan\n\n## Summary\nTest service.")
-
-            memory_path = specify_path / "memory"
-            memory_path.mkdir()
-            (memory_path / "constitution.md").write_text("# Project Constitution")
-
-            # Run import
-            converter = SpecKitConverter(repo_path)
-            converter.convert_protocol()
-            converter.convert_plan()
-
-            # Generate Semgrep rules
-            semgrep_path = converter.generate_semgrep_rules()
-
-            assert semgrep_path.exists()
-            assert semgrep_path.name == "async-anti-patterns.yml"
-
-            # Verify content
-            semgrep_content = semgrep_path.read_text()
-            assert "rules:" in semgrep_content or "rules" in semgrep_content
+            _assert_cli_import_files(repo_path)
 
     def test_import_speckit_generates_github_action(self):
         """Test that GitHub Action workflow is generated during import."""
@@ -382,6 +443,7 @@ Order management service for creating and fulfilling orders.
             converter = SpecKitConverter(repo_path)
             converter.convert_protocol()
             converter.convert_plan()
+            assert not (repo_path / ".semgrep").exists()
 
             # Generate GitHub Action
             workflow_path = converter.generate_github_action(repo_name="test-repo")
@@ -651,66 +713,7 @@ Main service with sub-services.
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_path = Path(tmpdir)
 
-            specify_path = repo_path / ".specify"
-            specify_path.mkdir()
-
-            specs_path = repo_path / "specs"
-            specs_path.mkdir()
-
-            feature_path = specs_path / "full-service"
-            feature_path.mkdir()
-
-            spec_md = dedent(
-                """# Feature Specification: Full Service
-
-## User Scenarios & Testing
-
-### User Story 1 - Start Service (Priority: P1)
-As a user, I want to start the service so that it becomes available.
-
-**Acceptance Scenarios**:
-1. Given the service is stopped, When I start it, Then it transitions to RUNNING
-
-### User Story 2 - Stop Service (Priority: P2)
-As a user, I want to stop the service so that it shuts down gracefully.
-
-**Acceptance Scenarios**:
-1. Given the service is running, When I stop it, Then it transitions to STOPPED
-
-### User Story 3 - Handle Error (Priority: P3)
-As a system, I want to handle errors so that the service can recover.
-
-**Acceptance Scenarios**:
-1. Given an error occurs, When it is handled, Then the service transitions to ERROR state
-"""
-            )
-            (feature_path / "spec.md").write_text(spec_md)
-
-            plan_md = dedent(
-                """# Implementation Plan: Full Service
-
-## Summary
-Full service with all features including state management.
-
-## Architecture
-- Python 3.11+
-- State machine
-- Error handling
-- Logging
-
-## Phases
-- Phase 1: Service lifecycle
-- Phase 2: Error handling
-- Phase 3: State management
-"""
-            )
-            (feature_path / "plan.md").write_text(plan_md)
-
-            memory_path = specify_path / "memory"
-            memory_path.mkdir()
-            (memory_path / "constitution.md").write_text(
-                "# Project Constitution\n\n## Core Principles\n\nContract-First Development"
-            )
+            _write_full_workflow_project(repo_path)
 
             # Run complete import via CLI
             result = runner.invoke(
@@ -728,59 +731,4 @@ Full service with all features including state management.
 
             assert result.exit_code == 0
 
-            # Verify all artifacts (modular bundle structure)
-            protocol_path = repo_path / ".specfact" / "protocols" / "workflow.protocol.yaml"
-            bundle_dir = repo_path / ".specfact" / "projects" / "main"
-            manifest_path = bundle_dir / "bundle.manifest.yaml"
-            semgrep_path = repo_path / ".semgrep" / "async-anti-patterns.yml"
-            workflow_path = repo_path / ".github" / "workflows" / "specfact-gate.yml"
-
-            assert protocol_path.exists()
-            assert bundle_dir.exists()
-            assert manifest_path.exists()
-            assert semgrep_path.exists()
-            assert workflow_path.exists()
-
-            # Verify protocol has correct states
-            protocol_data = load_yaml(protocol_path)
-            assert len(protocol_data["states"]) >= 3
-            assert "INIT" in protocol_data["states"]
-            assert "COMPLETE" in protocol_data["states"]
-
-            # Verify bundle manifest has features
-            manifest_data = load_yaml(manifest_path)
-            # Features may be in manifest or in features/ directory
-            if manifest_data.get("features"):
-                features_list = manifest_data["features"]
-                assert len(features_list) >= 1
-                # Features in manifest are FeatureIndex objects (dicts with 'key' field)
-                if isinstance(features_list, list) and len(features_list) > 0:
-                    # Extract key from FeatureIndex dict
-                    first_feature = features_list[0]
-                    if isinstance(first_feature, dict) and "key" in first_feature:
-                        feature_key = first_feature["key"]
-                    else:
-                        # Fallback: use first element as key if it's a string
-                        feature_key = str(first_feature) if isinstance(first_feature, str) else features_list[0]
-                else:
-                    # Features is a dict, get first key
-                    feature_key = next(iter(features_list.keys())) if isinstance(features_list, dict) else None
-            else:
-                # Check features directory
-                features_dir = bundle_dir / "features"
-                assert features_dir.exists()
-                feature_files = list(features_dir.glob("*.yaml"))
-                assert len(feature_files) >= 1
-                feature_key = feature_files[0].stem
-
-            # Ensure feature_key is a string
-            assert isinstance(feature_key, str), (
-                f"Expected feature_key to be string, got {type(feature_key)}: {feature_key}"
-            )
-
-            # Verify feature has stories
-            feature_path = bundle_dir / "features" / f"{feature_key}.yaml"
-            if feature_path.exists():
-                feature_data = load_yaml(feature_path)
-                assert "stories" in feature_data
-                assert len(feature_data["stories"]) > 0
+            _assert_full_import_artifacts(repo_path)

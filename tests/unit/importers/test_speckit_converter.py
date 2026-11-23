@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from specfact_cli.importers.speckit_converter import SpecKitConverter
 from specfact_cli.models.plan import PlanBundle
 from specfact_cli.models.protocol import Protocol
@@ -96,16 +98,6 @@ As a user, I want to test features so that I can validate functionality.
         assert isinstance(plan_bundle, PlanBundle)
         assert len(plan_bundle.features) == 0
 
-    def test_generate_semgrep_rules(self, tmp_path: Path) -> None:
-        """Test generating Semgrep rules - file I/O test."""
-        converter = SpecKitConverter(tmp_path)
-
-        output_path = converter.generate_semgrep_rules()
-
-        # Contract ensures Path returned (covered by return type annotation)
-        assert output_path.exists()
-        assert output_path.name == "async-anti-patterns.yml"
-
     def test_generate_github_action(self, tmp_path: Path) -> None:
         """Test generating GitHub Action workflow - file I/O test."""
         converter = SpecKitConverter(tmp_path)
@@ -121,6 +113,25 @@ As a user, I want to test features so that I can validate functionality.
         assert "SpecFact CLI Validation" in content
         assert "specfact code repro" in content
         assert "specfact init --profile solo-developer" in content
+        assert not (tmp_path / ".semgrep").exists()
+
+    def test_generate_github_action_uses_the_packaged_template(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Use resources in the installed package before trying the source-tree layout."""
+        from specfact_cli.generators import workflow_generator
+
+        package = tmp_path / "site-packages" / "specfact_cli"
+        templates = package / "resources" / "templates"
+        templates.mkdir(parents=True)
+        source_template = Path(__file__).resolve().parents[3] / "resources" / "templates" / "github-action.yml.j2"
+        (templates / source_template.name).write_bytes(source_template.read_bytes())
+        monkeypatch.setattr(workflow_generator, "__file__", str(package / "generators" / "workflow_generator.py"))
+
+        output = SpecKitConverter(tmp_path).generate_github_action(repo_name="installed")
+
+        assert "specfact code repro" in output.read_text(encoding="utf-8")
+        assert not (tmp_path / ".semgrep").exists()
 
     def test_convert_to_speckit_sequential_numbering(self, tmp_path: Path) -> None:
         """Test convert_to_speckit uses sequential numbering when feature keys lack numbers."""
@@ -190,27 +201,11 @@ As a user, I want to test features so that I can validate functionality.
 
         assert len(feature_dirs) == 3
 
-        # First feature (no number) should be 001-
-        assert feature_dirs[0].name.startswith("001-")
-        assert "user-authentication" in feature_dirs[0].name
-
-        # Second feature (no number) should be 002-
-        assert feature_dirs[1].name.startswith("002-")
-        assert "payment-processing" in feature_dirs[1].name
-
-        # Third feature (has number 003) should be 003-
-        assert feature_dirs[2].name.startswith("003-")
-        assert "third-feature" in feature_dirs[2].name
-
-        # Verify spec.md frontmatter also uses correct numbering (not "000-")
-        spec_content_1 = (feature_dirs[0] / "spec.md").read_text()
-        assert "**Feature Branch**: `001-" in spec_content_1
-        assert "000-" not in spec_content_1
-
-        spec_content_2 = (feature_dirs[1] / "spec.md").read_text()
-        assert "**Feature Branch**: `002-" in spec_content_2
-        assert "000-" not in spec_content_2
-
-        spec_content_3 = (feature_dirs[2] / "spec.md").read_text()
-        assert "**Feature Branch**: `003-" in spec_content_3
-        assert "000-" not in spec_content_3
+        expected_names = ("001-user-authentication", "002-payment-processing", "003-third-feature")
+        for feature_dir, expected_name in zip(feature_dirs, expected_names, strict=True):
+            prefix, slug = expected_name.split("-", 1)
+            assert feature_dir.name.startswith(f"{prefix}-")
+            assert slug in feature_dir.name
+            spec_content = (feature_dir / "spec.md").read_text()
+            assert f"**Feature Branch**: `{prefix}-" in spec_content
+            assert "000-" not in spec_content

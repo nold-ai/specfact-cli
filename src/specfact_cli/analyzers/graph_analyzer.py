@@ -1,7 +1,7 @@
 """
 Graph-based dependency and call graph analysis.
 
-Enhances AST and Semgrep analysis with graph-based dependency tracking,
+Enhances Python source analysis with graph-based dependency tracking,
 call graph extraction, and architecture visualization.
 
 Call graph extraction uses pycg (MIT) via subprocess. pyan3 (GPL-2.0) removed.
@@ -12,6 +12,7 @@ from __future__ import annotations
 import subprocess
 import tempfile
 from collections import defaultdict
+from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -31,7 +32,7 @@ class GraphAnalyzer:
     Graph-based dependency and call graph analysis.
 
     Uses pycg for call graphs, NetworkX for dependency graphs,
-    and provides graph-based insights to complement AST and Semgrep.
+    and provides graph-based insights to complement Python source analysis.
     """
 
     @beartype
@@ -142,13 +143,14 @@ class GraphAnalyzer:
         self,
         graph: StrDiGraph,
         python_files: list[Path],
-        known_modules: list[str],
-        max_workers: int,
-        wait_on_shutdown: bool,
+        workers: tuple[int, bool],
         progress_callback: Any | None,
     ) -> None:
         """Populate graph with edges derived from AST import analysis (parallel phase 1)."""
         from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        max_workers, wait_on_shutdown = workers
+        known_modules = list(graph.nodes())
 
         def process_imports(file_path: Path) -> list[tuple[str, str]]:
             module_name = self._path_to_module_name(file_path)
@@ -168,12 +170,8 @@ class GraphAnalyzer:
         try:
             future_to_file = {executor.submit(process_imports, fp): fp for fp in python_files}
             for future in as_completed(future_to_file):
-                try:
-                    edges = future.result()
-                    for module_name, matching_module in edges:
-                        graph.add_edge(module_name, matching_module)
-                except (OSError, RuntimeError):
-                    pass
+                with suppress(OSError, RuntimeError):
+                    graph.add_edges_from(future.result())
                 completed += 1
                 if progress_callback:
                     progress_callback(completed, len(python_files))
@@ -199,13 +197,13 @@ class GraphAnalyzer:
         self,
         graph: StrDiGraph,
         python_files: list[Path],
-        max_workers: int,
-        wait_on_shutdown: bool,
+        workers: tuple[int, bool],
         progress_callback: Any | None,
     ) -> None:
         """Populate graph with edges derived from pycg call graphs (parallel phase 2)."""
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
+        max_workers, wait_on_shutdown = workers
         loaded_contents = self._load_python_file_contents_index(python_files)
         executor = ThreadPoolExecutor(max_workers=max_workers)
         completed = 0
@@ -249,12 +247,9 @@ class GraphAnalyzer:
             module_name = self._path_to_module_name(file_path)
             graph.add_node(module_name, path=str(file_path))
 
-        max_workers = self._compute_max_workers(python_files)
-        known_modules = list(graph.nodes())
-        wait_on_shutdown = os.environ.get("TEST_MODE") != "true"
-
-        self._build_import_edges(graph, python_files, known_modules, max_workers, wait_on_shutdown, progress_callback)
-        self._build_call_graph_edges(graph, python_files, max_workers, wait_on_shutdown, progress_callback)
+        workers = self._compute_max_workers(python_files), os.environ.get("TEST_MODE") != "true"
+        self._build_import_edges(graph, python_files, workers, progress_callback)
+        self._build_call_graph_edges(graph, python_files, workers, progress_callback)
 
         self.dependency_graph = graph
         return graph
@@ -337,22 +332,23 @@ class GraphAnalyzer:
         """Parse AST of file and return non-stdlib import paths."""
         import ast
 
-        imports: set[str] = set()
         try:
-            content = file_path.read_text(encoding="utf-8")
-            tree = ast.parse(content)
-            for node in ast.walk(tree):
-                if isinstance(node, ast.Import):
-                    for alias in node.names:
-                        import_path = alias.name
-                        if import_path.split(".")[0] not in self._STDLIB_MODULES:
-                            imports.add(import_path)
-                elif isinstance(node, ast.ImportFrom) and node.module:
-                    import_path = node.module
-                    if import_path.split(".")[0] not in self._STDLIB_MODULES:
-                        imports.add(import_path)
+            tree = ast.parse(file_path.read_text(encoding="utf-8"))
         except (SyntaxError, UnicodeDecodeError):
-            pass
+            return set()
+
+        imports: set[str] = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                imports.update(
+                    alias.name for alias in node.names if alias.name.partition(".")[0] not in self._STDLIB_MODULES
+                )
+            elif (
+                isinstance(node, ast.ImportFrom)
+                and node.module
+                and node.module.partition(".")[0] not in self._STDLIB_MODULES
+            ):
+                imports.add(node.module)
         return imports
 
     @beartype

@@ -12,6 +12,7 @@ import tempfile
 from pathlib import Path
 
 from beartype import beartype
+from check_dependency_trust_exceptions import restrict_frozen_parser_wheel
 from icontract import ensure
 
 
@@ -128,6 +129,8 @@ def _refresh_locked_delivery() -> None:
     temporary_export = Path(temporary_export_name)
     try:
         run(["uv", "lock"])
+        lock_path = REPO_ROOT / "uv.lock"
+        lock_path.write_text(restrict_frozen_parser_wheel(lock_path.read_text(encoding="utf-8")), encoding="utf-8")
         run(
             [
                 "uv",
@@ -141,6 +144,13 @@ def _refresh_locked_delivery() -> None:
                 "--output-file",
                 str(temporary_export.relative_to(REPO_ROOT)),
             ]
+        )
+        generated = temporary_export.read_text(encoding="utf-8")
+        temporary_export.write_text(
+            generated.replace(
+                str(temporary_export.relative_to(REPO_ROOT)), str(LOCKED_EXPORT.relative_to(REPO_ROOT)), 1
+            ),
+            encoding="utf-8",
         )
         os.replace(temporary_export, LOCKED_EXPORT)
         run([sys.executable, "scripts/check_reproducible_delivery.py"])
