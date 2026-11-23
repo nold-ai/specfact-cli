@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import tempfile
@@ -54,8 +55,10 @@ def _run_pip_compile(constraints: list[str]) -> list[str]:
         reqs = tmp_path / "requirements.in"
         out_path = tmp_path / "requirements.txt"
         reqs.write_text("\n".join(constraints), encoding="utf-8")
+        constraint_files = os.environ.get("PIP_CONSTRAINT", "").split()
+        constraint_args = [f"--constraint={filename}" for filename in constraint_files]
         result = subprocess.run(
-            ["pip-compile", "--no-annotate", "-o", str(out_path), str(reqs)],
+            ["pip-compile", "--no-annotate", *constraint_args, "-o", str(out_path), str(reqs)],
             capture_output=True,
             text=True,
             timeout=120,
