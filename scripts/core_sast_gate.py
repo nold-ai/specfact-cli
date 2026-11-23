@@ -35,6 +35,10 @@ class Finding(NamedTuple):
     line: int
 
 
+class _UnsupportedGlobalImportError(ValueError):
+    """An import changes a module binding outside its lexical body."""
+
+
 def _valid_path(path: str) -> bool:
     relative = PurePosixPath(path)
     return not relative.is_absolute() and ".." not in relative.parts and path.endswith(".py") and "\0" not in path
@@ -144,7 +148,11 @@ def _scope_findings(
     body: list[ast.stmt], inherited: dict[str, str], path: str, *, class_body: bool = False
 ) -> Iterator[Finding]:
     nodes = list(_scope_nodes(body))
-    aliases = inherited | _import_aliases(nodes)
+    local_aliases = _import_aliases(nodes)
+    global_names = {name for node in nodes if isinstance(node, ast.Global) for name in node.names}
+    if global_names.intersection(local_aliases):
+        raise _UnsupportedGlobalImportError
+    aliases = inherited | local_aliases
     # A class body has a local namespace that its methods do not close over.
     nested_inherited = inherited if class_body else aliases
     for node in nodes:
@@ -199,13 +207,16 @@ def _run(root: Path, baseline_path: Path, output: Path) -> int:
     for path in eligible_paths:
         try:
             tree = _read_source(root, path)
+            file_findings = set(_scope_findings(tree.body, {}, path))
         except (OSError, RuntimeError):
             diagnostics.append({"path": path, "message": "unavailable input"})
+        except _UnsupportedGlobalImportError:
+            diagnostics.append({"path": path, "message": "global import alias requires flow analysis"})
         except (LookupError, SyntaxError, ValueError):
             diagnostics.append({"path": path, "message": "invalid Python"})
         else:
             scanned_paths.append(path)
-            findings.update(_scope_findings(tree.body, {}, path))
+            findings.update(file_findings)
 
     new_findings = findings - baseline
     status = "incomplete" if diagnostics else "findings" if new_findings else "pass"

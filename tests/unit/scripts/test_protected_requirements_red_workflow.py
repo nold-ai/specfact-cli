@@ -26,10 +26,26 @@ def test_protected_red_job_is_bound_to_the_one_pull_request() -> None:
 
 def test_protected_artifact_is_consumed_in_each_native_requirements_lane() -> None:
     jobs = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]
-    for name in EVIDENCE_JOBS:
-        job = jobs[name]
-        assert PROOF_JOB in job["needs"]
-        download = next(step for step in job["steps"] if step["name"] == "Download protected RED proof")
-        assert download["with"]["artifact-ids"] == "${{ needs.protected-red-proof.outputs.artifact-id }}"
+    producer, execution, final = EVIDENCE_JOBS
+    assert PROOF_JOB in jobs[producer]["needs"]
+    assert jobs[execution]["needs"] == producer
+    assert jobs[final]["needs"] == execution
+    sources = (
+        "needs.protected-red-proof.outputs.artifact-id",
+        "steps.protected-red-artifact.outputs.artifact-id",
+        "steps.protected-red-artifact.outputs.artifact-id",
+    )
+    for name, source in zip(EVIDENCE_JOBS, sources, strict=True):
+        download = next(step for step in jobs[name]["steps"] if step["name"] == "Download protected RED proof")
+        assert download["with"]["artifact-ids"] == "${{ " + source + " }}"
         assert "run-id" not in download["with"]
-    assert jobs["requirements-evidence-final"]["name"] == "Requirements evidence"
+    assert jobs[final]["name"] == "Requirements evidence"
+
+
+def test_fresh_runners_authenticate_the_same_scoped_run() -> None:
+    jobs = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]
+    _, execution, final = EVIDENCE_JOBS
+    for name in (execution, final):
+        locator = next(step for step in jobs[name]["steps"] if step.get("id") == "protected-red-artifact")
+        assert locator["if"] == jobs[PROOF_JOB]["if"]
+        assert "requirements-protected-red-${GITHUB_RUN_ATTEMPT}" in locator["run"]

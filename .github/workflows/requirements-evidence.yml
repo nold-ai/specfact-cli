@@ -581,7 +581,7 @@ jobs:
 
   protected-red-proof:
     name: Protected Requirements before-fix evidence
-    if: >-
+    if: &protected_red_pull_request >-
       github.repository == 'nold-ai/specfact-cli' &&
       github.event.pull_request.number == 799 &&
       github.event.pull_request.head.repo.full_name == 'nold-ai/specfact-cli' &&
@@ -1470,7 +1470,7 @@ jobs:
           prior_red_junit=""
           prior_red_base_ref="$PROOF_BASE_COMMIT"
           prior_red_provenance="scripts/requirements_proof_provenance.py"
-          if [[ "$PROTECTED_RED_ACTIVE" == "true" ]]; then
+          if [[ "${PROTECTED_RED_ACTIVE:-false}" == "true" ]]; then
             prior_red_provenance="$RUNNER_TEMP/prior-red-proof/trusted-provenance.py"
             test -s "$prior_red_provenance"
           fi
@@ -1917,7 +1917,7 @@ jobs:
 
   requirements-evidence:
     name: Requirements evidence execution
-    needs: [requirements-evidence-producer, protected-red-proof]
+    needs: requirements-evidence-producer
     if: always()
     permissions:
       actions: read
@@ -2879,11 +2879,34 @@ jobs:
           github-token: ${{ github.token }}
           run-id: ${{ needs.requirements-evidence-producer.outputs.prior-red-run-id }}
 
+      - name: Authenticate current protected RED artifact
+        id: protected-red-artifact
+        if: *protected_red_pull_request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROTECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: &locate_protected_red_artifact |
+          set -euo pipefail
+          [[ "$PROTECTED_HEAD" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$GITHUB_RUN_ID" =~ ^[1-9][0-9]*$ && "$GITHUB_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]]
+          artifact="$(gh api --method GET "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts" \
+            -f name="requirements-protected-red-${GITHUB_RUN_ATTEMPT}" | jq -ce \
+            --argjson run "$GITHUB_RUN_ID" --arg head "$PROTECTED_HEAD" \
+            --arg name "requirements-protected-red-${GITHUB_RUN_ATTEMPT}" '
+              [.artifacts[] | select(.name == $name and .expired == false and
+                .workflow_run.id == $run and .workflow_run.head_sha == $head and
+                .workflow_run.repository_id == 1085706003 and .workflow_run.head_repository_id == 1085706003 and
+                (.digest | test("^sha256:[0-9a-f]{64}$")) and (.id | type == "number"))] |
+              if length == 1 then .[0] else error("expected one current protected RED artifact") end')"
+          printf 'artifact-id=%s\n' "$(jq -er '.id' <<< "$artifact")" >> "$GITHUB_OUTPUT"
+          printf 'artifact-digest=%s\n' "$(jq -er '.digest' <<< "$artifact")" >> "$GITHUB_OUTPUT"
+
       - name: Download protected RED proof
-        if: needs.protected-red-proof.outputs.artifact-id != ''
+        if: steps.protected-red-artifact.outputs.artifact-id != ''
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
-          artifact-ids: ${{ needs.protected-red-proof.outputs.artifact-id }}
+          artifact-ids: ${{ steps.protected-red-artifact.outputs.artifact-id }}
           path: ${{ runner.temp }}/consumer-prior-red
 
       - name: Reconcile Requirements evidence on fresh runner
@@ -2896,8 +2919,8 @@ jobs:
           EVIDENCE_PROMOTION_REUSE: ${{ steps.execution-promotion.outputs.active }}
           LATE_RED_ACTIVE: ${{ (github.event.pull_request.number == 786 && github.head_ref == 'codex/security-dependencies-0-55-11-dev') || (github.event.pull_request.number == 717 && github.head_ref == 'bugfix/692-promotion-final-context' && hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') != '') }}
           LATE_RED_CYCLE_BASE: ${{ github.event.pull_request.number == 786 && '9b5ad1e78430cc0b061cb16de42f73de96f4f312' || steps.late-red.outputs.cycle-base-ref }}
-          PRIOR_RED_ARTIFACT_DIGEST: ${{ needs.protected-red-proof.outputs.artifact-id != '' && format('sha256:{0}', needs.protected-red-proof.outputs.artifact-digest) || steps.consumer-red.outputs.artifact-digest }}
-          PRIOR_RED_HEAD_SHA: ${{ needs.protected-red-proof.outputs.artifact-id != '' && '01f4685bce54889f97d4af0e62542caa685caaa5' || steps.consumer-red.outputs.head-sha }}
+          PRIOR_RED_ARTIFACT_DIGEST: ${{ steps.protected-red-artifact.outputs.artifact-id != '' && steps.protected-red-artifact.outputs.artifact-digest || steps.consumer-red.outputs.artifact-digest }}
+          PRIOR_RED_HEAD_SHA: ${{ steps.protected-red-artifact.outputs.artifact-id != '' && '01f4685bce54889f97d4af0e62542caa685caaa5' || steps.consumer-red.outputs.head-sha }}
           REVIEW_BASE_BRANCH: ${{ github.base_ref }}
         shell: bash
         run: |
@@ -3429,7 +3452,7 @@ jobs:
 
   requirements-evidence-final:
     name: Requirements evidence
-    needs: [requirements-evidence, protected-red-proof]
+    needs: requirements-evidence
     if: always()
     permissions:
       actions: read
@@ -4046,11 +4069,20 @@ jobs:
           github-token: ${{ github.token }}
           run-id: ${{ needs.requirements-evidence.outputs.prior-red-run-id }}
 
+      - name: Authenticate current protected RED artifact
+        id: protected-red-artifact
+        if: *protected_red_pull_request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROTECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: *locate_protected_red_artifact
+
       - name: Download protected RED proof
-        if: needs.protected-red-proof.outputs.artifact-id != ''
+        if: steps.protected-red-artifact.outputs.artifact-id != ''
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
-          artifact-ids: ${{ needs.protected-red-proof.outputs.artifact-id }}
+          artifact-ids: ${{ steps.protected-red-artifact.outputs.artifact-id }}
           path: ${{ runner.temp }}/final-retained-red
 
       - name: Reconcile final Requirements verdict on fresh runner
@@ -4061,7 +4093,7 @@ jobs:
           EVIDENCE_HEAD_BRANCH: ${{ github.head_ref }}
           EVIDENCE_PROMOTION_REUSE: ${{ steps.final-promotion.outputs.active }}
           LATE_RED_ACTIVE: ${{ (github.event.pull_request.number == 786 && github.head_ref == 'codex/security-dependencies-0-55-11-dev') || (github.event.pull_request.number == 717 && github.head_ref == 'bugfix/692-promotion-final-context' && hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') != '') }}
-          PRIOR_RED_HEAD_SHA: ${{ needs.protected-red-proof.outputs.artifact-id != '' && '01f4685bce54889f97d4af0e62542caa685caaa5' || steps.final-retained-red.outputs.head-sha }}
+          PRIOR_RED_HEAD_SHA: ${{ steps.protected-red-artifact.outputs.artifact-id != '' && '01f4685bce54889f97d4af0e62542caa685caaa5' || steps.final-retained-red.outputs.head-sha }}
         shell: bash
         run: |
           set -euo pipefail

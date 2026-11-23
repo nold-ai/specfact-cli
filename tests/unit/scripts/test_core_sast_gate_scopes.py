@@ -60,3 +60,15 @@ def test_standalone_scan_uses_default_output_path(tmp_path: Path) -> None:
 
     assert result.returncode == 0, result.stderr
     assert (tmp_path / "python-sast.json").is_file()
+
+
+def test_global_import_without_flow_resolution_reports_incomplete(tmp_path: Path) -> None:
+    _tracked_source(
+        tmp_path,
+        "class Setup:\n    global uniform\n    from random import random as uniform\nsample = uniform()\n",
+    )
+    result, report = _run_gate(tmp_path)
+
+    assert result.returncode == 2, result.stderr
+    assert report["status"] == "incomplete"
+    assert report["diagnostics"] == [{"path": SOURCE_PATH, "message": "global import alias requires flow analysis"}]
