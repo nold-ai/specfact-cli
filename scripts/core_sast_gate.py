@@ -61,23 +61,21 @@ def _load_baseline(path: Path) -> set[Finding]:
     if not isinstance(raw_findings, list):
         raise ValueError("baseline must contain an accepted_findings list")
 
-    baseline: set[Finding] = set()
-    for index, raw in enumerate(raw_findings):
-        if (
-            not isinstance(raw, list)
-            or len(raw) != 3
-            or not isinstance(raw[0], str)
-            or not isinstance(raw[1], str)
-            or not _valid_path(raw[1])
-            or type(raw[2]) is not int
-            or raw[2] < 1
-        ):
-            raise ValueError(f"invalid accepted finding at index {index}")
-        rule = raw[0].removeprefix("tools.semgrep.sast.")
-        if rule not in RULES:
-            raise ValueError(f"unknown baseline rule at index {index}")
-        baseline.add(Finding(rule, raw[1], raw[2]))
-    return baseline
+    return {_baseline_entry(raw, index) for index, raw in enumerate(raw_findings)}
+
+
+def _baseline_entry(raw: object, index: int) -> Finding:
+    if not isinstance(raw, list) or len(raw) != 3:
+        raise ValueError(f"invalid accepted finding at index {index}")
+    raw_rule, path, line = cast(list[object], raw)
+    if not isinstance(raw_rule, str) or not isinstance(path, str) or not _valid_path(path):
+        raise ValueError(f"invalid accepted finding at index {index}")
+    if type(line) is not int or line < 1:
+        raise ValueError(f"invalid accepted finding at index {index}")
+    rule = raw_rule.removeprefix("tools.semgrep.sast.")
+    if rule not in RULES:
+        raise ValueError(f"unknown baseline rule at index {index}")
+    return Finding(rule, path, line)
 
 
 def _import_aliases(nodes: list[ast.AST]) -> dict[str, str]:
@@ -171,34 +169,39 @@ def _read_source(root: Path, path: str) -> ast.Module:
         return ast.parse(stream.read(), filename=path)
 
 
+def _scan_scope(root: Path, diagnostics: list[dict[str, str]]) -> tuple[list[str], list[str]]:
+    try:
+        paths = _tracked_paths(root)
+    except (OSError, subprocess.CalledProcessError, ValueError):
+        diagnostics.append({"path": str(root), "message": "could not enumerate tracked Python inputs"})
+        return [], []
+    eligible_paths: list[str] = []
+    excluded_test_paths: list[str] = []
+    for path in paths:
+        bucket = excluded_test_paths if "tests" in PurePosixPath(path).parts[:-1] else eligible_paths
+        bucket.append(path)
+    if not eligible_paths:
+        diagnostics.append({"path": str(root), "message": "no eligible tracked Python inputs"})
+    return eligible_paths, excluded_test_paths
+
+
 def _run(root: Path, baseline_path: Path, output: Path) -> int:
     diagnostics: list[dict[str, str]] = []
-    eligible_paths: list[str] = []
     scanned_paths: list[str] = []
-    excluded_test_paths: list[str] = []
     findings: set[Finding] = set()
     baseline: set[Finding] = set()
     try:
         baseline = _load_baseline(baseline_path)
     except (OSError, ValueError):
         diagnostics.append({"path": str(baseline_path), "message": "invalid or unavailable SAST baseline"})
-    try:
-        for path in _tracked_paths(root):
-            if "tests" in PurePosixPath(path).parts[:-1]:
-                excluded_test_paths.append(path)
-            else:
-                eligible_paths.append(path)
-        if not eligible_paths:
-            diagnostics.append({"path": str(root), "message": "no eligible tracked Python inputs"})
-    except (OSError, subprocess.CalledProcessError, ValueError):
-        diagnostics.append({"path": str(root), "message": "could not enumerate tracked Python inputs"})
+    eligible_paths, excluded_test_paths = _scan_scope(root, diagnostics)
 
     for path in eligible_paths:
         try:
             tree = _read_source(root, path)
         except (OSError, RuntimeError):
             diagnostics.append({"path": path, "message": "unavailable input"})
-        except (SyntaxError, ValueError):
+        except (LookupError, SyntaxError, ValueError):
             diagnostics.append({"path": path, "message": "invalid Python"})
         else:
             scanned_paths.append(path)
@@ -220,22 +223,22 @@ def _run(root: Path, baseline_path: Path, output: Path) -> int:
     try:
         output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     except OSError:
-        print(f"Could not write the SAST report at {output}", file=sys.stderr)
+        sys.stderr.write(f"Could not write the SAST report at {output}\n")
         return 2
-    print(
-        f"Python SAST: {status}, {len(scanned_paths)}/{len(eligible_paths)} scanned, {len(new_findings)} new findings"
+    sys.stdout.write(
+        f"Python SAST: {status}, {len(scanned_paths)}/{len(eligible_paths)} scanned, {len(new_findings)} new findings\n"
     )
     return {"pass": 0, "findings": 1, "incomplete": 2}[status]
 
 
-def main() -> int:
+def _main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", required=True, type=Path, help="Git worktree root")
     parser.add_argument("--baseline", required=True, type=Path, help="Reviewed SAST findings baseline")
-    parser.add_argument("--output", required=True, type=Path, help="Path for the JSON report")
+    parser.add_argument("--output", type=Path, default=Path("python-sast.json"), help="Path for the JSON report")
     args = parser.parse_args()
     return _run(args.root.resolve(), args.baseline, args.output)
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(_main())

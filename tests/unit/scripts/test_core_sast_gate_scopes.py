@@ -1,8 +1,10 @@
 """Verify import aliases respect Python lexical scope in core SAST."""
 
+import subprocess
+import sys
 from pathlib import Path
 
-from tests.unit.scripts.test_core_sast_gate import _run_gate, _tracked_source
+from tests.unit.scripts.test_core_sast_gate import SCRIPT, SOURCE_PATH, _run_gate, _tracked_source
 
 
 def test_import_aliases_follow_lexical_scope(tmp_path: Path) -> None:
@@ -30,3 +32,31 @@ def test_import_aliases_follow_lexical_scope(tmp_path: Path) -> None:
         ("weak-cryptographic-hash", 7),
         ("weak-cryptographic-hash", 8),
     ]
+
+
+def test_text_codec_failure_retains_incomplete_report(tmp_path: Path) -> None:
+    _tracked_source(tmp_path, "# coding: base64_codec\nvalue = 1\n")
+    result, report = _run_gate(tmp_path)
+
+    assert result.returncode == 2, result.stderr
+    assert report["status"] == "incomplete"
+    assert report["eligible_paths"] == [SOURCE_PATH]
+    assert report["scanned_paths"] == []
+    assert report["diagnostics"] == [{"path": SOURCE_PATH, "message": "invalid Python"}]
+
+
+def test_standalone_scan_uses_default_output_path(tmp_path: Path) -> None:
+    _tracked_source(tmp_path, "value = 1\n")
+    baseline = tmp_path / "baseline.json"
+    baseline.write_text('{"version": 1, "accepted_findings": []}', encoding="utf-8")
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), "--root", ".", "--baseline", str(baseline)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=10,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert (tmp_path / "python-sast.json").is_file()

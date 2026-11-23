@@ -80,7 +80,7 @@ flowchart TD
     
     C --> E["Features with Semantic Understanding<br/>• Actual priorities from code context<br/>• Actual constraints from code/docs<br/>• Actual unknowns from code analysis<br/>• Meaningful scenarios from acceptance criteria"]
     
-    D --> F["Features from Structure + Patterns<br/>• Framework-aware outcomes (API endpoints, models)<br/>• CRUD operation detection<br/>• Code quality constraints (anti-patterns)<br/>• Enhanced confidence scores<br/>• Python-focused (multi-language ready)"]
+    D --> F["Features from Structure + Patterns<br/>• Framework-aware outcomes (API endpoints, models)<br/>• CRUD operation detection<br/>• Code quality constraints (anti-patterns)<br/>• Enhanced confidence scores<br/>• Python source patterns"]
     
     style A fill:#2196F3,stroke:#1976D2,stroke-width:2px,color:#fff
     style C fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#fff
@@ -151,7 +151,7 @@ pattern_findings = feature_patterns(tree, file_path)
 
 **What the pattern checks detect:**
 
-- ✅ **API Endpoints**: FastAPI, Flask, Express, Gin routes (method + path)
+- ✅ **API Endpoints**: FastAPI and Flask routes (method + path)
 - ✅ **Database Models**: SQLAlchemy, Django, Pydantic, TortoiseORM, Peewee
 - ✅ **CRUD Operations**: Function naming patterns (create_*, get_*, update_*, delete_*)
 - ✅ **Authentication**: Auth decorators, permission checks
@@ -161,9 +161,8 @@ pattern_findings = feature_patterns(tree, file_path)
 **Why built-in pattern checks?**
 
 - Framework-aware pattern detection
-- Multi-language support (Python, TypeScript, JavaScript, Go)
-- Fast pattern matching (parallel execution)
-- Rule-based (no hardcoded logic)
+- Pattern checks over the parsed Python syntax tree
+- Parallel Python file analysis
 
 ---
 

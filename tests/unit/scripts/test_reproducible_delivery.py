@@ -56,7 +56,7 @@ def _setup_runtime_dependency_names() -> set[str]:
 
 
 @pytest.fixture(autouse=True)
-def _standalone_script_imports(monkeypatch: pytest.MonkeyPatch) -> None:
+def standalone_script_imports(monkeypatch: pytest.MonkeyPatch) -> None:
     """Load CLI scripts with the sibling imports available to their normal entry point."""
     monkeypatch.setattr(sys, "path", [str(REPO_ROOT / "scripts"), *sys.path])
 

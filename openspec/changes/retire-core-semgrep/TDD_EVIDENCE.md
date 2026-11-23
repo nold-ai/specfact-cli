@@ -58,3 +58,19 @@ A focused scanner case also showed that an unrelated function or class import
 could replace a module alias in the original scan. Lexical import scope now
 preserves the expected findings. The new regression lives separately from all
 mapped test files, leaving the approved plan and source bindings intact.
+
+### Full review and scanner independence
+
+The hosted protected proof and producer passed. The fresh runner reproduced all
+14 passing tests and accepted the before-fix proof. Its separate full Code
+Review kept the PR blocked on aggregate warnings. The follow-up reduced nested
+control flow and redundant parameters in the reviewed paths, repaired runtime
+scope and receiver findings, and gave Bandit its own prerequisites. A clean
+local full review scored 71 with zero blocking findings. The 230 affected tests
+passed with nine existing module-owned skips. All seven mapped test files still
+match the signed tests-only source exactly.
+
+The built-in core async scanner is available for module integration. The normal
+installed Codebase `specfact code repro` command and its current legacy config
+remain part of [modules #523](https://github.com/nold-ai/specfact-cli-modules/issues/523)
+and the installed signed-pair acceptance.

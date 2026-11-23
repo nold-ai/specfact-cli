@@ -239,7 +239,6 @@ def _assert_full_import_artifacts(repo_path: Path) -> None:
     required_artifacts = (
         protocol_path,
         bundle_dir / "bundle.manifest.yaml",
-        repo_path / ".semgrep" / "async-anti-patterns.yml",
         repo_path / ".github" / "workflows" / "specfact-gate.yml",
     )
     for artifact in required_artifacts:
@@ -262,6 +261,43 @@ def _assert_realistic_plan(plan_bundle: PlanBundle) -> None:
     assert any("user" in key for key in keys)
     assert any("payment" in key for key in keys)
     assert all(feature.stories for feature in plan_bundle.features)
+
+
+def _assert_cli_import_files(repo_path: Path) -> None:
+    # Verify generated files (modular bundle structure)
+    # Note: Import now creates modular project bundles, not monolithic plans
+    projects_dir = repo_path / ".specfact" / "projects"
+    assert projects_dir.exists()
+
+    # Find the created bundle (usually auto-named or first bundle)
+    bundle_dirs = list(projects_dir.iterdir())
+    assert len(bundle_dirs) > 0, "No project bundle created"
+    bundle_dir = bundle_dirs[0]
+
+    manifest_path = bundle_dir / "bundle.manifest.yaml"
+    assert manifest_path.exists()
+
+    # Protocol is in separate location (not in bundle)
+    protocol_path = repo_path / ".specfact" / "protocols" / "workflow.protocol.yaml"
+    assert protocol_path.exists(), f"Protocol not found at {protocol_path}"
+
+    # Verify protocol content
+    protocol_data = load_yaml(protocol_path)
+    assert "states" in protocol_data
+    assert "transitions" in protocol_data
+
+    # Verify bundle manifest content (modular structure)
+    manifest_data = load_yaml(manifest_path)
+    assert "versions" in manifest_data
+    # Features are now in separate files, check manifest index
+    if "features" in manifest_data:
+        assert len(manifest_data["features"]) >= 1
+    else:
+        # Features may be in features/ directory
+        features_dir = bundle_dir / "features"
+        if features_dir.exists():
+            feature_files = list(features_dir.glob("*.yaml"))
+            assert len(feature_files) >= 1
 
 
 class TestSpecKitImportIntegration:
@@ -379,40 +415,7 @@ Order management service for creating and fulfilling orders.
             assert result.exit_code == 0
             assert "Import complete" in result.stdout or "complete" in result.stdout.lower()
 
-            # Verify generated files (modular bundle structure)
-            # Note: Import now creates modular project bundles, not monolithic plans
-            projects_dir = repo_path / ".specfact" / "projects"
-            assert projects_dir.exists()
-
-            # Find the created bundle (usually auto-named or first bundle)
-            bundle_dirs = list(projects_dir.iterdir())
-            assert len(bundle_dirs) > 0, "No project bundle created"
-            bundle_dir = bundle_dirs[0]
-
-            manifest_path = bundle_dir / "bundle.manifest.yaml"
-            assert manifest_path.exists()
-
-            # Protocol is in separate location (not in bundle)
-            protocol_path = repo_path / ".specfact" / "protocols" / "workflow.protocol.yaml"
-            assert protocol_path.exists(), f"Protocol not found at {protocol_path}"
-
-            # Verify protocol content
-            protocol_data = load_yaml(protocol_path)
-            assert "states" in protocol_data
-            assert "transitions" in protocol_data
-
-            # Verify bundle manifest content (modular structure)
-            manifest_data = load_yaml(manifest_path)
-            assert "versions" in manifest_data
-            # Features are now in separate files, check manifest index
-            if "features" in manifest_data:
-                assert len(manifest_data["features"]) >= 1
-            else:
-                # Features may be in features/ directory
-                features_dir = bundle_dir / "features"
-                if features_dir.exists():
-                    feature_files = list(features_dir.glob("*.yaml"))
-                    assert len(feature_files) >= 1
+            _assert_cli_import_files(repo_path)
 
     def test_import_speckit_generates_github_action(self):
         """Test that GitHub Action workflow is generated during import."""

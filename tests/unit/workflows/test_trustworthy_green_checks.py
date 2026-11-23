@@ -161,20 +161,20 @@ def test_pr_orchestrator_version_sync_uses_base_sha_on_clean_ci_checkout() -> No
     )
 
 
-def test_primary_test_process_does_not_inherit_github_base_ref() -> None:
+def test_primary_pytest_launcher_does_not_inherit_github_base_ref() -> None:
     """The primary pytest launcher must not inherit pull-request routing state."""
     step = _find_named_step("tests", "Run full test suite (direct smart-test-full)")
     _assert_unsets_github_base_ref_before(step, "python tools/smart_test_coverage.py")
 
 
-def test_compatibility_test_process_does_not_inherit_github_base_ref() -> None:
+def test_compatibility_pytest_launcher_does_not_inherit_github_base_ref() -> None:
     """The Python 3.11 pytest launcher must not inherit pull-request routing state."""
     step = _find_named_step("compat-py311", "Run Python 3.11 compatibility tests")
     assert step.get("shell") == "bash", "Compatibility test isolation requires an explicit Bash shell"
     _assert_unsets_github_base_ref_before(step, "python -m pytest")
 
 
-def test_only_test_processes_override_github_base_ref() -> None:
+def test_only_pytest_launchers_override_github_base_ref() -> None:
     """Only the two test run blocks may remove GitHub's authentic base reference."""
     workflow = _load_yaml(PR_ORCHESTRATOR)
     workflow_environment = workflow.get("env")

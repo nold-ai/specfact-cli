@@ -231,15 +231,7 @@ class TestReproChecker:
             message="Test",
         )
 
-        def _fake_run_check(
-            name: str,
-            tool: str,
-            command: list[str],
-            timeout: int | None,
-            skip_if_missing: bool,
-            env: dict[str, str] | None,
-        ) -> CheckResult:
-            _ = (command, timeout, skip_if_missing, env)
+        def _fake_run_check(name: str, tool: str, *_options: object) -> CheckResult:
             if tool == "crosshair":
                 return CheckResult(
                     name="Contract exploration (CrossHair)",
@@ -323,8 +315,7 @@ class TestReproChecker:
 
             crosshair_calls = [c for c in mock_run.call_args_list if c[0][0] and "crosshair" in str(c[0][0])]
             assert crosshair_calls, "CrossHair should have been invoked"
-            cmd = crosshair_calls[0][0][0]
-            flat = list(cmd) if not isinstance(cmd, list) else cmd
+            flat: list[str] = list(crosshair_calls[0][0][0])
             assert "--per_path_timeout" in flat
             idx = flat.index("--per_path_timeout")
             assert flat[idx + 1] == "60"

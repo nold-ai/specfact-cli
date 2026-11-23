@@ -316,20 +316,11 @@ class SpecKitConverter:
     @ensure(lambda result: len(result) > 0, "Must have at least one theme")
     def _extract_themes_from_features(self, features: list[Feature]) -> list[str]:
         """Extract themes from feature titles."""
-        themes: set[str] = set()
-        themes.add("Core")
-
+        themes = {"Core"}
         for feature in features:
-            # Extract theme from feature title (first word or key pattern)
-            title = feature.title
-            if title:
-                # Try to extract meaningful theme from title
-                words = title.split()
-                if words:
-                    # Use first significant word as theme
-                    theme = words[0]
-                    if len(theme) > 2:
-                        themes.add(theme)
+            words = feature.title.split() if feature.title else []
+            if words and len(words[0]) > 2:
+                themes.add(words[0])
 
         return sorted(themes)
 
@@ -494,34 +485,16 @@ class SpecKitConverter:
             return explicit
         return self._gwt_heuristic_from_modal_verbs(acc)
 
-    def _categorise_scenario(
-        self,
-        scenario_text: str,
-        acc_lower: str,
-        primaries: list[str],
-        alternates: list[str],
-        exceptions: list[str],
-        recoveries: list[str],
-    ) -> None:
-        """
-        Append a scenario text to the correct category bucket in-place.
-
-        Args:
-            scenario_text: Scenario text to categorise
-            acc_lower: Lower-cased acceptance criterion for keyword matching
-            primaries: Primary scenario bucket
-            alternates: Alternate scenario bucket
-            exceptions: Exception scenario bucket
-            recoveries: Recovery scenario bucket
-        """
-        if any(kw in acc_lower for kw in ["error", "exception", "fail", "invalid", "reject", "handle error"]):
-            exceptions.append(scenario_text)
-        elif any(kw in acc_lower for kw in ["recover", "retry", "fallback"]):
-            recoveries.append(scenario_text)
-        elif any(kw in acc_lower for kw in ["alternate", "alternative", "different", "optional"]):
-            alternates.append(scenario_text)
-        else:
-            primaries.append(scenario_text)
+    @staticmethod
+    def _scenario_category(criterion: str) -> str:
+        """Choose the first matching scenario category for a criterion."""
+        if any(word in criterion for word in ("error", "exception", "fail", "invalid", "reject", "handle error")):
+            return "exception"
+        if any(word in criterion for word in ("recover", "retry", "fallback")):
+            return "recovery"
+        if any(word in criterion for word in ("alternate", "alternative", "different", "optional")):
+            return "alternate"
+        return "primary"
 
     def _priority_rationale_for_story(self, story: Any, feature_outcomes: list[str]) -> str:
         priority_rationale = "Core functionality"
@@ -567,26 +540,18 @@ class SpecKitConverter:
         )
         lines.append("")
 
-    def _append_acceptance_lines_for_story(
-        self,
-        story: Any,
-        lines: list[str],
-        primaries: list[str],
-        alternates: list[str],
-        exceptions: list[str],
-        recoveries: list[str],
-    ) -> None:
-        for acc_idx, acc in enumerate(story.acceptance, start=1):
-            given, when, then = self._gwt_from_acceptance(acc)
-            acc_lower = acc.lower()
+    def _append_acceptance_lines_for_story(self, story: Any, lines: list[str]) -> dict[str, list[str]]:
+        buckets: dict[str, list[str]] = {"primary": [], "alternate": [], "exception": [], "recovery": []}
+        for acc_idx, criterion in enumerate(story.acceptance, start=1):
+            given, when, then = self._gwt_from_acceptance(criterion)
             if given or when or then:
                 lines.append(f"{acc_idx}. **Given** {given}, **When** {when}, **Then** {then}")
-                self._categorise_scenario(
-                    f"{given}, {when}, {then}", acc_lower, primaries, alternates, exceptions, recoveries
-                )
+                scenario = f"{given}, {when}, {then}"
             else:
-                lines.append(f"{acc_idx}. {acc}")
-                self._categorise_scenario(acc, acc_lower, primaries, alternates, exceptions, recoveries)
+                lines.append(f"{acc_idx}. {criterion}")
+                scenario = criterion
+            buckets[self._scenario_category(criterion.lower())].append(scenario)
+        return buckets
 
     def _render_story_acceptance(self, story: Any, feature_outcomes: list[str], lines: list[str]) -> None:
         """
@@ -615,13 +580,11 @@ class SpecKitConverter:
             "**Acceptance Criteria:**",
             "",
         ]
-        primaries: list[str] = []
-        alternates: list[str] = []
-        exceptions: list[str] = []
-        recoveries: list[str] = []
-        self._append_acceptance_lines_for_story(story, lines, primaries, alternates, exceptions, recoveries)
+        buckets = self._append_acceptance_lines_for_story(story, lines)
         lines.append("")
-        self._append_bucketed_scenario_lines(lines, primaries, alternates, exceptions, recoveries)
+        self._append_bucketed_scenario_lines(
+            lines, buckets["primary"], buckets["alternate"], buckets["exception"], buckets["recovery"]
+        )
         lines.append("")
 
     def _append_spec_user_stories_section(self, feature: Feature, lines: list[str]) -> None:
@@ -905,22 +868,19 @@ class SpecKitConverter:
         setup_tasks: list[tuple[int, str, int]] = []
         foundational_tasks: list[tuple[int, str, int]] = []
         story_tasks: dict[int, list[tuple[int, str]]] = {}
-        task_counter = 1
-        for story in feature.stories:
-            story_num = self._extract_story_number(story.key)
-            if not story.tasks:
-                foundational_tasks.append((task_counter, f"Implement {story.title}", story_num))
-                task_counter += 1
-                continue
-            for task_desc in story.tasks:
-                bucket = self._classify_task_bucket(task_desc)
-                if bucket == "setup":
-                    setup_tasks.append((task_counter, task_desc, story_num))
-                elif bucket == "foundational":
-                    foundational_tasks.append((task_counter, task_desc, story_num))
-                else:
-                    story_tasks.setdefault(story_num, []).append((task_counter, task_desc))
-                task_counter += 1
+        tasks = (
+            (story.key, description, self._classify_task_bucket(description) if story.tasks else "foundational")
+            for story in feature.stories
+            for description in (story.tasks or [f"Implement {story.title}"])
+        )
+        for number, (story_key, description, bucket) in enumerate(tasks, start=1):
+            story_number = self._extract_story_number(story_key)
+            if bucket == "setup":
+                setup_tasks.append((number, description, story_number))
+            elif bucket == "foundational":
+                foundational_tasks.append((number, description, story_number))
+            else:
+                story_tasks.setdefault(story_number, []).append((number, description))
         return setup_tasks, foundational_tasks, story_tasks
 
     @staticmethod

@@ -121,6 +121,10 @@ class TestPythonPatternsE2E:
                     name = Column(String(100))
                     price = Column(Integer)
 
+                    def display_name(self):
+                        """Return the product name."""
+                        return self.name
+
                 class Order(Base):
                     """Order model."""
                     __tablename__ = "orders"
@@ -134,8 +138,7 @@ class TestPythonPatternsE2E:
             analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.3)
             plan_bundle = analyzer.analyze()
 
-            assert plan_bundle.idea is not None
-            assert any("SQLAlchemy" in constraint for constraint in plan_bundle.idea.constraints or [])
+            assert any("Defines data models: Product" in feature.outcomes for feature in plan_bundle.features)
 
     def test_patterns_detects_auth_patterns(self):
         """Test that the built-in scanner detects authentication patterns and enhances features."""
@@ -239,7 +242,7 @@ class TestPythonPatternsE2E:
         import os
         import time
 
-        # Ensure TEST_MODE is set to skip Semgrep (test still validates parallel execution)
+        # Select the test runtime while checking parallel execution
         os.environ["TEST_MODE"] = "true"
 
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -7,6 +7,7 @@ import ast
 import hashlib
 import json
 import os
+import sys
 import tokenize
 from collections.abc import Iterator, Sequence
 from dataclasses import asdict, dataclass
@@ -165,11 +166,12 @@ def _is_await_statement(statement: ast.AST) -> bool:
 
 def _adjacent_awaits(node: ast.AST) -> Iterator[ast.stmt]:
     for _, children in ast.iter_fields(node):
-        if isinstance(children, list):
-            statements = [item for item in children if isinstance(item, ast.stmt)]
-            for first, second in pairwise(statements):
-                if _is_await_statement(first) and _is_await_statement(second):
-                    yield first
+        if not isinstance(children, list):
+            continue
+        statements = (item for item in children if isinstance(item, ast.stmt))
+        for first, second in pairwise(statements):
+            if _is_await_statement(first) and _is_await_statement(second):
+                yield first
 
 
 def _task_names(node: ast.AST) -> list[str]:
@@ -195,17 +197,49 @@ def _task_result_references(node: ast.AST, aliases: dict[str, str]) -> Iterator[
         yield from (arg.id for arg in node.args if isinstance(arg, ast.Name))
 
 
+def _assigns_value(node: ast.AST) -> bool:
+    return isinstance(node, (ast.Assign, ast.AnnAssign)) and node.value is not None
+
+
+def _task_event_position(node: ast.AST) -> tuple[int, int]:
+    if isinstance(node, (ast.Assign, ast.AnnAssign)):
+        return (node.end_lineno or node.lineno, node.end_col_offset or node.col_offset)
+    if isinstance(node, (ast.Call, ast.Await)):
+        return (node.lineno, node.col_offset)
+    raise TypeError("Task events must be assignments, calls or awaits")
+
+
+def _task_assignment(value: ast.AST | None, aliases: dict[str, str]) -> ast.Call | None:
+    if isinstance(value, ast.Call) and qualified_name(value.func, aliases) == "asyncio.create_task":
+        return value
+    return None
+
+
+def _track_task_assignment(
+    node: ast.Assign | ast.AnnAssign, aliases: dict[str, str], active: dict[str, ast.Call]
+) -> ast.Call | None:
+    names = _task_names(node)
+    for name in names:
+        active.pop(name, None)
+    task = _task_assignment(node.value, aliases)
+    if names and task is not None:
+        active.update(dict.fromkeys(names, task))
+        return task
+    return None
+
+
 def _unobserved_tasks(nodes: Sequence[ast.AST], aliases: dict[str, str]) -> Iterator[ast.Call]:
-    observed = {name for node in nodes for name in _task_result_references(node, aliases)}
-    for node in nodes:
-        if not isinstance(node, (ast.Assign, ast.AnnAssign)):
-            continue
-        call = node.value
-        if not isinstance(call, ast.Call) or qualified_name(call.func, aliases) != "asyncio.create_task":
-            continue
-        names = _task_names(node)
-        if names and observed.isdisjoint(names):
-            yield call
+    active: dict[str, ast.Call] = {}
+    assignments: list[ast.Call] = []
+    observed: set[ast.Call] = set()
+    events = (node for node in nodes if _assigns_value(node) or isinstance(node, (ast.Call, ast.Await)))
+    for node in sorted(events, key=_task_event_position):
+        if isinstance(node, (ast.Assign, ast.AnnAssign)):
+            if (task := _track_task_assignment(node, aliases, active)) is not None:
+                assignments.append(task)
+        else:
+            observed.update(active[name] for name in _task_result_references(node, aliases) if name in active)
+    yield from (call for call in assignments if call not in observed)
 
 
 def _silent_handler(handler: ast.ExceptHandler, aliases: dict[str, str]) -> bool:
@@ -233,7 +267,10 @@ def _scope_findings(
     aliases: dict[str, str],
     coroutines: set[str],
 ) -> Iterator[tuple[str, ast.stmt | ast.expr | ast.ExceptHandler]]:
-    nodes = [scope, *_scoped_nodes(scope)]
+    nodes: list[ast.AST] = [scope]
+    for statement in scope.body:
+        if not isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            nodes.extend((statement, *_scoped_nodes(statement)))
     imports = {**aliases, **import_aliases(nodes)}
     parents = {child: node for node in nodes for child in ast.iter_child_nodes(node)}
     for node in nodes:
@@ -245,13 +282,65 @@ def _scope_findings(
         yield "missing-cancellation-handling", scope
 
 
+_LexicalScope = ast.Module | ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef
+
+
+def _enclosing_scope(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> _LexicalScope | None:
+    while (parent := parents.get(node)) is not None:
+        if isinstance(parent, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            return parent
+        node = parent
+    return None
+
+
+def _scope_functions(tree: ast.Module, parents: dict[ast.AST, ast.AST]) -> dict[_LexicalScope, dict[str, bool]]:
+    definitions: dict[_LexicalScope, dict[str, bool]] = {}
+    functions = (node for node in ast.walk(tree) if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)))
+    for function in sorted(functions, key=lambda node: node.lineno):
+        owner = _enclosing_scope(function, parents)
+        if owner is not None:
+            definitions.setdefault(owner, {})[function.name] = isinstance(function, ast.AsyncFunctionDef)
+    return definitions
+
+
+def _method_coroutines(
+    scope: ast.AsyncFunctionDef, owner: _LexicalScope | None, definitions: dict[_LexicalScope, dict[str, bool]]
+) -> set[str]:
+    arguments = scope.args.posonlyargs + scope.args.args
+    if not isinstance(owner, ast.ClassDef) or not arguments:
+        return set()
+    if any(qualified_name(node, {}).rsplit(".", 1)[-1] == "staticmethod" for node in scope.decorator_list):
+        return set()
+    receiver = arguments[0].arg
+    return {f"{receiver}.{name}" for name, is_async in definitions.get(owner, {}).items() if is_async}
+
+
+def _visible_coroutines(
+    scope: ast.AsyncFunctionDef, parents: dict[ast.AST, ast.AST], definitions: dict[_LexicalScope, dict[str, bool]]
+) -> set[str]:
+    owner = _enclosing_scope(scope, parents)
+    visible = dict(definitions.get(scope, {}))
+    visible.update(
+        dict.fromkeys((arg.arg for arg in scope.args.posonlyargs + scope.args.args + scope.args.kwonlyargs), False)
+    )
+    result = _method_coroutines(scope, owner, definitions)
+    while owner is not None:
+        if not isinstance(owner, ast.ClassDef):
+            for name, is_async in definitions.get(owner, {}).items():
+                visible.setdefault(name, is_async)
+        owner = _enclosing_scope(owner, parents)
+    return result | {name for name, is_async in visible.items() if is_async}
+
+
 def async_findings(tree: ast.Module, filename: str) -> list[AsyncFinding]:
     """Check each async function and attribute findings to source positions."""
     aliases = import_aliases(tree.body)
-    scopes = [node for node in ast.walk(tree) if isinstance(node, ast.AsyncFunctionDef)]
-    coroutines = {node.name for node in tree.body if isinstance(node, ast.AsyncFunctionDef)}
+    nodes = list(ast.walk(tree))
+    parents = {child: node for node in nodes for child in ast.iter_child_nodes(node)}
+    definitions = _scope_functions(tree, parents)
     findings: set[AsyncFinding] = set()
-    for scope in scopes:
+    for scope in (node for node in nodes if isinstance(node, ast.AsyncFunctionDef)):
+        coroutines = _visible_coroutines(scope, parents, definitions)
         for rule, node in _scope_findings(scope, aliases, coroutines):
             severity, message = RULES[rule]
             findings.add(AsyncFinding(filename, node.lineno, node.col_offset + 1, rule, severity, message))
@@ -316,18 +405,18 @@ def main() -> int:
             diagnostics.append({"file": str(args.legacy_config), "message": message})
     if args.fix and any(finding.rule_id == "blocking-sleep-in-async" for finding in findings):
         diagnostics.append({"file": "", "message": "Apply manual fixes using the reported async finding locations."})
-    print(
-        json.dumps(
-            {
-                "engine": "python-ast",
-                "rules_run": len(RULES),
-                "targets_scanned": scanned,
-                "total_findings": len(findings),
-                "findings": [asdict(finding) for finding in findings],
-                "diagnostics": diagnostics,
-            }
-        )
+    json.dump(
+        {
+            "engine": "python-ast",
+            "rules_run": len(RULES),
+            "targets_scanned": scanned,
+            "total_findings": len(findings),
+            "findings": [asdict(finding) for finding in findings],
+            "diagnostics": diagnostics,
+        },
+        sys.stdout,
     )
+    sys.stdout.write("\n")
     return 2 if diagnostics else int(any(finding.severity == "error" for finding in findings))
 
 

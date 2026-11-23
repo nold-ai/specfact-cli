@@ -216,8 +216,10 @@ class CodeAnalyzer:
             for idx, feature in enumerate(self.features, start=1):
                 feature.key = to_sequential_key(feature.key, idx)
 
-        # Generate plan bundle
-        # Use plan_name if provided, otherwise use entry point name or repo name
+        return self._build_plan_bundle(technology_constraints)
+
+    def _build_plan_bundle(self, technology_constraints: list[str]) -> PlanBundle:
+        """Assemble the derived idea, features and analysis scope."""
         if self.plan_name:
             # Use the plan name (already sanitized, but humanize for title)
             title = self.plan_name.replace("_", " ").replace("-", " ").title()
@@ -338,11 +340,11 @@ class CodeAnalyzer:
         self,
         progress: Progress,
         task_id: TaskID,
-        file_path: Path,
-        error: Exception,
+        failure: tuple[Path, Exception],
         completed_count: int,
     ) -> None:
         """Log a failed file analysis and keep progress moving."""
+        file_path, error = failure
         console.print(f"[dim]⚠ Warning: Failed to analyze {file_path}: {error}[/dim]")
         self._update_analysis_progress(progress, task_id, completed_count)
 
@@ -353,47 +355,25 @@ class CodeAnalyzer:
                 results = self._analyze_file_safe(file_path)
                 self._handle_analysis_results(progress, task_id, results, completed_count)
             except Exception as error:
-                self._log_analysis_failure(progress, task_id, file_path, error, completed_count)
+                self._log_analysis_failure(progress, task_id, (file_path, error), completed_count)
 
     def _analyze_files_parallel(self, files_to_analyze: list[Path], progress: Progress, task_id: TaskID) -> None:
         """Analyze files in parallel and merge results sequentially."""
         max_workers = max(1, min(os.cpu_count() or 4, 8, len(files_to_analyze)))
         executor = ThreadPoolExecutor(max_workers=max_workers)
         interrupted = False
-        completed_count = 0
         try:
-            future_to_file = {
-                executor.submit(self._analyze_file_safe, file_path): file_path for file_path in files_to_analyze
-            }
-            try:
-                for future in as_completed(future_to_file):
-                    completed_count += 1
-                    try:
-                        results = future.result()
-                        self._handle_analysis_results(progress, task_id, results, completed_count)
-                    except KeyboardInterrupt:
-                        interrupted = True
-                        self._cancel_pending_futures(future_to_file)
-                        break
-                    except Exception as error:
-                        self._log_analysis_failure(progress, task_id, future_to_file[future], error, completed_count)
-            except KeyboardInterrupt:
-                interrupted = True
-                self._cancel_pending_futures(future_to_file)
-            if interrupted:
-                raise KeyboardInterrupt
+            futures = {executor.submit(self._analyze_file_safe, path): path for path in files_to_analyze}
+            for completed_count, future in enumerate(as_completed(futures), start=1):
+                try:
+                    self._handle_analysis_results(progress, task_id, future.result(), completed_count)
+                except Exception as error:
+                    self._log_analysis_failure(progress, task_id, (futures[future], error), completed_count)
         except KeyboardInterrupt:
             interrupted = True
-            executor.shutdown(wait=False, cancel_futures=True)
             raise
         finally:
-            executor.shutdown(wait=not interrupted)
-
-    def _cancel_pending_futures(self, future_to_file: dict[Any, Path]) -> None:
-        """Cancel pending file-analysis futures."""
-        for future in future_to_file:
-            if not future.done():
-                future.cancel()
+            executor.shutdown(wait=not interrupted, cancel_futures=interrupted)
 
     def _finalize_analysis_progress(
         self,
@@ -550,11 +530,11 @@ class CodeAnalyzer:
             pattern_findings = feature_patterns(tree, file_path)
 
             # Extract classes as features
-            for node in ast.walk(tree):
-                if isinstance(node, ast.ClassDef):
-                    feature = self._extract_feature_for_results(node, file_path, pattern_findings, results["themes"])
-                    if feature is not None:
-                        results["features"].append(feature)
+            classes = (node for node in ast.walk(tree) if isinstance(node, ast.ClassDef))
+            for class_node in classes:
+                feature = self._extract_feature_for_results(class_node, file_path, pattern_findings, results["themes"])
+                if feature is not None:
+                    results["features"].append(feature)
 
         except (SyntaxError, UnicodeDecodeError):
             # Skip files that can't be parsed
@@ -686,7 +666,7 @@ class CodeAnalyzer:
 
         for finding in pattern_findings:
             rule_id = str(finding.get("check_id", "")).lower()
-            if not self._finding_matches_class(finding, class_name, class_start_line, class_end_line, rule_id):
+            if not self._finding_matches_class(finding, class_name, class_start_line, class_end_line):
                 continue
             self._apply_pattern_evidence_flag(evidence, rule_id)
 
@@ -698,10 +678,9 @@ class CodeAnalyzer:
         class_name: str,
         class_start_line: int | None,
         class_end_line: int | None,
-        rule_id: str | None = None,
     ) -> bool:
-        """Check whether a Pattern finding belongs to the target class."""
-        effective_rule_id = rule_id or str(finding.get("check_id", "")).lower()
+        """Check whether a pattern finding belongs to the target class."""
+        effective_rule_id = str(finding.get("check_id", "")).lower()
         message = str(finding.get("message", "")).lower()
         class_name_lower = class_name.lower()
         if class_name_lower in message or class_name_lower in effective_rule_id:
@@ -825,40 +804,19 @@ class CodeAnalyzer:
             protocol=None,
         )
 
-    def _filter_relevant_pattern_findings(
-        self,
-        pattern_findings: list[dict[str, Any]],
-        file_path: Path,
-        class_name: str,
-        class_start_line: int | None,
-        class_end_line: int | None,
-    ) -> list[dict[str, Any]]:
-        """
-        Filter Pattern findings to only those relevant to a specific class in a file.
-
-        Matches by class name mention, line range, or anti-pattern proximity.
-
-        Args:
-            pattern_findings: All findings for the repository
-            file_path: Path to the file being analyzed
-            class_name: Name of the class to match against
-            class_start_line: First line of the class definition
-            class_end_line: Last line of the class definition
-
-        Returns:
-            Filtered list of findings relevant to the class
-        """
+    def _filter_relevant_pattern_findings(self, ctx: _PatternEnhancementContext) -> list[dict[str, Any]]:
+        """Select findings that belong to the target class or its immediate vicinity."""
         relevant: list[dict[str, Any]] = []
-        for finding in pattern_findings:
+        for finding in ctx.pattern_findings:
             finding_path = finding.get("path", "")
-            if str(file_path) not in finding_path and finding_path not in str(file_path):
+            if str(ctx.file_path) not in finding_path and finding_path not in str(ctx.file_path):
                 continue
-            if self._finding_matches_class(finding, class_name, class_start_line, class_end_line):
+            if self._finding_matches_class(finding, ctx.class_name, ctx.class_start_line, ctx.class_end_line):
                 relevant.append(finding)
                 continue
             finding_line = self._pattern_finding_line(finding)
             check_id = str(finding.get("check_id", "")).lower()
-            if self._is_nearby_anti_pattern(check_id, finding_line, class_start_line, class_end_line):
+            if self._is_nearby_anti_pattern(check_id, finding_line, ctx.class_start_line, ctx.class_end_line):
                 relevant.append(finding)
         return relevant
 
@@ -1091,13 +1049,7 @@ class CodeAnalyzer:
         if not ctx.pattern_findings:
             return
 
-        relevant_findings = self._filter_relevant_pattern_findings(
-            ctx.pattern_findings,
-            ctx.file_path,
-            ctx.class_name,
-            ctx.class_start_line,
-            ctx.class_end_line,
-        )
+        relevant_findings = self._filter_relevant_pattern_findings(ctx)
         if not relevant_findings:
             return
 
@@ -1445,23 +1397,18 @@ class CodeAnalyzer:
             modules[module_name] = file_path
             self.dependency_graph.add_node(module_name, path=file_path)
 
-        # Second pass: add edges based on imports
         for module_name, file_path in modules.items():
             try:
-                content = file_path.read_text(encoding="utf-8")
-                tree = ast.parse(content)
-
-                # Extract imports
+                tree = ast.parse(file_path.read_text(encoding="utf-8"))
                 imports = self._extract_imports_from_ast(tree, file_path)
-                for imported_module in imports:
-                    target = self._resolve_import_to_known_module(imported_module, modules)
-                    if target:
-                        self.dependency_graph.add_edge(module_name, target)
-                    else:
-                        self._maybe_record_external_dependency(imported_module)
             except (SyntaxError, UnicodeDecodeError):
-                # Skip files that can't be parsed
                 continue
+            for imported_module in imports:
+                target = self._resolve_import_to_known_module(imported_module, modules)
+                if target:
+                    self.dependency_graph.add_edge(module_name, target)
+                else:
+                    self._maybe_record_external_dependency(imported_module)
 
     def _path_to_module_name(self, file_path: Path) -> str:
         """Convert file path to module name (e.g., src/foo/bar.py -> src.foo.bar)."""
@@ -1487,23 +1434,9 @@ class CodeAnalyzer:
 
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
-                for alias in node.names:
-                    # Import aliases (e.g., import foo as bar)
-                    if "." in alias.name:
-                        # Extract root module (e.g., foo.bar.baz -> foo)
-                        root_module = alias.name.split(".")[0]
-                        imports.add(root_module)
-                    else:
-                        imports.add(alias.name)
-
+                imports.update(alias.name.partition(".")[0] for alias in node.names)
             elif isinstance(node, ast.ImportFrom) and node.module:
-                # From imports (e.g., from foo.bar import baz)
-                if "." in node.module:
-                    # Extract root module
-                    root_module = node.module.split(".")[0]
-                    imports.add(root_module)
-                else:
-                    imports.add(node.module)
+                imports.add(node.module.partition(".")[0])
 
         # Try to resolve local imports (relative to current file)
         resolved_imports: list[str] = []
@@ -1591,21 +1524,15 @@ class CodeAnalyzer:
         type_hints: dict[str, str] = {}
 
         for node in ast.walk(tree):
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                func_name = node.name
-                return_type = "None"
-
-                # Extract return type annotation
-                if node.returns:
-                    # Convert AST node to string representation
-                    if isinstance(node.returns, ast.Name):
-                        return_type = node.returns.id
-                    elif isinstance(node.returns, ast.Subscript):
-                        # Handle generics like List[str], Dict[str, int]
-                        container = node.returns.value.id if isinstance(node.returns.value, ast.Name) else "Any"
-                        return_type = str(container)  # Simplified representation
-
-                type_hints[func_name] = return_type
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            annotation = node.returns
+            if isinstance(annotation, ast.Name):
+                type_hints[node.name] = annotation.id
+            elif isinstance(annotation, ast.Subscript):
+                type_hints[node.name] = annotation.value.id if isinstance(annotation.value, ast.Name) else "Any"
+            else:
+                type_hints[node.name] = "None"
 
         return type_hints
 

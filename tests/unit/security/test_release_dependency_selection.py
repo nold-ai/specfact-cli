@@ -35,10 +35,6 @@ def test_reviewed_tooling_versions_match_frozen_export(name: str, version: str) 
     lock = tomllib.loads((REPO_ROOT / "uv.lock").read_text(encoding="utf-8"))
     packages = [package for package in lock["package"] if package["name"] == name]
     source = {"registry": "https://pypi.org/simple"}
-    if name == "pycparser":
-        project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-        assert name in project["tool"]["uv"]["no-build-package"]
-        assert "sdist" not in packages[0]
     assert [(package["version"], package["source"]) for package in packages] == [(version, source)]
     export = (REPO_ROOT / "requirements/ci/locked.txt").read_text(encoding="utf-8")
     requirements = re.findall(
@@ -52,6 +48,14 @@ def test_reviewed_tooling_versions_match_frozen_export(name: str, version: str) 
     assert expected_hashes
     assert all(re.fullmatch(r"sha256:[0-9a-f]{64}", digest) for digest in expected_hashes)
     assert set(re.findall(r"--hash=(\S+)", requirements[0])) == expected_hashes
+
+
+def test_frozen_parser_build_uses_a_wheel() -> None:
+    project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    lock = tomllib.loads((REPO_ROOT / "uv.lock").read_text(encoding="utf-8"))
+    (parser,) = (package for package in lock["package"] if package["name"] == "pycparser")
+    assert "pycparser" in project["tool"]["uv"]["no-build-package"]
+    assert "sdist" not in parser
 
 
 def test_retired_scanner_graph_is_absent_from_frozen_delivery() -> None:
