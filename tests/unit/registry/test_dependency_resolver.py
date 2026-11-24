@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import subprocess
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -13,6 +15,30 @@ from specfact_cli.registry.dependency_resolver import (
     install_resolved_pip_requirements,
     resolve_dependencies,
 )
+
+
+def test_pip_compile_honors_pip_install_constraints(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Forward the same ordered constraint files pip will read at installation."""
+    reviewed_pin = tmp_path / "reviewed.txt"
+    platform_pin = tmp_path / "platform.txt"
+    reviewed_pin.write_text("typer==0.27.0\n", encoding="utf-8")
+    platform_pin.write_text("click>=8.3.3\n", encoding="utf-8")
+    monkeypatch.setenv("PIP_CONSTRAINT", f"{reviewed_pin} {platform_pin}")
+
+    def compile_pinned_requirements(command: list[str], **_options: object) -> subprocess.CompletedProcess[str]:
+        assert [arg for arg in command if arg.startswith("--constraint=")] == [
+            f"--constraint={reviewed_pin}",
+            f"--constraint={platform_pin}",
+        ]
+        Path(command[command.index("-o") + 1]).write_text("typer==0.27.0\n", encoding="utf-8")
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    module = ModulePackageMetadata(name="with-typer", version="0.1.0", commands=["test"], pip_dependencies=["typer"])
+    with (
+        patch("specfact_cli.registry.dependency_resolver._pip_tools_available", return_value=True),
+        patch("specfact_cli.registry.dependency_resolver.subprocess.run", side_effect=compile_pinned_requirements),
+    ):
+        assert resolve_dependencies([module]) == ["typer==0.27.0"]
 
 
 @pytest.fixture

@@ -8,6 +8,10 @@ active changes should be implemented.
 
 [Core #797](https://github.com/nold-ai/specfact-cli/issues/797) and [retire-core-semgrep](changes/retire-core-semgrep/proposal.md) own core scan and independent CI migration. Core #769 remains ordinary local report adoption. Temporary recovery in #780 and #796 remains separate. Coordinate the trusted-local module cutover and installation matrix through modules #514, #515, #516 and #523.
 
+## Module dependency constraints (2026-11-22)
+
+[Core #798](https://github.com/nold-ai/specfact-cli/issues/798) follows [core #797](https://github.com/nold-ai/specfact-cli/issues/797) and unblocks the six-launcher runtime acceptance in [modules PR #524](https://github.com/nold-ai/specfact-cli-modules/pull/524).
+
 ## High-priority trusted local Code Review reset (2026-10-16)
 
 Planned only. The approved ordinary local sequence is
