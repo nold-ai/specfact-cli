@@ -10,6 +10,14 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.55.17] - 2026-11-23
+
+### Fixed
+
+- Honor the caller’s pip constraint files when resolving marketplace module dependencies with `pip-compile`.
+
+---
+
 ## [0.55.16] - 2026-11-22
 
 ### Security
