@@ -683,8 +683,8 @@ def _assert_immutable_modules_fixture(raw: str, fixture: str = "ci/module-fixtur
     assert fixture in raw
     assert 'repository="$(python -c' in raw
     assert 'test "$repository" = "nold-ai/specfact-cli-modules"' in raw
-    assert "steps.modules-fixture.outputs.repository" in raw
-    assert "ref: ${{ steps.modules-fixture.outputs.commit }}" in raw
+    assert "repository: nold-ai/specfact-cli-modules" in raw
+    assert "steps.modules-fixture.outputs" not in raw
     assert "git -C specfact-cli-modules rev-parse HEAD" in raw
     assert "./.github/actions/setup-frozen-python" in raw
     assert "pip install" not in raw

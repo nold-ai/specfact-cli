@@ -189,12 +189,11 @@ def test_compatibility_fixture_is_schedule_only_and_verified_before_export() -> 
     assert "workflow_dispatch" not in _on_block(workflow)
     job = cast(dict[str, Any], cast(dict[str, Any], workflow["jobs"])["dependency-compatibility"])
     assert job.get("if") == "github.event_name == 'schedule'"
-    read = _named_step(job, "Read immutable module fixture")
     verify = _named_step(job, "Verify immutable module fixture")
     steps = cast(list[dict[str, Any]], job["steps"])
     names = [str(step.get("name", "")) for step in steps]
     assert names.index("Verify immutable module fixture") < names.index("Export module bundles path")
-    assert '"tree"' in str(read.get("run", ""))
+    assert '"tree"' in str(verify.get("run", ""))
     assert "HEAD^{tree}" in str(verify.get("run", ""))
 
 
