@@ -6,5 +6,5 @@
 
 ## 2. Track promotion
 
-- [ ] Link the focused dev change to core #771 and #796.
+- [x] Link the focused dev change in #801 to core #771 and #796.
 - [ ] Update the internal wiki mirror from the sibling internal checkout as part of integration.
