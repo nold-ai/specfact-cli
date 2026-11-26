@@ -14,9 +14,17 @@ test "${GITHUB_REPOSITORY:-}" = "$repo"
 origin="$(git remote get-url origin)"
 [[ "$origin" == "https://github.com/$repo" || "$origin" == "https://github.com/$repo.git" ]]
 
-gh api "repos/$repo/pulls/$source_number" > "$metadata_root/source-pull.json"
-jq -e '[.]' "$metadata_root/source-pull.json" > "$metadata_root/source-pulls.json"
-source_sha="$(jq -er '.head.sha | select(type == "string" and test("^[0-9a-f]{40}$"))' "$metadata_root/source-pull.json")"
+source_pull="$metadata_root/source-pull.json"
+for attempt in 1 2 3 4 5; do
+  gh api "repos/$repo/pulls/$source_number" > "$source_pull"
+  if jq -e '.mergeable | type == "boolean"' "$source_pull" >/dev/null; then
+    break
+  fi
+  test "$attempt" -lt 5
+  sleep 2
+done
+jq -e '[.]' "$source_pull" > "$metadata_root/source-pulls.json"
+source_sha="$(jq -er '.head.sha | select(type == "string" and test("^[0-9a-f]{40}$"))' "$source_pull")"
 git fetch --no-tags origin \
   "+refs/heads/$topic_ref:refs/remotes/origin/$topic_ref" \
   "+refs/pull/$source_number/head:refs/remotes/origin/requirements-promotion-source"

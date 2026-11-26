@@ -2555,6 +2555,14 @@ jobs:
             jq -e '.gate_decision == "pass"' "$final_report" > /dev/null
             jq -e '.gate_decision == "pass" and (.plan.cases | length > 0)' \
               "$final_plan" > /dev/null
+            promotion_attestation="${RUNNER_TEMP}/final-promotion-reuse.json"
+            promotion_head_ref="$(jq -er '.promotion.head_ref' "$promotion_attestation")"
+            if [[ "$promotion_head_ref" != dev ]]; then
+              attested_dev="$(jq -er '.source_pull_request.base_sha' "$promotion_attestation")"
+              [[ "$attested_dev" =~ ^[0-9a-f]{40}$ ]]
+              live_dev="$(git ls-remote --exit-code origin refs/heads/dev)"
+              test "$live_dev" = "$attested_dev"$'\trefs/heads/dev'
+            fi
             cat "$final_summary" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           elif [[ "$required_maturity" == "planned" ]]; then

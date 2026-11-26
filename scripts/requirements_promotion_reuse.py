@@ -322,6 +322,17 @@ def _validate_topic_run_association(run: dict[str, object], source: _TopicSource
         _expected_fields(_object(boundary.get("repo")), {"id": REPOSITORY_ID})
 
 
+def _validate_topic_producer_workflow(repo: Path, git: GitRunner, base: str, source: str) -> None:
+    """Require the workflow blob GitHub runs on the source merge tree to match protected dev."""
+    trusted_blob = _string(
+        _git(git, repo, ["rev-parse", "--verify", f"{base}:{REQUIREMENTS_WORKFLOW_PATH}"]), OBJECT_PATTERN
+    )
+    if _git(git, repo, ["cat-file", "-t", trusted_blob]) != "blob":
+        _reject()
+    if _git(git, repo, ["rev-parse", "--verify", f"{source}:{REQUIREMENTS_WORKFLOW_PATH}"]) != trusted_blob:
+        _reject()
+
+
 def _validate_topic_source(inputs: PromotionInputs, git: GitRunner, topic: _TopicRef) -> _TopicSource:
     match = TOPIC_REF_PATTERN.fullmatch(topic.name)
     if match is None:
@@ -338,6 +349,7 @@ def _validate_topic_source(inputs: PromotionInputs, git: GitRunner, topic: _Topi
         _reject()
     _git(git, inputs.repo_root, ["merge-base", "--is-ancestor", topic.base, source])
     _git(git, inputs.repo_root, ["merge-base", "--is-ancestor", base, source])
+    _validate_topic_producer_workflow(inputs.repo_root, git, base, source)
     if _git(git, inputs.repo_root, ["rev-parse", f"{source}^{{tree}}"]) != tree:
         _reject()
     signatures = _object(inputs.topic_commits)

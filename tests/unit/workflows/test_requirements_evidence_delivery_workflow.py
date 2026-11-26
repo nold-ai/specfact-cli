@@ -1396,9 +1396,15 @@ def _assert_promotion_validation(validate: dict[str, object], stage: _PromotionS
         ("--output", stage.output_attestation),
     )
     assert validate["id"] == stage.step_id
-    assert "scripts/requirements_promotion_reuse.py" in command
-    assert f'promotion_validator="{metadata_root}/trusted-reuse.py"' in command
-    assert f'topic_arguments=(--topic-commits "{metadata_root}/topic-commits.json")' in command
+    invocation_fragments = (
+        "scripts/requirements_promotion_reuse.py",
+        "topic_arguments=()",
+        """if jq -e '.pull_request.head.ref != "dev"' "$GITHUB_EVENT_PATH" >/dev/null; then""",
+        f'promotion_validator="{metadata_root}/trusted-reuse.py"',
+        f'topic_arguments=(--topic-commits "{metadata_root}/topic-commits.json")',
+        '/bin/python" -I -S "$promotion_validator" "${topic_arguments[@]}"',
+    )
+    assert all(fragment in command for fragment in invocation_fragments)
     assert not {"GITHUB_TOKEN", "GH_TOKEN"}.intersection(cast(dict[str, str], validate.get("env", {})))
     assert all(f'{argument} "{value}"' in command for argument, value in arguments)
     if stage.expected_attestation is None:
@@ -1505,6 +1511,20 @@ def _assert_promotion_planning(commands: tuple[str, str, str]) -> None:
         promotion_branch = command[promotion_start:promotion_end]
         assert f"cp {planning_report} {verified_report}" not in promotion_branch
         assert f"test -s {verified_report}" in promotion_branch
+
+
+def test_final_topic_promotion_rechecks_protected_dev() -> None:
+    workflow = yaml.load(
+        (REPO_ROOT / ".github/workflows/requirements-evidence.yml").read_text(encoding="utf-8"),
+        Loader=yaml.BaseLoader,
+    )
+    _, _, final = _promotion_commands(workflow)
+    start = final.index('if [[ "$promotion_head_ref" != dev ]]; then')
+    end = final.index('cat "$final_summary" >> "$GITHUB_STEP_SUMMARY"', start)
+    check = final[start:end]
+    assert ".source_pull_request.base_sha" in check
+    assert "git ls-remote --exit-code origin refs/heads/dev" in check
+    assert 'test "$live_dev" = "$attested_dev"' in check
 
 
 def _assert_promotion_artifacts(workflow: dict[str, object], commands: tuple[str, str, str]) -> None:

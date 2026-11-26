@@ -861,6 +861,8 @@ def test_incomplete_or_stale_promotion_provenance_is_rejected(tmp_path: Path) ->
 
 
 TOPIC_REF = "codex/promotion-from-dev-pr-714"
+WORKFLOW_PATH = ".github/workflows/requirements-evidence.yml"
+WORKFLOW_BLOB = "a" * 40
 
 
 def _signed_topic_fixture(tmp_path: Path) -> tuple[_PromotionFixture, dict[str, object]]:
@@ -885,6 +887,9 @@ def _signed_topic_fixture(tmp_path: Path) -> tuple[_PromotionFixture, dict[str, 
             ("rev-list", "--parents", "-n", "1", HEAD_SHA): f"{HEAD_SHA} {BASE_SHA}",
             ("merge-base", "--is-ancestor", PREVIOUS_DEV_SHA, SOURCE_SHA): "",
             ("merge-base", "--is-ancestor", BASE_SHA, SOURCE_SHA): "",
+            ("rev-parse", "--verify", f"{PREVIOUS_DEV_SHA}:{WORKFLOW_PATH}"): WORKFLOW_BLOB,
+            ("rev-parse", "--verify", f"{SOURCE_SHA}:{WORKFLOW_PATH}"): WORKFLOW_BLOB,
+            ("cat-file", "-t", WORKFLOW_BLOB): "blob",
         }
     )
     commits: dict[str, object] = {
@@ -920,26 +925,32 @@ def test_signed_promotion_topic_authenticates_exact_source(tmp_path: Path) -> No
 
 
 @pytest.mark.parametrize(
-    "fault",
-    [
-        "unsigned",
-        "unsigned-source",
-        "other-tree",
-        "source-moved",
-        "base-moved",
-        "stale-run-base",
-        "foreign-authority-run",
-        "main-unintegrated",
-        "source-red",
-        "name-only",
-        "fork-source",
-        "extra-parent",
-    ],
+    "fault", ["unsigned", "unsigned-source", "source-red", "name-only", "fork-source", "extra-parent"]
 )
 def test_signed_promotion_topic_rejects_untrusted_source(tmp_path: Path, fault: str) -> None:
     fixture, commits = _signed_topic_fixture(tmp_path)
     if fault == "unsigned":
         _set_nested(commits, ("head", "verification", "verified"), False)
+    if fault == "unsigned-source":
+        _set_nested(commits, ("source", "verification", "reason"), "bad_email")
+    if fault == "source-red":
+        cast(dict[str, object], fixture.source_pulls[0])["mergeable_state"] = "blocked"
+    if fault == "name-only":
+        _set_nested(fixture.event, ("pull_request", "head", "ref"), "codex/promotion-from-dev-pr-715")
+    if fault == "fork-source":
+        _set_nested(cast(dict[str, object], fixture.source_pulls[0]), ("head", "repo", "id"), 999)
+    if fault == "extra-parent":
+        fixture.git_outputs[("rev-list", "--parents", "-n", "1", HEAD_SHA)] = f"{HEAD_SHA} {BASE_SHA} {SOURCE_SHA}"
+    with pytest.raises(ValueError, match="promotion-reuse-invalid"):
+        _validate_signed_topic(fixture, commits)
+
+
+@pytest.mark.parametrize(
+    "fault",
+    ["other-tree", "source-moved", "base-moved", "main-unintegrated", "stale-run-base", "foreign-authority-run"],
+)
+def test_signed_promotion_topic_rejects_mismatched_evidence(tmp_path: Path, fault: str) -> None:
+    fixture, commits = _signed_topic_fixture(tmp_path)
     if fault == "other-tree":
         fixture.git_outputs[("rev-parse", f"{SOURCE_SHA}^{{tree}}")] = BASE_SHA
     if fault == "source-moved":
@@ -953,15 +964,5 @@ def test_signed_promotion_topic_rejects_untrusted_source(tmp_path: Path, fault: 
         _set_nested(run, ("base", "sha"), BASE_SHA)
     if fault == "foreign-authority-run":
         _object_list(fixture.authority_run, "pull_requests")[0]["number"] = 715
-    if fault == "source-red":
-        cast(dict[str, object], fixture.source_pulls[0])["mergeable_state"] = "blocked"
-    if fault == "name-only":
-        _set_nested(fixture.event, ("pull_request", "head", "ref"), "codex/promotion-from-dev-pr-715")
-    if fault == "unsigned-source":
-        _set_nested(commits, ("source", "verification", "reason"), "bad_email")
-    if fault == "fork-source":
-        _set_nested(cast(dict[str, object], fixture.source_pulls[0]), ("head", "repo", "id"), 999)
-    if fault == "extra-parent":
-        fixture.git_outputs[("rev-list", "--parents", "-n", "1", HEAD_SHA)] = f"{HEAD_SHA} {BASE_SHA} {SOURCE_SHA}"
     with pytest.raises(ValueError, match="promotion-reuse-invalid"):
         _validate_signed_topic(fixture, commits)
