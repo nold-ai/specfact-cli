@@ -1668,21 +1668,7 @@ _FIXED_PR786_UPLOAD_LOG_BYTES = 30543
 _FIXED_PR786_ORIGINAL_ZIP = "tests/fixtures/requirements-proof/pr786-original-native36.zip"
 
 
-def _fixed_pr786_upload_receipt(
-    job: dict[str, object], log: bytes, archive: bytes, manifest: dict[str, object], packet: Path
-) -> dict[str, object]:
-    expected_job: dict[str, object] = {
-        "id": 126195535776,
-        "run_id": 41715861806,
-        "run_attempt": 1,
-        "head_sha": "8ad0a9434ceeac4a910df3c374536d7c909badec",
-        "name": "materialize",
-        "status": "completed",
-        "conclusion": "success",
-    }
-    if any(type(job.get(key)) is not type(value) or job.get(key) != value for key, value in expected_job.items()):
-        raise ValueError("fixed786 original upload job")
-    steps = job.get("steps")
+def _fixed_pr786_upload_steps(steps: object) -> None:
     if not isinstance(steps, list):
         raise ValueError("fixed786 original upload steps")
     by_number: dict[object, dict[str, object]] = {}
@@ -1697,6 +1683,9 @@ def _fixed_pr786_upload_receipt(
     for number, name in ((7, "Observe one original native materialization"), (9, "Retain original execution packet")):
         if by_number.get(number, {}).get("name") != name:
             raise ValueError("fixed786 original command or upload missing")
+
+
+def _fixed_pr786_upload_window(job: dict[str, object]) -> None:
     times: list[datetime] = []
     for key in ("started_at", "completed_at"):
         value = job.get(key)
@@ -1707,6 +1696,25 @@ def _fixed_pr786_upload_receipt(
         datetime(2026, 11, 3, tzinfo=UTC) <= times[0] <= times[1] < datetime(2026, 11, 4, 23, tzinfo=UTC)
     ):
         raise ValueError("fixed786 original execution outside its window")
+
+
+def _fixed_pr786_upload_job(job: dict[str, object]) -> None:
+    expected_job: dict[str, object] = {
+        "id": 126195535776,
+        "run_id": 41715861806,
+        "run_attempt": 1,
+        "head_sha": "8ad0a9434ceeac4a910df3c374536d7c909badec",
+        "name": "materialize",
+        "status": "completed",
+        "conclusion": "success",
+    }
+    if any(type(job.get(key)) is not type(value) or job.get(key) != value for key, value in expected_job.items()):
+        raise ValueError("fixed786 original upload job")
+    _fixed_pr786_upload_steps(job.get("steps"))
+    _fixed_pr786_upload_window(job)
+
+
+def _fixed_pr786_upload_log_digest(log: bytes) -> str:
     log_digest = hashlib.sha256(log).hexdigest()
     if len(log) != _FIXED_PR786_UPLOAD_LOG_BYTES or log_digest != _FIXED_PR786_UPLOAD_LOG_SHA256:
         raise ValueError("fixed786 original provider log")
@@ -1721,9 +1729,32 @@ def _fixed_pr786_upload_receipt(
     )
     if not separator or any(line not in upload for line in expected_lines):
         raise ValueError("fixed786 original provider receipt")
-    archive_digest = "sha256:" + hashlib.sha256(archive).hexdigest()
-    if len(archive) != 1885415 or archive_digest != manifest["artifact_digest"]:
-        raise ValueError("fixed786 retained original archive")
+    return "sha256:" + log_digest
+
+
+def _fixed_pr786_original_member(zipped: zipfile.ZipFile, name: str, length: int, archive_size: int) -> bytes:
+    info = zipped.getinfo(name)
+    if (
+        info.is_dir()
+        or info.flag_bits & 1
+        or info.compress_type not in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED)
+        or info.file_size != length
+        or info.compress_size > archive_size
+        or stat.S_IFMT(info.external_attr >> 16) not in (0, stat.S_IFREG)
+    ):
+        raise ValueError("fixed786 original member mode or size")
+    with zipped.open(info) as stream:
+        return stream.read(length + 1)
+
+
+def _fixed_pr786_retained_member(target: Path, length: int) -> bytes:
+    if target.is_symlink() or not target.is_file():
+        raise ValueError("fixed786 retained member kind")
+    with target.open("rb") as stream:
+        return stream.read(length + 1)
+
+
+def _fixed_pr786_archive_members(archive: bytes, manifest: dict[str, object], packet: Path) -> dict[str, object]:
     selected = (
         ("local-red-report.json", "requirements-evidence.json", "report_digest", 64255),
         ("planning-report.json", "requirements-evidence-plan.json", "plan_report_digest", 31641),
@@ -1737,33 +1768,30 @@ def _fixed_pr786_upload_receipt(
             raise ValueError("fixed786 original archive inventory")
         for original, normalized, digest_key, length in selected:
             name = str(manifest["artifact_member_prefix"]) + "/" + original
-            info = zipped.getinfo(name)
-            if (
-                info.is_dir()
-                or info.flag_bits & 1
-                or info.compress_type not in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED)
-                or info.file_size != length
-                or info.compress_size > len(archive)
-                or stat.S_IFMT(info.external_attr >> 16) not in (0, stat.S_IFREG)
-            ):
-                raise ValueError("fixed786 original member mode or size")
-            with zipped.open(info) as stream:
-                raw = stream.read(length + 1)
-            target = packet / normalized
-            if target.is_symlink() or not target.is_file():
-                raise ValueError("fixed786 retained member kind")
-            with target.open("rb") as stream:
-                retained = stream.read(length + 1)
+            raw = _fixed_pr786_original_member(zipped, name, length, len(archive))
+            retained = _fixed_pr786_retained_member(packet / normalized, length)
             member_digest = "sha256:" + hashlib.sha256(raw).hexdigest()
             if len(raw) != length or member_digest != manifest[digest_key] or retained != raw:
                 raise ValueError("fixed786 original member mismatch")
             members[normalized] = {"bytes": length, "digest": member_digest}
+    return members
+
+
+def _fixed_pr786_upload_receipt(
+    job: dict[str, object], log: bytes, archive: bytes, manifest: dict[str, object], packet: Path
+) -> dict[str, object]:
+    _fixed_pr786_upload_job(job)
+    log_digest = _fixed_pr786_upload_log_digest(log)
+    archive_digest = "sha256:" + hashlib.sha256(archive).hexdigest()
+    if len(archive) != 1885415 or archive_digest != manifest["artifact_digest"]:
+        raise ValueError("fixed786 retained original archive")
+    members = _fixed_pr786_archive_members(archive, manifest, packet)
     return {
         "source": "live-provider-upload-log",
         "artifact_metadata_role": "historical",
         "artifacts_present": 0,
         "job": job,
-        "log_digest": "sha256:" + log_digest,
+        "log_digest": log_digest,
         "upload": {
             "id": 13269307808,
             "run_id": 41715861806,

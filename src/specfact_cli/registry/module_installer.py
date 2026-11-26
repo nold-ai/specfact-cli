@@ -17,7 +17,7 @@ import tempfile
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, NamedTuple, cast
 
 import yaml
 from beartype import beartype
@@ -728,14 +728,13 @@ def _verify_signature_if_present(
     meta: ModulePackageMetadata,
     verification_payload: bytes,
     public_key_pem: str | None,
-    allow_unsigned: bool,
     require_signature: bool,
     logger: Any,
 ) -> bool:
     if meta.integrity and meta.integrity.signature:
         key_material = _load_public_key_pem(public_key_pem)
         if not key_material:
-            if require_signature and not allow_unsigned:
+            if require_signature:
                 logger.warning("Module %s: Signature verification requires public key material", meta.name)
                 return False
             logger.warning(
@@ -746,7 +745,7 @@ def _verify_signature_if_present(
             verify_signature(verification_payload, meta.integrity.signature, key_material)
         except ValueError as exc:
             if _is_signature_backend_unavailable(exc):
-                if require_signature and not allow_unsigned:
+                if require_signature:
                     logger.warning("Module %s: signature is required but backend is unavailable", meta.name)
                     return False
                 _warn_signature_backend_unavailable_once(str(exc))
@@ -754,7 +753,7 @@ def _verify_signature_if_present(
             logger.warning("Module %s: Signature check failed: %s", meta.name, exc)
             return False
         return True
-    if require_signature and not allow_unsigned:
+    if require_signature:
         logger.warning("Module %s: Signature is required but missing", meta.name)
         return False
     return True
@@ -803,7 +802,7 @@ def verify_module_artifact(
     if verification_payload is None:
         return False
     return _verify_signature_if_present(
-        meta, verification_payload, public_key_pem, allow_unsigned, require_signature, logger
+        meta, verification_payload, public_key_pem, require_signature and not allow_unsigned, logger
     )
 
 
@@ -827,33 +826,45 @@ def _verify_frozen_module_tree(package_dir: Path, meta: ModulePackageMetadata) -
     return _verified_frozen_manifests(package_dir, meta) is not None
 
 
-def _verified_frozen_manifests(package_dir: Path, meta: ModulePackageMetadata) -> dict[str, bytes] | None:
-    """Return the manifest bytes covered by the approved tree digest."""
+class _FrozenTreeFiles(NamedTuple):
+    entries: list[str]
+    caches: list[Path]
+    sources: dict[Path, bytes]
+    manifests: dict[str, bytes]
+
+
+def _frozen_tree_files(package_dir: Path) -> _FrozenTreeFiles:
     entries: list[str] = []
     caches: list[Path] = []
     sources: dict[Path, bytes] = {}
     manifests: dict[str, bytes] = {}
+    for path in sorted(package_dir.rglob("*"), key=lambda entry: entry.relative_to(package_dir).as_posix()):
+        relative = path.relative_to(package_dir).as_posix()
+        mode = path.lstat().st_mode
+        if stat.S_ISDIR(mode):
+            continue
+        if not stat.S_ISREG(mode):
+            raise ValueError("Frozen module trees require regular files")
+        if relative in _IGNORED_MODULE_FILE_NAMES:
+            continue
+        if path.parent.name == "__pycache__" and path.suffix == ".pyc":
+            caches.append(path)
+            continue
+        data = path.read_bytes()
+        if relative in {"module-package.yaml", "metadata.yaml"}:
+            manifests[relative] = data
+        elif path.suffix in {".py", ".pyw"}:
+            sources[path] = data
+        entries.append(f"{relative}:{hashlib.sha256(data).hexdigest()}")
+    return _FrozenTreeFiles(entries, caches, sources, manifests)
+
+
+def _verified_frozen_manifests(package_dir: Path, meta: ModulePackageMetadata) -> dict[str, bytes] | None:
+    """Return the manifest bytes covered by the approved tree digest."""
     try:
         if package_dir.is_symlink() or not package_dir.is_dir():
             return None
-        for path in sorted(package_dir.rglob("*"), key=lambda entry: entry.relative_to(package_dir).as_posix()):
-            relative = path.relative_to(package_dir).as_posix()
-            mode = path.lstat().st_mode
-            if stat.S_ISDIR(mode):
-                continue
-            if not stat.S_ISREG(mode):
-                return None
-            if relative in _IGNORED_MODULE_FILE_NAMES:
-                continue
-            if path.parent.name == "__pycache__" and path.suffix == ".pyc":
-                caches.append(path)
-                continue
-            data = path.read_bytes()
-            if relative in {"module-package.yaml", "metadata.yaml"}:
-                manifests[relative] = data
-            elif path.suffix in {".py", ".pyw"}:
-                sources[path] = data
-            entries.append(f"{relative}:{hashlib.sha256(data).hexdigest()}")
+        entries, caches, sources, manifests = _frozen_tree_files(package_dir)
         digest = hashlib.sha256("\n".join(entries).encode()).hexdigest()
         if not frozen_tree_matches(meta.name, meta.version, digest):
             return None
@@ -1410,9 +1421,7 @@ def _verify_extracted_install_cutoff(
 def _atomic_place_verified_module(
     extracted_module_dir: Path,
     metadata_obj: ModulePackageMetadata,
-    module_name: str,
     module_id: str,
-    target_root: Path,
     final_path: Path,
 ) -> None:
     allow_unsigned = os.environ.get("SPECFACT_ALLOW_UNSIGNED", "").strip().lower() in {"1", "true", "yes"}
@@ -1425,7 +1434,7 @@ def _atomic_place_verified_module(
 
     install_verified_checksum = f"sha256:{hashlib.sha256(_module_artifact_payload(extracted_module_dir)).hexdigest()}"
 
-    staged_path = target_root / f".{module_name}.tmp-install"
+    staged_path = final_path.with_name(f".{final_path.name}.tmp-install")
     if staged_path.exists():
         shutil.rmtree(staged_path)
     shutil.copytree(extracted_module_dir, staged_path)
@@ -1516,14 +1525,7 @@ def install_module(
                 ),
             )
 
-        _atomic_place_verified_module(
-            extracted_module_dir,
-            metadata_obj,
-            module_name,
-            module_id,
-            target_root,
-            final_path,
-        )
+        _atomic_place_verified_module(extracted_module_dir, metadata_obj, module_id, final_path)
 
     logger.debug("Installed marketplace module '%s' to '%s'", module_id, final_path)
     return final_path

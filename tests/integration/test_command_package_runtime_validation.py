@@ -196,6 +196,26 @@ def _run_help_case(
     return result.exit_code, result.output
 
 
+def _audit_commands(
+    help_app: typer.Typer, home_dir: Path, env: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> list[str]:
+    failures: list[str] = []
+    for case in build_command_audit_cases():
+        if case.mode == "help-only":
+            return_code, merged_output = _run_help_case(help_app, case, home_dir, env, monkeypatch)
+        else:
+            result = _run_cli(env, *case.argv, cwd=home_dir)
+            return_code = result.returncode
+            merged_output = ((result.stdout or "") + "\n" + (result.stderr or "")).strip()
+        if return_code != 0:
+            failures.append(f"{case.command_path}: rc={return_code}\nOUTPUT:\n{merged_output}")
+            continue
+        leaked = [marker for marker in FORBIDDEN_OUTPUT if marker in merged_output]
+        if leaked:
+            failures.append(f"{case.command_path}: leaked diagnostics {leaked}\nOUTPUT:\n{merged_output}")
+    return failures
+
+
 @pytest.mark.timeout(300)
 def test_command_audit_help_cases_execute_cleanly_in_temp_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     home_dir = tmp_path / "home"
@@ -213,26 +233,13 @@ def test_command_audit_help_cases_execute_cleanly_in_temp_home(tmp_path: Path, m
     )
     assert install.returncode == 0, install.stdout + install.stderr
 
-    failures: list[str] = []
     try:
         with monkeypatch.context() as context:
             context.setenv("HOME", str(home_dir))
             context.setenv("SPECFACT_MODULES_REPO", str(MODULES_REPO.resolve()))
             help_app = _load_cli_app_for_home(home_dir)
 
-            for case in build_command_audit_cases():
-                if case.mode == "help-only":
-                    return_code, merged_output = _run_help_case(help_app, case, home_dir, env, monkeypatch)
-                else:
-                    result = _run_cli(env, *case.argv, cwd=home_dir)
-                    return_code = result.returncode
-                    merged_output = ((result.stdout or "") + "\n" + (result.stderr or "")).strip()
-                if return_code != 0:
-                    failures.append(f"{case.command_path}: rc={return_code}\nOUTPUT:\n{merged_output}")
-                    continue
-                leaked = [marker for marker in FORBIDDEN_OUTPUT if marker in merged_output]
-                if leaked:
-                    failures.append(f"{case.command_path}: leaked diagnostics {leaked}\nOUTPUT:\n{merged_output}")
+            failures = _audit_commands(help_app, home_dir, env, monkeypatch)
     finally:
         _restore_specfact_module_root_paths_after_temp_home()
 
