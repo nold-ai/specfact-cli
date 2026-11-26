@@ -79,3 +79,18 @@ def test_async_cli_records_unavailable_source_and_leaves_requested_fix_unchanged
     assert fix.returncode == 2
     assert "manual fixes" in json.loads(fix.stdout)["diagnostics"][0]["message"]
     assert source.read_text(encoding="utf-8") == "async def run():\n    time.sleep(1)\n"
+
+
+def test_local_assignment_shadows_an_outer_coroutine() -> None:
+    from specfact_cli.analyzers.async_checks import async_findings
+
+    source = dedent("""
+        async def worker():
+            pass
+
+        async def run():
+            worker = lambda: None
+            worker()
+    """)
+
+    assert not any(item.rule_id == "missing-await-on-coroutine" for item in async_findings(ast.parse(source), "app.py"))

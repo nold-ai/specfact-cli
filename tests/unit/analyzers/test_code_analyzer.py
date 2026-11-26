@@ -659,3 +659,19 @@ class TestCodeAnalyzer:
                     assert any("email" in criterion.lower() for criterion in story.acceptance)
         finally:
             temp_file.unlink()
+
+
+def test_numeric_accumulation_does_not_count_as_string_concatenation(tmp_path: Path) -> None:
+    import ast
+
+    from specfact_cli.analyzers.python_patterns import feature_patterns
+
+    source = (
+        "total = 0\n"
+        "for value in range(3):\n    total = total + value\n"
+        "message = ''\n"
+        "for value in ('a', 'b'):\n    message = message + value\n"
+    )
+    matches = feature_patterns(ast.parse(source), tmp_path / "example.py")
+
+    assert [match["start"]["line"] for match in matches if match["check_id"] == "string-concatenation-loop"] == [6]

@@ -72,3 +72,31 @@ def test_global_import_without_flow_resolution_reports_incomplete(tmp_path: Path
     assert result.returncode == 2, result.stderr
     assert report["status"] == "incomplete"
     assert report["diagnostics"] == [{"path": SOURCE_PATH, "message": "global import alias requires flow analysis"}]
+
+
+def test_a_later_import_cannot_hide_an_earlier_call(tmp_path: Path) -> None:
+    _tracked_source(
+        tmp_path,
+        "import hashlib as digest\nresult = digest.md5(data)\nimport random as digest\n",
+    )
+
+    result, report = _run_gate(tmp_path)
+
+    assert result.returncode == 1, result.stderr
+    assert [(row["rule_id"], row["line"]) for row in report["new_findings"]] == [("weak-cryptographic-hash", 2)]
+
+
+def test_nonlocal_import_without_flow_resolution_reports_incomplete(tmp_path: Path) -> None:
+    _tracked_source(
+        tmp_path,
+        "def outer():\n"
+        "    import math as digest\n"
+        "    def replace():\n"
+        "        nonlocal digest\n"
+        "        import hashlib as digest\n",
+    )
+
+    result, report = _run_gate(tmp_path)
+
+    assert result.returncode == 2, result.stderr
+    assert report["diagnostics"] == [{"path": SOURCE_PATH, "message": "nonlocal import alias requires flow analysis"}]

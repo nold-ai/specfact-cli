@@ -186,8 +186,8 @@ def test_create_user_{i}():
             """
 def test_create_user():
     response = client.post("/api/users", json={"name": "John"})
-    assert unrelated.status_code == 404
     assert response.status_code == 201
+    assert unrelated.status_code == 404
     assert response.json() == {}
 
 def test_read_user():

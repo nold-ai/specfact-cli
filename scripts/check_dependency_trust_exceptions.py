@@ -23,6 +23,8 @@ DEFAULT_CI_EXPORT = REPO_ROOT / "requirements" / "ci" / "locked.txt"
 DEFAULT_SECURITY_TOOL_FLOORS = REPO_ROOT / "ci" / "security-tool-minimum-versions.json"
 DEFAULT_CODE_REVIEW_INPUT = REPO_ROOT / "requirements" / "code-review" / "requirements.in"
 DEFAULT_CODE_REVIEW_LOCK = REPO_ROOT / "requirements" / "code-review" / "locked.txt"
+DEFAULT_RUNTIME_SMOKE_INPUT = REPO_ROOT / "requirements" / "runtime-smoke" / "requirements.in"
+DEFAULT_RUNTIME_SMOKE_LOCK = REPO_ROOT / "requirements" / "runtime-smoke" / "locked.txt"
 CODE_REVIEW_INPUT_BINDING_PREFIX = "# input-sha256:"
 REQUIRED_FIELDS = frozenset(
     {
@@ -507,6 +509,11 @@ def validate_frozen_dependency_policy(
     )
     errors.extend(code_review_errors)
     errors.extend(_validate_locked_version_policy(code_review_packages, tool_floors))
+    smoke_packages, smoke_errors = _read_code_review_locked_packages(
+        DEFAULT_RUNTIME_SMOKE_INPUT, DEFAULT_RUNTIME_SMOKE_LOCK
+    )
+    errors.extend(f"Runtime smoke: {error}" for error in smoke_errors)
+    errors.extend(_validate_locked_version_policy(smoke_packages, tool_floors))
     return errors
 
 

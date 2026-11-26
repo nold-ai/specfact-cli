@@ -46,6 +46,9 @@ def test_only_reviewed_parser_wheel_is_admitted_after_exception_expires() -> Non
     """Permanent admission covers one artifact and leaves the old review historical."""
     checker = _load_checker()
     assert checker.validate_frozen_dependency_policy(today=date(2026, 11, 22)) == []
+    assert checker.validate_exception_register(HISTORICAL_TRUST_RECORD, today=date(2026, 11, 22)) == [
+        "pycparser==3.12 expired on 2026-11-04"
+    ]
 
 
 def test_frozen_lock_refresh_removes_only_the_parser_source_archive() -> None:
@@ -310,3 +313,25 @@ def test_invalid_frozen_lock_is_rejected(
     errors = checker.validate_frozen_dependency_policy(register_path, lock_path, today=today)
 
     assert errors == expected_errors
+
+
+def test_dependency_trust_rejects_blocked_runtime_smoke_dependencies(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import hashlib
+
+    input_path = tmp_path / "requirements.in"
+    input_path.write_text("pycparser==3.0\n", encoding="utf-8")
+    lock_path = tmp_path / "locked.txt"
+    binding = hashlib.sha256(input_path.read_bytes()).hexdigest()
+    lock_path.write_text(
+        f"# input-sha256: {binding}\npycparser==3.0 \\\n    --hash=sha256:{'0' * 64}\n",
+        encoding="utf-8",
+    )
+
+    checker = _load_checker()
+    monkeypatch.setattr(checker, "DEFAULT_RUNTIME_SMOKE_INPUT", input_path)
+    monkeypatch.setattr(checker, "DEFAULT_RUNTIME_SMOKE_LOCK", lock_path)
+    errors = checker.validate_frozen_dependency_policy()
+
+    assert errors == ["pycparser==3.0 is blocked after a security-obfuscation alert"]
