@@ -31,7 +31,7 @@ exceptions:
     scope: dev-only
 
   - package: pylint
-    version: "4.0.7"
+    version: "4.0.9"
     license: GPL-2.0-or-later
     reason: >
       Hash-locked isolated Code Review environment only; never installed by the

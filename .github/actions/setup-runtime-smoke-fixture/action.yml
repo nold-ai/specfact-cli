@@ -1,0 +1,36 @@
+name: Reviewed portable runtime smoke fixture
+description: Authenticate the signed portable module snapshot without changing Requirements authority.
+runs:
+  using: composite
+  steps:
+    - name: Read portable fixture identity
+      shell: bash
+      run: |
+        set -euo pipefail
+        python - <<'PYCODE'
+        import json
+        from pathlib import Path
+        expected = {
+            "repository": "nold-ai/specfact-cli-modules",
+            "commit": "046d366c190af7a188d6f48953a96edb65e766db",
+            "tree": "c5b44db3477d1c9ea8dae1dceab2af276d265353",
+        }
+        actual = json.loads(Path("ci/runtime-smoke-fixture.lock.json").read_text())
+        if actual != expected:
+            raise SystemExit("Unreviewed portable runtime fixture identity")
+        PYCODE
+    - name: Checkout portable runtime modules
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      with:
+        repository: nold-ai/specfact-cli-modules
+        ref: 046d366c190af7a188d6f48953a96edb65e766db
+        path: runtime-smoke-modules
+        persist-credentials: false
+    - name: Verify and export portable runtime fixture
+      shell: bash
+      run: |
+        set -euo pipefail
+        test "$(git -C runtime-smoke-modules rev-parse HEAD)" = "046d366c190af7a188d6f48953a96edb65e766db"
+        test "$(git -C runtime-smoke-modules rev-parse 'HEAD^{tree}')" = "c5b44db3477d1c9ea8dae1dceab2af276d265353"
+        test -z "$(git -C runtime-smoke-modules status --porcelain)"
+        printf 'SPECFACT_SMOKE_MODULES_REPO=%s/runtime-smoke-modules\n' "$GITHUB_WORKSPACE" >> "$GITHUB_ENV"
