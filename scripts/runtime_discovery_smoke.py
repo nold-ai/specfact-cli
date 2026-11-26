@@ -405,7 +405,7 @@ def _launcher_system_paths(path: str, parent_prefix: Path) -> list[str]:
     system_tools = set()
     if os.name == "posix" and parent_prefix == Path("/usr").resolve():
         system_tools = {Path(directory).resolve() for directory in ("/usr/bin", "/usr/sbin", "/bin", "/sbin")}
-    available = []
+    available: list[str] = []
     for entry in filter(None, path.split(os.pathsep)):
         resolved = Path(entry).resolve()
         if resolved in system_tools or not resolved.is_relative_to(parent_prefix):
