@@ -400,6 +400,19 @@ def _install_marketplace_modules(cli: list[str], demo: Path, env: dict[str, str]
         )
 
 
+def _launcher_system_paths(path: str, parent_prefix: Path) -> list[str]:
+    """Keep OS tools available when the system Python shares their prefix."""
+    system_tools = set()
+    if os.name == "posix" and parent_prefix == Path("/usr").resolve():
+        system_tools = {Path(directory).resolve() for directory in ("/usr/bin", "/usr/sbin", "/bin", "/sbin")}
+    available = []
+    for entry in filter(None, path.split(os.pathsep)):
+        resolved = Path(entry).resolve()
+        if resolved in system_tools or not resolved.is_relative_to(parent_prefix):
+            available.append(entry)
+    return available
+
+
 def _build_launcher_env(name: str, home: Path, index_path: Path, modules_repo: Path) -> dict[str, str]:
     env = os.environ.copy()
     python_path = str(SRC_ROOT)
@@ -421,11 +434,7 @@ def _build_launcher_env(name: str, home: Path, index_path: Path, modules_repo: P
         env = _frozen_runtime_env(env, home / "frozen-runtime-constraints.txt")
         child_bin = home.parent / f"launcher-{name}" / "runtime-venv" / ("Scripts" if os.name == "nt" else "bin")
         parent_prefix = Path(sys.prefix).resolve()
-        system_paths = [
-            part
-            for part in env.get("PATH", os.defpath).split(os.pathsep)
-            if part and not Path(part).resolve().is_relative_to(parent_prefix)
-        ]
+        system_paths = _launcher_system_paths(env.get("PATH", os.defpath), parent_prefix)
         env["PATH"] = os.pathsep.join([str(child_bin), *system_paths])
         env["PIP_FIND_LINKS"] = str(child_bin.parent.parent / "frozen-wheels")
         env["SPECFACT_SMOKE_MODULES_REPO"] = str(modules_repo)
