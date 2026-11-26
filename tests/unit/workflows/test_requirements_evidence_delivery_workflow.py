@@ -22,7 +22,8 @@ TRUSTED_AUTHORITY_TREE = "47f33b4df92060a36f3afd92948e441555fb280d"
 TRUSTED_AUTHORITY_BLOB = "8c7b30020033c6b6081d6e743d77aa76043724ea"
 TRUSTED_AUTHORITY_SHA256 = "5441e26e7c3c8f18973c781e7d43c72076b3283c915d98ca5188bb174bf17c45"
 PROMOTION_CONDITION = (
-    "github.event_name == 'pull_request' && github.base_ref == 'main' && github.head_ref == 'dev' && "
+    "github.event_name == 'pull_request' && github.base_ref == 'main' && "
+    "(github.head_ref == 'dev' || startsWith(github.head_ref, 'codex/promotion-from-dev-pr-')) && "
     "github.event.pull_request.base.repo.id == github.event.repository.id && "
     "github.event.pull_request.head.repo.id == github.event.repository.id && "
     "github.event.pull_request.base.repo.full_name == github.event.repository.full_name && "
@@ -662,7 +663,7 @@ def _assert_fresh_consumer_order(
     workflow: dict[str, object], outputs: dict[str, str], permissions: dict[str, str]
 ) -> None:
     assert outputs["prior-red-run-id"] == "${{ steps.prior-red-run.outputs.run-id }}"
-    assert permissions == {"actions": "read", "contents": "read", "issues": "read"}
+    assert permissions == {"actions": "read", "contents": "read", "issues": "read", "pull-requests": "read"}
     _assert_step_order(
         workflow, "Restore Requirements evidence for Code Review", "Download retained red proof for validation"
     )
@@ -1374,7 +1375,9 @@ def _assert_promotion_fetch(fetch: dict[str, object]) -> None:
     )
     assert all(fragment in command for fragment in fragments)
     assert fetch["env"] == {"GH_TOKEN": "${{ github.token }}"}
-    assert "scripts/requirements_promotion_reuse.py" not in command
+    assert 'git show "${base_sha}:scripts/requirements_promotion_reuse.py"' in command
+    assert 'git show "${base_sha}:scripts/fetch_requirements_promotion_topic.sh"' in command
+    assert 'source_head="$(bash "$metadata_root/fetch-topic.sh"' in command
 
 
 def _assert_promotion_validation(validate: dict[str, object], stage: _PromotionStage) -> None:
@@ -1394,6 +1397,8 @@ def _assert_promotion_validation(validate: dict[str, object], stage: _PromotionS
     )
     assert validate["id"] == stage.step_id
     assert "scripts/requirements_promotion_reuse.py" in command
+    assert f'promotion_validator="{metadata_root}/trusted-reuse.py"' in command
+    assert f'topic_arguments=(--topic-commits "{metadata_root}/topic-commits.json")' in command
     assert not {"GITHUB_TOKEN", "GH_TOKEN"}.intersection(cast(dict[str, str], validate.get("env", {})))
     assert all(f'{argument} "{value}"' in command for argument, value in arguments)
     if stage.expected_attestation is None:
