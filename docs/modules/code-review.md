@@ -162,11 +162,10 @@ The scaffolded `ReviewReport` envelope carries these fields:
 
 For SpecFact CLI itself, CI pairs the self-review evidence with an independent static-analysis gate:
 
-- Semgrep OSS SAST runs through `hatch run semgrep-sast`.
-- `hatch run semgrep-sast-gate` compares Semgrep JSON against `tools/semgrep/sast-baseline.json` and fails on new findings.
+- Run the independent Python AST scanner with `hatch run core-sast --output python-sast.json`. It checks each eligible tracked file and fails on incomplete scans or new findings outside `ci/core-sast-baseline.json`.
 - Bandit runs through `hatch run bandit-scan`.
 
-Use the self-review report for SpecFact-specific quality signals, and use Semgrep/Bandit as orthogonal evidence from external rulesets.
+Use the self-review report for SpecFact-specific quality signals and the Python SAST and Bandit reports for independent evidence.
 
 ## Pre-Commit Review Gate
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import subprocess
 import sys
 import tomllib
@@ -389,21 +390,34 @@ def test_every_code_review_lock_install_has_exact_closure_proof() -> None:
         assert install.index(closure_proof) < install.index("uv pip install")
 
 
-def test_frozen_graph_uses_fixed_semgrep_mcp_pair_without_waiver() -> None:
-    """All authoritative dependency surfaces select the reviewed fixed line."""
+def test_frozen_graph_excludes_the_retired_scanner_and_its_advisories() -> None:
     project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    dev = cast(list[str], project["project"]["optional-dependencies"]["dev"])
-    scanning = cast(list[str], project["project"]["optional-dependencies"]["scanning"])
-    assert "semgrep>=1.175.0" in dev
-    assert "semgrep>=1.175.0" in scanning
+    optional = project["project"]["optional-dependencies"]
+    default_hatch = project["tool"]["hatch"]["envs"]["default"]["dependencies"]
+    requirements = [
+        *project["project"]["dependencies"],
+        *default_hatch,
+        *(dep for group in optional.values() for dep in group),
+    ]
+    assert all(not re.match(r"^(?:semgrep|specfact-semgrep)\b", requirement) for requirement in requirements)
+    assert "scanning" in optional
 
-    locked = (REPO_ROOT / "requirements" / "ci" / "locked.txt").read_text(encoding="utf-8")
-    assert "semgrep==1.175.0" in locked
-    assert "mcp==1.29.0" in locked
-    policy = json.loads((REPO_ROOT / "ci" / "security-tool-minimum-versions.json").read_text(encoding="utf-8"))
-    assert policy["minimum_versions"] == {"mcp": "1.28.1", "semgrep": "1.175.0"}
-    exceptions = json.loads((REPO_ROOT / "ci" / "vulnerability-audit-exceptions.json").read_text(encoding="utf-8"))
-    assert all(record.get("package") != "mcp" for record in exceptions["exceptions"])
+    retired_packages = {"semgrep", "specfact-semgrep", "mcp", "wcmatch"}
+    lock = tomllib.loads((REPO_ROOT / "uv.lock").read_text(encoding="utf-8"))
+    packages = {package["name"]: package for package in lock["package"]}
+    assert retired_packages.isdisjoint(packages)
+    telemetry = {"opentelemetry-api", "opentelemetry-sdk", "opentelemetry-exporter-otlp-proto-http"}
+    assert {packages[name]["version"] for name in telemetry} == {"1.45.2"}
+    assert all(packages[name]["source"] == {"registry": "https://pypi.org/simple"} for name in telemetry)
+
+    for relative in ("ci", "code-review", "runtime-smoke"):
+        locked = (REPO_ROOT / "requirements" / relative / "locked.txt").read_text(encoding="utf-8")
+        names = set(re.findall(r"^([a-z0-9_.-]+)==", locked, re.MULTILINE))
+        assert retired_packages.isdisjoint(names)
+
+    active_register = REPO_ROOT / "ci" / "vulnerability-audit-exceptions.json"
+    records = json.loads(active_register.read_text(encoding="utf-8"))["exceptions"]
+    assert all(record["package"] not in retired_packages | telemetry for record in records)
 
 
 def test_code_review_lock_is_bound_before_installation(tmp_path: Path) -> None:
@@ -564,7 +578,7 @@ def test_doc_owner_rg_terminates_options(monkeypatch: Any, tmp_path: Path) -> No
 
 def test_patch_release_uses_next_version_in_all_sources() -> None:
     """The security baseline consumes only the next semver patch."""
-    expected = "0.55.4"
+    expected = "0.55.5"
     project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     assert project["project"]["version"] == expected
     for path in ("setup.py", "src/__init__.py", "src/specfact_cli/__init__.py"):

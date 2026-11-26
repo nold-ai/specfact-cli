@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling==1.32.0"]
+requires = ["hatchling==1.32.4"]
 build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.55.4"
+version = "0.55.5"
 description = "AI-bloat defense CLI for Python teams. Run deterministic code review, cleanup forecasts, and spec/contract evidence for AI-assisted and brownfield delivery."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -62,11 +62,12 @@ dependencies = [
     "typing-extensions>=4.15.0",
     "PyYAML>=6.0.3",
     "requests>=2.32.3",
+    "certifi>=2026.10.19",
     "azure-identity>=1.17.1",
     "cryptography>=50.0.0",
     # Transitive through CFFI. The lock supplies reproducibility; this range
     # keeps the known blocked 3.0 release out of every resolver result.
-    "pycparser>=2.22,!=3.0.*",
+    "pycparser>=3.12,!=3.0.*",
     "packaging>=24.0",
     # PEP 440 / markers for module installer and registry (do not rely on transitive pins only)
 
@@ -75,7 +76,7 @@ dependencies = [
     # available rather than pinning the resolver below that security fix.
     "click>=8.3.3,<9",
     "typer>=0.24.0,<1",
-    "rich>=13.5.2,<16.0.0",  # Semgrep allows rich>=13.5.2; keep below next major.
+    "rich>=13.5.2,<16.0.0",
     "questionary>=2.0.1",  # Interactive prompts with arrow key navigation
     
     # Template engine
@@ -87,7 +88,7 @@ dependencies = [
     
     # Git operations
     # gitpython: CVE history (CVE-2022-24439, CVE-2023-41040, CVE-2023-40590). Phase 2: replace with dulwich.
-    "gitpython>=3.1.61",
+    "gitpython>=3.2.1",
     
     # YAML utilities
     "ruamel.yaml>=0.18.16",
@@ -112,12 +113,13 @@ contracts = [
 ]
 
 telemetry = [
-    "opentelemetry-sdk>=1.27.0",
-    "opentelemetry-exporter-otlp-proto-http>=1.27.0",
+    # API 1.45.2 fixes CVE-2026-126360. Keep the optional SDK and exporter on that line or newer.
+    "opentelemetry-sdk>=1.45.2",
+    "opentelemetry-exporter-otlp-proto-http>=1.45.2",
 ]
 
 dev = [
-    "hatchling==1.32.0",  # Frozen PEP 517 backend used by delivery wheel builds.
+    "hatchling==1.32.4",  # Frozen PEP 517 backend used by delivery wheel builds.
     "setuptools>=83.0.0,<85",
     "pip>=26.2",  # CVE-2026-13346 is fixed in pip 26.2; tooling-only, not a core runtime dependency.
     "pytest>=8.4.2",
@@ -139,7 +141,6 @@ dev = [
     "pre-commit>=4.0.1",
     "mutmut>=3.3.1",  # Scheduled mutation baseline; frozen with the contributor toolchain.
     "yamllint>=1.37.1",  # GPL-3.0-or-later — dev-only exception; replace with a non-GPL YAML lint path in Phase 2.
-    "semgrep>=1.175.0",  # LGPL-2.1 — reviewed security floor; requirements/ci/locked.txt freezes the exact Semgrep/MCP pair.
 
     # Same contract exploration stack as [contracts] (extras cannot self-reference)
     "crosshair-tool>=0.0.97",
@@ -159,9 +160,8 @@ dev = [
     "pip-audit>=2.0.0",  # CVE audit via OSV database (Apache-2.0)
 ]
 
-scanning = [
-    "semgrep>=1.175.0",  # Optional: Only needed for code scanning features
-]
+# Existing install extra is retained for compatibility with the in-process scanner.
+scanning = []
 
 enhanced-analysis = [
     "graphviz>=0.20.1",  # Graph visualization (requires system Graphviz: apt-get install graphviz)
@@ -191,11 +191,14 @@ specfact-cli = "specfact_cli.cli:cli_main"  # Alias for uvx compatibility
 # [project.entry-points."pytest11"] # Add if you have pytest plugins
 # specfact_test_plugin = "specfact_cli.pytest_plugin"
 
+[tool.uv]
+# Only the reviewed pycparser wheel may populate the frozen environments.
+no-build-package = ["pycparser"]
+
 [tool.hatch.envs.default]
 python = "3.12"
 dependencies = [
-    # CVE-2026-59890 is fixed in Setuptools 83.0.0. Semgrep 1.171+ supports
-    # the patched build-tool line, which removes the former compatibility cap.
+    # CVE-2026-59890 is fixed in Setuptools 83.0.0.
     "setuptools>=83.0.0,<85",
     "pip>=26.2",  # Keep Hatch tooling on the patched CVE-2026-13346 line.
     "pip-tools>=7.6.1",  # Match the first pip-tools release compatible with pip 26.2.
@@ -209,7 +212,6 @@ dependencies = [
     "ruff>=0.14.2",
     "radon>=6.0.1",
     "yamllint>=1.37.1",  # GPL-3.0-or-later — dev/test-only exception. Phase 2: replace with non-GPL YAML lint path.
-    "semgrep>=1.175.0",  # LGPL-2.1 — reviewed security floor; requirements/ci/locked.txt freezes the exact Semgrep/MCP pair.
     # Contract-First Development Dependencies
     "icontract>=2.7.1",
     "beartype>=0.22.4",
@@ -230,7 +232,7 @@ validate-prompts = "python tools/validate_prompts.py"
 bandit-scan = "bandit -r src/ -ll"
 license-check = "python scripts/check_license_compliance.py"
 # Wrap pip-audit so JSON parsing and CVSS threshold checks fail closed.
-security-audit = "python scripts/security_audit_gate.py && python scripts/security_audit_gate.py --requirement requirements/code-review/locked.txt"
+security-audit = "python scripts/security_audit_gate.py && python scripts/security_audit_gate.py --requirement requirements/code-review/locked.txt && python scripts/security_audit_gate.py --requirement requirements/runtime-smoke/locked.txt"
 refresh-frozen-delivery = "python scripts/refresh_reproducible_delivery.py"
 # Development scripts
 test = "pytest {args}"
@@ -242,16 +244,14 @@ lint-changed = "python scripts/run_changed_lint.py {args}"
 governance = "ruff check src tests tools"
 format = "ruff check . --fix && ruff format ."
 
-# Code scanning (Semgrep)
-# Semgrep 1.38+ deprecated implicit .semgrep.yml discovery; always pass --config explicitly.
-# Script must not be named `semgrep` (Hatch treats that as circular expansion with the semgrep CLI).
-semgrep-sast = "semgrep scan --config tools/semgrep/sast.yml {args}"
-semgrep-sast-gate = "python scripts/semgrep_sast_gate.py {args}"
-semgrep-full = "semgrep --config tools/semgrep {args}"
-scan = "semgrep --config tools/semgrep/async.yml {args}"
-scan-all = "semgrep --config tools/semgrep/async.yml ."
-scan-json = "semgrep --config tools/semgrep/async.yml --json . > logs/semgrep-results.json"
-scan-fix = "semgrep --config tools/semgrep/async.yml --autofix ."
+# Independent repository static analysis
+core-sast = "python scripts/core_sast_gate.py --root . --baseline ci/core-sast-baseline.json {args}"
+
+# Source-only async analysis
+scan = "python -I src/specfact_cli/analyzers/async_checks.py {args}"
+scan-all = "scan ."
+scan-json = "scan . > logs/async-checks.json"
+scan-fix = "scan --fix ."
 
 # YAML and Workflow linting
 yaml-fmt = "bash scripts/yaml-tools.sh fmt {args}"
@@ -370,7 +370,7 @@ TOKENIZERS_PARALLELISM = "false" # Good practice if using HuggingFace tokenizers
 
 [tool.hatch.envs.hatch-test.scripts]
 # Adapted from template, adjust JUnit path if necessary
-run = "pytest --timeout=30 --junitxml=logs/tests/junit/test-results.xml {args}" # 30s for code analysis/semgrep/graph tests under xdist
+run = "pytest --timeout=30 --junitxml=logs/tests/junit/test-results.xml {args}" # 30s for code analysis and graph tests under xdist
 run-cov = "coverage run -m pytest --timeout=30 --junitxml=logs/tests/junit/test-results.xml {args}"
 cov = "coverage run -m pytest --timeout=30 --junitxml=logs/tests/junit/test-results.xml {args}"
 cov-combine = "coverage combine --quiet"
@@ -454,13 +454,13 @@ sources = ["src"]
 "resources/mappings" = "specfact_cli/resources/mappings"
 "resources/keys" = "specfact_cli/resources/keys"
 "modules/bundle-mapper" = "specfact_cli/modules/bundle-mapper"
-# Note: resources/semgrep files are in src/specfact_cli/resources/semgrep/ and are automatically included
 
 [tool.hatch.build.targets.sdist]
 # Only include essential files in source distribution
 include = [
     "/src",
     "/resources",
+    "/modules/bundle-mapper",
     "/README.md",
     "/LICENSE",
     "/pyproject.toml",
@@ -568,7 +568,6 @@ testpaths = [
     "tests",
     # "../src" # pythonpath = ["src"] should cover imports from src for tests in /tests
 ]
-# Note: TEST_MODE is set in tests/conftest.py to skip Semgrep in tests
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
@@ -608,7 +607,6 @@ extend-exclude = [
     "openspec/changes/archive",
     "openspec/parking-lot",
     "openspec/specs",
-    "tools/semgrep/README.md",
 ]
 
 [tool.ruff.lint]

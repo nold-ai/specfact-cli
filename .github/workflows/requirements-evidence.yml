@@ -12,11 +12,36 @@ permissions:
   issues: read
 
 jobs:
+  protected-red-proof:
+    name: Protected Requirements before-fix evidence
+    if: &protected_red_pull_request >-
+      github.repository == 'nold-ai/specfact-cli' &&
+      github.event.pull_request.number == 803 &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.base.repo.full_name == github.repository &&
+      github.event.pull_request.base.sha == '5262efb0881e4fac7697d629b0530250342bc656' &&
+      github.base_ref == 'main' &&
+      github.head_ref == 'codex/trusted-signed-topic-promotion' &&
+      github.event.pull_request.head.sha != 'c2421f77c63470f42d2274ecec14f11b02417a5b'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    outputs:
+      artifact-id: ${{ steps.proof.outputs.artifact-id }}
+      artifact-digest: ${{ steps.proof.outputs.artifact-digest }}
+    steps:
+      - id: proof
+        uses: nold-ai/.github/.github/actions/protected-requirements-red-803@01039594f00bd75a21c9859f0930afe20c7a6d83
+
   requirements-evidence-producer:
     name: Requirements evidence producer
+    needs: protected-red-proof
+    if: always() && (needs.protected-red-proof.result == 'success' || needs.protected-red-proof.result == 'skipped')
     permissions:
       actions: read
       contents: read
+      pull-requests: read
       issues: read
     outputs:
       artifact-id: ${{ steps.upload-requirements-evidence.outputs.artifact-id }}
@@ -197,7 +222,7 @@ jobs:
 
       - name: Checkout trusted promotion authority policy for producer
         if: >-
-          github.event_name == 'pull_request' && github.base_ref == 'main' && github.head_ref == 'dev' && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
+          github.event_name == 'pull_request' && github.base_ref == 'main' && (github.head_ref == 'dev' || startsWith(github.head_ref, 'codex/promotion-from-dev-pr-')) && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: nold-ai/.github
@@ -207,7 +232,7 @@ jobs:
 
       - name: Authenticate protected promotion head for producer
         if: >-
-          github.event_name == 'pull_request' && github.base_ref == 'main' && github.head_ref == 'dev' && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
+          github.event_name == 'pull_request' && github.base_ref == 'main' && (github.head_ref == 'dev' || startsWith(github.head_ref, 'codex/promotion-from-dev-pr-')) && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
         env:
           GITHUB_TOKEN: ${{ github.token }}
         shell: bash
@@ -231,7 +256,7 @@ jobs:
 
       - name: Fetch protected promotion evidence for producer
         if: >-
-          github.event_name == 'pull_request' && github.base_ref == 'main' && github.head_ref == 'dev' && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
+          github.event_name == 'pull_request' && github.base_ref == 'main' && (github.head_ref == 'dev' || startsWith(github.head_ref, 'codex/promotion-from-dev-pr-')) && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -247,22 +272,29 @@ jobs:
           test "$(git rev-parse HEAD)" = "$head_sha"
           test "$(git rev-parse 'HEAD^{tree}')" = "$(git rev-parse "${head_sha}^{tree}")"
           test "$(git rev-parse 'refs/remotes/origin/main^{commit}')" = "$base_sha"
-          test "$(git rev-parse 'refs/remotes/origin/dev^{commit}')" = "$head_sha"
-          test "$(git cat-file -t "$base_sha")" = commit
-          test "$(git cat-file -t "$head_sha")" = commit
-          git merge-base --is-ancestor "$base_sha" "$head_sha"
-          read -r merge_sha previous_dev source_head extra_parent < <(git rev-list --parents -n 1 "$head_sha")
-          test "$merge_sha" = "$head_sha"
-          test -n "$previous_dev"
-          test -n "$source_head"
-          test -z "${extra_parent:-}"
-          test "$(git cat-file -t "$previous_dev")" = commit
-          test "$(git cat-file -t "$source_head")" = commit
-          gh api --method GET --paginate --slurp \
-            -H "Accept: application/vnd.github+json" \
-            "repos/${GITHUB_REPOSITORY}/commits/${source_head}/pulls?per_page=100" \
-            > "$metadata_root/source-pulls-pages.json"
-          jq -e '[.[][]]' "$metadata_root/source-pulls-pages.json" > "$metadata_root/source-pulls.json"
+          head_ref="$(jq -er '.pull_request.head.ref' "$GITHUB_EVENT_PATH")"
+          if [[ "$head_ref" == dev ]]; then
+            test "$(git rev-parse 'refs/remotes/origin/dev^{commit}')" = "$head_sha"
+            test "$(git cat-file -t "$base_sha")" = commit
+            test "$(git cat-file -t "$head_sha")" = commit
+            git merge-base --is-ancestor "$base_sha" "$head_sha"
+            read -r merge_sha previous_dev source_head extra_parent < <(git rev-list --parents -n 1 "$head_sha")
+            test "$merge_sha" = "$head_sha"
+            test -n "$previous_dev"
+            test -n "$source_head"
+            test -z "${extra_parent:-}"
+            test "$(git cat-file -t "$previous_dev")" = commit
+            test "$(git cat-file -t "$source_head")" = commit
+            gh api --method GET --paginate --slurp \
+              -H "Accept: application/vnd.github+json" \
+              "repos/${GITHUB_REPOSITORY}/commits/${source_head}/pulls?per_page=100" \
+              > "$metadata_root/source-pulls-pages.json"
+            jq -e '[.[][]]' "$metadata_root/source-pulls-pages.json" > "$metadata_root/source-pulls.json"
+          else
+            git show "${base_sha}:scripts/fetch_requirements_promotion_topic.sh" > "$metadata_root/fetch-topic.sh"
+            git show "${base_sha}:scripts/requirements_promotion_reuse.py" > "$metadata_root/trusted-reuse.py"
+            source_head="$(bash "$metadata_root/fetch-topic.sh" "$metadata_root" "$head_ref" "$head_sha")"
+          fi
           gh api --method GET --paginate --slurp \
             -H "Accept: application/vnd.github+json" \
             "repos/${GITHUB_REPOSITORY}/commits/${source_head}/check-runs?per_page=100" \
@@ -304,13 +336,20 @@ jobs:
       - name: Validate protected promotion evidence for producer
         id: producer-promotion
         if: >-
-          github.event_name == 'pull_request' && github.base_ref == 'main' && github.head_ref == 'dev' && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
+          github.event_name == 'pull_request' && github.base_ref == 'main' && (github.head_ref == 'dev' || startsWith(github.head_ref, 'codex/promotion-from-dev-pr-')) && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
         shell: bash
         run: |
           set -euo pipefail
           output="artifacts/requirements-evidence/requirements-promotion-reuse.json"
           mkdir -p "$(dirname "$output")"
-          "${REQUIREMENTS_VALIDATOR_ROOT}/bin/python" -I -S scripts/requirements_promotion_reuse.py \
+          promotion_validator=scripts/requirements_promotion_reuse.py
+          topic_arguments=()
+          if jq -e '.pull_request.head.ref != "dev"' "$GITHUB_EVENT_PATH" >/dev/null; then
+            test -s "${RUNNER_TEMP}/promotion-producer-promotion/topic-commits.json"
+            promotion_validator="${RUNNER_TEMP}/promotion-producer-promotion/trusted-reuse.py"
+            topic_arguments=(--topic-commits "${RUNNER_TEMP}/promotion-producer-promotion/topic-commits.json")
+          fi
+          "${REQUIREMENTS_VALIDATOR_ROOT}/bin/python" -I -S "$promotion_validator" "${topic_arguments[@]}" \
             --event "$GITHUB_EVENT_PATH" \
             --repo-root "$GITHUB_WORKSPACE" \
             --source-pulls "${RUNNER_TEMP}/promotion-producer-promotion/source-pulls.json" \
@@ -362,9 +401,28 @@ jobs:
             printf 'LATE_RED_PROVENANCE_DIGEST=%s\n' "$(sha256sum < "$trusted_provenance" | cut -d ' ' -f 1)"
           } >> "$GITHUB_ENV"
 
+      - name: Download current protected before-fix proof
+        if: needs.protected-red-proof.outputs.artifact-id != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ needs.protected-red-proof.outputs.artifact-id }}
+          path: ${{ runner.temp }}/prior-red-proof
+
+      - name: Prepare current protected before-fix proof
+        if: needs.protected-red-proof.outputs.artifact-id != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          proof_root="${RUNNER_TEMP}/prior-red-proof"
+          test -s "$proof_root/requirements-evidence.json"
+          test -s "$proof_root/requirements-proof.xml"
+          mv "$proof_root/requirements-evidence.json" "$proof_root/red.json"
+          mv "$proof_root/requirements-proof.xml" "$proof_root/red.xml"
+          git show "5262efb0881e4fac7697d629b0530250342bc656:scripts/requirements_proof_provenance.py" > "$proof_root/trusted-provenance.py"
+
       - name: Locate retained red proof run
         id: prior-red-run
-        if: github.event_name == 'pull_request' && (github.event.pull_request.number != 717 || github.head_ref != 'bugfix/692-promotion-final-context' || hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') == '')
+        if: needs.protected-red-proof.outputs.artifact-id == '' && github.event_name == 'pull_request' && (github.event.pull_request.number != 717 || github.head_ref != 'bugfix/692-promotion-final-context' || hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') == '')
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -473,6 +531,7 @@ jobs:
           EVIDENCE_HEAD_BRANCH: ${{ github.head_ref }}
           EVIDENCE_PULL_REQUEST: ${{ github.event.pull_request.number }}
           EVIDENCE_PROMOTION_REUSE: ${{ steps.producer-promotion.outputs.active }}
+          PROTECTED_RED_ACTIVE: ${{ needs.protected-red-proof.outputs.artifact-id != '' }}
           LATE_RED_ACTIVE: ${{ github.event.pull_request.number == 717 && github.head_ref == 'bugfix/692-promotion-final-context' && hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') != '' }}
         run: |
           set -e
@@ -670,6 +729,10 @@ jobs:
           prior_red_junit=""
           prior_red_base_ref="$evidence_base_commit"
           prior_red_provenance="scripts/requirements_proof_provenance.py"
+          if [[ "$PROTECTED_RED_ACTIVE" == "true" ]]; then
+            prior_red_provenance="${RUNNER_TEMP}/prior-red-proof/trusted-provenance.py"
+            test -s "$prior_red_provenance"
+          fi
           prior_red_report_digest=""
           prior_red_junit_digest=""
           prior_red_provenance_digest=""
@@ -933,6 +996,7 @@ jobs:
     permissions:
       actions: read
       contents: read
+      pull-requests: read
       issues: read
     outputs:
       artifact-id: ${{ steps.upload-fresh-requirements-evidence.outputs.artifact-id }}
@@ -1175,7 +1239,7 @@ jobs:
 
       - name: Checkout trusted promotion authority policy for fresh execution
         if: >-
-          github.event_name == 'pull_request' && github.base_ref == 'main' && github.head_ref == 'dev' && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
+          github.event_name == 'pull_request' && github.base_ref == 'main' && (github.head_ref == 'dev' || startsWith(github.head_ref, 'codex/promotion-from-dev-pr-')) && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: nold-ai/.github
@@ -1185,7 +1249,7 @@ jobs:
 
       - name: Authenticate protected promotion head for fresh execution
         if: >-
-          github.event_name == 'pull_request' && github.base_ref == 'main' && github.head_ref == 'dev' && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
+          github.event_name == 'pull_request' && github.base_ref == 'main' && (github.head_ref == 'dev' || startsWith(github.head_ref, 'codex/promotion-from-dev-pr-')) && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
         env:
           GITHUB_TOKEN: ${{ github.token }}
         shell: bash
@@ -1209,7 +1273,7 @@ jobs:
 
       - name: Fetch protected promotion evidence for fresh execution
         if: >-
-          github.event_name == 'pull_request' && github.base_ref == 'main' && github.head_ref == 'dev' && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
+          github.event_name == 'pull_request' && github.base_ref == 'main' && (github.head_ref == 'dev' || startsWith(github.head_ref, 'codex/promotion-from-dev-pr-')) && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -1225,22 +1289,29 @@ jobs:
           test "$(git rev-parse HEAD)" = "$head_sha"
           test "$(git rev-parse 'HEAD^{tree}')" = "$(git rev-parse "${head_sha}^{tree}")"
           test "$(git rev-parse 'refs/remotes/origin/main^{commit}')" = "$base_sha"
-          test "$(git rev-parse 'refs/remotes/origin/dev^{commit}')" = "$head_sha"
-          test "$(git cat-file -t "$base_sha")" = commit
-          test "$(git cat-file -t "$head_sha")" = commit
-          git merge-base --is-ancestor "$base_sha" "$head_sha"
-          read -r merge_sha previous_dev source_head extra_parent < <(git rev-list --parents -n 1 "$head_sha")
-          test "$merge_sha" = "$head_sha"
-          test -n "$previous_dev"
-          test -n "$source_head"
-          test -z "${extra_parent:-}"
-          test "$(git cat-file -t "$previous_dev")" = commit
-          test "$(git cat-file -t "$source_head")" = commit
-          gh api --method GET --paginate --slurp \
-            -H "Accept: application/vnd.github+json" \
-            "repos/${GITHUB_REPOSITORY}/commits/${source_head}/pulls?per_page=100" \
-            > "$metadata_root/source-pulls-pages.json"
-          jq -e '[.[][]]' "$metadata_root/source-pulls-pages.json" > "$metadata_root/source-pulls.json"
+          head_ref="$(jq -er '.pull_request.head.ref' "$GITHUB_EVENT_PATH")"
+          if [[ "$head_ref" == dev ]]; then
+            test "$(git rev-parse 'refs/remotes/origin/dev^{commit}')" = "$head_sha"
+            test "$(git cat-file -t "$base_sha")" = commit
+            test "$(git cat-file -t "$head_sha")" = commit
+            git merge-base --is-ancestor "$base_sha" "$head_sha"
+            read -r merge_sha previous_dev source_head extra_parent < <(git rev-list --parents -n 1 "$head_sha")
+            test "$merge_sha" = "$head_sha"
+            test -n "$previous_dev"
+            test -n "$source_head"
+            test -z "${extra_parent:-}"
+            test "$(git cat-file -t "$previous_dev")" = commit
+            test "$(git cat-file -t "$source_head")" = commit
+            gh api --method GET --paginate --slurp \
+              -H "Accept: application/vnd.github+json" \
+              "repos/${GITHUB_REPOSITORY}/commits/${source_head}/pulls?per_page=100" \
+              > "$metadata_root/source-pulls-pages.json"
+            jq -e '[.[][]]' "$metadata_root/source-pulls-pages.json" > "$metadata_root/source-pulls.json"
+          else
+            git show "${base_sha}:scripts/fetch_requirements_promotion_topic.sh" > "$metadata_root/fetch-topic.sh"
+            git show "${base_sha}:scripts/requirements_promotion_reuse.py" > "$metadata_root/trusted-reuse.py"
+            source_head="$(bash "$metadata_root/fetch-topic.sh" "$metadata_root" "$head_ref" "$head_sha")"
+          fi
           gh api --method GET --paginate --slurp \
             -H "Accept: application/vnd.github+json" \
             "repos/${GITHUB_REPOSITORY}/commits/${source_head}/check-runs?per_page=100" \
@@ -1282,13 +1353,20 @@ jobs:
       - name: Validate protected promotion evidence for fresh execution
         id: execution-promotion
         if: >-
-          github.event_name == 'pull_request' && github.base_ref == 'main' && github.head_ref == 'dev' && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
+          github.event_name == 'pull_request' && github.base_ref == 'main' && (github.head_ref == 'dev' || startsWith(github.head_ref, 'codex/promotion-from-dev-pr-')) && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
         shell: bash
         run: |
           set -euo pipefail
           output="artifacts/requirements-evidence/final-verification/requirements-promotion-reuse.json"
           mkdir -p "$(dirname "$output")"
-          "${REQUIREMENTS_VALIDATOR_ROOT}/bin/python" -I -S scripts/requirements_promotion_reuse.py \
+          promotion_validator=scripts/requirements_promotion_reuse.py
+          topic_arguments=()
+          if jq -e '.pull_request.head.ref != "dev"' "$GITHUB_EVENT_PATH" >/dev/null; then
+            test -s "${RUNNER_TEMP}/promotion-execution-promotion/topic-commits.json"
+            promotion_validator="${RUNNER_TEMP}/promotion-execution-promotion/trusted-reuse.py"
+            topic_arguments=(--topic-commits "${RUNNER_TEMP}/promotion-execution-promotion/topic-commits.json")
+          fi
+          "${REQUIREMENTS_VALIDATOR_ROOT}/bin/python" -I -S "$promotion_validator" "${topic_arguments[@]}" \
             --event "$GITHUB_EVENT_PATH" \
             --repo-root "$GITHUB_WORKSPACE" \
             --source-pulls "${RUNNER_TEMP}/promotion-execution-promotion/source-pulls.json" \
@@ -1480,14 +1558,44 @@ jobs:
           github-token: ${{ github.token }}
           run-id: ${{ needs.requirements-evidence-producer.outputs.prior-red-run-id }}
 
+      - name: Authenticate current protected RED artifact
+        id: protected-red-artifact
+        if: *protected_red_pull_request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROTECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: &locate_protected_red_artifact |
+          set -euo pipefail
+          [[ "$PROTECTED_HEAD" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$GITHUB_RUN_ID" =~ ^[1-9][0-9]*$ && "$GITHUB_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]]
+          artifact="$(gh api --method GET "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts" \
+            -f name="requirements-protected-red-${GITHUB_RUN_ATTEMPT}" | jq -ce \
+            --argjson run "$GITHUB_RUN_ID" --arg head "$PROTECTED_HEAD" \
+            --arg name "requirements-protected-red-${GITHUB_RUN_ATTEMPT}" '
+              [.artifacts[] | select(.name == $name and .expired == false and
+                .workflow_run.id == $run and .workflow_run.head_sha == $head and
+                .workflow_run.repository_id == 1085706003 and .workflow_run.head_repository_id == 1085706003 and
+                (.digest | test("^sha256:[0-9a-f]{64}$")) and (.id | type == "number"))] |
+              if length == 1 then .[0] else error("expected one current protected RED artifact") end')"
+          printf 'artifact-id=%s\n' "$(jq -er '.id' <<< "$artifact")" >> "$GITHUB_OUTPUT"
+          printf 'artifact-digest=%s\n' "$(jq -er '.digest' <<< "$artifact")" >> "$GITHUB_OUTPUT"
+
+      - name: Download current protected before-fix proof
+        if: steps.protected-red-artifact.outputs.artifact-id != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ steps.protected-red-artifact.outputs.artifact-id }}
+          path: ${{ runner.temp }}/consumer-prior-red
+
       - name: Reconcile Requirements evidence on fresh runner
         timeout-minutes: 12
         env:
           EVIDENCE_PROMOTION_REUSE: ${{ steps.execution-promotion.outputs.active }}
           LATE_RED_ACTIVE: ${{ github.event.pull_request.number == 717 && github.head_ref == 'bugfix/692-promotion-final-context' && hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') != '' }}
           LATE_RED_CYCLE_BASE: ${{ steps.late-red.outputs.cycle-base-ref }}
-          PRIOR_RED_ARTIFACT_DIGEST: ${{ steps.consumer-red.outputs.artifact-digest }}
-          PRIOR_RED_HEAD_SHA: ${{ steps.consumer-red.outputs.head-sha }}
+          PRIOR_RED_ARTIFACT_DIGEST: ${{ steps.protected-red-artifact.outputs.artifact-id != '' && steps.protected-red-artifact.outputs.artifact-digest || steps.consumer-red.outputs.artifact-digest }}
+          PRIOR_RED_HEAD_SHA: ${{ steps.protected-red-artifact.outputs.artifact-id != '' && 'c2421f77c63470f42d2274ecec14f11b02417a5b' || steps.consumer-red.outputs.head-sha }}
           REVIEW_BASE_BRANCH: ${{ github.base_ref }}
         shell: bash
         run: |
@@ -1908,6 +2016,7 @@ jobs:
     permissions:
       actions: read
       contents: read
+      pull-requests: read
       issues: read
     runs-on: ubuntu-latest
     steps:
@@ -2148,7 +2257,7 @@ jobs:
 
       - name: Checkout trusted promotion authority policy for final verdict
         if: >-
-          github.event_name == 'pull_request' && github.base_ref == 'main' && github.head_ref == 'dev' && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
+          github.event_name == 'pull_request' && github.base_ref == 'main' && (github.head_ref == 'dev' || startsWith(github.head_ref, 'codex/promotion-from-dev-pr-')) && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: nold-ai/.github
@@ -2158,7 +2267,7 @@ jobs:
 
       - name: Authenticate protected promotion head for final verdict
         if: >-
-          github.event_name == 'pull_request' && github.base_ref == 'main' && github.head_ref == 'dev' && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
+          github.event_name == 'pull_request' && github.base_ref == 'main' && (github.head_ref == 'dev' || startsWith(github.head_ref, 'codex/promotion-from-dev-pr-')) && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
         env:
           GITHUB_TOKEN: ${{ github.token }}
         shell: bash
@@ -2182,7 +2291,7 @@ jobs:
 
       - name: Fetch protected promotion evidence for final verdict
         if: >-
-          github.event_name == 'pull_request' && github.base_ref == 'main' && github.head_ref == 'dev' && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
+          github.event_name == 'pull_request' && github.base_ref == 'main' && (github.head_ref == 'dev' || startsWith(github.head_ref, 'codex/promotion-from-dev-pr-')) && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -2198,22 +2307,29 @@ jobs:
           test "$(git rev-parse HEAD)" = "$head_sha"
           test "$(git rev-parse 'HEAD^{tree}')" = "$(git rev-parse "${head_sha}^{tree}")"
           test "$(git rev-parse 'refs/remotes/origin/main^{commit}')" = "$base_sha"
-          test "$(git rev-parse 'refs/remotes/origin/dev^{commit}')" = "$head_sha"
-          test "$(git cat-file -t "$base_sha")" = commit
-          test "$(git cat-file -t "$head_sha")" = commit
-          git merge-base --is-ancestor "$base_sha" "$head_sha"
-          read -r merge_sha previous_dev source_head extra_parent < <(git rev-list --parents -n 1 "$head_sha")
-          test "$merge_sha" = "$head_sha"
-          test -n "$previous_dev"
-          test -n "$source_head"
-          test -z "${extra_parent:-}"
-          test "$(git cat-file -t "$previous_dev")" = commit
-          test "$(git cat-file -t "$source_head")" = commit
-          gh api --method GET --paginate --slurp \
-            -H "Accept: application/vnd.github+json" \
-            "repos/${GITHUB_REPOSITORY}/commits/${source_head}/pulls?per_page=100" \
-            > "$metadata_root/source-pulls-pages.json"
-          jq -e '[.[][]]' "$metadata_root/source-pulls-pages.json" > "$metadata_root/source-pulls.json"
+          head_ref="$(jq -er '.pull_request.head.ref' "$GITHUB_EVENT_PATH")"
+          if [[ "$head_ref" == dev ]]; then
+            test "$(git rev-parse 'refs/remotes/origin/dev^{commit}')" = "$head_sha"
+            test "$(git cat-file -t "$base_sha")" = commit
+            test "$(git cat-file -t "$head_sha")" = commit
+            git merge-base --is-ancestor "$base_sha" "$head_sha"
+            read -r merge_sha previous_dev source_head extra_parent < <(git rev-list --parents -n 1 "$head_sha")
+            test "$merge_sha" = "$head_sha"
+            test -n "$previous_dev"
+            test -n "$source_head"
+            test -z "${extra_parent:-}"
+            test "$(git cat-file -t "$previous_dev")" = commit
+            test "$(git cat-file -t "$source_head")" = commit
+            gh api --method GET --paginate --slurp \
+              -H "Accept: application/vnd.github+json" \
+              "repos/${GITHUB_REPOSITORY}/commits/${source_head}/pulls?per_page=100" \
+              > "$metadata_root/source-pulls-pages.json"
+            jq -e '[.[][]]' "$metadata_root/source-pulls-pages.json" > "$metadata_root/source-pulls.json"
+          else
+            git show "${base_sha}:scripts/fetch_requirements_promotion_topic.sh" > "$metadata_root/fetch-topic.sh"
+            git show "${base_sha}:scripts/requirements_promotion_reuse.py" > "$metadata_root/trusted-reuse.py"
+            source_head="$(bash "$metadata_root/fetch-topic.sh" "$metadata_root" "$head_ref" "$head_sha")"
+          fi
           gh api --method GET --paginate --slurp \
             -H "Accept: application/vnd.github+json" \
             "repos/${GITHUB_REPOSITORY}/commits/${source_head}/check-runs?per_page=100" \
@@ -2255,13 +2371,20 @@ jobs:
       - name: Validate protected promotion evidence for final verdict
         id: final-promotion
         if: >-
-          github.event_name == 'pull_request' && github.base_ref == 'main' && github.head_ref == 'dev' && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
+          github.event_name == 'pull_request' && github.base_ref == 'main' && (github.head_ref == 'dev' || startsWith(github.head_ref, 'codex/promotion-from-dev-pr-')) && github.event.pull_request.base.repo.id == github.event.repository.id && github.event.pull_request.head.repo.id == github.event.repository.id && github.event.pull_request.base.repo.full_name == github.event.repository.full_name && github.event.pull_request.head.repo.full_name == github.event.repository.full_name
         shell: bash
         run: |
           set -euo pipefail
           output="${RUNNER_TEMP}/final-promotion-reuse.json"
           mkdir -p "$(dirname "$output")"
-          "${FINAL_VERIFIER_ROOT}/bin/python" -I -S scripts/requirements_promotion_reuse.py \
+          promotion_validator=scripts/requirements_promotion_reuse.py
+          topic_arguments=()
+          if jq -e '.pull_request.head.ref != "dev"' "$GITHUB_EVENT_PATH" >/dev/null; then
+            test -s "${RUNNER_TEMP}/promotion-final-promotion/topic-commits.json"
+            promotion_validator="${RUNNER_TEMP}/promotion-final-promotion/trusted-reuse.py"
+            topic_arguments=(--topic-commits "${RUNNER_TEMP}/promotion-final-promotion/topic-commits.json")
+          fi
+          "${FINAL_VERIFIER_ROOT}/bin/python" -I -S "$promotion_validator" "${topic_arguments[@]}" \
             --event "$GITHUB_EVENT_PATH" \
             --repo-root "$GITHUB_WORKSPACE" \
             --source-pulls "${RUNNER_TEMP}/promotion-final-promotion/source-pulls.json" \
@@ -2380,11 +2503,27 @@ jobs:
           github-token: ${{ github.token }}
           run-id: ${{ needs.requirements-evidence.outputs.prior-red-run-id }}
 
+      - name: Authenticate current protected RED artifact
+        id: protected-red-artifact
+        if: *protected_red_pull_request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROTECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: *locate_protected_red_artifact
+
+      - name: Download current protected before-fix proof
+        if: steps.protected-red-artifact.outputs.artifact-id != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ steps.protected-red-artifact.outputs.artifact-id }}
+          path: ${{ runner.temp }}/final-retained-red
+
       - name: Reconcile final Requirements verdict on fresh runner
         env:
           EVIDENCE_PROMOTION_REUSE: ${{ steps.final-promotion.outputs.active }}
           LATE_RED_ACTIVE: ${{ github.event.pull_request.number == 717 && github.head_ref == 'bugfix/692-promotion-final-context' && hashFiles('openspec/changes/fix-release-promotion-requirements-parity/requirements-proof/late-red-evidence.json') != '' }}
-          PRIOR_RED_HEAD_SHA: ${{ steps.final-retained-red.outputs.head-sha }}
+          PRIOR_RED_HEAD_SHA: ${{ steps.protected-red-artifact.outputs.artifact-id != '' && 'c2421f77c63470f42d2274ecec14f11b02417a5b' || steps.final-retained-red.outputs.head-sha }}
         shell: bash
         run: |
           set -euo pipefail
@@ -2510,6 +2649,14 @@ jobs:
             jq -e '.gate_decision == "pass"' "$final_report" > /dev/null
             jq -e '.gate_decision == "pass" and (.plan.cases | length > 0)' \
               "$final_plan" > /dev/null
+            promotion_attestation="${RUNNER_TEMP}/final-promotion-reuse.json"
+            promotion_head_ref="$(jq -er '.promotion.head_ref' "$promotion_attestation")"
+            if [[ "$promotion_head_ref" != dev ]]; then
+              attested_dev="$(jq -er '.source_pull_request.base_sha' "$promotion_attestation")"
+              [[ "$attested_dev" =~ ^[0-9a-f]{40}$ ]]
+              live_dev="$(git ls-remote --exit-code origin refs/heads/dev)"
+              test "$live_dev" = "$attested_dev"$'\trefs/heads/dev'
+            fi
             cat "$final_summary" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           elif [[ "$required_maturity" == "planned" ]]; then

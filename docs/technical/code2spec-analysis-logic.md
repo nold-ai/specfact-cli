@@ -44,18 +44,18 @@ Uses **AI IDE's native LLM** for semantic understanding via pragmatic integratio
 - ✅ **Streamlined** - Native IDE integration, better developer experience
 - ✅ **Maintainable** - Simpler architecture, less code to maintain
 
-### **Mode 2: AST+Semgrep Hybrid (CI/CD Mode)** - Enhanced Fallback
+### **Mode 2: Built-in Python AST Checks (CI/CD Mode)** - Enhanced Fallback
 
-Uses **Python's AST + Semgrep pattern matching** for comprehensive structural analysis when LLM is unavailable:
+Uses **Python's AST and built-in pattern checks** for comprehensive structural analysis when LLM is unavailable:
 
 1. **AST Parsing** - Python's built-in Abstract Syntax Tree for structural analysis
-2. **Semgrep Pattern Detection** - Framework-aware pattern matching (API endpoints, models, CRUD, auth)
-3. **Pattern Matching** - Heuristic-based method grouping enhanced with Semgrep findings
-4. **Confidence Scoring** - Evidence-based quality metrics combining AST + Semgrep evidence
+2. **Built-in Pattern Checks** - Framework-aware pattern matching (API endpoints, models, CRUD, auth)
+3. **Pattern Matching** - Heuristic-based method grouping enhanced with pattern findings
+4. **Confidence Scoring** - Evidence-based quality metrics combining Python AST evidence
 5. **Code Quality Assessment** - Anti-pattern detection and maturity scoring
 6. **Deterministic Algorithms** - No randomness, 100% reproducible
 
-**Why AST+Semgrep hybrid?**
+**Why Python AST hybrid?**
 
 - ✅ **Fast** - Analyzes thousands of lines in seconds (parallelized)
 - ✅ **Deterministic** - Same code always produces same results
@@ -63,7 +63,7 @@ Uses **Python's AST + Semgrep pattern matching** for comprehensive structural an
 - ✅ **Framework-Aware** - Detects FastAPI, Flask, SQLAlchemy, Pydantic patterns
 - ✅ **Enhanced Detection** - API endpoints, database models, CRUD operations, auth patterns
 - ✅ **Code Quality** - Identifies anti-patterns and code smells
-- ✅ **Multi-language Ready** - Semgrep supports TypeScript, JavaScript, Go (patterns ready)
+- ✅ **Python scope** - Brownfield discovery selects Python files and checks their syntax trees
 - ⚠️ **Python-Focused** - Currently optimized for Python (other languages pending)
 
 ---
@@ -76,11 +76,11 @@ flowchart TD
     
     B -->|CoPilot Mode| C["AnalyzeAgent (AI-First)<br/>• LLM semantic understanding<br/>• Multi-language support<br/>• Semantic extraction (priorities, constraints, unknowns)<br/>• High-quality Spec-Kit artifacts"]
     
-    B -->|CI/CD Mode| D["CodeAnalyzer (AST+Semgrep Hybrid)<br/>• AST parsing (Python's built-in ast module)<br/>• Semgrep pattern detection (API, models, CRUD, auth)<br/>• Pattern matching (method name + Semgrep findings)<br/>• Confidence scoring (AST + Semgrep evidence)<br/>• Code quality assessment (anti-patterns)<br/>• Story point calculation (Fibonacci sequence)"]
+    B -->|CI/CD Mode| D["CodeAnalyzer (Built-in Python AST Checks)<br/>• AST parsing (Python's built-in ast module)<br/>• built-in pattern checks (API, models, CRUD, auth)<br/>• Pattern matching (method name + pattern findings)<br/>• Confidence scoring (Python AST evidence)<br/>• Code quality assessment (anti-patterns)<br/>• Story point calculation (Fibonacci sequence)"]
     
     C --> E["Features with Semantic Understanding<br/>• Actual priorities from code context<br/>• Actual constraints from code/docs<br/>• Actual unknowns from code analysis<br/>• Meaningful scenarios from acceptance criteria"]
     
-    D --> F["Features from Structure + Patterns<br/>• Framework-aware outcomes (API endpoints, models)<br/>• CRUD operation detection<br/>• Code quality constraints (anti-patterns)<br/>• Enhanced confidence scores<br/>• Python-focused (multi-language ready)"]
+    D --> F["Features from Structure + Patterns<br/>• Framework-aware outcomes (API endpoints, models)<br/>• CRUD operation detection<br/>• Code quality constraints (anti-patterns)<br/>• Enhanced confidence scores<br/>• Python source patterns"]
     
     style A fill:#2196F3,stroke:#1976D2,stroke-width:2px,color:#fff
     style C fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#fff
@@ -116,7 +116,7 @@ skip_patterns = [
 
 ---
 
-### Step 2: AST Parsing + Semgrep Pattern Detection
+### Step 2: AST Parsing + Built-in Pattern Checks
 
 For each Python file, we use **two complementary approaches**:
 
@@ -142,32 +142,31 @@ tree = ast.parse(content)  # Built-in Python AST parser
 - Handles all Python syntax correctly
 - Extracts metadata (docstrings, names, structure)
 
-#### 2.2 Semgrep Pattern Detection
+#### 2.2 Built-in Pattern Checks
 
 ```python
-# Run Semgrep for pattern detection (parallel-safe)
-semgrep_findings = self._run_semgrep_patterns(file_path)
+# Read patterns from the existing parsed Python tree.
+pattern_findings = feature_patterns(tree, file_path)
 ```
 
-**What Semgrep gives us:**
+**What the pattern checks detect:**
 
-- ✅ **API Endpoints**: FastAPI, Flask, Express, Gin routes (method + path)
+- ✅ **API Endpoints**: FastAPI and Flask routes (method + path)
 - ✅ **Database Models**: SQLAlchemy, Django, Pydantic, TortoiseORM, Peewee
 - ✅ **CRUD Operations**: Function naming patterns (create_*, get_*, update_*, delete_*)
 - ✅ **Authentication**: Auth decorators, permission checks
 - ✅ **Framework Patterns**: Async/await, context managers, type hints
 - ✅ **Code Quality**: Anti-patterns, code smells, security vulnerabilities
 
-**Why Semgrep?**
+**Why built-in pattern checks?**
 
 - Framework-aware pattern detection
-- Multi-language support (Python, TypeScript, JavaScript, Go)
-- Fast pattern matching (parallel execution)
-- Rule-based (no hardcoded logic)
+- Pattern checks over the parsed Python syntax tree
+- Parallel Python file analysis
 
 ---
 
-### Step 3: Feature Extraction from Classes (AST + Semgrep Enhanced)
+### Step 3: Feature Extraction from Classes (Python AST Enhanced)
 
 **Rule**: Each public class (not starting with `_`) becomes a potential feature.
 
@@ -326,14 +325,14 @@ def _create_story_from_method_group(group_name, methods, class_name, story_numbe
 
 ---
 
-### Step 3: Feature Enhancement with Semgrep
+### Step 3: Feature Enhancement with built-in pattern checks
 
-After extracting features from AST, we enhance them with Semgrep findings:
+After extracting features from AST, we enhance them with pattern findings:
 
 ```python
-def _enhance_feature_with_semgrep(feature, semgrep_findings, file_path, class_name):
-    """Enhance feature with Semgrep pattern detection results."""
-    for finding in semgrep_findings:
+def _enhance_feature_with_patterns(feature, pattern_findings, file_path, class_name):
+    """Enhance feature with built-in pattern checks results."""
+    for finding in pattern_findings:
         # API endpoint detection → +0.1 confidence, add "API" theme
         # Database model detection → +0.15 confidence, add "Database" theme
         # CRUD operation detection → +0.1 confidence, add to outcomes
@@ -342,7 +341,7 @@ def _enhance_feature_with_semgrep(feature, semgrep_findings, file_path, class_na
         # Security issues → -0.1 confidence, add to constraints
 ```
 
-**Semgrep Enhancements**:
+**Pattern enhancements**:
 
 - **API Endpoints**: Adds `"Exposes API endpoints: GET /users, POST /users"` to outcomes
 - **Database Models**: Adds `"Defines data models: UserModel, ProductModel"` to outcomes
@@ -352,9 +351,9 @@ def _enhance_feature_with_semgrep(feature, semgrep_findings, file_path, class_na
 
 ---
 
-### Step 5: Confidence Scoring (AST + Semgrep Evidence)
+### Step 5: Confidence Scoring (Python AST Evidence)
 
-**Goal**: Determine how confident we are that this is a real feature (not noise), combining AST and Semgrep evidence.
+**Goal**: Determine how confident we are that this is a real feature (not noise), combining AST and pattern evidence.
 
 ```python
 def _calculate_feature_confidence(node: ast.ClassDef, stories: list[Story]) -> float:
@@ -397,9 +396,9 @@ def _calculate_feature_confidence(node: ast.ClassDef, stories: list[Story]) -> f
 
 **Filtering**: Features below `--confidence` threshold (default 0.5) are excluded.
 
-**Semgrep Confidence Enhancements** (Systematic Evidence-Based Scoring):
+**Confidence from pattern evidence** (Systematic Evidence-Based Scoring):
 
-| Semgrep Finding | Confidence Adjustment | Rationale |
+| Pattern finding | Confidence Adjustment | Rationale |
 |----------------|----------------------|-----------|
 | **API Endpoint Detected** | +0.1 | Framework patterns indicate real features |
 | **Database Model Detected** | +0.15 | Data models are core features |
@@ -412,8 +411,8 @@ def _calculate_feature_confidence(node: ast.ClassDef, stories: list[Story]) -> f
 
 **How It Works**:
 
-1. **Evidence Extraction**: Semgrep findings are categorized into evidence flags (API endpoints, models, CRUD, etc.)
-2. **Confidence Calculation**: Base AST confidence (0.3-0.9) is adjusted with Semgrep evidence weights
+1. **Evidence Extraction**: pattern findings are categorized into evidence flags (API endpoints, models, CRUD, etc.)
+2. **Confidence Calculation**: Base AST confidence (0.3-0.9) is adjusted with pattern evidence weights
 3. **Systematic Scoring**: Each pattern type has a documented weight, ensuring consistent confidence across features
 4. **Quality Assessment**: Anti-patterns and security issues reduce confidence, indicating lower code maturity
 
@@ -710,16 +709,16 @@ feature:
 
 | Repository Size | Files | Time | Throughput | Notes |
 |----------------|-------|------|------------|-------|
-| **Small** (10 files) | 10 | ~10-30s | ~0.3-1 files/sec | AST + Semgrep analysis |
-| **Medium** (50 files) | 50 | ~1-2 min | ~0.4-0.8 files/sec | AST + Semgrep analysis |
-| **Large** (100+ files) | 100+ | 2-3 min | ~0.5-0.8 files/sec | AST + Semgrep analysis |
+| **Small** (10 files) | 10 | ~10-30s | ~0.3-1 files/sec | Python AST analysis |
+| **Medium** (50 files) | 50 | ~1-2 min | ~0.4-0.8 files/sec | Python AST analysis |
+| **Large** (100+ files) | 100+ | 2-3 min | ~0.5-0.8 files/sec | Python AST analysis |
 | **Large with Contracts** (100+ files) | 100+ | 15-30+ min | Varies | With contract extraction, graph analysis, and parallel processing (8 workers) |
 
-**SpecFact CLI on itself**: 19 files in ~30-60 seconds = **~0.3-0.6 files/second** (AST + Semgrep analysis)
+**SpecFact CLI on itself**: 19 files in ~30-60 seconds = **~0.3-0.6 files/second** (Python AST analysis)
 
 **Note**:
 
-- **Basic analysis** (AST + Semgrep): Takes **2-3 minutes** for large codebases (100+ files) even without contract extraction
+- **Basic analysis** (Python AST): Takes **2-3 minutes** for large codebases (100+ files) even without contract extraction
 - **With contract extraction** (default in `import from-code`): The process uses parallel workers to extract OpenAPI contracts, relationships, and graph dependencies. For large codebases, this can take **15-30+ minutes** even with 8 parallel workers
 
 ### Bundle Size Optimization (2025-11-30)

@@ -261,22 +261,13 @@ class OpenSpecParser:
         return sections
 
     def _flush_spec_section(
-        self,
-        section: str | None,
-        current_text: list[str],
-        current_items: list[str],
-        overview: str,
-        requirements: list[str],
-        scenarios: list[str],
-    ) -> tuple[str, list[str], list[str]]:
-        """Commit accumulated content for the current spec section and return updated accumulators."""
+        self, sections: dict[str, Any], section: str | None, text: list[str], items: list[str]
+    ) -> None:
+        """Finish the current recognized spec section."""
         if section == "overview":
-            overview = "\n".join(current_text).strip()
-        elif section == "requirements":
-            requirements = current_items
-        elif section == "scenarios":
-            scenarios = current_items
-        return overview, requirements, scenarios
+            sections[section] = "\n".join(text).strip()
+        elif section in {"requirements", "scenarios"}:
+            sections[section] = items
 
     @beartype
     @require(lambda content: isinstance(content, str), "Content must be str")
@@ -291,39 +282,29 @@ class OpenSpecParser:
         Returns:
             Dictionary with "overview", "requirements" and "scenarios"
         """
-        overview: str = ""
-        requirements: list[str] = []
-        scenarios: list[str] = []
-
+        sections: dict[str, Any] = {"overview": "", "requirements": [], "scenarios": []}
         current_section: str | None = None
         current_items: list[str] = []
         current_text: list[str] = []
-
         for line in content.splitlines():
             if line.startswith("##"):
-                overview, requirements, scenarios = self._flush_spec_section(
-                    current_section, current_text, current_items, overview, requirements, scenarios
-                )
+                self._flush_spec_section(sections, current_section, current_text, current_items)
                 current_section = line.lstrip("#").strip().lower()
                 current_items = []
                 current_text = []
-            elif line.strip().startswith("-") or line.strip().startswith("*"):
-                item = line.strip().lstrip("-*").strip()
-                if item:
-                    current_items.append(item)
-            elif current_section:
-                if current_section == "overview" or (current_section in ("requirements", "scenarios") and line.strip()):
-                    current_text.append(line)
+                continue
+            stripped = line.strip()
+            bullet = stripped.startswith(("-", "*"))
+            item = stripped.lstrip("-*").strip() if bullet else ""
+            if item:
+                current_items.append(item)
+            if not bullet and (
+                current_section == "overview" or (current_section in {"requirements", "scenarios"} and stripped)
+            ):
+                current_text.append(line)
 
-        overview, requirements, scenarios = self._flush_spec_section(
-            current_section, current_text, current_items, overview, requirements, scenarios
-        )
-
-        return {
-            "overview": overview,
-            "requirements": requirements,
-            "scenarios": scenarios,
-        }
+        self._flush_spec_section(sections, current_section, current_text, current_items)
+        return sections
 
     @beartype
     @require(lambda content: isinstance(content, str), "Content must be str")
@@ -346,30 +327,20 @@ class OpenSpecParser:
             "impact": "",
         }
 
-        current_section: str | None = None
+        current_section = ""
         current_content: list[str] = []
-
         for line in content.splitlines():
-            # Check for section headers
             if line.startswith("##"):
-                # Save previous section
-                if current_section:
-                    section_key = self._normalize_section_name(current_section)
-                    if section_key and section_key in sections:
-                        sections[section_key] = "\n".join(current_content).strip()
-                # Start new section
-                current_section = line.lstrip("#").strip()
+                if current_section in sections:
+                    sections[current_section] = "\n".join(current_content).strip()
+                current_section = self._normalize_section_name(line.lstrip("#").strip())
                 current_content = []
-            else:
-                if current_section:
-                    current_content.append(line)
+                continue
+            if current_section:
+                current_content.append(line)
 
-        # Save last section
-        if current_section:
-            section_key = self._normalize_section_name(current_section)
-            if section_key and section_key in sections:
-                sections[section_key] = "\n".join(current_content).strip()
-
+        if current_section in sections:
+            sections[current_section] = "\n".join(current_content).strip()
         return sections
 
     @beartype
@@ -392,21 +363,19 @@ class OpenSpecParser:
         current_section: str | None = None
 
         for line in content.splitlines():
+            if current_section == "content":
+                delta_content.append(line)
+                continue
             if line.startswith("##"):
-                if current_section == "content":
-                    delta_content.append(line)
-                    continue
                 current_section = line.lstrip("#").strip().lower()
                 continue
-            if not current_section:
-                continue
             stripped = line.strip()
-            if current_section == "type" and stripped:
+            if not stripped:
+                continue
+            if current_section == "type":
                 change_type = stripped.upper()
-            elif current_section in ("feature id", "feature_id") and stripped:
+            elif current_section in {"feature id", "feature_id"}:
                 feature_id = stripped
-            elif current_section == "content":
-                delta_content.append(line)
 
         return {
             "type": change_type,

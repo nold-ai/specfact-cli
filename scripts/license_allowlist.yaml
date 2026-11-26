@@ -48,11 +48,3 @@ exceptions:
       that most code and documentation is public domain, with file-level permissive
       licenses for exceptions; this exact mixed metadata is reviewed through 2026-10-22.
     scope: dev-only
-
-  - package: semgrep
-    license: LGPL-2.1
-    reason: >
-      Required for code analysis in specfact-code-review module and dev env.
-      LGPL (not GPL/AGPL). Invoked as subprocess — not statically linked — which
-      satisfies LGPL distribution requirements.
-    scope: module-manifest

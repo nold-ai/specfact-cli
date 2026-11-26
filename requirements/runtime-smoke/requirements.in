@@ -1,0 +1,3 @@
+# Module-only smoke dependency; shared packages use requirements/ci/locked.txt.
+# The portable Code Review fixture uses the committed npm runner, never a Node wheel.
+lz4==4.4.5

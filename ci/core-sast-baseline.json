@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "generated_on": "2026-11-22",
+  "command": "hatch run core-sast --output logs/static-analysis/python-sast.json",
+  "accepted_findings": []
+}

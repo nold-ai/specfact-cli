@@ -429,7 +429,6 @@ specfact project sync repository --repo . --watch
 - **Global flags**: Place `--no-banner` before the command: `specfact --no-banner <command>`
 - **Bridge adapter sync**: Use `sync bridge --adapter <adapter-name>` for external tool integration (Spec-Kit, OpenSpec, GitHub, etc.)
 - **Repository sync**: Use `sync repository` for code change tracking
-- **Semgrep (optional)**: Install `pip install semgrep` for async pattern detection in `specfact code repro`
 
 ---
 

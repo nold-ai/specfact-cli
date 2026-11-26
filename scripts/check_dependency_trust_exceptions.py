@@ -19,6 +19,7 @@ from typing import cast
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_REGISTER = REPO_ROOT / "ci" / "dependency-trust-exceptions.json"
 DEFAULT_UV_LOCK = REPO_ROOT / "uv.lock"
+DEFAULT_CI_EXPORT = REPO_ROOT / "requirements" / "ci" / "locked.txt"
 DEFAULT_SECURITY_TOOL_FLOORS = REPO_ROOT / "ci" / "security-tool-minimum-versions.json"
 DEFAULT_CODE_REVIEW_INPUT = REPO_ROOT / "requirements" / "code-review" / "requirements.in"
 DEFAULT_CODE_REVIEW_LOCK = REPO_ROOT / "requirements" / "code-review" / "locked.txt"
@@ -41,6 +42,17 @@ PROHIBITED_EXECUTABLE_WHEEL_PACKAGES = frozenset({"nodejs-wheel-binaries"})
 # blocked outright: a review record must never turn a known alert into normal
 # delivery input.
 BLOCKED_DEPENDENCY_RELEASES = frozenset({("pycparser", "3.0")})
+# Socket's wheel-specific review and the official PyPI digest bind this approval
+# to one file. All other versions and the 3.12 source distribution need review.
+PARSER_WHEEL_URL = (
+    "https://files.pythonhosted.org/packages/b6/ae/315bbeee126a769cbde43cf4908acb4b40408d8bf8bbf334dd7368d8dadf/"
+    "pycparser-3.12-py3-none-any.whl"
+)
+PARSER_WHEEL_HASH = "sha256:a076f3f489b39b43ed13563a1dafe42447445bec2e294154ec5c57fcdda4c85e"
+PARSER_WHEEL_VERSION = "3.12"
+PARSER_PIP_PIN = f"pycparser=={PARSER_WHEEL_VERSION}"
+PARSER_EXPORT_HASH_LINE = f" \\\n    --hash={PARSER_WHEEL_HASH}"
+PARSER_EXPORT_ENTRY = PARSER_PIP_PIN + PARSER_EXPORT_HASH_LINE
 PACKAGE_NAME_SEPARATOR = re.compile(r"[-_.]+")
 CODE_REVIEW_PIN_PATTERN = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)==([^\s;\\]+)(?:\s*\\)?$")
 CODE_REVIEW_HASH_PATTERN = re.compile(r"^--hash=sha256:[0-9a-fA-F]{64}(?:\s*\\)?$")
@@ -353,6 +365,54 @@ def _validate_locked_package_policy(
     return errors
 
 
+def _approved_parser_wheel(package: dict[str, object]) -> bool:
+    """Accept only the reviewed file, with no alternate source or distribution."""
+    wheels = package.get("wheels")
+    if not isinstance(wheels, list):
+        return False
+    entries = cast(list[object], wheels)
+    if len(entries) != 1 or not isinstance(entries[0], dict):
+        return False
+    wheel = cast(dict[str, object], entries[0])
+    return (
+        package.get("version") == PARSER_WHEEL_VERSION
+        and package.get("source") == {"registry": "https://pypi.org/simple"}
+        and "sdist" not in package
+        and wheel.get("url") == PARSER_WHEEL_URL
+        and wheel.get("hash") == PARSER_WHEEL_HASH
+    )
+
+
+def restrict_frozen_parser_wheel(lock_text: str) -> str:
+    """Remove the unapproved source archive from uv's generated parser record."""
+    marker = '[[package]]\nname = "pycparser"\n'
+    if lock_text.count(marker) != 1:
+        raise ValueError("uv lock must contain one pycparser record")
+    before, _, remainder = lock_text.partition(marker)
+    parser, next_package, after = remainder.partition("[[package]]\n")
+    restricted = marker + "".join(line for line in parser.splitlines(keepends=True) if not line.startswith("sdist = "))
+    records = cast(list[dict[str, object]], tomllib.loads(restricted)["package"])
+    if not _approved_parser_wheel(records[0]):
+        raise ValueError("uv lock must contain only the approved pycparser wheel URL and hash")
+    return before + restricted + next_package + after
+
+
+def _validate_parser_export(export_path: Path) -> list[str]:
+    """Ensure pip, like uv, cannot select the source archive or another wheel."""
+    try:
+        export = export_path.read_text(encoding="utf-8")
+    except OSError as error:
+        return [f"could not read frozen CI export: {error}"]
+    parser_entries = [
+        line.strip()
+        for line in export.replace("\\\n", "").splitlines()
+        if re.match(r"^\s*pycparser(?:\s|[<>=!~@;\[]|$)", line, flags=re.IGNORECASE)
+    ]
+    if parser_entries != [PARSER_EXPORT_ENTRY.replace("\\\n", "")]:
+        return ["frozen CI export requires only the approved pycparser wheel hash"]
+    return []
+
+
 def _validate_locked_release_policy(package_name: str, version: str, tool_floors: dict[str, str]) -> list[str]:
     """Apply shared security policy to one frozen package release."""
     errors: list[str] = []
@@ -423,6 +483,7 @@ def validate_frozen_dependency_policy(
     today: date | None = None,
     code_review_input_path: Path = DEFAULT_CODE_REVIEW_INPUT,
     code_review_lock_path: Path = DEFAULT_CODE_REVIEW_LOCK,
+    ci_export_path: Path = DEFAULT_CI_EXPORT,
 ) -> list[str]:
     """Reject blocked releases and reviews that do not bind to either frozen graph."""
     errors = validate_exception_register(register_path, today=today)
@@ -436,6 +497,11 @@ def validate_frozen_dependency_policy(
         return errors
     errors.extend(_validate_locked_package_policy(locked_packages, tool_floors))
     errors.extend(_validate_review_records(register_path, locked_packages))
+    parser = locked_packages.get("pycparser")
+    if parser is not None:
+        if not _approved_parser_wheel(parser):
+            errors.append("pycparser requires the sole approved wheel URL and SHA-256 in the frozen lock")
+        errors.extend(_validate_parser_export(ci_export_path))
     code_review_packages, code_review_errors = _read_code_review_locked_packages(
         code_review_input_path, code_review_lock_path
     )
