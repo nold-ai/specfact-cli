@@ -22,7 +22,8 @@ TRUSTED_AUTHORITY_TREE = "47f33b4df92060a36f3afd92948e441555fb280d"
 TRUSTED_AUTHORITY_BLOB = "8c7b30020033c6b6081d6e743d77aa76043724ea"
 TRUSTED_AUTHORITY_SHA256 = "5441e26e7c3c8f18973c781e7d43c72076b3283c915d98ca5188bb174bf17c45"
 PROMOTION_CONDITION = (
-    "github.event_name == 'pull_request' && github.base_ref == 'main' && github.head_ref == 'dev' && "
+    "github.event_name == 'pull_request' && github.base_ref == 'main' && "
+    "(github.head_ref == 'dev' || startsWith(github.head_ref, 'codex/promotion-from-dev-pr-')) && "
     "github.event.pull_request.base.repo.id == github.event.repository.id && "
     "github.event.pull_request.head.repo.id == github.event.repository.id && "
     "github.event.pull_request.base.repo.full_name == github.event.repository.full_name && "
@@ -1396,7 +1397,9 @@ def _assert_promotion_fetch(fetch: dict[str, object]) -> None:
     )
     assert all(fragment in command for fragment in fragments)
     assert fetch["env"] == {"GH_TOKEN": "${{ github.token }}"}
-    assert "scripts/requirements_promotion_reuse.py" not in command
+    assert 'git show "${base_sha}:scripts/requirements_promotion_reuse.py"' in command
+    assert 'git show "${base_sha}:scripts/fetch_requirements_promotion_topic.sh"' in command
+    assert 'source_head="$(bash "$metadata_root/fetch-topic.sh"' in command
 
 
 def _assert_promotion_validation(validate: dict[str, object], stage: _PromotionStage) -> None:
@@ -1415,7 +1418,15 @@ def _assert_promotion_validation(validate: dict[str, object], stage: _PromotionS
         ("--output", stage.output_attestation),
     )
     assert validate["id"] == stage.step_id
-    assert "scripts/requirements_promotion_reuse.py" in command
+    invocation_fragments = (
+        "scripts/requirements_promotion_reuse.py",
+        "topic_arguments=()",
+        """if jq -e '.pull_request.head.ref != "dev"' "$GITHUB_EVENT_PATH" >/dev/null; then""",
+        f'promotion_validator="{metadata_root}/trusted-reuse.py"',
+        f'topic_arguments=(--topic-commits "{metadata_root}/topic-commits.json")',
+        '/bin/python" -I -S "$promotion_validator" "${topic_arguments[@]}"',
+    )
+    assert all(fragment in command for fragment in invocation_fragments)
     assert not {"GITHUB_TOKEN", "GH_TOKEN"}.intersection(cast(dict[str, str], validate.get("env", {})))
     assert all(f'{argument} "{value}"' in command for argument, value in arguments)
     if stage.expected_attestation is None:
@@ -1523,6 +1534,20 @@ def _assert_promotion_planning(commands: tuple[str, str, str]) -> None:
         promotion_branch = command[promotion_start:promotion_end]
         assert f"cp {planning_report} {verified_report}" not in promotion_branch
         assert f"test -s {verified_report}" in promotion_branch
+
+
+def test_final_topic_promotion_rechecks_protected_dev() -> None:
+    workflow = yaml.load(
+        (REPO_ROOT / ".github/workflows/requirements-evidence.yml").read_text(encoding="utf-8"),
+        Loader=yaml.BaseLoader,
+    )
+    _, _, final = _promotion_commands(workflow)
+    start = final.index('if [[ "$promotion_head_ref" != dev ]]; then')
+    end = final.index('cat "$final_summary" >> "$GITHUB_STEP_SUMMARY"', start)
+    check = final[start:end]
+    assert ".source_pull_request.base_sha" in check
+    assert "git ls-remote --exit-code origin refs/heads/dev" in check
+    assert 'test "$live_dev" = "$attested_dev"' in check
 
 
 def _assert_promotion_artifacts(workflow: dict[str, object], commands: tuple[str, str, str]) -> None:
