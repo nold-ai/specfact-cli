@@ -417,29 +417,30 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
-      - name: Read immutable module fixture
-        id: modules-fixture
-        shell: bash
-        run: |
-          set -euo pipefail
-          fixture_ref="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
-          echo "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"
-
       - name: Checkout module bundles repo
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
-          ref: ${{ steps.modules-fixture.outputs.ref }}
+          ref: 69f075819be5e1ceca1446b026b0417f19e584ca
       - name: Export module bundles path
         run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
       - name: Verify immutable module fixture
         shell: bash
         run: |
           set -euo pipefail
-          expected="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
-          actual="$(git -C specfact-cli-modules rev-parse HEAD)"
+          expected="$(python - <<'PYCODE'
+          import json
+          from pathlib import Path
+          lock = json.loads(Path("ci/module-fixture.lock.json").read_text(encoding="utf-8"))
+          if lock["repository"] != "nold-ai/specfact-cli-modules":
+              raise SystemExit("Unexpected module fixture repository")
+          print(lock["commit"])
+          print(lock["tree"])
+          PYCODE
+          )"
+          actual="$(git -C specfact-cli-modules rev-parse HEAD 'HEAD^{tree}')"
           test "$actual" = "$expected"
       - name: Set up Python 3.11
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
@@ -914,28 +915,29 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Read immutable module fixture
-        id: modules-fixture
-        shell: bash
-        run: |
-          set -euo pipefail
-          fixture_ref="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
-          echo "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"
-
       - name: Checkout module bundles repo
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
-          ref: ${{ steps.modules-fixture.outputs.ref }}
+          ref: 69f075819be5e1ceca1446b026b0417f19e584ca
 
       - name: Verify immutable module fixture
         shell: bash
         run: |
           set -euo pipefail
-          expected="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
-          actual="$(git -C specfact-cli-modules rev-parse HEAD)"
+          expected="$(python - <<'PYCODE'
+          import json
+          from pathlib import Path
+          lock = json.loads(Path("ci/module-fixture.lock.json").read_text(encoding="utf-8"))
+          if lock["repository"] != "nold-ai/specfact-cli-modules":
+              raise SystemExit("Unexpected module fixture repository")
+          print(lock["commit"])
+          print(lock["tree"])
+          PYCODE
+          )"
+          actual="$(git -C specfact-cli-modules rev-parse HEAD 'HEAD^{tree}')"
           test "$actual" = "$expected"
 
       - name: Set up frozen smoke dependencies
@@ -976,28 +978,29 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Read immutable module fixture
-        id: modules-fixture
-        shell: bash
-        run: |
-          set -euo pipefail
-          fixture_ref="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
-          echo "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"
-
       - name: Checkout module bundles repo
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
-          ref: ${{ steps.modules-fixture.outputs.ref }}
+          ref: 69f075819be5e1ceca1446b026b0417f19e584ca
 
       - name: Verify immutable module fixture
         shell: bash
         run: |
           set -euo pipefail
-          expected="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
-          actual="$(git -C specfact-cli-modules rev-parse HEAD)"
+          expected="$(python - <<'PYCODE'
+          import json
+          from pathlib import Path
+          lock = json.loads(Path("ci/module-fixture.lock.json").read_text(encoding="utf-8"))
+          if lock["repository"] != "nold-ai/specfact-cli-modules":
+              raise SystemExit("Unexpected module fixture repository")
+          print(lock["commit"])
+          print(lock["tree"])
+          PYCODE
+          )"
+          actual="$(git -C specfact-cli-modules rev-parse HEAD 'HEAD^{tree}')"
           test "$actual" = "$expected"
 
       - name: Set up frozen smoke dependencies
