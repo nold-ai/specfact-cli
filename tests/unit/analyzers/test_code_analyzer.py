@@ -5,15 +5,13 @@ Focus: Business logic and edge cases only (@beartype handles type validation).
 
 import ast
 import os
-import subprocess
 import tempfile
 from pathlib import Path
 from textwrap import dedent
-from unittest.mock import patch
 
 import pytest
 
-from specfact_cli.analyzers.code_analyzer import CodeAnalyzer, _build_semgrep_env
+from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
 
 
 class TestCodeAnalyzer:
@@ -45,38 +43,49 @@ class TestCodeAnalyzer:
         names = analyzer._detect_async_patterns_parallel(tree, Path("mod.py"))
         assert set(names) == {"outer", "inner"}
 
-    def test_build_semgrep_env_uses_repo_local_runtime_dirs(self, tmp_path: Path) -> None:
-        """Semgrep env should use stable repo-local config, cache, and log paths."""
-        env = _build_semgrep_env(tmp_path)
+    def test_brownfield_python_patterns_enrich_features(self, tmp_path: Path) -> None:
+        source = tmp_path / "api.py"
+        source.write_text(
+            dedent(
+                """
+                from fastapi import APIRouter
+                from pydantic import BaseModel
 
-        assert env["XDG_CONFIG_HOME"] == str((tmp_path / ".specfact" / "config").resolve())
-        assert env["XDG_CACHE_HOME"] == str((tmp_path / ".specfact" / "cache").resolve())
-        assert env["SEMGREP_VERSION_CACHE_PATH"] == str((tmp_path / ".specfact" / "cache" / "semgrep").resolve())
-        assert env["SEMGREP_LOG_FILE"] == str((tmp_path / ".specfact" / "logs" / "semgrep.log").resolve())
-        assert Path(env["XDG_CONFIG_HOME"]).is_dir()
-        assert Path(env["XDG_CACHE_HOME"]).is_dir()
-        assert Path(env["SEMGREP_VERSION_CACHE_PATH"]).is_dir()
-        assert (tmp_path / ".specfact" / "logs").is_dir()
+                router = APIRouter()
 
-    def test_run_semgrep_patterns_passes_repo_local_env(self, tmp_path: Path) -> None:
-        """Semgrep subprocess should inherit repo-local runtime paths."""
-        source_file = tmp_path / "sample.py"
-        source_file.write_text("print('hello')\n", encoding="utf-8")
-        semgrep_dir = tmp_path / "tools" / "semgrep"
-        semgrep_dir.mkdir(parents=True)
-        (semgrep_dir / "feature-detection.yml").write_text("rules: []\n", encoding="utf-8")
-        (semgrep_dir / "code-quality.yml").write_text("rules: []\n", encoding="utf-8")
-        analyzer = CodeAnalyzer(tmp_path)
+                class Customer(BaseModel):
+                    "Customer data."
+                    name: str
+                    def display_name(self):
+                        "Render the customer name."
+                        return self.name
 
-        def _fake_run(cmd: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
-            env = kwargs.get("env")
-            assert isinstance(env, dict)
-            assert env["XDG_CONFIG_HOME"] == str((tmp_path / ".specfact" / "config").resolve())
-            assert env["XDG_CACHE_HOME"] == str((tmp_path / ".specfact" / "cache").resolve())
-            return subprocess.CompletedProcess(cmd, 0, stdout='{"results":[]}', stderr="")
+                class CustomerService:
+                    "Customer operations."
+                    @router.post("/customers")
+                    @require_permission("create")
+                    def create_customer(self, values: dict = {}):
+                        "Create the customer."
+                        return values
 
-        with patch("shutil.which", return_value="/usr/bin/semgrep"), patch("subprocess.run", side_effect=_fake_run):
-            assert analyzer._run_semgrep_patterns(source_file) == []
+                class SafeService:
+                    "Control feature."
+                    def calculate(self):
+                        "Return a calculation."
+                        return 2 + 2
+                """
+            ),
+            encoding="utf-8",
+        )
+        features = CodeAnalyzer(tmp_path, confidence_threshold=0.1)._analyze_file_parallel(source)["features"]
+        by_key = {feature.key: feature for feature in features}
+        assert "Defines data models: Customer" in by_key["FEATURE-CUSTOMER"].outcomes
+        service = by_key["FEATURE-CUSTOMERSERVICE"]
+        assert "Exposes API endpoints: POST /customers" in service.outcomes
+        assert "Requires authentication: create" in service.outcomes
+        assert "Provides CRUD operations: CREATE customer" in service.outcomes
+        assert any("Mutable default" in constraint for constraint in service.constraints or [])
+        assert not any("Code quality:" in constraint for constraint in by_key["FEATURE-SAFESERVICE"].constraints or [])
 
     def test_resolve_entry_point_accepts_canonical_path_alias(self, tmp_path: Path) -> None:
         """Absolute entry points should be compared after canonical resolution."""
@@ -650,3 +659,19 @@ class TestCodeAnalyzer:
                     assert any("email" in criterion.lower() for criterion in story.acceptance)
         finally:
             temp_file.unlink()
+
+
+def test_numeric_accumulation_does_not_count_as_string_concatenation(tmp_path: Path) -> None:
+    import ast
+
+    from specfact_cli.analyzers.python_patterns import feature_patterns
+
+    source = (
+        "total = 0\n"
+        "for value in range(3):\n    total = total + value\n"
+        "message = ''\n"
+        "for value in ('a', 'b'):\n    message = message + value\n"
+    )
+    matches = feature_patterns(ast.parse(source), tmp_path / "example.py")
+
+    assert [match["start"]["line"] for match in matches if match["check_id"] == "string-concatenation-loop"] == [6]

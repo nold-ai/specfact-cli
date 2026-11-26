@@ -1,0 +1,30 @@
+{
+  "nold-ai/specfact-backlog": {
+    "version": "0.41.32",
+    "sha256": "3e9806a9a3ad05465eaf7865a25031cb5e0a282d64a812cfc2ae8ab2ba05c635"
+  },
+  "nold-ai/specfact-code-review": {
+    "version": "0.49.76",
+    "sha256": "f9d80b6f166c5686fbe92c3fadfd34a546078ae31519b50a210778e7e598c97e"
+  },
+  "nold-ai/specfact-codebase": {
+    "version": "0.41.16",
+    "sha256": "8cb2e0624889a180f4057698c094fc400b46879805a4d8934285fd007bebe44e"
+  },
+  "nold-ai/specfact-govern": {
+    "version": "0.40.27",
+    "sha256": "7410fa12bdee28186e0e01a2f247dfc15790f300786a6c4a51f088c7e8116f70"
+  },
+  "nold-ai/specfact-project": {
+    "version": "0.41.27",
+    "sha256": "b434d4aa8f540516258b4fa8a5e51e6c34e7be7caeb5c265fa26d0f4a9658592"
+  },
+  "nold-ai/specfact-requirements": {
+    "version": "0.5.1",
+    "sha256": "2325fb2187801bef536b294453763de57e2e66a73a4162a8bfda461f195e4449"
+  },
+  "nold-ai/specfact-spec": {
+    "version": "0.40.25",
+    "sha256": "19f76faa63d6e6d8702be5e08e519aba954d52d5233318bde63d61f678823a80"
+  }
+}

@@ -55,6 +55,7 @@ jobs:
               - 'requirements/ci/locked.txt'
               - 'requirements/code-review/requirements.in'
               - 'requirements/code-review/locked.txt'
+              - 'requirements/runtime-smoke/**'
               - 'modules/**/module-package.yaml'
               - 'src/specfact_cli/modules/**/module-package.yaml'
               - 'scripts/check_license_compliance.py'
@@ -337,6 +338,10 @@ jobs:
         run: |
           mkdir -p logs/tests/junit logs/tests/coverage logs/tests/workflows
 
+      - name: Set up reviewed portable runtime fixture
+        if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
+        uses: ./.github/actions/setup-runtime-smoke-fixture
+
       - name: Runtime discovery smoke test
         if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
         shell: bash
@@ -412,29 +417,30 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
-      - name: Read immutable module fixture
-        id: modules-fixture
-        shell: bash
-        run: |
-          set -euo pipefail
-          fixture_ref="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
-          echo "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"
-
       - name: Checkout module bundles repo
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
-          ref: ${{ steps.modules-fixture.outputs.ref }}
+          ref: 69f075819be5e1ceca1446b026b0417f19e584ca
       - name: Export module bundles path
         run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
       - name: Verify immutable module fixture
         shell: bash
         run: |
           set -euo pipefail
-          expected="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
-          actual="$(git -C specfact-cli-modules rev-parse HEAD)"
+          expected="$(python - <<'PYCODE'
+          import json
+          from pathlib import Path
+          lock = json.loads(Path("ci/module-fixture.lock.json").read_text(encoding="utf-8"))
+          if lock["repository"] != "nold-ai/specfact-cli-modules":
+              raise SystemExit("Unexpected module fixture repository")
+          print(lock["commit"])
+          print(lock["tree"])
+          PYCODE
+          )"
+          actual="$(git -C specfact-cli-modules rev-parse HEAD 'HEAD^{tree}')"
           test "$actual" = "$expected"
       - name: Set up Python 3.11
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
@@ -442,6 +448,10 @@ jobs:
           python-version: "3.11"
       - name: Set up frozen compatibility dependencies
         uses: ./.github/actions/setup-frozen-python
+
+      - name: Set up reviewed portable runtime fixture
+        uses: ./.github/actions/setup-runtime-smoke-fixture
+
       - name: Run Python 3.11 compatibility tests
         shell: bash
         run: |
@@ -742,22 +752,33 @@ jobs:
           persist-credentials: false
 
       - name: Set up Python 3.12
+        id: analysis-python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.12"
 
-      - name: Set up frozen static-analysis dependencies
-        uses: ./.github/actions/setup-frozen-python
-
-      - name: Run independent Semgrep and Bandit gates
-        env:
-          SEMGREP_ENABLE_VERSION_CHECK: "0"
+      - name: Run independent Python SAST
+        id: python-sast
+        shell: bash
         run: |
           mkdir -p logs/static-analysis
-          semgrep scan --config tools/semgrep/sast.yml --json --output logs/static-analysis/semgrep.json
-          python scripts/semgrep_sast_gate.py \
-            --results logs/static-analysis/semgrep.json \
-            --baseline tools/semgrep/sast-baseline.json
+          python scripts/core_sast_gate.py \
+            --root . \
+            --baseline ci/core-sast-baseline.json \
+            --output logs/static-analysis/python-sast.json
+
+      - name: Set up frozen static-analysis dependencies
+        id: bandit-setup
+        if: >-
+          !cancelled() && steps.analysis-python.outcome == 'success'
+        uses: ./.github/actions/setup-frozen-python
+
+      - name: Run independent Bandit gate
+        if: >-
+          !cancelled() && steps.bandit-setup.outcome == 'success'
+        shell: bash
+        run: |
+          mkdir -p logs/static-analysis
           bandit -r src/ -ll -f json -o logs/static-analysis/bandit.json
 
       - name: Upload independent static-analysis artifacts
@@ -894,38 +915,42 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Read immutable module fixture
-        id: modules-fixture
-        shell: bash
-        run: |
-          set -euo pipefail
-          fixture_ref="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
-          echo "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"
-
       - name: Checkout module bundles repo
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
-          ref: ${{ steps.modules-fixture.outputs.ref }}
+          ref: 69f075819be5e1ceca1446b026b0417f19e584ca
 
       - name: Verify immutable module fixture
         shell: bash
         run: |
           set -euo pipefail
-          expected="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
-          actual="$(git -C specfact-cli-modules rev-parse HEAD)"
+          expected="$(python - <<'PYCODE'
+          import json
+          from pathlib import Path
+          lock = json.loads(Path("ci/module-fixture.lock.json").read_text(encoding="utf-8"))
+          if lock["repository"] != "nold-ai/specfact-cli-modules":
+              raise SystemExit("Unexpected module fixture repository")
+          print(lock["commit"])
+          print(lock["tree"])
+          PYCODE
+          )"
+          actual="$(git -C specfact-cli-modules rev-parse HEAD 'HEAD^{tree}')"
           test "$actual" = "$expected"
 
       - name: Set up frozen smoke dependencies
         uses: ./.github/actions/setup-frozen-python
 
+      - name: Set up reviewed portable runtime fixture
+        uses: ./.github/actions/setup-runtime-smoke-fixture
+
       - name: Run macOS runtime discovery smoke
         shell: bash
         run: |
           mkdir -p logs/runtime-smoke/macos
-          python scripts/runtime_discovery_smoke.py --modules-repo specfact-cli-modules --launcher direct 2>&1 | tee logs/runtime-smoke/macos/runtime-discovery.log
+          python scripts/runtime_discovery_smoke.py --modules-repo "$SPECFACT_SMOKE_MODULES_REPO" --launcher direct 2>&1 | tee logs/runtime-smoke/macos/runtime-discovery.log
 
       - name: Upload macOS runtime-smoke logs
         if: always()
@@ -953,38 +978,42 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Read immutable module fixture
-        id: modules-fixture
-        shell: bash
-        run: |
-          set -euo pipefail
-          fixture_ref="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
-          echo "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"
-
       - name: Checkout module bundles repo
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
-          ref: ${{ steps.modules-fixture.outputs.ref }}
+          ref: 69f075819be5e1ceca1446b026b0417f19e584ca
 
       - name: Verify immutable module fixture
         shell: bash
         run: |
           set -euo pipefail
-          expected="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
-          actual="$(git -C specfact-cli-modules rev-parse HEAD)"
+          expected="$(python - <<'PYCODE'
+          import json
+          from pathlib import Path
+          lock = json.loads(Path("ci/module-fixture.lock.json").read_text(encoding="utf-8"))
+          if lock["repository"] != "nold-ai/specfact-cli-modules":
+              raise SystemExit("Unexpected module fixture repository")
+          print(lock["commit"])
+          print(lock["tree"])
+          PYCODE
+          )"
+          actual="$(git -C specfact-cli-modules rev-parse HEAD 'HEAD^{tree}')"
           test "$actual" = "$expected"
 
       - name: Set up frozen smoke dependencies
         uses: ./.github/actions/setup-frozen-python
 
+      - name: Set up reviewed portable runtime fixture
+        uses: ./.github/actions/setup-runtime-smoke-fixture
+
       - name: Run Windows runtime discovery smoke
         shell: bash
         run: |
           mkdir -p logs/runtime-smoke/windows
-          python scripts/runtime_discovery_smoke.py --modules-repo specfact-cli-modules --launcher direct 2>&1 | tee logs/runtime-smoke/windows/runtime-discovery.log
+          python scripts/runtime_discovery_smoke.py --modules-repo "$SPECFACT_SMOKE_MODULES_REPO" --launcher direct 2>&1 | tee logs/runtime-smoke/windows/runtime-discovery.log
 
       - name: Upload Windows runtime-smoke logs
         if: always()
@@ -1163,10 +1192,23 @@ jobs:
             -r requirements/code-review/locked.txt
           echo "REVIEW_TOOLS_PYTHON=${review_tools}/bin/python" >> "$GITHUB_ENV"
 
+      - name: Install frozen runtime smoke license scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/check_reproducible_delivery.py
+          smoke_tools="${RUNNER_TEMP}/specfact-runtime-smoke-license-scope"
+          uv venv --python "${pythonLocation}/bin/python" "$smoke_tools"
+          uv pip install \
+            --python "${smoke_tools}/bin/python" \
+            --require-hashes --no-deps --only-binary :all: \
+            -r requirements/runtime-smoke/locked.txt
+          echo "SMOKE_TOOLS_PYTHON=${smoke_tools}/bin/python" >> "$GITHUB_ENV"
+
       - name: Run license compliance gate
         run: |
           echo "🔍 Running license compliance gate..."
-          python scripts/check_license_compliance.py --code-review-python "$REVIEW_TOOLS_PYTHON"
+          python scripts/check_license_compliance.py --code-review-python "$REVIEW_TOOLS_PYTHON" --additional-python "$SMOKE_TOOLS_PYTHON"
 
   dependency-trust:
     name: Dependency Trust Gate
@@ -1214,6 +1256,7 @@ jobs:
           echo "🔍 Running CVE security audit..."
           python scripts/security_audit_gate.py
           python scripts/security_audit_gate.py --requirement requirements/code-review/locked.txt
+          python scripts/security_audit_gate.py --requirement requirements/runtime-smoke/locked.txt
 
   reproducible-delivery:
     name: Reproducible Delivery Evidence

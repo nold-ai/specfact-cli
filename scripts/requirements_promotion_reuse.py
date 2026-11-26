@@ -23,6 +23,7 @@ REPOSITORY = "nold-ai/specfact-cli"
 REPOSITORY_ID = 1085706003
 BASE_REF = "main"
 HEAD_REF = "dev"
+TOPIC_REF_PATTERN = re.compile(r"codex/promotion-from-dev-pr-([1-9][0-9]{0,8})")
 GITHUB_ACTIONS_APP_ID = 15368
 REQUIREMENTS_WORKFLOW_ID = 323253915
 AUTHORITY_WORKFLOW_ID = 348163848
@@ -51,6 +52,7 @@ class PromotionInputs(NamedTuple):
     artifacts: object
     producer_archive: Path
     execution_archive: Path
+    topic_commits: object = None
 
 
 class _RunExpectation(NamedTuple):
@@ -169,19 +171,21 @@ def _git_object(git_runner: GitRunner, repo_root: Path, commit: str) -> None:
         _reject()
 
 
-def _validate_event(event: dict[str, object]) -> tuple[int, str, str]:
+def _validate_event(event: dict[str, object]) -> tuple[int, str, str, str]:
     _repository(event.get("repository"))
     pull_request = _object(event.get("pull_request"))
     base = _object(pull_request.get("base"))
     head = _object(pull_request.get("head"))
     _repository(base.get("repo"))
     _repository(head.get("repo"))
-    if base.get("ref") != BASE_REF or head.get("ref") != HEAD_REF:
+    head_ref = _string(head.get("ref"))
+    if base.get("ref") != BASE_REF or (head_ref != HEAD_REF and not TOPIC_REF_PATTERN.fullmatch(head_ref)):
         _reject()
     return (
         _integer(pull_request.get("number")),
         _string(base.get("sha"), OBJECT_PATTERN),
         _string(head.get("sha"), OBJECT_PATTERN),
+        head_ref,
     )
 
 
@@ -244,6 +248,117 @@ def _validate_source_pull(
     _string(head.get("ref"))
     _integer(source_pull.get("number"))
     return source_pull
+
+
+class _TopicSource(NamedTuple):
+    tree: str
+    base: str
+    head: str
+    pull: dict[str, object]
+
+
+def _signed_commit(payload: object, sha: str, tree: str) -> None:
+    commit = _object(payload)
+    _expected_fields(commit, {"sha": sha})
+    _expected_fields(_object(commit.get("tree")), {"sha": tree})
+    verification = _object(commit.get("verification"))
+    if verification.get("verified") is not True or verification.get("reason") != "valid":
+        _reject()
+
+
+def _topic_source_pull(source_pulls: object, source_number: int) -> dict[str, object]:
+    pulls = _flatten_source_pulls(source_pulls)
+    if len(pulls) != 1:
+        _reject()
+    pull = pulls[0]
+    if _integer(pull.get("number")) != source_number:
+        _reject()
+    _expected_fields(pull, {"state": "open", "mergeable_state": "clean"})
+    if pull.get("draft") is not False or pull.get("mergeable") is not True or pull.get("merged_at") is not None:
+        _reject()
+    return pull
+
+
+class _TopicRef(NamedTuple):
+    name: str
+    base: str
+    head: str
+
+
+def _topic_tree(repo: Path, git: GitRunner, topic: _TopicRef) -> str:
+    expected_refs = {
+        "HEAD": topic.head,
+        "refs/remotes/origin/main^{commit}": topic.base,
+        f"refs/remotes/origin/{topic.name}^{{commit}}": topic.head,
+    }
+    if any(_git(git, repo, ["rev-parse", ref]) != sha for ref, sha in expected_refs.items()):
+        _reject()
+    parents = _git(git, repo, ["rev-list", "--parents", "-n", "1", topic.head]).split()
+    if parents != [topic.head, topic.base]:
+        _reject()
+    return _string(_git(git, repo, ["rev-parse", "HEAD^{tree}"]), OBJECT_PATTERN)
+
+
+def _topic_source_refs(pull: dict[str, object]) -> tuple[str, str]:
+    base, head = _object(pull.get("base")), _object(pull.get("head"))
+    _repository(base.get("repo"))
+    _repository(head.get("repo"))
+    if base.get("ref") != HEAD_REF or head.get("ref") in {BASE_REF, HEAD_REF}:
+        _reject()
+    return _string(base.get("sha"), OBJECT_PATTERN), _string(head.get("sha"), OBJECT_PATTERN)
+
+
+def _validate_topic_run_association(run: dict[str, object], source: _TopicSource) -> None:
+    associations = run.get("pull_requests")
+    if not isinstance(associations, list) or len(associations) != 1:
+        _reject()
+    record = _object(cast(list[object], associations)[0])
+    if _integer(record.get("number")) != _integer(source.pull.get("number")):
+        _reject()
+    source_head = _object(source.pull.get("head"))
+    for side, ref, sha in (("base", HEAD_REF, source.base), ("head", source_head.get("ref"), source.head)):
+        boundary = _object(record.get(side))
+        _expected_fields(boundary, {"ref": ref, "sha": sha})
+        _expected_fields(_object(boundary.get("repo")), {"id": REPOSITORY_ID})
+
+
+def _validate_topic_producer_workflow(repo: Path, git: GitRunner, base: str, source: str) -> None:
+    """Require the workflow blob GitHub runs on the source merge tree to match protected dev."""
+    trusted_blob = _string(
+        _git(git, repo, ["rev-parse", "--verify", f"{base}:{REQUIREMENTS_WORKFLOW_PATH}"]), OBJECT_PATTERN
+    )
+    if _git(git, repo, ["cat-file", "-t", trusted_blob]) != "blob":
+        _reject()
+    if _git(git, repo, ["rev-parse", "--verify", f"{source}:{REQUIREMENTS_WORKFLOW_PATH}"]) != trusted_blob:
+        _reject()
+
+
+def _validate_topic_source(inputs: PromotionInputs, git: GitRunner, topic: _TopicRef) -> _TopicSource:
+    match = TOPIC_REF_PATTERN.fullmatch(topic.name)
+    if match is None:
+        _reject()
+    pull = _topic_source_pull(inputs.source_pulls, int(match[1]))
+    tree = _topic_tree(inputs.repo_root, git, topic)
+    base, source = _topic_source_refs(pull)
+    if _git(git, inputs.repo_root, ["rev-parse", "refs/remotes/origin/dev^{commit}"]) != base:
+        _reject()
+    if (
+        _git(git, inputs.repo_root, ["rev-parse", "refs/remotes/origin/requirements-promotion-source^{commit}"])
+        != source
+    ):
+        _reject()
+    _git(git, inputs.repo_root, ["merge-base", "--is-ancestor", topic.base, source])
+    _git(git, inputs.repo_root, ["merge-base", "--is-ancestor", base, source])
+    _validate_topic_producer_workflow(inputs.repo_root, git, base, source)
+    if _git(git, inputs.repo_root, ["rev-parse", f"{source}^{{tree}}"]) != tree:
+        _reject()
+    signatures = _object(inputs.topic_commits)
+    _signed_commit(signatures.get("head"), topic.head, tree)
+    _signed_commit(signatures.get("source"), source, tree)
+    scope = _TopicSource(tree, base, source, pull)
+    for run in (inputs.requirements_run, inputs.authority_run):
+        _validate_topic_run_association(run, scope)
+    return scope
 
 
 def _complete_collection(payload: object, field: str) -> list[dict[str, object]]:
@@ -615,9 +730,14 @@ def _validate_evidence(
 def _build_validation(inputs: PromotionInputs, *, git_runner: GitRunner = _run_git) -> tuple[dict[str, object], bytes]:
     """Return the canonical attestation and exact authenticated report bytes."""
     try:
-        pull_request, base_sha, head_sha = _validate_event(inputs.event)
-        head_tree, previous_dev_sha, source_sha = _validate_git(inputs.repo_root, base_sha, head_sha, git_runner)
-        source_pull = _validate_source_pull(inputs.source_pulls, previous_dev_sha, source_sha, head_sha)
+        pull_request, base_sha, head_sha, head_ref = _validate_event(inputs.event)
+        if head_ref == HEAD_REF:
+            head_tree, previous_dev_sha, source_sha = _validate_git(inputs.repo_root, base_sha, head_sha, git_runner)
+            source_pull = _validate_source_pull(inputs.source_pulls, previous_dev_sha, source_sha, head_sha)
+        else:
+            head_tree, previous_dev_sha, source_sha, source_pull = _validate_topic_source(
+                inputs, git_runner, _TopicRef(head_ref, base_sha, head_sha)
+            )
         source_head = _object(source_pull.get("head"))
         source_branch = _string(source_head.get("ref"))
         requirements_run_id, authority_run_id = _validate_checks_and_runs(
@@ -642,7 +762,7 @@ def _build_validation(inputs: PromotionInputs, *, git_runner: GitRunner = _run_g
             "promotion": {
                 "base_ref": BASE_REF,
                 "base_sha": base_sha,
-                "head_ref": HEAD_REF,
+                "head_ref": head_ref,
                 "head_sha": head_sha,
                 "head_tree": head_tree,
                 "pull_request": pull_request,
@@ -652,7 +772,7 @@ def _build_validation(inputs: PromotionInputs, *, git_runner: GitRunner = _run_g
                 "base_sha": previous_dev_sha,
                 "head_ref": source_branch,
                 "head_sha": source_sha,
-                "merge_commit_sha": head_sha,
+                "merge_commit_sha": head_sha if head_ref == HEAD_REF else None,
             },
             "checks": {
                 "requirements_run_id": requirements_run_id,
@@ -704,6 +824,7 @@ def _arguments(argv: Sequence[str] | None) -> argparse.Namespace:
         "output",
     ):
         parser.add_argument(f"--{name}", type=Path, required=True)
+    parser.add_argument("--topic-commits", type=Path)
     parser.add_argument("--expected-attestation", type=Path)
     parser.add_argument("--verified-evidence-output", type=Path)
     return parser.parse_args(argv)
@@ -741,6 +862,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             artifacts=_read_json(arguments.artifacts),
             producer_archive=arguments.producer_archive,
             execution_archive=arguments.execution_archive,
+            topic_commits=_read_json(arguments.topic_commits) if arguments.topic_commits else None,
         )
         attestation, verified_evidence = _build_validation(inputs)
         payload = _canonical_json(attestation)

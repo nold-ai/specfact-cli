@@ -1,37 +1,28 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import shutil
 import subprocess
 import sys
+import tarfile
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 import yaml
 
+from scripts import runtime_discovery_smoke as smoke
+
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
-def _write_module_manifest(modules_repo: Path, bundle_name: str, dependencies: list[str] | None = None) -> None:
-    package_dir = modules_repo / "packages" / bundle_name
-    package_dir.mkdir(parents=True, exist_ok=True)
-    manifest: dict[str, object] = {
-        "name": bundle_name,
-        "version": "0.1.0",
-        "commands": [],
-        "core_compatibility": ">=0.1.0,<1.0.0",
-    }
-    if dependencies:
-        manifest["bundle_dependencies"] = dependencies
-    (package_dir / "module-package.yaml").write_text(
-        yaml.safe_dump(manifest, sort_keys=False),
-        encoding="utf-8",
-    )
-
-
 def _resolve_modules_repo() -> Path | None:
-    configured = os.environ.get("SPECFACT_MODULES_REPO", "").strip()
+    configured = (
+        os.environ.get("SPECFACT_SMOKE_MODULES_REPO", "").strip() or os.environ.get("SPECFACT_MODULES_REPO", "").strip()
+    )
     candidates: list[Path] = []
     if configured:
         candidates.append(Path(configured).expanduser())
@@ -80,72 +71,123 @@ def test_runtime_discovery_smoke_direct_launcher() -> None:
     assert "runtime-discovery smoke passed for launcher=direct" in result.stdout
 
 
-def test_local_runtime_registry_includes_transitive_bundle_dependencies(tmp_path: Path) -> None:
-    import scripts.runtime_discovery_smoke as smoke
+@pytest.mark.parametrize("system_python", [False, True])
+def test_isolated_launcher_retains_system_tools(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, system_python: bool
+) -> None:
+    if os.name != "posix":
+        pytest.skip("The /usr system layout is POSIX-specific")
+    parent = Path("/usr") if system_python else tmp_path / "parent-venv"
+    inherited = [str(parent / "lib" / "parent-tools"), "/usr/bin", "/usr/sbin", "/bin", "/sbin"]
+    monkeypatch.setattr(sys, "prefix", str(parent))
+    monkeypatch.setenv("PATH", os.pathsep.join(inherited))
 
-    modules_repo = tmp_path / "modules"
-    for module_id in smoke.MODULE_IDS:
-        _write_module_manifest(modules_repo, module_id.split("/", 1)[1])
-    _write_module_manifest(
-        modules_repo,
-        "specfact-code-review",
-        dependencies=["nold-ai/specfact-requirements"],
-    )
-    _write_module_manifest(modules_repo, "specfact-requirements")
+    env = smoke._build_launcher_env("direct", tmp_path / "home", tmp_path / "index.json", tmp_path)
 
-    index_path = smoke._build_local_registry(tmp_path / "workspace", modules_repo)
-    registry = yaml.safe_load(index_path.read_text(encoding="utf-8"))
-    module_ids = {entry["id"] for entry in registry["modules"]}
-
-    assert module_ids == {*smoke.MODULE_IDS, "nold-ai/specfact-requirements"}
-    assert registry["registry_base_url"] == str(index_path.parent.resolve())
-    assert all(entry["download_url"].startswith("modules/") for entry in registry["modules"])
+    assert env["PATH"].split(os.pathsep) == [str(tmp_path / "launcher-direct" / "runtime-venv" / "bin"), *inherited[1:]]
 
 
-def test_local_runtime_registry_rejects_traversal_in_manifest_version(tmp_path: Path) -> None:
-    import scripts.runtime_discovery_smoke as smoke
+@pytest.fixture
+def add_frozen_smoke_archive(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> Callable[[str, str, tuple[str, ...]], Path]:
+    archives: dict[str, dict[str, str]] = {}
+    archive_lock = tmp_path / "runtime-smoke-archives.lock.json"
+    monkeypatch.setattr(smoke, "RUNTIME_SMOKE_ARCHIVES_LOCK", archive_lock)
 
-    modules_repo = tmp_path / "modules"
-    for module_id in smoke.MODULE_IDS:
-        _write_module_manifest(modules_repo, module_id.split("/", 1)[1])
-    manifest_path = modules_repo / "packages" / smoke.MODULE_IDS[0].split("/", 1)[1] / "module-package.yaml"
-    manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
-    manifest["version"] = "0.1.0/../../outside"
-    manifest_path.write_text(yaml.safe_dump(manifest), encoding="utf-8")
+    def add(name: str, version: str, dependencies: tuple[str, ...]) -> Path:
+        module_id = f"nold-ai/{name}"
+        registry = tmp_path / "modules-repo" / "registry" / "modules"
+        registry.mkdir(parents=True, exist_ok=True)
+        archive = registry / f"{name}-{version}.tar.gz"
+        manifest = tmp_path / f"{name}.yaml"
+        manifest.write_text(
+            yaml.safe_dump({"name": module_id, "version": version, "bundle_dependencies": list(dependencies)}),
+            encoding="utf-8",
+        )
+        with tarfile.open(archive, "w:gz") as tar:
+            tar.add(manifest, arcname=f"{name}/module-package.yaml")
+        archives[module_id] = {"version": version, "sha256": hashlib.sha256(archive.read_bytes()).hexdigest()}
+        archive_lock.write_text(json.dumps(archives), encoding="utf-8")
+        return archive
 
-    with pytest.raises(RuntimeError, match="Invalid module version"):
-        smoke._build_local_registry(tmp_path / "workspace", modules_repo)
+    return add
 
 
-def test_semver_prerelease_and_suffix_are_valid_for_runtime_registry(tmp_path: Path) -> None:
-    import scripts.runtime_discovery_smoke as smoke
+@pytest.fixture
+def frozen_smoke_archive(add_frozen_smoke_archive: Callable[[str, str, tuple[str, ...]], Path]) -> Path:
+    return add_frozen_smoke_archive("specfact-project", "0.41.27", ())
 
-    modules_repo = tmp_path / "modules"
-    for module_id in smoke.MODULE_IDS:
-        bundle_name = module_id.split("/", 1)[1]
-        _write_module_manifest(modules_repo, bundle_name)
-        manifest_path = modules_repo / "packages" / bundle_name / "module-package.yaml"
-        manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
-        manifest["version"] = "0.5.1-rc.1+build.7"
-        manifest_path.write_text(yaml.safe_dump(manifest), encoding="utf-8")
 
-    assert smoke._build_local_registry(tmp_path / "workspace", modules_repo).is_file()
+def test_local_runtime_registry_includes_transitive_bundle_dependencies(
+    tmp_path: Path, add_frozen_smoke_archive: Callable[[str, str, tuple[str, ...]], Path]
+) -> None:
+    from scripts.runtime_discovery_smoke import _build_local_registry
+
+    add_frozen_smoke_archive("specfact-project", "0.41.27", ())
+    add_frozen_smoke_archive("specfact-spec", "0.40.25", ("nold-ai/specfact-project",))
+    add_frozen_smoke_archive("specfact-govern", "0.40.27", ("nold-ai/specfact-spec", "nold-ai/specfact-project"))
+    index = _build_local_registry(tmp_path / "workspace", tmp_path / "modules-repo")
+    entries = json.loads(index.read_text(encoding="utf-8"))["modules"]
+    assert [entry["id"] for entry in entries] == [
+        "nold-ai/specfact-govern",
+        "nold-ai/specfact-project",
+        "nold-ai/specfact-spec",
+    ]
+    assert entries[0]["bundle_dependencies"] == ["nold-ai/specfact-spec", "nold-ai/specfact-project"]
+    assert entries[2]["bundle_dependencies"] == ["nold-ai/specfact-project"]
+
+
+def test_semver_prerelease_and_suffix_are_valid_for_runtime_registry(
+    tmp_path: Path, add_frozen_smoke_archive: Callable[[str, str, tuple[str, ...]], Path]
+) -> None:
+    from scripts.runtime_discovery_smoke import _build_local_registry
+
+    version = "0.5.1-rc.1+build.7"
+    archive = add_frozen_smoke_archive("specfact-project", version, ())
+    index = _build_local_registry(tmp_path / "workspace", tmp_path / "modules-repo")
+    entry = json.loads(index.read_text(encoding="utf-8"))["modules"][0]
+    assert entry["latest_version"] == version
+    assert (index.parent / entry["download_url"]).read_bytes() == archive.read_bytes()
 
 
 @pytest.mark.parametrize("version", ["01.2.3", "1.2.3-01", "1.2.3-alpha..1"])
-def test_local_runtime_registry_rejects_malformed_semver(tmp_path: Path, version: str) -> None:
-    import scripts.runtime_discovery_smoke as smoke
+def test_local_runtime_registry_rejects_malformed_semver(
+    tmp_path: Path, version: str, add_frozen_smoke_archive: Callable[[str, str, tuple[str, ...]], Path]
+) -> None:
+    from scripts.runtime_discovery_smoke import _build_local_registry
 
-    modules_repo = tmp_path / "modules"
-    for module_id in smoke.MODULE_IDS:
-        _write_module_manifest(modules_repo, module_id.split("/", 1)[1])
-    manifest_path = modules_repo / "packages" / smoke.MODULE_IDS[0].split("/", 1)[1] / "module-package.yaml"
-    manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
-    manifest["version"] = version
-    manifest_path.write_text(yaml.safe_dump(manifest), encoding="utf-8")
-
+    add_frozen_smoke_archive("specfact-project", version, ())
+    workspace = tmp_path / "workspace"
     with pytest.raises(RuntimeError, match="Invalid module version"):
-        smoke._build_local_registry(tmp_path / "workspace", modules_repo)
+        _build_local_registry(workspace, tmp_path / "modules-repo")
+    assert not list(workspace.rglob("*.tar.gz"))
+
+
+def test_local_runtime_registry_preserves_exact_published_archive(
+    tmp_path: Path, frozen_smoke_archive: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from scripts.runtime_discovery_smoke import _build_local_registry
+    from specfact_cli.registry.marketplace_client import download_module
+
+    modules_repo = tmp_path / "modules-repo"
+    ignored = modules_repo / "packages/specfact-project/ignored.py"
+    ignored.parent.mkdir(parents=True)
+    ignored.write_text("# Local scratch file\n", encoding="utf-8")
+    index_path = _build_local_registry(tmp_path / "workspace", modules_repo)
+    entry = json.loads(index_path.read_text())["modules"][0]
+    assert (index_path.parent / entry["download_url"]).read_bytes() == frozen_smoke_archive.read_bytes()
+    monkeypatch.setenv("SPECFACT_REGISTRY_INDEX_URL", str(index_path))
+    downloaded = download_module(entry["id"], download_dir=tmp_path / "downloads")
+    assert downloaded.read_bytes() == frozen_smoke_archive.read_bytes()
+
+
+def test_local_runtime_registry_refuses_changed_archive(tmp_path: Path, frozen_smoke_archive: Path) -> None:
+    from scripts.runtime_discovery_smoke import _build_local_registry
+
+    frozen_smoke_archive.write_bytes(b"changed archive")
+    with pytest.raises(RuntimeError, match="does not match the release cutoff"):
+        _build_local_registry(tmp_path / "workspace", tmp_path / "modules-repo")
 
 
 def test_runtime_discovery_smoke_keep_workspace_preserves_directory(
@@ -164,6 +206,7 @@ def test_runtime_discovery_smoke_keep_workspace_preserves_directory(
         captured["workspace"] = workspace
 
     monkeypatch.setattr(smoke, "_resolve_modules_repo", lambda _configured: tmp_path)
+    monkeypatch.setattr(smoke, "_verify_smoke_fixture", lambda _modules_repo: None)
     monkeypatch.setattr(smoke, "_create_rootless_monorepo_demo", create_demo)
     monkeypatch.setattr(smoke, "_build_local_registry", lambda workspace, _modules_repo: workspace / "index.json")
     monkeypatch.setattr(smoke, "_smoke_launcher", smoke_launcher)
@@ -194,6 +237,7 @@ def test_runtime_discovery_smoke_uses_fresh_demo_per_launcher(tmp_path: Path, mo
         return workspace / "index.json"
 
     monkeypatch.setattr(smoke, "_resolve_modules_repo", lambda _configured: tmp_path)
+    monkeypatch.setattr(smoke, "_verify_smoke_fixture", lambda _modules_repo: None)
     monkeypatch.setattr(smoke, "_create_rootless_monorepo_demo", create_demo)
     monkeypatch.setattr(smoke, "_build_local_registry", build_registry)
     monkeypatch.setattr(smoke, "_smoke_launcher", lambda _name, _workspace, _demo, _index_path, _modules_repo: None)

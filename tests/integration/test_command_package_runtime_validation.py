@@ -1,22 +1,16 @@
 from __future__ import annotations
 
 import contextlib
-import hashlib
-import json
 import os
-import shutil
 import subprocess
 import sys
-import tarfile
 from pathlib import Path
-from typing import Any, cast
 
 import pytest
 import typer
-import yaml
 from typer.testing import CliRunner
 
-from specfact_cli.registry.module_installer import _module_artifact_payload_signed
+from scripts.runtime_discovery_smoke import _build_local_registry
 from specfact_cli.validation.command_audit import (
     CommandAuditCase,
     build_command_audit_cases,
@@ -77,101 +71,13 @@ def _require_complete_packages_checkout(packages_root: Path) -> None:
         pytest.skip(f"specfact-cli-modules partial checkout: missing bundles: {missing_csv}")
 
 
-def _build_local_registry(home_dir: Path) -> Path:
-    registry_root = home_dir / ".specfact-local-registry"
-    modules_dir = registry_root / "modules"
-    staging_dir = registry_root / ".staging"
-    modules_dir.mkdir(parents=True, exist_ok=True)
-    staging_dir.mkdir(parents=True, exist_ok=True)
-
-    modules_payload: list[dict[str, object]] = []
-    packages_root = MODULES_REPO / "packages"
-    _require_complete_packages_checkout(packages_root)
-
-    for module_id in official_marketplace_module_ids():
-        bundle_name = module_id.split("/", 1)[1]
-        package_dir = packages_root / bundle_name
-        staged_package_dir = staging_dir / bundle_name
-        if staged_package_dir.exists():
-            shutil.rmtree(staged_package_dir)
-        shutil.copytree(package_dir, staged_package_dir)
-
-        staged_manifest_path = staged_package_dir / "module-package.yaml"
-        staged_manifest = yaml.safe_load(staged_manifest_path.read_text(encoding="utf-8"))
-        assert isinstance(staged_manifest, dict), f"Invalid manifest: {staged_manifest_path}"
-        staged_manifest["integrity"] = {
-            "checksum": f"sha256:{hashlib.sha256(_module_artifact_payload_signed(staged_package_dir)).hexdigest()}"
-        }
-        staged_manifest_path.write_text(
-            yaml.safe_dump(staged_manifest, sort_keys=False, allow_unicode=False),
-            encoding="utf-8",
-        )
-
-        manifest_path = package_dir / "module-package.yaml"
-        manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
-        assert isinstance(manifest, dict), f"Invalid manifest: {manifest_path}"
-        manifest_dict = cast(dict[str, Any], manifest)
-
-        version = str(manifest_dict["version"]).strip()
-        archive_name = f"{bundle_name}-{version}.tar.gz"
-        archive_path = modules_dir / archive_name
-
-        with tarfile.open(archive_path, "w:gz") as archive:
-            archive.add(staged_package_dir, arcname=bundle_name)
-
-        checksum = hashlib.sha256(archive_path.read_bytes()).hexdigest()
-        modules_payload.append(
-            {
-                "id": module_id,
-                "latest_version": version,
-                "download_url": f"modules/{archive_name}",
-                "checksum_sha256": checksum,
-                "tier": manifest_dict.get("tier", "official"),
-                "publisher": manifest_dict.get("publisher", {}),
-                "bundle_dependencies": manifest_dict.get("bundle_dependencies", []),
-                "description": manifest_dict.get("description", ""),
-            }
-        )
-
-    index_path = registry_root / "index.json"
-    index_path.write_text(json.dumps({"modules": modules_payload}, indent=2), encoding="utf-8")
-    return index_path
-
-
-def _seed_marketplace_modules(home_dir: Path) -> None:
-    modules_root = home_dir / ".specfact" / "modules"
-    modules_root.mkdir(parents=True, exist_ok=True)
-    packages_root = MODULES_REPO / "packages"
-    _require_complete_packages_checkout(packages_root)
-
-    for module_id in official_marketplace_module_ids():
-        bundle_name = module_id.split("/", 1)[1]
-        package_dir = packages_root / bundle_name
-        installed_dir = modules_root / bundle_name
-        if installed_dir.exists():
-            shutil.rmtree(installed_dir)
-        shutil.copytree(package_dir, installed_dir)
-
-        manifest_path = installed_dir / "module-package.yaml"
-        manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
-        assert isinstance(manifest, dict), f"Invalid manifest: {manifest_path}"
-        manifest["integrity"] = {
-            "checksum": f"sha256:{hashlib.sha256(_module_artifact_payload_signed(installed_dir)).hexdigest()}"
-        }
-        manifest_path.write_text(
-            yaml.safe_dump(manifest, sort_keys=False, allow_unicode=False),
-            encoding="utf-8",
-        )
-        (installed_dir / ".specfact-registry-id").write_text(module_id, encoding="utf-8")
-
-
 def _subprocess_env(home_dir: Path) -> dict[str, str]:
     env = os.environ.copy()
     pythonpath_parts = [str(SRC_ROOT), str(REPO_ROOT)]
     packages_root = MODULES_REPO / "packages"
-    if packages_root.exists():
-        for bundle_src in sorted(packages_root.glob("*/src")):
-            pythonpath_parts.append(str(bundle_src))
+    _require_complete_packages_checkout(packages_root)
+    for bundle_src in sorted(packages_root.glob("*/src")):
+        pythonpath_parts.append(str(bundle_src))
     for entry in sys.path:
         if not entry:
             continue
@@ -191,7 +97,9 @@ def _subprocess_env(home_dir: Path) -> dict[str, str]:
     env["HOME"] = str(home_dir)
     env["SPECFACT_REPO_ROOT"] = str(REPO_ROOT)
     env["SPECFACT_MODULES_REPO"] = str(MODULES_REPO.resolve())
-    env["SPECFACT_REGISTRY_INDEX_URL"] = _build_local_registry(home_dir).resolve().as_uri()
+    smoke_repo = os.environ.get("SPECFACT_SMOKE_MODULES_REPO")
+    archive_repository = Path(smoke_repo).expanduser() if smoke_repo else MODULES_REPO
+    env["SPECFACT_REGISTRY_INDEX_URL"] = _build_local_registry(home_dir, archive_repository).resolve().as_uri()
     env["SPECFACT_ALLOW_UNSIGNED"] = "1"
     env["SPECFACT_REGISTRY_DIR"] = str(home_dir / ".specfact-test-registry")
     return env
@@ -288,33 +196,50 @@ def _run_help_case(
     return result.exit_code, result.output
 
 
+def _collect_command_audit_failures(
+    help_app: typer.Typer, home_dir: Path, env: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> list[str]:
+    failures: list[str] = []
+    for case in build_command_audit_cases():
+        if case.mode == "help-only":
+            return_code, merged_output = _run_help_case(help_app, case, home_dir, env, monkeypatch)
+        else:
+            result = _run_cli(env, *case.argv, cwd=home_dir)
+            return_code = result.returncode
+            merged_output = ((result.stdout or "") + "\n" + (result.stderr or "")).strip()
+        if return_code != 0:
+            failures.append(f"{case.command_path}: rc={return_code}\nOUTPUT:\n{merged_output}")
+            continue
+        leaked = [marker for marker in FORBIDDEN_OUTPUT if marker in merged_output]
+        if leaked:
+            failures.append(f"{case.command_path}: leaked diagnostics {leaked}\nOUTPUT:\n{merged_output}")
+    return failures
+
+
 @pytest.mark.timeout(300)
 def test_command_audit_help_cases_execute_cleanly_in_temp_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     home_dir = tmp_path / "home"
     home_dir.mkdir(parents=True, exist_ok=True)
     env = _subprocess_env(home_dir)
-    _seed_marketplace_modules(home_dir)
+    install = _run_cli(
+        env,
+        "module",
+        "install",
+        *official_marketplace_module_ids(),
+        "--source",
+        "marketplace",
+        "--skip-deps",
+        cwd=home_dir,
+    )
+    assert install.returncode == 0, install.stdout + install.stderr
 
-    failures: list[str] = []
     try:
         with monkeypatch.context() as context:
             context.setenv("HOME", str(home_dir))
             context.setenv("SPECFACT_MODULES_REPO", str(MODULES_REPO.resolve()))
             help_app = _load_cli_app_for_home(home_dir)
 
-            for case in build_command_audit_cases():
-                if case.mode == "help-only":
-                    return_code, merged_output = _run_help_case(help_app, case, home_dir, env, monkeypatch)
-                else:
-                    result = _run_cli(env, *case.argv, cwd=home_dir)
-                    return_code = result.returncode
-                    merged_output = ((result.stdout or "") + "\n" + (result.stderr or "")).strip()
-                if return_code != 0:
-                    failures.append(f"{case.command_path}: rc={return_code}\nOUTPUT:\n{merged_output}")
-                    continue
-                leaked = [marker for marker in FORBIDDEN_OUTPUT if marker in merged_output]
-                if leaked:
-                    failures.append(f"{case.command_path}: leaked diagnostics {leaked}\nOUTPUT:\n{merged_output}")
+            failures = _collect_command_audit_failures(help_app, home_dir, env, monkeypatch)
     finally:
         _restore_specfact_module_root_paths_after_temp_home()
 
@@ -333,6 +258,7 @@ def test_marketplace_backlog_bundle_registers_cleanly_without_core_overlap(tmp_p
         "nold-ai/specfact-backlog",
         "--source",
         "marketplace",
+        "--skip-deps",
         cwd=home_dir,
     )
     assert install_result.returncode == 0, install_result.stdout + install_result.stderr

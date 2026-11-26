@@ -23,6 +23,8 @@ MODULE_FIXTURE_LOCK = REPO_ROOT / "ci" / "module-fixture.lock.json"
 LOCKED_EXPORT = REPO_ROOT / "requirements" / "ci" / "locked.txt"
 CODE_REVIEW_REQUIREMENTS_INPUT = REPO_ROOT / "requirements" / "code-review" / "requirements.in"
 CODE_REVIEW_LOCKED_EXPORT = REPO_ROOT / "requirements" / "code-review" / "locked.txt"
+RUNTIME_SMOKE_REQUIREMENTS_INPUT = REPO_ROOT / "requirements/runtime-smoke/requirements.in"
+RUNTIME_SMOKE_LOCKED_EXPORT = REPO_ROOT / "requirements/runtime-smoke/locked.txt"
 CODE_REVIEW_INPUT_BINDING_PREFIX = "# input-sha256:"
 COMMIT_SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
@@ -140,18 +142,27 @@ def verify_code_review_lock() -> None:
     if "--hash=sha256:" not in contents:
         raise ValueError("Code Review lock must contain distribution hashes")
     _verify_code_review_input_binding(contents)
-    with tempfile.TemporaryDirectory(prefix="specfact-code-review-lock-") as temporary_directory:
+    _verify_compiled_lock(CODE_REVIEW_REQUIREMENTS_INPUT, CODE_REVIEW_LOCKED_EXPORT, contents, [])
+
+
+@beartype
+def _verify_compiled_lock(
+    requirements_input: Path, locked_export: Path, contents: str, extra_arguments: list[str]
+) -> None:
+    """Compare exact input compilation under committed constraints without upgrading."""
+    with tempfile.TemporaryDirectory(prefix="specfact-frozen-tooling-lock-") as temporary_directory:
         rendered_lock = Path(temporary_directory) / "locked.txt"
         completed = subprocess.run(
             [
                 "uv",
                 "pip",
                 "compile",
-                str(CODE_REVIEW_REQUIREMENTS_INPUT.relative_to(REPO_ROOT)),
+                str(requirements_input.relative_to(REPO_ROOT)),
                 "--constraints",
-                str(CODE_REVIEW_LOCKED_EXPORT.relative_to(REPO_ROOT)),
+                str(locked_export.relative_to(REPO_ROOT)),
                 "--python-version",
                 "3.12",
+                *extra_arguments,
                 "--generate-hashes",
                 "--no-annotate",
                 "--output-file",
@@ -165,12 +176,37 @@ def verify_code_review_lock() -> None:
         )
         if completed.returncode != 0:
             detail = (completed.stderr or completed.stdout).strip()
-            raise ValueError(f"Could not compile Code Review requirements: {detail}")
+            raise ValueError(f"Could not compile Isolated tooling requirements: {detail}")
         if not rendered_lock.is_file():
-            raise ValueError("Code Review requirements compile did not create the expected lock")
+            raise ValueError("Isolated tooling requirements compile did not create the expected lock")
         rendered = rendered_lock.read_text(encoding="utf-8")
     if _without_generated_header(rendered) != _without_generated_header(contents):
-        raise ValueError("Code Review lock differs from requirements.in; regenerate the isolated lock")
+        raise ValueError("Isolated tooling lock differs from requirements.in; regenerate the isolated lock")
+
+
+def _is_none(result: object) -> bool:
+    """Check the smoke verifier's explicit no-value postcondition."""
+    return result is None
+
+
+@beartype
+@ensure(_is_none, "must return None")
+def verify_runtime_smoke_lock() -> None:
+    """Bind the reviewed module-only seed to its exact input and artifact hashes."""
+    contents = RUNTIME_SMOKE_LOCKED_EXPORT.read_text(encoding="utf-8")
+    bindings = [
+        line.removeprefix(CODE_REVIEW_INPUT_BINDING_PREFIX).strip()
+        for line in contents.splitlines()
+        if line.startswith(CODE_REVIEW_INPUT_BINDING_PREFIX)
+    ]
+    expected = hashlib.sha256(RUNTIME_SMOKE_REQUIREMENTS_INPUT.read_bytes()).hexdigest()
+    if bindings != [expected]:
+        raise ValueError("Runtime smoke lock input SHA-256 binding does not match requirements.in")
+    if "--hash=sha256:" not in contents:
+        raise ValueError("Runtime smoke lock must contain distribution hashes")
+    _verify_compiled_lock(
+        RUNTIME_SMOKE_REQUIREMENTS_INPUT, RUNTIME_SMOKE_LOCKED_EXPORT, contents, ["--no-deps", "--only-binary", ":all:"]
+    )
 
 
 @beartype
@@ -189,6 +225,7 @@ def main(argv: list[str] | None = None) -> int:
         verify_uv_lock()
         verify_locked_export()
         verify_code_review_lock()
+        verify_runtime_smoke_lock()
         verify_module_fixture()
     except (OSError, ValueError, json.JSONDecodeError, subprocess.TimeoutExpired) as error:
         sys.stderr.write(f"reproducible delivery check failed: {error}\n")

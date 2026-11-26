@@ -3,11 +3,8 @@
 from __future__ import annotations
 
 import ast
-import json
 import os
 import re
-import shutil
-import subprocess
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
@@ -22,6 +19,7 @@ from rich.progress import BarColumn, Progress, SpinnerColumn, TaskID, TextColumn
 
 from specfact_cli.analyzers.contract_extractor import ContractExtractor
 from specfact_cli.analyzers.control_flow_analyzer import ControlFlowAnalyzer
+from specfact_cli.analyzers.python_patterns import feature_patterns
 from specfact_cli.analyzers.requirement_extractor import RequirementExtractor
 from specfact_cli.analyzers.test_pattern_extractor import TestPatternExtractor
 from specfact_cli.migrations.plan_migrator import get_current_schema_version
@@ -32,26 +30,8 @@ from specfact_cli.utils.feature_keys import to_classname_key, to_sequential_key
 console = Console()
 
 
-def _ensure_semgrep_runtime_dir(repo_path: Path, relative: str) -> str:
-    """Create and return a stable repo-local runtime directory for Semgrep."""
-    path = (repo_path / relative).resolve()
-    path.mkdir(parents=True, exist_ok=True)
-    return str(path)
-
-
-def _build_semgrep_env(repo_path: Path) -> dict[str, str]:
-    """Build a repo-local Semgrep runtime env so CLI startup stays deterministic."""
-    env = dict(os.environ)
-    env["XDG_CONFIG_HOME"] = _ensure_semgrep_runtime_dir(repo_path, ".specfact/config")
-    env["XDG_CACHE_HOME"] = _ensure_semgrep_runtime_dir(repo_path, ".specfact/cache")
-    env["SEMGREP_VERSION_CACHE_PATH"] = _ensure_semgrep_runtime_dir(repo_path, ".specfact/cache/semgrep")
-    semgrep_log_dir = _ensure_semgrep_runtime_dir(repo_path, ".specfact/logs")
-    env["SEMGREP_LOG_FILE"] = str((Path(semgrep_log_dir) / "semgrep.log").resolve())
-    return env
-
-
 @dataclass
-class _SemgrepFeatureBuckets:
+class _PatternFeatureBuckets:
     api_endpoints: list[str] = field(default_factory=list)
     data_models: list[str] = field(default_factory=list)
     auth_patterns: list[str] = field(default_factory=list)
@@ -62,8 +42,8 @@ class _SemgrepFeatureBuckets:
 
 
 @dataclass
-class _SemgrepEnhancementContext:
-    semgrep_findings: list[dict[str, Any]]
+class _PatternEnhancementContext:
+    pattern_findings: list[dict[str, Any]]
     file_path: Path
     class_name: str
     class_start_line: int | None = None
@@ -136,25 +116,6 @@ class CodeAnalyzer:
             raise ValueError(f"Entry point must be within repository: {resolved}")
         return resolved
 
-    def _init_semgrep_configs(self) -> None:
-        self.semgrep_enabled = True
-        self.semgrep_config = None
-        self.semgrep_quality_config = None
-        resources_config = Path(__file__).parent.parent / "resources" / "semgrep" / "feature-detection.yml"
-        tools_config = self.repo_path / "tools" / "semgrep" / "feature-detection.yml"
-        resources_quality_config = Path(__file__).parent.parent / "resources" / "semgrep" / "code-quality.yml"
-        tools_quality_config = self.repo_path / "tools" / "semgrep" / "code-quality.yml"
-        self.semgrep_config = (
-            resources_config if resources_config.exists() else (tools_config if tools_config.exists() else None)
-        )
-        self.semgrep_quality_config = (
-            resources_quality_config
-            if resources_quality_config.exists()
-            else (tools_quality_config if tools_quality_config.exists() else None)
-        )
-        if os.environ.get("TEST_MODE") == "true" or self.semgrep_config is None or not self._check_semgrep_available():
-            self.semgrep_enabled = False
-
     @beartype
     @require(lambda repo_path: repo_path is not None and isinstance(repo_path, Path), "Repo path must be Path")
     @require(lambda confidence_threshold: 0.0 <= confidence_threshold <= 1.0, "Confidence threshold must be 0.0-1.0")
@@ -202,8 +163,6 @@ class CodeAnalyzer:
         self.control_flow_analyzer = ControlFlowAnalyzer()
         self.requirement_extractor = RequirementExtractor()
         self.contract_extractor = ContractExtractor()
-
-        self._init_semgrep_configs()
 
     @beartype
     @ensure(lambda result: isinstance(result, PlanBundle), "Must return PlanBundle")
@@ -257,8 +216,10 @@ class CodeAnalyzer:
             for idx, feature in enumerate(self.features, start=1):
                 feature.key = to_sequential_key(feature.key, idx)
 
-        # Generate plan bundle
-        # Use plan_name if provided, otherwise use entry point name or repo name
+        return self._build_plan_bundle(technology_constraints)
+
+    def _build_plan_bundle(self, technology_constraints: list[str]) -> PlanBundle:
+        """Assemble the derived idea, features and analysis scope."""
         if self.plan_name:
             # Use the plan name (already sanitized, but humanize for title)
             title = self.plan_name.replace("_", " ").replace("-", " ").title()
@@ -379,11 +340,11 @@ class CodeAnalyzer:
         self,
         progress: Progress,
         task_id: TaskID,
-        file_path: Path,
-        error: Exception,
+        failure: tuple[Path, Exception],
         completed_count: int,
     ) -> None:
         """Log a failed file analysis and keep progress moving."""
+        file_path, error = failure
         console.print(f"[dim]⚠ Warning: Failed to analyze {file_path}: {error}[/dim]")
         self._update_analysis_progress(progress, task_id, completed_count)
 
@@ -394,47 +355,25 @@ class CodeAnalyzer:
                 results = self._analyze_file_safe(file_path)
                 self._handle_analysis_results(progress, task_id, results, completed_count)
             except Exception as error:
-                self._log_analysis_failure(progress, task_id, file_path, error, completed_count)
+                self._log_analysis_failure(progress, task_id, (file_path, error), completed_count)
 
     def _analyze_files_parallel(self, files_to_analyze: list[Path], progress: Progress, task_id: TaskID) -> None:
         """Analyze files in parallel and merge results sequentially."""
         max_workers = max(1, min(os.cpu_count() or 4, 8, len(files_to_analyze)))
         executor = ThreadPoolExecutor(max_workers=max_workers)
         interrupted = False
-        completed_count = 0
         try:
-            future_to_file = {
-                executor.submit(self._analyze_file_safe, file_path): file_path for file_path in files_to_analyze
-            }
-            try:
-                for future in as_completed(future_to_file):
-                    completed_count += 1
-                    try:
-                        results = future.result()
-                        self._handle_analysis_results(progress, task_id, results, completed_count)
-                    except KeyboardInterrupt:
-                        interrupted = True
-                        self._cancel_pending_futures(future_to_file)
-                        break
-                    except Exception as error:
-                        self._log_analysis_failure(progress, task_id, future_to_file[future], error, completed_count)
-            except KeyboardInterrupt:
-                interrupted = True
-                self._cancel_pending_futures(future_to_file)
-            if interrupted:
-                raise KeyboardInterrupt
+            futures = {executor.submit(self._analyze_file_safe, path): path for path in files_to_analyze}
+            for completed_count, future in enumerate(as_completed(futures), start=1):
+                try:
+                    self._handle_analysis_results(progress, task_id, future.result(), completed_count)
+                except Exception as error:
+                    self._log_analysis_failure(progress, task_id, (futures[future], error), completed_count)
         except KeyboardInterrupt:
             interrupted = True
-            executor.shutdown(wait=False, cancel_futures=True)
             raise
         finally:
-            executor.shutdown(wait=not interrupted)
-
-    def _cancel_pending_futures(self, future_to_file: dict[Any, Path]) -> None:
-        """Cancel pending file-analysis futures."""
-        for future in future_to_file:
-            if not future.done():
-                future.cancel()
+            executor.shutdown(wait=not interrupted, cancel_futures=interrupted)
 
     def _finalize_analysis_progress(
         self,
@@ -460,28 +399,6 @@ class CodeAnalyzer:
         progress.remove_task(task)
         return constraints
 
-    def _check_semgrep_available(self) -> bool:
-        """Check if Semgrep is available in PATH."""
-        # Skip Semgrep check in test mode to avoid timeouts
-        if os.environ.get("TEST_MODE") == "true":
-            return False
-
-        # Fast check: use shutil.which first to avoid subprocess overhead
-        if shutil.which("semgrep") is None:
-            return False
-
-        try:
-            result = subprocess.run(
-                ["semgrep", "--version"],
-                capture_output=True,
-                text=True,
-                timeout=5,  # Increased timeout to 5s (Semgrep may need time to initialize)
-                env=_build_semgrep_env(self.repo_path),
-            )
-            return result.returncode == 0
-        except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
-            return False
-
     @ensure(lambda result: isinstance(result, list), "Must return list")
     def get_plugin_status(self) -> list[dict[str, Any]]:
         """
@@ -500,30 +417,7 @@ class CodeAnalyzer:
                 "name": "AST Analysis",
                 "enabled": True,
                 "used": True,
-                "reason": "Core analysis engine",
-            }
-        )
-
-        # Semgrep Pattern Detection
-        semgrep_available = self._check_semgrep_available()
-        semgrep_enabled = self.semgrep_enabled and semgrep_available
-        semgrep_used = semgrep_enabled and self.semgrep_config is not None
-
-        if not semgrep_available:
-            reason = "Semgrep CLI not installed (install: pip install semgrep)"
-        elif self.semgrep_config is None:
-            reason = "Semgrep config not found"
-        else:
-            reason = "Pattern detection enabled"
-            if self.semgrep_quality_config:
-                reason += " (with code quality rules)"
-
-        plugins.append(
-            {
-                "name": "Semgrep Pattern Detection",
-                "enabled": semgrep_enabled,
-                "used": semgrep_used,
-                "reason": reason,
+                "reason": "Core analysis engine with built-in Python feature and quality checks",
             }
         )
 
@@ -552,54 +446,6 @@ class CodeAnalyzer:
         )
 
         return plugins
-
-    def _run_semgrep_patterns(self, file_path: Path) -> list[dict[str, Any]]:
-        """
-        Run Semgrep for pattern detection on a single file.
-
-        Returns:
-            List of Semgrep findings (empty list if Semgrep not available or error)
-        """
-        # Skip Semgrep in test mode to avoid timeouts
-        if os.environ.get("TEST_MODE") == "true":
-            return []
-
-        if not self.semgrep_enabled or self.semgrep_config is None:
-            return []
-
-        try:
-            # Check if semgrep is available quickly
-            if not shutil.which("semgrep"):
-                return []
-
-            # Run feature detection
-            configs = [str(self.semgrep_config)]
-            # Also include code-quality config if available (for anti-patterns)
-            if self.semgrep_quality_config is not None:
-                configs.append(str(self.semgrep_quality_config))
-
-            # Use shorter timeout in test environments (though we already skip in TEST_MODE)
-            timeout = 10
-
-            result = subprocess.run(
-                ["semgrep", "--config", *configs, "--json", str(file_path)],
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-                env=_build_semgrep_env(self.repo_path),
-            )
-
-            # Semgrep may return non-zero for valid findings
-            # Only fail if stderr indicates actual error
-            if result.returncode != 0 and ("error" in result.stderr.lower() or "not found" in result.stderr.lower()):
-                return []
-
-            # Parse JSON results
-            findings = json.loads(result.stdout)
-            return findings.get("results", [])
-        except (subprocess.TimeoutExpired, json.JSONDecodeError, FileNotFoundError, ValueError):
-            # Semgrep not available or config missing - continue without it
-            return []
 
     def _should_skip_file(self, file_path: Path) -> bool:
         """
@@ -681,15 +527,14 @@ class CodeAnalyzer:
             if async_methods:
                 results["async_patterns"][module_name] = async_methods
 
-            # NEW: Run Semgrep for pattern detection
-            semgrep_findings = self._run_semgrep_patterns(file_path)
+            pattern_findings = feature_patterns(tree, file_path)
 
             # Extract classes as features
-            for node in ast.walk(tree):
-                if isinstance(node, ast.ClassDef):
-                    feature = self._extract_feature_for_results(node, file_path, semgrep_findings, results["themes"])
-                    if feature is not None:
-                        results["features"].append(feature)
+            classes = (node for node in ast.walk(tree) if isinstance(node, ast.ClassDef))
+            for class_node in classes:
+                feature = self._extract_feature_for_results(class_node, file_path, pattern_findings, results["themes"])
+                if feature is not None:
+                    results["features"].append(feature)
 
         except (SyntaxError, UnicodeDecodeError):
             # Skip files that can't be parsed
@@ -701,24 +546,24 @@ class CodeAnalyzer:
         self,
         node: ast.ClassDef,
         file_path: Path,
-        semgrep_findings: list[dict[str, Any]],
+        pattern_findings: list[dict[str, Any]],
         file_theme_accumulator: set[str],
     ) -> Feature | None:
         """Extract one feature while isolating per-class enhancement failures."""
         current_count = 0 if self.key_format == "sequential" else len(self.features)
         class_start_line = node.lineno if hasattr(node, "lineno") else None
         class_end_line = node.end_lineno if hasattr(node, "end_lineno") else None
-        semgrep_evidence = self._extract_semgrep_evidence(semgrep_findings, node.name, class_start_line, class_end_line)
+        pattern_evidence = self._extract_pattern_evidence(pattern_findings, node.name, class_start_line, class_end_line)
 
-        feature = self._extract_feature_from_class_parallel(node, file_path, current_count, semgrep_evidence)
+        feature = self._extract_feature_from_class_parallel(node, file_path, current_count, pattern_evidence)
         if feature is None:
             return None
 
         try:
-            self._enhance_feature_with_semgrep(
+            self._enhance_feature_with_patterns(
                 feature,
-                _SemgrepEnhancementContext(
-                    semgrep_findings=semgrep_findings,
+                _PatternEnhancementContext(
+                    pattern_findings=pattern_findings,
                     file_path=file_path,
                     class_name=node.name,
                     class_start_line=class_start_line,
@@ -727,7 +572,7 @@ class CodeAnalyzer:
                 ),
             )
         except Exception as exc:
-            console.print(f"[dim]⚠ Warning: Skipped Semgrep enhancement for {file_path}:{node.name}: {exc}[/dim]")
+            console.print(f"[dim]⚠ Warning: Skipped Pattern enhancement for {file_path}:{node.name}: {exc}[/dim]")
 
         return feature
 
@@ -798,18 +643,18 @@ class CodeAnalyzer:
 
         return themes
 
-    def _extract_semgrep_evidence(
+    def _extract_pattern_evidence(
         self,
-        semgrep_findings: list[dict[str, Any]],
+        pattern_findings: list[dict[str, Any]],
         class_name: str,
         class_start_line: int | None,
         class_end_line: int | None,
     ) -> dict[str, Any]:
         """
-        Extract Semgrep evidence for confidence scoring.
+        Extract Pattern evidence for confidence scoring.
 
         Args:
-            semgrep_findings: List of Semgrep findings
+            pattern_findings: List of Pattern findings
             class_name: Name of the class
             class_start_line: Starting line number of the class
             class_end_line: Ending line number of the class
@@ -819,11 +664,11 @@ class CodeAnalyzer:
         """
         evidence: dict[str, Any] = dict.fromkeys(self.FEATURE_EVIDENCE_FLAGS.values(), False)
 
-        for finding in semgrep_findings:
+        for finding in pattern_findings:
             rule_id = str(finding.get("check_id", "")).lower()
-            if not self._finding_matches_class(finding, class_name, class_start_line, class_end_line, rule_id):
+            if not self._finding_matches_class(finding, class_name, class_start_line, class_end_line):
                 continue
-            self._apply_semgrep_evidence_flag(evidence, rule_id)
+            self._apply_pattern_evidence_flag(evidence, rule_id)
 
         return evidence
 
@@ -833,28 +678,27 @@ class CodeAnalyzer:
         class_name: str,
         class_start_line: int | None,
         class_end_line: int | None,
-        rule_id: str | None = None,
     ) -> bool:
-        """Check whether a Semgrep finding belongs to the target class."""
-        effective_rule_id = rule_id or str(finding.get("check_id", "")).lower()
+        """Check whether a pattern finding belongs to the target class."""
+        effective_rule_id = str(finding.get("check_id", "")).lower()
         message = str(finding.get("message", "")).lower()
         class_name_lower = class_name.lower()
         if class_name_lower in message or class_name_lower in effective_rule_id:
             return True
-        finding_line = self._semgrep_finding_line(finding)
+        finding_line = self._pattern_finding_line(finding)
         return bool(
             class_start_line and class_end_line and finding_line and class_start_line <= finding_line <= class_end_line
         )
 
-    def _semgrep_finding_line(self, finding: dict[str, Any]) -> int:
-        """Extract the start line from a Semgrep finding."""
+    def _pattern_finding_line(self, finding: dict[str, Any]) -> int:
+        """Extract the start line from a Pattern finding."""
         raw_start = finding.get("start", {})
         if not isinstance(raw_start, dict):
             return 0
         start: dict[str, Any] = raw_start
         return int(start.get("line", 0))
 
-    def _apply_semgrep_evidence_flag(self, evidence: dict[str, Any], rule_id: str) -> None:
+    def _apply_pattern_evidence_flag(self, evidence: dict[str, Any], rule_id: str) -> None:
         """Apply the first matching evidence flag for a rule id."""
         matchers = (
             ("api", ("route-detection", "api-endpoint")),
@@ -894,7 +738,7 @@ class CodeAnalyzer:
         node: ast.ClassDef,
         file_path: Path,
         current_feature_count: int,
-        semgrep_evidence: dict[str, Any] | None = None,
+        pattern_evidence: dict[str, Any] | None = None,
     ) -> Feature | None:
         """Extract feature from class definition (thread-safe version)."""
         # Skip private classes and test classes
@@ -926,8 +770,8 @@ class CodeAnalyzer:
         # Group methods into user stories
         stories = self._extract_stories_from_methods(methods, node.name)
 
-        # Calculate confidence based on documentation, story quality, and Semgrep evidence
-        confidence = self._calculate_feature_confidence(node, stories, semgrep_evidence)
+        # Calculate confidence based on documentation, story quality, and Pattern evidence
+        confidence = self._calculate_feature_confidence(node, stories, pattern_evidence)
 
         if confidence < self.confidence_threshold:
             return None
@@ -960,40 +804,19 @@ class CodeAnalyzer:
             protocol=None,
         )
 
-    def _filter_relevant_semgrep_findings(
-        self,
-        semgrep_findings: list[dict[str, Any]],
-        file_path: Path,
-        class_name: str,
-        class_start_line: int | None,
-        class_end_line: int | None,
-    ) -> list[dict[str, Any]]:
-        """
-        Filter Semgrep findings to only those relevant to a specific class in a file.
-
-        Matches by class name mention, line range, or anti-pattern proximity.
-
-        Args:
-            semgrep_findings: All findings for the repository
-            file_path: Path to the file being analyzed
-            class_name: Name of the class to match against
-            class_start_line: First line of the class definition
-            class_end_line: Last line of the class definition
-
-        Returns:
-            Filtered list of findings relevant to the class
-        """
+    def _filter_relevant_pattern_findings(self, ctx: _PatternEnhancementContext) -> list[dict[str, Any]]:
+        """Select findings that belong to the target class or its immediate vicinity."""
         relevant: list[dict[str, Any]] = []
-        for finding in semgrep_findings:
+        for finding in ctx.pattern_findings:
             finding_path = finding.get("path", "")
-            if str(file_path) not in finding_path and finding_path not in str(file_path):
+            if str(ctx.file_path) not in finding_path and finding_path not in str(ctx.file_path):
                 continue
-            if self._finding_matches_class(finding, class_name, class_start_line, class_end_line):
+            if self._finding_matches_class(finding, ctx.class_name, ctx.class_start_line, ctx.class_end_line):
                 relevant.append(finding)
                 continue
-            finding_line = self._semgrep_finding_line(finding)
+            finding_line = self._pattern_finding_line(finding)
             check_id = str(finding.get("check_id", "")).lower()
-            if self._is_nearby_anti_pattern(check_id, finding_line, class_start_line, class_end_line):
+            if self._is_nearby_anti_pattern(check_id, finding_line, ctx.class_start_line, ctx.class_end_line):
                 relevant.append(finding)
         return relevant
 
@@ -1016,15 +839,15 @@ class CodeAnalyzer:
             return finding_line <= class_end_line
         return finding_line <= (class_start_line + 100)
 
-    def _categorise_semgrep_finding(
+    def _categorise_pattern_finding(
         self,
         finding: dict[str, Any],
     ) -> tuple[str, str]:
         """
-        Categorise a single Semgrep finding into a type string and its payload value.
+        Categorise a single Pattern finding into a type string and its payload value.
 
         Args:
-            finding: Single Semgrep finding dict
+            finding: Single Pattern finding dict
 
         Returns:
             Tuple of (category, value) where category is one of
@@ -1158,13 +981,13 @@ class CodeAnalyzer:
         )
         return ("codesmell", str(finding.get("message", ""))) if any(term in rule_id for term in terms) else ("", "")
 
-    def _apply_semgrep_findings_to_feature(self, feature: Feature, buckets: _SemgrepFeatureBuckets) -> None:
+    def _apply_pattern_findings_to_feature(self, feature: Feature, buckets: _PatternFeatureBuckets) -> None:
         """
-        Apply categorised Semgrep findings to a feature by updating outcomes and constraints.
+        Apply categorised Pattern findings to a feature by updating outcomes and constraints.
 
         Args:
             feature: Feature to update in-place
-            buckets: Categorised Semgrep finding lists (API, models, auth, CRUD, anti-patterns, smells).
+            buckets: Categorised Pattern finding lists (API, models, auth, CRUD, anti-patterns, smells).
         """
         if buckets.api_endpoints:
             feature.outcomes.append(f"Exposes API endpoints: {', '.join(buckets.api_endpoints)}")
@@ -1192,7 +1015,7 @@ class CodeAnalyzer:
                 else:
                     feature.constraints = [f"Issues detected: {smell_str}"]
 
-    def _accumulate_semgrep_finding_bucket(self, buckets: _SemgrepFeatureBuckets, category: str, value: str) -> None:
+    def _accumulate_pattern_finding_bucket(self, buckets: _PatternFeatureBuckets, category: str, value: str) -> None:
         if category == "api":
             buckets.api_endpoints.append(value)
             buckets.themes.add("API")
@@ -1215,38 +1038,32 @@ class CodeAnalyzer:
         if category == "codesmell":
             buckets.code_smells.append(value)
 
-    def _enhance_feature_with_semgrep(self, feature: Feature, ctx: _SemgrepEnhancementContext) -> None:
+    def _enhance_feature_with_patterns(self, feature: Feature, ctx: _PatternEnhancementContext) -> None:
         """
-        Enhance feature with Semgrep pattern detection results.
+        Enhance feature with Pattern pattern detection results.
 
         Args:
             feature: Feature to enhance
-            ctx: File/class scope and findings for Semgrep enhancement
+            ctx: File/class scope and findings for Pattern enhancement
         """
-        if not ctx.semgrep_findings:
+        if not ctx.pattern_findings:
             return
 
-        relevant_findings = self._filter_relevant_semgrep_findings(
-            ctx.semgrep_findings,
-            ctx.file_path,
-            ctx.class_name,
-            ctx.class_start_line,
-            ctx.class_end_line,
-        )
+        relevant_findings = self._filter_relevant_pattern_findings(ctx)
         if not relevant_findings:
             return
 
-        buckets = _SemgrepFeatureBuckets()
+        buckets = _PatternFeatureBuckets()
 
         for finding in relevant_findings:
-            category, value = self._categorise_semgrep_finding(finding)
-            self._accumulate_semgrep_finding_bucket(buckets, category, value)
+            category, value = self._categorise_pattern_finding(finding)
+            self._accumulate_pattern_finding_bucket(buckets, category, value)
 
-        self._apply_semgrep_findings_to_feature(feature, buckets)
+        self._apply_pattern_findings_to_feature(feature, buckets)
         if ctx.file_theme_accumulator is not None:
             ctx.file_theme_accumulator.update(buckets.themes)
 
-        # Confidence is already calculated with Semgrep evidence in _calculate_feature_confidence
+        # Confidence is already calculated with Pattern evidence in _calculate_feature_confidence
         # No need to adjust here - this method only adds outcomes, constraints, and themes
 
     def _extract_stories_from_methods(self, methods: list[ast.FunctionDef], class_name: str) -> list[Story]:
@@ -1473,15 +1290,15 @@ class CodeAnalyzer:
         self,
         node: ast.ClassDef,
         stories: list[Story],
-        semgrep_evidence: dict[str, Any] | None = None,
+        pattern_evidence: dict[str, Any] | None = None,
     ) -> float:
         """
-        Calculate confidence score for a feature combining AST + Semgrep evidence.
+        Calculate confidence score for a feature combining AST + Pattern evidence.
 
         Args:
             node: AST class node
             stories: List of stories extracted from methods
-            semgrep_evidence: Optional Semgrep findings evidence dict with keys:
+            pattern_evidence: Optional Pattern findings evidence dict with keys:
                 - has_api_endpoints: bool
                 - has_database_models: bool
                 - has_crud_operations: bool
@@ -1492,11 +1309,11 @@ class CodeAnalyzer:
                 - has_security_issues: bool
 
         Returns:
-            Confidence score (0.0-1.0) combining AST and Semgrep evidence
+            Confidence score (0.0-1.0) combining AST and Pattern evidence
         """
         score = 0.3
         score += self._ast_confidence_bonus(node, stories)
-        score += self._semgrep_confidence_bonus(semgrep_evidence)
+        score += self._pattern_confidence_bonus(pattern_evidence)
         return min(max(score, 0.0), 1.0)
 
     def _ast_confidence_bonus(self, node: ast.ClassDef, stories: list[Story]) -> float:
@@ -1513,9 +1330,9 @@ class CodeAnalyzer:
             score += 0.1
         return score
 
-    def _semgrep_confidence_bonus(self, semgrep_evidence: dict[str, Any] | None) -> float:
-        """Calculate confidence adjustments from Semgrep evidence."""
-        if not semgrep_evidence:
+    def _pattern_confidence_bonus(self, pattern_evidence: dict[str, Any] | None) -> float:
+        """Calculate confidence adjustments from Pattern evidence."""
+        if not pattern_evidence:
             return 0.0
         positive_adjustments = {
             "has_api_endpoints": 0.1,
@@ -1531,10 +1348,10 @@ class CodeAnalyzer:
         }
         score = 0.0
         for key, value in positive_adjustments.items():
-            if semgrep_evidence.get(key, False):
+            if pattern_evidence.get(key, False):
                 score += value
         for key, value in negative_adjustments.items():
-            if semgrep_evidence.get(key, False):
+            if pattern_evidence.get(key, False):
                 score += value
         return score
 
@@ -1580,23 +1397,18 @@ class CodeAnalyzer:
             modules[module_name] = file_path
             self.dependency_graph.add_node(module_name, path=file_path)
 
-        # Second pass: add edges based on imports
         for module_name, file_path in modules.items():
             try:
-                content = file_path.read_text(encoding="utf-8")
-                tree = ast.parse(content)
-
-                # Extract imports
+                tree = ast.parse(file_path.read_text(encoding="utf-8"))
                 imports = self._extract_imports_from_ast(tree, file_path)
-                for imported_module in imports:
-                    target = self._resolve_import_to_known_module(imported_module, modules)
-                    if target:
-                        self.dependency_graph.add_edge(module_name, target)
-                    else:
-                        self._maybe_record_external_dependency(imported_module)
             except (SyntaxError, UnicodeDecodeError):
-                # Skip files that can't be parsed
                 continue
+            for imported_module in imports:
+                target = self._resolve_import_to_known_module(imported_module, modules)
+                if target:
+                    self.dependency_graph.add_edge(module_name, target)
+                else:
+                    self._maybe_record_external_dependency(imported_module)
 
     def _path_to_module_name(self, file_path: Path) -> str:
         """Convert file path to module name (e.g., src/foo/bar.py -> src.foo.bar)."""
@@ -1622,23 +1434,9 @@ class CodeAnalyzer:
 
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
-                for alias in node.names:
-                    # Import aliases (e.g., import foo as bar)
-                    if "." in alias.name:
-                        # Extract root module (e.g., foo.bar.baz -> foo)
-                        root_module = alias.name.split(".")[0]
-                        imports.add(root_module)
-                    else:
-                        imports.add(alias.name)
-
+                imports.update(alias.name.partition(".")[0] for alias in node.names)
             elif isinstance(node, ast.ImportFrom) and node.module:
-                # From imports (e.g., from foo.bar import baz)
-                if "." in node.module:
-                    # Extract root module
-                    root_module = node.module.split(".")[0]
-                    imports.add(root_module)
-                else:
-                    imports.add(node.module)
+                imports.add(node.module.partition(".")[0])
 
         # Try to resolve local imports (relative to current file)
         resolved_imports: list[str] = []
@@ -1726,21 +1524,15 @@ class CodeAnalyzer:
         type_hints: dict[str, str] = {}
 
         for node in ast.walk(tree):
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                func_name = node.name
-                return_type = "None"
-
-                # Extract return type annotation
-                if node.returns:
-                    # Convert AST node to string representation
-                    if isinstance(node.returns, ast.Name):
-                        return_type = node.returns.id
-                    elif isinstance(node.returns, ast.Subscript):
-                        # Handle generics like List[str], Dict[str, int]
-                        container = node.returns.value.id if isinstance(node.returns.value, ast.Name) else "Any"
-                        return_type = str(container)  # Simplified representation
-
-                type_hints[func_name] = return_type
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            annotation = node.returns
+            if isinstance(annotation, ast.Name):
+                type_hints[node.name] = annotation.id
+            elif isinstance(annotation, ast.Subscript):
+                type_hints[node.name] = annotation.value.id if isinstance(annotation.value, ast.Name) else "Any"
+            else:
+                type_hints[node.name] = "None"
 
         return type_hints
 

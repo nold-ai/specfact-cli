@@ -161,20 +161,20 @@ def test_pr_orchestrator_version_sync_uses_base_sha_on_clean_ci_checkout() -> No
     )
 
 
-def test_primary_test_process_does_not_inherit_github_base_ref() -> None:
+def test_primary_pytest_launcher_does_not_inherit_github_base_ref() -> None:
     """The primary pytest launcher must not inherit pull-request routing state."""
     step = _find_named_step("tests", "Run full test suite (direct smart-test-full)")
     _assert_unsets_github_base_ref_before(step, "python tools/smart_test_coverage.py")
 
 
-def test_compatibility_test_process_does_not_inherit_github_base_ref() -> None:
+def test_compatibility_pytest_launcher_does_not_inherit_github_base_ref() -> None:
     """The Python 3.11 pytest launcher must not inherit pull-request routing state."""
     step = _find_named_step("compat-py311", "Run Python 3.11 compatibility tests")
     assert step.get("shell") == "bash", "Compatibility test isolation requires an explicit Bash shell"
     _assert_unsets_github_base_ref_before(step, "python -m pytest")
 
 
-def test_only_test_processes_override_github_base_ref() -> None:
+def test_only_pytest_launchers_override_github_base_ref() -> None:
     """Only the two test run blocks may remove GitHub's authentic base reference."""
     workflow = _load_yaml(PR_ORCHESTRATOR)
     workflow_environment = workflow.get("env")
@@ -305,7 +305,7 @@ def test_pr_orchestrator_read_only_checkouts_do_not_persist_credentials() -> Non
 
 
 def test_pr_orchestrator_has_independent_static_analysis_gate() -> None:
-    """Semgrep/Bandit must run as a blocking job independent from dogfood self-review."""
+    """SAST and Bandit run as a blocking job independent from self-review."""
     jobs = _load_jobs()
     job = jobs.get("independent-static-analysis")
     assert job is not None, "Expected independent-static-analysis job in pr-orchestrator"
@@ -313,28 +313,25 @@ def test_pr_orchestrator_has_independent_static_analysis_gate() -> None:
     assert job.get("continue-on-error") is not True
 
 
-def test_pr_orchestrator_static_analysis_uses_external_tools_only() -> None:
+def test_pr_orchestrator_static_analysis_runs_python_sast_and_bandit() -> None:
     """Independent SAST must not rely on dogfood review output."""
     raw = "\n".join(str(step.get("run", "")) for step in _load_job_steps("independent-static-analysis"))
-    assert "semgrep scan" in raw.lower()
-    assert "scripts/semgrep_sast_gate.py" in raw.lower()
-    assert "tools/semgrep/sast-baseline.json" in raw
-    assert "--config auto" not in raw.lower()
-    assert "bandit" in raw.lower()
-    assert "semgrep-full" not in raw.lower()
+    assert "scripts/core_sast_gate.py" in raw
+    assert "ci/core-sast-baseline.json" in raw
+    assert "semgrep scan" not in raw.lower()
+    assert "bandit -r src/ -ll -f json" in raw
     assert "specfact code review" not in raw
     assert ".specfact/code-review.json" not in raw
 
 
-def test_semgrep_sast_hatch_script_uses_dedicated_checked_in_sast_config() -> None:
-    """Semgrep SAST must not run the full development rule directory."""
+def test_hatch_core_sast_uses_the_same_policy_as_ci() -> None:
+    """Use the same scanner and baseline in local and hosted SAST."""
     pyproject = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
     scripts = pyproject["tool"]["hatch"]["envs"]["default"]["scripts"]
-    command = scripts["semgrep-sast"]
-    assert isinstance(command, str)
-    assert "--config auto" not in command.lower()
-    assert "--config tools/semgrep/sast.yml" in command.lower()
-    assert "--config tools/semgrep {" not in command.lower()
+    assert (
+        scripts["core-sast"] == "python scripts/core_sast_gate.py --root . --baseline ci/core-sast-baseline.json {args}"
+    )
+    assert "semgrep-sast" not in scripts and "semgrep-sast-gate" not in scripts
 
 
 def test_pr_orchestrator_package_runtime_matrix_uses_built_wheel() -> None:
@@ -457,6 +454,18 @@ def test_pr_orchestrator_has_staged_cross_platform_smoke() -> None:
     assert macos.get("runs-on") == "macos-latest"
     assert windows.get("runs-on") == "windows-latest"
     assert "workflow_dispatch" in str(windows.get("if", "")) or "schedule" in str(windows.get("if", ""))
+
+
+def test_compatibility_and_smoke_checkouts_pin_the_module_fixture() -> None:
+    """The compatibility and smoke runners accept only the committed fixture."""
+    lock = json.loads(MODULE_FIXTURE_LOCK.read_text(encoding="utf-8"))
+    for job in ("compat-py311", "runtime-smoke-macos", "runtime-smoke-windows"):
+        checkout = _find_named_step(job, "Checkout module bundles repo")
+        assert checkout["with"]["repository"] == lock["repository"]
+        assert checkout["with"]["ref"] == lock["commit"]
+        assert re.fullmatch(r"[0-9a-f]{40}", checkout["with"]["ref"])
+        verification = _find_named_step(job, "Verify immutable module fixture")["run"]
+        assert "rev-parse HEAD 'HEAD^{tree}'" in verification
 
 
 def test_pr_orchestrator_has_advisory_mutation_baseline() -> None:
@@ -907,7 +916,9 @@ def test_license_gate_audits_the_frozen_code_review_environment() -> None:
     assert "uv pip install" in commands
     assert "requirements/code-review/locked.txt" in commands
     assert "--code-review-python" in commands
-    assert "--additional-python" not in commands
+    assert '--additional-python "$REVIEW_TOOLS_PYTHON"' not in commands
+    assert '--code-review-python "$REVIEW_TOOLS_PYTHON"' in commands
+    assert '--additional-python "$SMOKE_TOOLS_PYTHON"' in commands
 
 
 def test_dependency_trust_is_a_standalone_ci_and_pre_commit_gate() -> None:

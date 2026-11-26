@@ -1,4 +1,4 @@
-"""E2E tests for Semgrep integration in CodeAnalyzer."""
+"""E2E tests for built-in pattern analysis in CodeAnalyzer."""
 
 import tempfile
 from pathlib import Path
@@ -15,12 +15,12 @@ from specfact_cli.models.plan import PlanBundle
 runner = CliRunner()
 
 
-class TestSemgrepIntegrationE2E:
-    """End-to-end tests for Semgrep integration in CodeAnalyzer."""
+class TestPythonPatternsE2E:
+    """End-to-end tests for built-in pattern analysis in CodeAnalyzer."""
 
     @pytest.mark.timeout(30)
-    def test_semgrep_detects_fastapi_routes(self):
-        """Test that Semgrep detects FastAPI routes and enhances features."""
+    def test_patterns_detects_fastapi_routes(self):
+        """Test that the built-in scanner detects FastAPI routes and enhances features."""
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_path = Path(tmpdir)
             src_path = repo_path / "src"
@@ -60,23 +60,11 @@ class TestSemgrepIntegrationE2E:
             analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.3)
             plan_bundle = analyzer.analyze()
 
-            # Verify Semgrep integration
-            assert hasattr(analyzer, "semgrep_enabled")
-            assert hasattr(analyzer, "semgrep_config")
-
-            # Should detect API theme
-            assert "API" in plan_bundle.product.themes or len(plan_bundle.product.themes) > 0
-
-            # If Semgrep is enabled and detected routes, verify enhancements
-            if analyzer.semgrep_enabled and analyzer.semgrep_config:
-                # Features should have enhanced confidence from API endpoint detection
-                for feature in analyzer.features:
-                    # API endpoint detection adds +0.1 to confidence
-                    assert feature.confidence >= 0.3
+            assert "API" in plan_bundle.product.themes
 
     @pytest.mark.timeout(30)
-    def test_semgrep_detects_flask_routes(self):
-        """Test that Semgrep detects Flask routes and enhances features."""
+    def test_patterns_detects_flask_routes(self):
+        """Test that the built-in scanner detects Flask routes and enhances features."""
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_path = Path(tmpdir)
             src_path = repo_path / "src"
@@ -107,11 +95,11 @@ class TestSemgrepIntegrationE2E:
             plan_bundle = analyzer.analyze()
 
             # Should detect API theme
-            assert "API" in plan_bundle.product.themes or len(plan_bundle.product.themes) > 0
+            assert "API" in plan_bundle.product.themes
 
     @pytest.mark.timeout(30)
-    def test_semgrep_detects_sqlalchemy_models(self):
-        """Test that Semgrep detects SQLAlchemy models and enhances features."""
+    def test_patterns_detects_sqlalchemy_models(self):
+        """Test that the built-in scanner detects SQLAlchemy models and enhances features."""
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_path = Path(tmpdir)
             src_path = repo_path / "src"
@@ -133,6 +121,10 @@ class TestSemgrepIntegrationE2E:
                     name = Column(String(100))
                     price = Column(Integer)
 
+                    def display_name(self):
+                        """Return the product name."""
+                        return self.name
+
                 class Order(Base):
                     """Order model."""
                     __tablename__ = "orders"
@@ -146,25 +138,10 @@ class TestSemgrepIntegrationE2E:
             analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.3)
             plan_bundle = analyzer.analyze()
 
-            # If Semgrep is enabled and detected models, verify enhancements
-            if analyzer.semgrep_enabled and analyzer.semgrep_config:
-                # Should detect Database theme
-                assert "Database" in plan_bundle.product.themes or len(plan_bundle.product.themes) > 0
+            assert any("Defines data models: Product" in feature.outcomes for feature in plan_bundle.features)
 
-                # Model features should have enhanced confidence (+0.15)
-                model_features = [
-                    f
-                    for f in analyzer.features
-                    if "product" in f.key.lower()
-                    or "order" in f.key.lower()
-                    or "product" in f.title.lower()
-                    or "order" in f.title.lower()
-                ]
-                for feature in model_features:
-                    assert feature.confidence >= 0.3
-
-    def test_semgrep_detects_auth_patterns(self):
-        """Test that Semgrep detects authentication patterns and enhances features."""
+    def test_patterns_detects_auth_patterns(self):
+        """Test that the built-in scanner detects authentication patterns and enhances features."""
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_path = Path(tmpdir)
             src_path = repo_path / "src"
@@ -195,16 +172,13 @@ class TestSemgrepIntegrationE2E:
             analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.3)
             plan_bundle = analyzer.analyze()
 
-            # If Semgrep is enabled and detected auth patterns, verify enhancements
-            if analyzer.semgrep_enabled and analyzer.semgrep_config:
-                # Should detect Security theme
-                assert "Security" in plan_bundle.product.themes or len(plan_bundle.product.themes) > 0
+            assert "API" in plan_bundle.product.themes
 
-    def test_semgrep_cli_integration(self):
-        """Test Semgrep integration via CLI import command."""
+    def test_patterns_cli_integration(self):
+        """Test built-in pattern analysis via CLI import command."""
         import os
 
-        # Ensure TEST_MODE is set to skip Semgrep (test still validates integration structure)
+        # Ensure TEST_MODE is set to keep the CLI fixture local
         os.environ["TEST_MODE"] = "true"
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -263,12 +237,12 @@ class TestSemgrepIntegrationE2E:
                 # Verify themes were detected
                 assert len(bundle.product.themes) > 0
 
-    def test_semgrep_parallel_execution_performance(self):
-        """Test that Semgrep integration doesn't significantly slow down parallel execution."""
+    def test_patterns_parallel_execution_performance(self):
+        """Test that built-in pattern analysis doesn't significantly slow down parallel execution."""
         import os
         import time
 
-        # Ensure TEST_MODE is set to skip Semgrep (test still validates parallel execution)
+        # Select the test runtime while checking parallel execution
         os.environ["TEST_MODE"] = "true"
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -302,8 +276,8 @@ class TestSemgrepIntegrationE2E:
             # Should analyze all files
             assert len(analyzer.features) >= 10
 
-    def test_semgrep_findings_enhance_outcomes(self):
-        """Test that Semgrep findings are added to feature outcomes."""
+    def test_patterns_findings_enhance_outcomes(self):
+        """Test that pattern findings are added to feature outcomes."""
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_path = Path(tmpdir)
             src_path = repo_path / "src"
@@ -334,20 +308,11 @@ class TestSemgrepIntegrationE2E:
             analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.3)
             analyzer.analyze()  # Analyze to populate features
 
-            # If Semgrep is enabled and detected patterns, verify outcomes were enhanced
-            if analyzer.semgrep_enabled and analyzer.semgrep_config:
-                product_feature = next(
-                    (f for f in analyzer.features if "product" in f.key.lower() or "product" in f.title.lower()),
-                    None,
-                )
+            product_feature = next(feature for feature in analyzer.features if "product" in feature.key.lower())
+            assert "Provides CRUD operations: CREATE product" in product_feature.outcomes
 
-                if product_feature:
-                    # Outcomes should include Semgrep findings if detected
-                    # May include API endpoints, CRUD operations, etc.
-                    assert len(product_feature.outcomes) >= 1
-
-    def test_semgrep_works_without_semgrep_installed(self):
-        """Test that analysis works correctly when Semgrep CLI is not installed."""
+    def test_patterns_work_without_external_tool(self):
+        """Test that analysis works correctly without an external scanner."""
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_path = Path(tmpdir)
             src_path = repo_path / "src"
@@ -368,10 +333,8 @@ class TestSemgrepIntegrationE2E:
             analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.3)
             plan_bundle = analyzer.analyze()
 
-            # Should work even without Semgrep
+            # Should work even without an external scanner
             assert isinstance(plan_bundle, PlanBundle)
             assert len(analyzer.features) >= 1
 
-            # Semgrep should be gracefully disabled
-            # (semgrep_enabled may be False if Semgrep not available)
-            assert hasattr(analyzer, "semgrep_enabled")
+            assert any(plugin["name"] == "AST Analysis" and plugin["used"] for plugin in analyzer.get_plugin_status())

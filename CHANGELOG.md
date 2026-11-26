@@ -10,6 +10,13 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.55.5] - 2026-11-26
+
+### Security
+
+- Backport the reviewed in-process scanners and frozen dependency graph from
+  core PR #799. The locked delivery uses only the approved pycparser wheel.
+
 ## [0.55.4] - 2026-09-02
 
 ### Security

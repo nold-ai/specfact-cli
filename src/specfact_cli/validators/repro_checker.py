@@ -9,16 +9,18 @@ CrossHair: skip (known signature synthesis limitation on complex pathlib/type si
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
 import subprocess
+import sys
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from beartype import beartype
 from icontract import ensure, require
@@ -76,14 +78,13 @@ def _crosshair_dir_append_py(module_root: Path, py_file: Path, expanded: list[st
 def _expand_crosshair_dir_target(
     repo_path: Path,
     target_root: Path,
-    src_root: Path,
-    lib_root: Path,
+    layout_roots: tuple[Path, Path],
     expanded: list[str],
     pythonpath_roots: list[str],
 ) -> bool:
     """Expand a directory target; return whether any __main__.py was skipped."""
     tr = target_root.resolve()
-    if tr in (src_root, lib_root):
+    if tr in layout_roots:
         module_root = tr
         pythonpath_root = tr
     else:
@@ -101,8 +102,7 @@ def _expand_crosshair_dir_target(
 def _expand_crosshair_file_target(
     repo_path: Path,
     target_path: Path,
-    src_root: Path,
-    lib_root: Path,
+    layout_roots: tuple[Path, Path],
     expanded: list[str],
     pythonpath_roots: list[str],
 ) -> bool:
@@ -112,7 +112,7 @@ def _expand_crosshair_file_target(
     if target_path.suffix != ".py":
         return False
     file_path = target_path.resolve()
-    module_root, pythonpath_root = _module_roots_for_path(repo_path, file_path, src_root, lib_root)
+    module_root, pythonpath_root = _module_roots_for_path(repo_path, file_path, *layout_roots)
     _append_unique_pythonpath(pythonpath_roots, pythonpath_root)
     module_name = _module_name_from_path(module_root, file_path)
     if module_name:
@@ -123,8 +123,7 @@ def _expand_crosshair_file_target(
 def _expand_one_crosshair_target(
     repo_path: Path,
     target: str,
-    src_root: Path,
-    lib_root: Path,
+    layout_roots: tuple[Path, Path],
     expanded: list[str],
     pythonpath_roots: list[str],
 ) -> bool:
@@ -133,8 +132,8 @@ def _expand_one_crosshair_target(
     if not target_path.exists():
         return False
     if target_path.is_dir():
-        return _expand_crosshair_dir_target(repo_path, target_path, src_root, lib_root, expanded, pythonpath_roots)
-    return _expand_crosshair_file_target(repo_path, target_path, src_root, lib_root, expanded, pythonpath_roots)
+        return _expand_crosshair_dir_target(repo_path, target_path, layout_roots, expanded, pythonpath_roots)
+    return _expand_crosshair_file_target(repo_path, target_path, layout_roots, expanded, pythonpath_roots)
 
 
 @beartype
@@ -152,11 +151,10 @@ def _expand_crosshair_targets(repo_path: Path, targets: list[str]) -> tuple[list
     expanded: list[str] = []
     excluded_main = False
     pythonpath_roots: list[str] = []
-    src_root = (repo_path / "src").resolve()
-    lib_root = (repo_path / "lib").resolve()
+    layout_roots = (repo_path / "src").resolve(), (repo_path / "lib").resolve()
 
     for target in targets:
-        if _expand_one_crosshair_target(repo_path, target, src_root, lib_root, expanded, pythonpath_roots):
+        if _expand_one_crosshair_target(repo_path, target, layout_roots, expanded, pythonpath_roots):
             excluded_main = True
 
     expanded = sorted(set(expanded))
@@ -218,34 +216,20 @@ def _find_crosshair_property_targets(repo_path: Path) -> tuple[list[str], list[s
     lib_root = (repo_path / "lib").resolve()
     search_roots = [src_root, repo_path / "tools"]
 
-    for root in search_roots:
-        if not root.exists():
+    python_files = (path for root in search_roots if root.exists() for path in root.rglob("*.py"))
+    for py_file in python_files:
+        try:
+            content = py_file.read_text(encoding="utf-8")
+        except OSError:
             continue
-        for py_file in root.rglob("*.py"):
-            try:
-                content = py_file.read_text(encoding="utf-8")
-            except OSError:
-                continue
-            if not marker_re.search(content):
-                continue
-            if skip_re.search(content):
-                continue
-            file_path = py_file.resolve()
-            if file_path.is_relative_to(src_root):
-                module_root = src_root
-                pythonpath_root = src_root
-            elif file_path.is_relative_to(lib_root):
-                module_root = lib_root
-                pythonpath_root = lib_root
-            else:
-                module_root = repo_path.resolve()
-                pythonpath_root = repo_path.resolve()
-            pythonpath_root_str = str(pythonpath_root)
-            if pythonpath_root_str not in pythonpath_roots:
-                pythonpath_roots.append(pythonpath_root_str)
-            module_name = _module_name_from_path(module_root, file_path)
-            if module_name:
-                targets.append(module_name)
+        if not marker_re.search(content) or skip_re.search(content):
+            continue
+        file_path = py_file.resolve()
+        module_root, pythonpath_root = _module_roots_for_path(repo_path, file_path, src_root, lib_root)
+        _append_unique_pythonpath(pythonpath_roots, pythonpath_root)
+        module_name = _module_name_from_path(module_root, file_path)
+        if module_name:
+            targets.append(module_name)
 
     targets = sorted(set(targets))
     return targets, pythonpath_roots
@@ -285,30 +269,18 @@ def _extract_ruff_findings(output: str) -> dict[str, Any]:
             i += 1
             continue
 
-        # Try format 1: "W293 [*] message" followed by "--> file:line:col"
+        # Ruff's two-line format places an explicit source location below the message.
         code_match = re.match(r"^([A-Z]\d+)\s+\[[^\]]+\]\s+(.+)$", line_stripped)
-        if code_match:
-            code = code_match.group(1)
-            message = code_match.group(2)
-            # Look for location line: "--> file:line:col"
-            if i + 1 < len(lines):
-                location_line = lines[i + 1].strip()
-                location_match = re.match(r"-->\s+([^:]+):(\d+):(\d+)", location_line)
-                if location_match:
-                    file_path = location_match.group(1)
-                    line_num = int(location_match.group(2))
-                    col_num = int(location_match.group(3))
-                    findings["violations"].append(
-                        {
-                            "file": file_path,
-                            "line": line_num,
-                            "column": col_num,
-                            "code": code,
-                            "message": message,
-                        }
-                    )
-                    i += 2  # Skip both lines
-                    continue
+        if code_match and i + 1 < len(lines):
+            location_match = re.match(r"-->\s+([^:]+):(\d+):(\d+)", lines[i + 1].strip())
+            if location_match:
+                file_path, line_num, col_num = location_match.groups()
+                code, message = code_match.groups()
+                findings["violations"].append(
+                    {"file": file_path, "line": int(line_num), "column": int(col_num), "code": code, "message": message}
+                )
+                i += 2
+                continue
 
         # Try format 2: "file:line:col: code message"
         pattern = r"^([^:]+):(\d+):(\d+):\s+([A-Z]\d+)\s+(.+)$"
@@ -521,6 +493,14 @@ def _extract_findings(tool: str, output: str, error: str) -> dict[str, Any]:
         return _extract_ruff_findings(output)
     if tool_lower == "semgrep":
         return _extract_semgrep_findings(output, error)
+    if tool_lower == "async-checks":
+        payload: object = json.loads(output)
+        if not isinstance(payload, dict):
+            raise ValueError("Invalid built-in async check report")
+        report = cast(dict[str, Any], payload)
+        if report.get("engine") != "python-ast":
+            raise ValueError("Invalid built-in async check report")
+        return report
     if tool_lower == "basedpyright":
         return _extract_basedpyright_findings(output)
     if tool_lower == "crosshair":
@@ -666,14 +646,15 @@ class ReproReport:
         if result.duration:
             self.total_duration += result.duration
 
-        if result.status == CheckStatus.PASSED:
-            self.passed_checks += 1
-        elif result.status == CheckStatus.FAILED:
-            self.failed_checks += 1
-        elif result.status == CheckStatus.TIMEOUT:
-            self.timeout_checks += 1
-        elif result.status == CheckStatus.SKIPPED:
-            self.skipped_checks += 1
+        match result.status:
+            case CheckStatus.PASSED:
+                self.passed_checks += 1
+            case CheckStatus.FAILED:
+                self.failed_checks += 1
+            case CheckStatus.TIMEOUT:
+                self.timeout_checks += 1
+            case CheckStatus.SKIPPED:
+                self.skipped_checks += 1
 
     @beartype
     @ensure(lambda result: result in (0, 1, 2), "Exit code must be 0, 1, or 2")
@@ -809,7 +790,7 @@ class ReproChecker:
     """
     Runs validation checks with time budgets and result aggregation.
 
-    Executes various tools (ruff, semgrep, basedpyright, crosshair, pytest)
+    Executes Ruff, optional async checks, BasedPyright, CrossHair, and pytest.
     and aggregates their results into a comprehensive report.
     """
 
@@ -841,7 +822,7 @@ class ReproChecker:
             repo_path: Path to repository (default: current directory)
             budget: Total time budget in seconds (must be > 0)
             fail_fast: Stop on first failure
-            fix: Apply auto-fixes where available (Semgrep auto-fixes)
+            fix: Request fixes where the selected checks support them
             crosshair_per_path_timeout: If set, pass --per_path_timeout N to CrossHair (deep validation).
         """
         self.repo_path = Path(repo_path) if repo_path else Path(".")
@@ -952,12 +933,15 @@ class ReproChecker:
     @ensure(lambda result: isinstance(result, ReproReport), "Must return ReproReport")
     @ensure(_repro_report_total_checks_nonnegative, "Total checks must be non-negative")
     @ensure(_repro_report_totals_consistent, "Total checks must equal sum of all status types")
-    def run_all_checks(self) -> ReproReport:
+    def run_all_checks(self, *, run_async_checks: bool = False) -> ReproReport:
         """
         Run all validation checks.
 
         Detects the target repository's environment manager and builds appropriate
         commands. Makes all tools optional with clear messaging when unavailable.
+
+        Args:
+            run_async_checks: Explicitly enable built-in async analysis.
 
         Returns:
             ReproReport with aggregated results
@@ -966,7 +950,7 @@ class ReproChecker:
 
         env_info = detect_env_manager(self.repo_path)
         source_dirs = _repro_resolve_source_dirs(self.repo_path)
-        checks = _repro_build_checks_list(self, env_info, source_dirs)
+        checks = _repro_build_checks_list(self, env_info, source_dirs, run_async_checks=run_async_checks)
         _repro_run_checks_loop(self, checks, env_info)
 
         self.report.total_duration = time.time() - self.start_time
@@ -1000,34 +984,23 @@ def _repro_checks_append_ruff(
         checks.append(("Linting (ruff)", "ruff", [], None, True, None))
 
 
-def _repro_checks_append_semgrep(
+def _repro_checks_append_async(
     checks: list[tuple[str, str, list[str], int | None, bool, dict[str, str] | None]],
     checker: ReproChecker,
-    env_info: Any,
-    repo_path: Path,
-    semgrep_config: Path,
+    *,
+    run_async_checks: bool,
 ) -> None:
-    from specfact_cli.utils.env_manager import build_tool_command, check_tool_in_env
-
-    if not semgrep_config.exists():
+    legacy = Path("tools/semgrep/async.yml")
+    has_legacy_policy = (checker.repo_path / legacy).exists()
+    if not run_async_checks and not has_legacy_policy:
         return
-    semgrep_available, _ = check_tool_in_env(repo_path, "semgrep", env_info)
-    if semgrep_available:
-        semgrep_log_path = repo_path / ".specfact" / "logs" / "semgrep.log"
-        semgrep_cache_path = repo_path / ".specfact" / "cache" / "semgrep_version"
-        semgrep_log_path.parent.mkdir(parents=True, exist_ok=True)
-        semgrep_cache_path.parent.mkdir(parents=True, exist_ok=True)
-        semgrep_env = os.environ.copy()
-        semgrep_env["SEMGREP_LOG_FILE"] = str(semgrep_log_path)
-        semgrep_env["SEMGREP_VERSION_CACHE_PATH"] = str(semgrep_cache_path)
-        semgrep_env["XDG_CACHE_HOME"] = str((repo_path / ".specfact" / "cache").resolve())
-        semgrep_command = ["semgrep", "--config", str(semgrep_config.relative_to(repo_path)), "."]
-        if checker.fix:
-            semgrep_command.append("--autofix")
-        semgrep_command = build_tool_command(env_info, semgrep_command)
-        checks.append(("Async patterns (semgrep)", "semgrep", semgrep_command, 30, True, semgrep_env))
-    else:
-        checks.append(("Async patterns (semgrep)", "semgrep", [], 30, True, None))
+    scanner = Path(__file__).resolve().parents[1] / "analyzers/async_checks.py"
+    command = [sys.executable, "-I", str(scanner)]
+    if has_legacy_policy:
+        command.extend(("--legacy-config", str(legacy)))
+    if checker.fix:
+        command.append("--fix")
+    checks.append(("Async patterns", "async-checks", command, 30, False, None))
 
 
 def _repro_checks_append_basedpyright(
@@ -1111,14 +1084,15 @@ def _repro_build_checks_list(
     checker: ReproChecker,
     env_info: Any,
     source_dirs: list[str],
+    *,
+    run_async_checks: bool,
 ) -> list[tuple[str, str, list[str], int | None, bool, dict[str, str] | None]]:
     repo_path = checker.repo_path
-    semgrep_config = repo_path / "tools" / "semgrep" / "async.yml"
     tests_dir = repo_path / "tests"
     checks: list[tuple[str, str, list[str], int | None, bool, dict[str, str] | None]] = []
 
     _repro_checks_append_ruff(checks, repo_path, env_info, source_dirs, tests_dir)
-    _repro_checks_append_semgrep(checks, checker, env_info, repo_path, semgrep_config)
+    _repro_checks_append_async(checks, checker, run_async_checks=run_async_checks)
     _repro_checks_append_basedpyright(checks, repo_path, env_info, source_dirs, tests_dir)
     _repro_checks_append_crosshair(checks, checker, env_info, repo_path, source_dirs)
     _repro_checks_append_pytest_dir(checks, repo_path, env_info, "contracts", "Property tests (pytest contracts)")
@@ -1187,36 +1161,37 @@ def _repro_run_checks_loop(
             break
 
 
+def _report_path(path: Path, repo_root: Path) -> str:
+    resolved = path.resolve()
+    return str(resolved.relative_to(repo_root) if resolved.is_relative_to(repo_root) else resolved)
+
+
+def _repro_enforcement_preset(config_path: Path) -> str | None:
+    try:
+        from specfact_cli.models.enforcement import EnforcementConfig
+        from specfact_cli.utils.yaml_utils import load_yaml
+
+        config = load_yaml(config_path)
+        return EnforcementConfig(**config).preset.value if config else None
+    except Exception as error:
+        console.print(f"[dim]Warning: Could not load enforcement config preset: {error}[/dim]")
+        return None
+
+
 def _repro_populate_report_metadata(checker: ReproChecker) -> None:
     try:
         from specfact_cli.utils.structure import SpecFactStructure
 
         repo_root = checker.repo_path.resolve()
-        active_plan_path = SpecFactStructure.get_default_plan_path(checker.repo_path)
-        if active_plan_path.exists():
-            active_plan_abs = active_plan_path.resolve()
-            if active_plan_abs.is_relative_to(repo_root):
-                checker.report.active_plan_path = str(active_plan_abs.relative_to(repo_root))
-            else:
-                checker.report.active_plan_path = str(active_plan_abs)
+        plan_path = SpecFactStructure.get_default_plan_path(checker.repo_path)
+        if plan_path.exists():
+            checker.report.active_plan_path = _report_path(plan_path, repo_root)
 
-        enforcement_config_path = SpecFactStructure.get_enforcement_config_path(checker.repo_path)
-        if enforcement_config_path.exists():
-            enforce_abs = enforcement_config_path.resolve()
-            if enforce_abs.is_relative_to(repo_root):
-                checker.report.enforcement_config_path = str(enforce_abs.relative_to(repo_root))
-            else:
-                checker.report.enforcement_config_path = str(enforce_abs)
-            try:
-                from specfact_cli.models.enforcement import EnforcementConfig
-                from specfact_cli.utils.yaml_utils import load_yaml
-
-                config_data = load_yaml(enforcement_config_path)
-                if config_data:
-                    enforcement_config = EnforcementConfig(**config_data)
-                    checker.report.enforcement_preset = enforcement_config.preset.value
-            except Exception as e:
-                console.print(f"[dim]Warning: Could not load enforcement config preset: {e}[/dim]")
-
-    except Exception as e:
-        console.print(f"[dim]Warning: Could not collect metadata: {e}[/dim]")
+        config_path = SpecFactStructure.get_enforcement_config_path(checker.repo_path)
+        if config_path.exists():
+            checker.report.enforcement_config_path = _report_path(config_path, repo_root)
+            preset = _repro_enforcement_preset(config_path)
+            if preset is not None:
+                checker.report.enforcement_preset = preset
+    except Exception as error:
+        console.print(f"[dim]Warning: Could not collect metadata: {error}[/dim]")

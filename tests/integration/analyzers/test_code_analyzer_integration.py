@@ -4,8 +4,6 @@ import tempfile
 from pathlib import Path
 from textwrap import dedent
 
-import pytest
-
 from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
 from specfact_cli.models.plan import PlanBundle
 
@@ -402,45 +400,11 @@ class TestCodeAnalyzerIntegration:
             analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.5)
             _plan_bundle = analyzer.analyze()  # Not used - just testing it runs
 
-            # Verify dependency graph structure
-            assert len(analyzer.dependency_graph.nodes) >= 3
-
-            # Find module names in graph
-            module_names = list(analyzer.dependency_graph.nodes)
-            # More specific matching to avoid conflicts
-            module_a_name = next((m for m in module_names if "module_a" in m and "a.py" not in m), None)
-            module_b_name = next(
-                (m for m in module_names if "module_b" in m and "b.py" not in m and m != "src.module_a"), None
-            )
-            module_c_name = next(
-                (
-                    m
-                    for m in module_names
-                    if "module_c" in m and "c.py" not in m and m not in ["src.module_a", "src.module_b"]
-                ),
-                None,
-            )
-
-            # Debug: Print module names and edges for troubleshooting
-            if len(analyzer.dependency_graph.edges) > 0:
-                edges = list(analyzer.dependency_graph.edges)
-                # Verify we have the expected dependencies
-                if module_b_name and module_a_name:
-                    # Module B should depend on Module A
-                    # Edge direction: module_b -> module_a (B imports A, so B depends on A)
-                    assert analyzer.dependency_graph.has_edge(module_b_name, module_a_name), (
-                        f"Missing edge from {module_b_name} to {module_a_name}. Available edges: {edges}"
-                    )
-
-                if module_c_name and module_b_name and module_c_name != module_b_name:
-                    # Module C should depend on Module B
-                    # Edge direction: module_c -> module_b (C imports B, so C depends on B)
-                    assert analyzer.dependency_graph.has_edge(module_c_name, module_b_name), (
-                        f"Missing edge from {module_c_name} to {module_b_name}. Available edges: {edges}"
-                    )
-            else:
-                # If no edges, at least verify we have the nodes
-                assert len(module_names) >= 3, f"Expected at least 3 modules, got: {module_names}"
+            graph = analyzer.dependency_graph
+            module_names = {name.rsplit(".", 1)[-1]: name for name in graph.nodes}
+            assert {"module_a", "module_b", "module_c"} <= module_names.keys()
+            assert graph.has_edge(module_names["module_b"], module_names["module_a"])
+            assert graph.has_edge(module_names["module_c"], module_names["module_b"])
 
     def test_analyze_codebase_handles_invalid_files(self):
         """Test that invalid Python files are skipped gracefully."""
@@ -516,8 +480,8 @@ class TestCodeAnalyzerIntegration:
             assert len(analyzer.features) == 0
             assert len(analyzer.dependency_graph.nodes) == 0
 
-    def test_semgrep_integration_detects_api_endpoints(self):
-        """Test that Semgrep integration detects FastAPI endpoints and enhances features."""
+    def test_python_patterns_detects_api_endpoints(self):
+        """Test that built-in pattern analysis detects FastAPI endpoints and enhances features."""
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_path = Path(tmpdir)
             src_path = repo_path / "src"
@@ -553,31 +517,11 @@ class TestCodeAnalyzerIntegration:
             analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.3)
             plan_bundle = analyzer.analyze()
 
-            # Verify Semgrep integration status
-            assert hasattr(analyzer, "semgrep_enabled")
-            assert hasattr(analyzer, "semgrep_config")
+            assert "API" in plan_bundle.product.themes
+            assert any("user" in feature.key.lower() for feature in plan_bundle.features)
 
-            # If Semgrep is enabled and available, verify enhancements
-            if analyzer.semgrep_enabled and analyzer.semgrep_config:
-                # Should have features
-                assert len(analyzer.features) >= 1
-
-                # Check if API theme was added (from Semgrep or AST)
-                assert "API" in plan_bundle.product.themes or len(plan_bundle.product.themes) > 0
-
-                # Find UserService feature
-                user_feature = next(
-                    (f for f in analyzer.features if "user" in f.key.lower() or "user" in f.title.lower()),
-                    None,
-                )
-
-                if user_feature:
-                    # If Semgrep found API endpoints, confidence should be enhanced
-                    # (Base confidence + Semgrep boost if endpoints detected)
-                    assert user_feature.confidence >= 0.3
-
-    def test_semgrep_integration_detects_crud_operations(self):
-        """Test that Semgrep integration detects CRUD operations and enhances features."""
+    def test_python_patterns_detects_crud_operations(self):
+        """Test that built-in pattern analysis detects CRUD operations and enhances features."""
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_path = Path(tmpdir)
             src_path = repo_path / "src"
@@ -618,17 +562,12 @@ class TestCodeAnalyzerIntegration:
                 None,
             )
 
-            if product_feature:
-                # Should have CRUD stories
-                assert len(product_feature.stories) >= 3
+            assert product_feature is not None
+            assert len(product_feature.stories) >= 3
+            assert any("Provides CRUD operations:" in outcome for outcome in product_feature.outcomes)
 
-                # If Semgrep is enabled and detected CRUD operations, confidence should be enhanced
-                if analyzer.semgrep_enabled and analyzer.semgrep_config:
-                    # Semgrep CRUD detection adds +0.1 to confidence
-                    assert product_feature.confidence >= 0.3
-
-    def test_semgrep_integration_detects_database_models(self):
-        """Test that Semgrep integration detects database models and enhances features."""
+    def test_python_patterns_detects_database_models(self):
+        """Test that built-in pattern analysis detects database models and enhances features."""
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_path = Path(tmpdir)
             src_path = repo_path / "src"
@@ -650,6 +589,10 @@ class TestCodeAnalyzerIntegration:
                     id = Column(Integer, primary_key=True)
                     name = Column(String(100))
                     email = Column(String(255))
+
+                    def display_name(self):
+                        """Return the user's display name."""
+                        return self.name
                 '''
             )
             (src_path / "models.py").write_text(model_code)
@@ -657,26 +600,11 @@ class TestCodeAnalyzerIntegration:
             analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.3)
             plan_bundle = analyzer.analyze()
 
-            # If Semgrep is enabled and detected models, verify enhancements
-            if analyzer.semgrep_enabled and analyzer.semgrep_config:
-                # Should have Database theme
-                assert "Database" in plan_bundle.product.themes or len(plan_bundle.product.themes) > 0
+            assert "Database" in plan_bundle.product.themes
+            assert any("Defines data models: User" in feature.outcomes for feature in plan_bundle.features)
 
-                # Find User model feature
-                user_feature = next(
-                    (f for f in analyzer.features if "user" in f.key.lower() or "user" in f.title.lower()),
-                    None,
-                )
-
-                if user_feature:
-                    # Semgrep model detection adds +0.15 to confidence
-                    assert user_feature.confidence >= 0.3
-
-    def test_semgrep_integration_graceful_degradation(self, monkeypatch: pytest.MonkeyPatch):
-        """Test that analysis works correctly when Semgrep is not available."""
-        monkeypatch.setattr(CodeAnalyzer, "_check_semgrep_available", lambda self: False)
-        monkeypatch.setattr(CodeAnalyzer, "_run_semgrep_patterns", lambda self, file_path: [])
-
+    def test_pattern_analysis_keeps_simple_features(self):
+        """Simple features remain available without external analysis tools."""
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_path = Path(tmpdir)
             src_path = repo_path / "src"
@@ -702,13 +630,10 @@ class TestCodeAnalyzerIntegration:
             # Should have at least one feature (from AST analysis)
             assert len(analyzer.features) >= 1
 
-            # Semgrep should be gracefully disabled if not available
-            assert hasattr(analyzer, "semgrep_enabled")
-            # Analysis should complete successfully regardless
-            assert plan_bundle.features is not None
+            assert plan_bundle.features
 
-    def test_semgrep_integration_parallel_execution(self):
-        """Test that Semgrep integration works correctly in parallel execution."""
+    def test_python_patterns_parallel_execution(self):
+        """Test that built-in pattern analysis works correctly in parallel execution."""
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_path = Path(tmpdir)
             src_path = repo_path / "src"
@@ -764,38 +689,17 @@ class TestCodeAnalyzerIntegration:
             analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.3)
             plugin_status = analyzer.get_plugin_status()
 
-            # Should return a list of plugin statuses
             assert isinstance(plugin_status, list)
-            assert len(plugin_status) >= 1
+            plugins_by_name = {plugin["name"]: plugin for plugin in plugin_status}
 
-            # Should always include AST Analysis
-            ast_plugin = next((p for p in plugin_status if p["name"] == "AST Analysis"), None)
-            assert ast_plugin is not None
-            assert ast_plugin["enabled"] is True
-            assert ast_plugin["used"] is True
+            ast_plugin = plugins_by_name["AST Analysis"]
+            assert (ast_plugin["enabled"], ast_plugin["used"]) == (True, True)
             assert "Core analysis engine" in ast_plugin["reason"]
+            assert "built-in Python feature and quality checks" in ast_plugin["reason"]
 
-            # Should include Semgrep status
-            semgrep_plugin = next((p for p in plugin_status if p["name"] == "Semgrep Pattern Detection"), None)
-            assert semgrep_plugin is not None
-            assert isinstance(semgrep_plugin["enabled"], bool)
-            assert isinstance(semgrep_plugin["used"], bool)
-            assert "reason" in semgrep_plugin
+            assert "Dependency Graph Analysis" in plugins_by_name
 
-            # Should include Dependency Graph status
-            graph_plugin = next((p for p in plugin_status if p["name"] == "Dependency Graph Analysis"), None)
-            assert graph_plugin is not None
-            assert isinstance(graph_plugin["enabled"], bool)
-            assert isinstance(graph_plugin["used"], bool)
-            assert "reason" in graph_plugin
-
-            # Each plugin should have required keys
+            expected_field_types = {"name": str, "enabled": bool, "used": bool, "reason": str}
             for plugin in plugin_status:
-                assert "name" in plugin
-                assert "enabled" in plugin
-                assert "used" in plugin
-                assert "reason" in plugin
-                assert isinstance(plugin["name"], str)
-                assert isinstance(plugin["enabled"], bool)
-                assert isinstance(plugin["used"], bool)
-                assert isinstance(plugin["reason"], str)
+                for key, expected_type in expected_field_types.items():
+                    assert isinstance(plugin[key], expected_type)

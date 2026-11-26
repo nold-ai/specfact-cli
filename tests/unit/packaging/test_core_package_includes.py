@@ -148,7 +148,7 @@ def test_core_dependency_bounds_allow_patched_click_and_typer_releases() -> None
     expected_dependencies = {
         "click>=8.3.3,<9",
         "typer>=0.24.0,<1",
-        "pycparser>=2.22,!=3.0.*",
+        "pycparser>=3.12,!=3.0.*",
         "rich>=13.5.2,<16.0.0",
     }
     assert expected_dependencies <= set(dependencies)
@@ -165,7 +165,8 @@ def test_pycparser_requirement_excludes_the_alerted_release_family() -> None:
         pycparser_requirements = _requirements_named(dependencies, "pycparser")
         assert len(pycparser_requirements) == 1
         pycparser_requirement = pycparser_requirements[0]
-        assert pycparser_requirement.specifier.contains("2.22")
+        assert pycparser_requirement.specifier.contains("3.12")
+        assert not pycparser_requirement.specifier.contains("2.22")
         assert not pycparser_requirement.specifier.contains("3.0")
         assert not pycparser_requirement.specifier.contains("3.0.1")
         assert not pycparser_requirement.specifier.contains("3.0.post1")
@@ -174,10 +175,12 @@ def test_pycparser_requirement_excludes_the_alerted_release_family() -> None:
 def test_telemetry_dependencies_are_opt_in_extra() -> None:
     """OpenTelemetry should stay out of core but remain available for explicit telemetry installs."""
     data = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
-    telemetry = set(data["project"]["optional-dependencies"]["telemetry"])
+    project = data["project"]
+    telemetry = set(project["optional-dependencies"]["telemetry"])
 
-    assert "opentelemetry-sdk>=1.27.0" in telemetry
-    assert "opentelemetry-exporter-otlp-proto-http>=1.27.0" in telemetry
+    assert "opentelemetry-sdk>=1.45.2" in telemetry
+    assert "opentelemetry-exporter-otlp-proto-http>=1.45.2" in telemetry
+    assert all(not requirement.startswith("opentelemetry-") for requirement in project["dependencies"])
 
 
 def test_hatch_gate_scripts_quote_pythonpath_interpreter_substitution() -> None:
