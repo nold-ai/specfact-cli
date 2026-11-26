@@ -139,7 +139,7 @@ def test_create_user():
     def test_extract_examples_from_tests_parallel_processing(self, tmp_path: Path) -> None:
         """Retain examples across the selected files."""
         # Create multiple test files
-        test_files = []
+        test_files: list[str] = []
         for i in range(5):
             test_file = tmp_path / f"test_api_{i}.py"
             test_file.write_text(
@@ -161,7 +161,7 @@ def test_create_user_{i}():
     def test_extract_examples_from_tests_limits_to_10_files(self, tmp_path: Path) -> None:
         """Retain the source path's coverage for more than ten selected files."""
         # Create 15 test files
-        test_files = []
+        test_files: list[str] = []
         for i in range(15):
             test_file = tmp_path / f"test_api_{i}.py"
             test_file.write_text(

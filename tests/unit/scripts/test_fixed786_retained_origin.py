@@ -7,6 +7,7 @@ import copy
 import hashlib
 import importlib.util
 import json
+import runpy
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -128,21 +129,21 @@ def test_retained_bytes_refuse_changed_or_missing_live_origin(
     if mutation in {"job", "run", "attempt", "head", "status"}:
         key = {"job": "id", "run": "run_id", "attempt": "run_attempt", "head": "head_sha", "status": "status"}[mutation]
         job[key] = "wrong"
-    elif mutation == "native-skipped":
+    if mutation == "native-skipped":
         job["steps"][0]["conclusion"] = "skipped"
-    elif mutation == "upload-failed":
+    if mutation == "upload-failed":
         job["steps"][1]["conclusion"] = "failure"
-    elif mutation == "expired-execution":
+    if mutation == "expired-execution":
         job["completed_at"] = "2026-11-05T00:00:00Z"
-    elif mutation == "log":
+    if mutation == "log":
         log += b"changed"
-    elif mutation == "receipt":
+    if mutation == "receipt":
         log = log.replace(b"Artifact ID 13269307808", b"Artifact ID 1")
         monkeypatch.setattr(owner, "_FIXED_PR786_UPLOAD_LOG_SHA256", hashlib.sha256(log).hexdigest())
         monkeypatch.setattr(owner, "_FIXED_PR786_UPLOAD_LOG_BYTES", len(log))
-    elif mutation == "archive":
+    if mutation == "archive":
         archive = archive[:-1]
-    elif mutation == "member":
+    if mutation == "member":
         (packet / "requirements-evidence.json").write_bytes(b"substituted")
     with pytest.raises(ValueError):
         owner._fixed_pr786_upload_receipt(job, log, archive, manifest, packet)
@@ -158,11 +159,19 @@ def test_inline_original_provenance_matches_owner() -> None:
     actual = {node.name: node for node in ast.parse(inline).body if isinstance(node, ast.FunctionDef)}
     for name in (
         "_fixed_pr786_upload_receipt",
+        "_fixed_pr786_upload_job",
+        "_fixed_pr786_upload_steps",
+        "_fixed_pr786_upload_window",
+        "_fixed_pr786_upload_log_digest",
+        "_fixed_pr786_original_member",
+        "_fixed_pr786_retained_member",
+        "_fixed_pr786_archive_members",
         "_fixed_pr786_original_log",
         "_fixed_pr786_copy_archive",
         "_fixed_pr786_copy_storage",
     ):
-        assert ast.dump(expected[name]) == ast.dump(actual[name])
+        assert name in expected and name in actual, name
+        assert ast.dump(expected[name]) == ast.dump(actual[name]), name
 
 
 @pytest.mark.parametrize(
@@ -193,6 +202,23 @@ def test_retention_signer_keeps_its_exact_origin(
     else:
         with pytest.raises(ValueError):
             owner._fixed_pr786_origin(intent)
+
+
+def _inline_retention_run_source() -> str:
+    document = yaml.safe_load((ROOT / ".github/workflows/requirements-evidence.yml").read_text())
+    steps = document["jobs"]["requirements-fixed786-origin"]["steps"]
+    shell = next(step["run"] for step in steps if "expected_run = {" in step.get("run", ""))
+    source = shell.split("<<'PYTHON'\n", 1)[1].rsplit("\nPYTHON", 1)[0]
+    nodes = ast.parse(source).body
+    assignments = {
+        target.id: index
+        for index, node in enumerate(nodes)
+        if isinstance(node, ast.Assign)
+        for target in node.targets
+        if isinstance(target, ast.Name)
+    }
+    selected = ast.Module(body=nodes[assignments["run_id"] : assignments["artifacts"]], type_ignores=[])
+    return ast.unparse(selected)
 
 
 @pytest.mark.parametrize(
@@ -267,20 +293,9 @@ def test_historical_origin_requires_complete_empty_live_inventory(
     ],
 )
 @pytest.mark.parametrize("case", ["valid", "wrong-branch", "attempt-two", "duplicate"])
-def test_inline_retention_run_requires_its_own_completed_origin(case: str, profile: str, source_root: str) -> None:
-    document = yaml.safe_load((ROOT / ".github/workflows/requirements-evidence.yml").read_text())
-    steps = document["jobs"]["requirements-fixed786-origin"]["steps"]
-    shell = next(step["run"] for step in steps if "expected_run = {" in step.get("run", ""))
-    source = shell.split("<<'PYTHON'\n", 1)[1].rsplit("\nPYTHON", 1)[0]
-    nodes = ast.parse(source).body
-    assignments = {
-        target.id: index
-        for index, node in enumerate(nodes)
-        if isinstance(node, ast.Assign)
-        for target in node.targets
-        if isinstance(target, ast.Name)
-    }
-    selected = ast.Module(body=nodes[assignments["run_id"] : assignments["artifacts"]], type_ignores=[])
+def test_inline_retention_run_requires_its_own_completed_origin(
+    case: str, profile: str, source_root: str, tmp_path: Path
+) -> None:
     actor = {"id": 7, "login": "synthetic"}
     run = {
         "id": 91,
@@ -314,9 +329,11 @@ def test_inline_retention_run_requires_its_own_completed_origin(case: str, profi
             "auxiliary_ref": f"refs/heads/codex/dev786-{profile}-signer-20261116",
         },
     }
-    code = compile(ast.fix_missing_locations(selected), "actual-inline-retention-run", "exec")
+    fragment = tmp_path / "inline_retention_run.py"
+    fragment.write_text(_inline_retention_run_source() + "\n", encoding="utf-8")
     if case == "valid":
-        exec(code, namespace)
-    else:
-        with pytest.raises(ValueError):
-            exec(code, namespace)
+        result = runpy.run_path(str(fragment), init_globals=namespace)
+        assert result["run_id"] == 91
+        return
+    with pytest.raises(ValueError):
+        runpy.run_path(str(fragment), init_globals=namespace)

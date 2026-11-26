@@ -89,7 +89,7 @@ def test_get_modules_roots_ignores_workspace_plain_modules_directory(
     assert (tmp_path / "modules").resolve() not in roots
 
 
-def test_discover_package_metadata_finds_example(tmp_path: Path):
+def test_discovery_finds_example_package(tmp_path: Path):
     """Discovery finds packages that have module-package.yaml with name and commands."""
     (tmp_path / "example_pkg").mkdir()
     (tmp_path / "example_pkg" / "module-package.yaml").write_text(
@@ -104,7 +104,7 @@ def test_discover_package_metadata_finds_example(tmp_path: Path):
     assert meta.commands == ["example_cmd"]
 
 
-def test_discover_package_metadata_skips_dir_without_metadata(tmp_path: Path):
+def test_discovery_skips_directory_without_manifest(tmp_path: Path):
     """Discovery skips dirs that don't have module-package.yaml (or metadata.yaml)."""
     (tmp_path / "no_meta").mkdir()
     result = discover_package_metadata(tmp_path)
@@ -216,7 +216,7 @@ def test_remember_active_module_src_only_tracks_installed_modules(tmp_path: Path
     assert [(installed_package / "src").resolve()] == module_packages_impl._ACTIVE_MODULE_SRC_DIRS
 
 
-def test_distribution_metadata_detection_normalizes_separator_variants(tmp_path: Path) -> None:
+def test_distribution_detection_normalizes_separator_variants(tmp_path: Path) -> None:
     """Installed package metadata checks should match dash, underscore, and dot variants."""
     package_dir = tmp_path / "specfact-codebase"
     package_dir.mkdir()

@@ -9,6 +9,7 @@ from typing import Any, cast
 from unittest.mock import patch
 
 import pytest
+from typer.core import TyperGroup
 
 from specfact_cli.cli import rebuild_root_app_from_registry
 from specfact_cli.registry import CommandRegistry
@@ -107,15 +108,14 @@ def test_code_analyze_routes_same_as_flat_analyze(
     from specfact_cli.cli import app
 
     root_cmd = get_command(app)
-    assert root_cmd is not None
-    assert hasattr(root_cmd, "commands")
-    root_commands = root_cmd.commands if hasattr(root_cmd, "commands") else {}
+    assert isinstance(root_cmd, TyperGroup)
+    root_commands = root_cmd.commands
     if "code" not in root_commands:
         return
     code_app = CommandRegistry.get_typer("code")
     click_code = get_command(code_app)
-    if hasattr(click_code, "commands"):
-        assert "analyze" in click_code.commands
+    assert isinstance(click_code, TyperGroup)
+    assert "analyze" in click_code.commands
 
 
 def test_govern_help_when_not_installed_suggests_install(
@@ -173,8 +173,8 @@ def test_spec_api_validate_routes_correctly(tmp_path: Path) -> None:
     from specfact_cli.cli import app
 
     root_cmd = get_command(app)
-    assert root_cmd is not None and hasattr(root_cmd, "commands")
-    root_commands = root_cmd.commands if hasattr(root_cmd, "commands") else {}
+    assert isinstance(root_cmd, TyperGroup)
+    root_commands = root_cmd.commands
     if "spec" not in root_commands:
         return
     runner = CliRunner()

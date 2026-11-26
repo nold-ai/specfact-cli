@@ -4,6 +4,8 @@ import importlib.util
 import re
 import textwrap
 from pathlib import Path
+from types import ModuleType
+from typing import Protocol, cast
 
 import pytest
 
@@ -23,65 +25,54 @@ def test_docs_json_gem_uses_the_patched_security_floor() -> None:
     assert "    jekyll (4.4.1)" in lockfile
 
 
-def _load_check_docs_commands() -> object:
-    path = REPO_ROOT / "scripts" / "check-docs-commands.py"
-    spec = importlib.util.spec_from_file_location("check_docs_commands", path)
+class _DocsCommands(Protocol):
+    _REPO_ROOT: Path
+    _EXCLUDED_DOC_PATHS: frozenset[str]
+
+    def collect_specfact_commands_from_text(self, text: str) -> list[list[str]]: ...
+    def collect_specfact_commands_from_guidance_text(self, text: str) -> list[list[str]]: ...
+    def validate_command_tokens(self, tokens: list[str]) -> tuple[bool, str]: ...
+    def _should_skip_guidance_path(self, rel: Path) -> bool: ...
+    def _scan_guidance_templates_for_command_validation(
+        self, docs_root: Path
+    ) -> tuple[set[tuple[str, ...]], list[str]]: ...
+    def _validate_nav_targets(self, docs_root: Path) -> list[str]: ...
+
+
+class _CrossSiteLinks(Protocol):
+    def _urls_from_line(self, line: str) -> list[str]: ...
+
+
+class _CommandContract(Protocol):
+    def _check_help(
+        self, runner: object, apps: dict[tuple[str, ...], tuple[object, tuple[()]]], record: dict[str, object]
+    ) -> list[str]: ...
+
+
+def _load_script(stem: str) -> ModuleType:
+    path = REPO_ROOT / "scripts" / f"{stem}.py"
+    spec = importlib.util.spec_from_file_location(stem.replace("-", "_"), path)
     assert spec and spec.loader
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
-def _load_check_cross_site_links() -> object:
-    path = REPO_ROOT / "scripts" / "check-cross-site-links.py"
-    spec = importlib.util.spec_from_file_location("check_cross_site_links", path)
-    assert spec and spec.loader
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+def _load_check_docs_commands() -> _DocsCommands:
+    return cast(_DocsCommands, _load_script("check-docs-commands"))
 
 
-def _load_check_command_contract() -> object:
-    path = REPO_ROOT / "scripts" / "check-command-contract.py"
-    spec = importlib.util.spec_from_file_location("check_command_contract", path)
-    assert spec and spec.loader
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-def test_collect_specfact_commands_from_markdown_code_block() -> None:
-    mod = _load_check_docs_commands()
-    text = """
-```bash
-$ specfact backlog ceremony standup
-```
-"""
-    cmds = mod.collect_specfact_commands_from_text(text)
-    assert ["backlog", "ceremony", "standup"] in cmds
-
-
-def test_collect_specfact_commands_chained_with_and() -> None:
-    mod = _load_check_docs_commands()
-    text = """
-```bash
-specfact init && specfact module list
-```
-"""
-    cmds = mod.collect_specfact_commands_from_text(text)
-    assert ["init"] in cmds
-    assert ["module", "list"] in cmds
-
-
-def test_tokens_from_line_preserves_flags_for_order_validation() -> None:
-    mod = _load_check_docs_commands()
-    text = """
-```bash
-specfact backlog analyze-deps --json
-```
-"""
-    cmds = mod.collect_specfact_commands_from_text(text)
-    assert ["backlog", "analyze-deps", "--json"] in cmds
+@pytest.mark.parametrize(
+    ("example", "expected"),
+    [
+        ("$ specfact backlog ceremony standup", [["backlog", "ceremony", "standup"]]),
+        ("specfact init && specfact module list", [["init"], ["module", "list"]]),
+        ("specfact backlog analyze-deps --json", [["backlog", "analyze-deps", "--json"]]),
+    ],
+)
+def test_collect_specfact_commands_from_markdown_code_block(example: str, expected: list[list[str]]) -> None:
+    commands = _load_check_docs_commands().collect_specfact_commands_from_text(f"```bash\n{example}\n```\n")
+    assert commands == expected
 
 
 def test_code_import_options_after_bundle_are_rejected() -> None:
@@ -114,7 +105,7 @@ def test_generated_contract_rejects_unknown_subcommand() -> None:
 
 
 def test_command_contract_retries_parent_help_for_code_import_alias(monkeypatch: pytest.MonkeyPatch) -> None:
-    mod = _load_check_command_contract()
+    mod = cast(_CommandContract, _load_script("check-command-contract"))
     calls: list[tuple[list[str], list[str]]] = []
 
     def fake_invoke(
@@ -178,7 +169,7 @@ specfact --mode copilot import from-code legacy-api --repo . --confidence 0.7
     assert ["import", "from-code", "legacy-api", "--repo", ".", "--confidence", "0.7"] in cmds
 
 
-def test_collect_specfact_commands_from_guidance_text_handles_inline_and_yaml() -> None:
+def test_collect_specfact_commands_from_inline_and_yaml_guidance() -> None:
     mod = _load_check_docs_commands()
     text = """
 guidance: "Run `specfact module list --show-origin` before editing."
@@ -211,7 +202,7 @@ def test_scan_guidance_templates_validates_resource_templates(tmp_path: Path, mo
 
 
 def test_cross_site_url_stops_at_markdown_delimiters() -> None:
-    mod = _load_check_cross_site_links()
+    mod = cast(_CrossSiteLinks, _load_script("check-cross-site-links"))
     line = "| `https://modules.specfact.io/foo/bar/` |"
     urls = mod._urls_from_line(line)
     assert urls == ["https://modules.specfact.io/foo/bar/"]

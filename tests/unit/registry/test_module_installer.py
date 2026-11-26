@@ -145,7 +145,7 @@ def test_install_module_to_default_marketplace_path(monkeypatch: pytest.MonkeyPa
     assert installed == install_root / "drift"
 
 
-def test_install_module_handles_macos_application_support_install_root(
+def test_install_module_uses_macos_application_support_install_root(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """Marketplace install must treat macOS Application Support paths as paths, not shell words."""

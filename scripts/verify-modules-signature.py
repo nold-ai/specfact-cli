@@ -309,6 +309,18 @@ def _matches_bundled_cutoff(manifest_path: Path, manifest: dict[str, Any]) -> bo
     return True
 
 
+def _verify_manifest_signature(
+    payload: bytes, integrity: dict[str, Any], require_signature: bool, public_key_pem: str
+) -> None:
+    signature = str(integrity.get("signature", "")).strip()
+    if require_signature and not signature:
+        raise ValueError("missing integrity.signature")
+    if signature:
+        if not public_key_pem:
+            raise ValueError("public key required to verify signature")
+        _verify_signature(payload, signature, public_key_pem)
+
+
 @beartype
 @require(lambda manifest_path: cast(Path, manifest_path).exists(), "manifest_path must exist")
 @ensure(lambda result: result is None, "verification raises or returns None")
@@ -326,18 +338,8 @@ def verify_manifest(
     data = cast(dict[str, Any], raw)
     if verify_checksum and _matches_bundled_cutoff(manifest_path, data):
         return
-    if not verify_checksum:
-        if require_signature:
-            raise ValueError("require_signature is incompatible with verify_checksum=False")
-        integrity_raw = data.get("integrity")
-        if not isinstance(integrity_raw, dict):
-            raise ValueError("missing integrity metadata")
-        integrity = cast(dict[str, Any], integrity_raw)
-        checksum = str(integrity.get("checksum", "")).strip()
-        if not checksum:
-            raise ValueError("missing integrity.checksum")
-        _parse_checksum(checksum)
-        return
+    if not verify_checksum and require_signature:
+        raise ValueError("require_signature is incompatible with verify_checksum=False")
     integrity_raw = data.get("integrity")
     if not isinstance(integrity_raw, dict):
         raise ValueError("missing integrity metadata")
@@ -347,19 +349,15 @@ def verify_manifest(
     if not checksum:
         raise ValueError("missing integrity.checksum")
     algo, digest = _parse_checksum(checksum)
+    if not verify_checksum:
+        return
 
     payload = _module_payload(manifest_path.parent, payload_from_filesystem=payload_from_filesystem)
     actual = hashlib.new(algo, payload).hexdigest().lower()
     if actual != digest:
         raise ValueError("checksum mismatch")
 
-    signature = str(integrity.get("signature", "")).strip()
-    if require_signature and not signature:
-        raise ValueError("missing integrity.signature")
-    if signature:
-        if not public_key_pem:
-            raise ValueError("public key required to verify signature")
-        _verify_signature(payload, signature, public_key_pem)
+    _verify_manifest_signature(payload, integrity, require_signature, public_key_pem)
 
 
 @beartype

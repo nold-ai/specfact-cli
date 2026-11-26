@@ -10,6 +10,13 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.55.18] - 2026-11-26
+
+### Fixed
+
+- Preserve the retained Requirements proof while clearing the full promotion Code Review.
+- Simplify module verification and release checks while preserving integrity validation.
+
 ## [0.55.17] - 2026-11-23
 
 ### Fixed

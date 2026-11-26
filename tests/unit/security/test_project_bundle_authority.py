@@ -161,8 +161,7 @@ def _assert_cutoff_does_not_depend_on_signatures(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     official: list[tuple[Path, packages.ModulePackageMetadata]],
-    bundle: str,
-    command: str,
+    expected_surface: tuple[str, str],
     grouped: bool,
 ) -> None:
     """Retain the exact release inventory even when a signing backend is unavailable."""
@@ -171,7 +170,7 @@ def _assert_cutoff_does_not_depend_on_signatures(
         context.setattr(module_installer, "verify_signature", _signature_backend_unavailable)
         context.setattr(packages, "discover_all_package_metadata", lambda **_kwargs: official)
         packages.register_module_package_commands(allow_unsigned=False, category_grouping_enabled=grouped)
-        _assert_registered_bundle_surface(official, bundle, command)
+        _assert_registered_bundle_surface(official, *expected_surface)
     _reset_registration()
 
 
@@ -277,7 +276,7 @@ def test_verified_project_bundle_preserves_root_and_rejects_forgery(
             forged = _forged_project_package(tmp_path / forgery, bundle, forgery, context)
             _assert_forged_bundle_has_no_surface(context, forged, grouped, dependency)
         _reset_registration()
-    _assert_cutoff_does_not_depend_on_signatures(monkeypatch, tmp_path, official, bundle, command, grouped)
+    _assert_cutoff_does_not_depend_on_signatures(monkeypatch, tmp_path, official, (bundle, command), grouped)
 
 
 def _prepare_source_snapshot_swap(monkeypatch: pytest.MonkeyPatch, source: Path) -> None:
