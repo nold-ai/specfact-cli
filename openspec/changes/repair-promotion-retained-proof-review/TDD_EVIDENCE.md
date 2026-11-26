@@ -26,3 +26,11 @@ documentation tests, signature verification, module installation, CLI help,
 and runtime test setup. It passes the same full protected-main reviewer locally
 at 53 points against its pass floor of 50, with zero blocking findings.
 Hosted Requirements and release review still require a protected rollout.
+
+GitHub Actions run `45895033041` recorded the expected parity failure
+on the signed test-only checkpoint. Run `45895418236` accepted that
+artifact and passed Requirements on the signed implementation.
+
+A separate regression test executes the checked-in inline upload receipt
+validator with fixture data. It accepts the recorded upload and rejects
+changes to the job attempt, receipt, archive, and retained member.
