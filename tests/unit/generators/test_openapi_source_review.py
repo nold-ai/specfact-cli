@@ -61,6 +61,15 @@ def test_only_http_receivers_and_literal_paths_create_operations(tmp_path: Path)
             [("/healthy", {}, None, None)],
         ),
         (
+            "def test_import(client):\n"
+            "    requests = client.get('/first')\n"
+            "    assert requests.status_code == 200\n"
+            "    import requests\n"
+            "    assert requests.status_code == 404\n"
+            "    requests.get('/healthy')\n",
+            [("/first", {}, 200, None), ("/healthy", {}, None, None)],
+        ),
+        (
             "from contextlib import nullcontext\n"
             "def test_context(client, other):\n"
             "    response = client.get('/health')\n"

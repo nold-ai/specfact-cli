@@ -89,6 +89,16 @@ def _response_attribute(expression: ast.expr) -> tuple[str, str] | None:
     return None
 
 
+def _test_import_bindings(statement: ast.Import | ast.ImportFrom) -> dict[str, str]:
+    if isinstance(statement, ast.ImportFrom):
+        return import_aliases([statement])
+    bindings: dict[str, str] = {}
+    for item in statement.names:
+        root = item.name.partition(".")[0]
+        bindings[item.asname or root] = item.name if item.asname else root
+    return bindings
+
+
 class OpenAPITestConverter:
     """Extract literal HTTP requests and their asserted responses from Python tests."""
 
@@ -137,7 +147,7 @@ class OpenAPITestConverter:
         responses: dict[str, dict[str, Any]] = {}
         for statement in statements:
             if isinstance(statement, (ast.Import, ast.ImportFrom)):
-                imports = import_aliases([statement])
+                imports = _test_import_bindings(statement)
                 aliases.update(imports)
                 clients.difference_update(imports)
                 clients.update(name for name, module in imports.items() if module in HTTP_MODULES)

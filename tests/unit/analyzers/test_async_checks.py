@@ -94,3 +94,19 @@ def test_local_assignment_shadows_an_outer_coroutine() -> None:
     """)
 
     assert not any(item.rule_id == "missing-await-on-coroutine" for item in async_findings(ast.parse(source), "app.py"))
+
+
+def test_async_definition_replaces_an_earlier_assignment() -> None:
+    from specfact_cli.analyzers.async_checks import async_findings
+
+    source = dedent("""\
+        worker = None
+
+        async def worker():
+            pass
+
+        async def run():
+            worker()
+    """)
+
+    assert any(item.rule_id == "missing-await-on-coroutine" for item in async_findings(ast.parse(source), "app.py"))
