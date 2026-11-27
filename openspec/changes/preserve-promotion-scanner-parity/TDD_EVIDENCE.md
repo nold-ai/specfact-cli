@@ -28,3 +28,9 @@
   right-hand bindings before updating their targets, and coroutine bindings
   carry only if they can reach the next iteration. Controls cover an
   unconditional reset and a `continue` that can skip that reset.
+
+- On `07cf8613`, three cases lost coroutine bindings through an intermediate
+  function with a `global` or `nonlocal` declaration. The scanner now applies
+  enclosing bindings from outermost to innermost, with global writes routed to
+  the module and nonlocal writes to the inherited scope. The earlier
+  synchronous assignment control stays clear.

@@ -219,14 +219,14 @@ def test_module_annotation_does_not_rebind_a_coroutine() -> None:
 
 
 @pytest.mark.parametrize(
-    ("source", "line"),
+    ("source", "expected"),
     [
         (
             "import asyncio\n"
             "async def worker():\n    pass\n"
             "async def run():\n    worker()\n"
             "asyncio.run(run())\nworker = lambda: None\n",
-            5,
+            [5],
         ),
         (
             "async def run():\n"
@@ -235,26 +235,59 @@ def test_module_annotation_does_not_rebind_a_coroutine() -> None:
             "        worker()\n"
             "        async def worker():\n"
             "            pass\n",
-            4,
+            [4],
         ),
         (
             "async def worker():\n    pass\n"
             "def enclosing():\n    worker = lambda: None\n"
             "    async def run():\n        global worker\n"
             "        worker()\n        worker = lambda: None\n        worker()\n",
-            7,
+            [7],
         ),
         (
             "def enclosing():\n    async def worker():\n        pass\n"
             "    async def run():\n        nonlocal worker\n"
             "        worker()\n        worker = lambda: None\n        worker()\n",
-            6,
+            [6],
+        ),
+        (
+            "import asyncio\nasync def worker():\n    pass\n"
+            "def enclosing():\n    global worker\n    async def run():\n        worker()\n"
+            "    asyncio.run(run())\n    worker = lambda: None\n",
+            [7],
+        ),
+        (
+            "async def worker():\n    pass\n"
+            "def outer():\n    worker = lambda: None\n    def middle():\n        global worker\n"
+            "        async def run():\n            worker()\n",
+            [8],
+        ),
+        (
+            "async def worker():\n    pass\n"
+            "def enclosing():\n    global worker\n    worker = lambda: None\n"
+            "    async def run():\n        worker()\n",
+            [],
+        ),
+        (
+            "def outer():\n    async def worker():\n        pass\n"
+            "    def middle():\n        nonlocal worker\n        async def run():\n            worker()\n"
+            "        worker = lambda: None\n",
+            [7],
         ),
     ],
-    ids=["enclosing-binding", "previous-loop-iteration", "global", "nonlocal"],
+    ids=[
+        "enclosing-binding",
+        "previous-loop-iteration",
+        "global",
+        "nonlocal",
+        "enclosing-global-later-write",
+        "enclosing-global-skips-local",
+        "enclosing-global-earlier-write",
+        "enclosing-nonlocal-later-write",
+    ],
 )
-def test_coroutine_calls_can_use_enclosing_or_later_bindings(source: str, line: int) -> None:
-    assert _missing_await_lines(source) == [line]
+def test_coroutine_calls_can_use_enclosing_or_later_bindings(source: str, expected: list[int]) -> None:
+    assert _missing_await_lines(source) == expected
 
 
 def _missing_await_lines(source: str) -> list[int]:

@@ -551,9 +551,11 @@ def _calls_with_coroutines(
 
 
 def _binding_flags(
-    bindings: Sequence[_CallableBinding], definition_position: tuple[int, int] | None = None
+    bindings: Sequence[_CallableBinding],
+    definition_position: tuple[int, int] | None = None,
+    inherited: set[str] | None = None,
 ) -> dict[str, bool]:
-    coroutines: set[str] = set()
+    coroutines = set(inherited or ())
     for group in _binding_groups(bindings):
         resolved = _resolved_bindings(group, coroutines)
         if definition_position is None or group[0].position < definition_position:
@@ -577,26 +579,14 @@ def _method_coroutines(
     return {f"{receiver}.{name}" for name, is_async in _binding_flags(definitions.get(owner, ())).items() if is_async}
 
 
-def _enclosing_callable_flags(
-    scope: ast.AsyncFunctionDef,
-    parents: dict[ast.AST, ast.AST],
-    definitions: dict[_LexicalScope, list[_CallableBinding]],
-    global_names: set[str],
-) -> dict[str, bool]:
-    visible: dict[str, bool] = {}
+def _enclosing_scopes(scope: _LexicalScope, parents: dict[ast.AST, ast.AST]) -> Iterator[_LexicalScope]:
     owner = _enclosing_scope(scope, parents)
-    position = scope.lineno, scope.col_offset
     while owner is not None:
-        if not isinstance(owner, ast.ClassDef):
-            excluded = set() if isinstance(owner, ast.Module) else global_names
-            flags = _binding_flags(definitions.get(owner, ()), position)
-            for name in flags.keys() - excluded:
-                visible.setdefault(name, flags[name])
+        yield owner
         owner = _enclosing_scope(owner, parents)
-    return visible
 
 
-def _outer_declarations(scope: ast.AsyncFunctionDef) -> tuple[set[str], set[str]]:
+def _outer_declarations(scope: _LexicalScope) -> tuple[set[str], set[str]]:
     global_names: set[str] = set()
     nonlocal_names: set[str] = set()
     for node in _scoped_nodes(scope):
@@ -605,6 +595,43 @@ def _outer_declarations(scope: ast.AsyncFunctionDef) -> tuple[set[str], set[str]
         elif isinstance(node, ast.Nonlocal):
             nonlocal_names.update(node.names)
     return global_names, global_names | nonlocal_names
+
+
+def _apply_enclosing_bindings(
+    scope: _LexicalScope,
+    bindings: Sequence[_CallableBinding],
+    position: tuple[int, int],
+    visible: dict[str, bool],
+    module_flags: dict[str, bool],
+) -> None:
+    global_names, redirected = _outer_declarations(scope)
+    local_names = {binding.name for binding in bindings} - redirected
+    inherited = {name for name, is_async in visible.items() if is_async} - local_names - global_names
+    inherited.update(name for name in global_names if module_flags.get(name))
+    flags = _binding_flags(bindings, position, inherited)
+    module_flags.update({name: flags[name] for name in global_names & flags.keys()})
+    visible.update(flags)
+    visible.update({name: module_flags.get(name, False) for name in global_names})
+
+
+def _enclosing_callable_flags(
+    scope: ast.AsyncFunctionDef,
+    parents: dict[ast.AST, ast.AST],
+    definitions: dict[_LexicalScope, list[_CallableBinding]],
+    global_names: set[str],
+) -> dict[str, bool]:
+    visible: dict[str, bool] = {}
+    module_flags: dict[str, bool] = {}
+    position = scope.lineno, scope.col_offset
+    for owner in reversed(tuple(_enclosing_scopes(scope, parents))):
+        bindings = definitions.get(owner, ())
+        if isinstance(owner, ast.Module):
+            module_flags = _binding_flags(bindings, position)
+            visible.update(module_flags)
+        elif not isinstance(owner, ast.ClassDef):
+            _apply_enclosing_bindings(owner, bindings, position, visible, module_flags)
+    visible.update({name: module_flags.get(name, False) for name in global_names})
+    return visible
 
 
 def _visible_coroutines(
