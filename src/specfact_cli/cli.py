@@ -954,11 +954,10 @@ def _get_group_from_info_wrapper(
 _typer_get_group_from_info_original: Callable[..., click.Group] | None = None
 _typer_get_command_original: Callable[[typer.Typer], click.Command] | None = None
 _typer_get_params_original: Callable[..., Any] | None = None
-_typer_get_params_convertors_original: Callable[..., Any] | None = None
 
 
 def _specfact_get_params_from_function(func: Callable[..., Any]) -> Any:
-    """Map thin Typer entrypoints to their option-rich implementations for Click param generation."""
+    """Resolve thin entry points and normalize Click contexts before Typer builds commands."""
     orig = _typer_get_params_original
     if orig is None:
         import typer.utils as typer_utils
@@ -976,56 +975,17 @@ def _specfact_get_params_from_function(func: Callable[..., Any]) -> Any:
             merge_install = getattr(module, "_specfact_merge_install_param_specs", None)
             if merge_install is not None:
                 return merge_install(orig)
-    return orig(func)
+    params = orig(func)
+    for param in params.values():
+        if _is_context_annotation(param.annotation):
+            param.annotation = typer.Context
+    return params
 
 
 def _is_context_annotation(annotation: object) -> bool:
     if annotation in (click.Context, typer.Context):
         return True
     return getattr(annotation, "__name__", "") == "Context" and "click" in getattr(annotation, "__module__", "")
-
-
-def _specfact_get_params_convertors_ctx_param_name_from_function(callback: Callable[..., Any] | None) -> Any:
-    """Treat both Click context classes as Typer context parameters across Typer releases."""
-    assert _typer_get_params_convertors_original is not None
-    original_error: RuntimeError | None = None
-    try:
-        return _typer_get_params_convertors_original(callback)
-    except RuntimeError as exc:
-        if callback is None or "click.core.Context" not in str(exc):
-            raise
-        original_error = exc
-    import typer.utils as typer_utils
-
-    params = _specfact_get_params_from_function(callback)
-    ctx_param_name: str | None = None
-    filtered_params: dict[str, Any] = {}
-    for name, param in params.items():
-        if ctx_param_name is None and _is_context_annotation(getattr(param, "annotation", None)):
-            ctx_param_name = name
-            continue
-        filtered_params[name] = param
-
-    if ctx_param_name is None:
-        raise RuntimeError("Unable to identify Click context parameter") from original_error
-
-    typer_main = cast(Any, importlib.import_module("typer.main"))
-    previous_main_get_params = typer_main.get_params_from_function
-    previous_utils_get_params = typer_utils.get_params_from_function
-
-    def _filtered_get_params(func: Callable[..., Any]) -> Any:
-        if func is callback:
-            return filtered_params
-        return previous_main_get_params(func)
-
-    try:
-        typer_main.get_params_from_function = _filtered_get_params
-        typer_utils.get_params_from_function = _filtered_get_params
-        click_params, convertors, _ignored_ctx = _typer_get_params_convertors_original(callback)
-    finally:
-        typer_main.get_params_from_function = previous_main_get_params
-        typer_utils.get_params_from_function = previous_utils_get_params
-    return click_params, convertors, ctx_param_name
 
 
 # Patch so root app build uses our delegate group for lazy typers (built via get_group_from_info).
@@ -1035,7 +995,6 @@ def _patch_typer_build() -> None:
     typer_main = cast(Any, importlib.import_module("typer.main"))
 
     global _typer_get_group_from_info_original, _typer_get_command_original, _typer_get_params_original
-    global _typer_get_params_convertors_original
     # Save originals only on first patch; avoid overwriting with our wrapper when cli is re-imported (e.g. by plan module).
     if _typer_get_group_from_info_original is None:
         _typer_get_group_from_info_original = typer_main.get_group_from_info
@@ -1043,14 +1002,9 @@ def _patch_typer_build() -> None:
         _typer_get_command_original = typer_main.get_command
     if _typer_get_params_original is None:
         _typer_get_params_original = typer_utils.get_params_from_function
-    if _typer_get_params_convertors_original is None:
-        _typer_get_params_convertors_original = typer_main.get_params_convertors_ctx_param_name_from_function
     typer_utils.get_params_from_function = _specfact_get_params_from_function
     # typer.main may have bound get_params_from_function at import time; keep in sync.
     typer_main.get_params_from_function = _specfact_get_params_from_function
-    typer_main.get_params_convertors_ctx_param_name_from_function = (
-        _specfact_get_params_convertors_ctx_param_name_from_function
-    )
     typer_main.get_command = _get_command
     typer_main.get_group_from_info = _get_group_from_info_wrapper
 
