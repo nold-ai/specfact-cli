@@ -1072,15 +1072,21 @@ def _release_cache_optimization(path: Path, source: Path) -> int | None:
     return None
 
 
+_CPYTHON_RELEASE_CACHE_MAGICS = {
+    "cpython-311": 3495,
+    "cpython-312": 3531,
+    "cpython-313": 3571,
+    "cpython-314": 3627,
+}
+
+
 def _foreign_release_cache(path: Path, source: Path, data: bytes) -> bool:
     """Recognize standard caches whose bytecode this interpreter cannot load."""
     if sys.implementation.name != "cpython" or sys.pycache_prefix is not None:
         return False
     if path.parent != source.parent / "__pycache__":
         return False
-    # Bytecode format identifiers for the CPython versions in the runtime matrix.
-    magics = {"cpython-311": 3495, "cpython-312": 3531, "cpython-313": 3571}
-    for tag, number in magics.items():
+    for tag, number in _CPYTHON_RELEASE_CACHE_MAGICS.items():
         if tag == sys.implementation.cache_tag:
             continue
         if path.name in {f"{source.stem}.{tag}{suffix}.pyc" for suffix in ("", ".opt-1", ".opt-2")}:
@@ -1089,9 +1095,38 @@ def _foreign_release_cache(path: Path, source: Path, data: bytes) -> bool:
     return False
 
 
+def _inactive_pytest_release_cache(path: Path, sources: dict[Path, bytes]) -> bool:
+    """Recognize a pytest cache that neither the runtime nor an active rewrite hook selects."""
+    if sys.implementation.name != "cpython" or sys.pycache_prefix is not None:
+        return False
+    match = re.fullmatch(r"(.+)\.(cpython-\d+)-pytest-\d+\.\d+\.\d+[a-zA-Z0-9.+-]*\.pyc", path.name)
+    if match is None:
+        return False
+    name, tag = match.groups()
+    if path.parent.parent / f"{name}.py" not in sources:
+        return False
+
+    if tag == sys.implementation.cache_tag:
+        rewrite_module = sys.modules.get("_pytest.assertion.rewrite")
+        rewrite_hook = getattr(rewrite_module, "AssertionRewritingHook", None)
+        if isinstance(rewrite_hook, type) and any(isinstance(finder, rewrite_hook) for finder in sys.meta_path):
+            return False
+        magic = importlib.util.MAGIC_NUMBER
+    else:
+        number = _CPYTHON_RELEASE_CACHE_MAGICS.get(tag)
+        if number is None:
+            return False
+        magic = number.to_bytes(2, "little") + b"\r\n"
+    with path.open("rb") as stream:
+        return _cache_header_matches(stream.read(17), magic)
+
+
 def _release_cache_matches(path: Path, root: Path, sources: dict[Path, bytes]) -> bool:
     """Authenticate local bytecode or recognize an inactive cache for authenticated source."""
-    source = Path(importlib.util.source_from_cache(str(path)))
+    try:
+        source = Path(importlib.util.source_from_cache(str(path)))
+    except ValueError:
+        return _inactive_pytest_release_cache(path, sources)
     if source not in sources:
         return False
     optimization = _release_cache_optimization(path, source)
