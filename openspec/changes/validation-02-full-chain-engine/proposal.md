@@ -1,5 +1,11 @@
 # Change: Validation Evidence Graph Engine
 
+## Scope rescope — 2026-09-20
+
+Consume current_execution independently from optional chronology. No global graph, full-chain completeness, or historical proof prerequisite for <https://github.com/nold-ai/specfact-cli/issues/740>. Missing mappings remain unassessed coverage, not fabricated completeness. Preserve graph validation for users who request that capability.
+
+This owner-requested scope amendment takes precedence over conflicting default-workflow or dependency wording below. It changes planning only; runtime policy is unchanged. [Replacement policy](../requirements-09-minimal-evidence/proposal.md).
+
 ## Why
 
 SpecFact should not own the full upstream planning lifecycle. Spec Kit,

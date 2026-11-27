@@ -1,14 +1,16 @@
 from pathlib import Path
 
+import pytest
+
 from specfact_cli.models.module_package import ModulePackageMetadata
 from specfact_cli.registry import module_lifecycle
 
 
-def test_apply_module_state_update_persists_disabled_modules(monkeypatch) -> None:
+def test_apply_module_state_update_persists_disabled_modules(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         module_lifecycle,
         "discover_all_package_metadata",
-        lambda: [(Path("/tmp/mock-module"), ModulePackageMetadata(name="mock-module", version="0.1.0"))],
+        lambda **_kwargs: [(Path("/tmp/mock-module"), ModulePackageMetadata(name="mock-module", version="0.1.0"))],
     )
     monkeypatch.setattr(
         module_lifecycle,

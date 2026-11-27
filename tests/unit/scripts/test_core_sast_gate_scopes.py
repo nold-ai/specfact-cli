@@ -4,6 +4,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 from tests.unit.scripts.test_core_sast_gate import SCRIPT, SOURCE_PATH, _run_gate, _tracked_source
 
 
@@ -74,16 +76,50 @@ def test_global_import_without_flow_resolution_reports_incomplete(tmp_path: Path
     assert report["diagnostics"] == [{"path": SOURCE_PATH, "message": "global import alias requires flow analysis"}]
 
 
-def test_a_later_import_cannot_hide_an_earlier_call(tmp_path: Path) -> None:
-    _tracked_source(
-        tmp_path,
-        "import hashlib as digest\nresult = digest.md5(data)\nimport random as digest\n",
-    )
-
+@pytest.mark.parametrize(
+    ("source", "rule", "line"),
+    [
+        (
+            "import hashlib as digest\nresult = digest.md5(data)\nimport random as digest\n",
+            "weak-cryptographic-hash",
+            2,
+        ),
+        (
+            "def calculate(data, use_math):\n"
+            "    import hashlib as digest\n"
+            "    if use_math:\n"
+            "        import math as digest\n"
+            "    result = digest.md5(data)\n"
+            "    import math as digest\n"
+            "    digest.md5(data)\n"
+            "    return result\n",
+            "weak-cryptographic-hash",
+            5,
+        ),
+        (
+            "def calculate(data, values):\n"
+            "    import math as digest\n"
+            "    for value in values:\n"
+            "        if value:\n"
+            "            digest.md5(data)\n"
+            "        import hashlib as digest\n",
+            "weak-cryptographic-hash",
+            5,
+        ),
+        (
+            "def transform(value):\n    return eval(value)\ntransform(data)\nfrom ast import literal_eval as eval\n",
+            "unsafe-eval-usage",
+            2,
+        ),
+    ],
+    ids=["later-import", "conditional-import", "loop-carried-import", "enclosing-import"],
+)
+def test_import_rebinding_preserves_findings(tmp_path: Path, source: str, rule: str, line: int) -> None:
+    _tracked_source(tmp_path, source)
     result, report = _run_gate(tmp_path)
 
     assert result.returncode == 1, result.stderr
-    assert [(row["rule_id"], row["line"]) for row in report["new_findings"]] == [("weak-cryptographic-hash", 2)]
+    assert [(row["rule_id"], row["line"]) for row in report["new_findings"]] == [(rule, line)]
 
 
 def test_nonlocal_import_without_flow_resolution_reports_incomplete(tmp_path: Path) -> None:

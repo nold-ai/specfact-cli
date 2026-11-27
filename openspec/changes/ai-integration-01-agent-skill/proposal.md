@@ -1,5 +1,11 @@
 # Change: Shared Module-Owned Skill Discovery, Installation, and Export
 
+## Scope rescope — 2026-09-20
+
+Remove the prerequisite on modules #434 for generic skill discovery/install/export. Validate against a bounded module-owned fixture and signed assets where used. Install optional preflight/checkpoint assets only once their own signed release exists. Keep safe writes, identity, collision handling, and inventory; this issue does not author assurance workflow content.
+
+This owner-requested scope amendment takes precedence over conflicting default-workflow or dependency wording below. It changes planning only; runtime policy is unchanged. [Replacement policy](../requirements-09-minimal-evidence/proposal.md).
+
 ## Why
 
 SpecFact modules can own focused agent workflows, but users need one core installation and export surface that discovers those assets, verifies their identity, and materializes them in a portable canonical layout. Without a shared distributor, each module or harness would copy skill content and drift independently.
@@ -32,7 +38,7 @@ SpecFact modules can own focused agent workflows, but users need one core instal
 ## Dependencies
 
 - Retains parent Feature [#372](https://github.com/nold-ai/specfact-cli/issues/372), under Epic [#257](https://github.com/nold-ai/specfact-cli/issues/257).
-- Blocked by the signed modules `preflight-05-implementation-conformance` handoff so the first installed identity includes both preflight and seal-bound implementation-check workflows.
+- Generic installation has no dependency on modules #434. Validate the descriptor and safe installation contract with bounded module-owned fixtures and signed assets where required. Optional preflight/conformance assets are consumed only after their own signed publication.
 - Blocks `ai-integration-03-instruction-files` [#253](https://github.com/nold-ai/specfact-cli/issues/253).
 
 ## Explicit Non-Goals

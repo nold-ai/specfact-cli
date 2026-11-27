@@ -9,6 +9,8 @@ import sys
 from pathlib import Path
 from textwrap import dedent
 
+import pytest
+
 
 def test_builtin_async_rules() -> None:
     """Run every fixture under the one Requirements proof selector."""
@@ -110,3 +112,99 @@ def test_async_definition_replaces_an_earlier_assignment() -> None:
     """)
 
     assert any(item.rule_id == "missing-await-on-coroutine" for item in async_findings(ast.parse(source), "app.py"))
+
+
+@pytest.mark.parametrize(
+    ("code", "expected"),
+    [
+        ("worker()\n    worker = lambda: None\n    worker()", [4]),
+        ("if enabled:\n        worker = lambda: None\n    worker()", [6]),
+        ("worker: object\n    worker()", [5]),
+        (
+            "if enabled:\n        for worker in [lambda: None]:\n            worker()\n    worker()",
+            [7],
+        ),
+        (
+            "replacement = worker\n    for worker in (lambda: None,):\n        worker()\n"
+            "        worker = replacement\n        worker()\n        worker = lambda: None\n        worker()",
+            [8],
+        ),
+        (
+            "for worker in [lambda: None]:\n        worker = worker\n        worker()\n"
+            "        async def worker():\n            pass\n        worker()",
+            [9],
+        ),
+        ("for worker in (worker,):\n        worker()", [5]),
+        ("worker = worker\n    worker()", [5]),
+        ("other = worker\n    other()\n    other = lambda: None\n    other()", [5]),
+    ],
+    ids=[
+        "later-assignment",
+        "conditional-assignment",
+        "local-annotation",
+        "synchronous-loop-target",
+        "loop-target-reassigned",
+        "loop-target-resets-each-iteration",
+        "coroutine-iterable",
+        "self-alias",
+        "async-alias",
+    ],
+)
+def test_local_coroutine_calls_respect_runtime_bindings(code: str, expected: list[int]) -> None:
+    source = f"async def run(enabled=False):\n    async def worker():\n        pass\n    {code}\n"
+
+    assert _missing_await_lines(source) == expected
+
+
+def test_module_annotation_does_not_rebind_a_coroutine() -> None:
+    from specfact_cli.analyzers.async_checks import async_findings
+
+    source = "async def worker():\n    pass\nworker: object\nasync def run():\n    worker()\n"
+
+    assert any(item.rule_id == "missing-await-on-coroutine" for item in async_findings(ast.parse(source), "app.py"))
+
+
+@pytest.mark.parametrize(
+    ("source", "line"),
+    [
+        (
+            "import asyncio\n"
+            "async def worker():\n    pass\n"
+            "async def run():\n    worker()\n"
+            "asyncio.run(run())\nworker = lambda: None\n",
+            5,
+        ),
+        (
+            "async def run():\n"
+            "    worker = lambda: None\n"
+            "    for value in (1, 2):\n"
+            "        worker()\n"
+            "        async def worker():\n"
+            "            pass\n",
+            4,
+        ),
+        (
+            "async def worker():\n    pass\n"
+            "def enclosing():\n    worker = lambda: None\n"
+            "    async def run():\n        global worker\n"
+            "        worker()\n        worker = lambda: None\n        worker()\n",
+            7,
+        ),
+        (
+            "def enclosing():\n    async def worker():\n        pass\n"
+            "    async def run():\n        nonlocal worker\n"
+            "        worker()\n        worker = lambda: None\n        worker()\n",
+            6,
+        ),
+    ],
+    ids=["enclosing-binding", "previous-loop-iteration", "global", "nonlocal"],
+)
+def test_coroutine_calls_can_use_enclosing_or_later_bindings(source: str, line: int) -> None:
+    assert _missing_await_lines(source) == [line]
+
+
+def _missing_await_lines(source: str) -> list[int]:
+    from specfact_cli.analyzers.async_checks import async_findings
+
+    findings = async_findings(ast.parse(source), "app.py")
+    return [finding.line for finding in findings if finding.rule_id == "missing-await-on-coroutine"]
