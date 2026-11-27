@@ -46,7 +46,6 @@ jobs:
           persist-credentials: false
 
       - name: Read immutable module fixture
-        id: modules-fixture
         shell: bash
         run: |
           set -euo pipefail
@@ -55,15 +54,13 @@ jobs:
           [[ "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]
           test "$repository" = "nold-ai/specfact-cli-modules"
           [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
-          printf 'repository=%s\n' "$repository" >> "$GITHUB_OUTPUT"
-          printf 'commit=%s\n' "$commit" >> "$GITHUB_OUTPUT"
 
       - name: Checkout module bundles repo
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
-          repository: ${{ steps.modules-fixture.outputs.repository }}
+          repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
-          ref: ${{ steps.modules-fixture.outputs.commit }}
+          ref: 69f075819be5e1ceca1446b026b0417f19e584ca
           persist-credentials: false
 
       - name: Verify immutable module fixture
@@ -72,7 +69,7 @@ jobs:
           set -euo pipefail
           expected_repository="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])')"
           expected="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
-          test "$expected_repository" = "${{ steps.modules-fixture.outputs.repository }}"
+          test "$expected_repository" = "nold-ai/specfact-cli-modules"
           actual="$(git -C specfact-cli-modules rev-parse HEAD)"
           test "$actual" = "$expected"
 

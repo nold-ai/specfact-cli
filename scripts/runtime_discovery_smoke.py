@@ -33,7 +33,6 @@ MODULE_VERSION_PATTERN = re.compile(
     r"(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$"
 )
 SRC_ROOT = REPO_ROOT / "src"
-RUNTIME_SMOKE_ARCHIVES_LOCK = REPO_ROOT / "ci/runtime-smoke-archives.lock.json"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 MODULE_IDS = ("nold-ai/specfact-project", "nold-ai/specfact-codebase", "nold-ai/specfact-code-review")
@@ -225,6 +224,7 @@ def _module_dependency_closure(modules_repo: Path) -> tuple[str, ...]:
 
 def _build_local_registry(workspace: Path, modules_repo: Path) -> Path:
     from specfact_cli.registry.module_installer import _extract_marketplace_archive
+    from specfact_cli.registry.official_module_cutoff import _inventory, frozen_archive
 
     registry = workspace / "local-registry"
     modules_dir = registry / "modules"
@@ -233,16 +233,15 @@ def _build_local_registry(workspace: Path, modules_repo: Path) -> Path:
     staging_dir.mkdir(parents=True)
     entries: list[dict[str, Any]] = []
 
-    archives = json.loads(RUNTIME_SMOKE_ARCHIVES_LOCK.read_text(encoding="utf-8"))
-    for module_id, expected in sorted(archives.items()):
-        version = expected["version"]
+    for module_id in sorted(_inventory()["latest"]):
+        version, expected = frozen_archive(module_id, None)
         if MODULE_VERSION_PATTERN.fullmatch(version) is None:
             raise RuntimeError(f"Invalid module version in cutoff inventory: {module_id} {version!r}")
         bundle_name = module_id.split("/", 1)[1]
         archive_path = modules_dir / f"{bundle_name}-{version}.tar.gz"
         original = modules_repo / "registry" / "modules" / archive_path.name
         data = original.read_bytes()
-        if hashlib.sha256(data).hexdigest() != expected["sha256"]:
+        if hashlib.sha256(data).hexdigest() != expected["archive"]:
             raise RuntimeError(f"Smoke fixture archive does not match the release cutoff: {module_id} {version}")
         archive_path.write_bytes(data)
         _extract_marketplace_archive(archive_path, staging_dir)
@@ -252,7 +251,7 @@ def _build_local_registry(workspace: Path, modules_repo: Path) -> Path:
                 "id": module_id,
                 "latest_version": version,
                 "download_url": archive_path.relative_to(registry).as_posix(),
-                "checksum_sha256": expected["sha256"],
+                "checksum_sha256": expected["archive"],
                 "tier": manifest.get("tier", "official"),
                 "publisher": manifest.get("publisher", {}),
                 "bundle_dependencies": manifest.get("bundle_dependencies", []),

@@ -1,0 +1,36 @@
+schema_version: '2'
+requirements:
+  openspec:fix-planning-review-proof-context:requirements-planning-review-context:preserve-finalized-inherited-review-context:
+    rationale: Real workflow consumers retain inherited Python review and genuine finalized root proof.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#760
+    touchpoints:
+      - id: inherited-review
+        kind: config_file
+        locator: .github/workflows/requirements-evidence.yml
+    verification_cases:
+      - case_id: PLANNING-REVIEW-FINAL
+        scenario_id: preserve-finalized-inherited-review-context
+        method: test
+        intent: Execute both actual review shells with ordinary and native proof context.
+        observable: Genuine root final proof reaches the immutable provider and full inherited scope remains.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_planning_review_context.py::test_actual_consumers_preserve_final_root_context
+  openspec:fix-planning-review-proof-context:requirements-planning-review-context:reject-inherited-review-context-forgery:
+    rationale: Forged artifact context fails closed while genuine final proof and separate planning receipts survive.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#760
+    touchpoints:
+      - id: inherited-review
+        kind: config_file
+        locator: .github/workflows/requirements-evidence.yml
+    verification_cases:
+      - case_id: PLANNING-REVIEW-FORGERY
+        scenario_id: reject-inherited-review-context-forgery
+        method: test
+        intent: Exercise actual workflow with foreign, stale, ambiguous, corrupted and non-final root proof.
+        observable: Invalid inherited proof never authorizes review; valid exact-root final proof remains accepted.
+        selector:
+          runner: pytest
+          node_id: tests/unit/security/test_planning_review_context.py::test_actual_consumers_reject_context_forgery

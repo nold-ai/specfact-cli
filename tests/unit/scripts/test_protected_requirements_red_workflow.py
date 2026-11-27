@@ -16,11 +16,11 @@ def test_protected_red_job_is_bound_to_the_one_pull_request() -> None:
     proof = jobs[PROOF_JOB]
 
     assert proof["permissions"] == {"contents": "read"}
-    assert "github.event.pull_request.number == 803" in proof["if"]
-    assert "github.event.pull_request.head.repo.full_name == github.repository" in proof["if"]
-    assert "github.base_ref == 'main'" in proof["if"]
+    assert "github.event.pull_request.number == 799" in proof["if"]
+    assert "github.event.pull_request.head.repo.full_name == 'nold-ai/specfact-cli'" in proof["if"]
+    assert "github.base_ref == 'dev'" in proof["if"]
     assert re.fullmatch(
-        r"nold-ai/\.github/\.github/actions/protected-requirements-red-803@[0-9a-f]{40}", proof["steps"][0]["uses"]
+        r"nold-ai/\.github/\.github/actions/protected-requirements-red@[0-9a-f]{40}", proof["steps"][0]["uses"]
     )
 
 
@@ -36,9 +36,7 @@ def test_protected_artifact_is_consumed_in_each_native_requirements_lane() -> No
         "steps.protected-red-artifact.outputs.artifact-id",
     )
     for name, source in zip(EVIDENCE_JOBS, sources, strict=True):
-        download = next(
-            step for step in jobs[name]["steps"] if step["name"] == "Download current protected before-fix proof"
-        )
+        download = next(step for step in jobs[name]["steps"] if step["name"] == "Download protected RED proof")
         assert download["with"]["artifact-ids"] == "${{ " + source + " }}"
         assert "run-id" not in download["with"]
     assert jobs[final]["name"] == "Requirements evidence"

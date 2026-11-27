@@ -10,12 +10,197 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.55.19] - 2026-11-27
+
+### Fixed
+
+- Preserve reviewed scanner and OpenAPI binding fixes when promoting the current development release.
+- Keep system tools available to isolated smoke launchers and verify the exact compatibility fixtures.
+
+---
+
+## [0.55.18] - 2026-11-26
+
+### Fixed
+
+- Preserve the retained Requirements proof while clearing the full promotion Code Review.
+- Simplify module verification and release checks while preserving integrity validation.
+
+## [0.55.17] - 2026-11-23
+
+### Fixed
+
+- Honor the caller’s pip constraint files when resolving marketplace module dependencies with `pip-compile`.
+
+---
+
+## [0.55.16] - 2026-11-22
+
+### Security
+
+- Replace the core Semgrep runtime and independent SAST integration while retaining Bandit.
+- Remove the retired MCP and scanner dependencies from the frozen graph, update optional
+  OpenTelemetry to the patched 1.45.2 line, and retain all strict dependency audits.
+- Admit only the exact reviewed pycparser 3.12 wheel to frozen delivery.
+
+---
+
+## [0.55.15] - 2026-11-21
+
+### Fixed
+
+- Restore Docs Review and CLI Command Validation for the frozen, reviewed documentation fixture after signing-key rotation.
+
+---
+
+## [0.55.14] - 2026-11-17
+
+### Security
+
+- Pin official module trust to the published 0.55.4 registry snapshot and revoke the retired signing key.
+- Preserve verified bundled modules when package installers relocate their compiled caches.
+
+## [0.55.12] - 2026-11-03
+
+### Security
+
+- Raise the public GitPython floor to 3.2.1 and refresh its frozen artifact to reject
+  submodule creation inside Git metadata before reaching the clone boundary.
+- Select reviewed official pycparser 3.12 with an exact artifact provenance record,
+  retaining the blocked 3.0 family and an inclusive 4 November 2026 expiry.
+- Refresh frozen packaging to 26.3, python-discovery to 1.6.1 and virtualenv to 21.14.13.
+- Update the isolated Code Review lock to official Pylint 4.0.9 to prevent
+  unsafe pickle deserialization from its statistics cache (GHSA-22qq-2fwx-7p67),
+  retaining its six compatible transitive selections.
+- Select official Semgrep 1.182.1, filelock 4.2.1, msgpack 1.2.3 and setuptools
+  84.1.0 in the frozen graph and hash-bound CI export.
+- Record the separately approved OpenTelemetry API 1.37.0 advisory exception through
+  4 November 2026 inclusive. Keep all three strict audits and the existing MCP
+  exception enforced. Ordinary local-rule CLI use is the limited mitigation.
+- Accept the three separately reviewed MCP 1.29.0 advisories CVE-2026-116684,
+  CVE-2026-116685 and CVE-2026-116686 under the owner's 29 October 2026 direction.
+  Preserve the 4 November 2026 expiry and CLI-only mitigation. MCP remains
+  vulnerable while the official Semgrep pin has no compatible patched graph.
+
+---
+
+## [0.55.11] - 2026-10-20
+
+### Security
+
+- Require certifi >=2026.10.19 and refresh frozen dependencies to remove the compromised
+  emSign ECC Root CA - G3 from the delivered CA trust store (GHSA-6q48-6c7w-9gw2).
+- Retain official Semgrep and record an owner-approved MCP 1.29.0 exception for
+  CVE-2026-59951 only, expiring 2026-11-04 while its upstream exact pin blocks
+  patched MCP. All strict security audits and CI checks remain enforced.
+
+---
+
+## [0.55.10] - 2026-10-13
+
+### Security
+
+- Reject malformed alternate project manifests during authenticated admission without aborting CLI startup.
+
+- Require authenticated project authority for indirect category mounts and shared member loaders, including bundle aliases and cross-category claims.
+
+- Bind privileged project registration metadata and executable inventory to authenticated artifact bytes; reproduce source caches before the final file check and recheck authority before registration effects.
+
+- Reject category-less grouped workspace root commands, external claims to permanent core commands and
+  unauthenticated workspace claims to official category roots before registry, bridge or import-source activation.
+- Preserve resolved built-in authority, reject forged source labels and escaping symlinks, and prevent
+  rejected workspace sources from shadowing eligible package dependencies.
+- Reject unsigned executable caches and omitted Python/native artifacts; authenticate captured signed source
+  bytes before reproducing compatible interpreter caches without executing candidate code.
+
+### Fixed
+
+- Select the first fully eligible copy of each module, reconsider dependency fallbacks against selected versions
+  and each candidate's own version, and refuse contradictory priority cycles before registration effects.
+- Preserve categorized routing and supported unreserved legacy registration, including operator-configured
+  built-in discovery, while retaining the completed removal of flat bundle shims.
+- Preserve all six official project-scoped bundle roots only after full artifact checksum and signature
+  verification against the core-bundled key; reject unsigned, tampered and workspace-key replacements.
+- Preserve genuine installed bundles when a rejected project copy claims the same name, retain authenticated
+  project priority, and skip artifact payload verification for disabled module names.
+- Synchronize bugfix version declarations, frozen project metadata and the promotion fixture.
+
+## [0.55.9] - 2026-10-13
+
+### Security
+
+- Authenticate unchanged finalized root Requirements proof for inherited Code Review on closed native
+  planning children. Verify live root/context, artifact provenance, digest and bounded report identity.
+  Preserve full review against protected dev and reject forged, non-final or stale context.
+
+### Fixed
+
+- Keep child planning receipts separate from execution proof so independently validated planning layers
+  retain the immutable Code Review provider's finalized-proof requirement.
+
+## [0.55.8] - 2026-10-12
+
+### Security
+
+- Independently validate protected-proof and immutable review-base identities before Requirements execution.
+  Reject unrelated trust, unrelated planning ancestry and evidence newer than the candidate without changing
+  root authentication, source authority, signatures, plan equality or required gates.
+
+### Fixed
+
+- Validate native-stack planning parents against candidate ancestry while retaining protected dev/main as
+  review and verifier trust. Planning parents newer than dev can reach independent evidence reconciliation.
+- Synchronize bugfix declarations, frozen project metadata and the generated promotion fixture.
+
+## [0.55.7] - 2026-10-12
+
+### Security
+
+- Authenticate signed native-stack roots and exact successful Requirements and member-authority checks before
+  separating deferred planning evidence. Protected validator sources, full implementation proof, child authority
+  and independent review remain mandatory; executable, symlink, runtime and inherited-source changes cannot
+  receive a planning exemption.
+- Require inherited root proof workflow and local CI action bytes to match protected-base objects. Authenticate
+  complete check listings and immutable workflow repository, issuer, event, branch, SHA and run attempts.
+
+### Fixed
+
+- Validate planning-only native stack members at planned maturity without applying one implementation mapping
+  acceptance to unrelated proposals. All three consumers compare the same authenticated context and planning
+  plan while continuing to materialize validators from protected dev/main.
+
+## [0.55.6] - 2026-10-11
+
+### Security
+
+- Update jekyll-feed to 0.18.0 to preserve XML language and CDATA escaping fixes.
+- Update jekyll-redirect-from to 0.17.0 and retain its unsafe-target security fix.
+- Require JSON >=2.21.2,<3 for documentation while retaining JSON 2.21.2 and
+  Jekyll 4.4.1; defer the incompatible JSON 3 migration.
+- Raise the runtime GitPython floor and frozen graph to 3.2.0, including its
+  additional submodule containment security fixes.
+
+### Fixed
+
+- Update jekyll-relative-links to 0.9.1 so rebuilt links, included navigation
+  and configured base URLs use current targets.
+- Update the frozen Hatchling backend to 1.32.4 and include the bundled module
+  manifest in source distributions so offline wheel rebuilding remains complete.
+- Authenticate native GitHub stack ancestry in Requirements proof reuse while
+  preserving complete plan equality and original failing-first evidence.
+- Isolate direct and console marketplace smoke installations from the running
+  pytest environment and use reviewed, hash-pinned module dependencies.
+
+---
+
 ## [0.55.5] - 2026-11-26
 
 ### Security
 
 - Backport the reviewed in-process scanners and frozen dependency graph from
   core PR #799. The locked delivery uses only the approved pycparser wheel.
+
+---
 
 ## [0.55.4] - 2026-09-02
 
