@@ -269,7 +269,45 @@ def _import_patterns(node: ast.Import | ast.ImportFrom) -> Iterator[PatternMatch
             yield PatternMatch("structlog-usage" if name == "structlog" else "dotenv-usage", node)
 
 
-def _repeated_additions(node: ast.For | ast.AsyncFor) -> Iterator[ast.Assign]:
+def _is_string_literal(node: ast.expr | None) -> bool:
+    return isinstance(node, ast.JoinedStr) or (isinstance(node, ast.Constant) and isinstance(node.value, str))
+
+
+def _earlier_block_statements(node: ast.AST, parent: ast.AST) -> list[ast.stmt]:
+    for _, children in ast.iter_fields(parent):
+        if not isinstance(children, list):
+            continue
+        nodes = [item for item in children if isinstance(item, ast.AST)]
+        if node in nodes:
+            return [item for item in nodes[: nodes.index(node)] if isinstance(item, ast.stmt)]
+    return []
+
+
+def _enclosing_statements_before(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> Iterator[ast.stmt]:
+    blocks: list[list[ast.stmt]] = []
+    while (parent := parents.get(node)) is not None:
+        blocks.append(_earlier_block_statements(node, parent))
+        if isinstance(parent, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            break
+        node = parent
+    for block in reversed(blocks):
+        yield from block
+
+
+def _preceding_string_bindings(loop: ast.For | ast.AsyncFor, parents: dict[ast.AST, ast.AST]) -> set[str]:
+    strings: set[str] = set()
+    for item in _enclosing_statements_before(loop, parents):
+        if not isinstance(item, (ast.Assign, ast.AnnAssign)) or item.value is None:
+            continue
+        assigned = item.targets if isinstance(item, ast.Assign) else [item.target]
+        targets = {target.id for target in assigned if isinstance(target, ast.Name)}
+        strings.difference_update(targets)
+        if _is_string_literal(item.value):
+            strings.update(targets)
+    return strings
+
+
+def _repeated_additions(node: ast.For | ast.AsyncFor, strings: set[str]) -> Iterator[ast.Assign]:
     assignments = (statement for statement in node.body if isinstance(statement, ast.Assign))
     for statement in assignments:
         value = statement.value
@@ -280,7 +318,7 @@ def _repeated_additions(node: ast.For | ast.AsyncFor) -> Iterator[ast.Assign]:
         ):
             continue
         targets = {target.id for target in statement.targets if isinstance(target, ast.Name)}
-        if value.left.id in targets:
+        if value.left.id in targets and (value.left.id in strings or _is_string_literal(value.right)):
             yield statement
 
 
@@ -298,7 +336,9 @@ def _definition_evidence(node: ast.AST, aliases: dict[str, str]) -> Iterator[Pat
     return iter(())
 
 
-def _statement_evidence(node: ast.AST, aliases: dict[str, str]) -> Iterator[PatternMatch]:
+def _statement_evidence(
+    node: ast.AST, aliases: dict[str, str], parents: dict[ast.AST, ast.AST]
+) -> Iterator[PatternMatch]:
     if isinstance(node, ast.ExceptHandler) and node.type is None:
         yield PatternMatch("bare-except-antipattern", node, "Use a specific exception instead of bare except")
     if isinstance(node, (ast.Try, ast.TryStar)) and node.finalbody:
@@ -308,15 +348,17 @@ def _statement_evidence(node: ast.AST, aliases: dict[str, str]) -> Iterator[Patt
     if isinstance(node, ast.Subscript) and qualified_name(node.value, aliases) == "os.environ":
         yield PatternMatch("env-variable-access", node)
     if isinstance(node, (ast.For, ast.AsyncFor)):
-        for statement in _repeated_additions(node):
+        for statement in _repeated_additions(node, _preceding_string_bindings(node, parents)):
             yield PatternMatch("string-concatenation-loop", statement, "Review repeated concatenation in a loop")
 
 
 def _source_matches(tree: ast.Module) -> Iterator[PatternMatch]:
     aliases = import_aliases(tree.body)
-    for node in ast.walk(tree):
+    nodes = list(ast.walk(tree))
+    parents = {child: node for node in nodes for child in ast.iter_child_nodes(node)}
+    for node in nodes:
         yield from _definition_evidence(node, aliases)
-        yield from _statement_evidence(node, aliases)
+        yield from _statement_evidence(node, aliases, parents)
 
 
 @beartype
