@@ -120,16 +120,15 @@ def test_async_definition_replaces_an_earlier_assignment() -> None:
         ("worker()\n    worker = lambda: None\n    worker()", [4]),
         ("if enabled:\n        worker = lambda: None\n    worker()", [6]),
         ("worker: object\n    worker()", [5]),
+        ("worker = worker\n    worker()", [5]),
+        ("other = worker\n    other()\n    other = lambda: None\n    other()", [5]),
     ],
-    ids=["later-assignment", "conditional-assignment", "local-annotation"],
+    ids=["later-assignment", "conditional-assignment", "local-annotation", "self-alias", "async-alias"],
 )
 def test_local_coroutine_calls_respect_runtime_bindings(code: str, expected: list[int]) -> None:
-    from specfact_cli.analyzers.async_checks import async_findings
-
     source = f"async def run(enabled=False):\n    async def worker():\n        pass\n    {code}\n"
 
-    findings = async_findings(ast.parse(source), "app.py")
-    assert [finding.line for finding in findings if finding.rule_id == "missing-await-on-coroutine"] == expected
+    assert _missing_await_lines(source) == expected
 
 
 def test_module_annotation_does_not_rebind_a_coroutine() -> None:
@@ -159,11 +158,28 @@ def test_module_annotation_does_not_rebind_a_coroutine() -> None:
             "            pass\n",
             4,
         ),
+        (
+            "async def worker():\n    pass\n"
+            "def enclosing():\n    worker = lambda: None\n"
+            "    async def run():\n        global worker\n"
+            "        worker()\n        worker = lambda: None\n        worker()\n",
+            7,
+        ),
+        (
+            "def enclosing():\n    async def worker():\n        pass\n"
+            "    async def run():\n        nonlocal worker\n"
+            "        worker()\n        worker = lambda: None\n        worker()\n",
+            6,
+        ),
     ],
-    ids=["enclosing-binding", "previous-loop-iteration"],
+    ids=["enclosing-binding", "previous-loop-iteration", "global", "nonlocal"],
 )
-def test_later_coroutine_bindings_preserve_possible_earlier_calls(source: str, line: int) -> None:
+def test_coroutine_calls_can_use_enclosing_or_later_bindings(source: str, line: int) -> None:
+    assert _missing_await_lines(source) == [line]
+
+
+def _missing_await_lines(source: str) -> list[int]:
     from specfact_cli.analyzers.async_checks import async_findings
 
     findings = async_findings(ast.parse(source), "app.py")
-    assert [finding.line for finding in findings if finding.rule_id == "missing-await-on-coroutine"] == [line]
+    return [finding.line for finding in findings if finding.rule_id == "missing-await-on-coroutine"]

@@ -301,7 +301,7 @@ _Loop = ast.For | ast.AsyncFor | ast.While
 class _CallableBinding:
     position: tuple[int, int]
     name: str
-    is_async: bool | None
+    value: bool | str | None
     may_skip: bool
     loops: tuple[_Loop, ...]
 
@@ -354,10 +354,13 @@ def _enclosing_loops(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> Iterator
         node = parent
 
 
-def _assigned_callable_type(node: ast.Name, parents: dict[ast.AST, ast.AST]) -> bool | None:
-    annotation = parents.get(node)
+def _assigned_callable(node: ast.Name, parents: dict[ast.AST, ast.AST]) -> bool | str | None:
+    assignment = parents.get(node)
+    if not isinstance(assignment, (ast.Assign, ast.AnnAssign, ast.NamedExpr)):
+        return False
     # A bare annotation declares a local name and leaves its current value alone.
-    return None if isinstance(annotation, ast.AnnAssign) and annotation.value is None else False
+    value = assignment.value
+    return None if value is None else qualified_name(value, {}) or False
 
 
 def _scope_callable_bindings(
@@ -367,26 +370,30 @@ def _scope_callable_bindings(
     for node in nodes:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             position = (node.lineno, node.col_offset)
-            name, is_async = node.name, isinstance(node, ast.AsyncFunctionDef)
+            name, value = node.name, isinstance(node, ast.AsyncFunctionDef)
         elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
             position = _store_position(node, parents)
-            name, is_async = node.id, _assigned_callable_type(node, parents)
+            name, value = node.id, _assigned_callable(node, parents)
         else:
             continue
         owner = _enclosing_scope(node, parents)
         if owner is not None:
-            loops = tuple(_enclosing_loops(node, parents)) if is_async else ()
-            binding = _CallableBinding(position, name, is_async, _binding_may_be_skipped(node, parents), loops)
+            loops = tuple(_enclosing_loops(node, parents)) if value is True else ()
+            binding = _CallableBinding(position, name, value, _binding_may_be_skipped(node, parents), loops)
             definitions.setdefault(owner, []).append(binding)
     for bindings in definitions.values():
         bindings.sort(key=lambda binding: binding.position)
     return definitions
 
 
+def _binds_coroutine(binding: _CallableBinding, coroutines: set[str]) -> bool:
+    return binding.value is True or (isinstance(binding.value, str) and binding.value in coroutines)
+
+
 def _apply_callable_binding(binding: _CallableBinding, coroutines: set[str]) -> None:
-    if binding.is_async:
+    if _binds_coroutine(binding, coroutines):
         coroutines.add(binding.name)
-    elif binding.is_async is False and not binding.may_skip:
+    elif binding.value is not None and not binding.may_skip:
         coroutines.discard(binding.name)
 
 
@@ -426,7 +433,7 @@ def _binding_flags(
     for binding in bindings:
         if definition_position is None or binding.position < definition_position:
             _apply_callable_binding(binding, coroutines)
-        elif binding.is_async:
+        elif _binds_coroutine(binding, coroutines):
             # An enclosing scope can rebind the name after the function runs.
             coroutines.add(binding.name)
     return {binding.name: binding.name in coroutines for binding in bindings}
@@ -444,6 +451,36 @@ def _method_coroutines(
     return {f"{receiver}.{name}" for name, is_async in _binding_flags(definitions.get(owner, ())).items() if is_async}
 
 
+def _enclosing_callable_flags(
+    scope: ast.AsyncFunctionDef,
+    parents: dict[ast.AST, ast.AST],
+    definitions: dict[_LexicalScope, list[_CallableBinding]],
+    global_names: set[str],
+) -> dict[str, bool]:
+    visible: dict[str, bool] = {}
+    owner = _enclosing_scope(scope, parents)
+    position = scope.lineno, scope.col_offset
+    while owner is not None:
+        if not isinstance(owner, ast.ClassDef):
+            excluded = set() if isinstance(owner, ast.Module) else global_names
+            flags = _binding_flags(definitions.get(owner, ()), position)
+            for name in flags.keys() - excluded:
+                visible.setdefault(name, flags[name])
+        owner = _enclosing_scope(owner, parents)
+    return visible
+
+
+def _outer_declarations(scope: ast.AsyncFunctionDef) -> tuple[set[str], set[str]]:
+    global_names: set[str] = set()
+    nonlocal_names: set[str] = set()
+    for node in _scoped_nodes(scope):
+        if isinstance(node, ast.Global):
+            global_names.update(node.names)
+        elif isinstance(node, ast.Nonlocal):
+            nonlocal_names.update(node.names)
+    return global_names, global_names | nonlocal_names
+
+
 def _visible_coroutines(
     scope: ast.AsyncFunctionDef,
     parents: dict[ast.AST, ast.AST],
@@ -452,18 +489,12 @@ def _visible_coroutines(
     owner = _enclosing_scope(scope, parents)
     # A locally declared name shadows the outer name throughout the function.
     # Its callable type then changes at each statement that binds it.
-    visible = dict.fromkeys((binding.name for binding in definitions.get(scope, ())), False)
-    visible.update(
-        dict.fromkeys((arg.arg for arg in scope.args.posonlyargs + scope.args.args + scope.args.kwonlyargs), False)
-    )
+    global_names, outer_names = _outer_declarations(scope)
+    visible = {binding.name for binding in definitions.get(scope, ())} - outer_names
+    visible.update(arg.arg for arg in scope.args.posonlyargs + scope.args.args + scope.args.kwonlyargs)
     result = _method_coroutines(scope, owner, definitions)
-    definition_position = (scope.lineno, scope.col_offset)
-    while owner is not None:
-        if not isinstance(owner, ast.ClassDef):
-            for name, is_async in _binding_flags(definitions.get(owner, ()), definition_position).items():
-                visible.setdefault(name, is_async)
-        owner = _enclosing_scope(owner, parents)
-    return result | {name for name, is_async in visible.items() if is_async}
+    inherited = _enclosing_callable_flags(scope, parents, definitions, global_names)
+    return result | {name for name, is_async in inherited.items() if is_async and name not in visible}
 
 
 def async_findings(tree: ast.Module, filename: str) -> list[AsyncFinding]:

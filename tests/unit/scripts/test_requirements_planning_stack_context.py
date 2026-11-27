@@ -138,7 +138,7 @@ def planning_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> StackCase:
     _git(repo, "init", "--initial-branch=fixture")
     _git(repo, "config", "user.email", "fixture@example.invalid")
     _git(repo, "config", "user.name", "Fixture")
-    baseline = _commit(repo, ".github/workflows/requirements-evidence.yml", "protected proof workflow\n")
+    _commit(repo, ".github/workflows/requirements-evidence.yml", "protected proof workflow\n")
     _commit(repo, "src/runtime.py", "baseline\n")
     baseline = _git(repo, "rev-parse", "HEAD")
     _commit(repo, "src/runtime.py", "security fix\n")
