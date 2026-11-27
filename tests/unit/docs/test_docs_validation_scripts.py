@@ -25,6 +25,23 @@ def test_docs_json_gem_uses_the_patched_security_floor() -> None:
     assert "    jekyll (4.4.1)" in lockfile
 
 
+def test_frozen_docs_job_installs_the_reviewed_relative_links_artifact() -> None:
+    gemfile = (REPO_ROOT / "docs" / "Gemfile").read_text(encoding="utf-8")
+    lockfile = (REPO_ROOT / "docs" / "Gemfile.lock").read_text(encoding="utf-8")
+    workflow = (REPO_ROOT / ".github/workflows/docs-dependency-checks.yml").read_text(encoding="utf-8")
+    artifact = "jekyll-relative-links-0.9.2.gem"
+    digest = "9a1e7c58465f4fc63827a6d59ff95e1386b5f6b7683b633ec0230a144859c38c"
+
+    assert 'gem "jekyll-relative-links", "~> 0.9.2"' in gemfile
+    assert "    jekyll-relative-links (0.9.2)\n" in lockfile
+    assert f"https://rubygems.org/gems/{artifact}" in workflow
+    assert f"{digest}  {artifact}" in workflow
+    assert "| sha256sum --check" in workflow
+    assert "redirect feed_language feed_cdata relative" in workflow
+    assert "jekyll build --baseurl ''" in workflow
+    assert "jekyll build --baseurl '/preview'" in workflow
+
+
 class _DocsCommands(Protocol):
     _REPO_ROOT: Path
     _EXCLUDED_DOC_PATHS: frozenset[str]

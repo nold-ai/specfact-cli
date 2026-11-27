@@ -1,0 +1,19 @@
+schema_version: '2'
+requirements:
+  openspec:update-docs-relative-links-092:dependency-update-consolidation:the-documentation-build-uses-reviewed-relative-links:
+    rationale: Bind the frozen compatibility job to the reviewed gem and retain both site builds.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#789
+    touchpoints:
+      - id: docs-compatibility-workflow
+        kind: ci_workflow
+        locator: .github/workflows/docs-dependency-checks.yml
+    verification_cases:
+      - case_id: frozen-docs-relative-links
+        scenario_id: the-documentation-build-uses-reviewed-relative-links
+        method: test
+        selector:
+          runner: pytest
+          node_id: tests/unit/docs/test_docs_validation_scripts.py::test_frozen_docs_job_installs_the_reviewed_relative_links_artifact
+        intent: Keep the declarations, frozen lock, and verified installation in agreement.
+        observable: The workflow verifies the exact plugin hash and runs the relative-link probe at both deployment paths.
