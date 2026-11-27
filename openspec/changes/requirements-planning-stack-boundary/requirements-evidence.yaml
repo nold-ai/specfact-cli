@@ -1,0 +1,60 @@
+schema_version: '2'
+requirements:
+  ? openspec:requirements-planning-stack-boundary:requirements-planning-stack-evidence:authenticate-unchanged-inherited-proof-before-planning-selection
+  : rationale: Preserve implementation proof and member authority while separately validating deferred planning.
+    stakeholder_refs:
+    - nold-ai/specfact-cli#760
+    touchpoints:
+    - id: planning-boundary
+      kind: code_symbol
+      locator: scripts/requirements_stack_context.py::main
+    verification_cases:
+    - case_id: PLANNING-PROOF
+      scenario_id: authenticate-unchanged-inherited-proof-before-planning-selection
+      method: test
+      intent: Authenticate signed exact runtime root and immutable checks before separating planning.
+      observable: Planning diff and protected validator base remain distinct with exact run attempts.
+      selector:
+        runner: pytest
+        node_id: tests/unit/scripts/test_requirements_planning_stack_context.py::test_verified_planning_child_preserves_protected_trust_and_maturities
+    - case_id: PLANNING-FULL
+      scenario_id: authenticate-unchanged-inherited-proof-before-planning-selection
+      method: test
+      intent: Change real runtime, test, CI, delivery and inherited source Git objects.
+      observable: Unsupported mutations retain complete protected-base proof.
+      selector:
+        runner: pytest
+        node_id: tests/unit/scripts/test_requirements_planning_stack_context.py::test_runtime_and_inherited_source_changes_keep_complete_proof
+    - case_id: PLANNING-FORGERY
+      scenario_id: authenticate-unchanged-inherited-proof-before-planning-selection
+      method: test
+      intent: Exercise failed, pending, foreign or mismatched root check, run, issuer and signature.
+      observable: Evidence consumption fails closed.
+      selector:
+        runner: pytest
+        node_id: tests/unit/scripts/test_requirements_planning_stack_context.py::test_forged_or_stale_root_checks_fail_before_evidence
+    - case_id: PLANNING-MODES
+      scenario_id: authenticate-unchanged-inherited-proof-before-planning-selection
+      method: test
+      intent: Stage executable, symlink, payload, deleted and moved inherited sources.
+      observable: OpenSpec names cannot exempt unsafe changes.
+      selector:
+        runner: pytest
+        node_id: tests/unit/scripts/test_requirements_planning_stack_context.py::test_non_regular_planning_paths_keep_complete_proof
+  ? openspec:requirements-planning-stack-boundary:requirements-planning-stack-evidence:reconcile-planning-evidence-independently-of-verifier-trust
+  : rationale: Preserve implementation proof and member authority while separately validating deferred planning.
+    stakeholder_refs:
+    - nold-ai/specfact-cli#760
+    touchpoints:
+    - id: independent-consumers
+      kind: config_file
+      locator: .github/workflows/requirements-evidence.yml
+    verification_cases:
+    - case_id: PLANNING-CONSUMERS
+      scenario_id: reconcile-planning-evidence-independently-of-verifier-trust
+      method: test
+      intent: Check all independent consumers use protected helpers and common planning selection.
+      observable: Protected materialization and final plan/context equality remain enforced.
+      selector:
+        runner: pytest
+        node_id: tests/unit/scripts/test_requirements_planning_stack_context.py::test_all_consumers_separate_planning_selection_from_protected_verifier_trust

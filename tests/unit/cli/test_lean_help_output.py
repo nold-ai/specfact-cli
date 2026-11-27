@@ -102,36 +102,21 @@ def test_root_group_unknown_bundle_command_shows_install_guidance(capsys: pytest
     assert "specfact init --profile <profile>" in out
 
 
-def test_root_group_unknown_code_shows_specfact_codebase_module(capsys: pytest.CaptureFixture[str]) -> None:
-    """Missing `code` group should name nold-ai/specfact-codebase (not the VS Code `code` CLI)."""
-    group = _RootCLIGroup(name="specfact")
-    ctx = click.Context(cast(Any, group))
-
-    with pytest.raises(SystemExit) as exc_info:
-        group.resolve_command(ctx, ["code", "--help"])
-
-    assert exc_info.value.code == 1
-    captured = capsys.readouterr()
-    out = " ".join(captured.out.split())
-    assert "Module 'nold-ai/specfact-codebase' is not installed." in out
-    assert "specfact module install nold-ai/specfact-codebase" in out
-
-
-def test_root_group_unknown_requirements_shows_specfact_requirements_module(
-    capsys: pytest.CaptureFixture[str],
+@pytest.mark.parametrize(("group_name", "module_name"), [("code", "codebase"), ("requirements", "requirements")])
+def test_root_group_unknown_command_shows_its_marketplace_module(
+    capsys: pytest.CaptureFixture[str], group_name: str, module_name: str
 ) -> None:
-    """Missing `requirements` group should name the marketplace requirements module."""
     group = _RootCLIGroup(name="specfact")
     ctx = click.Context(cast(Any, group))
+    module_id = f"nold-ai/specfact-{module_name}"
 
     with pytest.raises(SystemExit) as exc_info:
-        group.resolve_command(ctx, ["requirements", "--help"])
+        group.resolve_command(ctx, [group_name, "--help"])
 
     assert exc_info.value.code == 1
-    captured = capsys.readouterr()
-    out = " ".join(captured.out.split())
-    assert "Module 'nold-ai/specfact-requirements' is not installed." in out
-    assert "specfact module install nold-ai/specfact-requirements" in out
+    out = " ".join(capsys.readouterr().out.split())
+    assert f"Module '{module_id}' is not installed." in out
+    assert f"specfact module install {module_id}" in out
 
 
 def test_installed_requirements_module_makes_root_cli_help_callable(
@@ -170,7 +155,7 @@ def test_installed_requirements_module_makes_root_cli_help_callable(
         from specfact_cli.registry import module_packages as mp
 
         CommandRegistry._clear_for_testing()
-        scoped_monkeypatch.setattr(mp, "discover_all_package_metadata", lambda: packages)
+        scoped_monkeypatch.setattr(mp, "discover_all_package_metadata", lambda **_kwargs: packages)
         scoped_monkeypatch.setattr(mp, "verify_module_artifact", lambda _dir, _meta, allow_unsigned=False: True)
         scoped_monkeypatch.setattr(mp, "read_modules_state", dict)
         scoped_monkeypatch.setattr(mp, "_check_protocol_compliance_from_source", lambda *_args, **_kwargs: [])

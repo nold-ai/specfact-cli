@@ -1,0 +1,78 @@
+schema_version: "2"
+x-planning-context: &planning-context
+  rationale: "Make this requirement reviewable before implementation begins."
+  stakeholder_refs: ["nold-ai/specfact-cli#680"]
+x-planning-inspection: &planning-inspection
+  method: inspection
+  observable: >-
+    Strict OpenSpec validation retains the requirement and its scenarios
+    without claiming implementation or test execution.
+x-spec-1: &spec-1
+  - id: openspec-source-spec
+    kind: config_file
+    locator: "openspec/changes/code-review-14-protected-range-adoption/specs/pre-commit-review-gate/spec.md"
+x-spec-2: &spec-2
+  - id: openspec-source-spec
+    kind: config_file
+    locator: "openspec/changes/code-review-14-protected-range-adoption/specs/protected-code-review-range-assurance/spec.md"
+x-spec-3: &spec-3
+  - id: openspec-source-spec
+    kind: config_file
+    locator: "openspec/changes/code-review-14-protected-range-adoption/specs/trustworthy-green-checks/spec.md"
+requirements:
+  openspec:code-review-14-protected-range-adoption:pre-commit-review-gate:repository-pre-commit-review-gate:
+    <<: *planning-context
+    touchpoints: *spec-1
+    verification_cases:
+      - <<: *planning-inspection
+        case_id: C14-001
+        scenario_id: repository-pre-commit-review-gate
+        intent: "Inspect the repository pre-commit review gate planning contract and its scenarios."
+  openspec:code-review-14-protected-range-adoption:protected-code-review-range-assurance:protected-consumer-shall-independently-verify-c14-range-evidence:
+    <<: *planning-context
+    touchpoints: *spec-2
+    verification_cases:
+      - <<: *planning-inspection
+        case_id: C14-002
+        scenario_id: protected-consumer-shall-independently-verify-c14-range-evidence
+        intent: "Inspect the protected consumer shall independently verify c14 range evidence planning contract and its scenarios."
+  openspec:code-review-14-protected-range-adoption:protected-code-review-range-assurance:protected-consumer-shall-bind-policy-and-producer-trust:
+    <<: *planning-context
+    touchpoints: *spec-2
+    verification_cases:
+      - <<: *planning-inspection
+        case_id: C14-003
+        scenario_id: protected-consumer-shall-bind-policy-and-producer-trust
+        intent: "Inspect the protected consumer shall bind policy and producer trust planning contract and its scenarios."
+  openspec:code-review-14-protected-range-adoption:protected-code-review-range-assurance:verifier-execution-shall-use-independently-selected-trusted-code:
+    <<: *planning-context
+    touchpoints: *spec-2
+    verification_cases:
+      - <<: *planning-inspection
+        case_id: C14-004
+        scenario_id: verifier-execution-shall-use-independently-selected-trusted-code
+        intent: "Inspect the verifier execution shall use independently selected trusted code planning contract and its scenarios."
+  openspec:code-review-14-protected-range-adoption:protected-code-review-range-assurance:protected-workflow-shall-provide-canonical-trusted-context:
+    <<: *planning-context
+    touchpoints: *spec-2
+    verification_cases:
+      - <<: *planning-inspection
+        case_id: C14-005
+        scenario_id: protected-workflow-shall-provide-canonical-trusted-context
+        intent: "Inspect the protected workflow shall provide canonical trusted context planning contract and its scenarios."
+  openspec:code-review-14-protected-range-adoption:protected-code-review-range-assurance:c14-enforcement-shall-be-staged-and-reversible:
+    <<: *planning-context
+    touchpoints: *spec-2
+    verification_cases:
+      - <<: *planning-inspection
+        case_id: C14-006
+        scenario_id: c14-enforcement-shall-be-staged-and-reversible
+        intent: "Inspect the c14 enforcement shall be staged and reversible planning contract and its scenarios."
+  openspec:code-review-14-protected-range-adoption:trustworthy-green-checks:protected-code-review-green-shall-require-a-verified-c14-envelope:
+    <<: *planning-context
+    touchpoints: *spec-3
+    verification_cases:
+      - <<: *planning-inspection
+        case_id: C14-007
+        scenario_id: protected-code-review-green-shall-require-a-verified-c14-envelope
+        intent: "Inspect the protected code review green shall require a verified c14 envelope planning contract and its scenarios."

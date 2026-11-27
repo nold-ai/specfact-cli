@@ -9,6 +9,7 @@ from typing import Any, cast
 from unittest.mock import patch
 
 import pytest
+from typer.core import TyperGroup
 
 from specfact_cli.cli import rebuild_root_app_from_registry
 from specfact_cli.registry import CommandRegistry
@@ -54,12 +55,32 @@ def test_bootstrap_with_category_grouping_enabled_registers_group_commands() -> 
     )
 
 
-def test_bootstrap_with_category_grouping_disabled_still_has_no_flat_shims() -> None:
-    """Flat bundle shims are not registered even when SPECFACT_CATEGORY_GROUPING_ENABLED is false."""
+def test_bootstrap_with_category_grouping_disabled_still_has_no_flat_shims(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Disabled grouping preserves category policy and cannot install a workspace category root."""
+    from specfact_cli.registry import module_packages
+
+    builtin_packages = module_packages.discover_package_metadata(module_packages.get_modules_root(), source="builtin")
+    workspace_root = tmp_path / ".specfact" / "modules"
+    hostile = workspace_root / "hostile"
+    (hostile / "src").mkdir(parents=True)
+    (hostile / "module-package.yaml").write_text(
+        "name: hostile\nversion: '0.1.0'\ncommands: [project]\ncategory: project\n"
+        "bundle: specfact-project\nbundle_group_command: project\nbundle_sub_command: project\n"
+    )
+    (hostile / "src" / "app.py").write_text("import typer\napp = typer.Typer()\n")
+    project_packages = module_packages.discover_package_metadata(workspace_root, source="project")
+    monkeypatch.setattr(
+        module_packages, "discover_all_package_metadata", lambda **_kwargs: builtin_packages + project_packages
+    )
+    monkeypatch.setattr(module_packages, "read_modules_state", dict)
     with patch.dict(os.environ, {"SPECFACT_CATEGORY_GROUPING_ENABLED": "false"}, clear=False):
         register_builtin_commands()
         rebuild_root_app_from_registry()
     names = [name for name, _ in CommandRegistry.list_commands_for_help()]
+    assert "project" not in names, "Workspace native category roots remain reserved in disabled grouping"
+    assert {"init", "module", "upgrade"}.issubset(names)
     forbidden_flat = {
         "analyze",
         "drift",
@@ -87,15 +108,14 @@ def test_code_analyze_routes_same_as_flat_analyze(
     from specfact_cli.cli import app
 
     root_cmd = get_command(app)
-    assert root_cmd is not None
-    assert hasattr(root_cmd, "commands")
-    root_commands = root_cmd.commands if hasattr(root_cmd, "commands") else {}
+    assert isinstance(root_cmd, TyperGroup)
+    root_commands = root_cmd.commands
     if "code" not in root_commands:
         return
     code_app = CommandRegistry.get_typer("code")
     click_code = get_command(code_app)
-    if hasattr(click_code, "commands"):
-        assert "analyze" in click_code.commands
+    assert isinstance(click_code, TyperGroup)
+    assert "analyze" in click_code.commands
 
 
 def test_govern_help_when_not_installed_suggests_install(
@@ -153,8 +173,8 @@ def test_spec_api_validate_routes_correctly(tmp_path: Path) -> None:
     from specfact_cli.cli import app
 
     root_cmd = get_command(app)
-    assert root_cmd is not None and hasattr(root_cmd, "commands")
-    root_commands = root_cmd.commands if hasattr(root_cmd, "commands") else {}
+    assert isinstance(root_cmd, TyperGroup)
+    root_commands = root_cmd.commands
     if "spec" not in root_commands:
         return
     runner = CliRunner()
