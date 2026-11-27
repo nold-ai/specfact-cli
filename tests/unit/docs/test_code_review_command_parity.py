@@ -8,11 +8,12 @@ import os
 import sys
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
-from typing import Any
+from typing import Annotated, Any
 
 import click
 import pytest
-from typer.core import TyperArgument
+import typer
+from typer.main import get_group
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -65,15 +66,43 @@ def _load_command_script(filename: str = "generate-command-overview.py") -> Modu
     return generator
 
 
-@pytest.mark.parametrize("argument_type", [click.Argument, TyperArgument])
 @pytest.mark.parametrize(("required", "nargs", "metavar"), [(False, -1, None), (True, 1, "INPUT")])
-def test_generator_preserves_positional_argument_contract(
-    argument_type: type[click.Argument] | type[TyperArgument], required: bool, nargs: int, metavar: str | None
+def test_generator_preserves_click_positional_argument_contract(
+    required: bool, nargs: int, metavar: str | None
 ) -> None:
     generator = _load_command_script()
-    argument = argument_type(param_decls=["files"], required=required, nargs=nargs, metavar=metavar)
+    argument = click.Argument(param_decls=["files"], required=required, nargs=nargs, metavar=metavar)
     command = SimpleNamespace(params=[argument, click.Option(["--json"], is_flag=True)])
     assert generator._command_arguments(command) == [{"name": metavar or "FILES", "required": required, "nargs": nargs}]
+
+
+@pytest.mark.parametrize(
+    ("command_name", "expected"),
+    [
+        ("optional", {"name": "FILES", "required": False, "nargs": -1}),
+        ("required", {"name": "INPUT", "required": True, "nargs": 1}),
+    ],
+)
+def test_generator_preserves_typer_positional_argument_contract(
+    command_name: str, expected: dict[str, str | bool | int], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    app = typer.Typer()
+
+    @app.command("optional")
+    def optional(files: Annotated[list[str] | None, typer.Argument()] = None) -> None:
+        pass
+
+    @app.command("required")
+    def required(files: Annotated[str, typer.Argument(metavar="INPUT")]) -> None:
+        pass
+
+    command = get_group(app).commands[command_name]
+
+    def removed_name(_argument: object) -> str:
+        raise AttributeError("Typer 0.29 removed human_readable_name")
+
+    monkeypatch.setattr(type(command.params[0]), "human_readable_name", property(removed_name), raising=False)
+    assert _load_command_script()._command_arguments(command) == [expected]
 
 
 @pytest.mark.parametrize("filename", ["generate-command-overview.py", "check-command-contract.py"])

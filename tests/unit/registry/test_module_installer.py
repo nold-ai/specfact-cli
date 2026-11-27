@@ -14,6 +14,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from _pytest.assertion.rewrite import AssertionRewritingHook
 
 from specfact_cli.models.module_package import IntegrityInfo, ModulePackageMetadata
 from specfact_cli.registry import module_installer
@@ -87,6 +88,45 @@ def test_frozen_install_shares_standard_caches(
     py_compile.compile(str(source), doraise=True)
     assert module_installer.verify_module_artifact_from_filesystem(installed, metadata, "")
     active_cache.write_bytes(active_cache.read_bytes() + b"invalid cache suffix")
+    assert not module_installer.verify_module_artifact_from_filesystem(installed, metadata, "")
+
+
+def test_frozen_install_accepts_inactive_cpython_314_cache(
+    approved_registry_module: tuple[Path, ModulePackageMetadata],
+) -> None:
+    if sys.implementation.name != "cpython" or sys.implementation.cache_tag == "cpython-314":
+        pytest.skip("Requires a CPython runtime other than 3.14")
+    installed, metadata = approved_registry_module
+    source = installed / "src" / "app.py"
+    native_cache = Path(importlib.util.cache_from_source(str(source)))
+    py_compile.compile(str(source), cfile=str(native_cache), doraise=True)
+
+    foreign_cache = native_cache.with_name("app.cpython-314.pyc")
+    native_bytes = native_cache.read_bytes()
+    foreign_cache.write_bytes(b"\x2b\x0e\r\n" + native_bytes[4:])
+    assert module_installer.verify_module_artifact_from_filesystem(installed, metadata, "")
+
+    foreign_cache.write_bytes(native_bytes)
+    assert not module_installer.verify_module_artifact_from_filesystem(installed, metadata, "")
+
+
+def test_frozen_install_accepts_pytest_cache_only_when_inactive(
+    approved_registry_module: tuple[Path, ModulePackageMetadata], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    installed, metadata = approved_registry_module
+    source = installed / "src" / "app.py"
+    native_cache = Path(importlib.util.cache_from_source(str(source)))
+    py_compile.compile(str(source), cfile=str(native_cache), doraise=True)
+    pytest_cache = native_cache.with_name(f"app.{sys.implementation.cache_tag}-pytest-{pytest.__version__}.pyc")
+    pytest_cache.write_bytes(native_cache.read_bytes())
+    assert not module_installer.verify_module_artifact_from_filesystem(installed, metadata, "")
+
+    monkeypatch.setattr(
+        sys, "meta_path", [finder for finder in sys.meta_path if not isinstance(finder, AssertionRewritingHook)]
+    )
+    assert module_installer.verify_module_artifact_from_filesystem(installed, metadata, "")
+
+    pytest_cache.rename(pytest_cache.with_name(pytest_cache.name.replace("app.", "unknown.", 1)))
     assert not module_installer.verify_module_artifact_from_filesystem(installed, metadata, "")
 
 
