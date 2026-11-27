@@ -81,7 +81,11 @@ def test_frozen_install_shares_standard_caches(
             timeout=30,
         )
     else:
-        py_compile.compile(str(source), doraise=True, optimize=0 if sys.flags.optimize else 1)
+        other_optimization = 0 if sys.flags.optimize else 1
+        other_cache = Path(importlib.util.cache_from_source(str(source), optimization=other_optimization or ""))
+        py_compile.compile(str(source), cfile=str(other_cache), doraise=True, optimize=other_optimization)
+        if sys.implementation.cache_tag != "cpython-314":
+            _write_cpython_314_cache(other_cache)
 
     active_cache = Path(importlib.util.cache_from_source(str(source)))
     assert not active_cache.exists() and list(active_cache.parent.glob("*.pyc"))
@@ -90,6 +94,12 @@ def test_frozen_install_shares_standard_caches(
     assert module_installer.verify_module_artifact_from_filesystem(installed, metadata, "")
     active_cache.write_bytes(active_cache.read_bytes() + b"invalid cache suffix")
     assert not module_installer.verify_module_artifact_from_filesystem(installed, metadata, "")
+
+
+def _write_cpython_314_cache(native_cache: Path) -> Path:
+    foreign_cache = native_cache.with_name("app.cpython-314.pyc")
+    foreign_cache.write_bytes(b"\x2b\x0e\r\n" + native_cache.read_bytes()[4:])
+    return foreign_cache
 
 
 def test_frozen_install_accepts_inactive_cpython_314_cache(
@@ -102,9 +112,8 @@ def test_frozen_install_accepts_inactive_cpython_314_cache(
     native_cache = Path(importlib.util.cache_from_source(str(source)))
     py_compile.compile(str(source), cfile=str(native_cache), doraise=True)
 
-    foreign_cache = native_cache.with_name("app.cpython-314.pyc")
     native_bytes = native_cache.read_bytes()
-    foreign_cache.write_bytes(b"\x2b\x0e\r\n" + native_bytes[4:])
+    foreign_cache = _write_cpython_314_cache(native_cache)
     assert module_installer.verify_module_artifact_from_filesystem(installed, metadata, "")
 
     foreign_cache.write_bytes(native_bytes)

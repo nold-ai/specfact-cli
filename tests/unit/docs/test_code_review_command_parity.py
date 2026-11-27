@@ -76,16 +76,7 @@ def test_generator_preserves_click_positional_argument_contract(
     assert generator._command_arguments(command) == [{"name": metavar or "FILES", "required": required, "nargs": nargs}]
 
 
-@pytest.mark.parametrize(
-    ("command_name", "expected"),
-    [
-        ("optional", {"name": "FILES", "required": False, "nargs": -1}),
-        ("required", {"name": "INPUT", "required": True, "nargs": 1}),
-    ],
-)
-def test_generator_preserves_typer_positional_argument_contract(
-    command_name: str, expected: dict[str, str | bool | int], monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_generator_preserves_typer_positional_argument_contract(monkeypatch: pytest.MonkeyPatch) -> None:
     app = typer.Typer()
 
     @app.command("optional")
@@ -96,13 +87,17 @@ def test_generator_preserves_typer_positional_argument_contract(
     def required(files: Annotated[str, typer.Argument(metavar="INPUT")]) -> None:
         pass
 
-    command = get_group(app).commands[command_name]
+    commands = get_group(app).commands
 
     def removed_name(_argument: object) -> str:
         raise AttributeError("Typer 0.29 removed human_readable_name")
 
-    monkeypatch.setattr(type(command.params[0]), "human_readable_name", property(removed_name), raising=False)
-    assert _load_command_script()._command_arguments(command) == [expected]
+    monkeypatch.setattr(
+        type(commands["optional"].params[0]), "human_readable_name", property(removed_name), raising=False
+    )
+    generator = _load_command_script()
+    assert generator._command_arguments(commands["optional"]) == [{"name": "FILES", "required": False, "nargs": -1}]
+    assert generator._command_arguments(commands["required"]) == [{"name": "INPUT", "required": True, "nargs": 1}]
 
 
 @pytest.mark.parametrize("filename", ["generate-command-overview.py", "check-command-contract.py"])
