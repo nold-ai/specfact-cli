@@ -1,0 +1,71 @@
+schema_version: '2'
+requirements:
+  openspec:fix-typer-startup:command-package-runtime-validation:fresh-wheel-resolution-preserves-cli-startup:
+    rationale: Keep the installed CLI working across the supported Typer versions.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#808
+    touchpoints:
+      - id: typer-context-discovery
+        kind: code_symbol
+        locator: src/specfact_cli/cli.py::_specfact_get_params_from_function
+      - id: command-inventory-positional-arguments
+        kind: code_symbol
+        locator: scripts/generate-command-overview.py::_command_arguments
+    verification_cases:
+      - case_id: startup-without-legacy-converter
+        scenario_id: fresh-wheel-resolution-preserves-cli-startup
+        method: test
+        selector:
+          runner: pytest
+          node_id: tests/unit/cli/test_typer_compatibility.py::test_cli_imports_without_the_legacy_typer_converter
+        intent: Reproduce the removed Typer hook with the frozen interpreter.
+        observable: The CLI entry point imports even when the old converter is absent.
+      - case_id: typer-context-injection
+        scenario_id: fresh-wheel-resolution-preserves-cli-startup
+        method: test
+        selector:
+          runner: pytest
+          node_id: tests/unit/cli/test_typer_compatibility.py::test_registered_callback_receives_click_context_and_options
+        intent: Invoke a command defined with a Click context and a Typer option.
+        observable: The command prints the active context name and the option value.
+      - case_id: typer-positional-argument-inventory
+        scenario_id: fresh-wheel-resolution-preserves-cli-startup
+        method: test
+        selector:
+          runner: pytest
+          node_id: tests/unit/docs/test_code_review_command_parity.py::test_generator_preserves_typer_positional_argument_contract
+        intent: Inspect real Typer positional arguments when the old name accessor is unavailable.
+        observable: The inventory retains the argument name, arity, and required status.
+  openspec:fix-typer-startup:module-security:inactive-caches-do-not-invalidate-an-approved-module-tree:
+    rationale: Allow approved module trees to work across shared Python environments.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#809
+    touchpoints:
+      - id: verified-module-tree-cache
+        kind: code_symbol
+        locator: src/specfact_cli/registry/module_installer.py::_release_cache_matches
+    verification_cases:
+      - case_id: inactive-cpython-314-cache
+        scenario_id: inactive-caches-do-not-invalidate-an-approved-module-tree
+        method: test
+        selector:
+          runner: pytest
+          node_id: tests/unit/registry/test_module_installer.py::test_frozen_install_accepts_inactive_cpython_314_cache
+        intent: Verify an approved tree with an inactive CPython 3.14 cache.
+        observable: The tree passes with the foreign header and fails with a native header under the foreign name.
+      - case_id: inactive-pytest-cache
+        scenario_id: inactive-caches-do-not-invalidate-an-approved-module-tree
+        method: test
+        selector:
+          runner: pytest
+          node_id: tests/unit/registry/test_module_installer.py::test_frozen_install_accepts_pytest_cache_only_when_inactive
+        intent: Locate an assertion cache that has an authenticated source.
+        observable: The approved tree passes when pytest cannot load that cache.
+      - case_id: modified-active-cache-rejected
+        scenario_id: inactive-caches-do-not-invalidate-an-approved-module-tree
+        method: test
+        selector:
+          runner: pytest
+          node_id: tests/unit/registry/test_module_installer.py::test_frozen_install_shares_standard_caches[other-optimization]
+        intent: Exercise the integrity control on a modified active bytecode payload.
+        observable: The verifier rejects the tree when an active cache contains unexpected bytes.
