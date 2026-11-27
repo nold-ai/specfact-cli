@@ -300,7 +300,8 @@ _LexicalScope = (
 class _CallableBinding:
     position: tuple[int, int]
     name: str
-    is_async: bool
+    is_async: bool | None
+    may_skip: bool
 
 
 def _enclosing_scope(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> _LexicalScope | None:
@@ -321,25 +322,60 @@ def _store_position(node: ast.Name, parents: dict[ast.AST, ast.AST]) -> tuple[in
     return node.lineno, node.col_offset
 
 
+def _binding_may_be_skipped(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> bool:
+    conditional = (
+        ast.If,
+        ast.IfExp,
+        ast.BoolOp,
+        ast.For,
+        ast.AsyncFor,
+        ast.While,
+        ast.Try,
+        ast.TryStar,
+        ast.Match,
+        ast.With,
+        ast.AsyncWith,
+    )
+    while (parent := parents.get(node)) is not None and not isinstance(parent, _LexicalScope):
+        if isinstance(parent, conditional):
+            return True
+        node = parent
+    return False
+
+
+def _assigned_callable_type(node: ast.Name, parents: dict[ast.AST, ast.AST]) -> bool | None:
+    annotation = parents.get(node)
+    # A bare annotation declares a local name and leaves its current value alone.
+    return None if isinstance(annotation, ast.AnnAssign) and annotation.value is None else False
+
+
 def _scope_callable_bindings(
     nodes: Sequence[ast.AST], parents: dict[ast.AST, ast.AST]
 ) -> dict[_LexicalScope, list[_CallableBinding]]:
     definitions: dict[_LexicalScope, list[_CallableBinding]] = {}
     for node in nodes:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            binding = _CallableBinding(
-                (node.lineno, node.col_offset), node.name, isinstance(node, ast.AsyncFunctionDef)
-            )
+            position = (node.lineno, node.col_offset)
+            name, is_async = node.name, isinstance(node, ast.AsyncFunctionDef)
         elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
-            binding = _CallableBinding(_store_position(node, parents), node.id, False)
+            position = _store_position(node, parents)
+            name, is_async = node.id, _assigned_callable_type(node, parents)
         else:
             continue
         owner = _enclosing_scope(node, parents)
         if owner is not None:
+            binding = _CallableBinding(position, name, is_async, _binding_may_be_skipped(node, parents))
             definitions.setdefault(owner, []).append(binding)
     for bindings in definitions.values():
         bindings.sort(key=lambda binding: binding.position)
     return definitions
+
+
+def _apply_callable_binding(binding: _CallableBinding, coroutines: set[str]) -> None:
+    if binding.is_async:
+        coroutines.add(binding.name)
+    elif binding.is_async is False and not binding.may_skip:
+        coroutines.discard(binding.name)
 
 
 def _calls_with_coroutines(
@@ -353,16 +389,16 @@ def _calls_with_coroutines(
     for call in calls:
         position = (call.lineno, call.col_offset)
         while event is not None and event.position <= position:
-            if event.is_async:
-                coroutines.add(event.name)
-            else:
-                coroutines.discard(event.name)
+            _apply_callable_binding(event, coroutines)
             event = next(events, None)
         yield call, coroutines
 
 
 def _last_bindings(bindings: Sequence[_CallableBinding]) -> dict[str, bool]:
-    return {binding.name: binding.is_async for binding in bindings}
+    coroutines: set[str] = set()
+    for binding in bindings:
+        _apply_callable_binding(binding, coroutines)
+    return {binding.name: binding.name in coroutines for binding in bindings}
 
 
 def _method_coroutines(

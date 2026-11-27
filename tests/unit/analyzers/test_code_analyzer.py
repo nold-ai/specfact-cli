@@ -696,7 +696,15 @@ def test_numeric_accumulation_does_not_count_as_string_concatenation(tmp_path: P
         "for value in range(3):\n    total = total + value\n"
         "message = ''\n"
         "for value in ('a', 'b'):\n    message = message + value\n"
+        "prefix = ''\n"
+        "if enabled:\n    for value in values:\n        prefix = prefix + value\n"
+        "suffix: str = ''\n"
+        "for value in values:\n    suffix = suffix + value\n"
     )
     matches = feature_patterns(ast.parse(source), tmp_path / "example.py")
 
-    assert [match["start"]["line"] for match in matches if match["check_id"] == "string-concatenation-loop"] == [6]
+    assert sorted(match["start"]["line"] for match in matches if match["check_id"] == "string-concatenation-loop") == [
+        6,
+        10,
+        13,
+    ]

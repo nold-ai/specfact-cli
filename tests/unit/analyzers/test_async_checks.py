@@ -9,6 +9,8 @@ import sys
 from pathlib import Path
 from textwrap import dedent
 
+import pytest
+
 
 def test_builtin_async_rules() -> None:
     """Run every fixture under the one Requirements proof selector."""
@@ -112,17 +114,27 @@ def test_async_definition_replaces_an_earlier_assignment() -> None:
     assert any(item.rule_id == "missing-await-on-coroutine" for item in async_findings(ast.parse(source), "app.py"))
 
 
-def test_reassignment_does_not_hide_an_earlier_coroutine_call() -> None:
+@pytest.mark.parametrize(
+    ("code", "expected"),
+    [
+        ("worker()\n    worker = lambda: None\n    worker()", [4]),
+        ("if enabled:\n        worker = lambda: None\n    worker()", [6]),
+        ("worker: object\n    worker()", [5]),
+    ],
+    ids=["later-assignment", "conditional-assignment", "local-annotation"],
+)
+def test_local_coroutine_calls_respect_runtime_bindings(code: str, expected: list[int]) -> None:
     from specfact_cli.analyzers.async_checks import async_findings
 
-    source = dedent("""\
-        async def run():
-            async def worker():
-                pass
-            worker()
-            worker = lambda: None
-            worker()
-    """)
+    source = f"async def run(enabled=False):\n    async def worker():\n        pass\n    {code}\n"
 
     findings = async_findings(ast.parse(source), "app.py")
-    assert [finding.line for finding in findings if finding.rule_id == "missing-await-on-coroutine"] == [4]
+    assert [finding.line for finding in findings if finding.rule_id == "missing-await-on-coroutine"] == expected
+
+
+def test_module_annotation_does_not_rebind_a_coroutine() -> None:
+    from specfact_cli.analyzers.async_checks import async_findings
+
+    source = "async def worker():\n    pass\nworker: object\nasync def run():\n    worker()\n"
+
+    assert any(item.rule_id == "missing-await-on-coroutine" for item in async_findings(ast.parse(source), "app.py"))

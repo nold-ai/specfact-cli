@@ -91,8 +91,17 @@ def test_global_import_without_flow_resolution_reports_incomplete(tmp_path: Path
             "    return result\n",
             5,
         ),
+        (
+            "def calculate(data, values):\n"
+            "    import math as digest\n"
+            "    for value in values:\n"
+            "        if value:\n"
+            "            digest.md5(data)\n"
+            "        import hashlib as digest\n",
+            5,
+        ),
     ],
-    ids=["later-import", "conditional-import"],
+    ids=["later-import", "conditional-import", "loop-carried-import"],
 )
 def test_import_rebinding_preserves_findings(tmp_path: Path, source: str, line: int) -> None:
     _tracked_source(tmp_path, source)

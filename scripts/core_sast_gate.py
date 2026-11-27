@@ -156,6 +156,12 @@ def _reject_outer_imports(nodes: list[ast.AST], local_aliases: dict[str, set[str
             raise _UnsupportedOuterImportError(f"{scope} import alias requires flow analysis")
 
 
+def _retain_loop_imports(node: ast.For | ast.AsyncFor | ast.While, aliases: dict[str, set[str]]) -> None:
+    # A later iteration can start with bindings from any preceding iteration.
+    for name, targets in _scope_imports(list(_scope_nodes(node.body))).items():
+        aliases[name] = aliases.get(name, {name}) | targets
+
+
 def _scope_findings(
     body: list[ast.stmt], inherited: dict[str, set[str]], path: str, *, class_body: bool = False
 ) -> Iterator[Finding]:
@@ -168,6 +174,8 @@ def _scope_findings(
     nested_inherited = inherited if class_body else inherited | local_aliases
     direct_statements = set(body)
     for node in nodes:
+        if isinstance(node, (ast.For, ast.AsyncFor, ast.While)):
+            _retain_loop_imports(node, aliases)
         for name, target in _import_bindings(node).items():
             # A compound statement can skip an import. Keep both possible bindings.
             aliases[name] = {target} if node in direct_statements else aliases.get(name, {name}) | {target}
