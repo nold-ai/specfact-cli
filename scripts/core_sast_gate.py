@@ -166,8 +166,11 @@ def _scope_findings(
     # Class namespaces do not close over method bodies. Other nested functions
     # can run before or after an enclosing import rebinds a name.
     nested_inherited = inherited if class_body else inherited | local_aliases
+    direct_statements = set(body)
     for node in nodes:
-        aliases.update({name: {target} for name, target in _import_bindings(node).items()})
+        for name, target in _import_bindings(node).items():
+            # A compound statement can skip an import. Keep both possible bindings.
+            aliases[name] = {target} if node in direct_statements else aliases.get(name, {name}) | {target}
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             yield from _scope_findings(node.body, nested_inherited, path, class_body=isinstance(node, ast.ClassDef))
             continue

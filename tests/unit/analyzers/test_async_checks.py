@@ -110,3 +110,19 @@ def test_async_definition_replaces_an_earlier_assignment() -> None:
     """)
 
     assert any(item.rule_id == "missing-await-on-coroutine" for item in async_findings(ast.parse(source), "app.py"))
+
+
+def test_reassignment_does_not_hide_an_earlier_coroutine_call() -> None:
+    from specfact_cli.analyzers.async_checks import async_findings
+
+    source = dedent("""\
+        async def run():
+            async def worker():
+                pass
+            worker()
+            worker = lambda: None
+            worker()
+    """)
+
+    findings = async_findings(ast.parse(source), "app.py")
+    assert [finding.line for finding in findings if finding.rule_id == "missing-await-on-coroutine"] == [4]
