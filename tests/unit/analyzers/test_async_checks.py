@@ -149,6 +149,35 @@ def test_async_definition_replaces_an_earlier_assignment() -> None:
             "            async def worker():\n                pass",
             [],
         ),
+        ("worker, ignored = worker, None\n    worker()", [5]),
+        ("left, [worker] = None, [worker]\n    worker()", [5]),
+        (
+            "replacement = lambda: None\n    worker, replacement = replacement, worker\n"
+            "    worker()\n    replacement()",
+            [7],
+        ),
+        (
+            "replacement = worker\n    worker = lambda: None\n"
+            "    for turn in (1, 2):\n        worker()\n        worker = replacement",
+            [7],
+        ),
+        (
+            "replacement = worker\n    replacement = lambda: None\n    worker = lambda: None\n"
+            "    for turn in (1, 2):\n        worker()\n        worker = replacement",
+            [],
+        ),
+        (
+            "replacement = worker\n    worker = lambda: None\n"
+            "    for turn in (1, 2):\n        worker()\n        worker = replacement\n"
+            "        worker = lambda: None",
+            [],
+        ),
+        (
+            "replacement = worker\n    worker = lambda: None\n"
+            "    for turn in (1, 2):\n        worker()\n        worker = replacement\n"
+            "        if enabled:\n            continue\n        worker = lambda: None",
+            [7],
+        ),
         ("for worker in (worker,):\n        worker()", [5]),
         ("worker = worker\n    worker()", [5]),
         ("other = worker\n    other()\n    other = lambda: None\n    other()", [5]),
@@ -163,6 +192,13 @@ def test_async_definition_replaces_an_earlier_assignment() -> None:
         "nested-loop-carry",
         "nested-loop-carry-alias",
         "nested-loop-target-reset",
+        "unpacking-alias",
+        "nested-unpacking-alias",
+        "unpacking-swap",
+        "loop-carried-async-assignment",
+        "loop-carried-sync-assignment",
+        "loop-rebinding-cleared-before-backedge",
+        "loop-rebinding-can-reach-continue",
         "coroutine-iterable",
         "self-alias",
         "async-alias",

@@ -21,3 +21,10 @@
   previous inner iteration. After applying loop state from outermost to
   innermost, both a direct call and a call through an alias report the
   coroutine. The inner synchronous target control stays clear.
+
+- On `0d1216dd`, four added cases lost a coroutine binding during literal
+  unpacking, a tuple swap, or reassignment across loop iterations. The
+  synchronous-alias control passed. After the fix, assignments read all
+  right-hand bindings before updating their targets, and coroutine bindings
+  carry only if they can reach the next iteration. Controls cover an
+  unconditional reset and a `continue` that can skip that reset.
