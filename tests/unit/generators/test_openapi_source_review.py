@@ -92,6 +92,12 @@ def test_only_http_receivers_and_literal_paths_create_operations(tmp_path: Path)
             "    client.post('/empty', json=[], data={'ignore': True})\n",
             [("/array", [{"name": "Jo"}], None, None), ("/empty", [], None, None)],
         ),
+        (
+            "def test_scores(client):\n"
+            "    client.post('/array', json=[-1, -2.5, +3])\n"
+            "    client.post('/scalar', json=-1)\n",
+            [("/array", [-1, -2.5, 3], None, None), ("/scalar", -1, None, None)],
+        ),
     ],
 )
 def test_literal_openapi_examples_preserve_request_and_response_identity(

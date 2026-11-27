@@ -164,7 +164,7 @@ def _assert_review_tool_and_artifact_order(review: dict[str, Any]) -> None:
         "Restore Requirements evidence for Code Review"
     )
     restore = _named_step(review, "Restore Requirements evidence for Code Review")
-    assert restore["with"]["artifact-ids"] == "${{ needs.requirements-evidence-producer.outputs.artifact-id }}"  # type: ignore[index]
+    assert restore["env"]["ARTIFACT_ID"] == "${{ needs.requirements-evidence-producer.outputs.artifact-id }}"
 
 
 def _assert_review_diff_is_fail_closed(review: dict[str, Any]) -> None:
@@ -189,12 +189,11 @@ def test_compatibility_fixture_is_schedule_only_and_verified_before_export() -> 
     assert "workflow_dispatch" not in _on_block(workflow)
     job = cast(dict[str, Any], cast(dict[str, Any], workflow["jobs"])["dependency-compatibility"])
     assert job.get("if") == "github.event_name == 'schedule'"
-    read = _named_step(job, "Read immutable module fixture")
     verify = _named_step(job, "Verify immutable module fixture")
     steps = cast(list[dict[str, Any]], job["steps"])
     names = [str(step.get("name", "")) for step in steps]
     assert names.index("Verify immutable module fixture") < names.index("Export module bundles path")
-    assert '"tree"' in str(read.get("run", ""))
+    assert '"tree"' in str(verify.get("run", ""))
     assert "HEAD^{tree}" in str(verify.get("run", ""))
 
 
@@ -359,7 +358,7 @@ def test_requirements_archive_uses_one_immutable_merge_base() -> None:
     workflow = _workflow(".github/workflows/requirements-evidence.yml")
     job = cast(dict[str, Any], cast(dict[str, Any], workflow["jobs"])["requirements-evidence-producer"])
     command = str(_named_step(job, "Run Requirements evidence gate").get("run", ""))
-    assert 'evidence_base_commit="$(git merge-base "origin/${EVIDENCE_BASE_BRANCH}" HEAD)"' in command
+    assert 'evidence_base_commit="${PLANNING_BASE_COMMIT:-${PROOF_BASE_COMMIT:-}}"' in command
     assert '"${evidence_base_commit}..HEAD"' in command
     assert 'git ls-tree -r -z --name-only "$evidence_base_commit"' in command
     assert 'git ls-tree "$evidence_base_commit"' in command
@@ -415,7 +414,7 @@ def test_frozen_graph_excludes_the_retired_scanner_and_its_advisories() -> None:
         names = set(re.findall(r"^([a-z0-9_.-]+)==", locked, re.MULTILINE))
         assert retired_packages.isdisjoint(names)
 
-    active_register = REPO_ROOT / "ci" / "vulnerability-audit-exceptions.json"
+    active_register = REPO_ROOT / "ci" / "vulnerability-audit-exceptions-20261116.json"
     records = json.loads(active_register.read_text(encoding="utf-8"))["exceptions"]
     assert all(record["package"] not in retired_packages | telemetry for record in records)
 
@@ -517,7 +516,7 @@ def test_proof_executor_imports_installed_pytest_before_repository_root(tmp_path
     assert bootstrap.index("import pytest") < bootstrap.index("sys.path.append(repo_root)")
 
 
-def test_invalid_utf8_authority_is_stable_metadata_failure(tmp_path: Path) -> None:
+def test_invalid_utf8_authority_refuses_with_stable_error(tmp_path: Path) -> None:
     """Malformed external bytes fail closed without exposing parser details."""
     comment = tmp_path / "comment.json"
     comment.write_bytes(b"\xff")
@@ -577,9 +576,17 @@ def test_doc_owner_rg_terminates_options(monkeypatch: Any, tmp_path: Path) -> No
 
 
 def test_patch_release_uses_next_version_in_all_sources() -> None:
-    """The security baseline consumes only the next semver patch."""
-    expected = "0.55.5"
-    project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    assert project["project"]["version"] == expected
+    """Verify the exact release transition required by #692."""
+    release = "b6eac433b89e05bc244356438e9818e2ed77d3b1"
+
+    def read_release_source(revision: str, path: str) -> str:
+        return subprocess.check_output(
+            ["git", "show", f"{revision}:{path}"], cwd=REPO_ROOT, encoding="utf-8", timeout=30
+        )
+
+    previous = tomllib.loads(read_release_source(f"{release}^1", "pyproject.toml"))
+    current = tomllib.loads(read_release_source(release, "pyproject.toml"))
+    assert previous["project"]["version"] == "0.55.3"
+    assert current["project"]["version"] == "0.55.4"
     for path in ("setup.py", "src/__init__.py", "src/specfact_cli/__init__.py"):
-        assert expected in (REPO_ROOT / path).read_text(encoding="utf-8")
+        assert '"0.55.4"' in read_release_source(release, path)

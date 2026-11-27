@@ -1,5 +1,11 @@
 ## Context
 
+## Scope rescope — 2026-09-20
+
+Seal, checkpoint, frozen mapping, successor approval, and historical RED/GREEN requirements in this issue apply only when an explicitly selected assurance policy requests them. They are not prerequisites for ordinary implementation, Code Review, release promotion, skill installation, or generated instructions. Keep the internal optional-feature dependency chain and source/signature integrity. Missing optional chronology is not a failed current-execution claim. No runtime policy changes in this planning update.
+
+This owner-requested scope amendment takes precedence over conflicting default-workflow or dependency wording below. It changes planning only; runtime policy is unchanged. [Replacement policy](../requirements-09-minimal-evidence/proposal.md).
+
 This change defines the durable core boundary for a pre-implementation assurance loop. The loop may ingest OpenSpec, Spec Kit, repository governance, GitHub hierarchy, architecture records, and repository state, but those sources remain authoritative in their own domains. Core normalizes and verifies identities; it does not execute the workflow.
 
 Current upstream patterns support this split. OpenSpec exposes proposal and verification workflows under harness-specific command forms, Spec Kit treats clarification and cross-artifact analysis as pre-implementation quality gates, and both allow the invocation surface to vary by agent. The shared contract therefore must be independent of slash-command spelling and harness packaging.
@@ -38,7 +44,11 @@ Scope entries use the closed roles `source`, `test`, `docs`, `generated`, `evide
 
 Each affected behavior or interface records the closed risk dimensions `boundary`, `malformed_or_missing_input`, `state_transition`, `idempotency`, `cache`, `error`, `status`, `timeout`, `unknown_precedence`, `path`, `repository_lifecycle`, `platform`, and `compatibility`. Every dimension is either `covered`, with references to existing Requirements requirement/scenario/case identities, or `not_applicable`, with a non-empty rationale. Covered cases identify their earliest required execution stage: `slice`, `commit`, `prepush`, or `ci`.
 
-At Requirements `planned` maturity, the contract binds the existing mapping/plan digest and exact requirement, scenario, and verification-case identities plus their method, intent, observable, and touchpoints; it does not invent or require a selector before a test exists. After failing-first test authoring, the Requirements-owned test-authored plan supplies the exact pytest selector. Preflight verifies that it refines the same planned case and requires explicit approval of a successor seal, preserving the implementation-lineage origin, before production implementation proceeds. A later checkpoint may then select a subset of the exact identities bound by that test-authored successor. Adding, removing, replacing, or changing a bound identity requires validation, approval, and a new seal. Existing Requirements contracts remain authoritative for maturity, pytest selector syntax, plan identity, and JUnit reconciliation.
+When an explicitly selected assurance policy requires the seal workflow, at
+Requirements `planned` maturity, the contract binds the existing mapping/plan digest and exact requirement, scenario, and verification-case identities plus their method, intent, observable, and touchpoints; it does not invent or require a selector before a test exists. After failing-first test authoring, the Requirements-owned test-authored plan supplies the exact pytest selector. Preflight verifies that it refines the same planned case and requires explicit approval of a successor seal, preserving the implementation-lineage origin, before production implementation proceeds. A later checkpoint may then select a subset of the exact identities bound by that test-authored successor. Adding, removing, replacing, or changing a bound identity requires validation, approval, and a new seal. Existing Requirements contracts remain authoritative for maturity, pytest selector syntax, plan identity, and JUnit reconciliation.
+
+This successor-seal sequence applies only inside that selected policy. Ordinary
+MEB implementation does not require a seal or frozen selector mapping.
 
 ### 3. Deterministic validation result
 

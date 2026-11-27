@@ -1,0 +1,9 @@
+{
+  "schema_version": "1",
+  "decision": "accepted",
+  "reviewer_id": "djm81",
+  "reviewer_role": "repository owner",
+  "recorded_at": "2026-11-24T23:44:09Z",
+  "reference": "codex://threads/01a20027-fb28-7b50-8596-37517ea97609",
+  "mapping_digest": "sha256:10ff755683b4687ab7785e86b55df697289c7838494568187a94f6aa7f0fb327"
+}

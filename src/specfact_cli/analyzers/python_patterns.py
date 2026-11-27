@@ -273,15 +273,34 @@ def _is_string_literal(node: ast.expr | None) -> bool:
     return isinstance(node, ast.JoinedStr) or (isinstance(node, ast.Constant) and isinstance(node.value, str))
 
 
-def _preceding_string_bindings(loop: ast.For | ast.AsyncFor, parent: ast.AST) -> set[str]:
-    statements = next((items for _, items in ast.iter_fields(parent) if isinstance(items, list) and loop in items), [])
-    strings: set[str] = set()
-    for item in statements:
-        if item is loop:
-            break
-        if not isinstance(item, ast.Assign):
+def _earlier_block_statements(node: ast.AST, parent: ast.AST) -> list[ast.stmt]:
+    for _, children in ast.iter_fields(parent):
+        if not isinstance(children, list):
             continue
-        targets = {target.id for target in item.targets if isinstance(target, ast.Name)}
+        nodes = [item for item in children if isinstance(item, ast.AST)]
+        if node in nodes:
+            return [item for item in nodes[: nodes.index(node)] if isinstance(item, ast.stmt)]
+    return []
+
+
+def _enclosing_statements_before(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> Iterator[ast.stmt]:
+    blocks: list[list[ast.stmt]] = []
+    while (parent := parents.get(node)) is not None:
+        blocks.append(_earlier_block_statements(node, parent))
+        if isinstance(parent, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            break
+        node = parent
+    for block in reversed(blocks):
+        yield from block
+
+
+def _preceding_string_bindings(loop: ast.For | ast.AsyncFor, parents: dict[ast.AST, ast.AST]) -> set[str]:
+    strings: set[str] = set()
+    for item in _enclosing_statements_before(loop, parents):
+        if not isinstance(item, (ast.Assign, ast.AnnAssign)) or item.value is None:
+            continue
+        assigned = item.targets if isinstance(item, ast.Assign) else [item.target]
+        targets = {target.id for target in assigned if isinstance(target, ast.Name)}
         strings.difference_update(targets)
         if _is_string_literal(item.value):
             strings.update(targets)
@@ -329,7 +348,7 @@ def _statement_evidence(
     if isinstance(node, ast.Subscript) and qualified_name(node.value, aliases) == "os.environ":
         yield PatternMatch("env-variable-access", node)
     if isinstance(node, (ast.For, ast.AsyncFor)):
-        for statement in _repeated_additions(node, _preceding_string_bindings(node, parents[node])):
+        for statement in _repeated_additions(node, _preceding_string_bindings(node, parents)):
             yield PatternMatch("string-concatenation-loop", statement, "Review repeated concatenation in a loop")
 
 

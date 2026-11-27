@@ -19,6 +19,34 @@ Module packages carry **publisher** and **integrity** metadata so installation, 
 - **Publisher trust gate**: Non-official publishers require one-time explicit trust (interactive confirmation or `--trust-non-official` / `SPECFACT_TRUST_NON_OFFICIAL`).
 - **Denylist gate**: Modules listed in denylist are blocked before install/bootstrap regardless of source.
 
+## Workspace command authority
+
+Default grouped registration rejects category-less project modules before registration or import effects.
+Permanent `init`, `module` and `upgrade` commands require resolved built-in package paths in both modes.
+Unverified workspace packages cannot supply the official `project`, `backlog`, `code`, `spec`, `govern` or
+`requirements` roots. Supported official bundles installed with `--scope project` retain their canonical roots
+only after complete filesystem checksum and signature verification, including untracked module source files,
+against the public key bundled with the CLI and matching
+signed official bundle metadata. Payload symlink members, standalone bytecode, uncovered executable source and missing keys fail closed.
+Current-interpreter source caches remain compatible only when their compiled bytes match the signed source.
+Verification compares those bytes without executing or deserializing candidate caches. Unsigned/test flags, installation receipts and
+`SPECFACT_MODULE_PUBLIC_KEY_PEM` overrides cannot grant these project root commands.
+
+Categorized project packages can populate shared category-member loaders even when their commands do not name a
+root. They therefore require authenticated official bundle authority before candidate selection and registration.
+The same gate covers category mounts induced by explicit bundle metadata or namespaced bundle aliases.
+Explicit legacy registration retains unreserved category-less project commands without an official mount claim;
+non-project categorized routing retains its existing policy. These controls protect command admission and import activation, and do not sandbox intentionally
+invoked module code.
+
+## Preparing project-scoped release artifacts
+
+Publish regular payload files rather than symlinks. Replace links with their intended files before signing;
+remove standalone bytecode and executable files under directories excluded from signing. Regenerate ordinary
+source caches with the target interpreter, or remove stale or transformed caches before project installation.
+The strict project-root admission check independently verifies these conditions. Passing a companion repository
+signing or release-verification command alone does not establish eligibility for privileged project roots.
+
 ## Integrity flow
 
 1. Discovery reads `module-package.yaml` and parses `integrity.checksum`.
@@ -104,3 +132,9 @@ Module packages carry **publisher** and **integrity** metadata so installation, 
 ## Versioned dependencies
 
 Manifest may declare versioned module and pip dependencies via `module_dependencies_versioned` and `pip_dependencies_versioned` (each entry: `name`, `version_specifier`). These are parsed and stored for installation-time resolution while keeping legacy `module_dependencies` / `pip_dependencies` lists backward compatible.
+
+Privileged project-root admission binds discovery fields to the same normalized manifest captured in the signed
+payload. It also completes reproduction of any permitted source caches before checking a fresh executable inventory.
+The final check compares membership, source/native digests and raw cache bodies without executing candidate code or
+invoking compilation. Admission and its recheck precede schema, bridge, protocol and import-root registration effects.
+These checks authenticate the admission snapshot; they do not make a mutable workspace immutable after admission.

@@ -1,0 +1,42 @@
+schema_version: '2'
+requirements:
+  openspec:pin-promotion-module-fixtures:ci-module-fixture-trust:ci-module-fixture-checkouts-use-reviewed-literal-identities:
+    rationale: Keep reviewed module fixture checkout identities independent of workflow outputs.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#771
+      - nold-ai/specfact-cli#796
+    touchpoints:
+      - id: promotion-orchestrator
+        kind: config_file
+        locator: .github/workflows/pr-orchestrator.yml
+      - id: contract-validation
+        kind: config_file
+        locator: .github/workflows/specfact.yml
+      - id: docs-review
+        kind: config_file
+        locator: .github/workflows/docs-review.yml
+    verification_cases:
+      - case_id: promotion-orchestrator-fixture-pins
+        scenario_id: ci-module-fixture-checkouts-use-reviewed-literal-identities
+        method: test
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_ci_module_fixture_pins.py::test_default_branch_jobs_pin_module_checkouts[orchestrator]
+        intent: Bind orchestrator fixture jobs to their reviewed literal checkout identities.
+        observable: Each fixture checkout matches its lock and excludes persisted credentials.
+      - case_id: promotion-contract-fixture-pin
+        scenario_id: ci-module-fixture-checkouts-use-reviewed-literal-identities
+        method: test
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_ci_module_fixture_pins.py::test_default_branch_jobs_pin_module_checkouts[contract]
+        intent: Bind the CLI validation fixture to its reviewed literal checkout identity.
+        observable: The fixture checkout matches its lock and excludes persisted credentials.
+      - case_id: promotion-docs-fixture-pin
+        scenario_id: ci-module-fixture-checkouts-use-reviewed-literal-identities
+        method: test
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_ci_module_fixture_pins.py::test_default_branch_jobs_pin_module_checkouts[docs]
+        intent: Bind Docs Review to its reviewed literal checkout identity.
+        observable: The fixture checkout matches its lock and excludes persisted credentials.

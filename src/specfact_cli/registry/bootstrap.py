@@ -13,9 +13,9 @@ Topology (see ``register_module_package_commands`` in ``module_packages``):
   ``project``, ``spec``, ``govern``) for bundles that are installed and enabled. Legacy flat
   aliases (for example ``analyze`` or ``plan`` at the root) are not registered.
 
-- When ``category_grouping_enabled`` is False: the same modules register with
-  ``_register_command_flat_path``, exposing each declared command name at the root (flat topology).
-  This is a compatibility path for older layouts; grouped categories are the default.
+- When ``category_grouping_enabled`` is False: eligible category-less project packages may use
+  unreserved legacy flat roots. Categorized bundles retain their category routing; removed flat bundle
+  shims stay absent. Permanent core and official category root reservations remain enforced.
 """
 
 from __future__ import annotations

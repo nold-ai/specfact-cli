@@ -1,0 +1,19 @@
+schema_version: '2'
+requirements:
+  ? openspec:align-module-pip-constraints:module-resolution-constraints:resolve-and-install-with-the-same-pip-constraints
+  : rationale: Reuse caller dependency policy consistently across the existing resolver and installer.
+    stakeholder_refs:
+    - nold-ai/specfact-cli#798
+    touchpoints:
+    - id: module-dependency-resolver
+      kind: code_symbol
+      locator: src/specfact_cli/registry/dependency_resolver.py::resolve_dependencies
+    verification_cases:
+    - case_id: module-resolution-inherits-pip-constraints
+      scenario_id: resolve-and-install-with-the-same-pip-constraints
+      method: test
+      intent: Pass ordered caller constraint files through the normal pip-compile path.
+      observable: The compiler uses the same files as pip and returns the allowed pin.
+      selector:
+        runner: pytest
+        node_id: tests/unit/registry/test_dependency_resolver.py::test_pip_compile_honors_pip_install_constraints
