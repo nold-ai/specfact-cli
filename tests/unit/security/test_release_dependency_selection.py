@@ -66,7 +66,7 @@ def test_retired_scanner_graph_is_absent_from_frozen_delivery() -> None:
 
 @pytest.mark.parametrize(
     ("name", "version"),
-    [("jekyll-feed", "0.18.0"), ("jekyll-redirect-from", "0.17.0"), ("jekyll-relative-links", "0.9.1")],
+    [("jekyll-feed", "0.18.0"), ("jekyll-redirect-from", "0.17.0"), ("jekyll-relative-links", "0.9.2")],
 )
 def test_reviewed_documentation_plugins_are_locked(name: str, version: str) -> None:
     locked = (REPO_ROOT / "docs/Gemfile.lock").read_text(encoding="utf-8")
