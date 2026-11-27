@@ -11,13 +11,14 @@ import json
 import re
 import sys
 import tomllib
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import cast
+from zoneinfo import ZoneInfo
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_REGISTER = REPO_ROOT / "ci" / "dependency-trust-exceptions.json"
+DEFAULT_REGISTER = REPO_ROOT / "ci" / "dependency-trust-exceptions-20261116.json"
 DEFAULT_UV_LOCK = REPO_ROOT / "uv.lock"
 DEFAULT_CI_EXPORT = REPO_ROOT / "requirements" / "ci" / "locked.txt"
 DEFAULT_SECURITY_TOOL_FLOORS = REPO_ROOT / "ci" / "security-tool-minimum-versions.json"
@@ -188,7 +189,7 @@ def validate_exception_register(register_path: Path, *, today: date | None = Non
     if errors:
         return errors
 
-    current_date = today or date.today()
+    current_date = today if today is not None else datetime.now(ZoneInfo("Europe/Berlin")).date()
     return [
         error
         for index, record in enumerate(records)
@@ -487,7 +488,7 @@ def validate_frozen_dependency_policy(
     code_review_lock_path: Path = DEFAULT_CODE_REVIEW_LOCK,
     ci_export_path: Path = DEFAULT_CI_EXPORT,
 ) -> list[str]:
-    """Reject blocked releases and reviews that do not bind to either frozen graph."""
+    """Reject blocked releases and reviews across all three frozen dependency graphs."""
     errors = validate_exception_register(register_path, today=today)
     locked_packages, lock_errors = _read_locked_packages(lock_path)
     errors.extend(lock_errors)
@@ -512,7 +513,7 @@ def validate_frozen_dependency_policy(
     smoke_packages, smoke_errors = _read_code_review_locked_packages(
         DEFAULT_RUNTIME_SMOKE_INPUT, DEFAULT_RUNTIME_SMOKE_LOCK
     )
-    errors.extend(f"Runtime smoke: {error}" for error in smoke_errors)
+    errors.extend("Runtime smoke graph: " + error for error in smoke_errors)
     errors.extend(_validate_locked_version_policy(smoke_packages, tool_floors))
     return errors
 

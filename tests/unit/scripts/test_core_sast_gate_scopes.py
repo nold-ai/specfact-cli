@@ -4,6 +4,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 from tests.unit.scripts.test_core_sast_gate import SCRIPT, SOURCE_PATH, _run_gate, _tracked_source
 
 
@@ -74,16 +76,30 @@ def test_global_import_without_flow_resolution_reports_incomplete(tmp_path: Path
     assert report["diagnostics"] == [{"path": SOURCE_PATH, "message": "global import alias requires flow analysis"}]
 
 
-def test_a_later_import_cannot_hide_an_earlier_call(tmp_path: Path) -> None:
-    _tracked_source(
-        tmp_path,
-        "import hashlib as digest\nresult = digest.md5(data)\nimport random as digest\n",
-    )
-
+@pytest.mark.parametrize(
+    ("source", "line"),
+    [
+        ("import hashlib as digest\nresult = digest.md5(data)\nimport random as digest\n", 2),
+        (
+            "def calculate(data, use_math):\n"
+            "    import hashlib as digest\n"
+            "    if use_math:\n"
+            "        import math as digest\n"
+            "    result = digest.md5(data)\n"
+            "    import math as digest\n"
+            "    digest.md5(data)\n"
+            "    return result\n",
+            5,
+        ),
+    ],
+    ids=["later-import", "conditional-import"],
+)
+def test_import_rebinding_preserves_findings(tmp_path: Path, source: str, line: int) -> None:
+    _tracked_source(tmp_path, source)
     result, report = _run_gate(tmp_path)
 
     assert result.returncode == 1, result.stderr
-    assert [(row["rule_id"], row["line"]) for row in report["new_findings"]] == [("weak-cryptographic-hash", 2)]
+    assert [(row["rule_id"], row["line"]) for row in report["new_findings"]] == [("weak-cryptographic-hash", line)]
 
 
 def test_nonlocal_import_without_flow_resolution_reports_incomplete(tmp_path: Path) -> None:
