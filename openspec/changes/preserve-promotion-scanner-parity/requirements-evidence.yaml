@@ -1,0 +1,19 @@
+schema_version: '2'
+requirements:
+  openspec:preserve-promotion-scanner-parity:trustworthy-green-checks:the-promotion-preserves-reviewed-async-callable-bindings:
+    rationale: Keep the reviewed scanner's binding behavior in the signed promotion source.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#771
+    touchpoints:
+      - id: async-scanner-command
+        kind: code_symbol
+        locator: src/specfact_cli/analyzers/async_checks.py::main
+    verification_cases:
+      - case_id: promoted-async-callable-bindings
+        scenario_id: the-promotion-preserves-reviewed-async-callable-bindings
+        method: test
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_promoted_async_scanner.py::test_promoted_async_scanner_reports_only_the_unawaited_coroutine
+        intent: Keep the false-positive correction and the matching positive control together.
+        observable: The scanner reports a missing await only for the actual coroutine call.
