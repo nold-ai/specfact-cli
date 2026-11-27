@@ -105,14 +105,29 @@ module JekyllDependencyChecks
       FileUtils.mkdir_p(File.join(source, "_includes"))
       File.write(File.join(source, "_includes/nav.html"), '<nav><a class="nav" href="/target.md#section" title="Target">Target</a></nav>')
       write_page(source, "target.md", {"permalink" => "/target/"}, "## Section")
-      index_content = "{% include nav.html %}\n\n[Markdown](target.md#section)\n\n[External](https://example.test/file.md#section)"
+      index_content = <<~MARKDOWN
+        {% include nav.html %}
+
+        [Markdown](target.md#section)
+
+        [Titled](target.md 'Target page')
+
+        [External](https://example.test/file.md#section)
+
+        [External without scheme](//example.test/file.md#section)
+
+        [Tilde path](/~specfact-docs-probe/target.md)
+      MARKDOWN
       write_page(source, "index.md", {"permalink" => "/"}, index_content)
       write_page(source, "nested/page.md", {"permalink" => "/nested/"}, "[Nested](../target.md#section)")
       site = build_site(source, destination, baseurl, ["jekyll-relative-links"])
       index = File.read(File.join(destination, "index.html"))
       assert(index.include?("href=\"#{baseurl}/target/#section\" title=\"Target\""), "Included navigation lost rewritten URL/baseurl")
       assert(index.include?("href=\"#{baseurl}/target/#section\">Markdown"), "Markdown link lost target/fragment/baseurl")
+      assert(index.include?("href=\"#{baseurl}/target/\" title=\"Target page\""), "Single-quoted title prevented link rewriting")
       assert(index.include?("https://example.test/file.md#section"), "External Markdown URL changed")
+      assert(index.include?("href=\"//example.test/file.md#section\""), "Protocol-relative URL changed")
+      assert(index.include?("href=\"/~specfact-docs-probe/target.md\""), "Unresolved tilde path changed")
       nested = File.read(File.join(destination, "nested/index.html"))
       assert(nested.include?("href=\"#{baseurl}/target/#section\""), "Nested Markdown link was not rewritten")
       write_page(source, "target.md", {"permalink" => "/updated-target/"}, "## Section")
