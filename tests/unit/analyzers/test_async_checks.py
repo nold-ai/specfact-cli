@@ -120,10 +120,35 @@ def test_async_definition_replaces_an_earlier_assignment() -> None:
         ("worker()\n    worker = lambda: None\n    worker()", [4]),
         ("if enabled:\n        worker = lambda: None\n    worker()", [6]),
         ("worker: object\n    worker()", [5]),
+        (
+            "if enabled:\n        for worker in [lambda: None]:\n            worker()\n    worker()",
+            [7],
+        ),
+        (
+            "replacement = worker\n    for worker in (lambda: None,):\n        worker()\n"
+            "        worker = replacement\n        worker()\n        worker = lambda: None\n        worker()",
+            [8],
+        ),
+        (
+            "for worker in [lambda: None]:\n        worker = worker\n        worker()\n"
+            "        async def worker():\n            pass\n        worker()",
+            [9],
+        ),
+        ("for worker in (worker,):\n        worker()", [5]),
         ("worker = worker\n    worker()", [5]),
         ("other = worker\n    other()\n    other = lambda: None\n    other()", [5]),
     ],
-    ids=["later-assignment", "conditional-assignment", "local-annotation", "self-alias", "async-alias"],
+    ids=[
+        "later-assignment",
+        "conditional-assignment",
+        "local-annotation",
+        "synchronous-loop-target",
+        "loop-target-reassigned",
+        "loop-target-resets-each-iteration",
+        "coroutine-iterable",
+        "self-alias",
+        "async-alias",
+    ],
 )
 def test_local_coroutine_calls_respect_runtime_bindings(code: str, expected: list[int]) -> None:
     source = f"async def run(enabled=False):\n    async def worker():\n        pass\n    {code}\n"

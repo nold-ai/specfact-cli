@@ -6,3 +6,13 @@
   which calls the coroutine without awaiting it.
 - The preview retains the exact protected development Requirements workflow.
   The frozen lock refresh changes only the local project version.
+
+## Synchronous loop target regression
+
+- On signed source `6e1b1ae1`, three loop-target cases failed. The scanner
+  retained an earlier coroutine when the loop bound the name to a lambda.
+- After the fix, the scanner honors the loop target inside each iteration,
+  reports a later coroutine rebinding, and still reports a possible
+  unawaited coroutine when execution can skip the loop.
+- The coroutine iterable control passed before and after the fix. The existing
+  hosted Requirements selector and its original evidence retain their bytes.

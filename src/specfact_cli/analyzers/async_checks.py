@@ -303,7 +303,7 @@ class _CallableBinding:
     name: str
     value: bool | str | None
     may_skip: bool
-    loops: tuple[_Loop, ...]
+    node: ast.AST
 
 
 def _enclosing_scope(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> _LexicalScope | None:
@@ -324,7 +324,7 @@ def _store_position(node: ast.Name, parents: dict[ast.AST, ast.AST]) -> tuple[in
     return node.lineno, node.col_offset
 
 
-def _binding_may_be_skipped(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> bool:
+def _binding_may_be_skipped(node: ast.AST, parents: dict[ast.AST, ast.AST], boundary: _Loop | None = None) -> bool:
     conditional = (
         ast.If,
         ast.IfExp,
@@ -338,7 +338,9 @@ def _binding_may_be_skipped(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> b
         ast.With,
         ast.AsyncWith,
     )
-    while (parent := parents.get(node)) is not None and not isinstance(parent, _LexicalScope):
+    while (parent := parents.get(node)) is not None:
+        if parent is boundary or isinstance(parent, _LexicalScope):
+            break
         if isinstance(parent, conditional):
             return True
         node = parent
@@ -378,8 +380,7 @@ def _scope_callable_bindings(
             continue
         owner = _enclosing_scope(node, parents)
         if owner is not None:
-            loops = tuple(_enclosing_loops(node, parents)) if value is True else ()
-            binding = _CallableBinding(position, name, value, _binding_may_be_skipped(node, parents), loops)
+            binding = _CallableBinding(position, name, value, _binding_may_be_skipped(node, parents), node)
             definitions.setdefault(owner, []).append(binding)
     for bindings in definitions.values():
         bindings.sort(key=lambda binding: binding.position)
@@ -390,19 +391,75 @@ def _binds_coroutine(binding: _CallableBinding, coroutines: set[str]) -> bool:
     return binding.value is True or (isinstance(binding.value, str) and binding.value in coroutines)
 
 
-def _apply_callable_binding(binding: _CallableBinding, coroutines: set[str]) -> None:
-    if _binds_coroutine(binding, coroutines):
+def _apply_callable_binding(
+    binding: _CallableBinding, coroutines: set[str], *, visible: set[str] | None = None
+) -> bool:
+    is_coroutine = _binds_coroutine(binding, coroutines if visible is None else visible)
+    if is_coroutine:
         coroutines.add(binding.name)
     elif binding.value is not None and not binding.may_skip:
         coroutines.discard(binding.name)
+    return is_coroutine
 
 
-def _loop_binding_names(bindings: Sequence[_CallableBinding]) -> dict[_Loop, set[str]]:
+def _loop_binding_names(bindings: Sequence[_CallableBinding], parents: dict[ast.AST, ast.AST]) -> dict[_Loop, set[str]]:
     possible: dict[_Loop, set[str]] = {}
     for binding in bindings:
-        for loop in binding.loops:
-            possible.setdefault(loop, set()).add(binding.name)
+        if binding.value is True:
+            for loop in _enclosing_loops(binding.node, parents):
+                possible.setdefault(loop, set()).add(binding.name)
     return possible
+
+
+@dataclass
+class _LoopTarget:
+    name: str
+    is_coroutine: bool = False
+
+
+def _synchronous_loop_targets(nodes: Sequence[ast.AST]) -> dict[_Loop, _LoopTarget]:
+    # Only infer a synchronous target when every iterable item is a literal lambda.
+    return {
+        node: _LoopTarget(node.target.id)
+        for node in nodes
+        if isinstance(node, ast.For)
+        and isinstance(node.target, ast.Name)
+        and isinstance(node.iter, (ast.List, ast.Tuple))
+        and all(isinstance(item, ast.Lambda) for item in node.iter.elts)
+    }
+
+
+def _iteration_coroutines(coroutines: set[str], loops: Sequence[_Loop], targets: dict[_Loop, _LoopTarget]) -> set[str]:
+    if not targets or not loops:
+        return coroutines
+    visible = coroutines.copy()
+    for loop in reversed(loops):
+        target = targets.get(loop)
+        if target is None:
+            continue
+        if target.is_coroutine:
+            visible.add(target.name)
+        else:
+            visible.discard(target.name)
+    return visible
+
+
+def _apply_iteration_binding(
+    binding: _CallableBinding,
+    coroutines: set[str],
+    targets: dict[_Loop, _LoopTarget],
+    parents: dict[ast.AST, ast.AST],
+) -> None:
+    loops = tuple(_enclosing_loops(binding.node, parents))
+    is_coroutine = _apply_callable_binding(
+        binding, coroutines, visible=_iteration_coroutines(coroutines, loops, targets)
+    )
+    for loop in loops:
+        target = targets.get(loop)
+        if target is None or target.name != binding.name:
+            continue
+        if is_coroutine or (binding.value is not None and not _binding_may_be_skipped(binding.node, parents, loop)):
+            target.is_coroutine = is_coroutine
 
 
 def _calls_with_coroutines(
@@ -411,7 +468,8 @@ def _calls_with_coroutines(
     coroutines: set[str],
     bindings: Sequence[_CallableBinding],
 ) -> Iterator[tuple[ast.Call, set[str]]]:
-    loop_bindings = _loop_binding_names(bindings)
+    loop_bindings = _loop_binding_names(bindings, parents)
+    targets = _synchronous_loop_targets(nodes)
     events = iter(bindings)
     event = next(events, None)
     calls = sorted(
@@ -420,10 +478,11 @@ def _calls_with_coroutines(
     for call in calls:
         position = (call.lineno, call.col_offset)
         while event is not None and event.position <= position:
-            _apply_callable_binding(event, coroutines)
+            _apply_iteration_binding(event, coroutines, targets, parents)
             event = next(events, None)
-        carried = {name for loop in _enclosing_loops(call, parents) for name in loop_bindings.get(loop, ())}
-        yield call, coroutines | carried
+        loops = tuple(_enclosing_loops(call, parents))
+        carried = {name for loop in loops for name in loop_bindings.get(loop, ())}
+        yield call, _iteration_coroutines(coroutines | carried, loops, targets)
 
 
 def _binding_flags(
