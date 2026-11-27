@@ -429,11 +429,15 @@ def _synchronous_loop_targets(nodes: Sequence[ast.AST]) -> dict[_Loop, _LoopTarg
     }
 
 
-def _iteration_coroutines(coroutines: set[str], loops: Sequence[_Loop], targets: dict[_Loop, _LoopTarget]) -> set[str]:
-    if not targets or not loops:
+def _iteration_coroutines(
+    coroutines: set[str], loops: Sequence[_Loop], targets: dict[_Loop, _LoopTarget], carried: dict[_Loop, set[str]]
+) -> set[str]:
+    if not loops:
         return coroutines
     visible = coroutines.copy()
     for loop in reversed(loops):
+        # The target resets its own iteration, then inner loops can contribute their own carried bindings.
+        visible.update(carried.get(loop, ()))
         target = targets.get(loop)
         if target is None:
             continue
@@ -449,11 +453,11 @@ def _apply_iteration_binding(
     coroutines: set[str],
     targets: dict[_Loop, _LoopTarget],
     parents: dict[ast.AST, ast.AST],
+    carried: dict[_Loop, set[str]],
 ) -> None:
     loops = tuple(_enclosing_loops(binding.node, parents))
-    is_coroutine = _apply_callable_binding(
-        binding, coroutines, visible=_iteration_coroutines(coroutines, loops, targets)
-    )
+    visible = _iteration_coroutines(coroutines, loops, targets, carried)
+    is_coroutine = _apply_callable_binding(binding, coroutines, visible=visible)
     for loop in loops:
         target = targets.get(loop)
         if target is None or target.name != binding.name:
@@ -478,11 +482,10 @@ def _calls_with_coroutines(
     for call in calls:
         position = (call.lineno, call.col_offset)
         while event is not None and event.position <= position:
-            _apply_iteration_binding(event, coroutines, targets, parents)
+            _apply_iteration_binding(event, coroutines, targets, parents, loop_bindings)
             event = next(events, None)
         loops = tuple(_enclosing_loops(call, parents))
-        carried = {name for loop in loops for name in loop_bindings.get(loop, ())}
-        yield call, _iteration_coroutines(coroutines | carried, loops, targets)
+        yield call, _iteration_coroutines(coroutines, loops, targets, loop_bindings)
 
 
 def _binding_flags(

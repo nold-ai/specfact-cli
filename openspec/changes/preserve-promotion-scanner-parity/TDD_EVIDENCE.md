@@ -16,3 +16,8 @@
   unawaited coroutine when execution can skip the loop.
 - The coroutine iterable control passed before and after the fix. The existing
   hosted Requirements selector and its original evidence retain their bytes.
+
+- On `d64494ca`, two nested-loop cases missed the coroutine binding from a
+  previous inner iteration. After applying loop state from outermost to
+  innermost, both a direct call and a call through an alias report the
+  coroutine. The inner synchronous target control stays clear.

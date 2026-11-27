@@ -134,6 +134,21 @@ def test_async_definition_replaces_an_earlier_assignment() -> None:
             "        async def worker():\n            pass\n        worker()",
             [9],
         ),
+        (
+            "for worker in [lambda: None]:\n        for turn in (1, 2):\n            worker()\n"
+            "            async def worker():\n                pass",
+            [6],
+        ),
+        (
+            "for worker in [lambda: None]:\n        for turn in (1, 2):\n            alias = worker\n"
+            "            alias()\n            async def worker():\n                pass",
+            [7],
+        ),
+        (
+            "for worker in [lambda: None]:\n        for worker in (lambda: None,):\n            worker()\n"
+            "            async def worker():\n                pass",
+            [],
+        ),
         ("for worker in (worker,):\n        worker()", [5]),
         ("worker = worker\n    worker()", [5]),
         ("other = worker\n    other()\n    other = lambda: None\n    other()", [5]),
@@ -145,6 +160,9 @@ def test_async_definition_replaces_an_earlier_assignment() -> None:
         "synchronous-loop-target",
         "loop-target-reassigned",
         "loop-target-resets-each-iteration",
+        "nested-loop-carry",
+        "nested-loop-carry-alias",
+        "nested-loop-target-reset",
         "coroutine-iterable",
         "self-alias",
         "async-alias",
