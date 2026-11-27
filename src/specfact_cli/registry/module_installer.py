@@ -847,7 +847,7 @@ def _frozen_tree_files(package_dir: Path) -> _FrozenTreeFiles:
             raise ValueError("Frozen module trees require regular files")
         if relative in _IGNORED_MODULE_FILE_NAMES:
             continue
-        if path.parent.name == "__pycache__" and path.suffix == ".pyc":
+        if path.parent.name == "__pycache__" and path.suffix in {".pyc", ".pyo"}:
             caches.append(path)
             continue
         data = path.read_bytes()
@@ -1113,7 +1113,7 @@ def _inactive_pytest_release_cache(path: Path, sources: dict[Path, bytes]) -> bo
     """Recognize a pytest cache that neither the runtime nor an active rewrite hook selects."""
     if sys.implementation.name != "cpython" or sys.pycache_prefix is not None:
         return False
-    match = re.fullmatch(r"(.+)\.(cpython-\d+)-pytest-\d+\.\d+\.\d+[a-zA-Z0-9.+-]*\.pyc", path.name)
+    match = re.fullmatch(r"(.+)\.(cpython-\d+)-pytest-\d+\.\d+\.\d+[a-zA-Z0-9.+-]*\.py[co]", path.name)
     if match is None:
         return False
     name, tag = match.groups()

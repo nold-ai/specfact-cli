@@ -13,8 +13,9 @@
 ## Passing after the fix
 
 - On 27 November 2026, the CLI, docs parity, and official module command tests passed with Typer 0.29.3 and 0.27.0. The reviewed module source fixture was `69f07581` and the approved archive fixture was `046d366c`. The command audit also passed with the current modules release source at `209b4ed8`.
-- The rebuilt `specfact_cli-0.55.20-py3-none-any.whl` (SHA-256 `77f6573968f8226978ac4b450a9e956fddde2a6cecd9e01cd9754f847afd5c93`) resolved Typer 0.29.3 on Python 3.13 from a new uv cache without a dependency override. Default startup, `--version`, `module list --show-origin`, `project --help`, and `spec --help` exited successfully. Startup reported no module integrity warnings.
+- The initial rebuilt `specfact_cli-0.55.20-py3-none-any.whl` (SHA-256 `77f6573968f8226978ac4b450a9e956fddde2a6cecd9e01cd9754f847afd5c93`) resolved Typer 0.29.3 on Python 3.13 from a new uv cache without a dependency override. Default startup, `--version`, `module list --show-origin`, `project --help`, and `spec --help` exited successfully. Startup reported no module integrity warnings.
 - Isolated uvx version checks also passed on Python 3.11 and 3.12 with Typer 0.29.3. The initial combined regression suite passed 128 tests with one skip on each of Typer 0.29.3 and 0.27.0. The reviewed pytest cache regression also passed with assertion rewriting disabled via `--assert=plain`.
+- The optimized-cache regression verified that an inactive `.pyo` loads and that a selectable pytest `.pyo` or an unrecognized `.pyo` still fails verification. The two registry suites passed 49 tests with one skip. The new regression also passed under `--assert=plain`. A fresh Python 3.13 uvx install of the revised local wheel (SHA-256 `1b5fe86bacfe05c3682faf1031433cfb1315937db4b4dbf281e9eff5a154ff81`) resolved Typer 0.29.3 without an override and ran default startup and both module help commands without integrity warnings.
 - Repository Ruff, error-level BasedPyright, and strict OpenSpec validation passed. `uv lock --check` confirmed that the frozen inputs still resolve.
 
 ## Delivery gate status
