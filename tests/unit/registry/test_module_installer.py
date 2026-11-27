@@ -67,6 +67,7 @@ def test_frozen_install_shares_standard_caches(
         other_python = os.environ.get("SPECFACT_TEST_OTHER_PYTHON")
         if not other_python:
             pytest.skip("Set SPECFACT_TEST_OTHER_PYTHON to run the cross-version cache check")
+        assert other_python is not None
         subprocess.run(
             [
                 other_python,
