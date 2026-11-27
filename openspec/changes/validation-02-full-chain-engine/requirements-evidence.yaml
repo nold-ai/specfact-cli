@@ -1,0 +1,34 @@
+schema_version: "2"
+x-planning-context: &planning-context
+  rationale: "Make this requirement reviewable before implementation begins."
+  stakeholder_refs: ["nold-ai/specfact-cli#241"]
+x-planning-inspection: &planning-inspection
+  method: inspection
+  observable: >-
+    Strict OpenSpec validation retains the requirement and its scenarios
+    without claiming implementation or test execution.
+x-spec-1: &spec-1
+  - id: openspec-source-spec
+    kind: config_file
+    locator: "openspec/changes/validation-02-full-chain-engine/specs/full-chain-validation/spec.md"
+x-spec-2: &spec-2
+  - id: openspec-source-spec
+    kind: config_file
+    locator: "openspec/changes/validation-02-full-chain-engine/specs/sidecar-validation/spec.md"
+requirements:
+  openspec:validation-02-full-chain-engine:full-chain-validation:full-chain-validation:
+    <<: *planning-context
+    touchpoints: *spec-1
+    verification_cases:
+      - <<: *planning-inspection
+        case_id: VAL02-001
+        scenario_id: full-chain-validation
+        intent: "Inspect the full chain validation planning contract and its scenarios."
+  openspec:validation-02-full-chain-engine:sidecar-validation:full-chain-sidecar-inputs:
+    <<: *planning-context
+    touchpoints: *spec-2
+    verification_cases:
+      - <<: *planning-inspection
+        case_id: VAL02-002
+        scenario_id: full-chain-sidecar-inputs
+        intent: "Inspect the full chain sidecar inputs planning contract and its scenarios."

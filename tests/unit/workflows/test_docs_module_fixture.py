@@ -22,18 +22,21 @@ def test_docs_review_uses_independent_verified_module_fixture(filename: str, job
     workflow = yaml.safe_load((REPO_ROOT / ".github/workflows" / filename).read_text(encoding="utf-8"))
     steps = workflow["jobs"][job]["steps"]
     scripts = "\n".join(step.get("run", "") for step in steps)
-    assert "ci/docs-module-fixture.lock.json" in scripts
-    assert "ci/module-fixture.lock.json" not in scripts
-    assert "HEAD^{tree}" in scripts
-    assert "test_code_review_command_parity.py" in scripts
-    assert "test_docs_module_fixture.py" in scripts
-    assert "test_llms_overview_freshness.py" in scripts
-    assert "${SPECFACT_DOCS_MODULES_REPO:?" in scripts
-    checkout = next(step for step in steps if step.get("name") == "Checkout module command sources")
-    assert checkout["with"]["ref"] in (
-        "${{ steps.modules-fixture.outputs.commit }}",
-        "${{ steps.modules-fixture.outputs.ref }}",
+    required_fragments = (
+        "ci/docs-module-fixture.lock.json",
+        "HEAD^{tree}",
+        "test_code_review_command_parity.py",
+        "test_docs_module_fixture.py",
+        "test_llms_overview_freshness.py",
+        "${SPECFACT_DOCS_MODULES_REPO:?",
     )
+    for fragment in required_fragments:
+        assert fragment in scripts, fragment
+    assert "ci/module-fixture.lock.json" not in scripts
+    checkout = next(step for step in steps if step.get("name") == "Checkout module command sources")
+    lock = json.loads((REPO_ROOT / "ci/docs-module-fixture.lock.json").read_text(encoding="utf-8"))
+    assert checkout["with"]["repository"] == lock["repository"]
+    assert checkout["with"]["ref"] == lock["commit"]
 
 
 def test_requirements_fixture_authority_stays_at_approved_release() -> None:

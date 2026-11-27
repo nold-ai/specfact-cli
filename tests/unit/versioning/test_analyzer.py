@@ -1,6 +1,7 @@
 """Unit tests for version change analyzer."""
 
 from pathlib import Path
+from typing import Protocol, cast
 
 import yaml
 from git import Repo
@@ -46,9 +47,14 @@ def _create_sample_bundle(base_path: Path, bundle_name: str = "test-bundle") -> 
     return bundle_dir
 
 
+class _StageProjectFiles(Protocol):
+    def add(self, paths: list[str]) -> object: ...
+
+
 def _init_repo(base_path: Path) -> Repo:
     repo = Repo.init(base_path)
-    repo.index.add([str(p) for p in (base_path / ".specfact" / "projects").rglob("*") if p.is_file()])
+    index = cast(_StageProjectFiles, repo.index)
+    index.add([str(p) for p in (base_path / ".specfact" / "projects").rglob("*") if p.is_file()])
     repo.index.commit("init")
     return repo
 

@@ -60,7 +60,6 @@ jobs:
           persist-credentials: false
 
       - name: Read immutable module fixture
-        id: modules-fixture
         shell: bash
         run: |
           set -euo pipefail
@@ -71,15 +70,13 @@ jobs:
           tree="$(python -c 'import json; print(json.load(open("ci/docs-module-fixture.lock.json", encoding="utf-8"))["tree"])')"
           [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
           [[ "$tree" =~ ^[0-9a-f]{40}$ ]]
-          printf 'repository=%s\n' "$repository" >> "$GITHUB_OUTPUT"
-          printf 'commit=%s\n' "$commit" >> "$GITHUB_OUTPUT"
 
       - name: Checkout module command sources
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
-          repository: ${{ steps.modules-fixture.outputs.repository }}
+          repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
-          ref: ${{ steps.modules-fixture.outputs.commit }}
+          ref: 046d366c190af7a188d6f48953a96edb65e766db
           persist-credentials: false
 
       - name: Verify immutable module fixture
@@ -88,7 +85,7 @@ jobs:
           set -euo pipefail
           expected_repository="$(python -c 'import json; print(json.load(open("ci/docs-module-fixture.lock.json", encoding="utf-8"))["repository"])')"
           expected="$(python -c 'import json; print(json.load(open("ci/docs-module-fixture.lock.json", encoding="utf-8"))["commit"])')"
-          test "$expected_repository" = "${{ steps.modules-fixture.outputs.repository }}"
+          test "$expected_repository" = "nold-ai/specfact-cli-modules"
           actual="$(git -C specfact-cli-modules rev-parse HEAD)"
           test "$actual" = "$expected"
           expected_tree="$(python -c 'import json; print(json.load(open("ci/docs-module-fixture.lock.json", encoding="utf-8"))["tree"])')"
@@ -116,7 +113,10 @@ jobs:
         run: |
           set -euo pipefail
           python -I - <<'PY'
+          import hashlib
           import importlib.util
+          import json
+          import subprocess
           from pathlib import Path
 
           modules = Path("specfact-cli-modules").resolve(strict=True)
@@ -138,6 +138,30 @@ jobs:
                      if source.is_dir()}
           if missing := required - bundles.keys():
               raise ValueError(f"Missing required documentation bundles: {', '.join(sorted(missing))}")
+          lock_path = (trusted / "ci/docs-module-fixture.lock.json").resolve()
+          if lock_path.is_file():
+              if not lock_path.is_relative_to(trusted) or lock_path.is_relative_to(modules):
+                  raise ValueError("The documentation fixture lock must come from the separate base checkout")
+              lock = json.loads(lock_path.read_text(encoding="utf-8"))
+              if lock.get("repository") == "nold-ai/specfact-cli-modules" and "packages_sha256" in lock:
+                  identity = subprocess.check_output(
+                      ["git", "-C", str(modules), "rev-parse", "HEAD", "HEAD^{tree}"],
+                      text=True, timeout=10,
+                  ).splitlines()
+                  if identity == [lock.get("commit"), lock.get("tree")]:
+                      packages = modules / "packages"
+                      paths = sorted(packages.rglob("*"), key=Path.as_posix)
+                      if packages.is_symlink() or any(path.is_symlink() for path in paths):
+                          raise ValueError("Symbolic links are forbidden in the reviewed documentation packages")
+                      entries = (
+                          f"{path.relative_to(modules).as_posix()}:{hashlib.sha256(path.read_bytes()).hexdigest()}"
+                          for path in paths if path.is_file()
+                      )
+                      digest = hashlib.sha256("\n".join(entries).encode()).hexdigest()
+                      if digest != lock["packages_sha256"]:
+                          raise ValueError("Reviewed documentation package digest mismatch")
+                      print(f"Authenticated {len(bundles)} documentation bundles against the base fixture lock.")
+                      raise SystemExit(0)
           public_key = key_path.read_text(encoding="utf-8")
           for name, bundle in sorted(bundles.items()):
               manifest = bundle / "module-package.yaml"
