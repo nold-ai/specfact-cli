@@ -7,6 +7,7 @@ from pathlib import Path
 from shutil import copytree, ignore_patterns
 
 import pytest
+from _pytest.assertion import rewrite
 
 from specfact_cli.models.module_package import ModulePackageMetadata
 from specfact_cli.registry import module_installer
@@ -79,6 +80,33 @@ def test_bundled_release_accepts_relocated_installer_cache(tmp_path: Path) -> No
     meta = discover_package_metadata(tmp_path)[0][1]
     assert module_installer.verify_module_artifact(installed, meta)
     pycache.write_bytes(pycache.read_bytes() + b"changed cache")
+    assert not module_installer.verify_module_artifact(installed, meta)
+
+
+def test_bundled_release_accepts_optimized_pytest_cache_only_when_inactive(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, pytestconfig: pytest.Config
+) -> None:
+    shipped = Path(module_installer.__file__).parents[1] / "modules" / "module_registry"
+    installed = tmp_path / "module_registry"
+    copytree(shipped, installed, ignore=ignore_patterns("__pycache__"))
+    meta = discover_package_metadata(tmp_path)[0][1]
+    source = installed / "src/app.py"
+    optimized_tail = f".{rewrite.PYTEST_TAG}.pyo"
+    cache = source.parent / "__pycache__" / f"{source.stem}{optimized_tail}"
+    py_compile.compile(str(source), cfile=str(cache), doraise=True, optimize=1)
+
+    other_finders = [finder for finder in sys.meta_path if not isinstance(finder, rewrite.AssertionRewritingHook)]
+    monkeypatch.setattr(sys, "meta_path", other_finders)
+    assert module_installer.verify_module_artifact(installed, meta)
+
+    hook = rewrite.AssertionRewritingHook(pytestconfig)
+    monkeypatch.setattr(hook, "find_spec", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(rewrite, "PYC_TAIL", optimized_tail)
+    monkeypatch.setattr(sys, "meta_path", [hook, *other_finders])
+    assert not module_installer.verify_module_artifact(installed, meta)
+
+    monkeypatch.setattr(sys, "meta_path", other_finders)
+    cache.rename(cache.with_name(f"{source.stem}.{sys.implementation.cache_tag}.pyo"))
     assert not module_installer.verify_module_artifact(installed, meta)
 
 
