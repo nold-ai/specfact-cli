@@ -147,9 +147,10 @@ def _command_arguments(command: Any) -> list[dict[str, Any]]:
     arguments: list[dict[str, Any]] = []
     for param in command.params:
         if isinstance(param, (click.Argument, TyperArgument)):
+            assert param.name is not None
             arguments.append(
                 {
-                    "name": param.metavar or param.human_readable_name.upper(),
+                    "name": param.metavar if param.metavar is not None else param.name.upper(),
                     "required": bool(param.required),
                     "nargs": param.nargs,
                 }

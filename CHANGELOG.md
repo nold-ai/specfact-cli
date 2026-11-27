@@ -10,6 +10,15 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.55.20] - 2026-11-27
+
+### Fixed
+
+- Start the CLI with Typer 0.29 while preserving Click context and option dispatch.
+- Load approved Project and Spec modules when their directories contain inactive Python or pytest caches.
+
+---
+
 ## [0.55.19] - 2026-11-27
 
 ### Fixed
