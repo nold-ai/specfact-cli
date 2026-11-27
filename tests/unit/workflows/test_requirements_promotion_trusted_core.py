@@ -62,7 +62,8 @@ def _assert_presence_dispatch_identifiers(command: str) -> None:
 def _assert_bootstrap_identities(command: str) -> None:
     """Require both source archives and every immutable bootstrap identity."""
     _assert_presence_dispatch_identifiers(command)
-    assert command.count("git archive ") == 2
+    assert command.count("git archive ") == 3
+    _assert_smoke_lock_materialization(command)
     assert BASE_RELATIVE_REVIEW_SOURCE in command
     assert f'test "$base_commit" = "{LEGACY_BASE}"' in command
     assert f'review_source="{REVIEW_SOURCE}"' in command
@@ -71,6 +72,15 @@ def _assert_bootstrap_identities(command: str) -> None:
     assert REVIEW_LOCK_BLOB in command
     assert BASE_TO_SOURCE_ANCESTRY in command
     assert SOURCE_TO_HEAD_ANCESTRY in command
+
+
+def _assert_smoke_lock_materialization(command: str) -> None:
+    """The optional smoke graph must come from the authenticated immutable base."""
+    smoke_probe = 'if git cat-file -e "${base_commit}:requirements/runtime-smoke/locked.txt"'
+    smoke_archive = 'git archive "$base_commit" -- requirements/runtime-smoke'
+    assert smoke_probe in command
+    assert smoke_archive in command
+    assert command.index(smoke_probe) < command.index(smoke_archive)
 
 
 def _assert_bootstrap_order(command: str) -> None:

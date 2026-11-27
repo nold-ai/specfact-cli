@@ -122,6 +122,27 @@ def _workflow_steps(filename: str, job: str) -> list[dict[str, Any]]:
     return yaml.safe_load((REPO_ROOT / ".github/workflows" / filename).read_text())["jobs"][job]["steps"]
 
 
+def _write_fixture_locks(root: Path, modules: Path, trusted: Path, identity: dict[str, str], mutation: str) -> None:
+    (root / "ci").mkdir()
+    if mutation.startswith("lock-"):
+        entries = [
+            f"{path.relative_to(modules).as_posix()}:{hashlib.sha256(path.read_bytes()).hexdigest()}"
+            for path in sorted((modules / "packages").rglob("*"))
+            if path.is_file()
+        ]
+        digest = hashlib.sha256("\n".join(entries).encode()).hexdigest()
+        identity = {**identity, "packages_sha256": digest}
+        if mutation != "lock-candidate-only":
+            protected = dict(identity)
+            if mutation == "lock-bad-digest":
+                protected["packages_sha256"] = "0" * 64
+            if mutation == "lock-other-tree":
+                protected["tree"] = "0" * 40
+            (trusted / "ci").mkdir()
+            (trusted / "ci/docs-module-fixture.lock.json").write_text(json.dumps(protected))
+    (root / "ci/docs-module-fixture.lock.json").write_text(json.dumps(identity))
+
+
 @pytest.mark.parametrize(("filename", "job"), JOBS)
 @pytest.mark.parametrize(
     "mutation",
@@ -134,15 +155,17 @@ def _workflow_steps(filename: str, job: str) -> list[dict[str, Any]]:
         "missing-manifest",
         "empty-fixture",
         "extra-unsigned-source",
+        "lock-exact",
+        "lock-bad-digest",
+        "lock-other-tree",
+        "lock-candidate-only",
     ],
 )
 def test_docs_jobs_authenticate_actual_signed_payloads(tmp_path: Path, filename: str, job: str, mutation: str) -> None:
     modules, trusted = _signed_sources(tmp_path)
-    _mutate_source(modules, trusted, mutation)
+    _mutate_source(modules, trusted, "missing-signature" if mutation.startswith("lock-") else mutation)
     identity = _commit_source(modules)
-    (tmp_path / "ci").mkdir()
-    for name in ("module-fixture.lock.json", "docs-module-fixture.lock.json"):
-        (tmp_path / "ci" / name).write_text(json.dumps(identity))
+    _write_fixture_locks(tmp_path, modules, trusted, identity, mutation)
     wrapper = REPO_ROOT / "scripts/verify_docs_module_source.py"
     if wrapper.exists():
         (tmp_path / "scripts").mkdir()
@@ -164,8 +187,9 @@ def test_docs_jobs_authenticate_actual_signed_payloads(tmp_path: Path, filename:
         "VERIFY_MODULES_PR": "--skip-checksum-verification",
     }
     result = subprocess.run(["bash", "-c", script], cwd=tmp_path, env=environment, capture_output=True, text=True)
-    assert (result.returncode == 0) is (mutation == "valid"), result.stdout + result.stderr
-    assert (tmp_path / "environment").exists() is (mutation == "valid")
+    accepted = mutation in ("valid", "lock-exact")
+    assert (result.returncode == 0) is accepted, result.stdout + result.stderr
+    assert (tmp_path / "environment").exists() is accepted
 
 
 @pytest.mark.parametrize(("filename", "job"), JOBS)

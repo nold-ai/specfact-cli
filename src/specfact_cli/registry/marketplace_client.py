@@ -16,6 +16,7 @@ from beartype import beartype
 from icontract import ensure, require
 
 from specfact_cli.common import get_bridge_logger
+from specfact_cli.registry.official_module_cutoff import frozen_archive, frozen_archive_url, frozen_index_url
 
 
 # Official registry URL template: {branch} is main or dev so specfact-cli and specfact-cli-modules stay in sync.
@@ -112,7 +113,7 @@ def get_registry_index_url() -> str:
     configured = os.environ.get("SPECFACT_REGISTRY_INDEX_URL", "").strip()
     if configured:
         return configured
-    return OFFICIAL_REGISTRY_INDEX_TEMPLATE.format(branch=get_modules_branch())
+    return frozen_index_url()
 
 
 @beartype
@@ -254,11 +255,12 @@ def _find_registry_index_for_module(
         if not isinstance(mods, list):
             continue
         for c in mods:
-            if isinstance(c, dict) and cast(dict[str, Any], c).get("id") == module_id:
-                cd = cast(dict[str, Any], c)
-                if version and ("latest_version" not in cd or cd["latest_version"] != version):
-                    continue
-                return idx_dict
+            if not isinstance(c, dict):
+                continue
+            candidate = cast(dict[str, Any], c)
+            if candidate.get("id") != module_id or (version and candidate.get("latest_version") != version):
+                continue
+            return idx_dict
     return fetch_registry_index()
 
 
@@ -295,6 +297,18 @@ def _download_bytes_from_url(full_download_url: str, timeout: float) -> bytes:
     return response.content
 
 
+def _official_download_source(module_id: str, version: str | None, timeout: float) -> tuple[str, str]:
+    selected_version, release = frozen_archive(module_id, version)
+    mirror_url = os.environ.get("SPECFACT_REGISTRY_INDEX_URL", "").strip()
+    if not mirror_url or not (mirror_url.startswith("file://") or os.path.isfile(mirror_url)):
+        return frozen_archive_url(module_id, selected_version), release["archive"]
+    mirror = fetch_registry_index(index_url=mirror_url, timeout=timeout)
+    if mirror is None:
+        raise ValueError("Cannot install from marketplace (offline mirror unavailable)")
+    entry = _select_module_entry_from_index(mirror, module_id, selected_version)
+    return resolve_download_url(entry, mirror, mirror_url), release["archive"]
+
+
 @beartype
 @require(
     lambda module_id: "/" in cast(str, module_id) and len(cast(str, module_id).split("/")) == 2,
@@ -311,15 +325,17 @@ def download_module(
 ) -> Path:
     """Download module tarball and verify SHA-256 checksum from registry metadata."""
     logger = get_bridge_logger(__name__)
-    registry_index = index if index is not None else _find_registry_index_for_module(module_id, version, timeout)
-    if not registry_index:
-        raise ValueError("Cannot install from marketplace (offline)")
-
-    entry = _select_module_entry_from_index(registry_index, module_id, version)
-    full_download_url = resolve_download_url(
-        entry, registry_index, cast(dict[str, Any], registry_index).get("_registry_index_url")
-    )
-    expected_checksum = str(entry.get("checksum_sha256", "")).strip().lower()
+    if module_id.startswith("nold-ai/"):
+        full_download_url, expected_checksum = _official_download_source(module_id, version, timeout)
+    else:
+        registry_index = index if index is not None else _find_registry_index_for_module(module_id, version, timeout)
+        if not registry_index:
+            raise ValueError("Cannot install from marketplace (offline)")
+        entry = _select_module_entry_from_index(registry_index, module_id, version)
+        full_download_url = resolve_download_url(
+            entry, registry_index, cast(dict[str, Any], registry_index).get("_registry_index_url")
+        )
+        expected_checksum = str(entry.get("checksum_sha256", "")).strip().lower()
     if not full_download_url or not expected_checksum:
         raise ValueError("Invalid registry index format")
 
