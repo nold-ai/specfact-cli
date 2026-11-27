@@ -7,6 +7,7 @@
 - On Typer 0.29.3, both Typer cases in `test_generator_preserves_positional_argument_contract` failed because direct construction of `TyperArgument` now requires `type_descriptor`. The Click cases passed.
 - After switching that fixture to real Typer commands, the optional positional argument still failed because Typer 0.29.3 no longer exposes `human_readable_name`. The required argument with an explicit metavar passed.
 - The six approved selectors each failed on the tests-only tree with frozen Typer 0.27.0. All six passed on the same interpreter after the implementation. The cache tests still reject invalid active bytecode.
+- The review regression also failed against the first 0.55.20 candidate. An installed pytest hook rejected a cache written for a different pytest version. The test provisions its own hook and reproduces the failure under `--assert=plain`.
 
 ## Passing after the fix
 

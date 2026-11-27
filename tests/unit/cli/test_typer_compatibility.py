@@ -29,7 +29,7 @@ assert callable(cli_main)
 """
     source_root = Path(__file__).resolve().parents[3] / "src"
     result = subprocess.run(
-        [sys.executable, "-c", script, str(source_root)], capture_output=True, text=True, check=False, timeout=30
+        [sys.executable, "-", str(source_root)], input=script, capture_output=True, text=True, check=False, timeout=30
     )
     assert result.returncode == 0, result.stderr
 

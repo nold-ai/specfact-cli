@@ -14,7 +14,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from _pytest.assertion.rewrite import AssertionRewritingHook
+from _pytest.assertion.rewrite import PYC_TAIL, AssertionRewritingHook
 
 from specfact_cli.models.module_package import IntegrityInfo, ModulePackageMetadata
 from specfact_cli.registry import module_installer
@@ -121,19 +121,29 @@ def test_frozen_install_accepts_inactive_cpython_314_cache(
 
 
 def test_frozen_install_accepts_pytest_cache_only_when_inactive(
-    approved_registry_module: tuple[Path, ModulePackageMetadata], monkeypatch: pytest.MonkeyPatch
+    approved_registry_module: tuple[Path, ModulePackageMetadata],
+    monkeypatch: pytest.MonkeyPatch,
+    pytestconfig: pytest.Config,
 ) -> None:
     installed, metadata = approved_registry_module
     source = installed / "src" / "app.py"
     native_cache = Path(importlib.util.cache_from_source(str(source)))
     py_compile.compile(str(source), cfile=str(native_cache), doraise=True)
-    pytest_cache = native_cache.with_name(f"app.{sys.implementation.cache_tag}-pytest-{pytest.__version__}.pyc")
-    pytest_cache.write_bytes(native_cache.read_bytes())
+    native_bytes = native_cache.read_bytes()
+    other_cache = native_cache.with_name(f"app.{sys.implementation.cache_tag}-pytest-0.0.0.pyc")
+    hook = AssertionRewritingHook(pytestconfig)
+    monkeypatch.setattr(hook, "find_spec", MagicMock(return_value=None))
+    other_finders = [finder for finder in sys.meta_path if not isinstance(finder, AssertionRewritingHook)]
+    monkeypatch.setattr(sys, "meta_path", [hook, *other_finders])
+
+    other_cache.write_bytes(native_bytes)
+    assert module_installer.verify_module_artifact_from_filesystem(installed, metadata, "")
+
+    pytest_cache = native_cache.with_name(f"app{PYC_TAIL}")
+    pytest_cache.write_bytes(native_bytes)
     assert not module_installer.verify_module_artifact_from_filesystem(installed, metadata, "")
 
-    monkeypatch.setattr(
-        sys, "meta_path", [finder for finder in sys.meta_path if not isinstance(finder, AssertionRewritingHook)]
-    )
+    monkeypatch.setattr(sys, "meta_path", other_finders)
     assert module_installer.verify_module_artifact_from_filesystem(installed, metadata, "")
 
     pytest_cache.rename(pytest_cache.with_name(pytest_cache.name.replace("app.", "unknown.", 1)))
