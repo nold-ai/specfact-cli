@@ -14,7 +14,7 @@ import types
 import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import cast
+from typing import Protocol, cast
 
 import pytest
 
@@ -456,6 +456,10 @@ def _cli_arguments(
     return arguments
 
 
+class _RepositoryBoundInputs(Protocol):
+    repo_root: Path
+
+
 def _assert_cli_contract(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     tmp_path.mkdir(parents=True)
     validator = _load_validator()
@@ -479,7 +483,7 @@ def _assert_cli_contract(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
     assert evidence_output.read_bytes() == verified_evidence
     captured_inputs = captured["inputs"]
     assert isinstance(captured_inputs, validator.PromotionInputs)
-    assert captured_inputs.repo_root == REPO_ROOT
+    assert cast(_RepositoryBoundInputs, captured_inputs).repo_root == REPO_ROOT
 
     expected = tmp_path / "expected.json"
     expected.write_bytes(b"{}\n")
@@ -854,3 +858,111 @@ def test_incomplete_or_stale_promotion_provenance_is_rejected(tmp_path: Path) ->
     _assert_check_and_run_mutations_rejected(validator, tmp_path)
     _assert_artifact_metadata_mutations_rejected(validator, tmp_path)
     _assert_archive_semantic_mutations_rejected(validator, tmp_path)
+
+
+TOPIC_REF = "codex/promotion-from-dev-pr-714"
+WORKFLOW_PATH = ".github/workflows/requirements-evidence.yml"
+WORKFLOW_BLOB = "a" * 40
+
+
+def _signed_topic_fixture(tmp_path: Path) -> tuple[_PromotionFixture, dict[str, object]]:
+    fixture = _promotion_fixture(tmp_path)
+    _set_nested(fixture.event, ("pull_request", "head", "ref"), TOPIC_REF)
+    source = _source_pull()
+    source.update(state="open", merged_at=None, draft=False, mergeable=True, mergeable_state="clean")
+    fixture.source_pulls = [source]
+    for run in (fixture.requirements_run, fixture.authority_run):
+        run["pull_requests"] = [
+            {
+                "number": source["number"],
+                "base": {"ref": "dev", "sha": PREVIOUS_DEV_SHA, "repo": {"id": REPOSITORY_ID}},
+                "head": {**cast(dict[str, object], source["head"]), "repo": {"id": REPOSITORY_ID}},
+            }
+        ]
+    fixture.git_outputs.update(
+        {
+            ("rev-parse", "refs/remotes/origin/dev^{commit}"): PREVIOUS_DEV_SHA,
+            ("rev-parse", f"refs/remotes/origin/{TOPIC_REF}^{{commit}}"): HEAD_SHA,
+            ("rev-parse", "refs/remotes/origin/requirements-promotion-source^{commit}"): SOURCE_SHA,
+            ("rev-list", "--parents", "-n", "1", HEAD_SHA): f"{HEAD_SHA} {BASE_SHA}",
+            ("merge-base", "--is-ancestor", PREVIOUS_DEV_SHA, SOURCE_SHA): "",
+            ("merge-base", "--is-ancestor", BASE_SHA, SOURCE_SHA): "",
+            ("rev-parse", "--verify", f"{PREVIOUS_DEV_SHA}:{WORKFLOW_PATH}"): WORKFLOW_BLOB,
+            ("rev-parse", "--verify", f"{SOURCE_SHA}:{WORKFLOW_PATH}"): WORKFLOW_BLOB,
+            ("cat-file", "-t", WORKFLOW_BLOB): "blob",
+        }
+    )
+    commits: dict[str, object] = {
+        role: {"sha": sha, "tree": {"sha": HEAD_TREE}, "verification": {"verified": True, "reason": "valid"}}
+        for role, sha in (("head", HEAD_SHA), ("source", SOURCE_SHA))
+    }
+    return fixture, commits
+
+
+def _validate_signed_topic(fixture: _PromotionFixture, commits: dict[str, object]) -> dict[str, object]:
+    validator = _load_validator()
+    inputs = validator.PromotionInputs(
+        fixture.event,
+        REPO_ROOT,
+        fixture.source_pulls,
+        fixture.check_runs,
+        fixture.requirements_run,
+        fixture.authority_run,
+        fixture.artifacts,
+        fixture.producer_archive,
+        fixture.execution_archive,
+        topic_commits=commits,
+    )
+    return validator.build_attestation(inputs, git_runner=fixture.run_git)
+
+
+def test_signed_promotion_topic_authenticates_exact_source(tmp_path: Path) -> None:
+    fixture, commits = _signed_topic_fixture(tmp_path)
+    report = _validate_signed_topic(fixture, commits)
+    assert report["claim"] == "promotion-reused"
+    assert cast(dict[str, object], report["promotion"])["head_ref"] == TOPIC_REF
+    assert cast(dict[str, object], report["source_pull_request"])["head_sha"] == SOURCE_SHA
+
+
+@pytest.mark.parametrize(
+    "fault", ["unsigned", "unsigned-source", "source-red", "name-only", "fork-source", "extra-parent"]
+)
+def test_signed_promotion_topic_rejects_untrusted_source(tmp_path: Path, fault: str) -> None:
+    fixture, commits = _signed_topic_fixture(tmp_path)
+    if fault == "unsigned":
+        _set_nested(commits, ("head", "verification", "verified"), False)
+    if fault == "unsigned-source":
+        _set_nested(commits, ("source", "verification", "reason"), "bad_email")
+    if fault == "source-red":
+        cast(dict[str, object], fixture.source_pulls[0])["mergeable_state"] = "blocked"
+    if fault == "name-only":
+        _set_nested(fixture.event, ("pull_request", "head", "ref"), "codex/promotion-from-dev-pr-715")
+    if fault == "fork-source":
+        _set_nested(cast(dict[str, object], fixture.source_pulls[0]), ("head", "repo", "id"), 999)
+    if fault == "extra-parent":
+        fixture.git_outputs[("rev-list", "--parents", "-n", "1", HEAD_SHA)] = f"{HEAD_SHA} {BASE_SHA} {SOURCE_SHA}"
+    with pytest.raises(ValueError, match="promotion-reuse-invalid"):
+        _validate_signed_topic(fixture, commits)
+
+
+@pytest.mark.parametrize(
+    "fault",
+    ["other-tree", "source-moved", "base-moved", "main-unintegrated", "stale-run-base", "foreign-authority-run"],
+)
+def test_signed_promotion_topic_rejects_mismatched_evidence(tmp_path: Path, fault: str) -> None:
+    fixture, commits = _signed_topic_fixture(tmp_path)
+    if fault == "other-tree":
+        fixture.git_outputs[("rev-parse", f"{SOURCE_SHA}^{{tree}}")] = BASE_SHA
+    if fault == "source-moved":
+        fixture.git_outputs[("rev-parse", "refs/remotes/origin/requirements-promotion-source^{commit}")] = HEAD_SHA
+    if fault == "base-moved":
+        fixture.git_outputs[("rev-parse", "refs/remotes/origin/dev^{commit}")] = BASE_SHA
+    if fault == "main-unintegrated":
+        fixture.git_failures.add(("merge-base", "--is-ancestor", BASE_SHA, SOURCE_SHA))
+    if fault == "stale-run-base":
+        run = _object_list(fixture.requirements_run, "pull_requests")[0]
+        _set_nested(run, ("base", "sha"), BASE_SHA)
+    if fault == "foreign-authority-run":
+        _object_list(fixture.authority_run, "pull_requests")[0]["number"] = 715
+    with pytest.raises(ValueError, match="promotion-reuse-invalid"):
+        _validate_signed_topic(fixture, commits)

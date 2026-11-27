@@ -1,0 +1,19 @@
+schema_version: '2'
+requirements:
+  openspec:trusted-signed-topic-promotion:trustworthy-green-checks:signed-promotion-topics-authenticate-source-evidence:
+    rationale: Bind a main promotion topic to the independently verified source tree.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#771
+    touchpoints:
+      - id: protected-topic-verifier
+        kind: code_symbol
+        locator: scripts/requirements_promotion_reuse.py::build_attestation
+    verification_cases:
+      - case_id: signed-topic-provenance
+        scenario_id: signed-promotion-topics-authenticate-source-evidence
+        method: test
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_promotion_reuse.py::test_signed_promotion_topic_authenticates_exact_source
+        intent: Reuse only the exact authenticated Requirements report for the reviewed tree.
+        observable: The topic attestation binds the verified source pull request, tree, checks, and artifacts.
