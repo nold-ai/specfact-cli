@@ -15,6 +15,7 @@ from icontract import ensure, require
 
 
 _ArtifactInput = bytes | Path
+_REVOKED_MODULE_KEY_SHA256 = "98295305a48a4ab7801d537f1caa65ce8014ef75fab67d7473a59e5f2964d35a"
 OFFICIAL_PUBLISHERS: frozenset[str] = frozenset({"nold-ai"})
 
 
@@ -95,6 +96,9 @@ def _verify_signature_impl(artifact: bytes, signature_b64: str, public_key_pem: 
         key = serialization.load_pem_public_key(public_key_pem.encode())
     except Exception as e:
         raise ValueError(f"Invalid public key PEM: {e}") from e
+    key_der = key.public_bytes(serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
+    if hashlib.sha256(key_der).hexdigest() == _REVOKED_MODULE_KEY_SHA256:
+        raise ValueError("The previous SpecFact module signing key is revoked")
     try:
         sig_bytes = base64.b64decode(signature_b64, validate=True)
     except Exception as e:

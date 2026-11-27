@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import hashlib
-import importlib.util
+import importlib
 import json
 import os
 import subprocess
@@ -38,6 +38,7 @@ class FixtureLock(BaseModel):
     repository: str = Field(pattern=r"^nold-ai/specfact-cli-modules$", description="Fixed public source repository.")
     commit: str = Field(pattern=r"^[0-9a-f]{40}$", description="Immutable source commit.")
     tree: str = Field(pattern=r"^[0-9a-f]{40}$", description="Expected complete source tree.")
+    packages_sha256: str = Field(pattern=r"^[0-9a-f]{64}$", description="Exact documentation package files.")
 
 
 class Finding(BaseModel):
@@ -98,14 +99,18 @@ def _identity(checkout: Path, lock: FixtureLock) -> None:
         raise RuntimeError("docs_fixture_identity: public origin, exact HEAD/tree and clean checkout are required")
 
 
-def _trusted_verification(checkout: Path) -> int:
-    path = REPO_ROOT / "scripts/verify_docs_module_source.py"
-    spec = importlib.util.spec_from_file_location("docs17_core_authenticator", path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError("docs_fixture_authentication: trusted core verifier unavailable")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module.verify_source(checkout, trusted_root=REPO_ROOT)
+def _trusted_verification(checkout: Path, lock: FixtureLock) -> int:
+    packages = checkout / "packages"
+    entries: dict[str, str] = {}
+    for path in packages.rglob("*"):
+        if path.is_symlink():
+            raise RuntimeError("docs_fixture_authentication: symbolic links are forbidden")
+        if path.is_file():
+            entries[path.relative_to(checkout).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
+    digest = hashlib.sha256("\n".join(f"{name}:{entries[name]}" for name in sorted(entries)).encode()).hexdigest()
+    if digest != lock.packages_sha256:
+        raise RuntimeError("docs_fixture_authentication: documentation package digest mismatch")
+    return sum(name.endswith("/module-package.yaml") for name in entries)
 
 
 def _acquisition_receipt(
@@ -114,11 +119,7 @@ def _acquisition_receipt(
     manifest = checkout / "packages/specfact-code-review/module-package.yaml"
     identities = {
         name: hashlib.sha256((REPO_ROOT / name).read_bytes()).hexdigest()
-        for name in (
-            "scripts/verify_docs_module_source.py",
-            "scripts/verify-modules-signature.py",
-            "resources/keys/module-signing-public.pem",
-        )
+        for name in ("ci/docs-module-fixture.lock.json",)
     }
     return {
         "expected": lock.model_dump(),
@@ -153,13 +154,13 @@ def authenticated_docs_source(
         _git(checkout, "checkout", "--detach", "--quiet", "FETCH_HEAD")
         transport = "private-public-https-exact-commit-fetch"
     _identity(checkout, lock)
-    count = _trusted_verification(checkout)
+    count = _trusted_verification(checkout, lock)
     receipt = _acquisition_receipt(checkout, lock, count, transport, started)
     (private / "acquisition-receipt.json").write_text(json.dumps(receipt, indent=2))
     request.config.stash[ACQUISITION_RECEIPT] = receipt
     yield checkout
     _identity(checkout, lock)
-    _trusted_verification(checkout)
+    _trusted_verification(checkout, lock)
 
 
 def _isolated_command(checkout: Path, action: str, *arguments: str) -> list[str]:

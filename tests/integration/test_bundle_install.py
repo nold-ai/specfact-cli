@@ -4,53 +4,34 @@ from __future__ import annotations
 
 import importlib
 import io
-import tarfile
 import warnings
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 from rich.console import Console
 from typer.testing import CliRunner
 
+from scripts.runtime_discovery_smoke import _resolve_modules_repo
 from specfact_cli.modules.module_registry.src.commands import _install_impl, app
 from specfact_cli.registry import module_lifecycle
-from specfact_cli.registry.module_installer import REGISTRY_ID_FILE
+from specfact_cli.registry.module_installer import InstallModuleOptions, install_module
+from specfact_cli.registry.official_module_cutoff import frozen_archive
 
 
 runner = CliRunner()
 
 
-def _create_module_tarball(
-    tmp_path: Path,
-    module_name: str,
-    *,
-    bundle_dependencies: list[str] | None = None,
-    version: str = "0.39.0",
-) -> Path:
-    package_root = tmp_path / f"{module_name}-pkg"
-    module_dir = package_root / module_name
-    module_dir.mkdir(parents=True, exist_ok=True)
-    deps_yaml = ""
-    if bundle_dependencies:
-        deps_yaml = "bundle_dependencies:\n" + "".join(f"  - {dep}\n" for dep in bundle_dependencies)
-    (module_dir / "module-package.yaml").write_text(
-        "\n".join(
-            [
-                f"name: {module_name}",
-                f"version: '{version}'",
-                f"commands: [{module_name.replace('-', '_')}]",
-                'core_compatibility: ">=0.1.0,<1.0.0"',
-                deps_yaml.rstrip("\n"),
-            ]
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-    (module_dir / "src").mkdir(parents=True, exist_ok=True)
-    tarball = tmp_path / f"{module_name}.tar.gz"
-    with tarfile.open(tarball, "w:gz") as archive:
-        archive.add(module_dir, arcname=module_name)
-    return tarball
+@pytest.fixture
+def cutoff_archive() -> Callable[[str], Path]:
+    modules_repo = _resolve_modules_repo(None)
+
+    def archive_for(module_id: str) -> Path:
+        version, _ = frozen_archive(module_id, None)
+        name = module_id.split("/", 1)[1]
+        return modules_repo / "registry" / "modules" / f"{name}-{version}.tar.gz"
+
+    return archive_for
 
 
 def _stub_install_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -58,16 +39,18 @@ def _stub_install_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "specfact_cli.registry.module_installer.install_resolved_pip_requirements", lambda *_a, **_k: None
     )
-    monkeypatch.setattr("specfact_cli.registry.module_installer.verify_module_artifact", lambda *_a, **_k: True)
     monkeypatch.setattr("specfact_cli.registry.module_installer.ensure_publisher_trusted", lambda *_a, **_k: None)
     monkeypatch.setattr("specfact_cli.registry.module_installer.assert_module_allowed", lambda *_a, **_k: None)
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules", list)
 
 
-def test_module_install_official_bundle_reports_verification(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_module_install_official_bundle_reports_verification(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, cutoff_archive: Callable[[str], Path]
+) -> None:
     _stub_install_runtime(monkeypatch)
-    tarball = _create_module_tarball(tmp_path, "specfact-codebase")
-    monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_a, **_k: tarball)
+    monkeypatch.setattr(
+        "specfact_cli.registry.module_installer.download_module", lambda module_id, **_kwargs: cutoff_archive(module_id)
+    )
 
     result = runner.invoke(
         app,
@@ -88,25 +71,12 @@ def test_module_install_official_bundle_reports_verification(monkeypatch: pytest
 
 
 def test_installing_spec_bundle_auto_installs_project_dependency(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, cutoff_archive: Callable[[str], Path]
 ) -> None:
     _stub_install_runtime(monkeypatch)
-    tar_project = _create_module_tarball(tmp_path, "specfact-project")
-    tar_spec = _create_module_tarball(
-        tmp_path,
-        "specfact-spec",
-        bundle_dependencies=["nold-ai/specfact-project"],
+    monkeypatch.setattr(
+        "specfact_cli.registry.module_installer.download_module", lambda module_id, **_kwargs: cutoff_archive(module_id)
     )
-
-    def _download(module_id: str, version: str | None = None) -> Path:
-        _ = version
-        if module_id == "nold-ai/specfact-project":
-            return tar_project
-        if module_id == "nold-ai/specfact-spec":
-            return tar_spec
-        raise ValueError(f"unexpected module id: {module_id}")
-
-    monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", _download)
     result = runner.invoke(
         app,
         ["install", "nold-ai/specfact-spec", "--source", "marketplace", "--scope", "project", "--repo", str(tmp_path)],
@@ -119,29 +89,23 @@ def test_installing_spec_bundle_auto_installs_project_dependency(
 
 
 def test_installing_spec_bundle_skips_dependency_when_already_present(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    cutoff_archive: Callable[[str], Path],
 ) -> None:
     _stub_install_runtime(monkeypatch)
-    tar_spec = _create_module_tarball(
-        tmp_path,
-        "specfact-spec",
-        bundle_dependencies=["nold-ai/specfact-project"],
-    )
     calls: list[str] = []
 
     def _download(module_id: str, version: str | None = None) -> Path:
         _ = version
         calls.append(module_id)
-        if module_id == "nold-ai/specfact-spec":
-            return tar_spec
-        raise ValueError(f"unexpected module id: {module_id}")
+        return cutoff_archive(module_id)
 
     monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", _download)
     install_root = tmp_path / ".specfact" / "modules"
-    dep_dir = install_root / "specfact-project"
-    dep_dir.mkdir(parents=True, exist_ok=True)
-    (dep_dir / "module-package.yaml").write_text("name: specfact-project\nversion: '0.39.0'\ncommands: [project]\n")
-    (dep_dir / REGISTRY_ID_FILE).write_text("nold-ai/specfact-project", encoding="utf-8")
+    install_module("nold-ai/specfact-project", InstallModuleOptions(install_root=install_root, skip_deps=True))
+    calls.clear()
 
     _install_impl(
         ["nold-ai/specfact-spec"],
@@ -156,10 +120,13 @@ def test_installing_spec_bundle_skips_dependency_when_already_present(
     assert calls == ["nold-ai/specfact-spec"]
 
 
-def test_bundle_install_refreshes_stale_loaded_module_consoles(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_bundle_install_refreshes_stale_loaded_module_consoles(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, cutoff_archive: Callable[[str], Path]
+) -> None:
     _stub_install_runtime(monkeypatch)
-    tar_spec = _create_module_tarball(tmp_path, "specfact-spec")
-    monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_a, **_k: tar_spec)
+    monkeypatch.setattr(
+        "specfact_cli.registry.module_installer.download_module", lambda module_id, **_kwargs: cutoff_archive(module_id)
+    )
     closed_stream = io.StringIO()
     closed_stream.close()
     stale_console = Console(file=closed_stream)

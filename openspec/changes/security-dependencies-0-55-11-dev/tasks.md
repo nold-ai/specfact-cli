@@ -1,0 +1,54 @@
+# Tasks
+
+- [x] Reconcile current dev with the complete reviewed release patch.
+- [x] Specify the additive dev scope without modifying delivered evidence.
+- [x] Add the mapped failing tests and passing preservation controls.
+- [x] Review the mapping and capture genuine failing-before results.
+- [x] Publish a CI-signed test-only prefix to dev through normal hooks.
+- [ ] Resolve the native bootstrap prerequisite through its legitimate review
+  and approval boundary; obtain accepted native failing-first evidence.
+- [ ] Apply the reviewed updates, including setuptools 84.1.0, Semgrep 1.182.1,
+  virtualenv 21.14.13, filelock 4.2.1 and msgpack 1.2.3, two floors and
+  three exact scoped advisory records without extending their expiry.
+- [ ] Correct the separate Code Review input and lock to official Pylint 4.0.9,
+  keeping its six compatible transitive records unchanged.
+- [ ] Regenerate and verify the frozen graph/export normally, including equality
+  of each reviewed package's nonempty artifact SHA-256 sets.
+- [ ] Correct scheduled advisory selection after genuine failing evidence.
+- [ ] Run focused/full verification, all three audits and independent review.
+- [ ] Run normal hooks and CI-only signing for the production candidate.
+- [ ] Obtain fresh exact-head authority and all native evidence transfers.
+- [ ] Verify every required check and actual forge readiness without merging.
+- [ ] Mirror this new dev scope in the internal wiki and rebuild its graph
+  within explicitly authorized sibling-write scope.
+- [ ] Reconcile the main release only after verified dev replacement coverage.
+- [ ] Archive with OpenSpec only after completion and merge.
+
+## Current-head CI tail, 4 November 2026
+
+- [x] Read actual F signing uploads and independent acceptance; fast-forward PR786 to verified F without merging.
+- [x] Reproduce SAST/license defects and new exact F-root/ref test failures before code.
+- [x] Apply the two narrow CI corrections and exact F-root/ref/signer-pin bindings.
+- [ ] Pass affected local cases, normal hooks and fresh independent review.
+- [ ] Prepare a fresh exact CI/CD operation and preserve the consumed signed prefix.
+- [ ] Obtain separate exact final-head authority and complete every required current-head gate without merging.
+
+## Berlin expiry correction
+
+- [x] Reproduce the two default-clock boundary failures with two passing controls in a separate unselected test file.
+- [x] Fix the two existing policy clocks without changing selected native proof inputs or exception records.
+- [ ] Run focused checks, normal hooks and independent review; refresh current-head identities and required evidence honestly.
+
+## Focused follow-up delivery
+
+- [x] Reuse the reviewed Berlin expiry-clock fix and add exact separate signer-origin validation.
+- [x] Preserve the historical signer origin and frozen native tests.
+- [ ] Complete independent exact acceptance before any new signing publication.
+- [ ] Resolve current expiry/authority failures without renewing or bypassing original approvals.
+- [ ] Confirm actual current-head CI, review resolution and forge READY without merging.
+
+- [x] Record actual owner acceptance of the exact four fresh temporary risk records.
+- [x] Preserve original registers and protected tests; validate fresh default-register acceptance and expiry.
+- [x] Verify118affected cases, typing, strictOpenSpec, cold bootstrap and frozen-delivery inputs.
+- [x] Resolve the additional live CI advisory's exact owner decision, without extending the four-record acceptance.
+- [ ] Deliver the prepared Windows timezone-data bootstrap and retention-safe original-upload provenance correction; require actual CI credential access to the original provider log before signing, then exact final-head authority and all required checks. Preserve every original snapshot, deadline and consumed operation.

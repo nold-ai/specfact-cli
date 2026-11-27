@@ -1,0 +1,63 @@
+name: Module signing key preflight
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-replacement-key:
+    if: github.ref_protected && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: module-signing
+    steps:
+      - name: Check out protected source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+      - name: Verify replacement key pair
+        shell: bash
+        env:
+          MODULE_PRIVATE_KEY: ${{ secrets.MODULE_SIGNING_PRIVATE_KEY_V2 }}
+          MODULE_KEY_PASSPHRASE: ${{ secrets.MODULE_SIGNING_PRIVATE_KEY_PASSPHRASE_V2 }}
+          EXPECTED_PUBLIC_KEY_SHA256: ${{ vars.MODULE_SIGNING_PUBLIC_KEY_SHA256 }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${MODULE_PRIVATE_KEY:-}" || -z "${MODULE_KEY_PASSPHRASE:-}" ]]; then
+            echo "::error::Replacement signing secrets are missing."
+            exit 1
+          fi
+          if [[ ! "${EXPECTED_PUBLIC_KEY_SHA256:-}" =~ ^[a-f0-9]{64}$ ]]; then
+            echo "::error::The module signing environment must pin the replacement public key."
+            exit 1
+          fi
+
+          pem=${MODULE_PRIVATE_KEY%$'\n'}
+          begin=$'-----BEGIN ENCRYPTED PRIVATE KEY-----\n'
+          end=$'\n-----END ENCRYPTED PRIVATE KEY-----'
+          encoded=${pem#"$begin"}
+          encoded=${encoded%"$end"}
+          if [[ "$pem" != "$begin"*"$end" || ! "$encoded" =~ ^[A-Za-z0-9+/=[:space:]]+$ ]]; then
+            echo "::error::Use a single encrypted PKCS#8 private key PEM."
+            exit 1
+          fi
+
+          public_key=src/specfact_cli/registry/module-signing-public-next.pem
+          public_fingerprint=$(openssl pkey -pubin -in "$public_key" -outform DER | sha256sum)
+          if [[ "${public_fingerprint%% *}" != "$EXPECTED_PUBLIC_KEY_SHA256" ]]; then
+            echo "::error::The tracked key does not match the signing environment fingerprint."
+            exit 1
+          fi
+
+          umask 077
+          scratch=$(mktemp -d "${RUNNER_TEMP:?}/module-signing-proof.XXXXXXXX")
+          trap 'rm -rf -- "$scratch"' EXIT
+          printf 'SpecFact module-signing preflight %s\n' "$GITHUB_SHA" > "$scratch/challenge"
+          openssl pkeyutl -sign -rawin \
+            -inkey <(printf '%s\n' "$MODULE_PRIVATE_KEY") -passin fd:3 \
+            -in "$scratch/challenge" -out "$scratch/signature" \
+            3< <(printf '%s\n' "$MODULE_KEY_PASSPHRASE")
+          openssl pkeyutl -verify -rawin -pubin -inkey "$public_key" \
+            -in "$scratch/challenge" -sigfile "$scratch/signature"

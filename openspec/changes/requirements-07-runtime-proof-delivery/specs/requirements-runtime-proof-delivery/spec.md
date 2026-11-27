@@ -1,3 +1,9 @@
+## Scope rescope — 2026-09-20
+
+Unimplemented corrected R07 delivery ownership transfers to <https://github.com/nold-ai/specfact-cli/issues/740> and <https://github.com/nold-ai/specfact-cli-modules/issues/481>. Keep this issue open solely to reconcile the replacement after delivery; do not implement a competing R07 pipeline or wait for abandoned R08. Replace its old native blocker on closed modules #368 with <https://github.com/nold-ai/specfact-cli/issues/740>. Existing shipped behavior remains historical context.
+
+This owner-requested scope amendment takes precedence over conflicting default-workflow or dependency wording below. It changes planning only; runtime policy is unchanged. [Replacement policy](../../../requirements-09-minimal-evidence/proposal.md).
+
 ## ADDED Requirements
 
 ### Requirement: Lifecycle-Derived Requirements Gate
@@ -119,4 +125,3 @@ Every governed pull request SHALL publish selected, failed, or deterministic no-
 - **WHEN** the terminal decision is produced
 - **THEN** strict policy exits non-zero after retaining diagnostics
 - **AND** no summary says all validations passed.
-

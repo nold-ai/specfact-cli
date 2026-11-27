@@ -14,6 +14,8 @@ import pytest
 import yaml
 
 from scripts import runtime_discovery_smoke as smoke
+from specfact_cli.registry import official_module_cutoff
+from specfact_cli.registry.official_module_cutoff import FrozenArchive
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -91,9 +93,14 @@ def test_isolated_launcher_retains_system_tools(
 def add_frozen_smoke_archive(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> Callable[[str, str, tuple[str, ...]], Path]:
-    archives: dict[str, dict[str, str]] = {}
-    archive_lock = tmp_path / "runtime-smoke-archives.lock.json"
-    monkeypatch.setattr(smoke, "RUNTIME_SMOKE_ARCHIVES_LOCK", archive_lock)
+    latest: dict[str, str] = {}
+    archives: dict[str, dict[str, FrozenArchive]] = {}
+    original = official_module_cutoff._inventory()
+    monkeypatch.setattr(
+        official_module_cutoff,
+        "_inventory",
+        lambda: {**original, "latest": latest, "archives": archives},
+    )
 
     def add(name: str, version: str, dependencies: tuple[str, ...]) -> Path:
         module_id = f"nold-ai/{name}"
@@ -107,8 +114,8 @@ def add_frozen_smoke_archive(
         )
         with tarfile.open(archive, "w:gz") as tar:
             tar.add(manifest, arcname=f"{name}/module-package.yaml")
-        archives[module_id] = {"version": version, "sha256": hashlib.sha256(archive.read_bytes()).hexdigest()}
-        archive_lock.write_text(json.dumps(archives), encoding="utf-8")
+        latest[module_id] = version
+        archives[module_id] = {version: {"archive": hashlib.sha256(archive.read_bytes()).hexdigest(), "tree": "unused"}}
         return archive
 
     return add

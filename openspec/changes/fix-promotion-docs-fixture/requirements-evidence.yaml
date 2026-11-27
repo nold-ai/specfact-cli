@@ -1,0 +1,30 @@
+schema_version: '2'
+requirements:
+  openspec:fix-promotion-docs-fixture:documentation-fixture-authentication:promotion-checks-authenticate-the-reviewed-documentation-source:
+    rationale: Keep command validation independent of the retired publisher key for the exact reviewed source.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#771
+    touchpoints:
+      - id: docs-job
+        kind: config_file
+        locator: .github/workflows/docs-review.yml
+      - id: cli-job
+        kind: config_file
+        locator: .github/workflows/pr-orchestrator.yml
+    verification_cases:
+      - case_id: PROMOTION-DOCS-LOCK
+        scenario_id: promotion-checks-authenticate-the-reviewed-documentation-source
+        method: test
+        intent: Exercise the Docs Review authentication step with the protected fixture lock.
+        observable: The workflow exports only the fixture whose packages match the protected digest.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_docs_module_authentication.py::test_docs_jobs_authenticate_actual_signed_payloads[lock-exact-docs-review.yml-docs-review]
+      - case_id: PROMOTION-CLI-LOCK
+        scenario_id: promotion-checks-authenticate-the-reviewed-documentation-source
+        method: test
+        intent: Exercise the CLI validation authentication step with the protected fixture lock.
+        observable: The workflow exports only the fixture whose packages match the protected digest.
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_docs_module_authentication.py::test_docs_jobs_authenticate_actual_signed_payloads[lock-exact-pr-orchestrator.yml-cli-validation]

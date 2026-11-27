@@ -1,8 +1,24 @@
+## Scope rescope — 2026-09-20
+
+Seal, checkpoint, frozen mapping, successor approval, and historical RED/GREEN requirements in this issue apply only when an explicitly selected assurance policy requests them. They are not prerequisites for ordinary implementation, Code Review, release promotion, skill installation, or generated instructions. Keep the internal optional-feature dependency chain and source/signature integrity. Missing optional chronology is not a failed current-execution claim. No runtime policy changes in this planning update.
+
+This owner-requested scope amendment takes precedence over conflicting default-workflow or dependency wording below. It changes planning only; runtime policy is unchanged. [Replacement policy](../../../requirements-09-minimal-evidence/proposal.md).
+
 ## ADDED Requirements
 
 ### Requirement: Normalized preflight design contract
 
+These assurance obligations SHALL apply only when an explicitly selected
+preflight assurance policy requests them; they SHALL NOT gate ordinary MEB delivery.
+
 The system SHALL define a versioned preflight design contract that records the exact reviewed change identity, source identities, implementation-lineage identity and origin baseline, role-classified scope, component ownership, approved influence relationships or explicit no-impact dispositions, exclusions, assumptions, unknowns, dependencies, interfaces, acceptance criteria, risk dimensions, verification stages, test intent, risks, rollback intent, and approval policy. The first approved seal in an implementation lineage SHALL set the immutable origin repository plus full base commit/tree identities. Every successor seal for refinement or reapproval SHALL bind its predecessor seal and preserve that origin baseline even when its current reviewed source snapshot changes.
+
+#### Scenario: Ordinary delivery has not selected preflight assurance
+
+- **GIVEN** ordinary MEB delivery has not selected a preflight assurance policy
+- **WHEN** implementation or delivery readiness is evaluated
+- **THEN** no preflight seal, checkpoint, successor approval, or historical chronology is required
+- **AND** required current checks still apply, without claiming that unevaluated optional assurance passed.
 
 #### Scenario: Contract preserves source and scope identity
 
@@ -40,6 +56,9 @@ The system SHALL define a versioned preflight design contract that records the e
 - **AND** it is not converted into an assumption or successful validation result.
 
 ### Requirement: Seal-bound semantic verification intent
+
+These assurance obligations SHALL apply only when an explicitly selected
+preflight assurance policy requests them; they SHALL NOT gate ordinary MEB delivery.
 
 The system SHALL bind the closed semantic risk dimensions `boundary`, `malformed_or_missing_input`, `state_transition`, `idempotency`, `cache`, `error`, `status`, `timeout`, `unknown_precedence`, `path`, `repository_lifecycle`, `platform`, and `compatibility` plus existing Requirements verification-plan identities without defining a second test-selector contract. Every affected behavior or interface SHALL contain every closed dimension.
 
@@ -121,6 +140,9 @@ The system SHALL define versioned canonical bytes for digesting preflight contra
 - **AND** a prior seal cannot verify against the new content.
 
 ### Requirement: Approval seal contract
+
+These assurance obligations SHALL apply only when an explicitly selected
+preflight assurance policy requests them; they SHALL NOT gate ordinary MEB delivery.
 
 The system SHALL define a seal that binds an exact contract digest, validation-result digest, source-snapshot digest, implementation-lineage identity, immutable origin repository/base commit/base tree, monotonic lineage sequence, optional predecessor-seal digest, approval decision, approver identity, and approval time.
 
