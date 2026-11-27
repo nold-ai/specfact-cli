@@ -34,3 +34,13 @@
   enclosing bindings from outermost to innermost, with global writes routed to
   the module and nonlocal writes to the inherited scope. The earlier
   synchronous assignment control stays clear.
+
+- On `5164cc6c`, the scanner incorrectly carried a coroutine through an
+  unconditional loop exit or a literal single-iteration loop. The three
+  false-positive regressions now pass. A conditional break and a continue
+  before a break retain findings where another iteration can occur.
+
+- On `5164cc6c`, a conditional expression cleared a known coroutine even
+  when a reachable branch returned it. The scanner now considers both
+  possible results and ignores the unreachable side of a constant condition.
+  Both regressions and the unreachable-coroutine control pass.

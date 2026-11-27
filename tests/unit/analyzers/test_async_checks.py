@@ -178,7 +178,36 @@ def test_async_definition_replaces_an_earlier_assignment() -> None:
             "        if enabled:\n            continue\n        worker = lambda: None",
             [7],
         ),
+        (
+            "callback = lambda: None\n    for turn in (1, 2):\n"
+            "        callback()\n        callback = worker\n        break",
+            [],
+        ),
+        (
+            "callback = lambda: None\n    for turn in (1, 2):\n"
+            "        callback()\n        callback = worker\n        if enabled:\n            break",
+            [6],
+        ),
+        (
+            "callback = lambda: None\n    for turn in (1, 2):\n"
+            "        callback()\n        callback = worker\n        if enabled:\n            continue\n"
+            "        break",
+            [6],
+        ),
+        ("callback = lambda: None\n    for turn in (1,):\n        callback()\n        callback = worker", []),
+        (
+            "callback = lambda: None\n    for turn in (1, 2):\n"
+            "        callback()\n        callback = worker\n        if enabled:\n            break\n"
+            "        else:\n            return",
+            [],
+        ),
         ("for worker in (worker,):\n        worker()", [5]),
+        (
+            "replacement = worker\n    worker = replacement if enabled else worker\n    worker()",
+            [6],
+        ),
+        ("worker = worker if enabled else (lambda: None)\n    worker()", [5]),
+        ("worker = worker if False else (lambda: None)\n    worker()", []),
         ("worker = worker\n    worker()", [5]),
         ("other = worker\n    other()\n    other = lambda: None\n    other()", [5]),
     ],
@@ -199,7 +228,15 @@ def test_async_definition_replaces_an_earlier_assignment() -> None:
         "loop-carried-sync-assignment",
         "loop-rebinding-cleared-before-backedge",
         "loop-rebinding-can-reach-continue",
+        "unconditional-loop-break",
+        "conditional-loop-break",
+        "continue-before-loop-break",
+        "single-iteration-loop",
+        "loop-exits-in-either-branch",
         "coroutine-iterable",
+        "conditional-async-values",
+        "conditional-possible-async-value",
+        "conditional-unreachable-async-value",
         "self-alias",
         "async-alias",
     ],

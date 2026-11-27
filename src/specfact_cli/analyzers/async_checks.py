@@ -301,7 +301,7 @@ _Loop = ast.For | ast.AsyncFor | ast.While
 class _CallableBinding:
     position: tuple[int, int]
     name: str
-    value: bool | str | None
+    value: bool | tuple[str, ...] | None
     may_skip: bool
     node: ast.AST
 
@@ -370,13 +370,25 @@ def _assignment_rhs(target: ast.expr, parents: dict[ast.AST, ast.AST]) -> ast.ex
     return values.elts[container.elts.index(target)]
 
 
-def _assigned_callable(node: ast.Name, parents: dict[ast.AST, ast.AST]) -> bool | str | None:
+def _callable_aliases(value: ast.expr) -> Iterator[str]:
+    if isinstance(value, ast.IfExp):
+        if isinstance(value.test, ast.Constant):
+            yield from _callable_aliases(value.body if value.test.value else value.orelse)
+        else:
+            yield from _callable_aliases(value.body)
+            yield from _callable_aliases(value.orelse)
+        return
+    if name := qualified_name(value, {}):
+        yield name
+
+
+def _assigned_callable(node: ast.Name, parents: dict[ast.AST, ast.AST]) -> bool | tuple[str, ...] | None:
     assignment = parents.get(node)
     if isinstance(assignment, ast.AnnAssign) and assignment.value is None:
         # A bare annotation declares a local name and leaves its current value alone.
         return None
     value = _assignment_rhs(node, parents)
-    return False if value is None else qualified_name(value, {}) or False
+    return False if value is None else tuple(_callable_aliases(value)) or False
 
 
 def _scope_callable_bindings(
@@ -402,7 +414,9 @@ def _scope_callable_bindings(
 
 
 def _binds_coroutine(binding: _CallableBinding, coroutines: set[str]) -> bool:
-    return binding.value is True or (isinstance(binding.value, str) and binding.value in coroutines)
+    return binding.value is True or (
+        isinstance(binding.value, tuple) and any(name in coroutines for name in binding.value)
+    )
 
 
 def _binding_groups(bindings: Sequence[_CallableBinding]) -> Iterator[tuple[_CallableBinding, ...]]:
@@ -481,14 +495,39 @@ def _apply_iteration_bindings(
         _update_iteration_bindings(binding, loops, overrides, parents, is_coroutine)
 
 
+def _body_exit(statements: Sequence[ast.stmt]) -> ast.stmt | None:
+    for statement in statements:
+        if isinstance(statement, (ast.Break, ast.Continue, ast.Raise, ast.Return)):
+            return statement
+        if isinstance(statement, ast.If) and _body_exit(statement.body) and _body_exit(statement.orelse):
+            return statement
+    return None
+
+
+def _can_repeat(loop: _Loop) -> bool:
+    if isinstance(loop, ast.For) and isinstance(loop.iter, (ast.List, ast.Tuple)):
+        items = loop.iter.elts
+        return len(items) > 1 or any(isinstance(item, ast.Starred) for item in items)
+    return True
+
+
 def _loop_carry_events(
-    groups: Sequence[tuple[_CallableBinding, ...]], nodes: Sequence[ast.AST], parents: dict[ast.AST, ast.AST]
+    groups: Sequence[tuple[_CallableBinding, ...]],
+    nodes: Sequence[ast.AST],
+    parents: dict[ast.AST, ast.AST],
+    exits: dict[_Loop, ast.stmt | None],
 ) -> list[tuple[_CallableBinding, ...] | _Loop]:
     events: list[tuple[tuple[int, int], tuple[_CallableBinding, ...] | _Loop]] = [
         (group[0].position, group) for group in groups
     ]
     for node in nodes:
-        if isinstance(node, ast.Continue) and (loop := next(_enclosing_loops(node, parents), None)) is not None:
+        if not isinstance(node, ast.Continue):
+            continue
+        loop = next(_enclosing_loops(node, parents), None)
+        if loop is None or loop not in exits:
+            continue
+        end = exits[loop]
+        if end is None or node.lineno <= (end.end_lineno or end.lineno):
             events.append(((node.lineno, node.col_offset), loop))
     return [event for _, event in sorted(events, key=lambda entry: entry[0])]
 
@@ -505,7 +544,8 @@ def _loop_binding_names(
     parents: dict[ast.AST, ast.AST],
 ) -> dict[_Loop, set[str]]:
     carried: dict[_Loop, set[str]] = {}
-    events = _loop_carry_events(groups, nodes, parents)
+    exits = {node: _body_exit(node.body) for node in nodes if isinstance(node, _Loop) and _can_repeat(node)}
+    events = _loop_carry_events(groups, nodes, parents, exits)
     # Only names that may reach a backedge carry. Chained aliases can take
     # multiple passes, and each continuing pass adds a name to a finite set.
     while True:
@@ -517,8 +557,9 @@ def _loop_binding_names(
                 _apply_iteration_bindings(event, visible, overrides, parents, carried)
             else:
                 _carry_live_bindings(carried, event, overrides.get(event, {}))
-        for loop, bindings in overrides.items():
-            _carry_live_bindings(carried, loop, bindings)
+        for loop, end in exits.items():
+            if end is None:
+                _carry_live_bindings(carried, loop, overrides.get(loop, {}))
         if sum(map(len, carried.values())) == prior_count:
             return carried
 
