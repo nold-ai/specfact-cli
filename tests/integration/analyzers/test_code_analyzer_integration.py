@@ -8,6 +8,85 @@ from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
 from specfact_cli.models.plan import PlanBundle
 
 
+def _write_dependent_services(repo_path: Path) -> None:
+    # Create a multi-module codebase with dependencies
+    src_path = repo_path / "src"
+    src_path.mkdir()
+
+    # Module 1: Core service (base dependency)
+    core_service = dedent(
+        '''
+        """Core service module."""
+
+        class CoreService:
+            """Core service with base functionality."""
+
+            def initialize(self, config: dict) -> bool:
+                """Initialize the core service."""
+                return True
+
+            def shutdown(self) -> None:
+                """Shutdown the service."""
+                pass
+        '''
+    )
+    (src_path / "core.py").write_text(core_service)
+
+    # Module 2: Service that depends on core
+    api_service = dedent(
+        '''
+        """API service module."""
+        from core import CoreService
+
+        class APIService:
+            """API service that uses core service."""
+
+            def __init__(self):
+                """Initialize API service."""
+                self.core = CoreService()
+
+            def handle_request(self, data: dict) -> dict:
+                """Handle an API request."""
+                self.core.initialize({})
+                return {"status": "ok"}
+
+            async def handle_async_request(self, data: dict) -> dict:
+                """Handle an async API request."""
+                return {"status": "ok"}
+        '''
+    )
+    (src_path / "api.py").write_text(api_service)
+
+    # Module 3: Repository that depends on both
+    repository = dedent(
+        '''
+        """Repository module."""
+        from core import CoreService
+        from api import APIService
+
+        class DataRepository:
+            """Data repository with CRUD operations."""
+
+            def create_record(self, data: dict) -> dict:
+                """Create a new record."""
+                return {"id": 1, **data}
+
+            def get_record(self, record_id: int) -> dict:
+                """Get record by ID."""
+                return {"id": record_id}
+
+            def update_record(self, record_id: int, data: dict) -> dict:
+                """Update an existing record."""
+                return {"id": record_id, **data}
+
+            def delete_record(self, record_id: int) -> bool:
+                """Delete a record."""
+                return True
+        '''
+    )
+    (src_path / "repository.py").write_text(repository)
+
+
 class TestCodeAnalyzerIntegration:
     """Integration tests for CodeAnalyzer with realistic codebases."""
 
@@ -16,82 +95,7 @@ class TestCodeAnalyzerIntegration:
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_path = Path(tmpdir)
 
-            # Create a multi-module codebase with dependencies
-            src_path = repo_path / "src"
-            src_path.mkdir()
-
-            # Module 1: Core service (base dependency)
-            core_service = dedent(
-                '''
-                """Core service module."""
-
-                class CoreService:
-                    """Core service with base functionality."""
-
-                    def initialize(self, config: dict) -> bool:
-                        """Initialize the core service."""
-                        return True
-
-                    def shutdown(self) -> None:
-                        """Shutdown the service."""
-                        pass
-                '''
-            )
-            (src_path / "core.py").write_text(core_service)
-
-            # Module 2: Service that depends on core
-            api_service = dedent(
-                '''
-                """API service module."""
-                from core import CoreService
-
-                class APIService:
-                    """API service that uses core service."""
-
-                    def __init__(self):
-                        """Initialize API service."""
-                        self.core = CoreService()
-
-                    def handle_request(self, data: dict) -> dict:
-                        """Handle an API request."""
-                        self.core.initialize({})
-                        return {"status": "ok"}
-
-                    async def handle_async_request(self, data: dict) -> dict:
-                        """Handle an async API request."""
-                        return {"status": "ok"}
-                '''
-            )
-            (src_path / "api.py").write_text(api_service)
-
-            # Module 3: Repository that depends on both
-            repository = dedent(
-                '''
-                """Repository module."""
-                from core import CoreService
-                from api import APIService
-
-                class DataRepository:
-                    """Data repository with CRUD operations."""
-
-                    def create_record(self, data: dict) -> dict:
-                        """Create a new record."""
-                        return {"id": 1, **data}
-
-                    def get_record(self, record_id: int) -> dict:
-                        """Get record by ID."""
-                        return {"id": record_id}
-
-                    def update_record(self, record_id: int, data: dict) -> dict:
-                        """Update an existing record."""
-                        return {"id": record_id, **data}
-
-                    def delete_record(self, record_id: int) -> bool:
-                        """Delete a record."""
-                        return True
-                '''
-            )
-            (src_path / "repository.py").write_text(repository)
+            _write_dependent_services(repo_path)
 
             # Analyze the codebase
             analyzer = CodeAnalyzer(repo_path, confidence_threshold=0.5)
@@ -107,13 +111,12 @@ class TestCodeAnalyzerIntegration:
 
             # Verify type hints were extracted
             assert len(analyzer.type_hints) >= 3
-            assert any("api.py" in module or "api" in module for module in analyzer.type_hints)
+            assert any("api" in module for module in analyzer.type_hints)
 
             # Verify async patterns were detected
-            assert any("api.py" in module or "api" in module for module in analyzer.async_patterns)
-            api_module = next((m for m in analyzer.async_patterns if "api.py" in m or "api" in m), None)
-            if api_module:
-                assert "handle_async_request" in analyzer.async_patterns[api_module]
+            api_module = next((name for name in analyzer.async_patterns if "api" in name), None)
+            assert api_module is not None
+            assert "handle_async_request" in analyzer.async_patterns[api_module]
 
     def test_analyze_codebase_with_type_hints(self):
         """Test that type hints are properly extracted and stored."""

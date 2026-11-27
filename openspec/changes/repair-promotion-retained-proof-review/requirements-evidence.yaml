@@ -1,0 +1,22 @@
+schema_version: '2'
+requirements:
+  openspec:repair-promotion-retained-proof-review:requirements-runtime-proof-delivery:retained-upload-authentication-passes-promotion-review:
+    rationale: Preserve the protected inline and standalone authentication while making the checks reviewable.
+    stakeholder_refs:
+      - nold-ai/specfact-cli#771
+    touchpoints:
+      - id: protected-inline-origin
+        kind: config_file
+        locator: .github/workflows/requirements-evidence.yml
+      - id: retained-upload-origin
+        kind: code_symbol
+        locator: scripts/requirements_late_red_proof.py::_fixed_pr786_upload_receipt
+    verification_cases:
+      - case_id: retained-upload-inline-parity
+        scenario_id: retained-upload-authentication-passes-promotion-review
+        method: test
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_fixed786_retained_origin.py::test_inline_original_provenance_matches_owner
+        intent: Keep the protected inline authentication and standalone implementation equivalent.
+        observable: The workflow and standalone script have the same receipt validator and validation steps.

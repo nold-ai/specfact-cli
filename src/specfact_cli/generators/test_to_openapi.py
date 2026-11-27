@@ -99,6 +99,17 @@ def _test_import_bindings(statement: ast.Import | ast.ImportFrom) -> dict[str, s
     return bindings
 
 
+def _signed_json_number(node: ast.AST) -> int | float | None:
+    if not isinstance(node, ast.UnaryOp) or not isinstance(node.op, (ast.UAdd, ast.USub)):
+        return None
+    if not isinstance(node.operand, ast.Constant):
+        return None
+    value = node.operand.value
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return -value if isinstance(node.op, ast.USub) else value
+
+
 class OpenAPITestConverter:
     """Extract literal HTTP requests and their asserted responses from Python tests."""
 
@@ -284,6 +295,8 @@ class OpenAPITestConverter:
                 return self._extract_ast_value(inner)
             if isinstance(inner, ast.Constant) and isinstance(inner.value, (str, int, float, bool, type(None))):
                 return inner.value
+            if (signed := _signed_json_number(inner)) is not None:
+                return signed
         return unavailable
 
     @beartype
@@ -295,6 +308,8 @@ class OpenAPITestConverter:
             return self._coerce_ast_dict_to_plain(node)
         if isinstance(node, ast.List):
             return [self._extract_ast_value(item) for item in node.elts]
+        if (signed := _signed_json_number(node)) is not None:
+            return signed
         if isinstance(node, ast.Name):
             # Variable reference - can't extract value statically
             return None

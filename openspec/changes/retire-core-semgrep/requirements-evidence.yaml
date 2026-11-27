@@ -1,0 +1,159 @@
+schema_version: '2'
+requirements:
+  ? openspec:retire-core-semgrep:core-scanner-retirement:core-scans-retain-supported-behavior-without-semgrep
+  : rationale: Specify the planned scanner migration.
+    stakeholder_refs:
+    - nold-ai/specfact-cli#797
+    touchpoints:
+    - id: core-scanner-retirement-spec
+      kind: config_file
+      locator: openspec/changes/retire-core-semgrep/specs/core-scanner-retirement/spec.md
+    verification_cases:
+    - case_id: core-scans-retain-supported-behavior-without-semgrep-external-install-inspection
+      scenario_id: core-scans-retain-supported-behavior-without-semgrep
+      method: inspection
+      intent: Inspect planned scanner parity and the required external-install dependency evidence.
+      observable: Planning inspection only. Runtime and release evidence remain pending.
+    - case_id: core-scan-python-feature-evidence
+      scenario_id: core-scans-retain-supported-behavior-without-semgrep
+      method: test
+      intent: Analyze Python route, model, authentication, CRUD and quality controls without a scanner.
+      observable: Built-in patterns enrich the feature while the clean control retains no quality warning.
+      selector:
+        runner: pytest
+        node_id: tests/unit/analyzers/test_code_analyzer.py::TestCodeAnalyzer::test_brownfield_python_patterns_enrich_features
+    - case_id: core-scan-async-rule-evidence
+      scenario_id: core-scans-retain-supported-behavior-without-semgrep
+      method: test
+      intent: Exercise the active async rule identities over representative source.
+      observable: Requested checks report stable rule identities and source positions.
+      selector:
+        runner: pytest
+        node_id: tests/unit/analyzers/test_async_checks.py::test_builtin_async_rules
+    - case_id: core-scan-async-incomplete-evidence
+      scenario_id: core-scans-retain-supported-behavior-without-semgrep
+      method: test
+      intent: Attempt unavailable-source scanning and an unsupported fix.
+      observable: The command reports incomplete analysis or migration, and source is preserved.
+      selector:
+        runner: pytest
+        node_id: tests/unit/analyzers/test_async_checks.py::test_async_cli_records_unavailable_source_and_leaves_requested_fix_unchanged
+    - case_id: core-scan-openapi-example-evidence
+      scenario_id: core-scans-retain-supported-behavior-without-semgrep
+      method: test
+      intent: Extract request, response and status from Python test source.
+      observable: The OpenAPI operation retains the original test payload and asserted HTTP status.
+      selector:
+        runner: pytest
+        node_id: tests/unit/generators/test_test_to_openapi.py::TestOpenAPITestConverterClass::test_extract_examples_from_ast_simple_test
+    - case_id: core-scan-retains-packaged-speckit-workflow
+      scenario_id: core-scans-retain-supported-behavior-without-semgrep
+      method: test
+      intent: Generate the Spec-Kit workflow using installed package resources.
+      observable: The workflow serves the expected repro command without writing a scanner preset.
+      selector:
+        runner: pytest
+        node_id: tests/unit/importers/test_speckit_converter.py::TestSpecKitConverter::test_generate_github_action_uses_the_packaged_template
+    - case_id: core-scan-frozen-graph-excludes-retired-scanner
+      scenario_id: core-scans-retain-supported-behavior-without-semgrep
+      method: test
+      intent: Validate the shipped dependency and audit configuration.
+      observable: The retired packages and advisory entries are absent and retained telemetry resolves from PyPI.
+      selector:
+        runner: pytest
+        node_id: tests/unit/security/test_release_promotion_security_gates.py::test_frozen_graph_excludes_the_retired_scanner_and_its_advisories
+  ? openspec:retire-core-semgrep:core-scanner-retirement:independent-static-analysis-remains-blocking
+  : rationale: Specify the planned scanner migration.
+    stakeholder_refs:
+    - nold-ai/specfact-cli#797
+    touchpoints:
+    - id: core-scanner-retirement-spec
+      kind: config_file
+      locator: openspec/changes/retire-core-semgrep/specs/core-scanner-retirement/spec.md
+    - id: core-python-sast-command
+      kind: code_symbol
+      locator: scripts/core_sast_gate.py::main
+    verification_cases:
+    - case_id: independent-static-analysis-remains-blocking-sast-baseline-inspection
+      scenario_id: independent-static-analysis-remains-blocking
+      method: inspection
+      intent: Inspect planned independent gate and baseline continuity.
+      observable: Planning inspection only. Runtime and release evidence remain pending.
+    - case_id: independent-static-analysis-remains-blocking-incomplete-evidence-inspection
+      scenario_id: independent-static-analysis-remains-blocking
+      method: inspection
+      intent: Inspect the planned failing outcome for omitted inputs and unavailable tools.
+      observable: Planning inspection only. Runtime and release evidence remain pending.
+    - case_id: core-python-sast-blocks-new-findings
+      scenario_id: independent-static-analysis-remains-blocking
+      method: test
+      intent: Scan tracked Python with positive controls for all six current rule IDs.
+      observable: The command records the input and finding and exits with status 1.
+      selector:
+        runner: pytest
+        node_id: tests/unit/scripts/test_core_sast_gate.py::test_gate_blocks_new_findings_under_all_existing_rules
+    - case_id: core-python-sast-retains-baseline
+      scenario_id: independent-static-analysis-remains-blocking
+      method: test
+      intent: Scan safe code and a finding recorded under its legacy qualified ID.
+      observable: The finding remains visible in the report and the command exits successfully.
+      selector:
+        runner: pytest
+        node_id: tests/unit/scripts/test_core_sast_gate.py::test_clean_control_and_reviewed_baseline_remain_accepted
+    - case_id: core-python-sast-retains-test-scope
+      scenario_id: independent-static-analysis-remains-blocking
+      method: test
+      intent: Scan tracked sources with top-level and nested test directories.
+      observable: Test paths are in the report and every eligible path is scanned.
+      selector:
+        runner: pytest
+        node_id: tests/unit/scripts/test_core_sast_gate.py::test_legacy_test_directory_scope_is_explicit_in_evidence
+    - case_id: core-python-sast-rejects-incomplete-inputs
+      scenario_id: independent-static-analysis-remains-blocking
+      method: test
+      intent: Remove a tracked input or replace its content with unparseable Python.
+      observable: The command reports incomplete evidence and exits with status 2.
+      selector:
+        runner: pytest
+        node_id: tests/unit/scripts/test_core_sast_gate.py::test_incomplete_inputs_fail_closed
+    - case_id: core-python-sast-rejects-invalid-baseline
+      scenario_id: independent-static-analysis-remains-blocking
+      method: test
+      intent: Provide a malformed reviewed baseline.
+      observable: The command reports the baseline diagnostic and exits with status 2.
+      selector:
+        runner: pytest
+        node_id: tests/unit/scripts/test_core_sast_gate.py::test_invalid_baseline_fails_closed
+    - case_id: independent-static-analysis-runs-replacement-in-workflow
+      scenario_id: independent-static-analysis-remains-blocking
+      method: test
+      intent: Execute the workflow's Python SAST shell body against clean, flagged, and invalid tracked inputs.
+      observable: The shell returns the scanner status and writes its report on all three outcomes.
+      selector:
+        runner: pytest
+        node_id: tests/unit/scripts/test_core_sast_gate.py::test_independent_workflow_reports_scan_outcome
+  ? openspec:retire-core-semgrep:core-scanner-retirement:frozen-core-delivery-uses-the-reviewed-parser-wheel
+  : rationale: Approve the exact Socket-reviewed wheel in the frozen core graph.
+    stakeholder_refs:
+    - nold-ai/specfact-cli#797
+    touchpoints:
+    - id: frozen-parser-wheel-check
+      kind: code_symbol
+      locator: scripts/check_dependency_trust_exceptions.py::validate_frozen_dependency_policy
+    verification_cases:
+    - case_id: frozen-parser-wheel-is-admitted
+      scenario_id: frozen-core-delivery-uses-the-reviewed-parser-wheel
+      method: test
+      intent: Check the frozen graph after the former exception expired.
+      observable: The immutable, reviewed wheel passes the retained bootstrap gate.
+      selector:
+        runner: pytest
+        node_id: tests/unit/scripts/test_dependency_trust_review.py::test_only_reviewed_parser_wheel_is_admitted_after_exception_expires
+    - case_id: frozen-parser-wheel-rejects-drift
+      scenario_id: frozen-core-delivery-uses-the-reviewed-parser-wheel
+      method: test
+      intent: Check altered wheel metadata or alternate distribution.
+      observable: The bootstrap dependency gate rejects a changed URL or digest and an added source archive.
+      selector:
+        runner: pytest
+        node_id: tests/unit/scripts/test_dependency_trust_review.py::test_parser_wheel_admission_rejects_lock_drift
