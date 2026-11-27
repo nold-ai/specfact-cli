@@ -253,14 +253,10 @@ def test_private_formatter_rejects_repository_output(
     assert not inputs.output.exists() and not inputs.output.with_suffix(".xml").exists()
 
 
-def test_fixed_scope_accepts_actual_history(owner: ModuleType) -> None:
+def test_fixed_scope_accepts_actual_history(owner: ModuleType, history_context: tuple[str, Path]) -> None:
     manifest = json.loads((FIXTURES / "fixed786_artifact_source/manifest.json").read_bytes())
-    failure: ValueError | None = None
-    try:
-        owner._validate_history(REPO_ROOT, manifest, CYCLE, "HEAD", owner._FIXED_PR786_SCOPE)
-    except ValueError as error:
-        failure = error
-    assert failure is None, "Authenticated fixed PR786 source history must be accepted"
+    final, _ = history_context
+    owner._validate_history(REPO_ROOT, manifest, CYCLE, final, owner._FIXED_PR786_SCOPE)
 
 
 @pytest.mark.parametrize(

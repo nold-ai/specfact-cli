@@ -456,6 +456,18 @@ def test_pr_orchestrator_has_staged_cross_platform_smoke() -> None:
     assert "workflow_dispatch" in str(windows.get("if", "")) or "schedule" in str(windows.get("if", ""))
 
 
+def test_compatibility_and_smoke_checkouts_pin_the_module_fixture() -> None:
+    """The compatibility and smoke runners accept only the committed fixture."""
+    lock = json.loads(MODULE_FIXTURE_LOCK.read_text(encoding="utf-8"))
+    for job in ("compat-py311", "runtime-smoke-macos", "runtime-smoke-windows"):
+        checkout = _find_named_step(job, "Checkout module bundles repo")
+        assert checkout["with"]["repository"] == lock["repository"]
+        assert checkout["with"]["ref"] == lock["commit"]
+        assert re.fullmatch(r"[0-9a-f]{40}", checkout["with"]["ref"])
+        verification = _find_named_step(job, "Verify immutable module fixture")["run"]
+        assert "rev-parse HEAD 'HEAD^{tree}'" in verification
+
+
 def test_pr_orchestrator_has_advisory_mutation_baseline() -> None:
     """Mutation testing starts as scheduled/manual evidence, not a PR blocker."""
     jobs = _load_jobs()

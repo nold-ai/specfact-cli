@@ -15,6 +15,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 TRUST_RECORD = REPO_ROOT / "ci" / "dependency-trust-exceptions.json"
+HISTORICAL_TRUST_RECORD = Path(__file__).parent / "fixtures/historical-pycparser-wheel-review.json"
 CHECKER = REPO_ROOT / "scripts" / "check_dependency_trust_exceptions.py"
 PARSER_WHEEL_SHA256 = "a076f3f489b39b43ed13563a1dafe42447445bec2e294154ec5c57fcdda4c85e"
 
@@ -45,6 +46,9 @@ def test_only_reviewed_parser_wheel_is_admitted_after_exception_expires() -> Non
     """Permanent admission covers one artifact and leaves the old review historical."""
     checker = _load_checker()
     assert checker.validate_frozen_dependency_policy(today=date(2026, 11, 22)) == []
+    assert checker.validate_exception_register(HISTORICAL_TRUST_RECORD, today=date(2026, 11, 22)) == [
+        "pycparser==3.12 expired on 2026-11-04"
+    ]
 
 
 def test_frozen_lock_refresh_removes_only_the_parser_source_archive() -> None:
@@ -103,10 +107,9 @@ def test_parser_wheel_admission_rejects_extra_pip_hash(tmp_path: Path) -> None:
     assert errors == ["frozen CI export requires only the approved pycparser wheel hash"]
 
 
-def test_pycparser_has_current_exact_version_review_record() -> None:
-    """The required C parser remains only with scoped, expiring review evidence."""
-    assert TRUST_RECORD.is_file(), "Flagged frozen dependencies require a checked-in review record"
-    payload = json.loads(TRUST_RECORD.read_text(encoding="utf-8"))
+def test_pycparser_historical_review_identifies_the_official_wheel() -> None:
+    """Historical review preserves the provenance of the wheel now pinned in the lock."""
+    payload = json.loads(HISTORICAL_TRUST_RECORD.read_text(encoding="utf-8"))
     records = payload["exceptions"]
     pycparser = next(record for record in records if record["package"] == "pycparser")
     assert pycparser["version"] == "3.12"
@@ -200,7 +203,7 @@ def test_invalid_trust_register_is_rejected(
 
 def test_alerted_pycparser_release_family_is_blocked_with_a_pep440_spelling(tmp_path: Path) -> None:
     """Post and local spellings must not reintroduce the blocked 3.0 release family."""
-    payload = json.loads(TRUST_RECORD.read_text(encoding="utf-8"))
+    payload = json.loads(HISTORICAL_TRUST_RECORD.read_text(encoding="utf-8"))
     payload["exceptions"][0]["version"] = "3.0.post1"
     register_path = tmp_path / "exceptions.json"
     register_path.write_text(json.dumps(payload), encoding="utf-8")
@@ -228,7 +231,7 @@ def test_unofficial_executable_wheel_is_not_accepted() -> None:
 
 def test_reviewed_artifact_must_exist_in_the_frozen_lock(tmp_path: Path) -> None:
     """A copied review record cannot approve a different frozen artifact."""
-    payload = json.loads(TRUST_RECORD.read_text(encoding="utf-8"))
+    payload = json.loads(HISTORICAL_TRUST_RECORD.read_text(encoding="utf-8"))
     reviewed = payload["exceptions"][0]
     reviewed["artifact_sha256"] = "0" * 64
     register_path = tmp_path / "exceptions.json"
@@ -242,7 +245,7 @@ def test_reviewed_artifact_must_exist_in_the_frozen_lock(tmp_path: Path) -> None
 
 def test_review_evidence_must_bind_to_the_matching_lock_package(tmp_path: Path) -> None:
     """Evidence copied to another lock record cannot approve pycparser."""
-    payload = json.loads(TRUST_RECORD.read_text(encoding="utf-8"))
+    payload = json.loads(HISTORICAL_TRUST_RECORD.read_text(encoding="utf-8"))
     register_path = tmp_path / "exceptions.json"
     register_path.write_text(json.dumps(payload), encoding="utf-8")
     reviewed = payload["exceptions"][0]
@@ -310,3 +313,25 @@ def test_invalid_frozen_lock_is_rejected(
     errors = checker.validate_frozen_dependency_policy(register_path, lock_path, today=today)
 
     assert errors == expected_errors
+
+
+def test_dependency_trust_rejects_blocked_runtime_smoke_dependencies(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import hashlib
+
+    input_path = tmp_path / "requirements.in"
+    input_path.write_text("pycparser==3.0\n", encoding="utf-8")
+    lock_path = tmp_path / "locked.txt"
+    binding = hashlib.sha256(input_path.read_bytes()).hexdigest()
+    lock_path.write_text(
+        f"# input-sha256: {binding}\npycparser==3.0 \\\n    --hash=sha256:{'0' * 64}\n",
+        encoding="utf-8",
+    )
+
+    checker = _load_checker()
+    monkeypatch.setattr(checker, "DEFAULT_RUNTIME_SMOKE_INPUT", input_path)
+    monkeypatch.setattr(checker, "DEFAULT_RUNTIME_SMOKE_LOCK", lock_path)
+    errors = checker.validate_frozen_dependency_policy()
+
+    assert errors == ["pycparser==3.0 is blocked after a security-obfuscation alert"]

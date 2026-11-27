@@ -196,7 +196,7 @@ def _run_help_case(
     return result.exit_code, result.output
 
 
-def _audit_commands(
+def _collect_command_audit_failures(
     help_app: typer.Typer, home_dir: Path, env: dict[str, str], monkeypatch: pytest.MonkeyPatch
 ) -> list[str]:
     failures: list[str] = []
@@ -239,7 +239,7 @@ def test_command_audit_help_cases_execute_cleanly_in_temp_home(tmp_path: Path, m
             context.setenv("SPECFACT_MODULES_REPO", str(MODULES_REPO.resolve()))
             help_app = _load_cli_app_for_home(home_dir)
 
-            failures = _audit_commands(help_app, home_dir, env, monkeypatch)
+            failures = _collect_command_audit_failures(help_app, home_dir, env, monkeypatch)
     finally:
         _restore_specfact_module_root_paths_after_temp_home()
 
