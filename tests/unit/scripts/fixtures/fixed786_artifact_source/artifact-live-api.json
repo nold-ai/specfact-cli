@@ -1,0 +1,20 @@
+{
+  "id": 13269307808,
+  "node_id": "MDg6QXJ0aWZhY3QxMzI2OTMwNzgwOA==",
+  "name": "original-execution-packet-41715861806-1",
+  "size_in_bytes": 1885415,
+  "url": "https://api.github.com/repos/nold-ai/.github/actions/artifacts/13269307808",
+  "archive_download_url": "https://api.github.com/repos/nold-ai/.github/actions/artifacts/13269307808/zip",
+  "expired": false,
+  "digest": "sha256:0567a53963df112f2ac3f2e2024c1b93c6f9fafc00052ce137c4d5495c07f433",
+  "created_at": "2026-11-03T20:50:14Z",
+  "updated_at": "2026-11-03T20:50:14Z",
+  "expires_at": "2026-11-10T20:50:12Z",
+  "workflow_run": {
+    "id": 41715861806,
+    "repository_id": 1110267669,
+    "head_repository_id": 1110267669,
+    "head_branch": "codex/dev786-original-native-36",
+    "head_sha": "8ad0a9434ceeac4a910df3c374536d7c909badec"
+  }
+}

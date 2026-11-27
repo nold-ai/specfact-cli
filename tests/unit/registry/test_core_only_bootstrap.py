@@ -47,32 +47,24 @@ def _make_core_metadata(name: str, commands: list[str] | None = None):
 
 
 @pytest.fixture(autouse=True)
-def _clear_registry():
+def clear_registry():
     CommandRegistry._clear_for_testing()
     yield
     CommandRegistry._clear_for_testing()
 
 
 def test_register_builtin_commands_registers_only_three_core_when_discovery_returns_three(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """After bootstrap with only 3 core modules discovered, list_commands has exactly init, module, upgrade."""
-    from specfact_cli.registry.module_discovery import DiscoveredModule
-
-    def _discover(*, builtin_root=None, user_root=None, **kwargs):
-        root = builtin_root or tmp_path
-        return [
-            DiscoveredModule(root / "init", _make_core_metadata("init"), "builtin"),
-            DiscoveredModule(root / "module_registry", _make_core_metadata("module_registry", ["module"]), "builtin"),
-            DiscoveredModule(root / "upgrade", _make_core_metadata("upgrade"), "builtin"),
-        ]
+    from specfact_cli.registry.module_packages import BUILTIN_MODULES_ROOT
 
     monkeypatch.setattr(
         "specfact_cli.registry.module_packages.discover_all_package_metadata",
-        lambda: [
-            (tmp_path / "init", _make_core_metadata("init")),
-            (tmp_path / "module_registry", _make_core_metadata("module_registry", ["module"])),
-            (tmp_path / "upgrade", _make_core_metadata("upgrade")),
+        lambda **_kwargs: [
+            (BUILTIN_MODULES_ROOT / "init", _make_core_metadata("init")),
+            (BUILTIN_MODULES_ROOT / "module_registry", _make_core_metadata("module_registry", ["module"])),
+            (BUILTIN_MODULES_ROOT / "upgrade", _make_core_metadata("upgrade")),
         ],
     )
     monkeypatch.setattr(
@@ -99,7 +91,7 @@ def test_bootstrap_does_not_register_extracted_modules_when_only_core_discovered
     """Bootstrap with only 3 core does NOT register project, plan, backlog, code, spec, govern, etc."""
     monkeypatch.setattr(
         "specfact_cli.registry.module_packages.discover_all_package_metadata",
-        lambda: [
+        lambda **_kwargs: [
             (tmp_path / "init", _make_core_metadata("init")),
             (tmp_path / "module_registry", _make_core_metadata("module_registry", ["module"])),
             (tmp_path / "upgrade", _make_core_metadata("upgrade")),
@@ -142,7 +134,7 @@ def test_flat_shim_plan_produces_actionable_error_after_shim_removal(
     """Invoking 'plan' when shims are removed should produce an actionable not-found error."""
     monkeypatch.setattr(
         "specfact_cli.registry.module_packages.discover_all_package_metadata",
-        lambda: [
+        lambda **_kwargs: [
             (tmp_path / "init", _make_core_metadata("init")),
             (tmp_path / "module_registry", _make_core_metadata("module_registry", ["module"])),
             (tmp_path / "upgrade", _make_core_metadata("upgrade")),
@@ -194,7 +186,7 @@ def test_mount_installed_category_groups_does_not_mount_code_when_codebase_not_i
     """When get_installed_bundles returns [] (or no specfact-codebase), code group must not be registered."""
     monkeypatch.setattr(
         "specfact_cli.registry.module_packages.discover_all_package_metadata",
-        lambda: [
+        lambda **_kwargs: [
             (tmp_path / "init", _make_core_metadata("init")),
             (tmp_path / "module_registry", _make_core_metadata("module_registry", ["module"])),
             (tmp_path / "upgrade", _make_core_metadata("upgrade")),

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import subprocess
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -15,14 +17,38 @@ from specfact_cli.registry.dependency_resolver import (
 )
 
 
+def test_pip_compile_honors_pip_install_constraints(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Forward the same ordered constraint files pip will read at installation."""
+    reviewed_pin = tmp_path / "reviewed.txt"
+    platform_pin = tmp_path / "platform.txt"
+    reviewed_pin.write_text("typer==0.27.0\n", encoding="utf-8")
+    platform_pin.write_text("click>=8.3.3\n", encoding="utf-8")
+    monkeypatch.setenv("PIP_CONSTRAINT", f"{reviewed_pin} {platform_pin}")
+
+    def compile_pinned_requirements(command: list[str], **_options: object) -> subprocess.CompletedProcess[str]:
+        assert [arg for arg in command if arg.startswith("--constraint=")] == [
+            f"--constraint={reviewed_pin}",
+            f"--constraint={platform_pin}",
+        ]
+        Path(command[command.index("-o") + 1]).write_text("typer==0.27.0\n", encoding="utf-8")
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    module = ModulePackageMetadata(name="with-typer", version="0.1.0", commands=["test"], pip_dependencies=["typer"])
+    with (
+        patch("specfact_cli.registry.dependency_resolver._pip_tools_available", return_value=True),
+        patch("specfact_cli.registry.dependency_resolver.subprocess.run", side_effect=compile_pinned_requirements),
+    ):
+        assert resolve_dependencies([module]) == ["typer==0.27.0"]
+
+
 @pytest.fixture
-def sample_metadata_no_deps() -> ModulePackageMetadata:
+def module_without_dependencies() -> ModulePackageMetadata:
     """Module metadata with no pip dependencies."""
     return ModulePackageMetadata(name="simple-module", version="0.1.0", commands=["simple"])
 
 
 @pytest.fixture
-def sample_metadata_with_deps() -> ModulePackageMetadata:
+def module_with_compatible_dependencies() -> ModulePackageMetadata:
     """Module metadata with pip dependencies."""
     return ModulePackageMetadata(
         name="with-deps",
@@ -37,7 +63,7 @@ def sample_metadata_with_deps() -> ModulePackageMetadata:
 
 
 @pytest.fixture
-def sample_metadata_conflict() -> ModulePackageMetadata:
+def module_with_conflicting_dependencies() -> ModulePackageMetadata:
     """Module metadata with dependency that could conflict (requests<2.27)."""
     return ModulePackageMetadata(
         name="conflict-module",
@@ -55,11 +81,11 @@ class TestResolveDependenciesAggregates:
 
     def test_aggregates_pip_dependencies(
         self,
-        sample_metadata_no_deps: ModulePackageMetadata,
-        sample_metadata_with_deps: ModulePackageMetadata,
+        module_without_dependencies: ModulePackageMetadata,
+        module_with_compatible_dependencies: ModulePackageMetadata,
     ) -> None:
         """resolve_dependencies collects pip_dependencies from all modules."""
-        modules = [sample_metadata_no_deps, sample_metadata_with_deps]
+        modules = [module_without_dependencies, module_with_compatible_dependencies]
         with (
             patch("specfact_cli.registry.dependency_resolver._pip_tools_available", return_value=True),
             patch("specfact_cli.registry.dependency_resolver._run_pip_compile") as mock_run,
@@ -72,7 +98,7 @@ class TestResolveDependenciesAggregates:
 
     def test_resolution_succeeds_without_conflicts(
         self,
-        sample_metadata_with_deps: ModulePackageMetadata,
+        module_with_compatible_dependencies: ModulePackageMetadata,
     ) -> None:
         """When no conflicts, resolve_dependencies returns list of resolved package versions."""
         with (
@@ -80,16 +106,16 @@ class TestResolveDependenciesAggregates:
             patch("specfact_cli.registry.dependency_resolver._run_pip_compile") as mock_run,
         ):
             mock_run.return_value = ["requests==2.31.0", "pydantic==2.5.0"]
-            result = resolve_dependencies([sample_metadata_with_deps])
+            result = resolve_dependencies([module_with_compatible_dependencies])
         assert result == ["requests==2.31.0", "pydantic==2.5.0"]
 
     def test_conflict_detection_incompatible_versions(
         self,
-        sample_metadata_with_deps: ModulePackageMetadata,
-        sample_metadata_conflict: ModulePackageMetadata,
+        module_with_compatible_dependencies: ModulePackageMetadata,
+        module_with_conflicting_dependencies: ModulePackageMetadata,
     ) -> None:
         """When conflicting versions, raises DependencyConflictError with clear error."""
-        modules = [sample_metadata_with_deps, sample_metadata_conflict]
+        modules = [module_with_compatible_dependencies, module_with_conflicting_dependencies]
         with (
             patch("specfact_cli.registry.dependency_resolver._pip_tools_available", return_value=True),
             patch("specfact_cli.registry.dependency_resolver._run_pip_compile") as mock_run,
@@ -104,7 +130,7 @@ class TestResolveDependenciesAggregates:
 
     def test_fallback_basic_resolver_when_pip_tools_unavailable(
         self,
-        sample_metadata_with_deps: ModulePackageMetadata,
+        module_with_compatible_dependencies: ModulePackageMetadata,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         """When pip-tools not available, log warning and use basic pip resolver."""
@@ -114,17 +140,17 @@ class TestResolveDependenciesAggregates:
             patch("specfact_cli.registry.dependency_resolver._run_basic_resolver") as mock_basic,
         ):
             mock_basic.return_value = ["requests==2.31.0", "pydantic==2.5.0"]
-            result = resolve_dependencies([sample_metadata_with_deps])
+            result = resolve_dependencies([module_with_compatible_dependencies])
         assert mock_basic.called
         assert result == ["requests==2.31.0", "pydantic==2.5.0"]
 
     def test_clear_error_messages_for_conflicts(
         self,
-        sample_metadata_with_deps: ModulePackageMetadata,
-        sample_metadata_conflict: ModulePackageMetadata,
+        module_with_compatible_dependencies: ModulePackageMetadata,
+        module_with_conflicting_dependencies: ModulePackageMetadata,
     ) -> None:
         """DependencyConflictError includes conflicting packages, versions, affected modules."""
-        modules = [sample_metadata_with_deps, sample_metadata_conflict]
+        modules = [module_with_compatible_dependencies, module_with_conflicting_dependencies]
         with (
             patch("specfact_cli.registry.dependency_resolver._pip_tools_available", return_value=True),
             patch("specfact_cli.registry.dependency_resolver._run_pip_compile") as mock_run,
