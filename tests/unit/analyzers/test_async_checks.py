@@ -138,3 +138,32 @@ def test_module_annotation_does_not_rebind_a_coroutine() -> None:
     source = "async def worker():\n    pass\nworker: object\nasync def run():\n    worker()\n"
 
     assert any(item.rule_id == "missing-await-on-coroutine" for item in async_findings(ast.parse(source), "app.py"))
+
+
+@pytest.mark.parametrize(
+    ("source", "line"),
+    [
+        (
+            "import asyncio\n"
+            "async def worker():\n    pass\n"
+            "async def run():\n    worker()\n"
+            "asyncio.run(run())\nworker = lambda: None\n",
+            5,
+        ),
+        (
+            "async def run():\n"
+            "    worker = lambda: None\n"
+            "    for value in (1, 2):\n"
+            "        worker()\n"
+            "        async def worker():\n"
+            "            pass\n",
+            4,
+        ),
+    ],
+    ids=["enclosing-binding", "previous-loop-iteration"],
+)
+def test_later_coroutine_bindings_preserve_possible_earlier_calls(source: str, line: int) -> None:
+    from specfact_cli.analyzers.async_checks import async_findings
+
+    findings = async_findings(ast.parse(source), "app.py")
+    assert [finding.line for finding in findings if finding.rule_id == "missing-await-on-coroutine"] == [line]

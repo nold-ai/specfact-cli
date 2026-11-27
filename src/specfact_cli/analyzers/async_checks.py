@@ -274,7 +274,7 @@ def _scope_findings(
             nodes.extend((statement, *_scoped_nodes(statement)))
     imports = {**aliases, **import_aliases(nodes)}
     parents = {child: node for node in nodes for child in ast.iter_child_nodes(node)}
-    for call, bound_coroutines in _calls_with_coroutines(nodes, coroutines, bindings):
+    for call, bound_coroutines in _calls_with_coroutines(nodes, parents, coroutines, bindings):
         yield from ((rule, call) for rule in _async_call_rules(call, parents, imports, bound_coroutines))
     for node in nodes:
         yield from _async_statement_rules(node, imports)
@@ -294,6 +294,7 @@ _LexicalScope = (
     | ast.DictComp
     | ast.GeneratorExp
 )
+_Loop = ast.For | ast.AsyncFor | ast.While
 
 
 @dataclass(frozen=True)
@@ -302,6 +303,7 @@ class _CallableBinding:
     name: str
     is_async: bool | None
     may_skip: bool
+    loops: tuple[_Loop, ...]
 
 
 def _enclosing_scope(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> _LexicalScope | None:
@@ -343,6 +345,15 @@ def _binding_may_be_skipped(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> b
     return False
 
 
+def _enclosing_loops(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> Iterator[_Loop]:
+    while (parent := parents.get(node)) is not None and not isinstance(parent, _LexicalScope):
+        if isinstance(parent, _Loop) and (
+            node in parent.body or (isinstance(parent, ast.While) and node is parent.test)
+        ):
+            yield parent
+        node = parent
+
+
 def _assigned_callable_type(node: ast.Name, parents: dict[ast.AST, ast.AST]) -> bool | None:
     annotation = parents.get(node)
     # A bare annotation declares a local name and leaves its current value alone.
@@ -364,7 +375,8 @@ def _scope_callable_bindings(
             continue
         owner = _enclosing_scope(node, parents)
         if owner is not None:
-            binding = _CallableBinding(position, name, is_async, _binding_may_be_skipped(node, parents))
+            loops = tuple(_enclosing_loops(node, parents)) if is_async else ()
+            binding = _CallableBinding(position, name, is_async, _binding_may_be_skipped(node, parents), loops)
             definitions.setdefault(owner, []).append(binding)
     for bindings in definitions.values():
         bindings.sort(key=lambda binding: binding.position)
@@ -378,9 +390,21 @@ def _apply_callable_binding(binding: _CallableBinding, coroutines: set[str]) -> 
         coroutines.discard(binding.name)
 
 
+def _loop_binding_names(bindings: Sequence[_CallableBinding]) -> dict[_Loop, set[str]]:
+    possible: dict[_Loop, set[str]] = {}
+    for binding in bindings:
+        for loop in binding.loops:
+            possible.setdefault(loop, set()).add(binding.name)
+    return possible
+
+
 def _calls_with_coroutines(
-    nodes: Sequence[ast.AST], coroutines: set[str], bindings: Sequence[_CallableBinding]
+    nodes: Sequence[ast.AST],
+    parents: dict[ast.AST, ast.AST],
+    coroutines: set[str],
+    bindings: Sequence[_CallableBinding],
 ) -> Iterator[tuple[ast.Call, set[str]]]:
+    loop_bindings = _loop_binding_names(bindings)
     events = iter(bindings)
     event = next(events, None)
     calls = sorted(
@@ -391,13 +415,20 @@ def _calls_with_coroutines(
         while event is not None and event.position <= position:
             _apply_callable_binding(event, coroutines)
             event = next(events, None)
-        yield call, coroutines
+        carried = {name for loop in _enclosing_loops(call, parents) for name in loop_bindings.get(loop, ())}
+        yield call, coroutines | carried
 
 
-def _last_bindings(bindings: Sequence[_CallableBinding]) -> dict[str, bool]:
+def _binding_flags(
+    bindings: Sequence[_CallableBinding], definition_position: tuple[int, int] | None = None
+) -> dict[str, bool]:
     coroutines: set[str] = set()
     for binding in bindings:
-        _apply_callable_binding(binding, coroutines)
+        if definition_position is None or binding.position < definition_position:
+            _apply_callable_binding(binding, coroutines)
+        elif binding.is_async:
+            # An enclosing scope can rebind the name after the function runs.
+            coroutines.add(binding.name)
     return {binding.name: binding.name in coroutines for binding in bindings}
 
 
@@ -410,7 +441,7 @@ def _method_coroutines(
     if any(qualified_name(node, {}).rsplit(".", 1)[-1] == "staticmethod" for node in scope.decorator_list):
         return set()
     receiver = arguments[0].arg
-    return {f"{receiver}.{name}" for name, is_async in _last_bindings(definitions.get(owner, ())).items() if is_async}
+    return {f"{receiver}.{name}" for name, is_async in _binding_flags(definitions.get(owner, ())).items() if is_async}
 
 
 def _visible_coroutines(
@@ -426,9 +457,10 @@ def _visible_coroutines(
         dict.fromkeys((arg.arg for arg in scope.args.posonlyargs + scope.args.args + scope.args.kwonlyargs), False)
     )
     result = _method_coroutines(scope, owner, definitions)
+    definition_position = (scope.lineno, scope.col_offset)
     while owner is not None:
         if not isinstance(owner, ast.ClassDef):
-            for name, is_async in _last_bindings(definitions.get(owner, ())).items():
+            for name, is_async in _binding_flags(definitions.get(owner, ()), definition_position).items():
                 visible.setdefault(name, is_async)
         owner = _enclosing_scope(owner, parents)
     return result | {name for name, is_async in visible.items() if is_async}

@@ -162,6 +162,11 @@ def _retain_loop_imports(node: ast.For | ast.AsyncFor | ast.While, aliases: dict
         aliases[name] = aliases.get(name, {name}) | targets
 
 
+def _nested_imports(visible: dict[str, set[str]], collected: dict[str, set[str]]) -> dict[str, set[str]]:
+    # Nested functions can run before any import that follows their definition.
+    return visible | {name: visible.get(name, {name}) | targets for name, targets in collected.items()}
+
+
 def _scope_findings(
     body: list[ast.stmt], inherited: dict[str, set[str]], path: str, *, class_body: bool = False
 ) -> Iterator[Finding]:
@@ -169,9 +174,6 @@ def _scope_findings(
     local_aliases = _scope_imports(nodes)
     _reject_outer_imports(nodes, local_aliases)
     aliases = inherited.copy()
-    # Class namespaces do not close over method bodies. Other nested functions
-    # can run before or after an enclosing import rebinds a name.
-    nested_inherited = inherited if class_body else inherited | local_aliases
     direct_statements = set(body)
     for node in nodes:
         if isinstance(node, (ast.For, ast.AsyncFor, ast.While)):
@@ -180,6 +182,8 @@ def _scope_findings(
             # A compound statement can skip an import. Keep both possible bindings.
             aliases[name] = {target} if node in direct_statements else aliases.get(name, {name}) | {target}
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            # Methods close over the outer scope, without class-local imports.
+            nested_inherited = inherited if class_body else _nested_imports(aliases, local_aliases)
             yield from _scope_findings(node.body, nested_inherited, path, class_body=isinstance(node, ast.ClassDef))
             continue
         if isinstance(node, (ast.Assign, ast.AnnAssign)) and _has_secret(node):
