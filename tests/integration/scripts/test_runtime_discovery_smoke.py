@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from scripts import runtime_discovery_smoke as smoke
 from specfact_cli.registry import official_module_cutoff
 from specfact_cli.registry.official_module_cutoff import FrozenArchive
 
@@ -70,6 +71,22 @@ def test_runtime_discovery_smoke_direct_launcher() -> None:
 
     assert result.returncode == 0, result.stdout
     assert "runtime-discovery smoke passed for launcher=direct" in result.stdout
+
+
+@pytest.mark.parametrize("system_python", [False, True])
+def test_isolated_launcher_retains_system_tools(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, system_python: bool
+) -> None:
+    if os.name != "posix":
+        pytest.skip("The /usr system layout is POSIX-specific")
+    parent = Path("/usr") if system_python else tmp_path / "parent-venv"
+    inherited = [str(parent / "lib" / "parent-tools"), "/usr/bin", "/usr/sbin", "/bin", "/sbin"]
+    monkeypatch.setattr(sys, "prefix", str(parent))
+    monkeypatch.setenv("PATH", os.pathsep.join(inherited))
+
+    env = smoke._build_launcher_env("direct", tmp_path / "home", tmp_path / "index.json", tmp_path)
+
+    assert env["PATH"].split(os.pathsep) == [str(tmp_path / "launcher-direct" / "runtime-venv" / "bin"), *inherited[1:]]
 
 
 @pytest.fixture

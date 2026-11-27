@@ -15,6 +15,8 @@ from icontract import ensure, require
 from specfact_cli.analyzers.async_checks import import_aliases, qualified_name
 
 
+_ABSENT_BODY = object()
+
 HTTP_METHODS = frozenset({"post", "get", "put", "delete", "patch"})
 HTTP_MODULES = frozenset({"requests", "httpx"})
 CLIENT_FIXTURES = frozenset({"client", "api_client", "async_client", "http_client", "test_client", "self.client"})
@@ -49,17 +51,31 @@ def _client_assignment(value: ast.AST, aliases: dict[str, str], clients: set[str
     return qualified_name(value, {}) in clients
 
 
-def _test_statements(
-    nodes: Sequence[ast.AST],
-) -> list[ast.Assign | ast.AnnAssign | ast.Expr | ast.Assert | ast.With | ast.AsyncWith]:
+_TestStatement = (
+    ast.Assign | ast.AnnAssign | ast.Expr | ast.Assert | ast.With | ast.AsyncWith | ast.Import | ast.ImportFrom
+)
+
+
+def _test_statements(nodes: Sequence[ast.AST]) -> list[_TestStatement]:
     return sorted(
-        (
-            node
-            for node in nodes
-            if isinstance(node, (ast.Assign, ast.AnnAssign, ast.Expr, ast.Assert, ast.With, ast.AsyncWith))
-        ),
+        (node for node in nodes if isinstance(node, _TestStatement)),
         key=lambda statement: (statement.lineno, statement.col_offset),
     )
+
+
+def _operation_examples(requests: dict[tuple[str, str], dict[str, Any]]) -> dict[str, Any]:
+    """Keep existing operation IDs unless distinct requests collide."""
+    reserved = {item["operation_id"] for item in requests.values()}
+    examples: dict[str, Any] = {}
+    for request in sorted(requests):
+        example = requests[request]
+        base = example["operation_id"]
+        name, suffix = base, 2
+        while name in examples or (name != base and name in reserved):
+            name = f"{base}_{suffix}"
+            suffix += 1
+        examples[name] = {**example, "operation_id": name}
+    return examples
 
 
 def _is_equality_assertion(node: ast.AST) -> TypeGuard[ast.Compare]:
@@ -71,6 +87,16 @@ def _response_attribute(expression: ast.expr) -> tuple[str, str] | None:
     if isinstance(attribute, ast.Attribute) and isinstance(attribute.value, ast.Name):
         return attribute.value.id, attribute.attr
     return None
+
+
+def _test_import_bindings(statement: ast.Import | ast.ImportFrom) -> dict[str, str]:
+    if isinstance(statement, ast.ImportFrom):
+        return import_aliases([statement])
+    bindings: dict[str, str] = {}
+    for item in statement.names:
+        root = item.name.partition(".")[0]
+        bindings[item.asname or root] = item.name if item.asname else root
+    return bindings
 
 
 class OpenAPITestConverter:
@@ -90,7 +116,7 @@ class OpenAPITestConverter:
     @ensure(lambda result: isinstance(result, dict), "Must return dict")
     def extract_examples_from_tests(self, test_files: list[str]) -> dict[str, Any]:
         """Read selected files or file::test references and return examples by operation ID."""
-        examples: dict[str, Any] = {}
+        requests: dict[tuple[str, str], dict[str, Any]] = {}
         for test_ref in test_files:
             path, _, selected_test = test_ref.partition("::")
             test_path = self.repo_path / path
@@ -105,27 +131,34 @@ class OpenAPITestConverter:
                     continue
                 if selected_test and node.name != selected_test:
                     continue
-                for operation, example in self._extract_examples_from_test_function(node, aliases).items():
-                    examples.setdefault(operation, {}).update(example)
-        return examples
+                requests.update(self._extract_examples_from_test_function(node, aliases))
+        return _operation_examples(requests)
 
     def _extract_examples_from_test_function(
         self, node: ast.FunctionDef | ast.AsyncFunctionDef, module_aliases: dict[str, str]
-    ) -> dict[str, dict[str, Any]]:
+    ) -> dict[tuple[str, str], dict[str, Any]]:
         """Associate assertions with the request assigned to their response variable."""
         nodes = list(_test_body_nodes(node.body))
-        aliases = module_aliases | import_aliases(nodes)
+        aliases = module_aliases.copy()
         clients = set(CLIENT_FIXTURES | HTTP_MODULES)
         clients.update(name for name, module in aliases.items() if module in HTTP_MODULES)
         statements = _test_statements(nodes)
-        examples: dict[str, Any] = {}
+        examples: dict[tuple[str, str], dict[str, Any]] = {}
         responses: dict[str, dict[str, Any]] = {}
         for statement in statements:
+            if isinstance(statement, (ast.Import, ast.ImportFrom)):
+                imports = _test_import_bindings(statement)
+                aliases.update(imports)
+                clients.difference_update(imports)
+                clients.update(name for name, module in imports.items() if module in HTTP_MODULES)
+                for name in imports:
+                    responses.pop(name, None)
+                continue
             if isinstance(statement, ast.Assert):
                 self._apply_response_assertion(statement, responses)
                 continue
             if isinstance(statement, (ast.With, ast.AsyncWith)):
-                self._bind_context_clients(statement.items, aliases, clients)
+                self._bind_context_clients(statement.items, aliases, clients, responses)
                 continue
             targets = self._assignment_names(statement)
             for target in targets:
@@ -134,7 +167,8 @@ class OpenAPITestConverter:
             example = self._request_example(value, clients)
             self._bind_clients(targets, value, aliases, clients)
             if example is not None:
-                examples[example["operation_id"]] = example
+                request = example["request"]
+                examples[request["method"], request["path"]] = example
                 responses.update(dict.fromkeys(targets, example))
         return examples
 
@@ -152,10 +186,24 @@ class OpenAPITestConverter:
             aliases.pop(target, None)
 
     @staticmethod
-    def _bind_context_clients(items: Sequence[ast.withitem], aliases: dict[str, str], clients: set[str]) -> None:
+    def _bind_context_clients(
+        items: Sequence[ast.withitem],
+        aliases: dict[str, str],
+        clients: set[str],
+        responses: dict[str, dict[str, Any]],
+    ) -> None:
         for item in items:
-            if isinstance(item.optional_vars, ast.Name):
-                OpenAPITestConverter._bind_clients([item.optional_vars.id], item.context_expr, aliases, clients)
+            if item.optional_vars is None:
+                continue
+            targets = [
+                node.id
+                for node in ast.walk(item.optional_vars)
+                if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store)
+            ]
+            for target in targets:
+                responses.pop(target, None)
+            value = item.context_expr if isinstance(item.optional_vars, ast.Name) else ast.Constant(None)
+            OpenAPITestConverter._bind_clients(targets, value, aliases, clients)
 
     def _request_example(self, value: ast.AST | None, clients: set[str]) -> dict[str, Any] | None:
         if isinstance(value, ast.Await):
@@ -167,7 +215,9 @@ class OpenAPITestConverter:
         if method not in HTTP_METHODS or not path or qualified_name(value.func.value, {}) not in clients:
             return None
         operation = f"{method}_{path.replace('/', '_').replace('-', '_').strip('_')}"
-        body = self._extract_json_arg(value, "json") or self._extract_json_arg(value, "data") or {}
+        body = self._extract_json_arg(value, "json", unavailable=_ABSENT_BODY)
+        if body is _ABSENT_BODY:
+            body = self._extract_json_arg(value, "data", unavailable={})
         return {
             "operation_id": operation,
             "request": {"path": path, "method": method.upper(), "body": body},
@@ -206,9 +256,11 @@ class OpenAPITestConverter:
         """Return a literal string argument."""
         if index < len(call.args):
             arg = call.args[index]
-            if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
-                return arg.value
-        return None
+        elif index == 0:
+            arg = next((keyword.value for keyword in call.keywords if keyword.arg == "url"), None)
+        else:
+            return None
+        return arg.value if isinstance(arg, ast.Constant) and isinstance(arg.value, str) else None
 
     def _coerce_ast_dict_to_plain(self, value: ast.Dict) -> dict[str, Any]:
         result: dict[str, Any] = {}
@@ -222,15 +274,17 @@ class OpenAPITestConverter:
         return result
 
     @beartype
-    def _extract_json_arg(self, call: ast.Call, keyword: str) -> dict[str, Any] | None:
-        """Extract JSON/data argument from function call."""
+    def _extract_json_arg(self, call: ast.Call, keyword: str, *, unavailable: Any = None) -> Any:
+        """Extract a JSON literal and preserve falsey values."""
         for keyword_arg in call.keywords:
             if keyword_arg.arg != keyword:
                 continue
             inner = keyword_arg.value
-            if isinstance(inner, ast.Dict):
-                return self._coerce_ast_dict_to_plain(inner)
-        return None
+            if isinstance(inner, (ast.Dict, ast.List)):
+                return self._extract_ast_value(inner)
+            if isinstance(inner, ast.Constant) and isinstance(inner.value, (str, int, float, bool, type(None))):
+                return inner.value
+        return unavailable
 
     @beartype
     def _extract_ast_value(self, node: ast.AST) -> Any:

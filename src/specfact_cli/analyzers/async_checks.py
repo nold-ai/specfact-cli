@@ -282,12 +282,22 @@ def _scope_findings(
         yield "missing-cancellation-handling", scope
 
 
-_LexicalScope = ast.Module | ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef
+_LexicalScope = (
+    ast.Module
+    | ast.FunctionDef
+    | ast.AsyncFunctionDef
+    | ast.ClassDef
+    | ast.Lambda
+    | ast.ListComp
+    | ast.SetComp
+    | ast.DictComp
+    | ast.GeneratorExp
+)
 
 
 def _enclosing_scope(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> _LexicalScope | None:
     while (parent := parents.get(node)) is not None:
-        if isinstance(parent, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        if isinstance(parent, _LexicalScope):
             return parent
         node = parent
     return None
@@ -295,11 +305,17 @@ def _enclosing_scope(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> _Lexical
 
 def _scope_functions(tree: ast.Module, parents: dict[ast.AST, ast.AST]) -> dict[_LexicalScope, dict[str, bool]]:
     definitions: dict[_LexicalScope, dict[str, bool]] = {}
-    functions = (node for node in ast.walk(tree) if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)))
-    for function in sorted(functions, key=lambda node: node.lineno):
-        owner = _enclosing_scope(function, parents)
+    bindings = (
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        or (isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store))
+    )
+    for node in sorted(bindings, key=lambda item: (item.lineno, item.col_offset)):
+        owner = _enclosing_scope(node, parents)
         if owner is not None:
-            definitions.setdefault(owner, {})[function.name] = isinstance(function, ast.AsyncFunctionDef)
+            name = node.id if isinstance(node, ast.Name) else node.name
+            definitions.setdefault(owner, {})[name] = isinstance(node, ast.AsyncFunctionDef)
     return definitions
 
 

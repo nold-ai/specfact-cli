@@ -25,7 +25,6 @@ CALL_RULES = {
     "random.randint": "insecure-random",
 }
 SHELL_CALLS = {"subprocess.call", "subprocess.Popen", "subprocess.run"}
-SUPPORTED_MODULES = {"builtins", "hashlib", "os", "pickle", "random", "subprocess"}
 RULES = {*CALL_RULES.values(), "hardcoded-secret", "unsafe-eval-usage"}
 
 
@@ -35,7 +34,7 @@ class Finding(NamedTuple):
     line: int
 
 
-class _UnsupportedGlobalImportError(ValueError):
+class _UnsupportedOuterImportError(ValueError):
     """An import changes a module binding outside its lexical body."""
 
 
@@ -82,26 +81,32 @@ def _baseline_entry(raw: object, index: int) -> Finding:
     return Finding(rule, path, line)
 
 
-def _import_aliases(nodes: list[ast.AST]) -> dict[str, str]:
-    aliases: dict[str, str] = {}
+def _import_bindings(node: ast.AST) -> dict[str, str]:
+    if isinstance(node, ast.Import):
+        return {
+            item.asname or item.name.partition(".")[0]: item.name if item.asname else item.name.partition(".")[0]
+            for item in node.names
+        }
+    if isinstance(node, ast.ImportFrom):
+        module = "." * node.level + (node.module or "")
+        return {item.asname or item.name: f"{module}.{item.name}" for item in node.names if item.name != "*"}
+    return {}
+
+
+def _scope_imports(nodes: list[ast.AST]) -> dict[str, set[str]]:
+    aliases: dict[str, set[str]] = {}
     for node in nodes:
-        if isinstance(node, ast.Import):
-            aliases.update(
-                {item.asname or item.name: item.name for item in node.names if item.name in SUPPORTED_MODULES}
-            )
-        if isinstance(node, ast.ImportFrom) and node.level == 0 and node.module in SUPPORTED_MODULES:
-            aliases.update(
-                {item.asname or item.name: f"{node.module}.{item.name}" for item in node.names if item.name != "*"}
-            )
+        for name, target in _import_bindings(node).items():
+            aliases.setdefault(name, set()).add(target)
     return aliases
 
 
-def _call_name(func: ast.expr, aliases: dict[str, str]) -> str:
+def _call_names(func: ast.expr, aliases: dict[str, set[str]]) -> Iterator[str]:
     if isinstance(func, ast.Name):
-        return aliases.get(func.id, func.id)
-    if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
-        return f"{aliases.get(func.value.id, func.value.id)}.{func.attr}"
-    return ""
+        yield from aliases.get(func.id, {func.id})
+    elif isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
+        for module in aliases.get(func.value.id, {func.value.id}):
+            yield f"{module}.{func.attr}"
 
 
 def _literal_keyword(node: ast.Call, name: str, value: bool) -> bool:
@@ -144,18 +149,25 @@ def _scope_nodes(body: list[ast.stmt]) -> Iterator[ast.AST]:
         pending.extend(reversed(children))
 
 
+def _reject_outer_imports(nodes: list[ast.AST], local_aliases: dict[str, set[str]]) -> None:
+    for node in nodes:
+        if isinstance(node, (ast.Global, ast.Nonlocal)) and local_aliases.keys() & set(node.names):
+            scope = "global" if isinstance(node, ast.Global) else "nonlocal"
+            raise _UnsupportedOuterImportError(f"{scope} import alias requires flow analysis")
+
+
 def _scope_findings(
-    body: list[ast.stmt], inherited: dict[str, str], path: str, *, class_body: bool = False
+    body: list[ast.stmt], inherited: dict[str, set[str]], path: str, *, class_body: bool = False
 ) -> Iterator[Finding]:
     nodes = list(_scope_nodes(body))
-    local_aliases = _import_aliases(nodes)
-    global_names = {name for node in nodes if isinstance(node, ast.Global) for name in node.names}
-    if global_names.intersection(local_aliases):
-        raise _UnsupportedGlobalImportError
-    aliases = inherited | local_aliases
-    # A class body has a local namespace that its methods do not close over.
-    nested_inherited = inherited if class_body else aliases
+    local_aliases = _scope_imports(nodes)
+    _reject_outer_imports(nodes, local_aliases)
+    aliases = inherited.copy()
+    # Class namespaces do not close over method bodies. Other nested functions
+    # can run before or after an enclosing import rebinds a name.
+    nested_inherited = inherited if class_body else inherited | local_aliases
     for node in nodes:
+        aliases.update({name: {target} for name, target in _import_bindings(node).items()})
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             yield from _scope_findings(node.body, nested_inherited, path, class_body=isinstance(node, ast.ClassDef))
             continue
@@ -164,9 +176,9 @@ def _scope_findings(
             continue
         if not isinstance(node, ast.Call):
             continue
-        rule = _call_rule(node, _call_name(node.func, aliases))
-        if rule:
-            yield Finding(rule, path, node.lineno)
+        for name in _call_names(node.func, aliases):
+            if rule := _call_rule(node, name):
+                yield Finding(rule, path, node.lineno)
 
 
 def _read_source(root: Path, path: str) -> ast.Module:
@@ -210,8 +222,8 @@ def _run(root: Path, baseline_path: Path, output: Path) -> int:
             file_findings = set(_scope_findings(tree.body, {}, path))
         except (OSError, RuntimeError):
             diagnostics.append({"path": path, "message": "unavailable input"})
-        except _UnsupportedGlobalImportError:
-            diagnostics.append({"path": path, "message": "global import alias requires flow analysis"})
+        except _UnsupportedOuterImportError as error:
+            diagnostics.append({"path": path, "message": str(error)})
         except (LookupError, SyntaxError, ValueError):
             diagnostics.append({"path": path, "message": "invalid Python"})
         else:

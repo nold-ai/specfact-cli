@@ -10,6 +10,15 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.55.19] - 2026-11-27
+
+### Fixed
+
+- Preserve reviewed scanner and OpenAPI binding fixes when promoting the current development release.
+- Keep system tools available to isolated smoke launchers and verify the exact compatibility fixtures.
+
+---
+
 ## [0.55.18] - 2026-11-26
 
 ### Fixed
@@ -181,6 +190,15 @@ All notable changes to this project will be documented in this file.
   preserving complete plan equality and original failing-first evidence.
 - Isolate direct and console marketplace smoke installations from the running
   pytest environment and use reviewed, hash-pinned module dependencies.
+
+---
+
+## [0.55.5] - 2026-11-26
+
+### Security
+
+- Backport the reviewed in-process scanners and frozen dependency graph from
+  core PR #799. The locked delivery uses only the approved pycparser wheel.
 
 ---
 
